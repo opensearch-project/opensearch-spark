@@ -5,63 +5,60 @@
 
 package org.opensearch.flint.spark.skipping.minmax
 
+import org.opensearch.flint.spark.skipping.{FlintSparkSkippingStrategy, FlintSparkSkippingStrategySuite}
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.expressions.{Abs, And, AttributeReference, EqualTo, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal, Or}
+import org.apache.spark.sql.catalyst.expressions.{Abs, And, AttributeReference, EqualTo, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.IntegerType
 
-class MinMaxSkippingStrategySuite extends SparkFunSuite with Matchers {
+class MinMaxSkippingStrategySuite
+    extends SparkFunSuite
+    with FlintSparkSkippingStrategySuite
+    with Matchers {
 
-  private val strategy = MinMaxSkippingStrategy(columnName = "age", columnType = "integer")
+  override val strategy: FlintSparkSkippingStrategy =
+    MinMaxSkippingStrategy(columnName = "age", columnType = "integer")
 
-  private val indexCol = AttributeReference("age", IntegerType, nullable = false)()
-
-  private val minCol = col("MinMax_age_0").expr
-  private val maxCol = col("MinMax_age_1").expr
+  private val age = AttributeReference("age", IntegerType, nullable = false)()
+  private val minAge = col("MinMax_age_0")
+  private val maxAge = col("MinMax_age_1")
 
   test("should rewrite EqualTo(<indexCol>, <value>)") {
-    strategy.rewritePredicate(EqualTo(indexCol, Literal(30))) shouldBe Some(
-      And(LessThanOrEqual(minCol, Literal(30)), GreaterThanOrEqual(maxCol, Literal(30))))
+    EqualTo(age, Literal(30)) shouldRewriteTo (minAge <= 30 && maxAge >= 30)
   }
 
   test("should rewrite LessThan(<indexCol>, <value>)") {
-    strategy.rewritePredicate(LessThan(indexCol, Literal(30))) shouldBe Some(
-      LessThan(minCol, Literal(30)))
+    LessThan(age, Literal(30)) shouldRewriteTo (minAge < 30)
   }
 
   test("should rewrite LessThanOrEqual(<indexCol>, <value>)") {
-    strategy.rewritePredicate(LessThanOrEqual(indexCol, Literal(30))) shouldBe Some(
-      LessThanOrEqual(minCol, Literal(30)))
+    LessThanOrEqual(age, Literal(30)) shouldRewriteTo (minAge <= 30)
   }
 
   test("should rewrite GreaterThan(<indexCol>, <value>)") {
-    strategy.rewritePredicate(GreaterThan(indexCol, Literal(30))) shouldBe Some(
-      GreaterThan(maxCol, Literal(30)))
+    GreaterThan(age, Literal(30)) shouldRewriteTo (maxAge > 30)
   }
 
   test("should rewrite GreaterThanOrEqual(<indexCol>, <value>)") {
-    strategy.rewritePredicate(GreaterThanOrEqual(indexCol, Literal(30))) shouldBe Some(
-      GreaterThanOrEqual(maxCol, Literal(30)))
+    GreaterThanOrEqual(age, Literal(30)) shouldRewriteTo (maxAge >= 30)
   }
 
   test("should rewrite In(<indexCol>, <value1, value2 ...>") {
-    strategy.rewritePredicate(In(indexCol, Seq(Literal(25), Literal(30)))) shouldBe Some(
-      Or(
-        And(LessThanOrEqual(minCol, Literal(25)), GreaterThanOrEqual(maxCol, Literal(25))),
-        And(LessThanOrEqual(minCol, Literal(30)), GreaterThanOrEqual(maxCol, Literal(30)))))
+    val predicate = In(age, Seq(Literal(25), Literal(30)))
+
+    predicate shouldRewriteTo ((minAge <= 25 && maxAge >= 25) || (minAge <= 30 && maxAge >= 30))
   }
 
   test("should not rewrite inapplicable predicate") {
-    strategy.rewritePredicate(EqualTo(indexCol, Abs(Literal(30)))) shouldBe empty
+    EqualTo(age, Abs(Literal(30))) shouldNotRewrite ()
   }
 
   test("should only rewrite applicable predicate in conjunction") {
     val predicate =
-      And(EqualTo(indexCol, Literal(30)), EqualTo(indexCol, Abs(Literal(35))))
+      And(EqualTo(age, Literal(30)), EqualTo(age, Abs(Literal(35))))
 
-    strategy.rewritePredicate(predicate) shouldBe Some(
-      And(LessThanOrEqual(minCol, Literal(30)), GreaterThanOrEqual(maxCol, Literal(30))))
+    predicate shouldRewriteTo (minAge <= 30 && maxAge >= 30)
   }
 }

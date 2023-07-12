@@ -5,40 +5,43 @@
 
 package org.opensearch.flint.spark.skipping.valueset
 
+import org.opensearch.flint.spark.skipping.{FlintSparkSkippingStrategy, FlintSparkSkippingStrategySuite}
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.expressions.{Abs, And, AttributeReference, EqualTo, GreaterThanOrEqual, Literal}
+import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StringType
 
-class ValueSetSkippingStrategySuite extends SparkFunSuite with Matchers {
+class ValueSetSkippingStrategySuite
+    extends SparkFunSuite
+    with FlintSparkSkippingStrategySuite
+    with Matchers {
 
-  private val strategy = ValueSetSkippingStrategy(columnName = "name", columnType = "string")
+  override val strategy: FlintSparkSkippingStrategy =
+    ValueSetSkippingStrategy(columnName = "name", columnType = "string")
 
-  private val indexCol = AttributeReference("name", StringType, nullable = false)()
+  private val name = AttributeReference("name", StringType, nullable = false)()
 
   test("should rewrite EqualTo(<indexCol>, <value>)") {
-    strategy.rewritePredicate(EqualTo(indexCol, Literal("hello"))) shouldBe Some(
-      EqualTo(UnresolvedAttribute("name"), Literal("hello")))
+    EqualTo(name, Literal("hello")) shouldRewriteTo (col("name") === "hello")
   }
 
   test("should not rewrite predicate with other column") {
     val predicate =
       EqualTo(AttributeReference("address", StringType, nullable = false)(), Literal("hello"))
 
-    strategy.rewritePredicate(predicate) shouldBe empty
+    predicate shouldNotRewrite ()
   }
 
   test("should not rewrite inapplicable predicate") {
-    strategy.rewritePredicate(EqualTo(indexCol, Abs(Literal("hello")))) shouldBe empty
+    EqualTo(name, Abs(Literal("hello"))) shouldNotRewrite ()
   }
 
   test("should only rewrite applicable predicate in conjunction") {
     val predicate =
-      And(EqualTo(indexCol, Literal("hello")), GreaterThanOrEqual(indexCol, Literal("world")))
+      And(EqualTo(name, Literal("hello")), GreaterThanOrEqual(name, Literal("world")))
 
-    strategy.rewritePredicate(predicate) shouldBe Some(
-      EqualTo(UnresolvedAttribute("name"), Literal("hello")))
+    predicate shouldRewriteTo (col("name") === "hello")
   }
 }
