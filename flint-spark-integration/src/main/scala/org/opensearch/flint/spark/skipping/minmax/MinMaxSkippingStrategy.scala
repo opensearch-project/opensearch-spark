@@ -8,7 +8,7 @@ package org.opensearch.flint.spark.skipping.minmax
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, SkippingKind}
 
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, EqualTo, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal, Or, Predicate}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, EqualTo, Expression, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal, Or}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, Max, Min}
 import org.apache.spark.sql.functions.col
 
@@ -31,21 +31,31 @@ case class MinMaxSkippingStrategy(
   override def getAggregators: Seq[AggregateFunction] =
     Seq(Min(col(columnName).expr), Max(col(columnName).expr))
 
-  override def rewritePredicate(predicate: Predicate): Option[Predicate] =
+  override def rewritePredicate(predicate: Expression): Option[Expression] =
     predicate.collect {
       case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        convertToPredicate(col(minColName) <= value && col(maxColName) >= value)
+        (col(minColName) <= value && col(maxColName) >= value).expr
       case LessThan(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        convertToPredicate(col(minColName) < value)
+        (col(minColName) < value).expr
       case LessThanOrEqual(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        convertToPredicate(col(minColName) <= value)
+        (col(minColName) <= value).expr
       case GreaterThan(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        convertToPredicate(col(maxColName) > value)
+        (col(maxColName) > value).expr
       case GreaterThanOrEqual(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        convertToPredicate(col(maxColName) >= value)
-      case In(AttributeReference(`columnName`, _, _, _), values: Seq[Literal]) =>
+        (col(maxColName) >= value).expr
+      case In(AttributeReference(`columnName`, _, _, _), AllLiterals(values)) =>
         values
-          .map(value => convertToPredicate(col(minColName) <= value && col(maxColName) >= value))
+          .map(value => (col(minColName) <= value && col(maxColName) >= value).expr)
           .reduceLeft(Or)
     }.headOption
+
+  object AllLiterals {
+    def unapply(values: Seq[Expression]): Option[Seq[Literal]] = {
+      if (values.forall(_.isInstanceOf[Literal])) {
+        Some(values.asInstanceOf[Seq[Literal]])
+      } else {
+        None
+      }
+    }
+  }
 }

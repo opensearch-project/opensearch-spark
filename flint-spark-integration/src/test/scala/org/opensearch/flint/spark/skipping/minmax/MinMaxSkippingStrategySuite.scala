@@ -8,7 +8,7 @@ package org.opensearch.flint.spark.skipping.minmax
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, EqualTo, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal, Or}
+import org.apache.spark.sql.catalyst.expressions.{Abs, And, AttributeReference, EqualTo, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal, Or}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.IntegerType
 
@@ -51,5 +51,17 @@ class MinMaxSkippingStrategySuite extends SparkFunSuite with Matchers {
       Or(
         And(LessThanOrEqual(minCol, Literal(25)), GreaterThanOrEqual(maxCol, Literal(25))),
         And(LessThanOrEqual(minCol, Literal(30)), GreaterThanOrEqual(maxCol, Literal(30)))))
+  }
+
+  test("should not rewrite inapplicable predicate") {
+    strategy.rewritePredicate(EqualTo(indexCol, Abs(Literal(30)))) shouldBe empty
+  }
+
+  test("should only rewrite applicable predicate in conjunction") {
+    val predicate =
+      And(EqualTo(indexCol, Literal(30)), EqualTo(indexCol, Abs(Literal(35))))
+
+    strategy.rewritePredicate(predicate) shouldBe Some(
+      And(LessThanOrEqual(minCol, Literal(30)), GreaterThanOrEqual(maxCol, Literal(30))))
   }
 }

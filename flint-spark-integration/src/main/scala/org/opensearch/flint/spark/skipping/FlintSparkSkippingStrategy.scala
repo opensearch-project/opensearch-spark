@@ -9,8 +9,7 @@ import org.json4s.CustomSerializer
 import org.json4s.JsonAST.JString
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.SkippingKind
 
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.catalyst.expressions.Predicate
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 
 /**
@@ -54,10 +53,7 @@ trait FlintSparkSkippingStrategy {
    * @return
    *   new filtering condition on index data or empty if index not applicable
    */
-  def rewritePredicate(predicate: Predicate): Option[Predicate]
-
-  // Convert a column to a predicate
-  protected def convertToPredicate(col: Column): Predicate = col.expr.asInstanceOf[Predicate]
+  def rewritePredicate(predicate: Expression): Option[Expression]
 }
 
 object FlintSparkSkippingStrategy {

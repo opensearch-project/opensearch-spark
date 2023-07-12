@@ -8,7 +8,7 @@ package org.opensearch.flint.spark.skipping.partition
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{PARTITION, SkippingKind}
 
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, EqualTo, Literal, Predicate}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, EqualTo, Expression, Literal}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, First}
 import org.apache.spark.sql.functions.col
 
@@ -29,10 +29,10 @@ case class PartitionSkippingStrategy(
     Seq(First(col(columnName).expr, ignoreNulls = true))
   }
 
-  override def rewritePredicate(predicate: Predicate): Option[Predicate] = {
+  override def rewritePredicate(predicate: Expression): Option[Expression] = {
     // Column has same name in index data, so just rewrite to the same equation
     predicate.collect { case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-      convertToPredicate(col(columnName) === value)
+      (col(columnName) === value).expr
     }.headOption
   }
 }

@@ -9,7 +9,7 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
-import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, EqualTo, GreaterThan, Literal}
+import org.apache.spark.sql.catalyst.expressions.{Abs, And, AttributeReference, EqualTo, GreaterThanOrEqual, Literal}
 import org.apache.spark.sql.types.IntegerType
 
 class PartitionSkippingStrategySuite extends SparkFunSuite with Matchers {
@@ -30,13 +30,13 @@ class PartitionSkippingStrategySuite extends SparkFunSuite with Matchers {
     strategy.rewritePredicate(predicate) shouldBe empty
   }
 
-  test("should not rewrite GreaterThan(<indexCol>, <value>)") {
-    strategy.rewritePredicate(GreaterThan(indexCol, Literal(2023))) shouldBe empty
+  test("should not rewrite inapplicable predicate") {
+    strategy.rewritePredicate(EqualTo(indexCol, Abs(Literal(2023)))) shouldBe empty
   }
 
-  test("should only rewrite EqualTo(<indexCol>, <value>) in conjunction") {
+  test("should only rewrite applicable predicate in conjunction") {
     val predicate =
-      And(EqualTo(indexCol, Literal(2023)), GreaterThan(indexCol, Literal(2023)))
+      And(EqualTo(indexCol, Literal(2023)), GreaterThanOrEqual(indexCol, Literal(2022)))
 
     strategy.rewritePredicate(predicate) shouldBe Some(
       EqualTo(UnresolvedAttribute("year"), Literal(2023)))

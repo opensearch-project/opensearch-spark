@@ -9,7 +9,7 @@ import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, SKIPPING_INDEX_TYPE}
 
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.catalyst.expressions.{And, Predicate}
+import org.apache.spark.sql.catalyst.expressions.{And, Expression, Predicate}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
@@ -33,7 +33,6 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
             _,
             Some(table),
             false)) if !location.isInstanceOf[FlintSparkSkippingFileIndex] =>
-
       val indexName = getSkippingIndexName(table.identifier.table) // TODO: database name
       val index = flint.describeIndex(indexName)
       if (index.exists(_.kind == SKIPPING_INDEX_TYPE)) {
@@ -62,13 +61,13 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
 
   private def rewriteToIndexFilter(
       index: FlintSparkSkippingIndex,
-      condition: Predicate): Option[Predicate] = {
+      condition: Expression): Option[Expression] = {
 
     // TODO: currently only handle conjunction, namely the given condition is consist of
     //  one or more expression concatenated by AND only.
     index.indexedColumns
       .flatMap(index => index.rewritePredicate(condition))
-      .reduceOption(And(_, _))
+      .reduceOption(And)
   }
 
   private def buildIndexScan(index: FlintSparkSkippingIndex): DataFrame = {
