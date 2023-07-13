@@ -20,7 +20,6 @@ import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{Column, QueryTest, Row}
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
-import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf._
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.streaming.StreamTest
@@ -164,13 +163,7 @@ class FlintSparkSkippingIndexITSuite
     jobId shouldBe empty
 
     // TODO: add query index API to avoid this duplicate
-    val indexData =
-      spark.read
-        .format(FLINT_DATASOURCE)
-        .options(openSearchOptions)
-        .load(testIndex)
-        .collect()
-        .toSet
+    val indexData = flint.queryIndex(testIndex).collect().toSet
     indexData should have size 2
   }
 
@@ -190,13 +183,7 @@ class FlintSparkSkippingIndexITSuite
       job.processAllAvailable()
     }
 
-    val indexData =
-      spark.read
-        .format(FLINT_DATASOURCE)
-        .options(openSearchOptions)
-        .load(testIndex)
-        .collect()
-        .toSet
+    val indexData = flint.queryIndex(testIndex).collect().toSet
     indexData should have size 2
   }
 
