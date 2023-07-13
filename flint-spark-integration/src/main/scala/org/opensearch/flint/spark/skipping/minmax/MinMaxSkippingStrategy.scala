@@ -32,23 +32,26 @@ case class MinMaxSkippingStrategy(
     Seq(Min(col(columnName).expr), Max(col(columnName).expr))
 
   override def rewritePredicate(predicate: Expression): Option[Expression] =
-    predicate.collect {
+    predicate match {
       case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        (col(minColName) <= value && col(maxColName) >= value).expr
+        Some((col(minColName) <= value && col(maxColName) >= value).expr)
       case LessThan(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        (col(minColName) < value).expr
+        Some((col(minColName) < value).expr)
       case LessThanOrEqual(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        (col(minColName) <= value).expr
+        Some((col(minColName) <= value).expr)
       case GreaterThan(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        (col(maxColName) > value).expr
+        Some((col(maxColName) > value).expr)
       case GreaterThanOrEqual(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        (col(maxColName) >= value).expr
+        Some((col(maxColName) >= value).expr)
       case In(AttributeReference(`columnName`, _, _, _), AllLiterals(values)) =>
-        values
-          .map(value => (col(minColName) <= value && col(maxColName) >= value).expr)
-          .reduceLeft(Or)
-    }.headOption
+        Some(
+          values
+            .map(value => (col(minColName) <= value && col(maxColName) >= value).expr)
+            .reduceLeft(Or))
+      case _ => None
+    }
 
+  /** Need this because Scala pattern match doesn't work for generic type like Seq[Literal] */
   object AllLiterals {
     def unapply(values: Seq[Expression]): Option[Seq[Literal]] = {
       if (values.forall(_.isInstanceOf[Literal])) {

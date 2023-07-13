@@ -73,6 +73,7 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
 
     condition match {
       case and: And =>
+        // Rewrite left and right expression recursively
         and.children.flatMap(child => rewriteToIndexFilter(index, child)).reduceOption(And)
       case expr => tryEachStrategy(expr)
     }

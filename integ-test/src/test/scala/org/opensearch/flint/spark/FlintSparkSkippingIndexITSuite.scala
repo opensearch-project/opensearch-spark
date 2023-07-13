@@ -162,7 +162,6 @@ class FlintSparkSkippingIndexITSuite
     val jobId = flint.refreshIndex(testIndex, FULL)
     jobId shouldBe empty
 
-    // TODO: add query index API to avoid this duplicate
     val indexData = flint.queryIndex(testIndex).collect().toSet
     indexData should have size 2
   }

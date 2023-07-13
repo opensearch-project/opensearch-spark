@@ -19,7 +19,7 @@ import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.catalog.{CatalogStorageFormat, CatalogTable, CatalogTableType}
-import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, EqualTo, Expression, Literal, Or}
+import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, EqualTo, Expression, ExprId, Literal, Or}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project, SubqueryAlias}
 import org.apache.spark.sql.execution.datasources.{FileIndex, HadoopFsRelation, LogicalRelation}
@@ -29,15 +29,22 @@ import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructT
 
 class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
 
+  /** Test table and index */
   private val testTable = "apply_skipping_index_test"
   private val testIndex = getSkippingIndexName(testTable)
   private val testSchema = StructType(
     Seq(
       StructField("name", StringType, nullable = false),
-      StructField("age", IntegerType, nullable = false)))
+      StructField("age", IntegerType, nullable = false),
+      StructField("address", StringType, nullable = false)))
 
-  private val nameCol = AttributeReference("name", StringType, nullable = false)()
-  private val ageCol = AttributeReference("age", IntegerType, nullable = false)()
+  /** Resolved column reference used in filtering condition */
+  private val nameCol =
+    AttributeReference("name", StringType, nullable = false)(exprId = ExprId(1))
+  private val ageCol =
+    AttributeReference("age", IntegerType, nullable = false)(exprId = ExprId(2))
+  private val addressCol =
+    AttributeReference("address", StringType, nullable = false)(exprId = ExprId(3))
 
   test("should not rewrite query if no skipping index") {
     assertFlintQueryRewriter()
@@ -88,6 +95,16 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
       .withFilter(And(EqualTo(nameCol, Literal("hello")), EqualTo(ageCol, Literal(30))))
       .withSkippingIndex(testIndex, "name", "age")
       .shouldPushDownAfterRewrite(col("name") === "hello" && col("age") === 30)
+
+    assertFlintQueryRewriter()
+      .withSourceTable(testTable, testSchema)
+      .withFilter(
+        And(
+          EqualTo(nameCol, Literal("hello")),
+          And(EqualTo(ageCol, Literal(30)), EqualTo(addressCol, Literal("Seattle")))))
+      .withSkippingIndex(testIndex, "name", "age", "address")
+      .shouldPushDownAfterRewrite(
+        col("name") === "hello" && col("age") === 30 && col("address") === "Seattle")
   }
 
   private def assertFlintQueryRewriter(): AssertionHelper = {

@@ -29,10 +29,11 @@ case class PartitionSkippingStrategy(
     Seq(First(col(columnName).expr, ignoreNulls = true))
   }
 
-  override def rewritePredicate(predicate: Expression): Option[Expression] = {
-    // Column has same name in index data, so just rewrite to the same equation
-    predicate.collect { case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-      (col(columnName) === value).expr
-    }.headOption
-  }
+  override def rewritePredicate(predicate: Expression): Option[Expression] =
+    predicate match {
+      // Column has same name in index data, so just rewrite to the same equation
+      case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
+        Some((col(columnName) === value).expr)
+      case _ => None
+    }
 }

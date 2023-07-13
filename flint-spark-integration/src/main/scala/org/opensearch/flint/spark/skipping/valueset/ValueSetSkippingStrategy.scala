@@ -27,13 +27,14 @@ case class ValueSetSkippingStrategy(
   override def getAggregators: Seq[AggregateFunction] =
     Seq(CollectSet(col(columnName).expr))
 
-  override def rewritePredicate(predicate: Expression): Option[Expression] = {
+  override def rewritePredicate(predicate: Expression): Option[Expression] =
     /*
      * This is supposed to be rewritten to ARRAY_CONTAINS(columName, value).
      * However, due to push down limitation in Spark, we keep the equation.
      */
-    predicate.collect { case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-      (col(columnName) === value).expr
-    }.headOption
-  }
+    predicate match {
+      case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
+        Some((col(columnName) === value).expr)
+      case _ => None
+    }
 }
