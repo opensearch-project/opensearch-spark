@@ -18,7 +18,6 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{Column, QueryTest, Row}
-import org.apache.spark.sql.catalyst.plans.logical.Filter
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
@@ -277,8 +276,7 @@ class FlintSparkSkippingIndexITSuite
 
     checkAnswer(query, Row("Hello"))
     query.queryExecution.executedPlan should
-      useFlintSparkSkippingFileIndex(
-        hasIndexFilter(col("year") === 2023 && col("month") === 4))
+      useFlintSparkSkippingFileIndex(hasIndexFilter(col("year") === 2023 && col("month") === 4))
   }
 
   test("can build value set skipping index and rewrite applicable query") {
@@ -297,8 +295,7 @@ class FlintSparkSkippingIndexITSuite
 
     checkAnswer(query, Row("World"))
     query.queryExecution.executedPlan should
-      useFlintSparkSkippingFileIndex(
-        hasIndexFilter(col("address") === "Seattle"))
+      useFlintSparkSkippingFileIndex(hasIndexFilter(col("address") === "Portland"))
   }
 
   test("can build min max skipping index and rewrite applicable query") {
@@ -366,7 +363,7 @@ class FlintSparkSkippingIndexITSuite
               _,
               _,
               _) =>
-          subMatcher(fileIndex)
+          fileIndex should subMatcher
       }.nonEmpty
 
       MatchResult(
@@ -379,12 +376,7 @@ class FlintSparkSkippingIndexITSuite
   // Custom matcher to check if FlintSparkSkippingFileIndex has expected filter condition
   def hasIndexFilter(expect: Column): Matcher[FlintSparkSkippingFileIndex] = {
     Matcher { (fileIndex: FlintSparkSkippingFileIndex) =>
-      val plan = fileIndex.indexScan.queryExecution.logical
-      val hasExpectedFilter = plan.find {
-        case Filter(actual, _) =>
-          actual.semanticEquals(expect.expr)
-        case _ => false
-      }.nonEmpty
+      val hasExpectedFilter = fileIndex.indexFilter.semanticEquals(expect.expr)
 
       MatchResult(
         hasExpectedFilter,
