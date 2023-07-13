@@ -8,6 +8,8 @@ lazy val scala212 = "2.12.14"
 lazy val sparkVersion = "3.3.1"
 lazy val opensearchVersion = "2.6.0"
 
+ThisBuild / organization := "org.opensearch"
+
 ThisBuild / version := "0.1.0-SNAPSHOT"
 
 ThisBuild / scalaVersion := scala212
@@ -51,20 +53,20 @@ lazy val flintCore = (project in file("flint-core"))
     libraryDependencies ++= Seq(
       "org.opensearch.client" % "opensearch-rest-client" % opensearchVersion,
       "org.opensearch.client" % "opensearch-rest-high-level-client" % opensearchVersion
-        exclude("org.apache.logging.log4j", "log4j-api"),
+        exclude ("org.apache.logging.log4j", "log4j-api"),
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
-        exclude("com.fasterxml.jackson.core", "jackson-databind") ))
+        exclude ("com.fasterxml.jackson.core", "jackson-databind")))
 
 lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
   .dependsOn(flintCore)
   .enablePlugins(AssemblyPlugin, Antlr4Plugin)
   .settings(
     commonSettings,
-    name := "flint-spark-integration",
+    name := "flint-spark",
     scalaVersion := scala212,
     libraryDependencies ++= Seq(
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
-        exclude("com.fasterxml.jackson.core", "jackson-databind"),
+        exclude ("com.fasterxml.jackson.core", "jackson-databind"),
       "org.scalactic" %% "scalactic" % "3.2.15",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
@@ -102,7 +104,7 @@ lazy val integtest = (project in file("integ-test"))
     scalaVersion := scala212,
     libraryDependencies ++= Seq(
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
-        exclude("com.fasterxml.jackson.core", "jackson-databind"),
+        exclude ("com.fasterxml.jackson.core", "jackson-databind"),
       "org.scalactic" %% "scalactic" % "3.2.15",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
