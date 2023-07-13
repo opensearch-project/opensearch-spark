@@ -160,6 +160,18 @@ class FlintSpark(val spark: SparkSession) {
     }
   }
 
+  /**
+   * Build data frame for querying the given index. This is mostly for unit test convenience.
+   *
+   * @param indexName
+   *   index name
+   * @return
+   *   index query data frame
+   */
+  def queryIndex(indexName: String): DataFrame = {
+    spark.read.format(FLINT_DATASOURCE).load(indexName)
+  }
+
   private def isIncrementalRefreshing(indexName: String): Boolean =
     spark.streams.active.exists(_.name == indexName)
 

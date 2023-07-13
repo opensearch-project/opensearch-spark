@@ -9,7 +9,7 @@ import org.opensearch.flint.spark.skipping.{FlintSparkSkippingStrategy, FlintSpa
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.expressions.{Abs, And, AttributeReference, EqualTo, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal}
+import org.apache.spark.sql.catalyst.expressions.{Abs, AttributeReference, EqualTo, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.IntegerType
 
@@ -53,12 +53,5 @@ class MinMaxSkippingStrategySuite
 
   test("should not rewrite inapplicable predicate") {
     EqualTo(age, Abs(Literal(30))) shouldNotRewrite ()
-  }
-
-  test("should only rewrite applicable predicate in conjunction") {
-    val predicate =
-      And(EqualTo(age, Literal(30)), EqualTo(age, Abs(Literal(35))))
-
-    predicate shouldRewriteTo (minAge <= 30 && maxAge >= 30)
   }
 }

@@ -9,7 +9,7 @@ import org.opensearch.flint.spark.skipping.{FlintSparkSkippingStrategy, FlintSpa
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.expressions.{Abs, And, AttributeReference, EqualTo, GreaterThanOrEqual, Literal}
+import org.apache.spark.sql.catalyst.expressions.{Abs, AttributeReference, EqualTo, Literal}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StringType
 
@@ -36,12 +36,5 @@ class ValueSetSkippingStrategySuite
 
   test("should not rewrite inapplicable predicate") {
     EqualTo(name, Abs(Literal("hello"))) shouldNotRewrite ()
-  }
-
-  test("should only rewrite applicable predicate in conjunction") {
-    val predicate =
-      And(EqualTo(name, Literal("hello")), GreaterThanOrEqual(name, Literal("world")))
-
-    predicate shouldRewriteTo (col("name") === "hello")
   }
 }

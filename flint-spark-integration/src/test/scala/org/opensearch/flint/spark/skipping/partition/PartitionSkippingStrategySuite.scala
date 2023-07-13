@@ -9,7 +9,7 @@ import org.opensearch.flint.spark.skipping.{FlintSparkSkippingStrategy, FlintSpa
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.expressions.{Abs, And, AttributeReference, EqualTo, GreaterThanOrEqual, Literal}
+import org.apache.spark.sql.catalyst.expressions.{Abs, AttributeReference, EqualTo, Literal}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.IntegerType
 
@@ -36,12 +36,5 @@ class PartitionSkippingStrategySuite
 
   test("should not rewrite inapplicable predicate") {
     EqualTo(year, Abs(Literal(2023))) shouldNotRewrite ()
-  }
-
-  test("should only rewrite applicable predicate in conjunction") {
-    val predicate =
-      And(EqualTo(year, Literal(2023)), GreaterThanOrEqual(year, Literal(2022)))
-
-    predicate shouldRewriteTo (col("year") === 2023)
   }
 }

@@ -21,13 +21,13 @@ trait FlintSparkSkippingStrategySuite {
 
     def shouldRewriteTo(right: Column): Unit = {
       val actual = strategy.rewritePredicate(left)
-      assert(actual.isDefined)
-      assert(actual.get == right.expr)
+      assert(actual.isDefined, s"Expected: ${right.expr}. Actual is None")
+      assert(actual.get == right.expr, s"Expected: ${right.expr}. Actual: ${actual.get}")
     }
 
     def shouldNotRewrite(): Unit = {
       val actual = strategy.rewritePredicate(left)
-      assert(actual.isEmpty)
+      assert(actual.isEmpty, s"Expected is None. Actual is ${actual.get}")
     }
   }
 }
