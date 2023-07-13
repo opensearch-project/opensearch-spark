@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - pulish-snapshot
 
 jobs:
   build-and-publish-snapshots:
@@ -35,7 +36,7 @@ jobs:
           path: 'build'
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v1.7.0
         with:
           role-to-assume: ${{ secrets.PUBLISH_SNAPSHOTS_ROLE }}
           aws-region: us-east-1
