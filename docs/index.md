@@ -304,4 +304,10 @@ TODO
 
 ## Limitations
 
+### Query Optimization
+
+For now, only single or conjunct conditions (conditions connected by AND) in WHERE clause can be optimized by skipping index.
+
+### Index Refresh Job Management
+
 Manual refreshing a table which already has skipping index being auto-refreshed, will be prevented. However, this assumption relies on the condition that the incremental refresh job is actively running in the same Spark cluster, which can be identified when performing the check.
