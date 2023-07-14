@@ -46,9 +46,9 @@ class MinMaxSkippingStrategySuite
   }
 
   test("should rewrite In(<indexCol>, <value1, value2 ...>") {
-    val predicate = In(age, Seq(Literal(25), Literal(30)))
+    val predicate = In(age, Seq(Literal(23), Literal(30), Literal(27)))
 
-    predicate shouldRewriteTo ((minAge <= 25 && maxAge >= 25) || (minAge <= 30 && maxAge >= 30))
+    predicate shouldRewriteTo (maxAge >= 23 && minAge <= 30)
   }
 
   test("should not rewrite inapplicable predicate") {

@@ -8,8 +8,9 @@ package org.opensearch.flint.spark.skipping.minmax
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, SkippingKind}
 
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, EqualTo, Expression, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal, Or}
+import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, EqualTo, Expression, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, Max, Min}
+import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.functions.col
 
 /**
@@ -43,11 +44,19 @@ case class MinMaxSkippingStrategy(
         Some((col(maxColName) > value).expr)
       case GreaterThanOrEqual(AttributeReference(`columnName`, _, _, _), value: Literal) =>
         Some((col(maxColName) >= value).expr)
-      case In(AttributeReference(`columnName`, _, _, _), AllLiterals(values)) =>
+      case In(column @ AttributeReference(`columnName`, _, _, _), AllLiterals(literals)) =>
+        /*
+         * First, convert IN to approximate range check: min(in_list) <= col <= max(in_list)
+         * to avoid long and maybe unnecessary comparison expressions.
+         */
+        val values = literals.map(_.value)
+        val ordering = TypeUtils.getInterpretedOrdering(column.dataType)
+        val minVal = values.min(ordering)
+        val maxVal = values.max(ordering)
         Some(
-          values
-            .map(value => (col(minColName) <= value && col(maxColName) >= value).expr)
-            .reduceLeft(Or))
+          And(
+            rewritePredicate(GreaterThanOrEqual(column, Literal(minVal))).get,
+            rewritePredicate(LessThanOrEqual(column, Literal(maxVal))).get))
       case _ => None
     }
 
