@@ -83,12 +83,6 @@ class FlintSparkSkippingIndexITSuite
 
     // Delete all test indices
     flint.deleteIndex(testIndex)
-
-    // Stop all streaming jobs if any
-    spark.streams.active.foreach { job =>
-      job.stop()
-      job.awaitTermination()
-    }
   }
 
   test("create skipping index with metadata successfully") {

@@ -30,6 +30,7 @@ import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
 import org.apache.spark.sql.streaming.OutputMode.Append
+import org.apache.spark.sql.streaming.StreamingQuery
 
 /**
  * Flint Spark integration API entrypoint.
@@ -144,7 +145,7 @@ class FlintSpark(val spark: SparkSession) {
   }
 
   /**
-   * Delete index.
+   * Delete index and refreshing job associated.
    *
    * @param indexName
    *   index name
@@ -154,6 +155,10 @@ class FlintSpark(val spark: SparkSession) {
   def deleteIndex(indexName: String): Boolean = {
     if (flintClient.exists(indexName)) {
       flintClient.deleteIndex(indexName)
+
+      if (isIncrementalRefreshing(indexName)) {
+        getRefreshingJob(indexName).get.stop()
+      }
       true
     } else {
       false
@@ -161,7 +166,10 @@ class FlintSpark(val spark: SparkSession) {
   }
 
   private def isIncrementalRefreshing(indexName: String): Boolean =
-    spark.streams.active.exists(_.name == indexName)
+    getRefreshingJob(indexName).isDefined
+
+  private def getRefreshingJob(indexName: String): Option[StreamingQuery] =
+    spark.streams.active.find(_.name == indexName)
 
   // TODO: Remove all parsing logic below once Flint spec finalized and FlintMetadata strong typed
   private def getSourceTableName(index: FlintSparkIndex): String = {
