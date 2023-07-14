@@ -304,6 +304,35 @@ class FlintSparkSkippingIndexITSuite
         hasIndexFilter(col("MinMax_age_0") <= 25 && col("MinMax_age_1") >= 25))
   }
 
+  test("should not rewrite original query if filtering condition has disjunction") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .addValueSet("address")
+      .create()
+
+    val queries = Seq(
+      s"""
+         | SELECT name
+         | FROM $testTable
+         | WHERE year = 2023 OR month = 4
+         |""".stripMargin,
+      s"""
+         | SELECT name
+         | FROM $testTable
+         | WHERE year = 2023 AND (month = 4 OR address = 'Seattle')
+         |""".stripMargin)
+
+    for (query <- queries) {
+      val actual = sql(query).queryExecution.optimizedPlan
+      withFlintOptimizerDisabled {
+        val expect = sql(query).queryExecution.optimizedPlan
+        actual shouldBe expect
+      }
+    }
+  }
+
   test("should rewrite applicable query to scan latest source files in hybrid scan mode") {
     flint
       .skippingIndex()
