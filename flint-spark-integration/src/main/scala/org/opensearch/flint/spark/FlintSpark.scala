@@ -155,10 +155,7 @@ class FlintSpark(val spark: SparkSession) {
   def deleteIndex(indexName: String): Boolean = {
     if (flintClient.exists(indexName)) {
       flintClient.deleteIndex(indexName)
-
-      if (isIncrementalRefreshing(indexName)) {
-        getRefreshingJob(indexName).get.stop()
-      }
+      stopRefreshingJob(indexName)
       true
     } else {
       false
@@ -166,10 +163,14 @@ class FlintSpark(val spark: SparkSession) {
   }
 
   private def isIncrementalRefreshing(indexName: String): Boolean =
-    getRefreshingJob(indexName).isDefined
+    spark.streams.active.exists(_.name == indexName)
 
-  private def getRefreshingJob(indexName: String): Option[StreamingQuery] =
-    spark.streams.active.find(_.name == indexName)
+  private def stopRefreshingJob(indexName: String): Unit = {
+    val job = spark.streams.active.find(_.name == indexName)
+    if (job.isDefined) {
+      job.get.stop()
+    }
+  }
 
   // TODO: Remove all parsing logic below once Flint spec finalized and FlintMetadata strong typed
   private def getSourceTableName(index: FlintSparkIndex): String = {
