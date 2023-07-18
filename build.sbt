@@ -43,7 +43,7 @@ lazy val commonSettings = Seq(
 lazy val root = (project in file("."))
   .aggregate(flintCore, flintSparkIntegration)
   .disablePlugins(AssemblyPlugin)
-  .settings(name := "flint")
+  .settings(name := "flint", publish / skip := true)
 
 lazy val flintCore = (project in file("flint-core"))
   .disablePlugins(AssemblyPlugin)
@@ -55,14 +55,15 @@ lazy val flintCore = (project in file("flint-core"))
       "org.opensearch.client" % "opensearch-rest-high-level-client" % opensearchVersion
         exclude ("org.apache.logging.log4j", "log4j-api"),
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
-        exclude ("com.fasterxml.jackson.core", "jackson-databind")))
+        exclude ("com.fasterxml.jackson.core", "jackson-databind")),
+    publish / skip := true)
 
 lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
   .dependsOn(flintCore)
   .enablePlugins(AssemblyPlugin, Antlr4Plugin)
   .settings(
     commonSettings,
-    name := "flint-spark",
+    name := "opensearch-spark",
     scalaVersion := scala212,
     libraryDependencies ++= Seq(
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
