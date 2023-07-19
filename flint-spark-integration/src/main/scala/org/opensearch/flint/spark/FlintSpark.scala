@@ -40,8 +40,8 @@ class FlintSpark(val spark: SparkSession) {
   private val flintSparkConf: FlintSparkConf =
     FlintSparkConf(
       Map(
-        DOC_ID_COLUMN_NAME.key -> ID_COLUMN,
-        IGNORE_DOC_ID_COLUMN.key -> "true"
+        DOC_ID_COLUMN_NAME.optionKey -> ID_COLUMN,
+        IGNORE_DOC_ID_COLUMN.optionKey -> "true"
       ).asJava)
 
   /** Flint client for low-level index operation */
@@ -96,6 +96,7 @@ class FlintSpark(val spark: SparkSession) {
         .build(df)
         .write
         .format(FLINT_DATASOURCE)
+        .options(flintSparkConf.properties)
         .mode(Overwrite)
         .save(indexName)
     }

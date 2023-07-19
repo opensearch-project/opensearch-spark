@@ -5,15 +5,14 @@
 
 package org.opensearch.flint.spark
 
-import scala.Option._
-
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.opensearch.flint.OpenSearchSuite
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
+import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.{Matcher, MatchResult}
-import org.scalatest.matchers.must.Matchers.{defined, have}
+import org.scalatest.matchers.must.Matchers._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
@@ -151,6 +150,18 @@ class FlintSparkSkippingIndexITSuite
         |   }
         | }
         |""".stripMargin)
+  }
+
+  test("should not have ID column in index data") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year")
+      .create()
+    flint.refreshIndex(testIndex, FULL)
+
+    val indexData = flint.queryIndex(testIndex)
+    indexData.columns should not contain ID_COLUMN
   }
 
   test("full refresh skipping index successfully") {
