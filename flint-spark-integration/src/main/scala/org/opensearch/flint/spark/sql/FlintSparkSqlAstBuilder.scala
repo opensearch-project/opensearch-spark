@@ -99,9 +99,6 @@ class FlintSparkSqlAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command
     }
   }
 
-  override def aggregateResult(aggregate: Command, nextResult: Command): Command =
-    if (nextResult != null) nextResult else aggregate
-
   private def getSkippingIndexName(flint: FlintSpark, tableNameCtx: RuleNode): String =
     FlintSparkSkippingIndex.getSkippingIndexName(getFullTableName(flint, tableNameCtx))
 
@@ -114,4 +111,7 @@ class FlintSparkSqlAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command
       s"$db.$tableName"
     }
   }
+
+  override def aggregateResult(aggregate: Command, nextResult: Command): Command =
+    if (nextResult != null) nextResult else aggregate
 }

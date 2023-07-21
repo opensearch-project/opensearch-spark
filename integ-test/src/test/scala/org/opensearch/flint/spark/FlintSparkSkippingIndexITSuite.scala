@@ -321,14 +321,14 @@ class FlintSparkSkippingIndexITSuite
         hasIndexFilter(col("MinMax_age_0") <= 25 && col("MinMax_age_1") >= 25))
   }
 
-  test("should rewrite applicable query with table name without schema specified") {
+  test("should rewrite applicable query with table name without database specified") {
     flint
       .skippingIndex()
       .onTable(testTable)
       .addPartitions("year")
       .create()
 
-    // Give table name only without schema name "default"
+    // Table name without database name "default"
     val query = sql(s"""
                        | SELECT name
                        | FROM test

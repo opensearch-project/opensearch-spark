@@ -36,7 +36,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("should fail if get index name without full table name") {
     assertThrows[IllegalArgumentException] {
-      new FlintSparkSkippingIndex("test", Seq(mock[FlintSparkSkippingStrategy])).name()
+      FlintSparkSkippingIndex.getSkippingIndexName("test")
     }
   }
 

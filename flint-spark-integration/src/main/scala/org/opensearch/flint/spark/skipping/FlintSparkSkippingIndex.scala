@@ -113,7 +113,7 @@ object FlintSparkSkippingIndex {
    *   Flint skipping index name
    */
   def getSkippingIndexName(tableName: String): String = {
-    require(tableName.contains("."), "Full table name schema.table is required")
+    require(tableName.contains("."), "Full table name database.table is required")
 
     s"flint_${tableName.replace(".", "_")}_skipping_index"
   }
