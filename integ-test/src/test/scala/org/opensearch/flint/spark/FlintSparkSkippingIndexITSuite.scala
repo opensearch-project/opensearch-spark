@@ -104,7 +104,7 @@ class FlintSparkSkippingIndexITSuite
     val index = flint.describeIndex(indexName)
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
-        |   "version": 1.0,
+        |   "version": "1.0.0",
         |   "_meta": {
         |     "kind": "skipping",
         |     "indexedColumns": [
