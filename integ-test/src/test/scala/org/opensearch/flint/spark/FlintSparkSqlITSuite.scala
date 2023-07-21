@@ -149,6 +149,15 @@ class FlintSparkSqlITSuite
     flint.describeIndex(testIndex) shouldBe defined
   }
 
+  test("create skipping index on table in other database") {
+    sql("CREATE SCHEMA sample")
+    sql("USE sample")
+    sql("CREATE TABLE test (name STRING) USING CSV")
+    sql("CREATE SKIPPING INDEX ON test (name VALUE_SET)")
+
+    flint.describeIndex("flint_sample_test_skipping_index") shouldBe defined
+  }
+
   test("should return empty if no skipping index to describe") {
     val result = sql(s"DESC SKIPPING INDEX ON $testTable")
 
