@@ -160,7 +160,11 @@ class FlintSparkSkippingIndexITSuite
       .create()
     flint.refreshIndex(testIndex, FULL)
 
-    val indexData = flint.queryIndex(testIndex)
+    val indexData =
+      spark.read
+        .format(FLINT_DATASOURCE)
+        .options(openSearchOptions)
+        .load(testIndex)
     indexData.columns should not contain ID_COLUMN
   }
 
