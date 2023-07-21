@@ -234,7 +234,7 @@ object FlintSpark {
      * Configure which source table the index is based on.
      *
      * @param tableName
-     *   source table name
+     *   full table name
      * @return
      *   index builder
      */

@@ -41,7 +41,7 @@ class FlintSparkSkippingIndexITSuite
   }
 
   /** Test table and index name */
-  private val testTable = "test"
+  private val testTable = "default.test"
   private val testIndex = getSkippingIndexName(testTable)
 
   override def beforeAll(): Unit = {
@@ -100,7 +100,7 @@ class FlintSparkSkippingIndexITSuite
       .addMinMax("age")
       .create()
 
-    val indexName = s"flint_${testTable}_skipping_index"
+    val indexName = s"flint_default_test_skipping_index"
     val index = flint.describeIndex(indexName)
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
@@ -127,7 +127,7 @@ class FlintSparkSkippingIndexITSuite
         |        "columnName": "age",
         |        "columnType": "int"
         |     }],
-        |     "source": "$testTable"
+        |     "source": "default.test"
         |   },
         |   "properties": {
         |     "year": {
@@ -319,6 +319,25 @@ class FlintSparkSkippingIndexITSuite
     query.queryExecution.executedPlan should
       useFlintSparkSkippingFileIndex(
         hasIndexFilter(col("MinMax_age_0") <= 25 && col("MinMax_age_1") >= 25))
+  }
+
+  test("should rewrite applicable query with table name without schema specified") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year")
+      .create()
+
+    // Give table name only without schema name "default"
+    val query = sql(s"""
+                       | SELECT name
+                       | FROM test
+                       | WHERE year = 2023
+                       |""".stripMargin)
+
+    query.queryExecution.executedPlan should
+      useFlintSparkSkippingFileIndex(
+        hasIndexFilter(col("year") === 2023))
   }
 
   test("should rewrite applicable query to scan latest source files in hybrid scan mode") {

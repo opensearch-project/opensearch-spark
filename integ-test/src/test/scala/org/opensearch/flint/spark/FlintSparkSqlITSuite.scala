@@ -28,7 +28,7 @@ class FlintSparkSqlITSuite
   private lazy val flint: FlintSpark = new FlintSpark(spark)
 
   /** Test table and index name */
-  private val testTable = "flint_sql_test"
+  private val testTable = "default.flint_sql_test"
   private val testIndex = getSkippingIndexName(testTable)
 
   override def beforeAll(): Unit = {
