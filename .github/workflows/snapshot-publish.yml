@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - pulish-snapshot
+      - publish-snapshot
 
 jobs:
   build-and-publish-snapshots:
