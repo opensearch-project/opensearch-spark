@@ -63,12 +63,12 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
   .enablePlugins(AssemblyPlugin, Antlr4Plugin)
   .settings(
     commonSettings,
-    name := "opensearch-spark",
+    name := "flint-spark-integration",
     scalaVersion := scala212,
     libraryDependencies ++= Seq(
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
-      "org.scalactic" %% "scalactic" % "3.2.15",
+      "org.scalactic" %% "scalactic" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
       "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
@@ -112,3 +112,23 @@ lazy val integtest = (project in file("integ-test"))
       "org.testcontainers" % "testcontainers" % "1.18.0" % "test"),
     libraryDependencies ++= deps(sparkVersion),
     Test / fullClasspath += (flintSparkIntegration / assembly).value)
+
+lazy val standaloneCosmetic = project
+  .settings(
+    name := "opensearch-spark-standalone",
+    commonSettings,
+    releaseSettings,
+    exportJars := true,
+    Compile / packageBin := (flintSparkIntegration / assembly).value)
+
+lazy val releaseSettings = Seq(
+  publishMavenStyle := true,
+  publishArtifact := true,
+  Test / publishArtifact := false,
+  licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0")),
+  pomExtra :=
+    <url>https://opensearch.org/</url>
+      <scm>
+        <url>git@github.com:opensearch-project/opensearch-spark.git</url>
+        <connection>scm:git:git@github.com:opensearch-project/opensearch-spark.git</connection>
+      </scm>)
