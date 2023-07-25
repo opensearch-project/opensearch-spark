@@ -43,10 +43,10 @@ jobs:
 
       - name: generate sha and md5
         run: |
-          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha512sum "$i" >> "$i.sha512"; done
-          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha512sum "$i" >> "$i.sha512"; done
-          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha256sum "$i" >> "$i.sha256"; done
-          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha256sum "$i" >> "$i.sha256"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
 
       - name: Get credentials and publish snapshots to maven
         run: |
@@ -56,4 +56,5 @@ jobs:
           echo "::add-mask::$SONATYPE_PASSWORD"
           export SNAPSHOT_REPO_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/"
           cd build/resources/publish/
-          ./publish-snapshot.sh $HOME/.m2/repository/org/opensearch/opensearch-spark-standalone_2.12
+          cp -a $HOME/.m2/repository/* ./
+          ./publish-snapshot.sh ./
