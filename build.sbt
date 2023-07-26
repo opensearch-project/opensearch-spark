@@ -5,7 +5,7 @@
 import Dependencies._
 
 lazy val scala212 = "2.12.14"
-lazy val sparkVersion = "3.3.1"
+lazy val sparkVersion = "3.3.2"
 lazy val opensearchVersion = "2.6.0"
 
 ThisBuild / organization := "org.opensearch"
@@ -33,6 +33,8 @@ lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")
 lazy val testScalastyle = taskKey[Unit]("testScalastyle")
 
 lazy val commonSettings = Seq(
+  javacOptions ++= Seq("-source", "11"),
+  Compile / compile / javacOptions ++= Seq("-target", "11"),
   // Scalastyle
   scalastyleConfig := (ThisBuild / scalastyleConfig).value,
   compileScalastyle := (Compile / scalastyle).toTask("").value,
@@ -48,6 +50,7 @@ lazy val root = (project in file("."))
 lazy val flintCore = (project in file("flint-core"))
   .disablePlugins(AssemblyPlugin)
   .settings(
+    commonSettings,
     name := "flint-core",
     scalaVersion := scala212,
     libraryDependencies ++= Seq(
