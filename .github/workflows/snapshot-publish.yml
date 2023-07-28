@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - publish-snapshot
 
 jobs:
   build-and-publish-snapshots:
