@@ -8,12 +8,10 @@ package org.opensearch.flint.spark.skipping
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, SKIPPING_INDEX_TYPE}
 
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.catalyst.expressions.{And, Predicate}
+import org.apache.spark.sql.catalyst.expressions.{And, Expression, Or, Predicate}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
-import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 
 /**
  * Flint Spark skipping index apply rule that rewrites applicable query's filtering condition and
@@ -32,8 +30,8 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
             baseRelation @ HadoopFsRelation(location, _, _, _, _, _),
             _,
             Some(table),
-            false)) if !location.isInstanceOf[FlintSparkSkippingFileIndex] =>
-
+            false))
+        if hasNoDisjunction(condition) && !location.isInstanceOf[FlintSparkSkippingFileIndex] =>
       val indexName = getSkippingIndexName(table.identifier.table) // TODO: database name
       val index = flint.describeIndex(indexName)
       if (index.exists(_.kind == SKIPPING_INDEX_TYPE)) {
@@ -48,7 +46,7 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
          *        |- FileIndex <== replaced with FlintSkippingFileIndex
          */
         if (indexFilter.isDefined) {
-          val indexScan = buildIndexScan(skippingIndex)
+          val indexScan = flint.queryIndex(skippingIndex.name())
           val fileIndex = FlintSparkSkippingFileIndex(location, indexScan, indexFilter.get)
           val indexRelation = baseRelation.copy(location = fileIndex)(baseRelation.sparkSession)
           filter.copy(child = relation.copy(relation = indexRelation))
@@ -60,20 +58,24 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
       }
   }
 
-  private def rewriteToIndexFilter(
-      index: FlintSparkSkippingIndex,
-      condition: Predicate): Option[Predicate] = {
-
-    // TODO: currently only handle conjunction, namely the given condition is consist of
-    //  one or more expression concatenated by AND only.
-    index.indexedColumns
-      .flatMap(index => index.rewritePredicate(condition))
-      .reduceOption(And(_, _))
+  private def hasNoDisjunction(condition: Expression): Boolean = {
+    condition.collectFirst {
+      case Or(_, _) => true
+    }.isEmpty
   }
 
-  private def buildIndexScan(index: FlintSparkSkippingIndex): DataFrame = {
-    flint.spark.read
-      .format(FLINT_DATASOURCE)
-      .load(index.name())
+  private def rewriteToIndexFilter(
+      index: FlintSparkSkippingIndex,
+      condition: Expression): Option[Expression] = {
+
+    def tryEachStrategy(expr: Expression): Option[Expression] =
+      index.indexedColumns.flatMap(_.rewritePredicate(expr)).headOption
+
+    condition match {
+      case and: And =>
+        // Rewrite left and right expression recursively
+        and.children.flatMap(child => rewriteToIndexFilter(index, child)).reduceOption(And)
+      case expr => tryEachStrategy(expr)
+    }
   }
 }
