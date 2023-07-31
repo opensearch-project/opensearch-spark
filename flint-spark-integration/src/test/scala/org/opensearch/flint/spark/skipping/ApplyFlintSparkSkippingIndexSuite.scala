@@ -9,7 +9,7 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{doAnswer, when}
 import org.mockito.invocation.InvocationOnMock
 import org.opensearch.flint.spark.FlintSpark
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, SKIPPING_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.SkippingKind
 import org.scalatest.matchers.{Matcher, MatchResult}
 import org.scalatest.matchers.should.Matchers
@@ -30,7 +30,7 @@ import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructT
 class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
 
   /** Test table and index */
-  private val testTable = "apply_skipping_index_test"
+  private val testTable = "default.apply_skipping_index_test"
   private val testIndex = getSkippingIndexName(testTable)
   private val testSchema = StructType(
     Seq(
@@ -117,9 +117,9 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
     private var relation: LogicalRelation = _
     private var plan: LogicalPlan = _
 
-    def withSourceTable(name: String, schema: StructType): AssertionHelper = {
+    def withSourceTable(fullname: String, schema: StructType): AssertionHelper = {
       val table = CatalogTable(
-        identifier = TableIdentifier(name),
+        identifier = TableIdentifier(fullname.split('.')(1), Some(fullname.split('.')(0))),
         tableType = CatalogTableType.EXTERNAL,
         storage = CatalogStorageFormat.empty,
         schema = null)
@@ -135,8 +135,11 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
     }
 
     def withSkippingIndex(indexName: String, indexCols: String*): AssertionHelper = {
-      val skippingIndex =
-        new FlintSparkSkippingIndex(indexName, indexCols.map(FakeSkippingStrategy))
+      val skippingIndex = mock[FlintSparkSkippingIndex]
+      when(skippingIndex.kind).thenReturn(SKIPPING_INDEX_TYPE)
+      when(skippingIndex.name()).thenReturn(indexName)
+      when(skippingIndex.indexedColumns).thenReturn(indexCols.map(FakeSkippingStrategy))
+
       when(flint.describeIndex(any())).thenReturn(Some(skippingIndex))
       this
     }

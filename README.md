@@ -27,7 +27,11 @@ spark-sql --conf "spark.sql.extensions=org.opensearch.flint.FlintSparkExtensions
 To build and run this application with Spark, you can run:
 
 ```
-sbt clean publishLocal
+sbt clean standaloneCosmetic/publishM2
+```
+then add org.opensearch:opensearch-spark_2.12 when run spark application, for example,
+```
+bin/spark-shell --packages "org.opensearch:opensearch-spark_2.12:0.1.0-SNAPSHOT"
 ```
 
 ## Code of Conduct
