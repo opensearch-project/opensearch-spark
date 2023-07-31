@@ -9,7 +9,7 @@ import org.apache.hadoop.fs.{FileStatus, Path}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.FILE_PATH_COLUMN
 
 import org.apache.spark.sql.{Column, DataFrame}
-import org.apache.spark.sql.catalyst.expressions.{Expression, Predicate}
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.functions.isnull
@@ -26,7 +26,7 @@ import org.apache.spark.sql.types.StructType
 case class FlintSparkSkippingFileIndex(
     baseFileIndex: FileIndex,
     indexScan: DataFrame,
-    indexFilter: Predicate)
+    indexFilter: Expression)
     extends FileIndex {
 
   override def listFiles(
