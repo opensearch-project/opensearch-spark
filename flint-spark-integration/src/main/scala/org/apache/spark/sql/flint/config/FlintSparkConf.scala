@@ -101,7 +101,7 @@ object FlintSparkConf {
 /**
  * if no options provided, FlintSparkConf read configuration from SQLConf.
  */
-class FlintSparkConf(properties: JMap[String, String]) extends Serializable {
+case class FlintSparkConf(properties: JMap[String, String]) extends Serializable {
 
   @transient lazy val reader = new ConfigReader(properties)
 

@@ -30,6 +30,7 @@ import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
 import org.apache.spark.sql.streaming.OutputMode.Append
+import org.apache.spark.sql.streaming.StreamingQuery
 
 /**
  * Flint Spark integration API entrypoint.
@@ -40,8 +41,8 @@ class FlintSpark(val spark: SparkSession) {
   private val flintSparkConf: FlintSparkConf =
     FlintSparkConf(
       Map(
-        DOC_ID_COLUMN_NAME.key -> ID_COLUMN,
-        IGNORE_DOC_ID_COLUMN.key -> "true"
+        DOC_ID_COLUMN_NAME.optionKey -> ID_COLUMN,
+        IGNORE_DOC_ID_COLUMN.optionKey -> "true"
       ).asJava)
 
   /** Flint client for low-level index operation */
@@ -96,6 +97,7 @@ class FlintSpark(val spark: SparkSession) {
         .build(df)
         .write
         .format(FLINT_DATASOURCE)
+        .options(flintSparkConf.properties)
         .mode(Overwrite)
         .save(indexName)
     }
@@ -144,7 +146,7 @@ class FlintSpark(val spark: SparkSession) {
   }
 
   /**
-   * Delete index.
+   * Delete index and refreshing job associated.
    *
    * @param indexName
    *   index name
@@ -154,14 +156,34 @@ class FlintSpark(val spark: SparkSession) {
   def deleteIndex(indexName: String): Boolean = {
     if (flintClient.exists(indexName)) {
       flintClient.deleteIndex(indexName)
+      stopRefreshingJob(indexName)
       true
     } else {
       false
     }
   }
 
+  /**
+   * Build data frame for querying the given index. This is mostly for unit test convenience.
+   *
+   * @param indexName
+   *   index name
+   * @return
+   *   index query data frame
+   */
+  def queryIndex(indexName: String): DataFrame = {
+    spark.read.format(FLINT_DATASOURCE).load(indexName)
+  }
+
   private def isIncrementalRefreshing(indexName: String): Boolean =
     spark.streams.active.exists(_.name == indexName)
+
+  private def stopRefreshingJob(indexName: String): Unit = {
+    val job = spark.streams.active.find(_.name == indexName)
+    if (job.isDefined) {
+      job.get.stop()
+    }
+  }
 
   // TODO: Remove all parsing logic below once Flint spec finalized and FlintMetadata strong typed
   private def getSourceTableName(index: FlintSparkIndex): String = {
@@ -234,7 +256,7 @@ object FlintSpark {
      * Configure which source table the index is based on.
      *
      * @param tableName
-     *   source table name
+     *   full table name
      * @return
      *   index builder
      */

@@ -5,7 +5,7 @@
 import Dependencies._
 
 lazy val scala212 = "2.12.14"
-lazy val sparkVersion = "3.3.1"
+lazy val sparkVersion = "3.3.2"
 lazy val opensearchVersion = "2.6.0"
 
 ThisBuild / organization := "org.opensearch"
@@ -33,6 +33,8 @@ lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")
 lazy val testScalastyle = taskKey[Unit]("testScalastyle")
 
 lazy val commonSettings = Seq(
+  javacOptions ++= Seq("-source", "11"),
+  Compile / compile / javacOptions ++= Seq("-target", "11"),
   // Scalastyle
   scalastyleConfig := (ThisBuild / scalastyleConfig).value,
   compileScalastyle := (Compile / scalastyle).toTask("").value,
@@ -43,11 +45,12 @@ lazy val commonSettings = Seq(
 lazy val root = (project in file("."))
   .aggregate(flintCore, flintSparkIntegration)
   .disablePlugins(AssemblyPlugin)
-  .settings(name := "flint")
+  .settings(name := "flint", publish / skip := true)
 
 lazy val flintCore = (project in file("flint-core"))
   .disablePlugins(AssemblyPlugin)
   .settings(
+    commonSettings,
     name := "flint-core",
     scalaVersion := scala212,
     libraryDependencies ++= Seq(
@@ -55,19 +58,20 @@ lazy val flintCore = (project in file("flint-core"))
       "org.opensearch.client" % "opensearch-rest-high-level-client" % opensearchVersion
         exclude ("org.apache.logging.log4j", "log4j-api"),
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
-        exclude ("com.fasterxml.jackson.core", "jackson-databind")))
+        exclude ("com.fasterxml.jackson.core", "jackson-databind")),
+    publish / skip := true)
 
 lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
   .dependsOn(flintCore)
   .enablePlugins(AssemblyPlugin, Antlr4Plugin)
   .settings(
     commonSettings,
-    name := "flint-spark",
+    name := "flint-spark-integration",
     scalaVersion := scala212,
     libraryDependencies ++= Seq(
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
-      "org.scalactic" %% "scalactic" % "3.2.15",
+      "org.scalactic" %% "scalactic" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
       "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
@@ -111,3 +115,23 @@ lazy val integtest = (project in file("integ-test"))
       "org.testcontainers" % "testcontainers" % "1.18.0" % "test"),
     libraryDependencies ++= deps(sparkVersion),
     Test / fullClasspath += (flintSparkIntegration / assembly).value)
+
+lazy val standaloneCosmetic = project
+  .settings(
+    name := "opensearch-spark-standalone",
+    commonSettings,
+    releaseSettings,
+    exportJars := true,
+    Compile / packageBin := (flintSparkIntegration / assembly).value)
+
+lazy val releaseSettings = Seq(
+  publishMavenStyle := true,
+  publishArtifact := true,
+  Test / publishArtifact := false,
+  licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0")),
+  pomExtra :=
+    <url>https://opensearch.org/</url>
+      <scm>
+        <url>git@github.com:opensearch-project/opensearch-spark.git</url>
+        <connection>scm:git:git@github.com:opensearch-project/opensearch-spark.git</connection>
+      </scm>)

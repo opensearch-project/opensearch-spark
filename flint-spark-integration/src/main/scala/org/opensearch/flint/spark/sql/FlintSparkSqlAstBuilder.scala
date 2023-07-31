@@ -5,9 +5,10 @@
 
 package org.opensearch.flint.spark.sql
 
+import org.antlr.v4.runtime.tree.RuleNode
+import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
@@ -28,7 +29,7 @@ class FlintSparkSqlAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command
       // Create skipping index
       val indexBuilder = flint
         .skippingIndex()
-        .onTable(ctx.tableName.getText)
+        .onTable(getFullTableName(flint, ctx.tableName))
 
       ctx.indexColTypeList().indexColType().forEach { colTypeCtx =>
         val colName = colTypeCtx.identifier().getText
@@ -43,7 +44,7 @@ class FlintSparkSqlAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command
 
       // Trigger auto refresh if enabled
       if (isAutoRefreshEnabled(ctx.propertyList())) {
-        val indexName = getSkippingIndexName(ctx.tableName.getText)
+        val indexName = getSkippingIndexName(flint, ctx.tableName)
         flint.refreshIndex(indexName, RefreshMode.INCREMENTAL)
       }
       Seq.empty
@@ -52,7 +53,7 @@ class FlintSparkSqlAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command
   override def visitRefreshSkippingIndexStatement(
       ctx: RefreshSkippingIndexStatementContext): Command =
     FlintSparkSqlCommand() { flint =>
-      val indexName = getSkippingIndexName(ctx.tableName.getText)
+      val indexName = getSkippingIndexName(flint, ctx.tableName)
       flint.refreshIndex(indexName, RefreshMode.FULL)
       Seq.empty
     }
@@ -65,7 +66,7 @@ class FlintSparkSqlAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command
       AttributeReference("skip_type", StringType, nullable = false)())
 
     FlintSparkSqlCommand(outputSchema) { flint =>
-      val indexName = getSkippingIndexName(ctx.tableName.getText)
+      val indexName = getSkippingIndexName(flint, ctx.tableName)
       flint
         .describeIndex(indexName)
         .map { case index: FlintSparkSkippingIndex =>
@@ -78,8 +79,7 @@ class FlintSparkSqlAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command
 
   override def visitDropSkippingIndexStatement(ctx: DropSkippingIndexStatementContext): Command =
     FlintSparkSqlCommand() { flint =>
-      val tableName = ctx.tableName.getText // TODO: handle schema name
-      val indexName = getSkippingIndexName(tableName)
+      val indexName = getSkippingIndexName(flint, ctx.tableName)
       flint.deleteIndex(indexName)
       Seq.empty
     }
@@ -96,6 +96,19 @@ class FlintSparkSqlAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command
           }
         })
       false
+    }
+  }
+
+  private def getSkippingIndexName(flint: FlintSpark, tableNameCtx: RuleNode): String =
+    FlintSparkSkippingIndex.getSkippingIndexName(getFullTableName(flint, tableNameCtx))
+
+  private def getFullTableName(flint: FlintSpark, tableNameCtx: RuleNode): String = {
+    val tableName = tableNameCtx.getText
+    if (tableName.contains(".")) {
+      tableName
+    } else {
+      val db = flint.spark.catalog.currentDatabase
+      s"$db.$tableName"
     }
   }
 

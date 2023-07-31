@@ -8,9 +8,9 @@ package org.opensearch.flint.spark.skipping.minmax
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, SkippingKind}
 
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, EqualTo, Literal, Predicate}
+import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, EqualTo, Expression, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, Max, Min}
+import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.functions.col
 
 /**
@@ -32,11 +32,42 @@ case class MinMaxSkippingStrategy(
   override def getAggregators: Seq[AggregateFunction] =
     Seq(Min(col(columnName).expr), Max(col(columnName).expr))
 
-  override def rewritePredicate(predicate: Predicate): Option[Predicate] =
-    predicate.collect { case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-      rewriteTo(col(minColName) <= value && col(maxColName) >= value)
-    }.headOption
+  override def rewritePredicate(predicate: Expression): Option[Expression] =
+    predicate match {
+      case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
+        Some((col(minColName) <= value && col(maxColName) >= value).expr)
+      case LessThan(AttributeReference(`columnName`, _, _, _), value: Literal) =>
+        Some((col(minColName) < value).expr)
+      case LessThanOrEqual(AttributeReference(`columnName`, _, _, _), value: Literal) =>
+        Some((col(minColName) <= value).expr)
+      case GreaterThan(AttributeReference(`columnName`, _, _, _), value: Literal) =>
+        Some((col(maxColName) > value).expr)
+      case GreaterThanOrEqual(AttributeReference(`columnName`, _, _, _), value: Literal) =>
+        Some((col(maxColName) >= value).expr)
+      case In(column @ AttributeReference(`columnName`, _, _, _), AllLiterals(literals)) =>
+        /*
+         * First, convert IN to approximate range check: min(in_list) <= col <= max(in_list)
+         * to avoid long and maybe unnecessary comparison expressions.
+         */
+        val values = literals.map(_.value)
+        val ordering = TypeUtils.getInterpretedOrdering(column.dataType)
+        val minVal = values.min(ordering)
+        val maxVal = values.max(ordering)
+        Some(
+          And(
+            rewritePredicate(GreaterThanOrEqual(column, Literal(minVal))).get,
+            rewritePredicate(LessThanOrEqual(column, Literal(maxVal))).get))
+      case _ => None
+    }
 
-  // Convert a column to predicate
-  private def rewriteTo(col: Column): Predicate = col.expr.asInstanceOf[Predicate]
+  /** Need this because Scala pattern match doesn't work for generic type like Seq[Literal] */
+  object AllLiterals {
+    def unapply(values: Seq[Expression]): Option[Seq[Literal]] = {
+      if (values.forall(_.isInstanceOf[Literal])) {
+        Some(values.asInstanceOf[Seq[Literal]])
+      } else {
+        None
+      }
+    }
+  }
 }
