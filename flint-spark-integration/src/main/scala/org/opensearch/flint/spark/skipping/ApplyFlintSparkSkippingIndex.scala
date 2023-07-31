@@ -32,7 +32,7 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
             Some(table),
             false))
         if hasNoDisjunction(condition) && !location.isInstanceOf[FlintSparkSkippingFileIndex] =>
-      val indexName = getSkippingIndexName(table.identifier.table) // TODO: database name
+      val indexName = getSkippingIndexName(table.identifier.unquotedString)
       val index = flint.describeIndex(indexName)
       if (index.exists(_.kind == SKIPPING_INDEX_TYPE)) {
         val skippingIndex = index.get.asInstanceOf[FlintSparkSkippingIndex]

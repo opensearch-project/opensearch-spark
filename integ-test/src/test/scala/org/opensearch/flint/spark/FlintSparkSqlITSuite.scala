@@ -28,7 +28,7 @@ class FlintSparkSqlITSuite
   private lazy val flint: FlintSpark = new FlintSpark(spark)
 
   /** Test table and index name */
-  private val testTable = "flint_sql_test"
+  private val testTable = "default.flint_sql_test"
   private val testIndex = getSkippingIndexName(testTable)
 
   override def beforeAll(): Unit = {
@@ -64,17 +64,6 @@ class FlintSparkSqlITSuite
            | """.stripMargin)
   }
 
-  protected override def beforeEach(): Unit = {
-    super.beforeEach()
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year")
-      .addValueSet("name")
-      .addMinMax("age")
-      .create()
-  }
-
   protected override def afterEach(): Unit = {
     super.afterEach()
     flint.deleteIndex(testIndex)
@@ -87,7 +76,6 @@ class FlintSparkSqlITSuite
   }
 
   test("create skipping index with auto refresh") {
-    flint.deleteIndex(testIndex)
     sql(s"""
            | CREATE SKIPPING INDEX ON $testTable
            | (
@@ -111,7 +99,6 @@ class FlintSparkSqlITSuite
   }
 
   test("create skipping index with manual refresh") {
-    flint.deleteIndex(testIndex)
     sql(s"""
          | CREATE SKIPPING INDEX ON $testTable
          | (
@@ -131,6 +118,14 @@ class FlintSparkSqlITSuite
   }
 
   test("describe skipping index") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year")
+      .addValueSet("name")
+      .addMinMax("age")
+      .create()
+
     val result = sql(s"DESC SKIPPING INDEX ON $testTable")
 
     checkAnswer(
@@ -141,14 +136,41 @@ class FlintSparkSqlITSuite
         Row("age", "int", "MIN_MAX")))
   }
 
-  test("should return empty if no skipping index to describe") {
-    flint.deleteIndex(testIndex)
+  test("create skipping index on table without database name") {
+    sql(s"""
+           | CREATE SKIPPING INDEX ON flint_sql_test
+           | (
+           |   year PARTITION,
+           |   name VALUE_SET,
+           |   age MIN_MAX
+           | )
+           | """.stripMargin)
 
+    flint.describeIndex(testIndex) shouldBe defined
+  }
+
+  test("create skipping index on table in other database") {
+    sql("CREATE SCHEMA sample")
+    sql("USE sample")
+    sql("CREATE TABLE test (name STRING) USING CSV")
+    sql("CREATE SKIPPING INDEX ON test (name VALUE_SET)")
+
+    flint.describeIndex("flint_sample_test_skipping_index") shouldBe defined
+  }
+
+  test("should return empty if no skipping index to describe") {
     val result = sql(s"DESC SKIPPING INDEX ON $testTable")
+
     checkAnswer(result, Seq.empty)
   }
 
   test("drop skipping index") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year")
+      .create()
+
     sql(s"DROP SKIPPING INDEX ON $testTable")
 
     flint.describeIndex(testIndex) shouldBe empty
