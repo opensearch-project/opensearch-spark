@@ -73,7 +73,7 @@ OpenSearch index document will look like
 To build and run this application with Spark, you can run:
 
 ```
-sbt clean publishLocal
+sbt clean sparkSqlApplicationCosmetic/publishM2
 ```
 
 ## Test
