@@ -41,7 +41,7 @@ lazy val commonSettings = Seq(
   Test / test := ((Test / test) dependsOn testScalastyle).value)
 
 lazy val root = (project in file("."))
-  .aggregate(flintCore, flintSparkIntegration)
+  .aggregate(flintCore, flintSparkIntegration, SparkSqlApplication)
   .disablePlugins(AssemblyPlugin)
   .settings(name := "flint")
 
@@ -94,6 +94,21 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
         oldStrategy(x)
     },
     assembly / test := (Test / test).value)
+
+lazy val SparkSqlApplication = (project in file("spark-sql-application"))
+  .settings(
+    commonSettings,
+    name := "sql-job",
+    scalaVersion := scala212,
+    libraryDependencies ++= Seq(
+      "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
+      "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+      "org.scalatest" %% "scalatest" % "3.2.15" % "test"
+    ),
+    artifactName := { (sv: ScalaVersion, module: ModuleID, artifact: Artifact) =>
+      "sql-job.jar"
+    }
+  )
 
 // Test assembly package with integration test.
 lazy val integtest = (project in file("integ-test"))
