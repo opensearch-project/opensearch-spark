@@ -31,6 +31,8 @@ public class FlintOptions implements Serializable {
 
   public static final String SIGV4_AUTH = "sigv4";
 
+  public static final String CUSTOM_AWS_CREDENTIALS_PROVIDER = "customAWSCredentialsProvider";
+
   /**
    * Used by {@link org.opensearch.flint.core.storage.OpenSearchScrollReader}
    */
@@ -75,5 +77,9 @@ public class FlintOptions implements Serializable {
 
   public String getAuth() {
     return options.getOrDefault(AUTH, NONE_AUTH);
+  }
+
+  public String getCustomAwsCredentialsProvider() {
+    return CUSTOM_AWS_CREDENTIALS_PROVIDER;
   }
 }
