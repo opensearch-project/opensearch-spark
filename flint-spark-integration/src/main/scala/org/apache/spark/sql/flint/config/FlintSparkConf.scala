@@ -59,6 +59,12 @@ object FlintSparkConf {
     .doc("AWS service region")
     .createWithDefault(FlintOptions.DEFAULT_REGION)
 
+  val CUSTOM_AWS_CREDENTIALS_PROVIDER =
+    FlintConfig("spark.datasource.flint.customAWSCredentialsProvider")
+      .datasourceOption()
+      .doc("AWS customAWSCredentialsProvider")
+      .createWithDefault(FlintOptions.DEFAULT_CUSTOM_AWS_CREDENTIALS_PROVIDER)
+
   val DOC_ID_COLUMN_NAME = FlintConfig("spark.datasource.flint.write.id_name")
     .datasourceOption()
     .doc(
@@ -130,7 +136,15 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
    */
   def flintOptions(): FlintOptions = {
     new FlintOptions(
-      Seq(HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY, SCROLL_SIZE, SCHEME, AUTH, REGION)
+      Seq(
+        HOST_ENDPOINT,
+        HOST_PORT,
+        REFRESH_POLICY,
+        SCROLL_SIZE,
+        SCHEME,
+        AUTH,
+        REGION,
+        CUSTOM_AWS_CREDENTIALS_PROVIDER)
         .map(conf => (conf.optionKey, conf.readFrom(reader)))
         .toMap
         .asJava)

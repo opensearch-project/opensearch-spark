@@ -34,6 +34,11 @@ public class FlintOptions implements Serializable {
   public static final String CUSTOM_AWS_CREDENTIALS_PROVIDER = "customAWSCredentialsProvider";
 
   /**
+   * By default, customAWSCredentialsProvider is empty. use DefaultAWSCredentialsProviderChain.
+   */
+  public static final String DEFAULT_CUSTOM_AWS_CREDENTIALS_PROVIDER = "";
+
+  /**
    * Used by {@link org.opensearch.flint.core.storage.OpenSearchScrollReader}
    */
   public static final String SCROLL_SIZE = "read.scroll_size";
@@ -80,6 +85,6 @@ public class FlintOptions implements Serializable {
   }
 
   public String getCustomAwsCredentialsProvider() {
-    return CUSTOM_AWS_CREDENTIALS_PROVIDER;
+    return options.getOrDefault(CUSTOM_AWS_CREDENTIALS_PROVIDER, "");
   }
 }

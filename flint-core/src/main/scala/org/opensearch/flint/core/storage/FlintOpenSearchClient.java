@@ -35,9 +35,8 @@ import org.opensearch.search.SearchModule;
 import org.opensearch.search.builder.SearchSourceBuilder;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
@@ -142,22 +141,18 @@ public class FlintOpenSearchClient implements FlintClient {
       signer.setServiceName("es");
       signer.setRegionName(options.getRegion());
 
-      // by default, use DefaultAWSCredentialsProviderChain.
+      // Use DefaultAWSCredentialsProviderChain by default.
       final AtomicReference<AWSCredentialsProvider> awsCredentialsProvider =
           new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
       String providerClass = options.getCustomAwsCredentialsProvider();
       if (!Strings.isNullOrEmpty(providerClass)) {
         try {
           Class<?> awsCredentialsProviderClass = Class.forName(providerClass);
-          awsCredentialsProvider.set((AWSCredentialsProvider) awsCredentialsProviderClass.getDeclaredConstructor()
-              .newInstance());
-        } catch (ClassNotFoundException e) {
-          throw new RuntimeException("Custom AWSCredentialsProvider not found: " + providerClass,
-              e);
-        } catch (NoSuchMethodException e) {
-          throw new RuntimeException("No method define exception: " + providerClass, e);
-        } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
-          throw new RuntimeException("Create new instance exception: " + providerClass, e);
+          Constructor<?> ctor = awsCredentialsProviderClass.getDeclaredConstructor();
+          ctor.setAccessible(true);
+          awsCredentialsProvider.set((AWSCredentialsProvider) ctor.newInstance());
+        } catch (Exception e) {
+          throw new RuntimeException(e);
         }
       }
       restClientBuilder.setHttpClientConfigCallback(cb ->
