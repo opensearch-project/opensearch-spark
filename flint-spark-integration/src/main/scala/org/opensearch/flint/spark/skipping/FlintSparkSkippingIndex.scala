@@ -9,7 +9,7 @@ import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.metadata.FlintMetadata
-import org.opensearch.flint.spark.FlintSparkIndex
+import org.opensearch.flint.spark.{FlintSparkIndex, FlintVersion}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
@@ -45,8 +45,8 @@ class FlintSparkSkippingIndex(
 
   override def metadata(): FlintMetadata = {
     new FlintMetadata(s"""{
-        |   "version": "1.0.0",
         |   "_meta": {
+        |     "version": "${FlintVersion.current()}",
         |     "kind": "$SKIPPING_INDEX_TYPE",
         |     "indexedColumns": $getMetaInfo,
         |     "source": "$tableName"
