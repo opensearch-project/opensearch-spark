@@ -39,7 +39,7 @@ bin/spark-shell --packages "org.opensearch:opensearch-spark_2.12:0.1.0-SNAPSHOT"
 
 ## Code of Conduct
 
-This project has adopted an [Open Source Code of Conduct](../CODE_OF_CONDUCT.md).
+This project has adopted an [Open Source Code of Conduct](./CODE_OF_CONDUCT.md).
 
 ## Security
 
@@ -47,8 +47,8 @@ If you discover a potential security issue in this project we ask that you notif
 
 ## License
 
-See the [LICENSE](../LICENSE.txt) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
+See the [LICENSE](./LICENSE) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
 
 ## Copyright
 
-Copyright OpenSearch Contributors. See [NOTICE](../NOTICE) for details.
+Copyright OpenSearch Contributors. See [NOTICE](./NOTICE) for details.
