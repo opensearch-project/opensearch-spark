@@ -11,8 +11,11 @@ Please refer to the [Flint Index Reference Manual](./docs/index.md) for more inf
 
 ## Prerequisites
 
-+ Spark 3.3.1
-+ Scala 2.12.14
+Version compatibility:
+
+| Flint version | JDK version | Spark version | Scala version | OpenSearch |
+|---------------|-------------|---------------|---------------|------------|
+| 0.1.0         | 11+         | 3.3.1         | 2.12.14       | 2.6+       |
 
 ## Usage
 
