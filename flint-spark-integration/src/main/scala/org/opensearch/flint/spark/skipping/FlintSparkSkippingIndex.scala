@@ -75,19 +75,15 @@ class FlintSparkSkippingIndex(
   }
 
   private def getSchema: String = {
-    val indexFieldTypes =
-      indexedColumns.flatMap(_.outputSchema()).map { case (colName, colType) =>
-        // Data type INT from catalog is not recognized by Spark DataType.fromJson()
-        val columnType = if (colType == "int") "integer" else colType
-        val sparkType = DataType.fromJson("\"" + columnType + "\"")
-        StructField(colName, sparkType, nullable = false)
-      }
-
     val allFieldTypes =
-      indexFieldTypes :+ StructField(FILE_PATH_COLUMN, StringType, nullable = false)
-
+      indexedColumns.flatMap(_.outputSchema()).toMap + (FILE_PATH_COLUMN -> "string")
+    val catalogDDL =
+      allFieldTypes
+        .map { case (colName, colType) => s"$colName $colType not null" }
+        .mkString(",")
+    val allFieldSparkTypes = StructType.fromDDL(catalogDDL)
     // Convert StructType to {"properties": ...} and only need the properties value
-    val properties = FlintDataType.serialize(StructType(allFieldTypes))
+    val properties = FlintDataType.serialize(allFieldSparkTypes)
     compact(render(parse(properties) \ "properties"))
   }
 }
