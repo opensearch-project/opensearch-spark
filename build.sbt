@@ -43,7 +43,7 @@ lazy val commonSettings = Seq(
   Test / test := ((Test / test) dependsOn testScalastyle).value)
 
 lazy val root = (project in file("."))
-  .aggregate(flintCore, flintSparkIntegration)
+  .aggregate(flintCore, flintSparkIntegration, sparkSqlApplication)
   .disablePlugins(AssemblyPlugin)
   .settings(name := "flint", publish / skip := true)
 
@@ -123,6 +123,23 @@ lazy val standaloneCosmetic = project
     releaseSettings,
     exportJars := true,
     Compile / packageBin := (flintSparkIntegration / assembly).value)
+
+lazy val sparkSqlApplication = (project in file("spark-sql-application"))
+  .settings(
+    commonSettings,
+    name := "sql-job",
+    scalaVersion := scala212,
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % "3.2.15" % "test"),
+    libraryDependencies ++= deps(sparkVersion))
+
+lazy val sparkSqlApplicationCosmetic = project
+  .settings(
+    name := "opensearch-spark-sql-application",
+    commonSettings,
+    releaseSettings,
+    exportJars := true,
+    Compile / packageBin := (sparkSqlApplication / assembly).value)
 
 lazy val releaseSettings = Seq(
   publishMavenStyle := true,
