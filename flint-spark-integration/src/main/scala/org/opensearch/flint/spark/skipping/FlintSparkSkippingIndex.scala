@@ -47,7 +47,7 @@ class FlintSparkSkippingIndex(
   override def metadata(): FlintMetadata = {
     new FlintMetadata(s"""{
         |   "_meta": {
-        |     "version": "${FlintVersion.current()}"
+        |     "version": "${FlintVersion.current()}",
         |     "kind": "$SKIPPING_INDEX_TYPE",
         |     "indexedColumns": $getMetaInfo,
         |     "source": "$tableName"
