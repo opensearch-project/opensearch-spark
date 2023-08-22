@@ -129,6 +129,7 @@ object FlintDataType {
         } else {
           JObject("type" -> JString("keyword"))
         }
+      case _: VarcharType | _: CharType => JObject("type" -> JString("keyword"))
 
       // Numbers
       case LongType => JObject("type" -> JString("long"))

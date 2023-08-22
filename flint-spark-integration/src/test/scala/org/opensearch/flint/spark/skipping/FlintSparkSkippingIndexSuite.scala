@@ -87,6 +87,56 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   // TODO: test for osType "text"
 
+  test("can build index for varchar column") {
+    val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.outputSchema()).thenReturn(Map("varchar_col" -> "varchar(20)"))
+    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("varchar_col").expr)))
+
+    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    index.metadata().getContent should matchJson(
+      s"""{
+         |   "_meta": {
+         |     "kind": "skipping",
+         |     "indexedColumns": [{}],
+         |     "source": "default.test"
+         |   },
+         |   "properties": {
+         |     "varchar_col": {
+         |       "type": "keyword"
+         |     },
+         |     "file_path": {
+         |       "type": "keyword"
+         |     }
+         |   }
+         | }
+         |""".stripMargin)
+  }
+
+  test("can build index for char column") {
+    val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.outputSchema()).thenReturn(Map("char_col" -> "char(20)"))
+    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("char_col").expr)))
+
+    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    index.metadata().getContent should matchJson(
+      s"""{
+         |   "_meta": {
+         |     "kind": "skipping",
+         |     "indexedColumns": [{}],
+         |     "source": "default.test"
+         |   },
+         |   "properties": {
+         |     "char_col": {
+         |       "type": "keyword"
+         |     },
+         |     "file_path": {
+         |       "type": "keyword"
+         |     }
+         |   }
+         | }
+         |""".stripMargin)
+  }
+
   test("can build index for long column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.outputSchema()).thenReturn(Map("long_col" -> "bigint"))

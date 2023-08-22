@@ -397,6 +397,8 @@ class FlintSparkSkippingIndexITSuite
          | (
          |   boolean_col BOOLEAN,
          |   string_col STRING,
+         |   varchar_col VARCHAR(20),
+         |   char_col CHAR(20),
          |   long_col LONG,
          |   int_col INT,
          |   short_col SHORT,
@@ -415,6 +417,8 @@ class FlintSparkSkippingIndexITSuite
          | VALUES (
          |   TRUE,
          |   "sample string",
+         |   "sample varchar",
+         |   "sample char",
          |   1L,
          |   2,
          |   3S,
@@ -433,6 +437,8 @@ class FlintSparkSkippingIndexITSuite
       .onTable(testDataTypeTable)
       .addValueSet("boolean_col")
       .addValueSet("string_col")
+      .addValueSet("varchar_col")
+      .addValueSet("char_col")
       .addValueSet("long_col")
       .addValueSet("int_col")
       .addValueSet("short_col")
@@ -460,6 +466,16 @@ class FlintSparkSkippingIndexITSuite
          |        "kind": "VALUE_SET",
          |        "columnName": "string_col",
          |        "columnType": "string"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "varchar_col",
+         |        "columnType": "varchar(20)"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "char_col",
+         |        "columnType": "char(20)"
          |     },
          |     {
          |        "kind": "VALUE_SET",
@@ -515,6 +531,12 @@ class FlintSparkSkippingIndexITSuite
          |     "string_col": {
          |       "type": "keyword"
          |     },
+         |     "varchar_col": {
+         |       "type": "keyword"
+         |     },
+         |     "char_col": {
+         |       "type": "keyword"
+         |     },
          |     "long_col": {
          |       "type": "long"
          |     },
@@ -557,6 +579,52 @@ class FlintSparkSkippingIndexITSuite
          |   }
          | }
          |""".stripMargin)
+
+    flint.deleteIndex(testDataTypeIndex)
+  }
+
+  test("can build skipping index for varchar and char and rewrite applicable query") {
+    val testDataTypeTable = "default.data_type_table"
+    val testDataTypeIndex = getSkippingIndexName(testDataTypeTable)
+    sql(
+      s"""
+         | CREATE TABLE $testDataTypeTable
+         | (
+         |   varchar_col VARCHAR(20),
+         |   char_col CHAR(20)
+         | )
+         | USING PARQUET
+         |""".stripMargin)
+    sql(
+      s"""
+         | INSERT INTO $testDataTypeTable
+         | VALUES (
+         |   "sample varchar",
+         |   "sample char"
+         |)
+         |""".stripMargin)
+
+    flint
+      .skippingIndex()
+      .onTable(testDataTypeTable)
+      .addValueSet("varchar_col")
+      .addValueSet("char_col")
+      .create()
+    flint.refreshIndex(testDataTypeIndex, FULL)
+
+    val query = sql(
+      s"""
+         | SELECT varchar_col, char_col
+         | FROM $testDataTypeTable
+         | WHERE varchar_col = 'sample varchar' AND char_col = 'sample char'
+         |""".stripMargin)
+
+    // CharType column is padded to a fixed length with whitespace
+    val paddedChar = "sample char".padTo(20, ' ')
+    checkAnswer(query, Row("sample varchar", paddedChar))
+    query.queryExecution.executedPlan should
+      useFlintSparkSkippingFileIndex(hasIndexFilter(
+        col("varchar_col") === "sample varchar" && col("char_col") === paddedChar))
 
     flint.deleteIndex(testDataTypeIndex)
   }

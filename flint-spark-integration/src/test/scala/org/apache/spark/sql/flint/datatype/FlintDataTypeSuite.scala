@@ -123,6 +123,29 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
                                                                     |}""".stripMargin)
   }
 
+  test("spark varchar and char type serialize") {
+    val flintDataType = """{
+                          |  "properties": {
+                          |    "varcharField": {
+                          |      "type": "keyword"
+                          |    },
+                          |    "charField": {
+                          |      "type": "keyword"
+                          |    }
+                          |  }
+                          |}""".stripMargin
+    val sparkStructType = StructType(
+      StructField("varcharField", VarcharType(20), true) ::
+        StructField("charField", CharType(20), true) ::
+        Nil)
+    FlintDataType.serialize(sparkStructType) shouldBe compactJson(flintDataType)
+    // flint data type should not deserialize to varchar or char
+    FlintDataType.deserialize(flintDataType) should contain theSameElementsAs StructType(
+      StructField("varcharField", StringType, true) ::
+        StructField("charField", StringType, true) ::
+        Nil)
+  }
+
   test("flint date type deserialize and serialize") {
     val flintDataType = """{
                           |  "properties": {
