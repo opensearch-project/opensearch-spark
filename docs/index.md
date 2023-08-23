@@ -245,8 +245,16 @@ The following table define the data type mapping between Flint data type and Spa
   * Map to TimestampType if format = strict_date_optional_time_nanos, (we also support format =
     strict_date_optional_time | epoch_millis, may change in future)
 * Spark data types VarcharType(length) and CharType(length) are both currently mapped to Flint data
-  type keyword, dropping their length property. On the other hand, Flint data type keyword only maps
-  to StringType.
+  type *keyword*, dropping their length property. On the other hand, Flint data type *keyword* only
+  maps to StringType.
+
+Unsupported Spark data types:
+* DecimalType
+* BinaryType
+* YearMonthIntervalType
+* DayTimeIntervalType
+* ArrayType
+* MapType
 
 #### API
 
