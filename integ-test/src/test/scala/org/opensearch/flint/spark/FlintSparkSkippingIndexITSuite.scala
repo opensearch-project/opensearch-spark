@@ -428,7 +428,7 @@ class FlintSparkSkippingIndexITSuite
          |   TIMESTAMP "2023-08-09 17:24:40.322171",
          |   DATE "2023-08-09",
          |   STRUCT("subfieldValue1",123)
-         |)
+         | )
          |""".stripMargin)
 
     // Create index on all columns
@@ -601,7 +601,7 @@ class FlintSparkSkippingIndexITSuite
          | VALUES (
          |   "sample varchar",
          |   "sample char"
-         |)
+         | )
          |""".stripMargin)
 
     flint
