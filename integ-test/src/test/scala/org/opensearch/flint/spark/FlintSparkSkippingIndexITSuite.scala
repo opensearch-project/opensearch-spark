@@ -387,6 +387,180 @@ class FlintSparkSkippingIndexITSuite
     flint.describeIndex("non-exist") shouldBe empty
   }
 
+  test("create skipping index for all supported data types successfully") {
+    // Prepare test table
+    val testDataTypeTable = "default.data_type_table"
+    val testDataTypeIndex = getSkippingIndexName(testDataTypeTable)
+    sql(
+      s"""
+         | CREATE TABLE $testDataTypeTable
+         | (
+         |   boolean_col BOOLEAN,
+         |   string_col STRING,
+         |   long_col LONG,
+         |   int_col INT,
+         |   short_col SHORT,
+         |   byte_col BYTE,
+         |   double_col DOUBLE,
+         |   float_col FLOAT,
+         |   timestamp_col TIMESTAMP,
+         |   date_col DATE,
+         |   struct_col STRUCT<subfield1: STRING, subfield2: INT>
+         | )
+         | USING PARQUET
+         |""".stripMargin)
+    sql(
+      s"""
+         | INSERT INTO $testDataTypeTable
+         | VALUES (
+         |   TRUE,
+         |   "sample string",
+         |   1L,
+         |   2,
+         |   3S,
+         |   4Y,
+         |   5.0D,
+         |   6.0F,
+         |   TIMESTAMP "2023-08-09 17:24:40.322171",
+         |   DATE "2023-08-09",
+         |   STRUCT("subfieldValue1",123)
+         |)
+         |""".stripMargin)
+
+    // Create index on all columns
+    flint
+      .skippingIndex()
+      .onTable(testDataTypeTable)
+      .addValueSet("boolean_col")
+      .addValueSet("string_col")
+      .addValueSet("long_col")
+      .addValueSet("int_col")
+      .addValueSet("short_col")
+      .addValueSet("byte_col")
+      .addValueSet("double_col")
+      .addValueSet("float_col")
+      .addValueSet("timestamp_col")
+      .addValueSet("date_col")
+      .addValueSet("struct_col")
+      .create()
+
+    val index = flint.describeIndex(testDataTypeIndex)
+    index shouldBe defined
+    index.get.metadata().getContent should matchJson(
+      s"""{
+         |   "_meta": {
+         |     "kind": "skipping",
+         |     "indexedColumns": [
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "boolean_col",
+         |        "columnType": "boolean"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "string_col",
+         |        "columnType": "string"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "long_col",
+         |        "columnType": "bigint"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "int_col",
+         |        "columnType": "int"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "short_col",
+         |        "columnType": "smallint"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "byte_col",
+         |        "columnType": "tinyint"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "double_col",
+         |        "columnType": "double"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "float_col",
+         |        "columnType": "float"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "timestamp_col",
+         |        "columnType": "timestamp"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "date_col",
+         |        "columnType": "date"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "struct_col",
+         |        "columnType": "struct<subfield1:string,subfield2:int>"
+         |     }],
+         |     "source": "$testDataTypeTable"
+         |   },
+         |   "properties": {
+         |     "boolean_col": {
+         |       "type": "boolean"
+         |     },
+         |     "string_col": {
+         |       "type": "keyword"
+         |     },
+         |     "long_col": {
+         |       "type": "long"
+         |     },
+         |     "int_col": {
+         |       "type": "integer"
+         |     },
+         |     "short_col": {
+         |       "type": "short"
+         |     },
+         |     "byte_col": {
+         |       "type": "byte"
+         |     },
+         |     "double_col": {
+         |       "type": "double"
+         |     },
+         |     "float_col": {
+         |       "type": "float"
+         |     },
+         |     "timestamp_col": {
+         |       "type": "date",
+         |       "format": "strict_date_optional_time_nanos"
+         |     },
+         |     "date_col": {
+         |       "type": "date",
+         |       "format": "strict_date"
+         |     },
+         |     "struct_col": {
+         |       "properties": {
+         |         "subfield1": {
+         |           "type": "keyword"
+         |         },
+         |         "subfield2": {
+         |           "type": "integer"
+         |         }
+         |       }
+         |     },
+         |     "file_path": {
+         |       "type": "keyword"
+         |     }
+         |   }
+         | }
+         |""".stripMargin)
+
+    flint.deleteIndex(testDataTypeIndex)
+  }
+
   // Custom matcher to check if a SparkPlan uses FlintSparkSkippingFileIndex
   def useFlintSparkSkippingFileIndex(
       subMatcher: Matcher[FlintSparkSkippingFileIndex]): Matcher[SparkPlan] = {
