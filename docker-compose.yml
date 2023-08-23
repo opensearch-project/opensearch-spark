@@ -1,0 +1,76 @@
+version: "3.3"
+services:
+  spark-master:
+    image: our-own-apache-spark:3.4.0
+    ports:
+      - "9090:8080"
+      - "7077:7077"
+    volumes:
+      - ./apps:/opt/spark-apps
+      - ./data:/opt/spark-data
+    environment:
+      - SPARK_LOCAL_IP=spark-master
+      - SPARK_WORKLOAD=master
+  spark-worker-1:
+    image: our-own-apache-spark:3.4.0
+    ports:
+      - "9091:8080"
+      - "7000:7000"
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_DRIVER_MEMORY=1G
+      - SPARK_EXECUTOR_MEMORY=1G
+      - SPARK_WORKLOAD=worker
+      - SPARK_LOCAL_IP=spark-worker-1
+    volumes:
+      - ./apps:/opt/spark-apps
+      - ./data:/opt/spark-data
+  spark-worker-2:
+    image: our-own-apache-spark:3.4.0
+    ports:
+      - "9092:8080"
+      - "7001:7000"
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_DRIVER_MEMORY=1G
+      - SPARK_EXECUTOR_MEMORY=1G
+      - SPARK_WORKLOAD=worker
+      - SPARK_LOCAL_IP=spark-worker-2
+    volumes:
+      - ./apps:/opt/spark-apps
+      - ./data:/opt/spark-data
+  
+  livy-server:
+    container_name: livy_server
+    build: ./docker/livy/
+    command: ["sh", "-c", "/opt/bitnami/livy/bin/livy-server"]
+    user: root
+    volumes:
+      - type: bind
+        source: ./docker/livy/conf/
+        target: /opt/bitnami/livy/conf/
+      - type: bind
+        source: ./docker/livy/target/
+        target: /target/
+      - type: bind
+        source: ./docker/livy/data/
+        target: /data/
+    ports:
+      - '8998:8998'
+    networks:
+      - net
+    depends_on:
+      - spark-master
+      - spark-worker-1
+      - spark-worker-2
+networks:
+  net:
+    driver: bridge
