@@ -616,7 +616,7 @@ class FlintSparkSkippingIndexITSuite
       s"""
          | SELECT varchar_col, char_col
          | FROM $testTable
-         | WHERE varchar_col = 'sample varchar' AND char_col = 'sample char'
+         | WHERE varchar_col = "sample varchar" AND char_col = "sample char"
          |""".stripMargin)
 
     // CharType column is padded to a fixed length with whitespace
