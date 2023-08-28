@@ -345,7 +345,7 @@ Flint use [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJa
   ]
 }
 ```
-2. In AccountA, add STS assume role permission
+2. In AccountA, add STS assume role permission to arn:aws:iam::AccountA:role/JobExecutionRoleA
 ```
 {
   "Version": "2012-10-17",
