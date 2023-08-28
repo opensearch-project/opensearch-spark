@@ -42,8 +42,7 @@ class FlintSpark(val spark: SparkSession) {
     FlintSparkConf(
       Map(
         DOC_ID_COLUMN_NAME.optionKey -> ID_COLUMN,
-        IGNORE_DOC_ID_COLUMN.optionKey -> "true"
-      ).asJava)
+        IGNORE_DOC_ID_COLUMN.optionKey -> "true").asJava)
 
   /** Flint client for low-level index operation */
   private val flintClient: FlintClient = FlintClientBuilder.build(flintSparkConf.flintOptions())
@@ -57,8 +56,8 @@ class FlintSpark(val spark: SparkSession) {
    * @return
    *   index builder
    */
-  def skippingIndex(): IndexBuilder = {
-    new IndexBuilder(this)
+  def skippingIndex(): SkippingIndexBuilder = {
+    new SkippingIndexBuilder(this)
   }
 
   /**
@@ -240,17 +239,8 @@ object FlintSpark {
   /**
    * Helper class for index class construct. For now only skipping index supported.
    */
-  class IndexBuilder(flint: FlintSpark) {
-    var tableName: String = ""
-    var indexedColumns: Seq[FlintSparkSkippingStrategy] = Seq()
-
-    lazy val allColumns: Map[String, Column] = {
-      flint.spark.catalog
-        .listColumns(tableName)
-        .collect()
-        .map(col => (col.name, col))
-        .toMap
-    }
+  class SkippingIndexBuilder(flint: FlintSpark) extends FlintSparkIndexBuilder(flint) {
+    private var indexedColumns: Seq[FlintSparkSkippingStrategy] = Seq()
 
     /**
      * Configure which source table the index is based on.
@@ -260,7 +250,7 @@ object FlintSpark {
      * @return
      *   index builder
      */
-    def onTable(tableName: String): IndexBuilder = {
+    def onTable(tableName: String): SkippingIndexBuilder = {
       this.tableName = tableName
       this
     }
@@ -273,7 +263,7 @@ object FlintSpark {
      * @return
      *   index builder
      */
-    def addPartitions(colNames: String*): IndexBuilder = {
+    def addPartitions(colNames: String*): SkippingIndexBuilder = {
       require(tableName.nonEmpty, "table name cannot be empty")
 
       colNames
@@ -291,7 +281,7 @@ object FlintSpark {
      * @return
      *   index builder
      */
-    def addValueSet(colName: String): IndexBuilder = {
+    def addValueSet(colName: String): SkippingIndexBuilder = {
       require(tableName.nonEmpty, "table name cannot be empty")
 
       val col = findColumn(colName)
@@ -307,24 +297,15 @@ object FlintSpark {
      * @return
      *   index builder
      */
-    def addMinMax(colName: String): IndexBuilder = {
+    def addMinMax(colName: String): SkippingIndexBuilder = {
       val col = findColumn(colName)
       indexedColumns =
         indexedColumns :+ MinMaxSkippingStrategy(columnName = col.name, columnType = col.dataType)
       this
     }
 
-    /**
-     * Create index.
-     */
-    def create(): Unit = {
-      flint.createIndex(new FlintSparkSkippingIndex(tableName, indexedColumns))
-    }
-
-    private def findColumn(colName: String): Column =
-      allColumns.getOrElse(
-        colName,
-        throw new IllegalArgumentException(s"Column $colName does not exist"))
+    override def buildIndex(): FlintSparkIndex =
+      new FlintSparkSkippingIndex(tableName, indexedColumns)
 
     private def addIndexedColumn(indexedCol: FlintSparkSkippingStrategy): Unit = {
       require(
