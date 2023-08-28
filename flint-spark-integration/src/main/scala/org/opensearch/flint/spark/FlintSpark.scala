@@ -12,10 +12,10 @@ import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.FlintMetadata
-import org.opensearch.flint.spark.FlintSpark._
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL, RefreshMode}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
-import org.opensearch.flint.spark.skipping.{FlintSparkSkippingIndex, FlintSparkSkippingStrategy}
+import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.SKIPPING_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.{SkippingKind, SkippingKindSerializer}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
@@ -25,12 +25,10 @@ import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.SaveMode._
-import org.apache.spark.sql.catalog.Column
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
 import org.apache.spark.sql.streaming.OutputMode.Append
-import org.apache.spark.sql.streaming.StreamingQuery
 
 /**
  * Flint Spark integration API entrypoint.
@@ -56,8 +54,18 @@ class FlintSpark(val spark: SparkSession) {
    * @return
    *   index builder
    */
-  def skippingIndex(): SkippingIndexBuilder = {
-    new SkippingIndexBuilder(this)
+  def skippingIndex(): FlintSparkSkippingIndex.Builder = {
+    new FlintSparkSkippingIndex.Builder(this)
+  }
+
+  /**
+   * Create index builder for creating index with fluent API.
+   *
+   * @return
+   *   index builder
+   */
+  def coveringIndex(): FlintSparkCoveringIndex.Builder = {
+    new FlintSparkCoveringIndex.Builder(this)
   }
 
   /**
@@ -234,85 +242,5 @@ object FlintSpark {
   object RefreshMode extends Enumeration {
     type RefreshMode = Value
     val FULL, INCREMENTAL = Value
-  }
-
-  /**
-   * Helper class for index class construct. For now only skipping index supported.
-   */
-  class SkippingIndexBuilder(flint: FlintSpark) extends FlintSparkIndexBuilder(flint) {
-    private var indexedColumns: Seq[FlintSparkSkippingStrategy] = Seq()
-
-    /**
-     * Configure which source table the index is based on.
-     *
-     * @param tableName
-     *   full table name
-     * @return
-     *   index builder
-     */
-    def onTable(tableName: String): SkippingIndexBuilder = {
-      this.tableName = tableName
-      this
-    }
-
-    /**
-     * Add partition skipping indexed columns.
-     *
-     * @param colNames
-     *   indexed column names
-     * @return
-     *   index builder
-     */
-    def addPartitions(colNames: String*): SkippingIndexBuilder = {
-      require(tableName.nonEmpty, "table name cannot be empty")
-
-      colNames
-        .map(findColumn)
-        .map(col => PartitionSkippingStrategy(columnName = col.name, columnType = col.dataType))
-        .foreach(addIndexedColumn)
-      this
-    }
-
-    /**
-     * Add value set skipping indexed column.
-     *
-     * @param colName
-     *   indexed column name
-     * @return
-     *   index builder
-     */
-    def addValueSet(colName: String): SkippingIndexBuilder = {
-      require(tableName.nonEmpty, "table name cannot be empty")
-
-      val col = findColumn(colName)
-      addIndexedColumn(ValueSetSkippingStrategy(columnName = col.name, columnType = col.dataType))
-      this
-    }
-
-    /**
-     * Add min max skipping indexed column.
-     *
-     * @param colName
-     *   indexed column name
-     * @return
-     *   index builder
-     */
-    def addMinMax(colName: String): SkippingIndexBuilder = {
-      val col = findColumn(colName)
-      indexedColumns =
-        indexedColumns :+ MinMaxSkippingStrategy(columnName = col.name, columnType = col.dataType)
-      this
-    }
-
-    override def buildIndex(): FlintSparkIndex =
-      new FlintSparkSkippingIndex(tableName, indexedColumns)
-
-    private def addIndexedColumn(indexedCol: FlintSparkSkippingStrategy): Unit = {
-      require(
-        indexedColumns.forall(_.columnName != indexedCol.columnName),
-        s"${indexedCol.columnName} is already indexed")
-
-      indexedColumns = indexedColumns :+ indexedCol
-    }
   }
 }

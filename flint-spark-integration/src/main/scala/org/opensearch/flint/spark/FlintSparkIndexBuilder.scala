@@ -7,10 +7,18 @@ package org.opensearch.flint.spark
 
 import org.apache.spark.sql.catalog.Column
 
+/**
+ * Flint Spark index builder base class.
+ *
+ * @param flint
+ *   Flint Spark API entrypoint
+ */
 abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
 
+  /** Source table name */
   protected var tableName: String = ""
 
+  /** All columns of the given source table */
   lazy val allColumns: Map[String, Column] = {
     require(tableName.nonEmpty, "Source table name is not provided")
 
@@ -21,8 +29,14 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
       .toMap
   }
 
+  /**
+   * Create Flint index.
+   */
   def create(): Unit = flint.createIndex(buildIndex())
 
+  /**
+   * Build method for concrete builder class to implement
+   */
   protected def buildIndex(): FlintSparkIndex
 
   protected def findColumn(colName: String): Column =
