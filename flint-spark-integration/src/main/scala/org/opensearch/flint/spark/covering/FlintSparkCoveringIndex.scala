@@ -59,8 +59,8 @@ class FlintSparkCoveringIndex(
   }
 
   private def getMetaInfo: String = {
-    val objects = indexedColumns.map { case (colName, colVal) =>
-      JObject("columnName" -> JString(colName), "columnType" -> JString(colVal))
+    val objects = indexedColumns.map { case (colName, colType) =>
+      JObject("columnName" -> JString(colName), "columnType" -> JString(colType))
     }.toList
     Serialization.write(JArray(objects))
   }

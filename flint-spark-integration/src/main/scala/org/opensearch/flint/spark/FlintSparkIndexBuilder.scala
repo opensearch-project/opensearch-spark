@@ -19,7 +19,7 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
   protected var tableName: String = ""
 
   /** All columns of the given source table */
-  lazy val allColumns: Map[String, Column] = {
+  lazy protected val allColumns: Map[String, Column] = {
     require(tableName.nonEmpty, "Source table name is not provided")
 
     flint.spark.catalog
