@@ -123,13 +123,12 @@ object FlintDataType {
       case BooleanType => JObject("type" -> JString("boolean"))
 
       // string
-      case StringType =>
+      case StringType | _: VarcharType | _: CharType =>
         if (metadata.contains("osType") && metadata.getString("osType") == "text") {
           JObject("type" -> JString("text"))
         } else {
           JObject("type" -> JString("keyword"))
         }
-      case _: VarcharType | _: CharType => JObject("type" -> JString("keyword"))
 
       // Numbers
       case LongType => JObject("type" -> JString("long"))

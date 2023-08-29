@@ -146,6 +146,31 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
         Nil)
   }
 
+  test("spark varchar and char type with osType text serialize") {
+    val flintDataType =
+      """{
+        |  "properties": {
+        |    "varcharTextField": {
+        |      "type": "text"
+        |    },
+        |    "charTextField": {
+        |      "type": "text"
+        |    }
+        |  }
+        |}""".stripMargin
+    val textMetadata = new MetadataBuilder().putString("osType", "text").build()
+    val sparkStructType = StructType(
+      StructField("varcharTextField", VarcharType(20), true, textMetadata) ::
+        StructField("charTextField", CharType(20), true, textMetadata) ::
+        Nil)
+      FlintDataType.serialize(sparkStructType) shouldBe compactJson(flintDataType)
+    // flint data type should not deserialize to varchar or char
+    FlintDataType.deserialize(flintDataType) should contain theSameElementsAs StructType(
+      StructField("varcharTextField", StringType, true, textMetadata) ::
+        StructField("charTextField", StringType, true, textMetadata) ::
+        Nil)
+  }
+
   test("flint date type deserialize and serialize") {
     val flintDataType = """{
                           |  "properties": {
