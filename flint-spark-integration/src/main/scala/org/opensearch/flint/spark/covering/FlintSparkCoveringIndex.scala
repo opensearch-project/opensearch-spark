@@ -54,8 +54,8 @@ class FlintSparkCoveringIndex(
   }
 
   override def build(df: DataFrame): DataFrame = {
-    // TODO: implement later
-    null
+    val colNames = indexedColumns.keys.toSeq
+    df.select(colNames.head, colNames.tail: _*)
   }
 
   private def getMetaInfo: String = {

@@ -6,8 +6,11 @@
 package org.opensearch.flint.spark
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
+import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+
+import org.apache.spark.sql.Row
 
 class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
 
@@ -91,5 +94,39 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
          |   }
          | }
          |""".stripMargin)
+  }
+
+  test("full refresh covering index successfully") {
+    flint
+      .coveringIndex()
+      .indexName(testIndex)
+      .onTable(testTable)
+      .addIndexColumn("name", "age")
+      .create()
+
+    flint.refreshIndex(testIndex, FULL)
+
+    val indexData = flint.queryIndex(testIndex)
+    checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
+  }
+
+  test("incremental refresh covering index successfully") {
+    flint
+      .coveringIndex()
+      .indexName(testIndex)
+      .onTable(testTable)
+      .addIndexColumn("name", "age")
+      .create()
+
+    val jobId = flint.refreshIndex(testIndex, INCREMENTAL)
+    jobId shouldBe defined
+
+    val job = spark.streams.get(jobId.get)
+    failAfter(streamingTimeout) {
+      job.processAllAvailable()
+    }
+
+    val indexData = flint.queryIndex(testIndex)
+    checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
   }
 }
