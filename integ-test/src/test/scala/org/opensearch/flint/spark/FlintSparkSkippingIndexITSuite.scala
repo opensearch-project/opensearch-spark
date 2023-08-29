@@ -6,7 +6,6 @@
 package org.opensearch.flint.spark
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
-import org.opensearch.flint.OpenSearchSuite
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
@@ -15,27 +14,13 @@ import org.scalatest.matchers.{Matcher, MatchResult}
 import org.scalatest.matchers.must.Matchers._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
-import org.apache.spark.FlintSuite
-import org.apache.spark.sql.{Column, QueryTest, Row}
+import org.apache.spark.sql.{Column, Row}
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.flint.config.FlintSparkConf._
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.streaming.StreamTest
 
-class FlintSparkSkippingIndexITSuite
-    extends QueryTest
-    with FlintSuite
-    with OpenSearchSuite
-    with StreamTest {
-
-  /** Flint Spark high level API being tested */
-  lazy val flint: FlintSpark = {
-    setFlintSparkConf(HOST_ENDPOINT, openSearchHost)
-    setFlintSparkConf(HOST_PORT, openSearchPort)
-    setFlintSparkConf(REFRESH_POLICY, "true")
-    new FlintSpark(spark)
-  }
+class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
   /** Test table and index name */
   private val testTable = "default.test"
@@ -96,6 +81,7 @@ class FlintSparkSkippingIndexITSuite
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
         |   "_meta": {
+        |     "name": "flint_default_test_skipping_index",
         |     "kind": "skipping",
         |     "indexedColumns": [
         |     {
@@ -449,6 +435,7 @@ class FlintSparkSkippingIndexITSuite
     index.get.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "name": "flint_default_data_type_table_skipping_index",
          |     "kind": "skipping",
          |     "indexedColumns": [
          |     {

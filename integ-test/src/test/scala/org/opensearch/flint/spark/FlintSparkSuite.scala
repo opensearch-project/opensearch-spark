@@ -12,7 +12,10 @@ import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.flint.config.FlintSparkConf.{HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
 import org.apache.spark.sql.streaming.StreamTest
 
-trait FlintSparkIndexSuite
+/**
+ * Flint Spark suite trait that initializes [[FlintSpark]] API instance.
+ */
+trait FlintSparkSuite
     extends QueryTest
     with FlintSuite
     with OpenSearchSuite

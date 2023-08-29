@@ -28,6 +28,8 @@ import org.apache.spark.sql.types.StructType
  *
  * @param tableName
  *   source table name
+ * @param indexedColumns
+ *   indexed column list
  */
 class FlintSparkSkippingIndex(
     tableName: String,
@@ -49,6 +51,7 @@ class FlintSparkSkippingIndex(
   override def metadata(): FlintMetadata = {
     new FlintMetadata(s"""{
         |   "_meta": {
+        |     "name": "${name()}",
         |     "kind": "$SKIPPING_INDEX_TYPE",
         |     "indexedColumns": $getMetaInfo,
         |     "source": "$tableName"

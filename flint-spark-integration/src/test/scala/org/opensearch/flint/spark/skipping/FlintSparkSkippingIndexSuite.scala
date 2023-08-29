@@ -44,6 +44,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     index.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "name": "flint_default_test_skipping_index",
          |     "kind": "skipping",
          |     "indexedColumns": [{}],
          |     "source": "default.test"
@@ -69,6 +70,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     index.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "name": "flint_default_test_skipping_index",
          |     "kind": "skipping",
          |     "indexedColumns": [{}],
          |     "source": "default.test"
@@ -96,6 +98,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     index.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "name": "flint_default_test_skipping_index",
          |     "kind": "skipping",
          |     "indexedColumns": [{}],
          |     "source": "default.test"
@@ -121,6 +124,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     index.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "name": "flint_default_test_skipping_index",
          |     "kind": "skipping",
          |     "indexedColumns": [{}],
          |     "source": "default.test"
@@ -146,6 +150,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     index.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "name": "flint_default_test_skipping_index",
          |     "kind": "skipping",
          |     "indexedColumns": [{}],
          |     "source": "default.test"
@@ -171,6 +176,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     index.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "name": "flint_default_test_skipping_index",
          |     "kind": "skipping",
          |     "indexedColumns": [{}],
          |     "source": "default.test"
@@ -196,6 +202,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     index.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "name": "flint_default_test_skipping_index",
          |     "kind": "skipping",
          |     "indexedColumns": [{}],
          |     "source": "default.test"
@@ -221,6 +228,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     index.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "name": "flint_default_test_skipping_index",
          |     "kind": "skipping",
          |     "indexedColumns": [{}],
          |     "source": "default.test"
@@ -246,6 +254,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     index.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "name": "flint_default_test_skipping_index",
          |     "kind": "skipping",
          |     "indexedColumns": [{}],
          |     "source": "default.test"
@@ -272,6 +281,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     index.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "name": "flint_default_test_skipping_index",
          |     "kind": "skipping",
          |     "indexedColumns": [{}],
          |     "source": "default.test"
@@ -299,6 +309,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     index.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "name": "flint_default_test_skipping_index",
          |     "kind": "skipping",
          |     "indexedColumns": [{}],
          |     "source": "default.test"

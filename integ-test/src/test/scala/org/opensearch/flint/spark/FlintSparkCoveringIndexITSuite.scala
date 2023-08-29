@@ -5,11 +5,15 @@
 
 package org.opensearch.flint.spark
 
-class FlintSparkCoveringIndexITSuite extends FlintSparkIndexSuite {
+import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
+import org.scalatest.matchers.must.Matchers.defined
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+
+class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
 
   /** Test table and index name */
-  private val testTable = "default.test"
-  private val testIndex = "test"
+  private val testTable = "default.test_ci"
+  private val testIndex = "ci"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -53,6 +57,39 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkIndexSuite {
   }
 
   test("create covering index with metadata successfully") {
+    flint
+      .coveringIndex()
+      .indexName(testIndex)
+      .onTable(testTable)
+      .addIndexColumn("name", "age")
+      .create()
 
+    val index = flint.describeIndex(testIndex)
+    index shouldBe defined
+    index.get.metadata().getContent should matchJson(s"""{
+         |   "_meta": {
+         |     "name": "ci",
+         |     "kind": "covering",
+         |     "indexedColumns": [
+         |     {
+         |        "columnName": "name",
+         |        "columnType": "string"
+         |     },
+         |     {
+         |        "columnName": "age",
+         |        "columnType": "int"
+         |     }],
+         |     "source": "default.test_ci"
+         |   },
+         |   "properties": {
+         |     "name": {
+         |       "type": "keyword"
+         |     },
+         |     "age": {
+         |       "type": "integer"
+         |     }
+         |   }
+         | }
+         |""".stripMargin)
   }
 }
