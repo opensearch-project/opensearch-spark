@@ -34,9 +34,9 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
   test("create covering index with metadata successfully") {
     flint
       .coveringIndex()
-      .indexName(testIndex)
+      .name(testIndex)
       .onTable(testTable)
-      .addIndexColumn("name", "age")
+      .addIndexColumns("name", "age")
       .create()
 
     val index = flint.describeIndex(testIndex)
@@ -71,9 +71,9 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
   test("full refresh covering index successfully") {
     flint
       .coveringIndex()
-      .indexName(testIndex)
+      .name(testIndex)
       .onTable(testTable)
-      .addIndexColumn("name", "age")
+      .addIndexColumns("name", "age")
       .create()
 
     flint.refreshIndex(testIndex, FULL)
@@ -85,9 +85,9 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
   test("incremental refresh covering index successfully") {
     flint
       .coveringIndex()
-      .indexName(testIndex)
+      .name(testIndex)
       .onTable(testTable)
-      .addIndexColumn("name", "age")
+      .addIndexColumns("name", "age")
       .create()
 
     val jobId = flint.refreshIndex(testIndex, INCREMENTAL)

@@ -58,6 +58,7 @@ class FlintSparkCoveringIndex(
     df.select(colNames.head, colNames.tail: _*)
   }
 
+  // TODO: refactor all these once Flint metadata spec finalized
   private def getMetaInfo: String = {
     val objects = indexedColumns.map { case (colName, colType) =>
       JObject("columnName" -> JString(colName), "columnType" -> JString(colType))
@@ -93,7 +94,7 @@ object FlintSparkCoveringIndex {
      * @return
      *   index builder
      */
-    def indexName(indexName: String): Builder = {
+    def name(indexName: String): Builder = {
       this.indexName = indexName
       this
     }
@@ -119,7 +120,7 @@ object FlintSparkCoveringIndex {
      * @return
      *   index builder
      */
-    def addIndexColumn(colNames: String*): Builder = {
+    def addIndexColumns(colNames: String*): Builder = {
       colNames.foreach(colName => {
         indexedColumns += (colName -> findColumn(colName).dataType)
       })
