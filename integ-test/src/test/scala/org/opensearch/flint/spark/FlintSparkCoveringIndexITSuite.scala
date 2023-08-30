@@ -101,4 +101,20 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
     val indexData = flint.queryIndex(testIndex)
     checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
   }
+
+  test("can have multiple covering indexes on a table") {
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
+
+    flint
+      .coveringIndex()
+      .name(testIndex + "_address")
+      .onTable(testTable)
+      .addIndexColumns("address")
+      .create()
+  }
 }
