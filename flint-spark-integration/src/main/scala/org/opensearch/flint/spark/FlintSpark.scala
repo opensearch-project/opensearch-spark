@@ -15,7 +15,7 @@ import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL, RefreshMode}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
-import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
+import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{parseFlintIndexName, COVERING_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.SKIPPING_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.{SkippingKind, SkippingKindSerializer}
@@ -233,7 +233,7 @@ class FlintSpark(val spark: SparkSession) {
         new FlintSparkSkippingIndex(tableName, strategies)
       case COVERING_INDEX_TYPE =>
         new FlintSparkCoveringIndex(
-          indexName,
+          parseFlintIndexName(indexName, tableName),
           tableName,
           indexedColumns.arr.map { obj =>
             ((obj \ "columnName").extract[String], (obj \ "columnType").extract[String])

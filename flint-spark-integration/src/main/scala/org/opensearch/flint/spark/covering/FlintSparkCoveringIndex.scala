@@ -11,7 +11,7 @@ import org.json4s.native.JsonMethods.{compact, parse, render}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder}
-import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
+import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{getFlintIndexName, COVERING_INDEX_TYPE}
 
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.flint.datatype.FlintDataType
@@ -20,7 +20,7 @@ import org.apache.spark.sql.types.StructType
 /**
  * Flint covering index in Spark.
  *
- * @param name
+ * @param indexName
  *   index name
  * @param tableName
  *   source table name
@@ -28,9 +28,9 @@ import org.apache.spark.sql.types.StructType
  *   indexed column list
  */
 class FlintSparkCoveringIndex(
-    override val name: String,
-    val tableName: String,
-    val indexedColumns: Map[String, String])
+    indexName: String,
+    tableName: String,
+    indexedColumns: Map[String, String])
     extends FlintSparkIndex {
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")
@@ -40,10 +40,12 @@ class FlintSparkCoveringIndex(
 
   override val kind: String = COVERING_INDEX_TYPE
 
+  override def name(): String = getFlintIndexName(indexName, tableName)
+
   override def metadata(): FlintMetadata = {
     new FlintMetadata(s"""{
         |   "_meta": {
-        |     "name": "$name",
+        |     "name": "${name()}",
         |     "kind": "$kind",
         |     "indexedColumns": $getMetaInfo,
         |     "source": "$tableName"
@@ -80,6 +82,42 @@ object FlintSparkCoveringIndex {
 
   /** Covering index type name */
   val COVERING_INDEX_TYPE = "covering"
+
+  /**
+   * Get Flint index name which follows the convention: "flint_" prefix + source table name + +
+   * given index name + "_index" suffix.
+   *
+   * This helps identify the Flint index because Flint index is not registered to Spark Catalog
+   * for now.
+   *
+   * @param tableName
+   *   full table name
+   * @param indexName
+   *   index name specified by user
+   * @return
+   *   Flint covering index name
+   */
+  def getFlintIndexName(indexName: String, tableName: String): String = {
+    require(tableName.contains("."), "Full table name database.table is required")
+
+    s"flint_${tableName.replace(".", "_")}_${indexName}_index"
+  }
+
+  /**
+   * Parse original index name out of Flint index name.
+   *
+   * @param flintIndexName
+   *   Flint index name
+   * @param tableName
+   *   source table name
+   * @return
+   *   original index name specified by user
+   */
+  def parseFlintIndexName(flintIndexName: String, tableName: String): String = {
+    flintIndexName.substring(
+      s"flint_${tableName.replace(".", "_")}_".length,
+      flintIndexName.length - "_index".length)
+  }
 
   /** Builder class for covering index build */
   class Builder(flint: FlintSpark) extends FlintSparkIndexBuilder(flint) {
