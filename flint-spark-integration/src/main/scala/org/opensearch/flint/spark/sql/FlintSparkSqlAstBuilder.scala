@@ -14,7 +14,8 @@ import org.apache.spark.sql.catalyst.plans.logical.Command
  * Flint Spark AST builder that builds Spark command for Flint index statement.
  */
 class FlintSparkSqlAstBuilder
-    extends FlintSparkSkippingIndexAstBuilder
+    extends FlintSparkSqlExtensionsBaseVisitor[Command]
+    with FlintSparkSkippingIndexAstBuilder
     with FlintSparkCoveringIndexAstBuilder {
 
   override def aggregateResult(aggregate: Command, nextResult: Command): Command =

@@ -9,7 +9,7 @@ import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
-import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsBaseVisitor}
+import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.{CreateCoveringIndexStatementContext, PropertyListContext}
 
 import org.apache.spark.sql.catalyst.plans.logical.Command
@@ -17,7 +17,7 @@ import org.apache.spark.sql.catalyst.plans.logical.Command
 /**
  * Flint Spark AST builder that builds Spark command for Flint covering index statement.
  */
-trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command] {
+trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[Command] {
 
   override def visitCreateCoveringIndexStatement(
       ctx: CreateCoveringIndexStatementContext): Command = {
