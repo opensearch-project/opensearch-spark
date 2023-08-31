@@ -22,7 +22,7 @@ import org.apache.spark.sql.types.StringType
 /**
  * Flint Spark AST builder that builds Spark command for Flint skipping index statement.
  */
-class FlintSparkSqlSkippingIndexAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command] {
+trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command] {
 
   override def visitCreateSkippingIndexStatement(
       ctx: CreateSkippingIndexStatementContext): Command =

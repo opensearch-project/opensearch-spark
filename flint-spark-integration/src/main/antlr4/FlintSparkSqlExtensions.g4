@@ -16,6 +16,7 @@ singleStatement
 
 statement
     : skippingIndexStatement
+    | coveringIndexStatement
     ;
 
 skippingIndexStatement
@@ -41,6 +42,16 @@ describeSkippingIndexStatement
 
 dropSkippingIndexStatement
     : DROP SKIPPING INDEX ON tableName=multipartIdentifier
+    ;
+
+coveringIndexStatement
+    : createCoveringIndexStatement
+    ;
+
+createCoveringIndexStatement
+    : CREATE INDEX indexName=identifier ON tableName=multipartIdentifier
+        LEFT_PAREN indexColumns=multipartIdentifierPropertyList RIGHT_PAREN
+        (WITH LEFT_PAREN propertyList RIGHT_PAREN)?
     ;
 
 indexColTypeList
