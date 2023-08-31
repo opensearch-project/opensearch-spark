@@ -12,6 +12,7 @@ import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor}
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, isAutoRefreshEnabled}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
 import org.apache.spark.sql.Row
@@ -85,31 +86,6 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[C
       Seq.empty
     }
 
-  private def isAutoRefreshEnabled(ctx: PropertyListContext): Boolean = {
-    if (ctx == null) {
-      false
-    } else {
-      ctx
-        .property()
-        .forEach(p => {
-          if (p.key.getText == "auto_refresh") {
-            return p.value.getText.toBoolean
-          }
-        })
-      false
-    }
-  }
-
   private def getSkippingIndexName(flint: FlintSpark, tableNameCtx: RuleNode): String =
     FlintSparkSkippingIndex.getSkippingIndexName(getFullTableName(flint, tableNameCtx))
-
-  private def getFullTableName(flint: FlintSpark, tableNameCtx: RuleNode): String = {
-    val tableName = tableNameCtx.getText
-    if (tableName.contains(".")) {
-      tableName
-    } else {
-      val db = flint.spark.catalog.currentDatabase
-      s"$db.$tableName"
-    }
-  }
 }

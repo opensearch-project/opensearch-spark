@@ -5,12 +5,11 @@
 
 package org.opensearch.flint.spark.sql.covering
 
-import org.antlr.v4.runtime.tree.RuleNode
-import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor}
-import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.{CreateCoveringIndexStatementContext, PropertyListContext}
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, isAutoRefreshEnabled}
+import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.CreateCoveringIndexStatementContext
 
 import org.apache.spark.sql.catalyst.plans.logical.Command
 
@@ -42,31 +41,6 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[C
         flint.refreshIndex(flintIndexName, RefreshMode.INCREMENTAL)
       }
       Seq.empty
-    }
-  }
-
-  private def isAutoRefreshEnabled(ctx: PropertyListContext): Boolean = {
-    if (ctx == null) {
-      false
-    } else {
-      ctx
-        .property()
-        .forEach(p => {
-          if (p.key.getText == "auto_refresh") {
-            return p.value.getText.toBoolean
-          }
-        })
-      false
-    }
-  }
-
-  private def getFullTableName(flint: FlintSpark, tableNameCtx: RuleNode): String = {
-    val tableName = tableNameCtx.getText
-    if (tableName.contains(".")) {
-      tableName
-    } else {
-      val db = flint.spark.catalog.currentDatabase
-      s"$db.$tableName"
     }
   }
 }
