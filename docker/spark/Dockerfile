@@ -29,6 +29,7 @@ ENV SPARK_MASTER_PORT=7077 \
 SPARK_MASTER_WEBUI_PORT=8080 \
 SPARK_LOG_DIR=/opt/spark/logs \
 SPARK_MASTER_LOG=/opt/spark/logs/spark-master.out \
+SPARK_CONNECT_LOG=/opt/spark/logs/spark-connect.out \
 SPARK_WORKER_LOG=/opt/spark/logs/spark-worker.out \
 SPARK_WORKER_WEBUI_PORT=8080 \
 SPARK_WORKER_PORT=7000 \
