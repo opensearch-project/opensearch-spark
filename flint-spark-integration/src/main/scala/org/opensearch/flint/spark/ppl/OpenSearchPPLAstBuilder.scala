@@ -26,7 +26,7 @@ class OpenSearchPPLAstBuilder extends OpenSearchPPLParserBaseVisitor[LogicalPlan
    * <p>The default implementation returns the result of calling
    * {@link # visitChildren} on {@code ctx}.</p>
    */
-  override def visitPplStatement(ctx: OpenSearchPPLParser.PplStatementContext): LogicalPlan  = {
+  override def visitPplStatement(ctx: OpenSearchPPLParser.PplStatementContext): LogicalPlan = {
     println("visitPplStatement")
     new UnresolvedTable(Seq("table"), "source=table ", None)
   }
