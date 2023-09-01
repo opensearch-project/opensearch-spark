@@ -51,10 +51,13 @@ object FlintSparkIndex {
   val ID_COLUMN: String = "__id__"
 
   /**
-   * Common prefix of Flint index name.
+   * Common prefix of Flint index name which is "flint_database_table_"
    *
-   * @param tableName source table name
-   * @return Flint index name
+   * @param fullTableName
+   *   source full table name
+   * @return
+   *   Flint index name
    */
-  def flintIndexNamePrefix(tableName: String): String = s"flint_${tableName.replace(".", "_")}_"
+  def flintIndexNamePrefix(fullTableName: String): String =
+    s"flint_${fullTableName.replace(".", "_")}_"
 }
