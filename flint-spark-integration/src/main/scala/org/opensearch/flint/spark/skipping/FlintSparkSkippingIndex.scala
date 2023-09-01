@@ -10,7 +10,7 @@ import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder}
-import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
+import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, ID_COLUMN}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
@@ -102,6 +102,9 @@ object FlintSparkSkippingIndex {
   /** File path column name */
   val FILE_PATH_COLUMN = "file_path"
 
+  /** Flint skipping index name suffix */
+  val SKIPPING_INDEX_SUFFIX = "skipping_index"
+
   /**
    * Get skipping index name which follows the convention: "flint_" prefix + source table name +
    * "_skipping_index" suffix.
@@ -117,7 +120,7 @@ object FlintSparkSkippingIndex {
   def getSkippingIndexName(tableName: String): String = {
     require(tableName.contains("."), "Full table name database.table is required")
 
-    s"flint_${tableName.replace(".", "_")}_skipping_index"
+    flintIndexNamePrefix(tableName) + SKIPPING_INDEX_SUFFIX
   }
 
   /** Builder class for skipping index build */

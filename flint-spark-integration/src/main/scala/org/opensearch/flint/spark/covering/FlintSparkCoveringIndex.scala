@@ -11,6 +11,7 @@ import org.json4s.native.JsonMethods.{compact, parse, render}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder}
+import org.opensearch.flint.spark.FlintSparkIndex.flintIndexNamePrefix
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{getFlintIndexName, COVERING_INDEX_TYPE}
 
 import org.apache.spark.sql.DataFrame
@@ -83,6 +84,9 @@ object FlintSparkCoveringIndex {
   /** Covering index type name */
   val COVERING_INDEX_TYPE = "covering"
 
+  /** Flint covering index name suffix */
+  val COVERING_INDEX_SUFFIX = "_index"
+
   /**
    * Get Flint index name which follows the convention: "flint_" prefix + source table name + +
    * given index name + "_index" suffix.
@@ -100,7 +104,7 @@ object FlintSparkCoveringIndex {
   def getFlintIndexName(indexName: String, tableName: String): String = {
     require(tableName.contains("."), "Full table name database.table is required")
 
-    s"flint_${tableName.replace(".", "_")}_${indexName}_index"
+    flintIndexNamePrefix(tableName) + indexName + COVERING_INDEX_SUFFIX
   }
 
   /**
@@ -115,8 +119,8 @@ object FlintSparkCoveringIndex {
    */
   def parseFlintIndexName(flintIndexName: String, tableName: String): String = {
     flintIndexName.substring(
-      s"flint_${tableName.replace(".", "_")}_".length,
-      flintIndexName.length - "_index".length)
+      flintIndexNamePrefix(tableName).length,
+      flintIndexName.length - COVERING_INDEX_SUFFIX.length)
   }
 
   /** Builder class for covering index build */
