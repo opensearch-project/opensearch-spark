@@ -39,7 +39,9 @@ import org.apache.spark.sql.catalyst.parser._
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.trees.Origin
 import org.apache.spark.sql.types.{DataType, StructType}
-import org.opensearch.flint.spark.ppl.{OpenSearchPPLAstBuilder, PPLSyntaxParser}
+import org.opensearch.flint.spark.ppl.{ PPLSyntaxParser}
+import org.opensearch.sql.ppl.utils.StatementUtils
+import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 
 /**
  * Flint SQL parser that extends Spark SQL parser with Flint SQL statements.
@@ -52,13 +54,15 @@ class FlintSparkSqlParser(sparkParser: ParserInterface) extends ParserInterface 
   /** Flint (SQL) AST builder. */
   private val flintAstBuilder = new FlintSparkSqlAstBuilder()
   /** OpenSearch (PPL) AST builder. */
-  private val openSearchAstBuilder = new OpenSearchPPLAstBuilder()
+  private val planTrnasormer = new CatalystQueryPlanVisitor()
 
   private val pplParser = new PPLSyntaxParser()
   override def parsePlan(sqlText: String): LogicalPlan = {
     try {
-      // first try the PPL query
-      openSearchAstBuilder.visit(pplParser.parse(sqlText))
+      // if successful build ppl logical plan and translate to catalyst logical plan
+      val context = new CatalystPlanContext
+      planTrnasormer.visit(StatementUtils.plan(pplParser, sqlText, false), context)
+      context.getPlan
     } catch {
       case _: ParseException =>
         try {

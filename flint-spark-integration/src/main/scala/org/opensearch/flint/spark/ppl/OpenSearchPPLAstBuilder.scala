@@ -10,6 +10,8 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedTable
 import org.opensearch.flint.spark.sql.{OpenSearchPPLParser, OpenSearchPPLParserBaseVisitor}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+
 class OpenSearchPPLAstBuilder extends OpenSearchPPLParserBaseVisitor[LogicalPlan] {
 
   /**
@@ -28,7 +30,7 @@ class OpenSearchPPLAstBuilder extends OpenSearchPPLParserBaseVisitor[LogicalPlan
    */
   override def visitPplStatement(ctx: OpenSearchPPLParser.PplStatementContext): LogicalPlan = {
     println("visitPplStatement")
-    new UnresolvedTable(Seq("table"), "source=table ", None)
+    UnresolvedTable(Seq("table"), "source=table ", None)
   }
 
   /**
