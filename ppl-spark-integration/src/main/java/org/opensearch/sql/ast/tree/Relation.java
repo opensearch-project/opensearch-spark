@@ -42,19 +42,11 @@ public class Relation extends UnresolvedPlan {
    *
    * @return table name
    */
-  public String getTableName() {
-    return getTableQualifiedName().toString();
+  public List<String> getTableName() {
+    return tableName.stream().map(Object::toString).collect(Collectors.toList());
   }
 
-  /**
-   * Get original table name or its alias if present in Alias.
-   *
-   * @return table name or its alias
-   */
-  public String getTableNameOrAlias() {
-    return (alias == null) ? getTableName() : alias;
-  }
-
+ 
   /**
    * Return alias.
    *

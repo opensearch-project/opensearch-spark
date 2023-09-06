@@ -38,7 +38,7 @@ class PPLLogicalPlanTranslatorTestSuite
     val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, UnresolvedTable(Seq("table"), "source=table", None))
     assertEquals(context.getPlan, expectedPlan)
-    assertEquals(logPlan, "source=table | fields + *")
+    assertEquals(logPlan, "source=[table] | fields + *")
     
   }
 
@@ -49,7 +49,7 @@ class PPLLogicalPlanTranslatorTestSuite
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("A"))
     val expectedPlan = Project(projectList, UnresolvedTable(Seq("table"), "source=table", None))
     assertEquals(context.getPlan, expectedPlan)
-    assertEquals(logPlan, "source=table | fields + A")
+    assertEquals(logPlan, "source=[table] | fields + A")
   }
 
   test("test simple search with only one table with one field literal filtered ") {
@@ -62,7 +62,7 @@ class PPLLogicalPlanTranslatorTestSuite
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
     assertEquals(context.getPlan, expectedPlan)
-    assertEquals(logPlan, "source=t | where a = 1 | fields + *")
+    assertEquals(logPlan, "source=[t] | where a = 1 | fields + *")
   }
 
   test("test simple search with only one table with one field literal filtered and one field projected") {
@@ -75,7 +75,7 @@ class PPLLogicalPlanTranslatorTestSuite
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
     assertEquals(context.getPlan, expectedPlan)
-    assertEquals(logPlan, "source=t | where a = 1 | fields + a")
+    assertEquals(logPlan, "source=[t] | where a = 1 | fields + a")
   }
 
 
@@ -88,13 +88,34 @@ class PPLLogicalPlanTranslatorTestSuite
     val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
     val expectedPlan = Project(projectList, table)
     assertEquals(context.getPlan, expectedPlan)
-    assertEquals(logPlan, "source=t | fields + A,B")
+    assertEquals(logPlan, "source=[t] | fields + A,B")
   }
 
 
-  test("Search multiple tables - translated into union call") {
+  test("Search multiple tables - translated into union call - fields expected to exist in both tables ") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(plan(pplParser, "search source = table1, table2 ", false), context)
+    val logPlan = planTrnasformer.visit(plan(pplParser, "search source = table1, table2 | fields A, B", false), context)
+
+
+    val table1 = UnresolvedTable(Seq("table1"), "source=table1", None)
+    val table2 = UnresolvedTable(Seq("table2"), "source=table2", None)
+
+    val allFields1 = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
+    val allFields2 = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
+
+    val projectedTable1 = Project(allFields1, table1)
+    val projectedTable2 = Project(allFields2, table2)
+
+    val expectedPlan = Union(Seq(projectedTable1, projectedTable2),byName = true,allowMissingCol = true)
+
+    assertEquals(logPlan, "source=[table1, table2] | fields + A,B")
+    assertEquals(context.getPlan, expectedPlan)
+  }
+
+
+  test("Search multiple tables - translated into union call with fields") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "search source = table1, table2 | ", false), context)
 
 
     val table1 = UnresolvedTable(Seq("table1"), "source=table1", None)
@@ -106,9 +127,9 @@ class PPLLogicalPlanTranslatorTestSuite
     val projectedTable1 = Project(Seq(allFields1), table1)
     val projectedTable2 = Project(Seq(allFields2), table2)
 
-    val expectedPlan = Union(Seq(projectedTable1, projectedTable2))
+    val expectedPlan = Union(Seq(projectedTable1, projectedTable2),byName = true,allowMissingCol = true)
 
-    assertEquals(logPlan, "source=table1,table2 | fields + *")
+    assertEquals(logPlan, "source=[table1, table2] | fields + *")
     assertEquals(context.getPlan, expectedPlan)
   }
 

@@ -30,7 +30,6 @@ import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Map;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
-import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.ast.statement.Explain;
@@ -73,8 +72,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         this.expressionAnalyzer = new ExpressionAnalyzer();
     }
 
-    public String visit(Statement plan,CatalystPlanContext context) {
-        return plan.accept(this,context);
+    public String visit(Statement plan, CatalystPlanContext context) {
+        return plan.accept(this, context);
     }
 
     /**
@@ -92,12 +91,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
 
     @Override
     public String visitRelation(Relation node, CatalystPlanContext context) {
-        QualifiedName qualifiedName = node.getTableQualifiedName();
-        // todo - how to resolve the qualifiedName is its composed of a datasource + schema
-        // Create an UnresolvedTable node for a table named "qualifiedName" in the default namespace
-        String command = format("source=%s", node.getTableName());
-        context.plan(new UnresolvedTable(asScalaBuffer(of(qualifiedName.toString())).toSeq(), command, empty()));
-        return command;
+        node.getTableName().forEach(t -> {
+            // todo - how to resolve the qualifiedName is its composed of a datasource + schema
+            // QualifiedName qualifiedName = node.getTableQualifiedName();
+            // Create an UnresolvedTable node for a table named "qualifiedName" in the default namespace
+            context.with(new UnresolvedTable(asScalaBuffer(of(t)).toSeq(), format("source=%s", t), empty()));
+        });
+        return format("source=%s", node.getTableName());
     }
 
     @Override
@@ -114,9 +114,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     @Override
     public String visitFilter(Filter node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
-        String condition = visitExpression(node.getCondition(),context);
+        String condition = visitExpression(node.getCondition(), context);
         Expression innerCondition = context.getNamedParseExpressions().pop();
-        context.plan(new org.apache.spark.sql.catalyst.plans.logical.Filter(innerCondition,context.getPlan()));
+        context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(innerCondition, p));
         return format("%s | where %s", child, condition);
     }
 
@@ -126,7 +126,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         ImmutableMap.Builder<String, String> renameMapBuilder = new ImmutableMap.Builder<>();
         for (Map renameMap : node.getRenameList()) {
             renameMapBuilder.put(
-                    visitExpression(renameMap.getOrigin(),context),
+                    visitExpression(renameMap.getOrigin(), context),
                     ((Field) renameMap.getTarget()).getField().toString());
         }
         String renames =
@@ -139,10 +139,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     @Override
     public String visitAggregation(Aggregation node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
-        final String group = visitExpressionList(node.getGroupExprList(),context);
+        final String group = visitExpressionList(node.getGroupExprList(), context);
         return format(
                 "%s | stats %s",
-                child, String.join(" ", visitExpressionList(node.getAggExprList(),context), groupBy(group)).trim());
+                child, String.join(" ", visitExpressionList(node.getAggExprList(), context), groupBy(group)).trim());
     }
 
     @Override
@@ -150,8 +150,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         final String child = node.getChild().get(0).accept(this, context);
         List<Argument> options = node.getNoOfResults();
         Integer noOfResults = (Integer) options.get(0).getValue().getValue();
-        String fields = visitFieldList(node.getFields(),context);
-        String group = visitExpressionList(node.getGroupExprList(),context);
+        String fields = visitFieldList(node.getFields(), context);
+        String group = visitExpressionList(node.getGroupExprList(), context);
         return format(
                 "%s | %s %d %s",
                 child,
@@ -165,12 +165,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     public String visitProject(Project node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
         String arg = "+";
-        String fields = visitExpressionList(node.getProjectList(),context);
+        String fields = visitExpressionList(node.getProjectList(), context);
 
         // Create an UnresolvedStar for all-fields projection
         Seq<?> projectList = JavaConverters.asScalaBuffer(context.getNamedParseExpressions()).toSeq();
         // Create a Project node with the UnresolvedStar
-        context.plan(new org.apache.spark.sql.catalyst.plans.logical.Project((Seq<NamedExpression>)projectList, context.getPlan()));
+        context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Project((Seq<NamedExpression>) projectList, p));
 
         if (node.hasArgument()) {
             Argument argument = node.getArgExprList().get(0);
@@ -187,7 +187,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         String child = node.getChild().get(0).accept(this, context);
         ImmutableList.Builder<Pair<String, String>> expressionsBuilder = new ImmutableList.Builder<>();
         for (Let let : node.getExpressionList()) {
-            String expression = visitExpression(let.getExpression(),context);
+            String expression = visitExpression(let.getExpression(), context);
             String target = let.getVar().getField().toString();
             expressionsBuilder.add(ImmutablePair.of(target, expression));
         }
@@ -202,14 +202,14 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     public String visitSort(Sort node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
         // the first options is {"count": "integer"}
-        String sortList = visitFieldList(node.getSortList(),context);
+        String sortList = visitFieldList(node.getSortList(), context);
         return format("%s | sort %s", child, sortList);
     }
 
     @Override
     public String visitDedupe(Dedupe node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
-        String fields = visitFieldList(node.getFields(),context);
+        String fields = visitFieldList(node.getFields(), context);
         List<Argument> options = node.getOptions();
         Integer allowedDuplication = (Integer) options.get(0).getValue().getValue();
         Boolean keepEmpty = (Boolean) options.get(1).getValue().getValue();
@@ -228,17 +228,17 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     }
 
     private String visitFieldList(List<Field> fieldList, CatalystPlanContext context) {
-        return fieldList.stream().map(field->visitExpression(field,context)).collect(Collectors.joining(","));
+        return fieldList.stream().map(field -> visitExpression(field, context)).collect(Collectors.joining(","));
     }
 
-    private String visitExpressionList(List<UnresolvedExpression> expressionList,CatalystPlanContext context) {
+    private String visitExpressionList(List<UnresolvedExpression> expressionList, CatalystPlanContext context) {
         return expressionList.isEmpty()
                 ? ""
-                : expressionList.stream().map(field->visitExpression(field,context))
-                    .collect(Collectors.joining(","));
+                : expressionList.stream().map(field -> visitExpression(field, context))
+                .collect(Collectors.joining(","));
     }
 
-    private String visitExpression(UnresolvedExpression expression,CatalystPlanContext context) {
+    private String visitExpression(UnresolvedExpression expression, CatalystPlanContext context) {
         return expressionAnalyzer.analyze(expression, context);
     }
 
@@ -257,7 +257,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
 
         @Override
         public String visitLiteral(Literal node, CatalystPlanContext context) {
-            context.getNamedParseExpressions().add(new org.apache.spark.sql.catalyst.expressions.Literal(node.getValue(),translate(node.getType())));
+            context.getNamedParseExpressions().add(new org.apache.spark.sql.catalyst.expressions.Literal(node.getValue(), translate(node.getType())));
             return node.toString();
         }
 
@@ -323,6 +323,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
             context.getNamedParseExpressions().add(UnresolvedAttribute$.MODULE$.apply(JavaConverters.asScalaBuffer(Collections.singletonList(node.getField().toString()))));
             return node.getField().toString();
         }
+
         @Override
         public String visitAllFields(AllFields node, CatalystPlanContext context) {
             // Create an UnresolvedStar for all-fields projection

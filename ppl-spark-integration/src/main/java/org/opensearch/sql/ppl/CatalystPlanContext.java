@@ -6,12 +6,13 @@
 package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.Union;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Stack;
+import java.util.function.Function;
+
+import static scala.collection.JavaConverters.asScalaBuffer;
 
 /**
  * The context used for Catalyst logical plan.
@@ -20,32 +21,35 @@ public class CatalystPlanContext {
     /**
      * Catalyst evolving logical plan
      **/
-    private LogicalPlan plan;
+    private Stack<LogicalPlan> planBranches = new Stack<>();
 
     /**
      * NamedExpression contextual parameters
      **/
-    private final Stack<Expression> namedParseExpressions;
+    private final Stack<Expression> namedParseExpressions = new Stack<>();
 
     public LogicalPlan getPlan() {
-        return plan;
+        if (this.planBranches.size() == 1) {
+            return planBranches.peek();
+        }
+        //default unify sub-plans
+        return new Union(asScalaBuffer(this.planBranches).toSeq(), true, true);
     }
 
     public Stack<Expression> getNamedParseExpressions() {
         return namedParseExpressions;
     }
 
-    public CatalystPlanContext() {
-        this.namedParseExpressions = new Stack<>();
-    }
-
-
     /**
-     * update context with evolving plan
+     * append context with evolving plan
      *
      * @param plan
      */
-    public void plan(LogicalPlan plan) {
-        this.plan = plan;
+    public void with(LogicalPlan plan) {
+        this.planBranches.push(plan);
+    }
+    
+    public void plan(Function<LogicalPlan, LogicalPlan> transformFunction) {
+        this.planBranches.replaceAll(transformFunction::apply);
     }
 }
