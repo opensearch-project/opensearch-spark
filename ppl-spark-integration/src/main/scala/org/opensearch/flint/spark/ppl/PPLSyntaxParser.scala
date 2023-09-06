@@ -5,12 +5,10 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.antlr.v4.runtime.{CommonTokenStream, Lexer}
 import org.antlr.v4.runtime.tree.ParseTree
-import org.opensearch.flint.spark.ppl.{OpenSearchPPLLexer, OpenSearchPPLParser}
+import org.antlr.v4.runtime.{CommonTokenStream, Lexer}
 import org.opensearch.sql.ast.statement.Statement
-import org.opensearch.sql.common.antlr.{CaseInsensitiveCharStream, SyntaxAnalysisErrorListener}
-import org.opensearch.sql.common.antlr.Parser
+import org.opensearch.sql.common.antlr.{CaseInsensitiveCharStream, Parser, SyntaxAnalysisErrorListener}
 import org.opensearch.sql.ppl.parser.{AstBuilder, AstExpressionBuilder, AstStatementBuilder}
 
 class PPLSyntaxParser extends Parser {
