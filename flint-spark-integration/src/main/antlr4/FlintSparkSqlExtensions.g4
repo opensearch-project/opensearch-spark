@@ -46,12 +46,22 @@ dropSkippingIndexStatement
 
 coveringIndexStatement
     : createCoveringIndexStatement
+    | refreshCoveringIndexStatement
+    | dropCoveringIndexStatement
     ;
 
 createCoveringIndexStatement
     : CREATE INDEX indexName=identifier ON tableName=multipartIdentifier
         LEFT_PAREN indexColumns=multipartIdentifierPropertyList RIGHT_PAREN
         (WITH LEFT_PAREN propertyList RIGHT_PAREN)?
+    ;
+
+refreshCoveringIndexStatement
+    : REFRESH INDEX indexName=identifier ON tableName=multipartIdentifier
+    ;
+
+dropCoveringIndexStatement
+    : DROP INDEX indexName=identifier ON tableName=multipartIdentifier
     ;
 
 indexColTypeList
