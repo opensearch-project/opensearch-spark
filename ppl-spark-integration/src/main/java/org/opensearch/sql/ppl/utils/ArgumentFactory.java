@@ -6,7 +6,7 @@
 package org.opensearch.sql.ppl.utils;
 
 import org.antlr.v4.runtime.ParserRuleContext;
-import org.opensearch.flint.spark.sql.OpenSearchPPLParser;
+import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.Literal;

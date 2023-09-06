@@ -32,6 +32,7 @@ import org.antlr.v4.runtime.atn.PredictionMode
 import org.antlr.v4.runtime.misc.{Interval, ParseCancellationException}
 import org.antlr.v4.runtime.tree.TerminalNodeImpl
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
+
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -39,42 +40,24 @@ import org.apache.spark.sql.catalyst.parser._
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.trees.Origin
 import org.apache.spark.sql.types.{DataType, StructType}
-import org.opensearch.flint.spark.ppl.PPLSyntaxParser
-import org.opensearch.flint.spark.ppl.PlaneUtils.plan
-import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 
 /**
  * Flint SQL parser that extends Spark SQL parser with Flint SQL statements.
  *
  * @param sparkParser
- * Spark SQL parser
+ *   Spark SQL parser
  */
 class FlintSparkSqlParser(sparkParser: ParserInterface) extends ParserInterface {
 
-  /** Flint (SQL) AST builder. */
+  /** Flint AST builder. */
   private val flintAstBuilder = new FlintSparkSqlAstBuilder()
-  /** OpenSearch (PPL) AST builder. */
-  private val planTrnasormer = new CatalystQueryPlanVisitor()
 
-  private val pplParser = new PPLSyntaxParser()
-    
-  override def parsePlan(sqlText: String): LogicalPlan = {
+  override def parsePlan(sqlText: String): LogicalPlan = parse(sqlText) { flintParser =>
     try {
-      // if successful build ppl logical plan and translate to catalyst logical plan
-      val context = new CatalystPlanContext
-      planTrnasormer.visit(plan(pplParser, sqlText, false), context)
-      context.getPlan
+      flintAstBuilder.visit(flintParser.singleStatement())
     } catch {
-      case _: ParseException =>
-        try {
-          // next try the SQL query with PPL extension
-          flintAstBuilder.visit(parseSQL(sqlText) { flintParser =>
-            flintParser.singleStatement()
-          })
-        } catch {
-          // Fall back to Spark parse plan logic if flint cannot parse
-          case _: ParseException => sparkParser.parsePlan(sqlText)
-        }
+      // Fall back to Spark parse plan logic if flint cannot parse
+      case _: ParseException => sparkParser.parsePlan(sqlText)
     }
   }
 
@@ -99,7 +82,7 @@ class FlintSparkSqlParser(sparkParser: ParserInterface) extends ParserInterface 
 
   // Starting from here is copied and modified from Spark 3.3.1
 
-  protected def parseSQL[T](sqlText: String)(toResult: FlintSparkSqlExtensionsParser => T): T = {
+  protected def parse[T](sqlText: String)(toResult: FlintSparkSqlExtensionsParser => T): T = {
     val lexer = new FlintSparkSqlExtensionsLexer(
       new UpperCaseCharStream(CharStreams.fromString(sqlText)))
     lexer.removeErrorListeners()
@@ -146,17 +129,11 @@ class FlintSparkSqlParser(sparkParser: ParserInterface) extends ParserInterface 
 
 class UpperCaseCharStream(wrapped: CodePointCharStream) extends CharStream {
   override def consume(): Unit = wrapped.consume()
-
   override def getSourceName: String = wrapped.getSourceName
-
   override def index(): Int = wrapped.index
-
   override def mark(): Int = wrapped.mark
-
   override def release(marker: Int): Unit = wrapped.release(marker)
-
   override def seek(where: Int): Unit = wrapped.seek(where)
-
   override def size(): Int = wrapped.size
 
   override def getText(interval: Interval): String = wrapped.getText(interval)

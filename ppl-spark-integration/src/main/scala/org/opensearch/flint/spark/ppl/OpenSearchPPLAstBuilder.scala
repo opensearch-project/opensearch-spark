@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.ppl
 
 import org.antlr.v4.runtime.tree.{ErrorNode, ParseTree, RuleNode, TerminalNode}
 import org.apache.spark.sql.catalyst.analysis.UnresolvedTable
-import org.opensearch.flint.spark.sql.{OpenSearchPPLParser, OpenSearchPPLParserBaseVisitor}
+import org.opensearch.flint.spark.ppl.{OpenSearchPPLParser, OpenSearchPPLParserBaseVisitor}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`

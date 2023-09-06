@@ -5,16 +5,23 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.apache.hadoop.conf.Configuration
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar, UnresolvedTable}
+import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry, TableFunctionRegistry, UnresolvedAttribute, UnresolvedRelation, UnresolvedStar, UnresolvedTable}
+import org.apache.spark.sql.catalyst.catalog.{CatalogStorageFormat, CatalogTable, CatalogTableType, ExternalCatalog, FunctionExpressionBuilder, FunctionResourceLoader, GlobalTempViewManager, SessionCatalog}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Complete, Count, Max}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Descending, Divide, EqualTo, Floor, GreaterThan, GreaterThanOrEqual, LessThan, Like, Literal, NamedExpression, SortOrder, UnixTimestamp}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, Limit, Project, Sort, Union}
+import org.apache.spark.sql.catalyst.parser.{CatalystSqlParser, ParserInterface}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, Limit, LocalRelation, LogicalPlan, Project, Sort, Union}
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 import org.junit.Assert.assertEquals
+import org.mockito.Mockito.when
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar.mock
 
 class PPLLogicalPlanTranslatorTestSuite
   extends SparkFunSuite
@@ -468,5 +475,59 @@ class PPLLogicalPlanTranslatorTestSuite
     assertEquals(context.getPlan, expectedPlan)
 
   }
-  // Add more test cases as needed
+//  TODO - fix
+  test("Test Analyzer with Logical Plan") {
+    // Mock table schema and existence
+    val tableSchema = StructType(
+      List(
+        StructField("nonexistent_column", IntegerType),
+        StructField("another_nonexistent_column", IntegerType)
+      )
+    )
+    val catalogTable = CatalogTable(
+      identifier = TableIdentifier("nonexistent_table"),
+      tableType = CatalogTableType.MANAGED,
+      storage = CatalogStorageFormat.empty,
+      schema = tableSchema
+    )
+    val externalCatalog = mock[ExternalCatalog]
+    when(externalCatalog.tableExists("default", "nonexistent_table")).thenReturn(true)
+    when(externalCatalog.getTable("default", "nonexistent_table")).thenReturn(catalogTable)
+
+    // Mocking required components
+    val functionRegistry = mock[FunctionRegistry]
+    val tableFunctionRegistry = mock[TableFunctionRegistry]
+    val globalTempViewManager = mock[GlobalTempViewManager]
+    val functionResourceLoader = mock[FunctionResourceLoader]
+    val functionExpressionBuilder = mock[FunctionExpressionBuilder]
+    val hadoopConf = new Configuration()
+    val sqlParser = mock[ParserInterface]
+
+    val emptyCatalog = new SessionCatalog(
+      externalCatalogBuilder = () => externalCatalog,
+      globalTempViewManagerBuilder = () => globalTempViewManager,
+      functionRegistry = functionRegistry,
+      tableFunctionRegistry = tableFunctionRegistry,
+      hadoopConf = hadoopConf,
+      parser = sqlParser,
+      functionResourceLoader = functionResourceLoader,
+      functionExpressionBuilder = functionExpressionBuilder,
+      cacheSize = 1000,
+      cacheTTL = 0L
+    )
+
+
+    val analyzer = new Analyzer(emptyCatalog)
+
+    // Create a sample LogicalPlan
+    val invalidLogicalPlan = Project(
+      Seq(Alias(UnresolvedAttribute("undefined_column"), "alias")()),
+      LocalRelation()
+    )
+    // Analyze the LogicalPlan
+    val resolvedLogicalPlan: LogicalPlan = analyzer.execute(invalidLogicalPlan)
+
+    // Assertions to check the validity of the analyzed plan
+    assert(resolvedLogicalPlan.resolved)
+  }
 }

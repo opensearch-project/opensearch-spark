@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.ppl
 
 import org.antlr.v4.runtime.{CommonTokenStream, Lexer}
 import org.antlr.v4.runtime.tree.ParseTree
-import org.opensearch.flint.spark.sql.{OpenSearchPPLLexer, OpenSearchPPLParser}
+import org.opensearch.flint.spark.ppl.{OpenSearchPPLLexer, OpenSearchPPLParser}
 import org.opensearch.sql.ast.statement.Statement
 import org.opensearch.sql.common.antlr.{CaseInsensitiveCharStream, SyntaxAnalysisErrorListener}
 import org.opensearch.sql.common.antlr.Parser

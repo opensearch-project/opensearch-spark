@@ -9,8 +9,8 @@
 package org.opensearch.sql.ppl.parser;
 
 import com.google.common.collect.ImmutableList;
-import org.opensearch.flint.spark.sql.OpenSearchPPLParser;
-import org.opensearch.flint.spark.sql.OpenSearchPPLParserBaseVisitor;
+import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
+import org.opensearch.flint.spark.ppl.OpenSearchPPLParserBaseVisitor;
 import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
