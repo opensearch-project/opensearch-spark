@@ -45,7 +45,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
          |   "_meta": {
-         |     "name": "flint_default_ci_test_name_and_age_index",
+         |     "name": "name_and_age",
          |     "kind": "covering",
          |     "indexedColumns": [
          |     {

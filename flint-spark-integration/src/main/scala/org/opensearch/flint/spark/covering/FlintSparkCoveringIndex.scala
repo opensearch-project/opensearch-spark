@@ -46,7 +46,7 @@ class FlintSparkCoveringIndex(
   override def metadata(): FlintMetadata = {
     new FlintMetadata(s"""{
         |   "_meta": {
-        |     "name": "${name()}",
+        |     "name": "$indexName",
         |     "kind": "$kind",
         |     "indexedColumns": $getMetaInfo,
         |     "source": "$tableName"
@@ -105,22 +105,6 @@ object FlintSparkCoveringIndex {
     require(tableName.contains("."), "Full table name database.table is required")
 
     flintIndexNamePrefix(tableName) + indexName + COVERING_INDEX_SUFFIX
-  }
-
-  /**
-   * Parse original index name out of Flint index name.
-   *
-   * @param flintIndexName
-   *   Flint index name
-   * @param tableName
-   *   source table name
-   * @return
-   *   original index name specified by user
-   */
-  def parseFlintIndexName(flintIndexName: String, tableName: String): String = {
-    flintIndexName.substring(
-      flintIndexNamePrefix(tableName).length,
-      flintIndexName.length - COVERING_INDEX_SUFFIX.length)
   }
 
   /** Builder class for covering index build */
