@@ -31,4 +31,8 @@ public enum DataType {
   DataType(ExprCoreType type) {
       this.coreType = type;
   }
+
+  public ExprCoreType getCoreType() {
+    return coreType;
+  }
 }

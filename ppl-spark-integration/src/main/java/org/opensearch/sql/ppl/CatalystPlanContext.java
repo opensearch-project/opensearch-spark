@@ -5,11 +5,13 @@
 
 package org.opensearch.sql.ppl;
 
+import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 
 /**
  * The context used for Catalyst logical plan.
@@ -23,18 +25,18 @@ public class CatalystPlanContext {
     /**
      * NamedExpression contextual parameters
      **/
-    private final List<NamedExpression> namedParseExpressions;
+    private final Stack<Expression> namedParseExpressions;
 
     public LogicalPlan getPlan() {
         return plan;
     }
 
-    public List<NamedExpression> getNamedParseExpressions() {
+    public Stack<Expression> getNamedParseExpressions() {
         return namedParseExpressions;
     }
 
     public CatalystPlanContext() {
-        this.namedParseExpressions = new ArrayList<>();
+        this.namedParseExpressions = new Stack<>();
     }
 
 
