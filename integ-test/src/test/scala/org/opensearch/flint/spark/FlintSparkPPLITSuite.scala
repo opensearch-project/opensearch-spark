@@ -10,19 +10,14 @@ import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
 import org.apache.spark.sql.streaming.StreamTest
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 
 class FlintSparkPPLITSuite
     extends QueryTest
     with FlintPPLSuite
     with StreamTest {
 
-  /** Flint Spark high level API for assertion */
-  private lazy val flint: FlintSpark = new FlintSpark(spark)
-
   /** Test table and index name */
   private val testTable = "default.flint_sql_test"
-  private val testIndex = getSkippingIndexName(testTable)
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -54,8 +49,6 @@ class FlintSparkPPLITSuite
 
   protected override def afterEach(): Unit = {
     super.afterEach()
-    flint.deleteIndex(testIndex)
-
     // Stop all streaming jobs if any
     spark.streams.active.foreach { job =>
       job.stop()
@@ -72,7 +65,7 @@ class FlintSparkPPLITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.optimizedPlan
     // Define the expected logical plan
-    val expectedPlan: LogicalPlan = Project(Seq(UnresolvedAttribute("*")), UnresolvedRelation(TableIdentifier("test_table")))
+    val expectedPlan: LogicalPlan = Project(Seq(UnresolvedAttribute("*")), UnresolvedRelation(TableIdentifier(testTable)))
     // Compare the two plans
     assert(expectedPlan === logicalPlan)
 
