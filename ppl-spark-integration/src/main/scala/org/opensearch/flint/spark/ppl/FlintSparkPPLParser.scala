@@ -41,7 +41,7 @@ import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
  * @param sparkParser
  * Spark SQL parser
  */
-class FlintSparkSqlParser(sparkParser: ParserInterface) extends ParserInterface {
+class FlintSparkPPLParser(sparkParser: ParserInterface) extends ParserInterface {
 
   /** OpenSearch (PPL) AST builder. */
   private val planTrnasormer = new CatalystQueryPlanVisitor()

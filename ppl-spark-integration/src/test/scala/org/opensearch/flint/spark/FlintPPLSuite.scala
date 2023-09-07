@@ -11,7 +11,7 @@ import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 
-trait FlintSuite extends SharedSparkSession {
+trait FlintPPLSuite extends SharedSparkSession {
   override protected def sparkConf = {
     val conf = new SparkConf()
       .set("spark.ui.enabled", "false")
@@ -21,8 +21,7 @@ trait FlintSuite extends SharedSparkSession {
       // LocalRelation will exercise the optimization rules better by disabling it as
       // this rule may potentially block testing of other optimization rules such as
       // ConstantPropagation etc.
-      .set(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
-      .set("spark.sql.extensions", classOf[FlintSparkExtensions].getName)
+      .set("spark.sql.extensions", classOf[FlintPPLSparkExtensions].getName)
     conf
   }
 }

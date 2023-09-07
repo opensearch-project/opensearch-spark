@@ -152,7 +152,7 @@ lazy val integtest = (project in file("integ-test"))
       "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
       "org.testcontainers" % "testcontainers" % "1.18.0" % "test"),
     libraryDependencies ++= deps(sparkVersion),
-    Test / fullClasspath += (flintSparkIntegration / assembly).value)
+    Test / fullClasspath ++= Seq((flintSparkIntegration / assembly).value, (pplSparkIntegration / assembly).value))
 
 lazy val standaloneCosmetic = project
   .settings(
