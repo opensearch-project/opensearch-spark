@@ -5,21 +5,16 @@
 
 package org.opensearch.flint.spark
 
-import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
-import org.apache.spark.sql.flint.config.FlintSparkConf.{HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
+import org.apache.spark.sql.QueryTest
+import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation}
+import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
 import org.apache.spark.sql.streaming.StreamTest
-import org.apache.spark.sql.{QueryTest, Row}
-import org.opensearch.flint.OpenSearchSuite
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.defined
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-
-import scala.Option.empty
 
 class FlintSparkPPLITSuite
     extends QueryTest
     with FlintPPLSuite
-    with OpenSearchSuite
     with StreamTest {
 
   /** Flint Spark high level API for assertion */
@@ -31,12 +26,7 @@ class FlintSparkPPLITSuite
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-
-    // Configure for FlintSpark explicit created above and the one behind Flint SQL
-    setFlintSparkConf(HOST_ENDPOINT, openSearchHost)
-    setFlintSparkConf(HOST_PORT, openSearchPort)
-    setFlintSparkConf(REFRESH_POLICY, true)
-
+    
     // Create test table
     sql(s"""
            | CREATE TABLE $testTable
@@ -73,104 +63,18 @@ class FlintSparkPPLITSuite
     }
   }
 
-  test("create skipping index with auto refresh") {
-    sql(s"""
-           | CREATE SKIPPING INDEX ON $testTable
-           | (
-           |   year PARTITION,
-           |   name VALUE_SET,
-           |   age MIN_MAX
-           | )
-           | WITH (auto_refresh = true)
-           | """.stripMargin)
-
-    // Wait for streaming job complete current micro batch
-    val job = spark.streams.active.find(_.name == testIndex)
-    job shouldBe defined
-    failAfter(streamingTimeout) {
-      job.get.processAllAvailable()
-    }
-
-    val indexData = spark.read.format(FLINT_DATASOURCE).load(testIndex)
-    flint.describeIndex(testIndex) shouldBe defined
-    indexData.count() shouldBe 1
-  }
-
-  test("create skipping index with manual refresh") {
-    sql(s"""
-         | CREATE SKIPPING INDEX ON $testTable
-         | (
-         |   year PARTITION,
-         |   name VALUE_SET,
-         |   age MIN_MAX
-         | )
+  test("create ppl simple query test") {
+    val frame = sql(
+      s"""
+         | source = $testTable
          | """.stripMargin)
 
-    val indexData = spark.read.format(FLINT_DATASOURCE).load(testIndex)
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.optimizedPlan
+    // Define the expected logical plan
+    val expectedPlan: LogicalPlan = Project(Seq(UnresolvedAttribute("*")), UnresolvedRelation(TableIdentifier("test_table")))
+    // Compare the two plans
+    assert(expectedPlan === logicalPlan)
 
-    flint.describeIndex(testIndex) shouldBe defined
-    indexData.count() shouldBe 0
-
-    sql(s"REFRESH SKIPPING INDEX ON $testTable")
-    indexData.count() shouldBe 1
-  }
-
-  test("describe skipping index") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year")
-      .addValueSet("name")
-      .addMinMax("age")
-      .create()
-
-    val result = sql(s"DESC SKIPPING INDEX ON $testTable")
-
-    checkAnswer(
-      result,
-      Seq(
-        Row("year", "int", "PARTITION"),
-        Row("name", "string", "VALUE_SET"),
-        Row("age", "int", "MIN_MAX")))
-  }
-
-  test("create skipping index on table without database name") {
-    sql(s"""
-           | CREATE SKIPPING INDEX ON flint_sql_test
-           | (
-           |   year PARTITION,
-           |   name VALUE_SET,
-           |   age MIN_MAX
-           | )
-           | """.stripMargin)
-
-    flint.describeIndex(testIndex) shouldBe defined
-  }
-
-  test("create skipping index on table in other database") {
-    sql("CREATE SCHEMA sample")
-    sql("USE sample")
-    sql("CREATE TABLE test (name STRING) USING CSV")
-    sql("CREATE SKIPPING INDEX ON test (name VALUE_SET)")
-
-    flint.describeIndex("flint_sample_test_skipping_index") shouldBe defined
-  }
-
-  test("should return empty if no skipping index to describe") {
-    val result = sql(s"DESC SKIPPING INDEX ON $testTable")
-
-    checkAnswer(result, Seq.empty)
-  }
-
-  test("drop skipping index") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year")
-      .create()
-
-    sql(s"DROP SKIPPING INDEX ON $testTable")
-
-    flint.describeIndex(testIndex) shouldBe empty
   }
 }
