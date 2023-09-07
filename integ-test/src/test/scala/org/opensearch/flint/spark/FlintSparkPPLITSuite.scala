@@ -7,7 +7,7 @@ package org.opensearch.flint.spark
 
 import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{EqualTo, Literal}
+import org.apache.spark.sql.catalyst.expressions.{EqualTo, GreaterThan, Literal, Not}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project}
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -103,6 +103,24 @@ class FlintSparkPPLITSuite
     assert(expectedPlan === logicalPlan)
   }
   
+  test("create ppl simple age literal greater than filter query with two fields result test") {
+    val frame = sql(
+      s"""
+         | source = $testTable age>25 | fields name, age
+         | """.stripMargin)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val table = UnresolvedRelation(Seq("default","flint_ppl_tst"))
+    val filterExpr = GreaterThan(UnresolvedAttribute("age"), Literal(25))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("name"),UnresolvedAttribute("age"))
+    val expectedPlan = Project(projectList, filterPlan)
+    // Compare the two plans
+    assert(expectedPlan === logicalPlan)
+  }
+  
   test("create ppl simple name literal equal filter query with two fields result test") {
     val frame = sql(
       s"""
@@ -114,6 +132,24 @@ class FlintSparkPPLITSuite
     // Define the expected logical plan
     val table = UnresolvedRelation(Seq("default","flint_ppl_tst"))
     val filterExpr = EqualTo(UnresolvedAttribute("name"), Literal("'George'"))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("name"),UnresolvedAttribute("age"))
+    val expectedPlan = Project(projectList, filterPlan)
+    // Compare the two plans
+    assert(expectedPlan === logicalPlan)
+  }  
+  
+  test("create ppl simple name literal not equal filter query with two fields result test") {
+    val frame = sql(
+      s"""
+         | source = $testTable name!='George' | fields name, age
+         | """.stripMargin)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val table = UnresolvedRelation(Seq("default","flint_ppl_tst"))
+    val filterExpr = Not(EqualTo(UnresolvedAttribute("name"), Literal("'George'")))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"),UnresolvedAttribute("age"))
     val expectedPlan = Project(projectList, filterPlan)
