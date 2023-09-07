@@ -36,10 +36,32 @@ class PPLLogicalPlanTranslatorTestSuite
     val logPlan = planTrnasformer.visit(plan(pplParser, "source=table", false), context)
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
-    val expectedPlan = Project(projectList, UnresolvedTable(Seq("table"), "source=table", None))
+    val expectedPlan = Project(projectList, UnresolvedRelation(Seq("table")))
     assertEquals(context.getPlan, expectedPlan)
     assertEquals(logPlan, "source=[table] | fields + *")
-    
+
+  }
+
+  test("test simple search with schema.table and no explicit fields (defaults to all fields)") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=schema.table", false), context)
+
+    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, UnresolvedRelation(Seq("schema", "table")))
+    assertEquals(context.getPlan, expectedPlan)
+    assertEquals(logPlan, "source=[schema.table] | fields + *")
+
+  }
+
+  test("test simple search with schema.table and one field projected") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=schema.table | fields A", false), context)
+
+    val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("A"))
+    val expectedPlan = Project(projectList, UnresolvedRelation(Seq("schema", "table")))
+    assertEquals(context.getPlan, expectedPlan)
+    assertEquals(logPlan, "source=[schema.table] | fields + A")
   }
 
   test("test simple search with only one table with one field projected") {
@@ -47,7 +69,7 @@ class PPLLogicalPlanTranslatorTestSuite
     val logPlan = planTrnasformer.visit(plan(pplParser, "source=table | fields A", false), context)
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("A"))
-    val expectedPlan = Project(projectList, UnresolvedTable(Seq("table"), "source=table", None))
+    val expectedPlan = Project(projectList, UnresolvedRelation(Seq("table")))
     assertEquals(context.getPlan, expectedPlan)
     assertEquals(logPlan, "source=[table] | fields + A")
   }
@@ -56,7 +78,7 @@ class PPLLogicalPlanTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(plan(pplParser, "source=t a = 1 ", false), context)
 
-    val table = UnresolvedTable(Seq("t"), "source=t", None)
+    val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(UnresolvedAttribute("a"), Literal(1))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
@@ -65,11 +87,11 @@ class PPLLogicalPlanTranslatorTestSuite
     assertEquals(logPlan, "source=[t] | where a = 1 | fields + *")
   }
 
-  test("test simple search with only one table with one field literal filtered and one field projected") {
+  test("test simple search with only one table with one field literal equality filtered and one field projected") {
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(plan(pplParser, "source=t a = 1  | fields a", false), context)
 
-    val table = UnresolvedTable(Seq("t"), "source=t", None)
+    val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(UnresolvedAttribute("a"), Literal(1))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
@@ -78,13 +100,78 @@ class PPLLogicalPlanTranslatorTestSuite
     assertEquals(logPlan, "source=[t] | where a = 1 | fields + a")
   }
 
+  test("test simple search with only one table with one field greater than  filtered and one field projected") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=t a > 1  | fields a", false), context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val filterExpr = EqualTo(UnresolvedAttribute("a"), Literal(1))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("a"))
+    val expectedPlan = Project(projectList, filterPlan)
+    assertEquals(context.getPlan, expectedPlan)
+    assertEquals(logPlan, "source=[t] | where a > 1 | fields + a")
+  }
+
+  test("test simple search with only one table with one field greater than equal  filtered and one field projected") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=t a >= 1  | fields a", false), context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val filterExpr = EqualTo(UnresolvedAttribute("a"), Literal(1))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("a"))
+    val expectedPlan = Project(projectList, filterPlan)
+    assertEquals(context.getPlan, expectedPlan)
+    assertEquals(logPlan, "source=[t] | where a >= 1 | fields + a")
+  }
+
+  test("test simple search with only one table with one field lower than filtered and one field projected") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=t a < 1  | fields a", false), context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val filterExpr = EqualTo(UnresolvedAttribute("a"), Literal(1))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("a"))
+    val expectedPlan = Project(projectList, filterPlan)
+    assertEquals(context.getPlan, expectedPlan)
+    assertEquals(logPlan, "source=[t] | where a < 1 | fields + a")
+  }
+
+  test("test simple search with only one table with one field lower than equal filtered and one field projected") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=t a <= 1  | fields a", false), context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val filterExpr = EqualTo(UnresolvedAttribute("a"), Literal(1))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("a"))
+    val expectedPlan = Project(projectList, filterPlan)
+    assertEquals(context.getPlan, expectedPlan)
+    assertEquals(logPlan, "source=[t] | where a <= 1 | fields + a")
+  }
+
+  test("test simple search with only one table with one field not equal filtered and one field projected") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=t a != 1  | fields a", false), context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val filterExpr = EqualTo(UnresolvedAttribute("a"), Literal(1))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("a"))
+    val expectedPlan = Project(projectList, filterPlan)
+    assertEquals(context.getPlan, expectedPlan)
+    assertEquals(logPlan, "source=[t] | where a != 1 | fields + a")
+  }
+
 
   test("test simple search with only one table with two fields projected") {
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(plan(pplParser, "source=t | fields A, B", false), context)
 
 
-    val table = UnresolvedTable(Seq("t"), "source=t", None)
+    val table = UnresolvedRelation(Seq("t"))
     val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
     val expectedPlan = Project(projectList, table)
     assertEquals(context.getPlan, expectedPlan)
@@ -97,8 +184,8 @@ class PPLLogicalPlanTranslatorTestSuite
     val logPlan = planTrnasformer.visit(plan(pplParser, "search source = table1, table2 | fields A, B", false), context)
 
 
-    val table1 = UnresolvedTable(Seq("table1"), "source=table1", None)
-    val table2 = UnresolvedTable(Seq("table2"), "source=table2", None)
+    val table1 = UnresolvedRelation(Seq("table1"))
+    val table2 = UnresolvedRelation(Seq("table2"))
 
     val allFields1 = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
     val allFields2 = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
@@ -106,7 +193,7 @@ class PPLLogicalPlanTranslatorTestSuite
     val projectedTable1 = Project(allFields1, table1)
     val projectedTable2 = Project(allFields2, table2)
 
-    val expectedPlan = Union(Seq(projectedTable1, projectedTable2),byName = true,allowMissingCol = true)
+    val expectedPlan = Union(Seq(projectedTable1, projectedTable2), byName = true, allowMissingCol = true)
 
     assertEquals(logPlan, "source=[table1, table2] | fields + A,B")
     assertEquals(context.getPlan, expectedPlan)
@@ -118,8 +205,8 @@ class PPLLogicalPlanTranslatorTestSuite
     val logPlan = planTrnasformer.visit(plan(pplParser, "search source = table1, table2 | ", false), context)
 
 
-    val table1 = UnresolvedTable(Seq("table1"), "source=table1", None)
-    val table2 = UnresolvedTable(Seq("table2"), "source=table2", None)
+    val table1 = UnresolvedRelation(Seq("table1"))
+    val table2 = UnresolvedRelation(Seq("table2"))
 
     val allFields1 = UnresolvedStar(None)
     val allFields2 = UnresolvedStar(None)
@@ -127,7 +214,7 @@ class PPLLogicalPlanTranslatorTestSuite
     val projectedTable1 = Project(Seq(allFields1), table1)
     val projectedTable2 = Project(Seq(allFields2), table2)
 
-    val expectedPlan = Union(Seq(projectedTable1, projectedTable2),byName = true,allowMissingCol = true)
+    val expectedPlan = Union(Seq(projectedTable1, projectedTable2), byName = true, allowMissingCol = true)
 
     assertEquals(logPlan, "source=[table1, table2] | fields + *")
     assertEquals(context.getPlan, expectedPlan)
@@ -137,7 +224,7 @@ class PPLLogicalPlanTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(plan(pplParser, "source = housing_properties | stats avg(price) by property_type", false), context)
     // equivalent to SELECT property_type, AVG(price) FROM housing_properties GROUP BY property_type
-    val table = UnresolvedTable(Seq("housing_properties"), "source=housing_properties", None)
+    val table = UnresolvedRelation(Seq("housing_properties"))
 
     val avgPrice = Alias(Average(UnresolvedAttribute("price")), "avg(price)")()
     val propertyType = UnresolvedAttribute("property_type")
@@ -160,7 +247,7 @@ class PPLLogicalPlanTranslatorTestSuite
     // Equivalent SQL: SELECT address, price, city FROM housing_properties WHERE state = 'CA' ORDER BY price DESC LIMIT 10
 
     // Constructing the expected Catalyst Logical Plan
-    val table = UnresolvedTable(Seq("housing_properties"), "source=housing_properties", None)
+    val table = UnresolvedRelation(Seq("housing_properties"))
     val filter = Filter(EqualTo(UnresolvedAttribute("state"), Literal("CA")), table)
     val projectList = Seq(UnresolvedAttribute("address"), UnresolvedAttribute("price"), UnresolvedAttribute("city"))
     val projected = Project(projectList, filter)
@@ -180,7 +267,7 @@ class PPLLogicalPlanTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(plan(pplParser, "source = housing_properties | where land_space > 0 | eval price_per_land_unit = price / land_space | stats avg(price_per_land_unit) by city", false), context)
     // SQL: SELECT city, AVG(price / land_space) AS avg_price_per_land_unit FROM housing_properties WHERE land_space > 0 GROUP BY city
-    val table = UnresolvedTable(Seq("housing_properties"), "source=housing_properties", None)
+    val table = UnresolvedRelation(Seq("housing_properties"))
     val filter = Filter(GreaterThan(UnresolvedAttribute("land_space"), Literal(0)), table)
     val expression = AggregateExpression(
       Average(Divide(UnresolvedAttribute("price"), UnresolvedAttribute("land_space"))),
@@ -210,7 +297,8 @@ class PPLLogicalPlanTranslatorTestSuite
 
     val filter = Filter(LessThan(UnresolvedAttribute("listing_age"), Literal(30)),
       Filter(GreaterThanOrEqual(UnresolvedAttribute("listing_age"), Literal(0)),
-        UnresolvedTable(Seq("housing_properties"), "source=housing_properties", None)))
+        UnresolvedRelation(Seq("housing_properties"))
+      ))
 
     val expression = AggregateExpression(
       Count(Literal(1)),
@@ -237,9 +325,10 @@ class PPLLogicalPlanTranslatorTestSuite
       UnresolvedAttribute("agency_name"),
       UnresolvedAttribute("price")
     )
+    val table = UnresolvedRelation(Seq("housing_properties"))
 
     val filterCondition = Like(UnresolvedAttribute("agency_name"), Literal("%Compass%"), '\\')
-    val filter = Filter(filterCondition, UnresolvedTable(Seq("housing_properties"), "source=housing_properties", None))
+    val filter = Filter(filterCondition, table)
 
     val sortOrder = Seq(SortOrder(UnresolvedAttribute("price"), Descending))
     val sort = Sort(sortOrder, true, filter)
@@ -509,7 +598,7 @@ class PPLLogicalPlanTranslatorTestSuite
       groupByAttributes,
       aggregateExpressions ++ groupByAttributes,
       Filter(
-        Like(UnresolvedAttribute("machine.os"), Literal("%win%"),'\\'),
+        Like(UnresolvedAttribute("machine.os"), Literal("%win%"), '\\'),
         UnresolvedRelation(TableIdentifier("opensearch_dashboards_sample_data_logs"))
       )
     )
@@ -518,7 +607,8 @@ class PPLLogicalPlanTranslatorTestSuite
     assertEquals(logPlan, "???")
 
   }
-//  TODO - fix
+  
+  //  TODO - fix
   test("Test Analyzer with Logical Plan") {
     // Mock table schema and existence
     val tableSchema = StructType(

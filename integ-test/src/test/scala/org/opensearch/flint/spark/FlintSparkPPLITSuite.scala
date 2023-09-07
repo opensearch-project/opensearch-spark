@@ -6,9 +6,9 @@
 package org.opensearch.flint.spark
 
 import org.apache.spark.sql.QueryTest
-import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation}
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
+import org.apache.spark.sql.catalyst.expressions.{EqualTo, Literal}
+import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project}
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLITSuite
@@ -17,7 +17,7 @@ class FlintSparkPPLITSuite
     with StreamTest {
 
   /** Test table and index name */
-  private val testTable = "default.flint_sql_test"
+  private val testTable = "default.flint_ppl_tst"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -55,19 +55,51 @@ class FlintSparkPPLITSuite
       job.awaitTermination()
     }
   }
-
-  test("create ppl simple query test") {
+  
+  test("create ppl simple query with start fields result test") {
     val frame = sql(
       s"""
          | source = $testTable
          | """.stripMargin)
 
     // Retrieve the logical plan
-    val logicalPlan: LogicalPlan = frame.queryExecution.optimizedPlan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val expectedPlan: LogicalPlan = Project(Seq(UnresolvedAttribute("*")), UnresolvedRelation(TableIdentifier(testTable)))
+    val expectedPlan: LogicalPlan = Project(Seq(UnresolvedStar(None)), UnresolvedRelation(Seq("default","flint_ppl_tst")))
     // Compare the two plans
     assert(expectedPlan === logicalPlan)
+  }
+  
+  test("create ppl simple query two with fields result test") {
+    val frame = sql(
+      s"""
+         | source = $testTable | fields name, age
+         | """.stripMargin)
 
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val expectedPlan: LogicalPlan = Project(Seq(UnresolvedAttribute("name"),UnresolvedAttribute("age")), 
+      UnresolvedRelation(Seq("default","flint_ppl_tst")))
+    // Compare the two plans
+    assert(expectedPlan === logicalPlan)
+  }
+  
+  test("create ppl simple filter query with two fields result test") {
+    val frame = sql(
+      s"""
+         | source = $testTable age=25 | fields name, age
+         | """.stripMargin)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val table = UnresolvedRelation(Seq("default","flint_ppl_tst"))
+    val filterExpr = EqualTo(UnresolvedAttribute("age"), Literal(25))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("name"),UnresolvedAttribute("age"))
+    val expectedPlan = Project(projectList, filterPlan)
+    // Compare the two plans
+    assert(expectedPlan === logicalPlan)
   }
 }

@@ -33,6 +33,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.types.{DataType, StructType}
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.sql.common.antlr.SyntaxCheckException
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 
 /**
@@ -56,7 +57,7 @@ class FlintSparkPPLParser(sparkParser: ParserInterface) extends ParserInterface 
       context.getPlan
     } catch {
       // Fall back to Spark parse plan logic if flint cannot parse
-      case _: ParseException => sparkParser.parsePlan(sqlText)
+      case _: ParseException | _: SyntaxCheckException => sparkParser.parsePlan(sqlText)
     }
   }
 

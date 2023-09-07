@@ -11,10 +11,12 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedTable;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Alias;
@@ -95,7 +97,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
             // todo - how to resolve the qualifiedName is its composed of a datasource + schema
             // QualifiedName qualifiedName = node.getTableQualifiedName();
             // Create an UnresolvedTable node for a table named "qualifiedName" in the default namespace
-            context.with(new UnresolvedTable(asScalaBuffer(of(t)).toSeq(), format("source=%s", t), empty()));
+            context.with(new UnresolvedRelation(asScalaBuffer(of(t.split("\\."))).toSeq(), CaseInsensitiveStringMap.empty(), false));
         });
         return format("source=%s", node.getTableName());
     }
