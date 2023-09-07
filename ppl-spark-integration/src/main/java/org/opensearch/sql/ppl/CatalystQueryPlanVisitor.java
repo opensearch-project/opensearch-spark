@@ -13,9 +13,9 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
-import org.apache.spark.sql.catalyst.analysis.UnresolvedTable;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
+import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.AggregateFunction;
@@ -50,17 +50,15 @@ import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.TableFunction;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import scala.Option;
-import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
+import static java.util.Collections.singletonList;
 import static java.util.List.of;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
-import static scala.Option.empty;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
 /**
@@ -170,7 +168,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         String fields = visitExpressionList(node.getProjectList(), context);
 
         // Create an UnresolvedStar for all-fields projection
-        Seq<?> projectList = JavaConverters.asScalaBuffer(context.getNamedParseExpressions()).toSeq();
+        Seq<?> projectList = asScalaBuffer(context.getNamedParseExpressions()).toSeq();
         // Create a Project node with the UnresolvedStar
         context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Project((Seq<NamedExpression>) projectList, p));
 
@@ -317,13 +315,14 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         public String visitCompare(Compare node, CatalystPlanContext context) {
             String left = analyze(node.getLeft(), context);
             String right = analyze(node.getRight(), context);
-            context.getNamedParseExpressions().add(ComparatorTransformer.comparator(node, context));
+            Predicate comparator = ComparatorTransformer.comparator(node, context);
+            context.getNamedParseExpressions().add((org.apache.spark.sql.catalyst.expressions.Expression)comparator);
             return format("%s %s %s", left, node.getOperator(), right);
         }
 
         @Override
         public String visitField(Field node, CatalystPlanContext context) {
-            context.getNamedParseExpressions().add(UnresolvedAttribute$.MODULE$.apply(JavaConverters.asScalaBuffer(Collections.singletonList(node.getField().toString()))));
+            context.getNamedParseExpressions().add(UnresolvedAttribute$.MODULE$.apply(asScalaBuffer(singletonList(node.getField().toString()))));
             return node.getField().toString();
         }
 

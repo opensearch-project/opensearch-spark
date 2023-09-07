@@ -5,7 +5,6 @@
 
 package org.opensearch.sql.ppl;
 
-import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
 
@@ -26,7 +25,7 @@ public class CatalystPlanContext {
     /**
      * NamedExpression contextual parameters
      **/
-    private final Stack<Expression> namedParseExpressions = new Stack<>();
+    private final Stack<org.apache.spark.sql.catalyst.expressions.Expression> namedParseExpressions = new Stack<>();
 
     public LogicalPlan getPlan() {
         if (this.planBranches.size() == 1) {
@@ -36,7 +35,7 @@ public class CatalystPlanContext {
         return new Union(asScalaBuffer(this.planBranches).toSeq(), true, true);
     }
 
-    public Stack<Expression> getNamedParseExpressions() {
+    public Stack<org.apache.spark.sql.catalyst.expressions.Expression> getNamedParseExpressions() {
         return namedParseExpressions;
     }
 
@@ -48,7 +47,7 @@ public class CatalystPlanContext {
     public void with(LogicalPlan plan) {
         this.planBranches.push(plan);
     }
-    
+
     public void plan(Function<LogicalPlan, LogicalPlan> transformFunction) {
         this.planBranches.replaceAll(transformFunction::apply);
     }
