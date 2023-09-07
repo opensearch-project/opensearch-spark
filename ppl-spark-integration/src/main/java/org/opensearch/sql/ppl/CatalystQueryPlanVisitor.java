@@ -259,7 +259,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
 
         @Override
         public String visitLiteral(Literal node, CatalystPlanContext context) {
-            context.getNamedParseExpressions().add(new org.apache.spark.sql.catalyst.expressions.Literal(node.getValue(), translate(node.getType())));
+            context.getNamedParseExpressions().add(new org.apache.spark.sql.catalyst.expressions.Literal(
+                    translate(node.getValue(),node.getType()), translate(node.getType())));
             return node.toString();
         }
 
