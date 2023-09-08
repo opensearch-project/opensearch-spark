@@ -389,14 +389,16 @@ class FlintSparkSkippingIndexITSuite
 
   test("create skipping index for all supported data types successfully") {
     // Prepare test table
-    val testDataTypeTable = "default.data_type_table"
-    val testDataTypeIndex = getSkippingIndexName(testDataTypeTable)
+    val testTable = "default.data_type_table"
+    val testIndex = getSkippingIndexName(testTable)
     sql(
       s"""
-         | CREATE TABLE $testDataTypeTable
+         | CREATE TABLE $testTable
          | (
          |   boolean_col BOOLEAN,
          |   string_col STRING,
+         |   varchar_col VARCHAR(20),
+         |   char_col CHAR(20),
          |   long_col LONG,
          |   int_col INT,
          |   short_col SHORT,
@@ -411,10 +413,12 @@ class FlintSparkSkippingIndexITSuite
          |""".stripMargin)
     sql(
       s"""
-         | INSERT INTO $testDataTypeTable
+         | INSERT INTO $testTable
          | VALUES (
          |   TRUE,
          |   "sample string",
+         |   "sample varchar",
+         |   "sample char",
          |   1L,
          |   2,
          |   3S,
@@ -424,15 +428,17 @@ class FlintSparkSkippingIndexITSuite
          |   TIMESTAMP "2023-08-09 17:24:40.322171",
          |   DATE "2023-08-09",
          |   STRUCT("subfieldValue1",123)
-         |)
+         | )
          |""".stripMargin)
 
     // Create index on all columns
     flint
       .skippingIndex()
-      .onTable(testDataTypeTable)
+      .onTable(testTable)
       .addValueSet("boolean_col")
       .addValueSet("string_col")
+      .addValueSet("varchar_col")
+      .addValueSet("char_col")
       .addValueSet("long_col")
       .addValueSet("int_col")
       .addValueSet("short_col")
@@ -444,7 +450,7 @@ class FlintSparkSkippingIndexITSuite
       .addValueSet("struct_col")
       .create()
 
-    val index = flint.describeIndex(testDataTypeIndex)
+    val index = flint.describeIndex(testIndex)
     index shouldBe defined
     index.get.metadata().getContent should matchJson(
       s"""{
@@ -460,6 +466,16 @@ class FlintSparkSkippingIndexITSuite
          |        "kind": "VALUE_SET",
          |        "columnName": "string_col",
          |        "columnType": "string"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "varchar_col",
+         |        "columnType": "varchar(20)"
+         |     },
+         |     {
+         |        "kind": "VALUE_SET",
+         |        "columnName": "char_col",
+         |        "columnType": "char(20)"
          |     },
          |     {
          |        "kind": "VALUE_SET",
@@ -506,13 +522,19 @@ class FlintSparkSkippingIndexITSuite
          |        "columnName": "struct_col",
          |        "columnType": "struct<subfield1:string,subfield2:int>"
          |     }],
-         |     "source": "$testDataTypeTable"
+         |     "source": "$testTable"
          |   },
          |   "properties": {
          |     "boolean_col": {
          |       "type": "boolean"
          |     },
          |     "string_col": {
+         |       "type": "keyword"
+         |     },
+         |     "varchar_col": {
+         |       "type": "keyword"
+         |     },
+         |     "char_col": {
          |       "type": "keyword"
          |     },
          |     "long_col": {
@@ -558,7 +580,53 @@ class FlintSparkSkippingIndexITSuite
          | }
          |""".stripMargin)
 
-    flint.deleteIndex(testDataTypeIndex)
+    flint.deleteIndex(testIndex)
+  }
+
+  test("can build skipping index for varchar and char and rewrite applicable query") {
+    val testTable = "default.varchar_char_table"
+    val testIndex = getSkippingIndexName(testTable)
+    sql(
+      s"""
+         | CREATE TABLE $testTable
+         | (
+         |   varchar_col VARCHAR(20),
+         |   char_col CHAR(20)
+         | )
+         | USING PARQUET
+         |""".stripMargin)
+    sql(
+      s"""
+         | INSERT INTO $testTable
+         | VALUES (
+         |   "sample varchar",
+         |   "sample char"
+         | )
+         |""".stripMargin)
+
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addValueSet("varchar_col")
+      .addValueSet("char_col")
+      .create()
+    flint.refreshIndex(testIndex, FULL)
+
+    val query = sql(
+      s"""
+         | SELECT varchar_col, char_col
+         | FROM $testTable
+         | WHERE varchar_col = "sample varchar" AND char_col = "sample char"
+         |""".stripMargin)
+
+    // CharType column is padded to a fixed length with whitespace
+    val paddedChar = "sample char".padTo(20, ' ')
+    checkAnswer(query, Row("sample varchar", paddedChar))
+    query.queryExecution.executedPlan should
+      useFlintSparkSkippingFileIndex(hasIndexFilter(
+        col("varchar_col") === "sample varchar" && col("char_col") === paddedChar))
+
+    flint.deleteIndex(testIndex)
   }
 
   // Custom matcher to check if a SparkPlan uses FlintSparkSkippingFileIndex
