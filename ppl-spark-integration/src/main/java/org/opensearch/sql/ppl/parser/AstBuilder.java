@@ -12,8 +12,8 @@ import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParserBaseVisitor;
-import org.opensearch.sql.ast.dsl.AstDSL;
 import org.opensearch.sql.ast.expression.Alias;
+import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
@@ -245,7 +245,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                   (Literal) internalVisitExpression(x.children.get(2)));
             });
     java.util.Map<String, Literal> arguments = builder.build();
-    Literal pattern = arguments.getOrDefault("pattern", AstDSL.stringLiteral(""));
+    Literal pattern = arguments.getOrDefault("pattern", new Literal("", DataType.STRING));
 
     return new Parse(ParseMethod.PATTERNS, sourceField, pattern, arguments);
   }

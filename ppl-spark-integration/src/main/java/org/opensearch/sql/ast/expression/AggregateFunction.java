@@ -55,7 +55,6 @@ public class AggregateFunction extends UnresolvedExpression {
     this.funcName = funcName;
     this.field = field;
     this.argList = argList;
-    this.condition = condition;
   }
 
   @Override

@@ -13,9 +13,11 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
+import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
+import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.AggregateFunction;
@@ -48,18 +50,24 @@ import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.TableFunction;
+import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import scala.Option;
+import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.lang.String.format;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.List.of;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
 import static scala.collection.JavaConverters.asScalaBuffer;
+import static scala.collection.JavaConverters.asScalaBufferConverter;
 
 /**
  * Utility class to traverse PPL logical plan and translate it into catalyst logical plan
@@ -139,10 +147,14 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     @Override
     public String visitAggregation(Aggregation node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
+        final String visitExpressionList = visitExpressionList(node.getAggExprList(), context);
         final String group = visitExpressionList(node.getGroupExprList(), context);
+
+        Seq<Expression> groupBy = isNullOrEmpty(group) ? asScalaBuffer(emptyList()) : asScalaBuffer(singletonList(context.getNamedParseExpressions().pop())).toSeq();
+        context.plan(p->new Aggregate(groupBy,asScalaBuffer(singletonList((NamedExpression) context.getNamedParseExpressions().pop())).toSeq(),p));
         return format(
                 "%s | stats %s",
-                child, String.join(" ", visitExpressionList(node.getAggExprList(), context), groupBy(group)).trim());
+                child, String.join(" ", visitExpressionList, groupBy(group)).trim());
     }
 
     @Override
@@ -243,7 +255,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     }
 
     private String groupBy(String groupBy) {
-        return Strings.isNullOrEmpty(groupBy) ? "" : format("by %s", groupBy);
+        return isNullOrEmpty(groupBy) ? "" : format("by %s", groupBy);
     }
 
     /**
@@ -258,7 +270,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         @Override
         public String visitLiteral(Literal node, CatalystPlanContext context) {
             context.getNamedParseExpressions().add(new org.apache.spark.sql.catalyst.expressions.Literal(
-                    translate(node.getValue(),node.getType()), translate(node.getType())));
+                    translate(node.getValue(), node.getType()), translate(node.getType())));
             return node.toString();
         }
 
@@ -299,6 +311,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         @Override
         public String visitAggregateFunction(AggregateFunction node, CatalystPlanContext context) {
             String arg = node.getField().accept(this, context);
+            org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction aggregator = AggregatorTranslator.aggregator(node, context);
+            context.getNamedParseExpressions().add((org.apache.spark.sql.catalyst.expressions.Expression) aggregator);
             return format("%s(%s)", node.getFuncName(), arg);
         }
 
@@ -316,7 +330,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
             String left = analyze(node.getLeft(), context);
             String right = analyze(node.getRight(), context);
             Predicate comparator = ComparatorTransformer.comparator(node, context);
-            context.getNamedParseExpressions().add((org.apache.spark.sql.catalyst.expressions.Expression)comparator);
+            context.getNamedParseExpressions().add((org.apache.spark.sql.catalyst.expressions.Expression) comparator);
             return format("%s %s %s", left, node.getOperator(), right);
         }
 
@@ -336,6 +350,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         @Override
         public String visitAlias(Alias node, CatalystPlanContext context) {
             String expr = node.getDelegated().accept(this, context);
+            context.getNamedParseExpressions().add(
+                    org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply((Expression) context.getNamedParseExpressions().pop(),
+                            expr,
+                            NamedExpression.newExprId(),
+                            asScalaBufferConverter(new java.util.ArrayList<String>()).asScala().seq(),
+                            Option.empty(),
+                            asScalaBufferConverter(new java.util.ArrayList<String>()).asScala().seq()));
             return format("%s", expr);
         }
     }

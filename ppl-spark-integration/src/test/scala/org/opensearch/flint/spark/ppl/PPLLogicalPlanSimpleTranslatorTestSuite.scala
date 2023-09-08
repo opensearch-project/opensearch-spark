@@ -33,7 +33,7 @@ class PPLLogicalPlanSimpleTranslatorTestSuite
   ignore("Find What are the average prices for different types of properties") {
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(plan(pplParser, "source = housing_properties | stats avg(price) by property_type", false), context)
-    // equivalent to SELECT property_type, AVG(price) FROM housing_properties GROUP BY property_type
+    // SQL: SELECT property_type, AVG(price) FROM housing_properties GROUP BY property_type
     val table = UnresolvedRelation(Seq("housing_properties"))
 
     val avgPrice = Alias(Average(UnresolvedAttribute("price")), "avg(price)")()
@@ -54,7 +54,7 @@ class PPLLogicalPlanSimpleTranslatorTestSuite
   ignore("Find the top 10 most expensive properties in California, including their addresses, prices, and cities") {
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(plan(pplParser, "source = housing_properties | where state = \"CA\" | fields address, price, city | sort - price | head 10", false), context)
-    // Equivalent SQL: SELECT address, price, city FROM housing_properties WHERE state = 'CA' ORDER BY price DESC LIMIT 10
+    // SQL: SELECT address, price, city FROM housing_properties WHERE state = 'CA' ORDER BY price DESC LIMIT 10
 
     // Constructing the expected Catalyst Logical Plan
     val table = UnresolvedRelation(Seq("housing_properties"))
