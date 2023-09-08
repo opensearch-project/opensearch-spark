@@ -96,6 +96,7 @@ class FlintSparkSkippingIndexITSuite
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
         |   "_meta": {
+        |     "version": "0.1.0",
         |     "kind": "skipping",
         |     "indexedColumns": [
         |     {
