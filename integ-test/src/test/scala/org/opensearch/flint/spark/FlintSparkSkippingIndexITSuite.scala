@@ -7,6 +7,7 @@ package org.opensearch.flint.spark
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.opensearch.flint.OpenSearchSuite
+import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
@@ -96,7 +97,7 @@ class FlintSparkSkippingIndexITSuite
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
         |   "_meta": {
-        |     "version": "0.1.0",
+        |     "version": "${current()}",
         |     "kind": "skipping",
         |     "indexedColumns": [
         |     {
@@ -456,6 +457,7 @@ class FlintSparkSkippingIndexITSuite
     index.get.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "version": "${current()}",
          |     "kind": "skipping",
          |     "indexedColumns": [
          |     {
