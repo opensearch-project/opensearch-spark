@@ -60,13 +60,28 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val logPlan = planTrnasformer.visit(plan(pplParser,  """source=t a = 'hi'  | fields a""", false), context)
 
     val table = UnresolvedRelation(Seq("t"))
-    val filterExpr = EqualTo(UnresolvedAttribute("a"), Literal("'hi'"))
+    val filterExpr = EqualTo(UnresolvedAttribute("a"), Literal("hi"))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
  
     assertEquals(expectedPlan,context.getPlan)
     assertEquals(logPlan, "source=[t] | where a = 'hi' | fields + a")
+  }
+
+
+  test("test simple search with only one table with one field literal string none equality filtered and one field projected") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser,  """source=t a != 'bye'  | fields a""", false), context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val filterExpr = Not(EqualTo(UnresolvedAttribute("a"), Literal("bye")))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("a"))
+    val expectedPlan = Project(projectList, filterPlan)
+ 
+    assertEquals(expectedPlan,context.getPlan)
+    assertEquals(logPlan, "source=[t] | where a != 'bye' | fields + a")
   }
 
   test("test simple search with only one table with one field greater than  filtered and one field projected") {

@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import org.apache.spark.sql.QueryTest
+import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, GreaterThan, LessThanOrEqual, Literal, Not}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project}
@@ -40,11 +40,16 @@ class FlintSparkPPLITSuite
            | )
            |""".stripMargin)
 
-    sql(s"""
-           | INSERT INTO $testTable
-           | PARTITION (year=2023, month=4)
-           | VALUES ('Hello', 30)
-           | """.stripMargin)
+    // Insert data
+    sql(
+      s"""
+         | INSERT INTO $testTable
+         | PARTITION (year=2023, month=4)
+         | VALUES ('Jake', 70),
+         |        ('Hello', 30),
+         |        ('John', 25),
+         |        ('Jane', 25)
+         | """.stripMargin)
   }
 
   protected override def afterEach(): Unit = {
@@ -62,6 +67,18 @@ class FlintSparkPPLITSuite
          | source = $testTable
          | """.stripMargin)
 
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("Jake", 70, 2023, 4),
+      Row("Hello", 30, 2023, 4),
+      Row("John", 25, 2023, 4),
+      Row("Jane", 25, 2023, 4)
+    )
+    // Compare the results
+    assert(results === expectedResults)
+
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
@@ -75,6 +92,18 @@ class FlintSparkPPLITSuite
       s"""
          | source = $testTable | fields name, age
          | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("Jake", 70),
+      Row("Hello", 30),
+      Row("John", 25),
+      Row("Jane", 25)
+    )
+    // Compare the results
+    assert(results === expectedResults)
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
@@ -90,6 +119,17 @@ class FlintSparkPPLITSuite
       s"""
          | source = $testTable age=25 | fields name, age
          | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("John", 25),
+      Row("Jane", 25)
+    )
+    // Compare the results
+    assert(results === expectedResults)
+
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
@@ -109,6 +149,16 @@ class FlintSparkPPLITSuite
          | source = $testTable age>25 | fields name, age
          | """.stripMargin)
 
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("Jake", 70),
+      Row("Hello", 30)
+    )
+    // Compare the results
+    assert(results === expectedResults)
+
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
@@ -127,6 +177,17 @@ class FlintSparkPPLITSuite
          | source = $testTable age<=65 | fields name, age
          | """.stripMargin)
 
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("Hello", 30),
+      Row("John", 25),
+      Row("Jane", 25)
+    )
+    // Compare the results
+    assert(results === expectedResults)
+
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
@@ -142,14 +203,23 @@ class FlintSparkPPLITSuite
   test("create ppl simple name literal equal filter query with two fields result test") {
     val frame = sql(
       s"""
-         | source = $testTable name='George' | fields name, age
+         | source = $testTable name='Jake' | fields name, age
          | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("Jake", 70)
+    )
+    //     Compare the results
+    assert(results === expectedResults)
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
     val table = UnresolvedRelation(Seq("default","flint_ppl_tst"))
-    val filterExpr = EqualTo(UnresolvedAttribute("name"), Literal("'George'"))
+    val filterExpr = EqualTo(UnresolvedAttribute("name"), Literal("Jake"))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"),UnresolvedAttribute("age"))
     val expectedPlan = Project(projectList, filterPlan)
@@ -160,14 +230,25 @@ class FlintSparkPPLITSuite
   test("create ppl simple name literal not equal filter query with two fields result test") {
     val frame = sql(
       s"""
-         | source = $testTable name!='George' | fields name, age
+         | source = $testTable name!='Jake' | fields name, age
          | """.stripMargin)
 
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("Hello", 30),
+      Row("John", 25),
+      Row("Jane", 25)
+    )
+
+    // Compare the results
+    assert(results === expectedResults)
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
     val table = UnresolvedRelation(Seq("default","flint_ppl_tst"))
-    val filterExpr = Not(EqualTo(UnresolvedAttribute("name"), Literal("'George'")))
+    val filterExpr = Not(EqualTo(UnresolvedAttribute("name"), Literal("Jake")))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"),UnresolvedAttribute("age"))
     val expectedPlan = Project(projectList, filterPlan)

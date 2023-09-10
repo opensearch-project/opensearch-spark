@@ -29,7 +29,11 @@ public interface DataTypeTransformer {
     static Object translate(Object value, org.opensearch.sql.ast.expression.DataType source) {
         switch (source.getCoreType()) {
             case STRING:
-                return UTF8String.fromString(value.toString());
+                /* The regex ^'(.*)'$ matches strings that start and end with a single quote. The content inside the quotes is captured using the (.*).
+                 * The $1 in the replaceAll method refers to the first captured group, which is the content inside the quotes. 
+                 * If the string matches the pattern, the content inside the quotes is returned; otherwise, the original string is returned.
+                 */
+                return UTF8String.fromString(value.toString().replaceAll("^'(.*)'$", "$1"));
             default:
                 return value;
         }
