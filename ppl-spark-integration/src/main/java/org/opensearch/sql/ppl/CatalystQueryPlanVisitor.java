@@ -150,8 +150,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         final String visitExpressionList = visitExpressionList(node.getAggExprList(), context);
         final String group = visitExpressionList(node.getGroupExprList(), context);
 
-        Seq<Expression> groupBy = isNullOrEmpty(group) ? asScalaBuffer(emptyList()) : asScalaBuffer(singletonList(context.getNamedParseExpressions().pop())).toSeq();
-        context.plan(p->new Aggregate(groupBy,asScalaBuffer(singletonList((NamedExpression) context.getNamedParseExpressions().pop())).toSeq(),p));
+        NamedExpression namedExpression = (NamedExpression) context.getNamedParseExpressions().peek();
+        Seq<NamedExpression> namedExpressionSeq = asScalaBuffer(singletonList(namedExpression)).toSeq();
+
+        if(!isNullOrEmpty(group)) {
+            context.plan(p->new Aggregate(asScalaBuffer(singletonList((Expression) namedExpression)),namedExpressionSeq,p));
+        }
         return format(
                 "%s | stats %s",
                 child, String.join(" ", visitExpressionList, groupBy(group)).trim());
@@ -311,8 +315,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         @Override
         public String visitAggregateFunction(AggregateFunction node, CatalystPlanContext context) {
             String arg = node.getField().accept(this, context);
-            org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction aggregator = AggregatorTranslator.aggregator(node, context);
-            context.getNamedParseExpressions().add((org.apache.spark.sql.catalyst.expressions.Expression) aggregator);
+            org.apache.spark.sql.catalyst.expressions.Expression aggregator = AggregatorTranslator.aggregator(node, context);
+            context.getNamedParseExpressions().add(aggregator);
             return format("%s(%s)", node.getFuncName(), arg);
         }
 
@@ -342,16 +346,23 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
 
         @Override
         public String visitAllFields(AllFields node, CatalystPlanContext context) {
-            // Create an UnresolvedStar for all-fields projection
-            context.getNamedParseExpressions().add(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
-            return "*";
+            // Case of aggregation step - no start projection can be added
+            if(!context.getNamedParseExpressions().isEmpty()) {
+                // if named expression exist - just return their names
+                return context.getNamedParseExpressions().peek().toString();
+            } else {
+                // Create an UnresolvedStar for all-fields projection
+                context.getNamedParseExpressions().add(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+                return "*";
+            }
         }
 
         @Override
         public String visitAlias(Alias node, CatalystPlanContext context) {
             String expr = node.getDelegated().accept(this, context);
+            Expression expression = (Expression) context.getNamedParseExpressions().pop();
             context.getNamedParseExpressions().add(
-                    org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply((Expression) context.getNamedParseExpressions().pop(),
+                    org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply((Expression) expression,
                             expr,
                             NamedExpression.newExprId(),
                             asScalaBufferConverter(new java.util.ArrayList<String>()).asScala().seq(),
