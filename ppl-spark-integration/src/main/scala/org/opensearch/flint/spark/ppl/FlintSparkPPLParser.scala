@@ -50,15 +50,10 @@ class FlintSparkPPLParser(sparkParser: ParserInterface) extends ParserInterface 
   private val pplParser = new PPLSyntaxParser()
 
   override def parsePlan(sqlText: String): LogicalPlan = {
-    try {
-      // if successful build ppl logical plan and translate to catalyst logical plan
-      val context = new CatalystPlanContext
-      planTrnasormer.visit(plan(pplParser, sqlText, false), context)
-      context.getPlan
-    } catch {
-      // Fall back to Spark parse plan logic if flint cannot parse
-      case _: ParseException | _: SyntaxCheckException => sparkParser.parsePlan(sqlText)
-    }
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    planTrnasormer.visit(plan(pplParser, sqlText, false), context)
+    context.getPlan
   }
 
   override def parseExpression(sqlText: String): Expression = sparkParser.parseExpression(sqlText)

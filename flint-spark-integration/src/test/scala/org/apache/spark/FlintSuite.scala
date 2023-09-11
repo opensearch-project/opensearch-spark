@@ -11,7 +11,7 @@ import org.apache.spark.sql.flint.config.FlintConfigEntry
 import org.apache.spark.sql.flint.config.FlintSparkConf.HYBRID_SCAN_ENABLED
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
-import org.opensearch.flint.spark.FlintSparkExtensions
+import org.opensearch.flint.spark.FlintGenericSparkExtensions
 
 trait FlintSuite extends SharedSparkSession {
   override protected def sparkConf = {
@@ -24,7 +24,7 @@ trait FlintSuite extends SharedSparkSession {
       // this rule may potentially block testing of other optimization rules such as
       // ConstantPropagation etc.
       .set(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
-      .set("spark.sql.extensions", classOf[FlintSparkExtensions].getName)
+      .set("spark.sql.extensions", classOf[FlintGenericSparkExtensions].getName)
     conf
   }
 

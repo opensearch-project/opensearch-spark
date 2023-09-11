@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.spark
 
+import org.apache.spark.FlintSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, GreaterThan, LessThanOrEqual, Literal, Not}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, LogicalPlan, Project}
@@ -14,7 +15,7 @@ import org.apache.spark.sql.{QueryTest, Row}
 class FlintSparkPPLITSuite
   extends QueryTest
     with LogicalPlanTestUtils
-    with FlintPPLSuite
+    with FlintSuite
     with StreamTest {
 
   /** Test table and index name */
@@ -83,7 +84,9 @@ class FlintSparkPPLITSuite
       Row("Jane",25,"Quebec","Canada",2023,4)
     )
     // Compare the results
-    assert(results === expectedResults)
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
@@ -109,7 +112,9 @@ class FlintSparkPPLITSuite
       Row("Jane", 25)
     )
     // Compare the results
-    assert(results === expectedResults)
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
@@ -134,7 +139,9 @@ class FlintSparkPPLITSuite
       Row("Jane", 25)
     )
     // Compare the results
-    assert(results === expectedResults)
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
 
 
     // Retrieve the logical plan
@@ -163,7 +170,9 @@ class FlintSparkPPLITSuite
       Row("Hello", 30)
     )
     // Compare the results
-    assert(results === expectedResults)
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
@@ -192,7 +201,9 @@ class FlintSparkPPLITSuite
       Row("Jane", 25)
     )
     // Compare the results
-    assert(results === expectedResults)
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
@@ -219,7 +230,9 @@ class FlintSparkPPLITSuite
       Row("Jake", 70)
     )
     //     Compare the results
-    assert(results === expectedResults)
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
@@ -249,7 +262,10 @@ class FlintSparkPPLITSuite
     )
 
     // Compare the results
-    assert(results === expectedResults)
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
@@ -276,7 +292,9 @@ class FlintSparkPPLITSuite
     )
 
     // Compare the results
-    assert(results === expectedResults)
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical

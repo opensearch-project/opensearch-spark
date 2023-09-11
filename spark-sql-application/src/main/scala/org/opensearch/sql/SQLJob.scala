@@ -35,7 +35,7 @@ object SQLJob {
 
     val conf: SparkConf = new SparkConf()
       .setAppName("SQLJob")
-      .set("spark.sql.extensions", "org.opensearch.flint.spark.FlintSparkExtensions")
+      .set("spark.sql.extensions", "org.opensearch.flint.spark.FlintGenericSparkExtensions")
       .set("spark.datasource.flint.host", host)
       .set("spark.datasource.flint.port", port)
       .set("spark.datasource.flint.scheme", scheme)
