@@ -7,7 +7,7 @@ package org.opensearch.flint.spark
 
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, GreaterThan, LessThanOrEqual, Literal, Not}
-import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, LogicalPlan, Project}
 import org.apache.spark.sql.streaming.StreamTest
 import org.apache.spark.sql.{QueryTest, Row}
 
@@ -24,12 +24,15 @@ class FlintSparkPPLITSuite
     super.beforeAll()
 
     // Create test table
+    // Update table creation
     sql(
       s"""
          | CREATE TABLE $testTable
          | (
          |   name STRING,
-         |   age INT
+         |   age INT,
+         |   state STRING,
+         |   country STRING
          | )
          | USING CSV
          | OPTIONS (
@@ -42,15 +45,15 @@ class FlintSparkPPLITSuite
          | )
          |""".stripMargin)
 
-    // Insert data
+    // Update data insertion
     sql(
       s"""
          | INSERT INTO $testTable
          | PARTITION (year=2023, month=4)
-         | VALUES ('Jake', 70),
-         |        ('Hello', 30),
-         |        ('John', 25),
-         |        ('Jane', 25)
+         | VALUES ('Jake', 70, 'California', 'USA'),
+         |        ('Hello', 30, 'New York', 'USA'),
+         |        ('John', 25, 'Ontario', 'Canada'),
+         |        ('Jane', 25, 'Quebec', 'Canada')
          | """.stripMargin)
   }
 
@@ -72,11 +75,12 @@ class FlintSparkPPLITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     // Define the expected results
+//    [John,25,Ontario,Canada,2023,4], [Jane,25,Quebec,Canada,2023,4], [Jake,70,California,USA,2023,4], [Hello,30,New York,USA,2023,4]
     val expectedResults: Array[Row] = Array(
-      Row("Jake", 70, 2023, 4),
-      Row("Hello", 30, 2023, 4),
-      Row("John", 25, 2023, 4),
-      Row("Jane", 25, 2023, 4)
+      Row("Jake",70,"California","USA",2023,4),
+      Row("Hello",30,"New York","USA",2023,4),
+      Row("John",25,"Ontario","Canada",2023,4),
+      Row("Jane",25,"Quebec","Canada",2023,4)
     )
     // Compare the results
     assert(results === expectedResults)
@@ -286,14 +290,14 @@ class FlintSparkPPLITSuite
     assert(compareByString(aggregatePlan) === compareByString(logicalPlan))
   }
 
-  ignore("create ppl simple age avg group by query test ") {
-    val checkData = sql(s"SELECT name, AVG(age) AS avg_age FROM $testTable group by name");
+  test("create ppl simple age avg group by country query test ") {
+    val checkData = sql(s"SELECT country, AVG(age) AS avg_age FROM $testTable group by country");
     checkData.show()
     checkData.queryExecution.logical.show()
 
     val frame = sql(
       s"""
-         | source = $testTable| stats avg(age) by name
+         | source = $testTable| stats avg(age) by country
          | """.stripMargin)
 
 
@@ -301,21 +305,30 @@ class FlintSparkPPLITSuite
     val results: Array[Row] = frame.collect()
     // Define the expected results
     val expectedResults: Array[Row] = Array(
-      Row(37.5),
+      Row(25.0,"Canada"),
+      Row(50.0,"USA"),
     )
 
     // Compare the results
-    assert(results === expectedResults)
-
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+    
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val priceField = UnresolvedAttribute("price")
+    val star = Seq(UnresolvedStar(None))
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
     val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
-    val aggregateExpressions = Seq(Alias(UnresolvedFunction(Seq("AVG"), Seq(priceField), isDistinct = false), "avg(price)")())
-    val aggregatePlan = Project( aggregateExpressions, table)
+
+    val groupByAttributes = Seq(Alias(countryField, "country")())
+    val aggregateExpressions = Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")()
+    val productAlias = Alias(countryField, "country")()
+
+    val aggregatePlan = Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), table)
+    val expectedPlan = Project(star, aggregatePlan)
 
     // Compare the two plans
-    assert(aggregatePlan === logicalPlan)
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 }

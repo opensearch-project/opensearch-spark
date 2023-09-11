@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation}
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.Alias
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.junit.Assert.assertEquals
@@ -37,23 +37,24 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     assertEquals(compareByString(aggregatePlan), compareByString(context.getPlan))
   }
 
-  ignore("test average price group by product ") {
+  test("test average price group by product ") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(plan(pplParser, "source = table | stats avg(price) by product", false), context)
     //SQL: SELECT product, AVG(price) AS avg_price FROM table GROUP BY product
-
+    val star = Seq(UnresolvedStar(None))
     val productField = UnresolvedAttribute("product")
     val priceField = UnresolvedAttribute("price")
     val tableRelation = UnresolvedRelation(Seq("table"))
 
     val groupByAttributes = Seq(Alias(productField, "product")())
-    val aggregateExpressions = Seq(Alias(UnresolvedFunction(Seq("AVG"), Seq(priceField), isDistinct = false), "avg(price)")())
+    val aggregateExpressions = Alias(UnresolvedFunction(Seq("AVG"), Seq(priceField), isDistinct = false), "avg(price)")()
+    val productAlias = Alias(productField, "product")()
 
-    val aggregatePlan = Aggregate(groupByAttributes, aggregateExpressions, tableRelation)
-    val expectedPlan = Project(Seq(productField), aggregatePlan)
+    val aggregatePlan = Aggregate(groupByAttributes, Seq(aggregateExpressions,productAlias), tableRelation)
+    val expectedPlan = Project(star, aggregatePlan)
 
-    assertEquals(logPlan, "source=[table] | stats avg(price) by product | fields + 'product AS product#1")
+    assertEquals(logPlan, "source=[table] | stats avg(price) by product | fields + *")
     assertEquals(compareByString(expectedPlan), compareByString(context.getPlan))
   }
 

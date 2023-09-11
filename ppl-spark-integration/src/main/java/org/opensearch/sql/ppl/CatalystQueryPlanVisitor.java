@@ -150,10 +150,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         final String visitExpressionList = visitExpressionList(node.getAggExprList(), context);
         final String group = visitExpressionList(node.getGroupExprList(), context);
 
-        NamedExpression namedExpression = (NamedExpression) context.getNamedParseExpressions().peek();
-        Seq<NamedExpression> namedExpressionSeq = asScalaBuffer(singletonList(namedExpression)).toSeq();
 
         if(!isNullOrEmpty(group)) {
+            NamedExpression namedExpression = (NamedExpression) context.getNamedParseExpressions().peek();
+            Seq<NamedExpression> namedExpressionSeq = asScalaBuffer(context.getNamedParseExpressions().stream()
+                    .map(v->(NamedExpression)v).collect(Collectors.toList())).toSeq();
+            //now remove all context.getNamedParseExpressions() 
+            context.getNamedParseExpressions().retainAll(emptyList());
             context.plan(p->new Aggregate(asScalaBuffer(singletonList((Expression) namedExpression)),namedExpressionSeq,p));
         }
         return format(
@@ -183,11 +186,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         String arg = "+";
         String fields = visitExpressionList(node.getProjectList(), context);
 
-        // Create an UnresolvedStar for all-fields projection
+        // Create a projection list from the existing expressions
         Seq<?> projectList = asScalaBuffer(context.getNamedParseExpressions()).toSeq();
-        // Create a Project node with the UnresolvedStar
-        context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Project((Seq<NamedExpression>) projectList, p));
-
+        if(!projectList.isEmpty()) {
+            // build the plan with the projection step
+            context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Project((Seq<NamedExpression>) projectList, p));
+        }
         if (node.hasArgument()) {
             Argument argument = node.getArgExprList().get(0);
             Boolean exclude = (Boolean) argument.getValue().getValue();
