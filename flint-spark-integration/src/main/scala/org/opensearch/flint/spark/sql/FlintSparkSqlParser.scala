@@ -53,7 +53,12 @@ class FlintSparkSqlParser(sparkParser: ParserInterface) extends ParserInterface 
   private val flintAstBuilder = new FlintSparkSqlAstBuilder()
 
   override def parsePlan(sqlText: String): LogicalPlan = parse(sqlText) { flintParser =>
-    flintAstBuilder.visit(flintParser.singleStatement())
+    try {
+      flintAstBuilder.visit(flintParser.singleStatement())
+    } catch {
+      // Fall back to Spark parse plan logic if flint cannot parse
+      case _: ParseException => sparkParser.parsePlan(sqlText)
+    }
   }
 
   override def parseExpression(sqlText: String): Expression = sparkParser.parseExpression(sqlText)

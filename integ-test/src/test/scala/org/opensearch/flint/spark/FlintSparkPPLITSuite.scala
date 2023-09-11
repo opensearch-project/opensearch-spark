@@ -15,7 +15,7 @@ import org.apache.spark.sql.{QueryTest, Row}
 class FlintSparkPPLITSuite
   extends QueryTest
     with LogicalPlanTestUtils
-    with FlintSuite
+    with FlintPPLSuite
     with StreamTest {
 
   /** Test table and index name */
@@ -309,15 +309,10 @@ class FlintSparkPPLITSuite
   }
 
   test("create ppl simple age avg group by country query test ") {
-    val checkData = sql(s"SELECT country, AVG(age) AS avg_age FROM $testTable group by country");
-    checkData.show()
-    checkData.queryExecution.logical.show()
-
     val frame = sql(
       s"""
          | source = $testTable| stats avg(age) by country
          | """.stripMargin)
-
 
     // Retrieve the results
     val results: Array[Row] = frame.collect()
