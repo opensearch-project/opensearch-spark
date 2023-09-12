@@ -11,7 +11,7 @@ import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry, TableFunctionRegistry, UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, Descending, Divide, EqualTo, Floor, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Like, Literal, NamedExpression, Not, SortOrder, UnixTimestamp}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, Descending, Divide, EqualTo, Floor, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Like, Literal, NamedExpression, Not, Or, SortOrder, UnixTimestamp}
 import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
@@ -28,7 +28,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
 
   private val planTrnasformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
-  
+
   test("test simple search with only one table with one field literal filtered ") {
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(plan(pplParser, "source=t a = 1 ", false), context)
@@ -40,6 +40,48 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val expectedPlan = Project(projectList, filterPlan)
     assertEquals(expectedPlan, context.getPlan)
     assertEquals(logPlan, "source=[t] | where a = 1 | fields + *")
+  }
+
+  test("test simple search with only one table with two field with 'and' filtered ") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=t a = 1 AND b != 2", false), context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val filterAExpr = EqualTo(UnresolvedAttribute("a"), Literal(1))
+    val filterBExpr = Not(EqualTo(UnresolvedAttribute("b"), Literal(2)))
+    val filterPlan = Filter(And(filterBExpr, filterAExpr), table)
+    val projectList = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, filterPlan)
+    assertEquals(expectedPlan, context.getPlan)
+    assertEquals(logPlan, "source=[t] | where a = 1 and b != 2 | fields + *")
+  }
+
+  test("test simple search with only one table with two field with 'or' filtered ") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=t a = 1 OR b != 2", false), context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val filterAExpr = EqualTo(UnresolvedAttribute("a"), Literal(1))
+    val filterBExpr = Not(EqualTo(UnresolvedAttribute("b"), Literal(2)))
+    val filterPlan = Filter(Or(filterBExpr, filterAExpr), table)
+    val projectList = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, filterPlan)
+    assertEquals(expectedPlan, context.getPlan)
+    assertEquals(logPlan, "source=[t] | where a = 1 or b != 2 | fields + *")
+  }
+
+  test("test simple search with only one table with two field with 'not' filtered ") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=t not a = 1 or b != 2 ", false), context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val filterAExpr = Not(EqualTo(UnresolvedAttribute("a"), Literal(1)))
+    val filterBExpr = Not(EqualTo(UnresolvedAttribute("b"), Literal(2)))
+    val filterPlan = Filter(Or(filterBExpr, filterAExpr), table)
+    val projectList = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, filterPlan)
+    assertEquals(expectedPlan, context.getPlan)
+    assertEquals(logPlan, "source=[t] | where not a = 1 or b != 2 | fields + *")
   }
 
   test("test simple search with only one table with one field literal int equality filtered and one field projected") {
@@ -57,30 +99,30 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
 
   test("test simple search with only one table with one field literal string equality filtered and one field projected") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(plan(pplParser,  """source=t a = 'hi'  | fields a""", false), context)
+    val logPlan = planTrnasformer.visit(plan(pplParser, """source=t a = 'hi'  | fields a""", false), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(UnresolvedAttribute("a"), Literal("hi"))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
- 
-    assertEquals(expectedPlan,context.getPlan)
+
+    assertEquals(expectedPlan, context.getPlan)
     assertEquals(logPlan, "source=[t] | where a = 'hi' | fields + a")
   }
 
 
   test("test simple search with only one table with one field literal string none equality filtered and one field projected") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(plan(pplParser,  """source=t a != 'bye'  | fields a""", false), context)
+    val logPlan = planTrnasformer.visit(plan(pplParser, """source=t a != 'bye'  | fields a""", false), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = Not(EqualTo(UnresolvedAttribute("a"), Literal("bye")))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
- 
-    assertEquals(expectedPlan,context.getPlan)
+
+    assertEquals(expectedPlan, context.getPlan)
     assertEquals(logPlan, "source=[t] | where a != 'bye' | fields + a")
   }
 
