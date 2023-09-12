@@ -57,6 +57,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     assertEquals(logPlan, "source=[table] | stats avg(price) by product | fields + *")
     assertEquals(compareByString(expectedPlan), compareByString(context.getPlan))
   }
+  
   test("test average price group by product and filter") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext

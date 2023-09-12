@@ -153,7 +153,7 @@ class FlintSparkPPLITSuite
     // Compare the two plans
     assert(expectedPlan === logicalPlan)
   }
-  
+
   test("create ppl simple age literal greater than filter AND country not equal filter query with two fields result test") {
     val frame = sql(
       s"""
@@ -184,7 +184,7 @@ class FlintSparkPPLITSuite
     // Compare the two plans
     assert(expectedPlan === logicalPlan)
   }
-  
+
   test("create ppl simple age literal equal than filter OR country not equal filter query with two fields result test") {
     val frame = sql(
       s"""
@@ -436,6 +436,160 @@ class FlintSparkPPLITSuite
 
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+
+  test("create ppl simple age max group by country query test ") {
+    val frame = sql(
+      s"""
+         | source = $testTable| stats max(age) by country
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row(70, "USA"),
+      Row(25, "Canada"),
+    )
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+
+    val groupByAttributes = Seq(Alias(countryField, "country")())
+    val aggregateExpressions = Alias(UnresolvedFunction(Seq("MAX"), Seq(ageField), isDistinct = false), "max(age)")()
+    val productAlias = Alias(countryField, "country")()
+
+    val aggregatePlan = Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), table)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+  
+  test("create ppl simple age min group by country query test ") {
+    val frame = sql(
+      s"""
+         | source = $testTable| stats min(age) by country
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row(30, "USA"),
+      Row(20, "Canada"),
+    )
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+
+    val groupByAttributes = Seq(Alias(countryField, "country")())
+    val aggregateExpressions = Alias(UnresolvedFunction(Seq("MIN"), Seq(ageField), isDistinct = false), "min(age)")()
+    val productAlias = Alias(countryField, "country")()
+
+    val aggregatePlan = Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), table)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+  
+  test("create ppl simple age sum group by country query test ") {
+    val frame = sql(
+      s"""
+         | source = $testTable| stats sum(age) by country
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row(100L, "USA"),
+      Row(45L, "Canada"),
+    )
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Long](_.getAs[Long](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+
+    val groupByAttributes = Seq(Alias(countryField, "country")())
+    val aggregateExpressions = Alias(UnresolvedFunction(Seq("SUM"), Seq(ageField), isDistinct = false), "sum(age)")()
+    val productAlias = Alias(countryField, "country")()
+
+    val aggregatePlan = Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), table)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+
+  test("create ppl simple age count group by country query test ") {
+    val frame = sql(
+      s"""
+         | source = $testTable| stats count(age) by country
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row(2L, "Canada"),
+      Row(2L, "USA"),
+    )
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Long](_.getAs[Long](0))
+    assert(
+      results.sorted.sameElements(expectedResults.sorted),
+      s"Expected: ${expectedResults.mkString(", ")}, but got: ${results.mkString(", ")}"
+    )
+    
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+
+    val groupByAttributes = Seq(Alias(countryField, "country")())
+    val aggregateExpressions = Alias(UnresolvedFunction(Seq("COUNT"), Seq(ageField), isDistinct = false), "count(age)")()
+    val productAlias = Alias(countryField, "country")()
+
+    val aggregatePlan = Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), table)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    // Compare the two plans
+    assert(
+      compareByString(expectedPlan) === compareByString(logicalPlan),
+      s"Expected plan: ${compareByString(expectedPlan)}, but got: ${compareByString(logicalPlan)}"
+    )
   }
 
   test("create ppl simple age avg group by country with state filter query test ") {

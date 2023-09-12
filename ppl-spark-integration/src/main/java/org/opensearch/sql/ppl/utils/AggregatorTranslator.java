@@ -23,26 +23,20 @@ public interface AggregatorTranslator {
         // Additional aggregation function operators will be added here
         switch (BuiltinFunctionName.ofAggregation(aggregateFunction.getFuncName()).get()) {
             case MAX:
-                break;
+                return new UnresolvedFunction(asScalaBuffer(of("MAX")).toSeq(),
+                        asScalaBuffer(of(context.getNamedParseExpressions().pop())).toSeq(),false, empty(),false);
             case MIN:
-                break;
+                return new UnresolvedFunction(asScalaBuffer(of("MIN")).toSeq(),
+                        asScalaBuffer(of(context.getNamedParseExpressions().pop())).toSeq(),false, empty(),false);
             case AVG:
                 return new UnresolvedFunction(asScalaBuffer(of("AVG")).toSeq(),
                         asScalaBuffer(of(context.getNamedParseExpressions().pop())).toSeq(),false, empty(),false);
             case COUNT:
-                break;
+                return new UnresolvedFunction(asScalaBuffer(of("COUNT")).toSeq(),
+                        asScalaBuffer(of(context.getNamedParseExpressions().pop())).toSeq(),false, empty(),false);
             case SUM:
-                break;
-            case STDDEV_POP:
-                break;
-            case STDDEV_SAMP:
-                break;
-            case TAKE:
-                break;
-            case VARPOP:
-                break;
-            case VARSAMP:
-                break;
+                return new UnresolvedFunction(asScalaBuffer(of("SUM")).toSeq(),
+                        asScalaBuffer(of(context.getNamedParseExpressions().pop())).toSeq(),false, empty(),false);
         }
         throw new IllegalStateException("Not Supported value: " + aggregateFunction.getFuncName());
     }
