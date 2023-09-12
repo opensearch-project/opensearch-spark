@@ -5,9 +5,8 @@
 
 package org.opensearch.flint.spark
 
-import org.apache.spark.FlintSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, GreaterThan, LessThanOrEqual, Literal, Not}
+import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, GreaterThan, LessThan, LessThanOrEqual, Literal, Not}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, LogicalPlan, Project}
 import org.apache.spark.sql.streaming.StreamTest
 import org.apache.spark.sql.{QueryTest, Row}
@@ -54,7 +53,7 @@ class FlintSparkPPLITSuite
          | VALUES ('Jake', 70, 'California', 'USA'),
          |        ('Hello', 30, 'New York', 'USA'),
          |        ('John', 25, 'Ontario', 'Canada'),
-         |        ('Jane', 25, 'Quebec', 'Canada')
+         |        ('Jane', 20, 'Quebec', 'Canada')
          | """.stripMargin)
   }
 
@@ -76,12 +75,12 @@ class FlintSparkPPLITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     // Define the expected results
-//    [John,25,Ontario,Canada,2023,4], [Jane,25,Quebec,Canada,2023,4], [Jake,70,California,USA,2023,4], [Hello,30,New York,USA,2023,4]
+    //    [John,25,Ontario,Canada,2023,4], [Jane,25,Quebec,Canada,2023,4], [Jake,70,California,USA,2023,4], [Hello,30,New York,USA,2023,4]
     val expectedResults: Array[Row] = Array(
-      Row("Jake",70,"California","USA",2023,4),
-      Row("Hello",30,"New York","USA",2023,4),
-      Row("John",25,"Ontario","Canada",2023,4),
-      Row("Jane",25,"Quebec","Canada",2023,4)
+      Row("Jake", 70, "California", "USA", 2023, 4),
+      Row("Hello", 30, "New York", "USA", 2023, 4),
+      Row("John", 25, "Ontario", "Canada", 2023, 4),
+      Row("Jane", 20, "Quebec", "Canada", 2023, 4)
     )
     // Compare the results
     // Compare the results
@@ -109,7 +108,7 @@ class FlintSparkPPLITSuite
       Row("Jake", 70),
       Row("Hello", 30),
       Row("John", 25),
-      Row("Jane", 25)
+      Row("Jane", 20)
     )
     // Compare the results
     // Compare the results
@@ -136,7 +135,6 @@ class FlintSparkPPLITSuite
     // Define the expected results
     val expectedResults: Array[Row] = Array(
       Row("John", 25),
-      Row("Jane", 25)
     )
     // Compare the results
     // Compare the results
@@ -198,7 +196,7 @@ class FlintSparkPPLITSuite
     val expectedResults: Array[Row] = Array(
       Row("Hello", 30),
       Row("John", 25),
-      Row("Jane", 25)
+      Row("Jane", 20)
     )
     // Compare the results
     // Compare the results
@@ -258,7 +256,7 @@ class FlintSparkPPLITSuite
     val expectedResults: Array[Row] = Array(
       Row("Hello", 30),
       Row("John", 25),
-      Row("Jane", 25)
+      Row("Jane", 20)
     )
 
     // Compare the results
@@ -288,7 +286,7 @@ class FlintSparkPPLITSuite
     val results: Array[Row] = frame.collect()
     // Define the expected results
     val expectedResults: Array[Row] = Array(
-      Row(37.5),
+      Row(36.25),
     )
 
     // Compare the results
@@ -299,10 +297,42 @@ class FlintSparkPPLITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val priceField = UnresolvedAttribute("age")
+    val ageField = UnresolvedAttribute("age")
     val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
-    val aggregateExpressions = Seq(Alias(UnresolvedFunction(Seq("AVG"), Seq(priceField), isDistinct = false), "avg(age)")())
+    val aggregateExpressions = Seq(Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")())
     val aggregatePlan = Project(aggregateExpressions, table)
+
+    // Compare the two plans
+    assert(compareByString(aggregatePlan) === compareByString(logicalPlan))
+  }
+
+  test("create ppl simple age avg query with filter test") {
+    val frame = sql(
+      s"""
+         | source = $testTable| where age < 50 | stats avg(age) 
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row(25),
+    )
+
+    // Compare the results
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val ageField = UnresolvedAttribute("age")
+    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val filterExpr = LessThan(ageField, Literal(50))
+    val filterPlan = Filter(filterExpr, table)
+    val aggregateExpressions = Seq(Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")())
+    val aggregatePlan = Project(aggregateExpressions, filterPlan)
 
     // Compare the two plans
     assert(compareByString(aggregatePlan) === compareByString(logicalPlan))
@@ -318,14 +348,14 @@ class FlintSparkPPLITSuite
     val results: Array[Row] = frame.collect()
     // Define the expected results
     val expectedResults: Array[Row] = Array(
-      Row(25.0,"Canada"),
-      Row(50.0,"USA"),
+      Row(22.5, "Canada"),
+      Row(50.0, "USA"),
     )
 
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
-    
+
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
@@ -339,6 +369,46 @@ class FlintSparkPPLITSuite
     val productAlias = Alias(countryField, "country")()
 
     val aggregatePlan = Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), table)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+
+  test("create ppl simple age avg group by country with state filter query test ") {
+    val frame = sql(
+      s"""
+         | source = $testTable|  where state != 'Quebec' | stats avg(age) by country
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row(25.0, "Canada"),
+      Row(50.0, "USA"),
+    )
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val stateField = UnresolvedAttribute("state")
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+
+    val groupByAttributes = Seq(Alias(countryField, "country")())
+    val aggregateExpressions = Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")()
+    val productAlias = Alias(countryField, "country")()
+    val filterExpr = Not(EqualTo(stateField, Literal("Quebec")))
+    val filterPlan = Filter(filterExpr, table)
+
+    val aggregatePlan = Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), filterPlan)
     val expectedPlan = Project(star, aggregatePlan)
 
     // Compare the two plans

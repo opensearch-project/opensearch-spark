@@ -53,7 +53,7 @@ class PPLLogicalPlanSimpleTranslatorTestSuite
 
   ignore("Find the top 10 most expensive properties in California, including their addresses, prices, and cities") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(plan(pplParser, "source = housing_properties | where state = \"CA\" | fields address, price, city | sort - price | head 10", false), context)
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source = housing_properties | where state = `CA` | fields address, price, city | sort - price | head 10", false), context)
     // SQL: SELECT address, price, city FROM housing_properties WHERE state = 'CA' ORDER BY price DESC LIMIT 10
 
     // Constructing the expected Catalyst Logical Plan
@@ -127,7 +127,7 @@ class PPLLogicalPlanSimpleTranslatorTestSuite
 
   ignore("Find all the houses listed by agency Compass in  decreasing price order. Also provide only price, address and agency name information.") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(plan(pplParser, "source = housing_properties | where match( agency_name , \"Compass\" ) | fields address , agency_name , price | sort - price ", false), context)
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source = housing_properties | where match( agency_name , `Compass` ) | fields address , agency_name , price | sort - price ", false), context)
     // SQL: SELECT address, agency_name, price FROM housing_properties WHERE agency_name LIKE '%Compass%' ORDER BY price DESC
 
     val projectList = Seq(
@@ -216,7 +216,7 @@ class PPLLogicalPlanSimpleTranslatorTestSuite
 
   ignore("Find the top 5 referrers for the '/' path in apache access logs") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(plan(pplParser, "source = access_logs | where path = \"/\" | top 5 referer", false), context)
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source = access_logs | where path = `/` | top 5 referer", false), context)
     /*
         SQL: SELECT referer, COUNT(*) as count
         FROM access_logs
@@ -300,8 +300,8 @@ class PPLLogicalPlanSimpleTranslatorTestSuite
 
   ignore("Find nginx logs with non 2xx status code and url containing 'products'") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(plan(pplParser, "source = sso_logs-nginx-* | where match(http.url, 'products') and http.response.status_code >= \"300\"", false), context)
-    //SQL : SELECT MAX(size) AS max_size, floor(request_time / 900) AS time_span FROM access_logs GROUP BY time_span;
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source = sso_logs-nginx-* | where match(http.url, 'products') and http.response.status_code >= `300`", false), context)
+    //SQL : SELECT * FROM `sso_logs-nginx-*` WHERE http.url LIKE '%products%' AND http.response.status_code >= 300;
     val aggregateExpressions = Seq(
       Alias(AggregateExpression(Max(UnresolvedAttribute("size")), mode = Complete, isDistinct = false), "max_size")()
     )
@@ -321,7 +321,7 @@ class PPLLogicalPlanSimpleTranslatorTestSuite
 
   ignore("Find What are the details (URL, response status code, timestamp, source address) of events in the nginx logs where the response status code is 400 or higher") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(plan(pplParser, "source = sso_logs-nginx-* | where http.response.status_code >= \"400\" | fields http.url, http.response.status_code, @timestamp, communication.source.address", false), context)
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source = sso_logs-nginx-* | where http.response.status_code >= `400` | fields http.url, http.response.status_code, @timestamp, communication.source.address", false), context)
     //    SQL :  SELECT http.url, http.response.status_code, @timestamp, communication.source.address FROM sso_logs-nginx-* WHERE http.response.status_code >= 400;
     val projectList = Seq(
       UnresolvedAttribute("http.url"),
@@ -345,7 +345,7 @@ class PPLLogicalPlanSimpleTranslatorTestSuite
 
   ignore("Find What are the average and max http response sizes, grouped by request method, for access events in the nginx logs") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(plan(pplParser, "source = sso_logs-nginx-* | where event.name = \"access\" | stats avg(http.response.bytes), max(http.response.bytes) by http.request.method", false), context)
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source = sso_logs-nginx-* | where event.name = `access` | stats avg(http.response.bytes), max(http.response.bytes) by http.request.method", false), context)
     //SQL : SELECT AVG(http.response.bytes) AS avg_size, MAX(http.response.bytes) AS max_size, http.request.method FROM sso_logs-nginx-* WHERE event.name = 'access' GROUP BY http.request.method;
     val aggregateExpressions = Seq(
       Alias(AggregateExpression(Average(UnresolvedAttribute("http.response.bytes")), mode = Complete, isDistinct = false), "avg_size")(),

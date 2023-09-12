@@ -5,7 +5,6 @@
 
 package org.opensearch.sql.ppl;
 
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -13,7 +12,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
-import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
@@ -34,6 +32,7 @@ import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Map;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
+import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.ast.statement.Explain;
@@ -53,10 +52,8 @@ import org.opensearch.sql.ast.tree.TableFunction;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import scala.Option;
-import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -162,6 +159,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         return format(
                 "%s | stats %s",
                 child, String.join(" ", visitExpressionList, groupBy(group)).trim());
+    }
+
+    @Override
+    public String visitSpan(Span node, CatalystPlanContext context) {
+        return super.visitSpan(node, context);
     }
 
     @Override
@@ -314,6 +316,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         public String visitNot(Not node, CatalystPlanContext context) {
             String expr = node.getExpression().accept(this, context);
             return format("not %s", expr);
+        }
+
+        @Override
+        public String visitSpan(Span node, CatalystPlanContext context) {
+            return super.visitSpan(node, context);
         }
 
         @Override
