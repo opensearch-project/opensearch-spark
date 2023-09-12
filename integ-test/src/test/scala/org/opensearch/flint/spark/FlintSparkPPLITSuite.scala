@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark
 
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, GreaterThan, LessThan, LessThanOrEqual, Literal, Not}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, EqualTo, GreaterThan, LessThan, LessThanOrEqual, Literal, Not, Or}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, LogicalPlan, Project}
 import org.apache.spark.sql.streaming.StreamTest
 import org.apache.spark.sql.{QueryTest, Row}
@@ -147,6 +147,69 @@ class FlintSparkPPLITSuite
     // Define the expected logical plan
     val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
     val filterExpr = EqualTo(UnresolvedAttribute("age"), Literal(25))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
+    val expectedPlan = Project(projectList, filterPlan)
+    // Compare the two plans
+    assert(expectedPlan === logicalPlan)
+  }
+  
+  test("create ppl simple age literal greater than filter AND country not equal filter query with two fields result test") {
+    val frame = sql(
+      s"""
+         | source = $testTable age>10 and country != 'USA' | fields name, age
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("John", 25),
+      Row("Jane", 20),
+    )
+    // Compare the results
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val filterExpr = And(Not(EqualTo(UnresolvedAttribute("country"), Literal("USA"))), GreaterThan(UnresolvedAttribute("age"), Literal(10)))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
+    val expectedPlan = Project(projectList, filterPlan)
+    // Compare the two plans
+    assert(expectedPlan === logicalPlan)
+  }
+  
+  test("create ppl simple age literal equal than filter OR country not equal filter query with two fields result test") {
+    val frame = sql(
+      s"""
+         | source = $testTable age<=20 OR country = 'USA' | fields name, age
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("Jane", 20),
+      Row("Jake", 70),
+      Row("Hello", 30),
+    )
+    // Compare the results
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val filterExpr = Or(EqualTo(UnresolvedAttribute("country"), Literal("USA")), LessThanOrEqual(UnresolvedAttribute("age"), Literal(20)))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
     val expectedPlan = Project(projectList, filterPlan)

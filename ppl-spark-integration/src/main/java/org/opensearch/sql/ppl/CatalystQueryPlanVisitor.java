@@ -119,10 +119,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     @Override
     public String visitFilter(Filter node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
-        String condition = visitExpression(node.getCondition(), context);
-        Expression innerCondition = context.getNamedParseExpressions().pop();
-        context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(innerCondition, p));
-        return format("%s | where %s", child, condition);
+        String innerCondition = visitExpression(node.getCondition(), context);
+        Expression innerConditionExpression = context.getNamedParseExpressions().pop();
+        context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(innerConditionExpression, p));
+        return format("%s | where %s", child, innerCondition);
     }
 
     @Override
@@ -295,6 +295,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         public String visitAnd(And node, CatalystPlanContext context) {
             String left = node.getLeft().accept(this, context);
             String right = node.getRight().accept(this, context);
+            context.getNamedParseExpressions().add(new org.apache.spark.sql.catalyst.expressions.And(
+                    (Expression) context.getNamedParseExpressions().pop(),context.getNamedParseExpressions().pop()));
             return format("%s and %s", left, right);
         }
 
@@ -302,6 +304,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         public String visitOr(Or node, CatalystPlanContext context) {
             String left = node.getLeft().accept(this, context);
             String right = node.getRight().accept(this, context);
+            context.getNamedParseExpressions().add(new org.apache.spark.sql.catalyst.expressions.Or(
+                    (Expression) context.getNamedParseExpressions().pop(),context.getNamedParseExpressions().pop()));
             return format("%s or %s", left, right);
         }
 
@@ -309,12 +313,16 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         public String visitXor(Xor node, CatalystPlanContext context) {
             String left = node.getLeft().accept(this, context);
             String right = node.getRight().accept(this, context);
+            context.getNamedParseExpressions().add(new org.apache.spark.sql.catalyst.expressions.BitwiseXor(
+                    (Expression) context.getNamedParseExpressions().pop(),context.getNamedParseExpressions().pop()));
             return format("%s xor %s", left, right);
         }
 
         @Override
         public String visitNot(Not node, CatalystPlanContext context) {
             String expr = node.getExpression().accept(this, context);
+            context.getNamedParseExpressions().add(new org.apache.spark.sql.catalyst.expressions.Not(
+                    (Expression) context.getNamedParseExpressions().pop()));
             return format("not %s", expr);
         }
 
