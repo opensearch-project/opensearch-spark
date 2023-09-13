@@ -12,7 +12,10 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
+import org.apache.spark.sql.catalyst.expressions.Divide;
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.Floor;
+import org.apache.spark.sql.catalyst.expressions.Multiply;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
@@ -34,6 +37,7 @@ import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
+import org.opensearch.sql.ast.expression.WindowFunction;
 import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
@@ -55,6 +59,7 @@ import scala.Option;
 import scala.collection.Seq;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -147,25 +152,33 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         final String visitExpressionList = visitExpressionList(node.getAggExprList(), context);
         final String group = visitExpressionList(node.getGroupExprList(), context);
 
-
-        if(!isNullOrEmpty(group)) {
-            NamedExpression namedExpression = (NamedExpression) context.getNamedParseExpressions().peek();
-            Seq<NamedExpression> namedExpressionSeq = asScalaBuffer(context.getNamedParseExpressions().stream()
-                    .map(v->(NamedExpression)v).collect(Collectors.toList())).toSeq();
-            //now remove all context.getNamedParseExpressions() 
-            context.getNamedParseExpressions().retainAll(emptyList());
-            context.plan(p->new Aggregate(asScalaBuffer(singletonList((Expression) namedExpression)),namedExpressionSeq,p));
+        if (!isNullOrEmpty(group)) {
+            extractedAggregation(context);
+        }
+        UnresolvedExpression span = node.getSpan();
+        if (!Objects.isNull(span)) {
+            span.accept(this, context);
+            extractedAggregation(context);
         }
         return format(
                 "%s | stats %s",
                 child, String.join(" ", visitExpressionList, groupBy(group)).trim());
     }
 
-    @Override
-    public String visitSpan(Span node, CatalystPlanContext context) {
-        return super.visitSpan(node, context);
+    private static void extractedAggregation(CatalystPlanContext context) {
+        NamedExpression namedExpression = (NamedExpression) context.getNamedParseExpressions().peek();
+        Seq<NamedExpression> namedExpressionSeq = asScalaBuffer(context.getNamedParseExpressions().stream()
+                .map(v -> (NamedExpression) v).collect(Collectors.toList())).toSeq();
+        //now remove all context.getNamedParseExpressions() 
+        context.getNamedParseExpressions().retainAll(emptyList());
+        context.plan(p -> new Aggregate(asScalaBuffer(singletonList((Expression) namedExpression)), namedExpressionSeq, p));
     }
 
+    @Override
+    public String visitAlias(Alias node, CatalystPlanContext context) {
+        return expressionAnalyzer.visitAlias(node, context);
+    }
+    
     @Override
     public String visitRareTopN(RareTopN node, CatalystPlanContext context) {
         final String child = node.getChild().get(0).accept(this, context);
@@ -190,7 +203,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
 
         // Create a projection list from the existing expressions
         Seq<?> projectList = asScalaBuffer(context.getNamedParseExpressions()).toSeq();
-        if(!projectList.isEmpty()) {
+        if (!projectList.isEmpty()) {
             // build the plan with the projection step
             context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Project((Seq<NamedExpression>) projectList, p));
         }
@@ -296,7 +309,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
             String left = node.getLeft().accept(this, context);
             String right = node.getRight().accept(this, context);
             context.getNamedParseExpressions().add(new org.apache.spark.sql.catalyst.expressions.And(
-                    (Expression) context.getNamedParseExpressions().pop(),context.getNamedParseExpressions().pop()));
+                    (Expression) context.getNamedParseExpressions().pop(), context.getNamedParseExpressions().pop()));
             return format("%s and %s", left, right);
         }
 
@@ -305,7 +318,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
             String left = node.getLeft().accept(this, context);
             String right = node.getRight().accept(this, context);
             context.getNamedParseExpressions().add(new org.apache.spark.sql.catalyst.expressions.Or(
-                    (Expression) context.getNamedParseExpressions().pop(),context.getNamedParseExpressions().pop()));
+                    (Expression) context.getNamedParseExpressions().pop(), context.getNamedParseExpressions().pop()));
             return format("%s or %s", left, right);
         }
 
@@ -314,7 +327,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
             String left = node.getLeft().accept(this, context);
             String right = node.getRight().accept(this, context);
             context.getNamedParseExpressions().add(new org.apache.spark.sql.catalyst.expressions.BitwiseXor(
-                    (Expression) context.getNamedParseExpressions().pop(),context.getNamedParseExpressions().pop()));
+                    (Expression) context.getNamedParseExpressions().pop(), context.getNamedParseExpressions().pop()));
             return format("%s xor %s", left, right);
         }
 
@@ -328,7 +341,14 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
 
         @Override
         public String visitSpan(Span node, CatalystPlanContext context) {
-            return super.visitSpan(node, context);
+            String field = node.getField().accept(this, context);
+            String value = node.getValue().accept(this, context);
+            String unit = node.getUnit().name();
+            
+            Expression valueExpression = context.getNamedParseExpressions().pop();
+            Expression fieldExpression = context.getNamedParseExpressions().pop();
+            context.getNamedParseExpressions().push(new Multiply(new Floor(new Divide(fieldExpression, valueExpression)), valueExpression));
+            return format("span (%s,%s,%s)", field, value, unit);
         }
 
         @Override
@@ -366,7 +386,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         @Override
         public String visitAllFields(AllFields node, CatalystPlanContext context) {
             // Case of aggregation step - no start projection can be added
-            if(!context.getNamedParseExpressions().isEmpty()) {
+            if (!context.getNamedParseExpressions().isEmpty()) {
                 // if named expression exist - just return their names
                 return context.getNamedParseExpressions().peek().toString();
             } else {
@@ -374,6 +394,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
                 context.getNamedParseExpressions().add(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
                 return "*";
             }
+        }
+
+        @Override
+        public String visitWindowFunction(WindowFunction node, CatalystPlanContext context) {
+            return super.visitWindowFunction(node, context);
         }
 
         @Override

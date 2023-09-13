@@ -22,6 +22,18 @@ public class Span extends UnresolvedExpression {
     this.unit = unit;
   }
 
+  public UnresolvedExpression getField() {
+    return field;
+  }
+
+  public UnresolvedExpression getValue() {
+    return value;
+  }
+
+  public SpanUnit getUnit() {
+    return unit;
+  }
+
   @Override
   public List<UnresolvedExpression> getChild() {
     return ImmutableList.of(field, value);

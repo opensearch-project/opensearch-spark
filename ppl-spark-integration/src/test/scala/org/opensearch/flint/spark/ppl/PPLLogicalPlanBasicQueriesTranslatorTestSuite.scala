@@ -14,7 +14,7 @@ import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
 
-class PPLLogicalPlanComplexQueriesTranslatorTestSuite
+class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   extends SparkFunSuite
     with Matchers {
 
