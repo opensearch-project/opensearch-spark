@@ -213,7 +213,44 @@ Next tasks ahead will resolve this:
 - Separate the PPL / SQL drivers inside the OpenSearch PPL client to better distinguish
 - Create a thin PPL client capable of interaction with the PPL Driver regardless of which driver (Spark , OpenSearch , Prometheus )
 
+---
 
 ### Roadmap
+
+This section describes the next steps planned for enabling additional commands and gamer translation.
+
+#### Supported
+The next samples of PPL queries are currently supported:
+
+**Fields**
+ - `source = table`
+ - `source = table | fields a,b,c`
+
+**Filters**
+ - `source = table | where a = 1 | fields a,b,c`
+ - `source = table | where a >= 1 | fields a,b,c`
+ - `source = table | where a < 1 | fields a,b,c`
+ - `source = table | where b != 'test' | fields a,b,c`
+ - `source = table | where c = 'test' | fields a,b,c`
+
+**Filters With Logical Conditions**
+ - `source = table | where c = 'test' AND a = 1 | fields a,b,c`
+ - `source = table | where c != 'test' OR a > 1 | fields a,b,c`
+ - `source = table | where c != 'test' OR a > 1 | fields a,b,c`
+
+**Aggregations**
+ - `source = table | stats avg(a) `
+ - `source = table | where a < 50 | stats avg(c) `
+ - `source = table | stats max(c) by b`
+
+**Aggregations With Span**
+- `source = table  | stats count(a) by span(a, 10) as a_span`
+
+
+> For additional details review the next [Integration Test ](../integ-test/src/test/scala/org/opensearch/flint/spark/FlintSparkPPLITSuite.scala)
  
-This section describes the next steps planned for enabling additional commands and gamer translation. 
+---
+
+#### Planned Support
+
+ - support the `explain` command to return the explained PPL query logical plan and expected execution plan
