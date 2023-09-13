@@ -236,7 +236,7 @@ The next samples of PPL queries are currently supported:
 **Filters With Logical Conditions**
  - `source = table | where c = 'test' AND a = 1 | fields a,b,c`
  - `source = table | where c != 'test' OR a > 1 | fields a,b,c`
- - `source = table | where c != 'test' OR a > 1 | fields a,b,c`
+ - `source = table | where c = 'test' NOT a > 1 | fields a,b,c`
 
 **Aggregations**
  - `source = table | stats avg(a) `
