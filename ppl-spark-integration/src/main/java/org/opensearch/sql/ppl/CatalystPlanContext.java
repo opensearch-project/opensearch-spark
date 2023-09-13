@@ -21,6 +21,7 @@ public class CatalystPlanContext {
      * Catalyst evolving logical plan
      **/
     private Stack<LogicalPlan> planBranches = new Stack<>();
+    private int limit = Integer.MIN_VALUE;
 
     /**
      * NamedExpression contextual parameters
@@ -46,6 +47,14 @@ public class CatalystPlanContext {
      */
     public void with(LogicalPlan plan) {
         this.planBranches.push(plan);
+    }
+
+    public void limit(int limit) {
+        this.limit = limit;
+    }
+
+    public int getLimit() {
+        return limit;
     }
 
     public void plan(Function<LogicalPlan, LogicalPlan> transformFunction) {

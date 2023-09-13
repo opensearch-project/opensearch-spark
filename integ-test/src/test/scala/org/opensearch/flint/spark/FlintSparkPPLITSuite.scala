@@ -7,7 +7,7 @@ package org.opensearch.flint.spark
 
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Divide, EqualTo, Floor, GreaterThan, LessThan, LessThanOrEqual, Literal, Multiply, Not, Or}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, Limit, LogicalPlan, Project}
 import org.apache.spark.sql.streaming.StreamTest
 import org.apache.spark.sql.{QueryTest, Row}
 
@@ -66,7 +66,7 @@ class FlintSparkPPLITSuite
     }
   }
 
-  test("create ppl simple query with start fields result test") {
+  test("create ppl simple query test") {
     val frame = sql(
       s"""
          | source = $testTable
@@ -75,7 +75,6 @@ class FlintSparkPPLITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     // Define the expected results
-    //    [John,25,Ontario,Canada,2023,4], [Jane,25,Quebec,Canada,2023,4], [Jake,70,California,USA,2023,4], [Hello,30,New York,USA,2023,4]
     val expectedResults: Array[Row] = Array(
       Row("Jake", 70, "California", "USA", 2023, 4),
       Row("Hello", 30, "New York", "USA", 2023, 4),
@@ -93,6 +92,24 @@ class FlintSparkPPLITSuite
     val expectedPlan: LogicalPlan = Project(Seq(UnresolvedStar(None)), UnresolvedRelation(Seq("default", "flint_ppl_test")))
     // Compare the two plans
     assert(expectedPlan === logicalPlan)
+  }
+
+  test("create ppl simple query with head (limit) 3 test") {
+    val frame = sql(
+      s"""
+         | source = $testTable | head 2
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 2)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val expectedPlan: LogicalPlan = Limit(Literal(2), Project(Seq(UnresolvedStar(None)), UnresolvedRelation(Seq("default", "flint_ppl_test"))))
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
   test("create ppl simple query two with fields result test") {
@@ -120,6 +137,25 @@ class FlintSparkPPLITSuite
     // Define the expected logical plan
     val expectedPlan: LogicalPlan = Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
       UnresolvedRelation(Seq("default", "flint_ppl_test")))
+    // Compare the two plans
+    assert(expectedPlan === logicalPlan)
+  }
+
+  test("create ppl simple query two with fields and head (limit) test") {
+    val frame = sql(
+      s"""
+         | source = $testTable| fields name, age | head 1
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 1)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val project = Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")), UnresolvedRelation(Seq("default", "flint_ppl_test")))
+    // Define the expected logical plan
+    val expectedPlan: LogicalPlan = Limit(Literal(1), Project(Seq(UnresolvedStar(None)), project))
     // Compare the two plans
     assert(expectedPlan === logicalPlan)
   }
@@ -213,6 +249,30 @@ class FlintSparkPPLITSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
     val expectedPlan = Project(projectList, filterPlan)
+    // Compare the two plans
+    assert(expectedPlan === logicalPlan)
+  }
+
+  test("create ppl simple age literal equal than filter OR country not equal filter query with two fields result and head (limit) test") {
+    val frame = sql(
+      s"""
+         | source = $testTable age<=20 OR country = 'USA' | fields name, age | head 1
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 1)
+
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val filterExpr = Or(EqualTo(UnresolvedAttribute("country"), Literal("USA")), LessThanOrEqual(UnresolvedAttribute("age"), Literal(20)))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
+    val projectPlan = Project(Seq(UnresolvedStar(None)), Project(projectList, filterPlan))
+    val expectedPlan = Limit(Literal(1), projectPlan)
     // Compare the two plans
     assert(expectedPlan === logicalPlan)
   }
@@ -437,6 +497,35 @@ class FlintSparkPPLITSuite
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
+  
+  test("create ppl simple age avg group by country head (limit) query test ") {
+    val frame = sql(
+      s"""
+         | source = $testTable| stats avg(age) by country | head 1
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 1)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+
+    val groupByAttributes = Seq(Alias(countryField, "country")())
+    val aggregateExpressions = Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")()
+    val productAlias = Alias(countryField, "country")()
+
+    val aggregatePlan = Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), table)
+    val projectPlan = Project(Seq(UnresolvedStar(None)), aggregatePlan)
+    val expectedPlan = Limit(Literal(1), projectPlan)
+
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
 
   test("create ppl simple age max group by country query test ") {
     val frame = sql(
@@ -564,7 +653,7 @@ class FlintSparkPPLITSuite
     )
 
     // Compare the results
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Long](_.getAs[Long](0))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](1))
     assert(
       results.sorted.sameElements(expectedResults.sorted),
       s"Expected: ${expectedResults.mkString(", ")}, but got: ${results.mkString(", ")}"
@@ -721,6 +810,34 @@ class FlintSparkPPLITSuite
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
+  
+  test("create ppl simple avg age by span of interval of 10 years with head (limit) query test ") {
+    val frame = sql(
+      s"""
+         | source = $testTable| stats avg(age) by span(age, 10) as age_span | head 2
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 2)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+
+    val aggregateExpressions = Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")()
+    val span = Alias( Multiply(Floor( Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)), "span (age,10,NONE)")()
+    val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), table)
+    val projectPlan = Project(star, aggregatePlan)
+    val expectedPlan = Limit(Literal(2), projectPlan)
+
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
 
   /**
    * +--------+-------+-----------+
@@ -763,6 +880,33 @@ class FlintSparkPPLITSuite
     val span = Alias( Multiply(Floor( Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)), "span (age,10,NONE)")()
     val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), table)
     val expectedPlan = Project(star, aggregatePlan)
+
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+  
+  ignore("create ppl average age by span of interval of 10 years group by country head (limit) 2 query test ") {
+    val frame = sql(
+      s"""
+         | source = $testTable | stats avg(age) by span(age, 10) as age_span, country | head 2
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 2)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val ageField = UnresolvedAttribute("age")
+    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+
+    val aggregateExpressions = Alias(UnresolvedFunction(Seq("COUNT"), Seq(ageField), isDistinct = false), "count(age)")()
+    val span = Alias( Multiply(Floor( Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)), "span (age,10,NONE)")()
+    val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), table)
+    val projectPlan = Project(star, aggregatePlan)
+    val expectedPlan = Limit(Literal(1), projectPlan)
 
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))

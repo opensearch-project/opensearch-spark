@@ -19,6 +19,9 @@ import org.apache.spark.sql.catalyst.expressions.Multiply;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
+import org.apache.spark.sql.catalyst.plans.logical.Limit;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.AggregateFunction;
@@ -27,6 +30,7 @@ import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.Compare;
+import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.Interval;
@@ -204,8 +208,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         // Create a projection list from the existing expressions
         Seq<?> projectList = asScalaBuffer(context.getNamedParseExpressions()).toSeq();
         if (!projectList.isEmpty()) {
+            Seq<NamedExpression> namedExpressionSeq = asScalaBuffer(context.getNamedParseExpressions().stream()
+                    .map(v -> (NamedExpression) v).collect(Collectors.toList())).toSeq();
             // build the plan with the projection step
-            context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Project((Seq<NamedExpression>) projectList, p));
+            context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(namedExpressionSeq, p));
+            //now remove all context.getNamedParseExpressions() 
+            context.getNamedParseExpressions().retainAll(emptyList());
         }
         if (node.hasArgument()) {
             Argument argument = node.getArgExprList().get(0);
@@ -213,6 +221,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
             if (exclude) {
                 arg = "-";
             }
+        }
+        if(context.getLimit() > 0) {
+            context.plan(p-> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
+                    context.getLimit(), DataTypes.IntegerType), p));
         }
         return format("%s | fields %s %s", child, arg, fields);
     }
@@ -259,6 +271,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     public String visitHead(Head node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
         Integer size = node.getSize();
+        context.limit(size);
         return format("%s | head %d", child, size);
     }
 

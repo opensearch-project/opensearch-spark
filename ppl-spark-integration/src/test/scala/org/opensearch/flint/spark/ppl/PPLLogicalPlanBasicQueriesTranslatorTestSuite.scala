@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.NamedExpression
+import org.apache.spark.sql.catalyst.expressions.{Literal, NamedExpression}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.junit.Assert.assertEquals
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
@@ -75,6 +75,18 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val expectedPlan = Project(projectList, table)
     assertEquals(expectedPlan, context.getPlan)
     assertEquals(logPlan, "source=[t] | fields + A,B")
+  }
+ test("test simple search with only one table with two fields with head (limit ) command projected") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=t | fields A, B | head 5", false), context)
+
+
+    val table = UnresolvedRelation(Seq("t"))
+    val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
+    val planWithLimit = Project(Seq(UnresolvedStar(None)), Project(projectList, table))
+    val expectedPlan = GlobalLimit(Literal(5), LocalLimit(Literal(5), planWithLimit))
+    assertEquals(expectedPlan, context.getPlan)
+    assertEquals(logPlan, "source=[t] | fields + A,B | head 5 | fields + *")
   }
 
   test("Search multiple tables - translated into union call - fields expected to exist in both tables ") {

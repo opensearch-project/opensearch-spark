@@ -231,21 +231,28 @@ The next samples of PPL queries are currently supported:
  - `source = table | where a >= 1 | fields a,b,c`
  - `source = table | where a < 1 | fields a,b,c`
  - `source = table | where b != 'test' | fields a,b,c`
- - `source = table | where c = 'test' | fields a,b,c`
+ - `source = table | where c = 'test' | fields a,b,c | head 3`
 
 **Filters With Logical Conditions**
  - `source = table | where c = 'test' AND a = 1 | fields a,b,c`
- - `source = table | where c != 'test' OR a > 1 | fields a,b,c`
+ - `source = table | where c != 'test' OR a > 1 | fields a,b,c | head 1`
  - `source = table | where c = 'test' NOT a > 1 | fields a,b,c`
 
 **Aggregations**
  - `source = table | stats avg(a) `
  - `source = table | where a < 50 | stats avg(c) `
  - `source = table | stats max(c) by b`
+ - `source = table | stats count(c) by b | head 5`
 
 **Aggregations With Span**
 - `source = table  | stats count(a) by span(a, 10) as a_span`
 
+#### Supported Commands:
+ - `search` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/search.rst)  
+ - `where` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/where.rst)  
+ - `fields` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/fields.rst)  
+ - `head` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/head.rst)
+ - `stats` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/stats.rst)
 
 > For additional details review the next [Integration Test ](../integ-test/src/test/scala/org/opensearch/flint/spark/FlintSparkPPLITSuite.scala)
  
@@ -254,3 +261,9 @@ The next samples of PPL queries are currently supported:
 #### Planned Support
 
  - support the `explain` command to return the explained PPL query logical plan and expected execution plan
+ - add [sort](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) support
+ - add [conditions](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/condition.rst) support
+ - add [top](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/top.rst) support
+ - add [cast](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/conversion.rst) support
+ - add [math](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/math.rst) support
+ - add [deduplicate](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/dedup.rst) support
