@@ -18,6 +18,7 @@ import org.scalatest.matchers.should.Matchers
 
 class PPLLogicalAdvancedTranslatorTestSuite
   extends SparkFunSuite
+    with LogicalPlanTestUtils
     with Matchers {
 
   private val planTrnasformer = new CatalystQueryPlanVisitor()

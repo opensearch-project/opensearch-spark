@@ -1,3 +1,8 @@
+/*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, ExprId}

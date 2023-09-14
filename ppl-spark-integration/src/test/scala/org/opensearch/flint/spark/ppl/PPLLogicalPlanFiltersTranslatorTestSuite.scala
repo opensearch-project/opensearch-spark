@@ -11,7 +11,7 @@ import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry, TableFunctionRegistry, UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, Descending, Divide, EqualTo, Floor, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Like, Literal, NamedExpression, Not, Or, SortOrder, UnixTimestamp}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Descending, Divide, EqualTo, Floor, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Like, Literal, NamedExpression, Not, Or, SortOrder, UnixTimestamp}
 import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
@@ -24,6 +24,7 @@ import org.scalatestplus.mockito.MockitoSugar.mock
 
 class PPLLogicalPlanFiltersTranslatorTestSuite
   extends SparkFunSuite
+    with LogicalPlanTestUtils
     with Matchers {
 
   private val planTrnasformer = new CatalystQueryPlanVisitor()
@@ -189,5 +190,20 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val expectedPlan = Project(projectList, filterPlan)
     assertEquals(expectedPlan, context.getPlan)
     assertEquals(logPlan, "source=[t] | where a != 1 | fields + a")
+  }
+
+  test("test simple search with only one table with one field not equal filtered and one field projected and sorted") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=t a != 1  | fields a | sort a", false), context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val filterExpr = Not(EqualTo(UnresolvedAttribute("a"), Literal(1)))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("a"))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), Project(projectList, filterPlan))
+    val sortedPlan: LogicalPlan = Sort(Seq(SortOrder(UnresolvedAttribute("a"), Ascending)), global = true, expectedPlan)
+    
+    assertEquals(compareByString(sortedPlan), compareByString(context.getPlan))
+    assertEquals(logPlan, "source=[t] | where a != 1 | fields + a | sort a | fields + *")
   }
 }

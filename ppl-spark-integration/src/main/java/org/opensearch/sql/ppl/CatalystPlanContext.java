@@ -5,9 +5,12 @@
 
 package org.opensearch.sql.ppl;
 
+import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Stack;
 import java.util.function.Function;
 
@@ -27,6 +30,11 @@ public class CatalystPlanContext {
      * NamedExpression contextual parameters
      **/
     private final Stack<org.apache.spark.sql.catalyst.expressions.Expression> namedParseExpressions = new Stack<>();
+
+    /**
+     * SortOrder sort by parameters
+     **/
+    private List<SortOrder> sortOrders = new ArrayList<>();
 
     public LogicalPlan getPlan() {
         if (this.planBranches.size() == 1) {
@@ -57,7 +65,14 @@ public class CatalystPlanContext {
         return limit;
     }
 
+    public List<SortOrder> getSortOrders() {
+        return sortOrders;
+    }
+
     public void plan(Function<LogicalPlan, LogicalPlan> transformFunction) {
         this.planBranches.replaceAll(transformFunction::apply);
+    }
+    public void sort(List<SortOrder> sortOrders) {
+        this.sortOrders = sortOrders;
     }
 }

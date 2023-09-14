@@ -253,6 +253,7 @@ The next samples of PPL queries are currently supported:
  - `fields` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/fields.rst)  
  - `head` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/head.rst)
  - `stats` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/stats.rst)
+ - `sort` -  [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) 
 
 > For additional details review the next [Integration Test ](../integ-test/src/test/scala/org/opensearch/flint/spark/FlintSparkPPLITSuite.scala)
  
@@ -261,7 +262,7 @@ The next samples of PPL queries are currently supported:
 #### Planned Support
 
  - support the `explain` command to return the explained PPL query logical plan and expected execution plan
- - add [sort](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) support
+ - attend [sort](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) partially supported, missing capability to sort by alias field (span like or aggregation)
  - add [conditions](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/condition.rst) support
  - add [top](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/top.rst) support
  - add [cast](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/conversion.rst) support

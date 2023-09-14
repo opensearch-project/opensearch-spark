@@ -18,6 +18,7 @@ import org.apache.spark.sql.catalyst.expressions.Floor;
 import org.apache.spark.sql.catalyst.expressions.Multiply;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
+import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
@@ -59,6 +60,7 @@ import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.TableFunction;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
+import org.opensearch.sql.ppl.utils.SortUtils;
 import scala.Option;
 import scala.collection.Seq;
 
@@ -182,7 +184,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     public String visitAlias(Alias node, CatalystPlanContext context) {
         return expressionAnalyzer.visitAlias(node, context);
     }
-    
+
     @Override
     public String visitRareTopN(RareTopN node, CatalystPlanContext context) {
         final String child = node.getChild().get(0).accept(this, context);
@@ -222,9 +224,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
                 arg = "-";
             }
         }
-        if(context.getLimit() > 0) {
-            context.plan(p-> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
+        if (context.getLimit() > 0) {
+            context.plan(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
                     context.getLimit(), DataTypes.IntegerType), p));
+        }
+        if (!context.getSortOrders().isEmpty()) {
+            context.plan(p -> (LogicalPlan) new org.apache.spark.sql.catalyst.plans.logical.Sort(asScalaBuffer(context.getSortOrders()).toSeq(),true, p));
         }
         return format("%s | fields %s %s", child, arg, fields);
     }
@@ -250,6 +255,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         String child = node.getChild().get(0).accept(this, context);
         // the first options is {"count": "integer"}
         String sortList = visitFieldList(node.getSortList(), context);
+
+        List<NamedExpression> namedExpressions = context.getNamedParseExpressions().stream()
+                .map(v -> (NamedExpression) v).collect(Collectors.toList());
+
+        //now remove all context.getNamedParseExpressions() 
+        context.getNamedParseExpressions().retainAll(emptyList());
+        context.sort(namedExpressions.stream().map(exp -> SortUtils.getSortDirection(node, exp)).collect(Collectors.toList()));
         return format("%s | sort %s", child, sortList);
     }
 
@@ -357,7 +369,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
             String field = node.getField().accept(this, context);
             String value = node.getValue().accept(this, context);
             String unit = node.getUnit().name();
-            
+
             Expression valueExpression = context.getNamedParseExpressions().pop();
             Expression fieldExpression = context.getNamedParseExpressions().pop();
             context.getNamedParseExpressions().push(new Multiply(new Floor(new Divide(fieldExpression, valueExpression)), valueExpression));

@@ -7,8 +7,9 @@ package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Literal, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, Descending, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.types.IntegerType
 import org.junit.Assert.assertEquals
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
@@ -16,6 +17,7 @@ import org.scalatest.matchers.should.Matchers
 
 class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   extends SparkFunSuite
+    with LogicalPlanTestUtils
     with Matchers {
 
   private val planTrnasformer = new CatalystQueryPlanVisitor()
@@ -64,7 +66,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     assertEquals(expectedPlan, context.getPlan)
     assertEquals(logPlan, "source=[table] | fields + A")
   }
-  
+
   test("test simple search with only one table with two fields projected") {
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(plan(pplParser, "source=t | fields A, B", false), context)
@@ -76,10 +78,26 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     assertEquals(expectedPlan, context.getPlan)
     assertEquals(logPlan, "source=[t] | fields + A,B")
   }
- test("test simple search with only one table with two fields with head (limit ) command projected") {
+
+  test("test simple search with one table with two fields projected sorted by one field") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=t | sort A | fields A, B", false), context)
+
+
+    val table = UnresolvedRelation(Seq("t"))
+    val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
+    // Sort by A ascending
+    val expectedPlan = Project(projectList, table)
+    val sortOrder = Seq(SortOrder(UnresolvedAttribute("A"), Ascending))
+    val sorted = Sort(sortOrder, true, expectedPlan)
+
+    assert( compareByString(sorted) === compareByString(context.getPlan))
+    assertEquals(logPlan, "source=[t] | sort A | fields + A,B")
+  }
+
+  test("test simple search with only one table with two fields with head (limit ) command projected") {
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(plan(pplParser, "source=t | fields A, B | head 5", false), context)
-
 
     val table = UnresolvedRelation(Seq("t"))
     val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
@@ -87,6 +105,25 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val expectedPlan = GlobalLimit(Literal(5), LocalLimit(Literal(5), planWithLimit))
     assertEquals(expectedPlan, context.getPlan)
     assertEquals(logPlan, "source=[t] | fields + A,B | head 5 | fields + *")
+  }
+
+  test("test simple search with only one table with two fields with head (limit ) command projected  sorted by one descending field") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=t | sort - A | fields A, B | head 5", false), context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
+    val projectAB = Project(projectList, table)
+    val sortOrderProject = Seq(SortOrder(UnresolvedAttribute("A"), Descending))
+    val sortedProject = Sort(sortOrderProject, true, projectAB)
+    val planWithLimit = Project(Seq(UnresolvedStar(None)), sortedProject)
+
+    val expectedPlan = GlobalLimit(Literal(5), LocalLimit(Literal(5), planWithLimit))
+    val sortOrder = Seq(SortOrder(UnresolvedAttribute("A"), Descending))
+    val sorted = Sort(sortOrder, true, expectedPlan)
+
+    assertEquals(logPlan, "source=[t] | sort A | fields + A,B | head 5 | fields + *")
+    assertEquals(compareByString(sorted), compareByString(context.getPlan))
   }
 
   test("Search multiple tables - translated into union call - fields expected to exist in both tables ") {
