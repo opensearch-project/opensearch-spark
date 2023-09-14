@@ -262,7 +262,10 @@ The next samples of PPL queries are currently supported:
 #### Planned Support
 
  - support the `explain` command to return the explained PPL query logical plan and expected execution plan
+
  - attend [sort](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) partially supported, missing capability to sort by alias field (span like or aggregation)
+ - attend `alias` - partially supported, missing capability to sort by / group-by alias field name 
+
  - add [conditions](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/condition.rst) support
  - add [top](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/top.rst) support
  - add [cast](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/conversion.rst) support
