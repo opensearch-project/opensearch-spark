@@ -5,8 +5,10 @@
 
 package org.opensearch.flint.spark.sql.covering
 
+import org.antlr.v4.runtime.tree.RuleNode
+import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSpark.RefreshMode
-import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
+import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, isAutoRefreshEnabled}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.{CreateCoveringIndexStatementContext, DropCoveringIndexStatementContext, RefreshCoveringIndexStatementContext}
@@ -37,7 +39,7 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[C
 
       // Trigger auto refresh if enabled
       if (isAutoRefreshEnabled(ctx.propertyList())) {
-        val flintIndexName = getFlintIndexName(indexName, getFullTableName(flint, ctx.tableName))
+        val flintIndexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
         flint.refreshIndex(flintIndexName, RefreshMode.INCREMENTAL)
       }
       Seq.empty
@@ -47,10 +49,7 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[C
   override def visitRefreshCoveringIndexStatement(
       ctx: RefreshCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
-      val indexName = ctx.indexName.getText
-      val tableName = ctx.tableName.getText
-      val flintIndexName = getFlintIndexName(indexName, tableName)
-
+      val flintIndexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
       flint.refreshIndex(flintIndexName, RefreshMode.FULL)
       Seq.empty
     }
@@ -59,12 +58,18 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[C
   override def visitDropCoveringIndexStatement(
       ctx: DropCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
-      val indexName = ctx.indexName.getText
-      val tableName = getFullTableName(flint, ctx.tableName)
-      val flintIndexName = getFlintIndexName(indexName, tableName)
-
+      val flintIndexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
       flint.deleteIndex(flintIndexName)
       Seq.empty
     }
+  }
+
+  private def getFlintIndexName(
+      flint: FlintSpark,
+      indexNameCtx: RuleNode,
+      tableNameCtx: RuleNode): String = {
+    val indexName = indexNameCtx.getText
+    val fullTableName = getFullTableName(flint, tableNameCtx)
+    FlintSparkCoveringIndex.getFlintIndexName(indexName, fullTableName)
   }
 }

@@ -129,7 +129,7 @@ WITH (auto_refresh = (true|false))
 
 REFRESH SKIPPING INDEX ON <object>
 
-DESCRIBE SKIPPING INDEX ON <object>
+[DESC|DESCRIBE] SKIPPING INDEX ON <object>
 
 DROP SKIPPING INDEX ON <object>
 
@@ -168,9 +168,9 @@ WITH (auto_refresh = (true|false))
 
 REFRESH INDEX name ON <object>
 
-SHOW INDEX ON <object>
+SHOW [INDEX|INDEXES] ON <object>
 
-DESCRIBE INDEX name ON <object>
+[DESC|DESCRIBE] INDEX name ON <object>
 
 DROP INDEX name ON <object>
 ```
