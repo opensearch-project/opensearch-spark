@@ -52,6 +52,7 @@ import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
+import org.opensearch.sql.ast.tree.JoinClause;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
@@ -125,6 +126,18 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
                                         this.expressionAnalyzer.analyze(unresolvedExpression, context))
                         .collect(Collectors.joining(","));
         return format("source=%s(%s)", node.getFunctionName().toString(), arguments);
+    }
+
+    @Override
+    public String visitJoin(JoinClause node, CatalystPlanContext context) {
+        String child = node.getChild().get(0).accept(this, context);
+        String innerCondition = visitExpression(node.getCondition(), context);
+        Expression innerConditionExpression = context.getNamedParseExpressions().pop();
+        UnresolvedExpression leftExpression = node.getLeftExpression();
+        UnresolvedExpression rightExpression = node.getRightExpression();
+        //todo add fold for the plan
+//        context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Join(innerConditionExpression, p));
+        return format("%s | join %s %s %s ", child, leftExpression.toString(), rightExpression.toString(), innerCondition);
     }
 
     @Override
@@ -229,7 +242,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
                     context.getLimit(), DataTypes.IntegerType), p));
         }
         if (!context.getSortOrders().isEmpty()) {
-            context.plan(p -> (LogicalPlan) new org.apache.spark.sql.catalyst.plans.logical.Sort(asScalaBuffer(context.getSortOrders()).toSeq(),true, p));
+            context.plan(p -> (LogicalPlan) new org.apache.spark.sql.catalyst.plans.logical.Sort(asScalaBuffer(context.getSortOrders()).toSeq(), true, p));
         }
         return format("%s | fields %s %s", child, arg, fields);
     }

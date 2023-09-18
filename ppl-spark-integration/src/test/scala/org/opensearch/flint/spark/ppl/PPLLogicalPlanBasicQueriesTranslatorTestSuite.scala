@@ -165,4 +165,24 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     assertEquals(logPlan, "source=[table1, table2] | fields + *")
     assertEquals(expectedPlan, context.getPlan)
   }
+
+  test("Search multiple tables - translated into join call with fields") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source = table1, table2  | join left t1 right t2 where t1.name = t2.name", false), context)
+
+
+    val table1 = UnresolvedRelation(Seq("table1"))
+    val table2 = UnresolvedRelation(Seq("table2"))
+
+    val allFields1 = UnresolvedStar(None)
+    val allFields2 = UnresolvedStar(None)
+
+    val projectedTable1 = Project(Seq(allFields1), table1)
+    val projectedTable2 = Project(Seq(allFields2), table2)
+
+    val expectedPlan = Union(Seq(projectedTable1, projectedTable2), byName = true, allowMissingCol = true)
+
+    assertEquals(logPlan, "source=[table1, table2] | fields + *")
+    assertEquals(expectedPlan, context.getPlan)
+  }
 }

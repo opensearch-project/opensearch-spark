@@ -33,6 +33,7 @@ pplCommands
 
 commands
    : whereCommand
+   | joinClause
    | fieldsCommand
    | renameCommand
    | statsCommand
@@ -173,6 +174,18 @@ fromClause
 
 tableSourceClause
    : tableSource (COMMA tableSource)*
+   ;
+
+joinClause
+   : JOIN leftPart rightPart whereCommand 
+   ;
+
+leftPart
+   : LEFT fieldExpression
+   ;
+
+rightPart
+   : RIGHT fieldExpression
    ;
 
 renameClasue

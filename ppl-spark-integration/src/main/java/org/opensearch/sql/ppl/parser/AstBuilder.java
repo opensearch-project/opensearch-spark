@@ -27,6 +27,7 @@ import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
+import org.opensearch.sql.ast.tree.JoinClause;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Parse;
 import org.opensearch.sql.ast.tree.Project;
@@ -276,6 +277,13 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   public UnresolvedPlan visitTableSourceClause(OpenSearchPPLParser.TableSourceClauseContext ctx) {
     return new Relation(
         ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList()));
+  }
+
+  @Override
+  public UnresolvedPlan visitJoinClause(OpenSearchPPLParser.JoinClauseContext ctx) {
+    return new JoinClause(internalVisitExpression(ctx.leftPart().fieldExpression()),
+            internalVisitExpression(ctx.rightPart().fieldExpression()),
+            internalVisitExpression(ctx.whereCommand()));
   }
 
   @Override

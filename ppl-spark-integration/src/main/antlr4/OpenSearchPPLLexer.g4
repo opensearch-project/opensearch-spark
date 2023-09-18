@@ -36,6 +36,11 @@ KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
 
+// JOIN KEYWORDS
+JOIN:                               'JOIN';
+INNER:                              'INNER';
+FULL:                               'FULL';
+
 // COMMAND ASSIST KEYWORDS
 AS:                                 'AS';
 BY:                                 'BY';

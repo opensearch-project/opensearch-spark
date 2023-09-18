@@ -250,6 +250,11 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     }
 
     @Override
+    public UnresolvedExpression visitJoinClause(OpenSearchPPLParser.JoinClauseContext ctx) {
+        return super.visitJoinClause(ctx);
+    }
+
+    @Override
     public UnresolvedExpression visitGetFormatFunctionCall(
             OpenSearchPPLParser.GetFormatFunctionCallContext ctx) {
         return new Function(
