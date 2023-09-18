@@ -5,7 +5,6 @@
 
 package org.opensearch.flint.spark.skipping
 
-import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.native.JsonMethods.parse
 import org.mockito.Mockito.when
 import org.opensearch.flint.core.metadata.FlintMetadata
