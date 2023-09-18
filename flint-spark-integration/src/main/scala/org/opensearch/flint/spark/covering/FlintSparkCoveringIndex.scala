@@ -31,7 +31,7 @@ import org.apache.spark.sql.types.StructType
 class FlintSparkCoveringIndex(
     indexName: String,
     tableName: String,
-    indexedColumns: Map[String, String])
+    val indexedColumns: Map[String, String])
     extends FlintSparkIndex {
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")

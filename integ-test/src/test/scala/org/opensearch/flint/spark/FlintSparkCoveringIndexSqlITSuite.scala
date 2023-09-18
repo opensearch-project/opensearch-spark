@@ -11,6 +11,8 @@ import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndex
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
+import org.apache.spark.sql.Row
+
 class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
   /** Test table and index name */
@@ -62,6 +64,18 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     sql(s"REFRESH INDEX $testIndex ON $testTable")
     indexData.count() shouldBe 2
+  }
+
+  test("describe covering index") {
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
+
+    val result = sql(s"DESC INDEX $testIndex ON $testTable")
+    checkAnswer(result, Seq(Row("name", "string", "indexed"), Row("age", "int", "indexed")))
   }
 
   test("drop covering index") {

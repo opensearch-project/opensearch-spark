@@ -47,6 +47,7 @@ dropSkippingIndexStatement
 coveringIndexStatement
     : createCoveringIndexStatement
     | refreshCoveringIndexStatement
+    | describeCoveringIndexStatement
     | dropCoveringIndexStatement
     ;
 
@@ -58,6 +59,10 @@ createCoveringIndexStatement
 
 refreshCoveringIndexStatement
     : REFRESH INDEX indexName=identifier ON tableName=multipartIdentifier
+    ;
+
+describeCoveringIndexStatement
+    : (DESC | DESCRIBE) INDEX indexName=identifier ON tableName=multipartIdentifier
     ;
 
 dropCoveringIndexStatement
