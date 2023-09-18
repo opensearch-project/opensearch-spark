@@ -212,6 +212,7 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.datasource.flint.scheme`: default is http. valid values [http, https]
 - `spark.datasource.flint.auth`: default is false. valid values [false, sigv4]
 - `spark.datasource.flint.region`: default is us-west-2. only been used when auth=sigv4
+- `spark.datasource.flint.customAWSCredentialsProvider`: default is empty.   
 - `spark.datasource.flint.write.id_name`: no default value.
 - `spark.datasource.flint.ignore.id_column` : default value is true.
 - `spark.datasource.flint.write.batch_size`: default value is 1000.
@@ -225,25 +226,36 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 
 The following table define the data type mapping between Flint data type and Spark data type.
 
-| **FlintDataType** | **SparkDataType**                |
-|-------------------|----------------------------------|
-| boolean           | BooleanType                      |
-| long              | LongType                         |
-| integer           | IntegerType                      |
-| short             | ShortType                        |
-| byte              | ByteType                         |
-| double            | DoubleType                       |
-| float             | FloatType                        |
-| date(Timestamp)   | DateType                         |
-| date(Date)        | TimestampType                    |
-| keyword           | StringType                       |
-| text              | StringType(meta(osType)=text)    |
-| object            | StructType                       |
+| **FlintDataType** | **SparkDataType**                 |
+|-------------------|-----------------------------------|
+| boolean           | BooleanType                       |
+| long              | LongType                          |
+| integer           | IntegerType                       |
+| short             | ShortType                         |
+| byte              | ByteType                          |
+| double            | DoubleType                        |
+| float             | FloatType                         |
+| date(Timestamp)   | DateType                          |
+| date(Date)        | TimestampType                     |
+| keyword           | StringType, VarcharType, CharType |
+| text              | StringType(meta(osType)=text)     |
+| object            | StructType                        |
 
-* currently, Flint data type only support date. it is mapped to Spark Data Type based on the format:
+* Currently, Flint data type only support date. it is mapped to Spark Data Type based on the format:
   * Map to DateType if format = strict_date, (we also support format = date, may change in future)
   * Map to TimestampType if format = strict_date_optional_time_nanos, (we also support format =
     strict_date_optional_time | epoch_millis, may change in future)
+* Spark data types VarcharType(length) and CharType(length) are both currently mapped to Flint data
+  type *keyword*, dropping their length property. On the other hand, Flint data type *keyword* only
+  maps to StringType.
+
+Unsupported Spark data types:
+* DecimalType
+* BinaryType
+* YearMonthIntervalType
+* DayTimeIntervalType
+* ArrayType
+* MapType
 
 #### API
 
@@ -311,3 +323,64 @@ For now, only single or conjunct conditions (conditions connected by AND) in WHE
 ### Index Refresh Job Management
 
 Manual refreshing a table which already has skipping index being auto-refreshed, will be prevented. However, this assumption relies on the condition that the incremental refresh job is actively running in the same Spark cluster, which can be identified when performing the check.
+
+## Integration
+
+### AWS EMR Spark Integration - Using execution role
+Flint use [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html). When running in EMR Spark, Flint use executionRole credentials
+```
+--conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.1.0-SNAPSHOT \
+--conf spark.jars.repositories=https://aws.oss.sonatype.org/content/repositories/snapshots \
+--conf spark.emr-serverless.driverEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
+--conf spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
+--conf spark.datasource.flint.host=opensearch-domain.us-west-2.es.amazonaws.com \
+--conf spark.datasource.flint.port=-1 \
+--conf spark.datasource.flint.scheme=https \
+--conf spark.datasource.flint.auth=sigv4 \
+--conf spark.datasource.flint.region=us-west-2 \
+```
+
+### AWS EMR Serverless Spark Integration - Using Assume Role
+1. In AccountB, add trust relationship to arn:aws:iam::AccountB:role/CrossAccountRoleB
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::AccountA:role/JobExecutionRoleA"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
+2. In AccountA, add STS assume role permission to arn:aws:iam::AccountA:role/JobExecutionRoleA
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::AccountB:role/CrossAccountRoleB"
+    }
+  ]
+}
+```
+3. Set the spark.datasource.flint.customAWSCredentialsProvider property with value as com.amazonaws.emr.AssumeRoleAWSCredentialsProvider. Set the environment variable ASSUME_ROLE_CREDENTIALS_ROLE_ARN with the ARN value of CrossAccountRoleB.
+```
+--conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.1.0-SNAPSHOT \
+--conf spark.jars.repositories=https://aws.oss.sonatype.org/content/repositories/snapshots \
+--conf spark.emr-serverless.driverEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
+--conf spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
+--conf spark.datasource.flint.host=opensearch-domain.us-west-2.es.amazonaws.com \
+--conf spark.datasource.flint.port=-1 \
+--conf spark.datasource.flint.scheme=https \
+--conf spark.datasource.flint.auth=sigv4 \
+--conf spark.datasource.flint.region=us-west-2 \
+--conf spark.datasource.flint.customAWSCredentialsProvider=com.amazonaws.emr.AssumeRoleAWSCredentialsProvider \
+--conf spark.emr-serverless.driverEnv.ASSUME_ROLE_CREDENTIALS_ROLE_ARN=arn:aws:iam::AccountB:role/CrossAccountRoleB \
+--conf spark.executorEnv.ASSUME_ROLE_CREDENTIALS_ROLE_ARN=arn:aws:iam::AccountBB:role/CrossAccountRoleB
+```

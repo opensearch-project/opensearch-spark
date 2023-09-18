@@ -8,6 +8,7 @@ package org.opensearch.flint.spark.skipping
 import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
+import org.opensearch.flint.core.FlintVersion
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder}
 import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, ID_COLUMN}
@@ -52,6 +53,7 @@ class FlintSparkSkippingIndex(
     new FlintMetadata(s"""{
         |   "_meta": {
         |     "name": "${name()}",
+        |     "version": "${FlintVersion.current()}",
         |     "kind": "$SKIPPING_INDEX_TYPE",
         |     "indexedColumns": $getMetaInfo,
         |     "source": "$tableName"
