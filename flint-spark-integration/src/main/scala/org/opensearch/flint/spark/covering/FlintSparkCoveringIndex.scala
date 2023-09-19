@@ -28,10 +28,10 @@ import org.apache.spark.sql.types.StructType
  * @param indexedColumns
  *   indexed column list
  */
-class FlintSparkCoveringIndex(
+case class FlintSparkCoveringIndex(
     indexName: String,
     tableName: String,
-    val indexedColumns: Map[String, String])
+    indexedColumns: Map[String, String])
     extends FlintSparkIndex {
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")

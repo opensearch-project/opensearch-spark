@@ -66,6 +66,26 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     indexData.count() shouldBe 2
   }
 
+  test("show all covering index on the source table") {
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
+    flint
+      .coveringIndex()
+      .name("idx_address")
+      .onTable(testTable)
+      .addIndexColumns("address")
+      .create()
+
+    val result = sql(s"SHOW INDEX ON $testTable")
+    checkAnswer(result, Seq(Row(testIndex), Row("idx_address")))
+
+    flint.deleteIndex(getFlintIndexName("idx_address", testTable))
+  }
+
   test("describe covering index") {
     flint
       .coveringIndex()

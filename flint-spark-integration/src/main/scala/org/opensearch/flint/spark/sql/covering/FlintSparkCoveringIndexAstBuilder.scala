@@ -11,7 +11,7 @@ import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, isAutoRefreshEnabled}
-import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.{CreateCoveringIndexStatementContext, DescribeCoveringIndexStatementContext, DropCoveringIndexStatementContext, RefreshCoveringIndexStatementContext}
+import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
@@ -55,6 +55,19 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[C
       val flintIndexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
       flint.refreshIndex(flintIndexName, RefreshMode.FULL)
       Seq.empty
+    }
+  }
+
+  override def visitShowCoveringIndexStatement(
+      ctx: ShowCoveringIndexStatementContext): Command = {
+    val outputSchema = Seq(AttributeReference("index_name", StringType, nullable = false)())
+
+    FlintSparkSqlCommand(outputSchema) { flint =>
+      val fullTableName = getFullTableName(flint, ctx.tableName)
+      val indexNamePattern = FlintSparkCoveringIndex.getFlintIndexName("*", fullTableName)
+      flint
+        .describeIndexes(indexNamePattern)
+        .map { case index: FlintSparkCoveringIndex => Row(index.indexName) }
     }
   }
 
