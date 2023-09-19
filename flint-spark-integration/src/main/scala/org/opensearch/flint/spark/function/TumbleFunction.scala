@@ -12,16 +12,27 @@ import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionInfo}
 import org.apache.spark.sql.functions.window
 
 /**
- * Tumble windowing function that groups row into fixed interval window without overlap.
+ * Tumble windowing function that assigns row to fixed interval window without overlap.
  */
 object TumbleFunction {
 
+  /**
+   * Function name.
+   */
   val identifier: FunctionIdentifier = FunctionIdentifier("tumble")
 
+  /**
+   * Function output info.
+   */
   val exprInfo: ExpressionInfo = new ExpressionInfo(classOf[Column].getCanonicalName, "window")
 
+  /**
+   * Function implementation builder.
+   */
   val functionBuilder: Seq[Expression] => Expression =
     (children: Seq[Expression]) => {
+      require(children.size == 2, "column name and window expression are required")
+
       // Delegate actual implementation to window() function
       val timeColumn = children.head
       val windowDuration = children(1)
