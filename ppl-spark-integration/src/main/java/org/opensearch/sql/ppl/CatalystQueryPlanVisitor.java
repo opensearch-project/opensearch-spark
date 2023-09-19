@@ -89,7 +89,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     }
 
     public String visit(Statement plan, CatalystPlanContext context) {
-        return plan.accept(this, context);
+        //build plan 
+        String planDesc = plan.accept(this, context);
+        //add limit statement
+        visitLimit(context);
+        //add order statement
+        visitSort(context);
+        return planDesc;
     }
 
     /**
@@ -108,25 +114,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     @Override
     public String visitRelation(Relation node, CatalystPlanContext context) {
         node.getTableName().forEach(t -> {
-            // todo - how to resolve the qualifiedName is its composed of a datasource + schema
-            // QualifiedName qualifiedName = node.getTableQualifiedName();
-            // Create an UnresolvedTable node for a table named "qualifiedName" in the default namespace
+            // Resolving the qualifiedName which is composed of a datasource.schema.table
             context.with(new UnresolvedRelation(asScalaBuffer(of(t.split("\\."))).toSeq(), CaseInsensitiveStringMap.empty(), false));
         });
         return format("source=%s", node.getTableName());
     }
-
-    @Override
-    public String visitTableFunction(TableFunction node, CatalystPlanContext context) {
-        String arguments =
-                node.getArguments().stream()
-                        .map(
-                                unresolvedExpression ->
-                                        this.expressionAnalyzer.analyze(unresolvedExpression, context))
-                        .collect(Collectors.joining(","));
-        return format("source=%s(%s)", node.getFunctionName().toString(), arguments);
-    }
-
+    
     @Override
     public String visitFilter(Filter node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
@@ -135,23 +128,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(innerConditionExpression, p));
         return format("%s | where %s", child, innerCondition);
     }
-
-    @Override
-    public String visitRename(Rename node, CatalystPlanContext context) {
-        String child = node.getChild().get(0).accept(this, context);
-        ImmutableMap.Builder<String, String> renameMapBuilder = new ImmutableMap.Builder<>();
-        for (Map renameMap : node.getRenameList()) {
-            renameMapBuilder.put(
-                    visitExpression(renameMap.getOrigin(), context),
-                    ((Field) renameMap.getTarget()).getField().toString());
-        }
-        String renames =
-                renameMapBuilder.build().entrySet().stream()
-                        .map(entry -> format("%s as %s", entry.getKey(), entry.getValue()))
-                        .collect(Collectors.joining(","));
-        return format("%s | rename %s", child, renames);
-    }
-
+    
     @Override
     public String visitAggregation(Aggregation node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
@@ -172,35 +149,16 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     }
 
     private static void extractedAggregation(CatalystPlanContext context) {
-        NamedExpression namedExpression = (NamedExpression) context.getNamedParseExpressions().peek();
-        Seq<NamedExpression> namedExpressionSeq = asScalaBuffer(context.getNamedParseExpressions().stream()
-                .map(v -> (NamedExpression) v).collect(Collectors.toList())).toSeq();
-        //now remove all context.getNamedParseExpressions() 
-        context.getNamedParseExpressions().retainAll(emptyList());
-        context.plan(p -> new Aggregate(asScalaBuffer(singletonList((Expression) namedExpression)), namedExpressionSeq, p));
+        NamedExpression groupingExpression = (NamedExpression) context.getNamedParseExpressions().peek();
+        Seq<NamedExpression> aggregateExpressions = context.retainAllNamedParseExpressions(p->(NamedExpression) p);
+        context.plan(p -> new Aggregate(asScalaBuffer(singletonList((Expression) groupingExpression)), aggregateExpressions, p));
     }
 
     @Override
     public String visitAlias(Alias node, CatalystPlanContext context) {
         return expressionAnalyzer.visitAlias(node, context);
     }
-
-    @Override
-    public String visitRareTopN(RareTopN node, CatalystPlanContext context) {
-        final String child = node.getChild().get(0).accept(this, context);
-        List<Argument> options = node.getNoOfResults();
-        Integer noOfResults = (Integer) options.get(0).getValue().getValue();
-        String fields = visitFieldList(node.getFields(), context);
-        String group = visitExpressionList(node.getGroupExprList(), context);
-        return format(
-                "%s | %s %d %s",
-                child,
-                node.getCommandType().name().toLowerCase(),
-                noOfResults,
-                String.join(" ", fields, groupBy(group)).trim());
-    }
-
-
+    
     @Override
     public String visitProject(Project node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
@@ -210,12 +168,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         // Create a projection list from the existing expressions
         Seq<?> projectList = asScalaBuffer(context.getNamedParseExpressions()).toSeq();
         if (!projectList.isEmpty()) {
-            Seq<NamedExpression> namedExpressionSeq = asScalaBuffer(context.getNamedParseExpressions().stream()
-                    .map(v -> (NamedExpression) v).collect(Collectors.toList())).toSeq();
+            Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p->(NamedExpression) p);
             // build the plan with the projection step
-            context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(namedExpressionSeq, p));
-            //now remove all context.getNamedParseExpressions() 
-            context.getNamedParseExpressions().retainAll(emptyList());
+            context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
         }
         if (node.hasArgument()) {
             Argument argument = node.getArgExprList().get(0);
@@ -224,14 +179,20 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
                 arg = "-";
             }
         }
+        return format("%s | fields %s %s", child, arg, fields);
+    }
+
+    private static void visitSort(CatalystPlanContext context) {
+        if (!context.getSortOrders().isEmpty()) {
+            context.plan(p -> (LogicalPlan) new org.apache.spark.sql.catalyst.plans.logical.Sort(context.getSortOrders(),true, p));
+        }
+    }
+
+    private static void visitLimit(CatalystPlanContext context) {
         if (context.getLimit() > 0) {
             context.plan(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
                     context.getLimit(), DataTypes.IntegerType), p));
         }
-        if (!context.getSortOrders().isEmpty()) {
-            context.plan(p -> (LogicalPlan) new org.apache.spark.sql.catalyst.plans.logical.Sort(asScalaBuffer(context.getSortOrders()).toSeq(),true, p));
-        }
-        return format("%s | fields %s %s", child, arg, fields);
     }
 
     @Override
@@ -253,15 +214,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     @Override
     public String visitSort(Sort node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
-        // the first options is {"count": "integer"}
         String sortList = visitFieldList(node.getSortList(), context);
-
-        List<NamedExpression> namedExpressions = context.getNamedParseExpressions().stream()
-                .map(v -> (NamedExpression) v).collect(Collectors.toList());
-
-        //now remove all context.getNamedParseExpressions() 
-        context.getNamedParseExpressions().retainAll(emptyList());
-        context.sort(namedExpressions.stream().map(exp -> SortUtils.getSortDirection(node, exp)).collect(Collectors.toList()));
+        context.sort(context.retainAllNamedParseExpressions(exp -> SortUtils.getSortDirection(node,(NamedExpression) exp)));
         return format("%s | sort %s", child, sortList);
     }
 

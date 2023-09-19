@@ -68,8 +68,6 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
     name := "ppl-spark-integration",
     scalaVersion := scala212,
     libraryDependencies ++= Seq(
-      "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
-        exclude ("com.fasterxml.jackson.core", "jackson-databind"),
       "org.scalactic" %% "scalactic" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",

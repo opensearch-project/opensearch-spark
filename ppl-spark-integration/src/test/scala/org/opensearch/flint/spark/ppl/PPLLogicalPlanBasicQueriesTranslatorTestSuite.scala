@@ -114,9 +114,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val table = UnresolvedRelation(Seq("t"))
     val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
     val projectAB = Project(projectList, table)
-    val sortOrderProject = Seq(SortOrder(UnresolvedAttribute("A"), Descending))
-    val sortedProject = Sort(sortOrderProject, true, projectAB)
-    val planWithLimit = Project(Seq(UnresolvedStar(None)), sortedProject)
+    val planWithLimit = Project(Seq(UnresolvedStar(None)), projectAB)
 
     val expectedPlan = GlobalLimit(Literal(5), LocalLimit(Literal(5), planWithLimit))
     val sortOrder = Seq(SortOrder(UnresolvedAttribute("A"), Descending))

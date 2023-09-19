@@ -1053,7 +1053,6 @@ class FlintSparkPPLITSuite
     val ageField = UnresolvedAttribute("age")
     val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
 
-    val groupByAttributes = Seq(Alias(countryField, "country")())
     val aggregateExpressions = Alias(UnresolvedFunction(Seq("COUNT"), Seq(ageField), isDistinct = false), "count(age)")()
     val span = Alias(Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)), "span (age,10,NONE)")()
     val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), table)

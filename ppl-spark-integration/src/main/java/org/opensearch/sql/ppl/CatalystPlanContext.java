@@ -5,14 +5,19 @@
 
 package org.opensearch.sql.ppl;
 
+import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
+import scala.collection.Seq;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Stack;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static scala.collection.JavaConverters.asScalaBuffer;
 
@@ -24,6 +29,11 @@ public class CatalystPlanContext {
      * Catalyst evolving logical plan
      **/
     private Stack<LogicalPlan> planBranches = new Stack<>();
+
+    /**
+     * limit stands for the translation of the `head` command in PPL which transforms into a limit logical step.
+     * default limit -MAX_INT_VAL meaning no limit was set yet
+     */
     private int limit = Integer.MIN_VALUE;
 
     /**
@@ -34,7 +44,7 @@ public class CatalystPlanContext {
     /**
      * SortOrder sort by parameters
      **/
-    private List<SortOrder> sortOrders = new ArrayList<>();
+    private Seq<SortOrder> sortOrders = asScalaBuffer(Collections.emptyList());
 
     public LogicalPlan getPlan() {
         if (this.planBranches.size() == 1) {
@@ -65,14 +75,25 @@ public class CatalystPlanContext {
         return limit;
     }
 
-    public List<SortOrder> getSortOrders() {
+    public Seq<SortOrder> getSortOrders() {
         return sortOrders;
     }
 
     public void plan(Function<LogicalPlan, LogicalPlan> transformFunction) {
         this.planBranches.replaceAll(transformFunction::apply);
     }
-    public void sort(List<SortOrder> sortOrders) {
+    public void sort(Seq<SortOrder> sortOrders) {
         this.sortOrders = sortOrders;
+    }
+
+    /**
+     * retain all expressions and clear expression stack
+     * @return
+     */
+    public <T> Seq<T>  retainAllNamedParseExpressions(Function<Expression, T> transformFunction) {
+        Seq<T> aggregateExpressions = asScalaBuffer(getNamedParseExpressions().stream()
+                .map(transformFunction::apply).collect(Collectors.toList())).toSeq();
+        getNamedParseExpressions().retainAll(Collections.emptyList());
+        return aggregateExpressions;
     }
 }
