@@ -8,6 +8,7 @@ package org.opensearch.flint.spark
 import scala.Option.empty
 
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
@@ -73,6 +74,8 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
       .onTable(testTable)
       .addIndexColumns("name", "age")
       .create()
+
+    // Create another covering index
     flint
       .coveringIndex()
       .name("idx_address")
@@ -80,10 +83,18 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
       .addIndexColumns("address")
       .create()
 
+    // Create a skipping index which is expected to be filtered
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+
     val result = sql(s"SHOW INDEX ON $testTable")
     checkAnswer(result, Seq(Row(testIndex), Row("idx_address")))
 
     flint.deleteIndex(getFlintIndexName("idx_address", testTable))
+    flint.deleteIndex(getSkippingIndexName(testTable))
   }
 
   test("describe covering index") {
