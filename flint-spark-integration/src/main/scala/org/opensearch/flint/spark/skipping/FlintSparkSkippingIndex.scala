@@ -33,9 +33,9 @@ import org.apache.spark.sql.types.StructType
  * @param indexedColumns
  *   indexed column list
  */
-case class FlintSparkSkippingIndex(
+class FlintSparkSkippingIndex(
     tableName: String,
-    indexedColumns: Seq[FlintSparkSkippingStrategy],
+    val indexedColumns: Seq[FlintSparkSkippingStrategy],
     override val options: FlintSparkIndexOptions = empty)
     extends FlintSparkIndex {
 

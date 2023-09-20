@@ -5,10 +5,12 @@
 
 package org.opensearch.flint.spark.sql
 
-import org.antlr.v4.runtime.tree.RuleNode
+import org.antlr.v4.runtime.tree.{ParseTree, RuleNode}
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.sql.covering.FlintSparkCoveringIndexAstBuilder
 import org.opensearch.flint.spark.sql.skipping.FlintSparkSkippingIndexAstBuilder
+
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 
 /**
  * Flint Spark AST builder that builds Spark command for Flint index statement. This class mix-in
@@ -19,6 +21,10 @@ class FlintSparkSqlAstBuilder
     with FlintSparkSkippingIndexAstBuilder
     with FlintSparkCoveringIndexAstBuilder
     with SparkSqlAstBuilder {
+
+  override def visit(tree: ParseTree): LogicalPlan = {
+    tree.accept(this).asInstanceOf[LogicalPlan]
+  }
 
   override def aggregateResult(aggregate: AnyRef, nextResult: AnyRef): AnyRef =
     if (nextResult != null) nextResult else aggregate

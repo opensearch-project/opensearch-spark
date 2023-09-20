@@ -34,6 +34,14 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
       .toMap
   }
 
+  /**
+   * Add index options.
+   *
+   * @param options
+   *   index options
+   * @return
+   *   builder
+   */
   def options(options: FlintSparkIndexOptions): this.type = {
     this.indexOptions = options
     this
