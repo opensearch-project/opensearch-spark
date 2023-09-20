@@ -85,6 +85,14 @@ grammar SparkSqlBase;
 }
 
 
+multipartIdentifierPropertyList
+    : multipartIdentifierProperty (COMMA multipartIdentifierProperty)*
+    ;
+
+multipartIdentifierProperty
+    : multipartIdentifier (options=propertyList)?
+    ;
+
 propertyList
     : property (COMMA property)*
     ;

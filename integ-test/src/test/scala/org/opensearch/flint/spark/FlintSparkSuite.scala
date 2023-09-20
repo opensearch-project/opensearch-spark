@@ -22,11 +22,14 @@ trait FlintSparkSuite
     with StreamTest {
 
   /** Flint Spark high level API being tested */
-  lazy protected val flint: FlintSpark = {
+  lazy protected val flint: FlintSpark = new FlintSpark(spark)
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
     setFlintSparkConf(HOST_ENDPOINT, openSearchHost)
     setFlintSparkConf(HOST_PORT, openSearchPort)
     setFlintSparkConf(REFRESH_POLICY, "true")
-    new FlintSpark(spark)
   }
 
   protected def createPartitionedTable(testTable: String): Unit = {
