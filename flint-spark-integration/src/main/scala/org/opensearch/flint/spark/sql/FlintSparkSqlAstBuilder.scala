@@ -7,84 +7,34 @@ package org.opensearch.flint.spark.sql
 
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
-import org.opensearch.flint.spark.FlintSpark.RefreshMode
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
-import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
+import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.PropertyListContext
+import org.opensearch.flint.spark.sql.covering.FlintSparkCoveringIndexAstBuilder
+import org.opensearch.flint.spark.sql.skipping.FlintSparkSkippingIndexAstBuilder
 
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.logical.Command
-import org.apache.spark.sql.types.StringType
 
 /**
  * Flint Spark AST builder that builds Spark command for Flint index statement.
+ * This class mix-in all other AST builders and provides util methods.
  */
-class FlintSparkSqlAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command] {
+class FlintSparkSqlAstBuilder
+    extends FlintSparkSqlExtensionsBaseVisitor[Command]
+    with FlintSparkSkippingIndexAstBuilder
+    with FlintSparkCoveringIndexAstBuilder {
 
-  override def visitCreateSkippingIndexStatement(
-      ctx: CreateSkippingIndexStatementContext): Command =
-    FlintSparkSqlCommand() { flint =>
-      // Create skipping index
-      val indexBuilder = flint
-        .skippingIndex()
-        .onTable(getFullTableName(flint, ctx.tableName))
+  override def aggregateResult(aggregate: Command, nextResult: Command): Command =
+    if (nextResult != null) nextResult else aggregate
+}
 
-      ctx.indexColTypeList().indexColType().forEach { colTypeCtx =>
-        val colName = colTypeCtx.identifier().getText
-        val skipType = SkippingKind.withName(colTypeCtx.skipType.getText)
-        skipType match {
-          case PARTITION => indexBuilder.addPartitions(colName)
-          case VALUE_SET => indexBuilder.addValueSet(colName)
-          case MIN_MAX => indexBuilder.addMinMax(colName)
-        }
-      }
-      indexBuilder.create()
+object FlintSparkSqlAstBuilder {
 
-      // Trigger auto refresh if enabled
-      if (isAutoRefreshEnabled(ctx.propertyList())) {
-        val indexName = getSkippingIndexName(flint, ctx.tableName)
-        flint.refreshIndex(indexName, RefreshMode.INCREMENTAL)
-      }
-      Seq.empty
-    }
-
-  override def visitRefreshSkippingIndexStatement(
-      ctx: RefreshSkippingIndexStatementContext): Command =
-    FlintSparkSqlCommand() { flint =>
-      val indexName = getSkippingIndexName(flint, ctx.tableName)
-      flint.refreshIndex(indexName, RefreshMode.FULL)
-      Seq.empty
-    }
-
-  override def visitDescribeSkippingIndexStatement(
-      ctx: DescribeSkippingIndexStatementContext): Command = {
-    val outputSchema = Seq(
-      AttributeReference("indexed_col_name", StringType, nullable = false)(),
-      AttributeReference("data_type", StringType, nullable = false)(),
-      AttributeReference("skip_type", StringType, nullable = false)())
-
-    FlintSparkSqlCommand(outputSchema) { flint =>
-      val indexName = getSkippingIndexName(flint, ctx.tableName)
-      flint
-        .describeIndex(indexName)
-        .map { case index: FlintSparkSkippingIndex =>
-          index.indexedColumns.map(strategy =>
-            Row(strategy.columnName, strategy.columnType, strategy.kind.toString))
-        }
-        .getOrElse(Seq.empty)
-    }
-  }
-
-  override def visitDropSkippingIndexStatement(ctx: DropSkippingIndexStatementContext): Command =
-    FlintSparkSqlCommand() { flint =>
-      val indexName = getSkippingIndexName(flint, ctx.tableName)
-      flint.deleteIndex(indexName)
-      Seq.empty
-    }
-
-  private def isAutoRefreshEnabled(ctx: PropertyListContext): Boolean = {
+  /**
+   * Check if auto_refresh is true in property list.
+   *
+   * @param ctx
+   *   property list
+   */
+  def isAutoRefreshEnabled(ctx: PropertyListContext): Boolean = {
     if (ctx == null) {
       false
     } else {
@@ -99,10 +49,16 @@ class FlintSparkSqlAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command
     }
   }
 
-  private def getSkippingIndexName(flint: FlintSpark, tableNameCtx: RuleNode): String =
-    FlintSparkSkippingIndex.getSkippingIndexName(getFullTableName(flint, tableNameCtx))
-
-  private def getFullTableName(flint: FlintSpark, tableNameCtx: RuleNode): String = {
+  /**
+   * Get full table name if database not specified.
+   *
+   * @param flint
+   *   Flint Spark which has access to Spark Catalog
+   * @param tableNameCtx
+   *   table name
+   * @return
+   */
+  def getFullTableName(flint: FlintSpark, tableNameCtx: RuleNode): String = {
     val tableName = tableNameCtx.getText
     if (tableName.contains(".")) {
       tableName
@@ -111,7 +67,4 @@ class FlintSparkSqlAstBuilder extends FlintSparkSqlExtensionsBaseVisitor[Command
       s"$db.$tableName"
     }
   }
-
-  override def aggregateResult(aggregate: Command, nextResult: Command): Command =
-    if (nextResult != null) nextResult else aggregate
 }
