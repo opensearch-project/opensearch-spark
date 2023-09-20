@@ -23,7 +23,7 @@ class TumbleFunctionSuite extends FlintSuite with Matchers {
     }
   }
 
-  test("should fail if only argument type is wrong") {
+  test("should fail if argument type is wrong") {
     assertThrows[AnalysisException] {
       TumbleFunction.functionBuilder(Seq(col("timestamp").expr, lit(10).expr))
     }
