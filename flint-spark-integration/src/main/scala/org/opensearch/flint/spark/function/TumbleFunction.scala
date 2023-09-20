@@ -22,7 +22,7 @@ object TumbleFunction {
   val identifier: FunctionIdentifier = FunctionIdentifier("tumble")
 
   /**
-   * Function output info.
+   * Function signature: tumble function generates a new struct column after evaluation.
    */
   val exprInfo: ExpressionInfo = new ExpressionInfo(classOf[Column].getCanonicalName, "window")
 
@@ -33,7 +33,7 @@ object TumbleFunction {
     (children: Seq[Expression]) => {
       require(children.size == 2, "column name and window expression are required")
 
-      // Delegate actual implementation to window() function
+      // Delegate actual implementation to Spark existing window() function
       val timeColumn = children.head
       val windowDuration = children(1)
       window(new Column(timeColumn), windowDuration.toString()).expr
