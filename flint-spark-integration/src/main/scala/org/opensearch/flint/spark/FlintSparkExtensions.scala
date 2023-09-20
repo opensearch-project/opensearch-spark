@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.spark
 
+import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.sql.FlintSparkSqlParser
 
 import org.apache.spark.sql.SparkSessionExtensions
@@ -18,6 +19,9 @@ class FlintSparkExtensions extends (SparkSessionExtensions => Unit) {
     extensions.injectParser { (spark, parser) =>
       new FlintSparkSqlParser(parser)
     }
+
+    extensions.injectFunction(TumbleFunction.description)
+
     extensions.injectOptimizerRule { spark =>
       new FlintSparkOptimizer(spark)
     }
