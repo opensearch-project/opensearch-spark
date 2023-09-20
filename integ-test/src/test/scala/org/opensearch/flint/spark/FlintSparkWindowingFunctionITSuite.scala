@@ -11,7 +11,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{QueryTest, Row}
-import org.apache.spark.sql.types.{StructField, StructType, TimestampType}
+import org.apache.spark.sql.types.StructType
 
 class FlintSparkWindowingFunctionITSuite extends QueryTest with FlintSuite {
 
@@ -24,7 +24,7 @@ class FlintSparkWindowingFunctionITSuite extends QueryTest with FlintSuite {
           (3L, "2023-01-01 00:15:00")))
       .toDF("id", "timestamp")
 
-    val resultDF = inputDF.selectExpr("TUMBLE(timestamp, '10 minutes') AS window")
+    val resultDF = inputDF.selectExpr("TUMBLE(timestamp, '10 minutes')")
 
     resultDF.schema shouldBe StructType.fromDDL(
       "window struct<start:timestamp,end:timestamp> NOT NULL")
