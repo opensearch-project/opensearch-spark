@@ -7,47 +7,24 @@ package org.opensearch.flint.spark.sql
 
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
-import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.PropertyListContext
 import org.opensearch.flint.spark.sql.covering.FlintSparkCoveringIndexAstBuilder
 import org.opensearch.flint.spark.sql.skipping.FlintSparkSkippingIndexAstBuilder
 
-import org.apache.spark.sql.catalyst.plans.logical.Command
-
 /**
- * Flint Spark AST builder that builds Spark command for Flint index statement.
- * This class mix-in all other AST builders and provides util methods.
+ * Flint Spark AST builder that builds Spark command for Flint index statement. This class mix-in
+ * all other AST builders and provides util methods.
  */
 class FlintSparkSqlAstBuilder
-    extends FlintSparkSqlExtensionsBaseVisitor[Command]
+    extends FlintSparkSqlExtensionsBaseVisitor[AnyRef]
     with FlintSparkSkippingIndexAstBuilder
-    with FlintSparkCoveringIndexAstBuilder {
+    with FlintSparkCoveringIndexAstBuilder
+    with SparkSqlAstBuilder {
 
-  override def aggregateResult(aggregate: Command, nextResult: Command): Command =
+  override def aggregateResult(aggregate: AnyRef, nextResult: AnyRef): AnyRef =
     if (nextResult != null) nextResult else aggregate
 }
 
 object FlintSparkSqlAstBuilder {
-
-  /**
-   * Check if auto_refresh is true in property list.
-   *
-   * @param ctx
-   *   property list
-   */
-  def isAutoRefreshEnabled(ctx: PropertyListContext): Boolean = {
-    if (ctx == null) {
-      false
-    } else {
-      ctx
-        .property()
-        .forEach(p => {
-          if (p.key.getText == "auto_refresh") {
-            return p.value.getText.toBoolean
-          }
-        })
-      false
-    }
-  }
 
   /**
    * Get full table name if database not specified.

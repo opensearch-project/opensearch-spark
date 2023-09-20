@@ -54,7 +54,7 @@ class FlintSparkSqlParser(sparkParser: ParserInterface) extends ParserInterface 
 
   override def parsePlan(sqlText: String): LogicalPlan = parse(sqlText) { flintParser =>
     try {
-      flintAstBuilder.visit(flintParser.singleStatement())
+      flintAstBuilder.visit(flintParser.singleStatement()).asInstanceOf[LogicalPlan]
     } catch {
       // Fall back to Spark parse plan logic if flint cannot parse
       case _: ParseException => sparkParser.parsePlan(sqlText)

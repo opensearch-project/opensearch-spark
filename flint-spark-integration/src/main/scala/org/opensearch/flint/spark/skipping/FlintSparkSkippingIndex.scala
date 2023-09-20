@@ -10,8 +10,9 @@ import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintVersion
 import org.opensearch.flint.core.metadata.FlintMetadata
-import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder}
+import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
 import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, ID_COLUMN}
+import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
@@ -32,9 +33,10 @@ import org.apache.spark.sql.types.StructType
  * @param indexedColumns
  *   indexed column list
  */
-class FlintSparkSkippingIndex(
+case class FlintSparkSkippingIndex(
     tableName: String,
-    val indexedColumns: Seq[FlintSparkSkippingStrategy])
+    indexedColumns: Seq[FlintSparkSkippingStrategy],
+    override val options: FlintSparkIndexOptions = empty)
     extends FlintSparkIndex {
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")
@@ -192,7 +194,7 @@ object FlintSparkSkippingIndex {
     }
 
     override def buildIndex(): FlintSparkIndex =
-      new FlintSparkSkippingIndex(tableName, indexedColumns)
+      new FlintSparkSkippingIndex(tableName, indexedColumns, indexOptions)
 
     private def addIndexedColumn(indexedCol: FlintSparkSkippingStrategy): Unit = {
       require(

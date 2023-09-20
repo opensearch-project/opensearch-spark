@@ -11,8 +11,8 @@ import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
-import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor}
-import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, isAutoRefreshEnabled}
+import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.getFullTableName
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
 import org.apache.spark.sql.Row
@@ -23,7 +23,8 @@ import org.apache.spark.sql.types.StringType
 /**
  * Flint Spark AST builder that builds Spark command for Flint skipping index statement.
  */
-trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[Command] {
+trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
+  self: SparkSqlAstBuilder =>
 
   override def visitCreateSkippingIndexStatement(
       ctx: CreateSkippingIndexStatementContext): Command =
@@ -42,10 +43,14 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[C
           case MIN_MAX => indexBuilder.addMinMax(colName)
         }
       }
-      indexBuilder.create()
+
+      val indexOptions = visitPropertyList(ctx.propertyList())
+      indexBuilder
+        .options(indexOptions)
+        .create()
 
       // Trigger auto refresh if enabled
-      if (isAutoRefreshEnabled(ctx.propertyList())) {
+      if (indexOptions.autoRefresh()) {
         val indexName = getSkippingIndexName(flint, ctx.tableName)
         flint.refreshIndex(indexName, RefreshMode.INCREMENTAL)
       }

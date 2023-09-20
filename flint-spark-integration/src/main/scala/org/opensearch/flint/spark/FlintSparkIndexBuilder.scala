@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark
 
+import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
+
 import org.apache.spark.sql.catalog.Column
 
 /**
@@ -18,6 +20,9 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
   /** Source table name */
   protected var tableName: String = ""
 
+  /** Index options */
+  protected var indexOptions: FlintSparkIndexOptions = empty
+
   /** All columns of the given source table */
   lazy protected val allColumns: Map[String, Column] = {
     require(tableName.nonEmpty, "Source table name is not provided")
@@ -27,6 +32,11 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
       .collect()
       .map(col => (col.name, col))
       .toMap
+  }
+
+  def options(options: FlintSparkIndexOptions): this.type = {
+    this.indexOptions = options
+    this
   }
 
   /**

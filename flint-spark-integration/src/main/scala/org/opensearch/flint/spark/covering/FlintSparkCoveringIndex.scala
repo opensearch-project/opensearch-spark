@@ -10,8 +10,9 @@ import org.json4s.JsonAST.{JArray, JObject, JString}
 import org.json4s.native.JsonMethods.{compact, parse, render}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.metadata.FlintMetadata
-import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder}
+import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
 import org.opensearch.flint.spark.FlintSparkIndex.flintIndexNamePrefix
+import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{getFlintIndexName, COVERING_INDEX_TYPE}
 
 import org.apache.spark.sql.DataFrame
@@ -31,7 +32,8 @@ import org.apache.spark.sql.types.StructType
 class FlintSparkCoveringIndex(
     indexName: String,
     tableName: String,
-    indexedColumns: Map[String, String])
+    indexedColumns: Map[String, String],
+    override val options: FlintSparkIndexOptions = empty)
     extends FlintSparkIndex {
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")
@@ -154,6 +156,6 @@ object FlintSparkCoveringIndex {
     }
 
     override protected def buildIndex(): FlintSparkIndex =
-      new FlintSparkCoveringIndex(indexName, tableName, indexedColumns)
+      new FlintSparkCoveringIndex(indexName, tableName, indexedColumns, indexOptions)
   }
 }

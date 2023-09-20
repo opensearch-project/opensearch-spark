@@ -20,6 +20,11 @@ trait FlintSparkIndex {
   val kind: String
 
   /**
+   * Index options
+   */
+  val options: FlintSparkIndexOptions
+
+  /**
    * @return
    *   Flint index name
    */

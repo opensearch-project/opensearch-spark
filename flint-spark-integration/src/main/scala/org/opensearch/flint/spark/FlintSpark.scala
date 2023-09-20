@@ -8,6 +8,7 @@ package org.opensearch.flint.spark
 import scala.collection.JavaConverters._
 
 import org.json4s.{Formats, JArray, NoTypeHints}
+import org.json4s.JsonAST.{JField, JObject}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
@@ -211,6 +212,14 @@ class FlintSpark(val spark: SparkSession) {
     val tableName = (meta \ "source").extract[String]
     val indexType = (meta \ "kind").extract[String]
     val indexedColumns = (meta \ "indexedColumns").asInstanceOf[JArray]
+    val indexOptions = FlintSparkIndexOptions(
+      (meta \ "options")
+        .asInstanceOf[JObject]
+        .obj
+        .map { case JField(key, value) =>
+          key -> value.values.toString
+        }
+        .toMap)
 
     indexType match {
       case SKIPPING_INDEX_TYPE =>
@@ -230,14 +239,15 @@ class FlintSpark(val spark: SparkSession) {
               throw new IllegalStateException(s"Unknown skipping strategy: $other")
           }
         }
-        new FlintSparkSkippingIndex(tableName, strategies)
+        new FlintSparkSkippingIndex(tableName, strategies, indexOptions)
       case COVERING_INDEX_TYPE =>
         new FlintSparkCoveringIndex(
           indexName,
           tableName,
           indexedColumns.arr.map { obj =>
             ((obj \ "columnName").extract[String], (obj \ "columnType").extract[String])
-          }.toMap)
+          }.toMap,
+          indexOptions)
     }
   }
 }
