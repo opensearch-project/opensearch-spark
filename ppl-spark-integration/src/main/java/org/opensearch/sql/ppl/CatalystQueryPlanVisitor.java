@@ -6,7 +6,6 @@
 package org.opensearch.sql.ppl;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
@@ -18,7 +17,6 @@ import org.apache.spark.sql.catalyst.expressions.Floor;
 import org.apache.spark.sql.catalyst.expressions.Multiply;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
-import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
@@ -31,13 +29,11 @@ import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.Compare;
-import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
-import org.opensearch.sql.ast.expression.Map;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
 import org.opensearch.sql.ast.expression.Span;
@@ -53,11 +49,8 @@ import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Project;
-import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
-import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
-import org.opensearch.sql.ast.tree.TableFunction;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
@@ -70,7 +63,6 @@ import java.util.stream.Collectors;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.lang.String.format;
-import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.List.of;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
@@ -119,7 +111,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         });
         return format("source=%s", node.getTableName());
     }
-    
+
     @Override
     public String visitFilter(Filter node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
@@ -128,37 +120,49 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(innerConditionExpression, p));
         return format("%s | where %s", child, innerCondition);
     }
-    
+
     @Override
     public String visitAggregation(Aggregation node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
         final String visitExpressionList = visitExpressionList(node.getAggExprList(), context);
         final String group = visitExpressionList(node.getGroupExprList(), context);
-
+        
         if (!isNullOrEmpty(group)) {
-            extractedAggregation(context);
+            //add group by fields to context
+            extractedGroupBy(node.getGroupExprList().size(),context);
         }
+        
         UnresolvedExpression span = node.getSpan();
         if (!Objects.isNull(span)) {
             span.accept(this, context);
-            extractedAggregation(context);
+            //add span's group by field to context
+            extractedGroupBy(1,context);
         }
+        // build the aggregation logical step
+        extractedAggregation(context);
         return format(
                 "%s | stats %s",
                 child, String.join(" ", visitExpressionList, groupBy(group)).trim());
     }
 
+    private static void extractedGroupBy(int groupByElementsCount, CatalystPlanContext context) {
+        //copy the group by aliases from the namedExpressionList to the groupByExpressionList  
+        for (int i = 1; i <= groupByElementsCount; i++) {
+            context.getGroupingParseExpressions().add(context.getNamedParseExpressions().get(context.getNamedParseExpressions().size()-i));
+        }
+    }
+
     private static void extractedAggregation(CatalystPlanContext context) {
-        NamedExpression groupingExpression = (NamedExpression) context.getNamedParseExpressions().peek();
-        Seq<NamedExpression> aggregateExpressions = context.retainAllNamedParseExpressions(p->(NamedExpression) p);
-        context.plan(p -> new Aggregate(asScalaBuffer(singletonList((Expression) groupingExpression)), aggregateExpressions, p));
+        Seq<Expression> groupingExpression = context.retainAllGroupingNamedParseExpressions(p -> p);
+        Seq<NamedExpression> aggregateExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+        context.plan(p -> new Aggregate(groupingExpression, aggregateExpressions, p));
     }
 
     @Override
     public String visitAlias(Alias node, CatalystPlanContext context) {
         return expressionAnalyzer.visitAlias(node, context);
     }
-    
+
     @Override
     public String visitProject(Project node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
@@ -168,7 +172,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         // Create a projection list from the existing expressions
         Seq<?> projectList = asScalaBuffer(context.getNamedParseExpressions()).toSeq();
         if (!projectList.isEmpty()) {
-            Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p->(NamedExpression) p);
+            Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
             // build the plan with the projection step
             context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
         }
@@ -184,7 +188,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
 
     private static void visitSort(CatalystPlanContext context) {
         if (!context.getSortOrders().isEmpty()) {
-            context.plan(p -> (LogicalPlan) new org.apache.spark.sql.catalyst.plans.logical.Sort(context.getSortOrders(),true, p));
+            context.plan(p -> (LogicalPlan) new org.apache.spark.sql.catalyst.plans.logical.Sort(context.getSortOrders(), true, p));
         }
     }
 
@@ -215,7 +219,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     public String visitSort(Sort node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
         String sortList = visitFieldList(node.getSortList(), context);
-        context.sort(context.retainAllNamedParseExpressions(exp -> SortUtils.getSortDirection(node,(NamedExpression) exp)));
+        context.sort(context.retainAllNamedParseExpressions(exp -> SortUtils.getSortDirection(node, (NamedExpression) exp)));
         return format("%s | sort %s", child, sortList);
     }
 
@@ -386,7 +390,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
             Expression expression = (Expression) context.getNamedParseExpressions().pop();
             context.getNamedParseExpressions().add(
                     org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply((Expression) expression,
-                            expr,
+                            node.getAlias()!=null ? node.getAlias() : expr,
                             NamedExpression.newExprId(),
                             asScalaBufferConverter(new java.util.ArrayList<String>()).asScala().seq(),
                             Option.empty(),

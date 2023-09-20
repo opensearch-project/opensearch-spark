@@ -42,6 +42,11 @@ public class CatalystPlanContext {
     private final Stack<org.apache.spark.sql.catalyst.expressions.Expression> namedParseExpressions = new Stack<>();
 
     /**
+     * Grouping NamedExpression contextual parameters
+     **/
+    private final Stack<org.apache.spark.sql.catalyst.expressions.Expression> groupingParseExpressions = new Stack<>();
+
+    /**
      * SortOrder sort by parameters
      **/
     private Seq<SortOrder> sortOrders = asScalaBuffer(Collections.emptyList());
@@ -54,8 +59,12 @@ public class CatalystPlanContext {
         return new Union(asScalaBuffer(this.planBranches).toSeq(), true, true);
     }
 
-    public Stack<org.apache.spark.sql.catalyst.expressions.Expression> getNamedParseExpressions() {
+    public Stack<Expression> getNamedParseExpressions() {
         return namedParseExpressions;
+    }
+
+    public Stack<Expression> getGroupingParseExpressions() {
+        return groupingParseExpressions;
     }
 
     /**
@@ -90,10 +99,21 @@ public class CatalystPlanContext {
      * retain all expressions and clear expression stack
      * @return
      */
-    public <T> Seq<T>  retainAllNamedParseExpressions(Function<Expression, T> transformFunction) {
+    public <T> Seq<T> retainAllNamedParseExpressions(Function<Expression, T> transformFunction) {
         Seq<T> aggregateExpressions = asScalaBuffer(getNamedParseExpressions().stream()
                 .map(transformFunction::apply).collect(Collectors.toList())).toSeq();
         getNamedParseExpressions().retainAll(Collections.emptyList());
+        return aggregateExpressions;
+    }
+
+    /**
+     * retain all aggregate expressions and clear expression stack
+     * @return
+     */
+    public <T> Seq<T> retainAllGroupingNamedParseExpressions(Function<Expression, T> transformFunction) {
+        Seq<T> aggregateExpressions = asScalaBuffer(getGroupingParseExpressions().stream()
+                .map(transformFunction::apply).collect(Collectors.toList())).toSeq();
+        getGroupingParseExpressions().retainAll(Collections.emptyList());
         return aggregateExpressions;
     }
 }
