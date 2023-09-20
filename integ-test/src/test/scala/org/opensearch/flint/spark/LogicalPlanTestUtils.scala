@@ -1,3 +1,8 @@
+/*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package org.opensearch.flint.spark
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, ExprId}
@@ -9,7 +14,7 @@ import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Proj
 trait LogicalPlanTestUtils {
   /**
    * utility function to compare two logical plans while ignoring the auto-generated expressionId associated with the alias
-   * which is used for projection or aggregation 
+   * which is used for projection or aggregation
    * @param plan
    * @return
    */
