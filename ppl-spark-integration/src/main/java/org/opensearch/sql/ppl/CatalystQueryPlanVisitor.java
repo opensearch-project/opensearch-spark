@@ -28,9 +28,11 @@ import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Argument;
+import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.Function;
+import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
@@ -48,7 +50,9 @@ import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
+import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Project;
+import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
@@ -224,20 +228,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
     }
 
     @Override
-    public String visitDedupe(Dedupe node, CatalystPlanContext context) {
-        String child = node.getChild().get(0).accept(this, context);
-        String fields = visitFieldList(node.getFields(), context);
-        List<Argument> options = node.getOptions();
-        Integer allowedDuplication = (Integer) options.get(0).getValue().getValue();
-        Boolean keepEmpty = (Boolean) options.get(1).getValue().getValue();
-        Boolean consecutive = (Boolean) options.get(2).getValue().getValue();
-
-        return format(
-                "%s | dedup %s %d keepempty=%b consecutive=%b",
-                child, fields, allowedDuplication, keepEmpty, consecutive);
-    }
-
-    @Override
     public String visitHead(Head node, CatalystPlanContext context) {
         String child = node.getChild().get(0).accept(this, context);
         Integer size = node.getSize();
@@ -264,6 +254,35 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         return isNullOrEmpty(groupBy) ? "" : format("by %s", groupBy);
     }
 
+    @Override
+    public String visitKmeans(Kmeans node, CatalystPlanContext context) {
+        throw new IllegalStateException("Not Supported operation : Kmeans" );
+    }
+
+    @Override
+    public String visitIn(In node, CatalystPlanContext context) {
+        throw new IllegalStateException("Not Supported operation : In" );
+    }
+
+    @Override
+    public String visitCase(Case node, CatalystPlanContext context) {
+        throw new IllegalStateException("Not Supported operation : Case" );
+    }
+
+    @Override
+    public String visitRareTopN(RareTopN node, CatalystPlanContext context) {
+        throw new IllegalStateException("Not Supported operation : RareTopN" );
+    }
+
+    @Override
+    public String visitWindowFunction(WindowFunction node, CatalystPlanContext context) {
+        throw new IllegalStateException("Not Supported operation : WindowFunction" );
+    }
+
+    @Override
+    public String visitDedupe(Dedupe node, CatalystPlanContext context) {
+        throw new IllegalStateException("Not Supported operation : dedupe " );
+    }
     /**
      * Expression Analyzer.
      */
@@ -380,11 +399,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
         }
 
         @Override
-        public String visitWindowFunction(WindowFunction node, CatalystPlanContext context) {
-            return super.visitWindowFunction(node, context);
-        }
-
-        @Override
         public String visitAlias(Alias node, CatalystPlanContext context) {
             String expr = node.getDelegated().accept(this, context);
             Expression expression = (Expression) context.getNamedParseExpressions().pop();
@@ -396,6 +410,36 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
                             Option.empty(),
                             asScalaBufferConverter(new java.util.ArrayList<String>()).asScala().seq()));
             return format("%s", expr);
+        }
+
+        @Override
+        public String visitDedupe(Dedupe node, CatalystPlanContext context) {
+            throw new IllegalStateException("Not Supported operation : Dedupe" );
+        }
+
+        @Override
+        public String visitIn(In node, CatalystPlanContext context) {
+            throw new IllegalStateException("Not Supported operation : In");
+        }
+
+        @Override
+        public String visitKmeans(Kmeans node, CatalystPlanContext context) {
+            throw new IllegalStateException("Not Supported operation : Kmeans");
+        }
+
+        @Override
+        public String visitCase(Case node, CatalystPlanContext context) {
+            throw new IllegalStateException("Not Supported operation : Case" );
+        }
+
+        @Override
+        public String visitRareTopN(RareTopN node, CatalystPlanContext context) {
+            throw new IllegalStateException("Not Supported operation : RareTopN");
+        }
+
+        @Override
+        public String visitWindowFunction(WindowFunction node, CatalystPlanContext context) {
+            throw new IllegalStateException("Not Supported operation : WindowFunction");
         }
     }
 }
