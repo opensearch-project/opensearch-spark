@@ -174,8 +174,8 @@ class FlintSpark(val spark: SparkSession) {
    */
   def deleteIndex(indexName: String): Boolean = {
     if (flintClient.exists(indexName)) {
-      flintClient.deleteIndex(indexName)
       stopRefreshingJob(indexName)
+      flintClient.deleteIndex(indexName)
       true
     } else {
       false

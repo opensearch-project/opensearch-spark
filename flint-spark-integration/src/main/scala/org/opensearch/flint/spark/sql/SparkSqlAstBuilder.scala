@@ -21,12 +21,16 @@ import org.apache.spark.sql.catalyst.parser.ParserUtils.string
 trait SparkSqlAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
 
   override def visitPropertyList(ctx: PropertyListContext): FlintSparkIndexOptions = {
-    val properties = ctx.property.asScala.map { property =>
-      val key = visitPropertyKey(property.key)
-      val value = visitPropertyValue(property.value)
-      key -> value
+    if (ctx == null) {
+      FlintSparkIndexOptions.empty
+    } else {
+      val properties = ctx.property.asScala.map { property =>
+        val key = visitPropertyKey(property.key)
+        val value = visitPropertyValue(property.value)
+        key -> value
+      }
+      FlintSparkIndexOptions(properties.toMap)
     }
-    FlintSparkIndexOptions(properties.toMap)
   }
 
   override def visitPropertyKey(key: PropertyKeyContext): String = {
