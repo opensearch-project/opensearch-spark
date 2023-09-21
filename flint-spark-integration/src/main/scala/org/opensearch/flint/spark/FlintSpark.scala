@@ -31,6 +31,7 @@ import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
 import org.apache.spark.sql.streaming.OutputMode.Append
+import org.apache.spark.sql.streaming.Trigger
 
 /**
  * Flint Spark integration API entrypoint.
@@ -129,11 +130,20 @@ class FlintSpark(val spark: SparkSession) {
           .writeStream
           .queryName(indexName)
           .outputMode(Append())
+
+        index.options
+          .checkpointLocation()
+          .foreach(location => job.option("checkpointLocation", location))
+        index.options
+          .refreshInterval()
+          .foreach(interval => job.trigger(Trigger.ProcessingTime(interval)))
+
+        val jobId = job
           .foreachBatch { (batchDF: DataFrame, _: Long) =>
             writeFlintIndex(batchDF)
           }
           .start()
-        Some(job.id.toString)
+        Some(jobId.toString)
     }
   }
 

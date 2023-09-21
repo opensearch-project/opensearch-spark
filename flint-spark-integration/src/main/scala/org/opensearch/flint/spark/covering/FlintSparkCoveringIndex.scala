@@ -51,7 +51,8 @@ class FlintSparkCoveringIndex(
         |     "name": "$indexName",
         |     "kind": "$kind",
         |     "indexedColumns": $getMetaInfo,
-        |     "source": "$tableName"
+        |     "source": "$tableName",
+        |     "options": $getIndexOptions
         |   },
         |   "properties": $getSchema
         | }
@@ -69,6 +70,10 @@ class FlintSparkCoveringIndex(
       JObject("columnName" -> JString(colName), "columnType" -> JString(colType))
     }.toList
     Serialization.write(JArray(objects))
+  }
+
+  private def getIndexOptions: String = {
+    Serialization.write(options.options)
   }
 
   private def getSchema: String = {

@@ -58,7 +58,8 @@ class FlintSparkSkippingIndex(
         |     "version": "${FlintVersion.current()}",
         |     "kind": "$SKIPPING_INDEX_TYPE",
         |     "indexedColumns": $getMetaInfo,
-        |     "source": "$tableName"
+        |     "source": "$tableName",
+        |     "options": $getIndexOptions
         |   },
         |   "properties": $getSchema
         | }
@@ -82,6 +83,10 @@ class FlintSparkSkippingIndex(
 
   private def getMetaInfo: String = {
     Serialization.write(indexedColumns)
+  }
+
+  private def getIndexOptions: String = {
+    Serialization.write(options.options)
   }
 
   private def getSchema: String = {
