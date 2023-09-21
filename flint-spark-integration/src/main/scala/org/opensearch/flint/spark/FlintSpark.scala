@@ -138,12 +138,14 @@ class FlintSpark(val spark: SparkSession) {
           .refreshInterval()
           .foreach(interval => job.trigger(Trigger.ProcessingTime(interval)))
 
-        val jobId = job
-          .foreachBatch { (batchDF: DataFrame, _: Long) =>
-            writeFlintIndex(batchDF)
-          }
-          .start()
-        Some(jobId.id.toString)
+        val jobId =
+          job
+            .foreachBatch { (batchDF: DataFrame, _: Long) =>
+              writeFlintIndex(batchDF)
+            }
+            .start()
+            .id
+        Some(jobId.toString)
     }
   }
 
