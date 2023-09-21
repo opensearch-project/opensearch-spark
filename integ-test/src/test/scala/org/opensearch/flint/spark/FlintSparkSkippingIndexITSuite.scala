@@ -78,7 +78,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |        "columnName": "age",
         |        "columnType": "int"
         |     }],
-        |     "source": "default.test"
+        |     "source": "default.test",
+        |     "options": {}
         |   },
         |   "properties": {
         |     "year": {
@@ -102,6 +103,27 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |   }
         | }
         |""".stripMargin)
+
+    index.get.options shouldBe FlintSparkIndexOptions.empty
+  }
+
+  test("create skipping index with index options successfully") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addValueSet("address")
+      .options(FlintSparkIndexOptions(Map(
+        "auto_refresh" -> "true",
+        "refresh_interval" -> "1 Minute",
+        "checkpoint_location" -> "s3a://test/"
+      )))
+      .create()
+
+    val index = flint.describeIndex(testIndex)
+    index shouldBe defined
+    index.get.options.autoRefresh() shouldBe true
+    index.get.options.refreshInterval() shouldBe Some("1 Minute")
+    index.get.options.checkpointLocation() shouldBe Some("s3a://test/")
   }
 
   test("should not have ID column in index data") {
@@ -484,7 +506,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
          |        "columnName": "struct_col",
          |        "columnType": "struct<subfield1:string,subfield2:int>"
          |     }],
-         |     "source": "$testTable"
+         |     "source": "$testTable",
+         |     "options": {}
          |   },
          |   "properties": {
          |     "boolean_col": {

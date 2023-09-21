@@ -143,7 +143,7 @@ class FlintSpark(val spark: SparkSession) {
             writeFlintIndex(batchDF)
           }
           .start()
-        Some(jobId.toString)
+        Some(jobId.id.toString)
     }
   }
 
