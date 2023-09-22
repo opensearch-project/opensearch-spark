@@ -57,14 +57,14 @@ trait FlintSparkSuite
       s"""
          | INSERT INTO $testTable
          | PARTITION (year=2023, month=4)
-         | VALUES (TIMESTAMP '2023-09-21 16:30:00', 'Hello', 30, 'Seattle')
+         | VALUES (TIMESTAMP '2023-04-01 16:30:00', 'Hello', 30, 'Seattle')
          | """.stripMargin)
 
     sql(
       s"""
          | INSERT INTO $testTable
          | PARTITION (year=2023, month=5)
-         | VALUES (TIMESTAMP '2023-09-21 17:15:00', 'World', 25, 'Portland')
+         | VALUES (TIMESTAMP '2023-05-01 17:15:00', 'World', 25, 'Portland')
          | """.stripMargin)
   }
 }

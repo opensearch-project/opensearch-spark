@@ -351,7 +351,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     sql(s"""
            | INSERT INTO $testTable
            | PARTITION (year=2023, month=4)
-           | VALUES ('Hello', 35, 'Vancouver')
+           | VALUES (TIMESTAMP '2023-04-21 20:30:00', 'Hello', 35, 'Vancouver')
            | """.stripMargin)
 
     withHybridScanEnabled {
