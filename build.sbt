@@ -98,7 +98,7 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
     assembly / test := (Test / test).value)
 
 lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
-  .dependsOn(flintCore, pplSparkIntegration)
+  .dependsOn(flintCore)
   .enablePlugins(AssemblyPlugin, Antlr4Plugin)
   .settings(
     commonSettings,
