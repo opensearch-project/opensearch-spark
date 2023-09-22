@@ -44,6 +44,10 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex(testFlintIndex)
     index shouldBe defined
+
+    val expectedSource =
+      "\n SELECT\n   window.start AS startTime,\n   COUNT(*) AS count\n" +
+        " FROM default.mv_test\n GROUP BY TUMBLE(time, '1 Hour')\n"
     index.get.metadata().getContent should matchJson(s"""
          | {
          |  "_meta": {
@@ -57,7 +61,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |      "columnName": "count",
          |      "columnType": "long"
          |    }],
-         |    "source": "\n SELECT\n   window.start AS startTime,\n   COUNT(*) AS count\n FROM default.mv_test\n GROUP BY TUMBLE(time, '1 Hour')\n",
+         |    "source": "$expectedSource",
          |    "options": {}
          |  },
          |  "properties": {
