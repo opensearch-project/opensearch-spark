@@ -17,6 +17,8 @@ import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL, Ref
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.SKIPPING_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.{SkippingKind, SkippingKindSerializer}
@@ -69,6 +71,16 @@ class FlintSpark(val spark: SparkSession) {
    */
   def coveringIndex(): FlintSparkCoveringIndex.Builder = {
     new FlintSparkCoveringIndex.Builder(this)
+  }
+
+  /**
+   * Create materialized view builder for creating mv with fluent API.
+   *
+   * @return
+   *   mv builder
+   */
+  def materializedView(): FlintSparkMaterializedView.Builder = {
+    new FlintSparkMaterializedView.Builder(this)
   }
 
   /**
@@ -221,7 +233,7 @@ class FlintSpark(val spark: SparkSession) {
   private def deserialize(metadata: FlintMetadata): FlintSparkIndex = {
     val meta = parse(metadata.getContent) \ "_meta"
     val indexName = (meta \ "name").extract[String]
-    val tableName = (meta \ "source").extract[String]
+    val source = (meta \ "source").extract[String]
     val indexType = (meta \ "kind").extract[String]
     val indexedColumns = (meta \ "indexedColumns").asInstanceOf[JArray]
     val indexOptions = FlintSparkIndexOptions(
@@ -251,11 +263,19 @@ class FlintSpark(val spark: SparkSession) {
               throw new IllegalStateException(s"Unknown skipping strategy: $other")
           }
         }
-        new FlintSparkSkippingIndex(tableName, strategies, indexOptions)
+        new FlintSparkSkippingIndex(source, strategies, indexOptions)
       case COVERING_INDEX_TYPE =>
         new FlintSparkCoveringIndex(
           indexName,
-          tableName,
+          source,
+          indexedColumns.arr.map { obj =>
+            ((obj \ "columnName").extract[String], (obj \ "columnType").extract[String])
+          }.toMap,
+          indexOptions)
+      case MV_INDEX_TYPE =>
+        FlintSparkMaterializedView(
+          indexName,
+          source,
           indexedColumns.arr.map { obj =>
             ((obj \ "columnName").extract[String], (obj \ "columnType").extract[String])
           }.toMap,
