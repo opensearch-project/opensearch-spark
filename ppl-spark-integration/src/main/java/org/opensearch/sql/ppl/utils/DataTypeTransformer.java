@@ -8,16 +8,27 @@ package org.opensearch.sql.ppl.utils;
 
 import org.apache.spark.sql.types.ByteType$;
 import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.DateType$;
 import org.apache.spark.sql.types.IntegerType$;
 import org.apache.spark.sql.types.StringType$;
 import org.apache.spark.unsafe.types.UTF8String;
+import scala.collection.mutable.Seq;
+
+import java.util.List;
+
+import static scala.collection.JavaConverters.asScalaBufferConverter;
 
 /**
  * translate the PPL ast expressions data-types into catalyst data-types 
  */
 public interface DataTypeTransformer {
+    static <T> Seq<T> seq(T element) {
+        return seq(List.of(element));
+    }
+    static <T> Seq<T> seq(List<T> list) {
+        return asScalaBufferConverter(list).asScala().seq();
+    }
+    
     static DataType translate(org.opensearch.sql.ast.expression.DataType source) {
         switch (source.getCoreType()) {
             case TIME:

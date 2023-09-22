@@ -153,32 +153,6 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
       "source=[table] | where country = 'USA' | stats avg(price) by product | sort product | fields + *")
     assertEquals(compareByString(sortedPlan), compareByString(context.getPlan))
   }
-
-  ignore("test average price group by product over a time window") {
-    // if successful build ppl logical plan and translate to catalyst logical plan
-    val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(
-      plan(pplParser, "source = table | stats avg(price) by span( request_time , 15m) ", false),
-      context)
-    // SQL: SELECT product, AVG(price) AS avg_price FROM table GROUP BY product
-    val star = Seq(UnresolvedStar(None))
-    val productField = UnresolvedAttribute("product")
-    val priceField = UnresolvedAttribute("price")
-    val tableRelation = UnresolvedRelation(Seq("table"))
-
-    val groupByAttributes = Seq(Alias(productField, "product")())
-    val aggregateExpressions =
-      Alias(UnresolvedFunction(Seq("AVG"), Seq(priceField), isDistinct = false), "avg(price)")()
-    val productAlias = Alias(productField, "product")()
-
-    val aggregatePlan =
-      Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), tableRelation)
-    val expectedPlan = Project(star, aggregatePlan)
-
-    assertEquals(logPlan, "source=[table] | stats avg(price) by product | fields + *")
-    assertEquals(compareByString(expectedPlan), compareByString(context.getPlan))
-  }
-
   test("create ppl simple avg age by span of interval of 10 years query test ") {
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(

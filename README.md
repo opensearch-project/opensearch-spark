@@ -4,10 +4,12 @@ OpenSearch Flint is ... It consists of two modules:
 
 - `flint-core`: a module that contains Flint specification and client.
 - `flint-spark-integration`: a module that provides Spark integration for Flint and derived dataset based on it.
+- `ppl-spark-integration`: a module that provides PPL query execution on top of Spark See [PPL repository](https://github.com/opensearch-project/piped-processing-language).
 
 ## Documentation
 
 Please refer to the [Flint Index Reference Manual](./docs/index.md) for more information.
+For PPL language see [PPL Reference Manual](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst) for more information.
 
 ## Prerequisites
 

@@ -11,10 +11,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
-import org.apache.spark.sql.catalyst.expressions.Divide;
 import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.catalyst.expressions.Floor;
-import org.apache.spark.sql.catalyst.expressions.Multiply;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
@@ -69,9 +66,10 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static java.util.List.of;
+import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
+import static org.opensearch.sql.ppl.utils.WindowSpecTransformer.window;
 import static scala.collection.JavaConverters.asScalaBuffer;
-import static scala.collection.JavaConverters.asScalaBufferConverter;
 
 /**
  * Utility class to traverse PPL logical plan and translate it into catalyst logical plan
@@ -349,7 +347,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
 
             Expression valueExpression = context.getNamedParseExpressions().pop();
             Expression fieldExpression = context.getNamedParseExpressions().pop();
-            context.getNamedParseExpressions().push(new Multiply(new Floor(new Divide(fieldExpression, valueExpression)), valueExpression));
+            
+            context.getNamedParseExpressions().push(window(fieldExpression,valueExpression,node.getUnit()));
             return format("span (%s,%s,%s)", field, value, unit);
         }
 
@@ -406,9 +405,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<String, Cataly
                     org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply((Expression) expression,
                             node.getAlias()!=null ? node.getAlias() : expr,
                             NamedExpression.newExprId(),
-                            asScalaBufferConverter(new java.util.ArrayList<String>()).asScala().seq(),
+                            seq(new java.util.ArrayList<String>()),
                             Option.empty(),
-                            asScalaBufferConverter(new java.util.ArrayList<String>()).asScala().seq()));
+                            seq(new java.util.ArrayList<String>())));
             return format("%s", expr);
         }
 
