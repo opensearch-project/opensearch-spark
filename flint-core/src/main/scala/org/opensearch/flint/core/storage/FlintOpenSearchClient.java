@@ -13,6 +13,7 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -86,11 +87,13 @@ public class FlintOpenSearchClient implements FlintClient {
 
   @Override public List<FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
     try (RestHighLevelClient client = createClient()) {
-      GetMappingsRequest request = new GetMappingsRequest().indices(indexNamePattern);
-      GetMappingsResponse response = client.indices().getMapping(request, RequestOptions.DEFAULT);
+      GetIndexRequest request = new GetIndexRequest(indexNamePattern);
+      GetIndexResponse response = client.indices().get(request, RequestOptions.DEFAULT);
 
-      return response.mappings().values().stream()
-          .map(mapping -> new FlintMetadata(mapping.source().string()))
+      return Arrays.stream(response.getIndices())
+          .map(index -> new FlintMetadata(
+              response.getMappings().get(index).source().toString(),
+              response.getSettings().get(index).toString()))
           .collect(Collectors.toList());
     } catch (Exception e) {
       throw new IllegalStateException("Failed to get Flint index metadata for " + indexNamePattern, e);

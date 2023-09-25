@@ -67,7 +67,10 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     flintClient.createIndex("flint_test_1_index", new FlintMetadata("{}"))
     flintClient.createIndex("flint_test_2_index", new FlintMetadata("{}"))
 
-    flintClient.getAllIndexMetadata("flint_*_index") should have size 2
+    val allMetadata = flintClient.getAllIndexMetadata("flint_*_index")
+    allMetadata should have size 2
+    allMetadata.forEach(metadata => metadata.getContent shouldBe "{}")
+    allMetadata.forEach(metadata => metadata.getIndexSettings should not be empty)
   }
 
   it should "return false if index not exist" in {
