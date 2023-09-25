@@ -315,7 +315,6 @@ class FlintSparkPPLTimeWindowITSuite
     // Compare the two plans
     assert(compareByString(sortedPlan) === compareByString(logicalPlan))
   }
-  
   test("create ppl query count sales by weeks window and productId with sorting test") {
     val frame = sql(s"""
          | source = $testTable| stats sum(productsAmount) by span(transactionDate, 1w) as age_date | sort age_date
