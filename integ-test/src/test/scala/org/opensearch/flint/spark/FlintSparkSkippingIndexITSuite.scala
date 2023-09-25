@@ -115,7 +115,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .options(FlintSparkIndexOptions(Map(
         "auto_refresh" -> "true",
         "refresh_interval" -> "1 Minute",
-        "checkpoint_location" -> "s3a://test/"
+        "checkpoint_location" -> "s3a://test/",
+        "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
       )))
       .create()
 
@@ -124,6 +125,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     index.get.options.autoRefresh() shouldBe true
     index.get.options.refreshInterval() shouldBe Some("1 Minute")
     index.get.options.checkpointLocation() shouldBe Some("s3a://test/")
+    index.get.options.indexSettings() shouldBe
+      "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
   }
 
   test("should not have ID column in index data") {
