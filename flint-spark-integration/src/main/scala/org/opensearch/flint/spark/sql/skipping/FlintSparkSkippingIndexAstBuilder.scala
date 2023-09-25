@@ -42,7 +42,9 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[C
           case MIN_MAX => indexBuilder.addMinMax(colName)
         }
       }
-      indexBuilder.create()
+
+      val ignoreIfExists = ctx.EXISTS() != null
+      indexBuilder.create(ignoreIfExists)
 
       // Trigger auto refresh if enabled
       if (isAutoRefreshEnabled(ctx.propertyList())) {

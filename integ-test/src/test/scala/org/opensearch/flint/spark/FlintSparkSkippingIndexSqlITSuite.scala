@@ -12,11 +12,8 @@ import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIn
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
-import org.apache.spark.FlintSuite
-import org.apache.spark.sql.{QueryTest, Row}
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
-import org.apache.spark.sql.flint.config.FlintSparkConf.{HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
-import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
@@ -76,6 +73,28 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
     sql(s"REFRESH SKIPPING INDEX ON $testTable")
     indexData.count() shouldBe 2
+  }
+
+  test("create skipping index if not exists") {
+    sql(s"""
+           | CREATE SKIPPING INDEX
+           | IF NOT EXISTS
+           | ON $testTable ( year PARTITION )
+           | """.stripMargin)
+    flint.describeIndex(testIndex) shouldBe defined
+
+    // Expect error without IF NOT EXISTS, otherwise success
+    assertThrows[IllegalStateException] {
+      sql(s"""
+             | CREATE SKIPPING INDEX
+             | ON $testTable ( year PARTITION )
+             | """.stripMargin)
+    }
+    sql(s"""
+           | CREATE SKIPPING INDEX
+           | IF NOT EXISTS
+           | ON $testTable ( year PARTITION )
+           | """.stripMargin)
   }
 
   test("describe skipping index") {

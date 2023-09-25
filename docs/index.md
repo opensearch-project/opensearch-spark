@@ -121,7 +121,7 @@ High level API is dependent on query engine implementation. Please see Query Eng
 #### Skipping Index
 
 ```sql
-CREATE SKIPPING INDEX
+CREATE SKIPPING INDEX [IF NOT EXISTS]
 ON <object>
 ( column <index_type> [, ...] )
 WHERE <filter_predicate>
@@ -161,7 +161,7 @@ DROP SKIPPING INDEX ON alb_logs
 #### Covering Index
 
 ```sql
-CREATE INDEX name ON <object>
+CREATE INDEX [IF NOT EXISTS] name ON <object>
 ( column [, ...] )
 WHERE <filter_predicate>
 WITH (auto_refresh = (true|false))

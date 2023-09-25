@@ -35,7 +35,9 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[C
         val colName = indexColCtx.multipartIdentifier().getText
         indexBuilder.addIndexColumns(colName)
       }
-      indexBuilder.create()
+
+      val ignoreIfExists = ctx.EXISTS() != null
+      indexBuilder.create(ignoreIfExists)
 
       // Trigger auto refresh if enabled
       if (isAutoRefreshEnabled(ctx.propertyList())) {
