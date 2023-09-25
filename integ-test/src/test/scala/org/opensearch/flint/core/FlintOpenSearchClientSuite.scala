@@ -43,6 +43,13 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     flintClient.getIndexMetadata(indexName).getContent should matchJson(content)
   }
 
+  it should "get all index metadata with the given index name pattern" in {
+    flintClient.createIndex("flint_test_1_index", new FlintMetadata("{}"))
+    flintClient.createIndex("flint_test_2_index", new FlintMetadata("{}"))
+
+    flintClient.getAllIndexMetadata("flint_*_index") should have size 2
+  }
+
   it should "return false if index not exist" in {
     flintClient.exists("non-exist-index") shouldBe false
   }
