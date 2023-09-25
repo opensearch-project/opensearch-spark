@@ -246,16 +246,23 @@ The next samples of PPL queries are currently supported:
 
 **Aggregations With Span**
 - `source = table  | stats count(a) by span(a, 10) as a_span`
+- `source = table  | stats sum(age) by span(age, 5) as age_span | head 2`
+- `source = table  | stats avg(age) by span(age, 20) as age_span, country  | sort - age_span |  head 2`
+
+**Aggregations With TimeWindow Span (tumble windowing function) **
+- `source = table | stats sum(productsAmount) by span(transactionDate, 1d) as age_date | sort age_date`
+- `source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date, productId`
 
 #### Supported Commands:
  - `search` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/search.rst)  
- - `where` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/where.rst)  
+ - `where`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/where.rst)  
  - `fields` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/fields.rst)  
- - `head` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/head.rst)
- - `stats` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/stats.rst)
- - `sort` -  [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) 
+ - `head`   - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/head.rst)
+ - `stats`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/stats.rst)
+ - `sort` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) 
 
 > For additional details review the next [Integration Test ](../integ-test/src/test/scala/org/opensearch/flint/spark/FlintSparkPPLITSuite.scala)
+> For additional details review the next [Integration Time Window Test ](../integ-test/src/test/scala/org/opensearch/flint/spark/FlintSparkPPLTimeWindowITSuite.scala)
  
 ---
 

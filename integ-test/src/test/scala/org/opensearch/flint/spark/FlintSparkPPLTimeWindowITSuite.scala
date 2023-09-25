@@ -124,8 +124,6 @@ class FlintSparkPPLTimeWindowITSuite
     assert(results.sorted.sameElements(expectedResults.sorted))
 
     // Retrieve the logical plan
-
-    // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -183,8 +181,6 @@ class FlintSparkPPLTimeWindowITSuite
 
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Timestamp](_.getAs[Timestamp](1))
     assert(results.sorted.sameElements(expectedResults.sorted))
-
-    // Retrieve the logical plan
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
@@ -288,8 +284,6 @@ class FlintSparkPPLTimeWindowITSuite
     assert(results.sorted.sameElements(expectedResults.sorted))
 
     // Retrieve the logical plan
-
-    // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -312,6 +306,67 @@ class FlintSparkPPLTimeWindowITSuite
     val aggregatePlan = Aggregate(
       Seq(productsId, windowExpression),
       Seq(aggregateExpressions, productsId, windowExpression),
+      table)
+    val expectedPlan = Project(star, aggregatePlan)
+    val sortedPlan: LogicalPlan = Sort(
+      Seq(SortOrder(UnresolvedAttribute("age_date"), Ascending)),
+      global = true,
+      expectedPlan)
+    // Compare the two plans
+    assert(compareByString(sortedPlan) === compareByString(logicalPlan))
+  }
+  
+  test("create ppl query count sales by weeks window and productId with sorting test") {
+    val frame = sql(s"""
+         | source = $testTable| stats sum(productsAmount) by span(transactionDate, 1w) as age_date | sort age_date
+         | """.stripMargin)
+
+    frame.show(false)
+    // Retrieve the results
+    val results: Array[Row] = frame
+      .collect()
+      .map(row =>
+        Row(
+          row.get(0),
+          row.getAs[GenericRowWithSchema](1).get(0),
+          row.getAs[GenericRowWithSchema](1).get(1)))
+
+    // Define the expected results
+    val expectedResults = Array(
+      Row(11, Timestamp.valueOf("2023-03-29 17:00:00"), Timestamp.valueOf("2023-04-05 17:00:00")),
+      Row(7, Timestamp.valueOf("2023-04-26 17:00:00"), Timestamp.valueOf("2023-05-03 17:00:00")),
+      Row(6, Timestamp.valueOf("2023-05-03 17:00:00"), Timestamp.valueOf("2023-05-10 17:00:00")))
+
+    // Compare the results
+    implicit val timestampOrdering: Ordering[Timestamp] = new Ordering[Timestamp] {
+      def compare(x: Timestamp, y: Timestamp): Int = x.compareTo(y)
+    }
+
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Timestamp](_.getAs[Timestamp](1))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val productsAmount = UnresolvedAttribute("productsAmount")
+    val table = UnresolvedRelation(Seq("default", "flint_ppl_sales_test"))
+
+    val windowExpression = Alias(
+      TimeWindow(
+        UnresolvedAttribute("transactionDate"),
+        TimeWindow.parseExpression(Literal("1 week")),
+        TimeWindow.parseExpression(Literal("1 week")),
+        0),
+      "age_date")()
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(productsAmount), isDistinct = false),
+        "sum(productsAmount)")()
+    val aggregatePlan = Aggregate(
+      Seq( windowExpression),
+      Seq(aggregateExpressions, windowExpression),
       table)
     val expectedPlan = Project(star, aggregatePlan)
     val sortedPlan: LogicalPlan = Sort(
