@@ -178,6 +178,14 @@ lazy val sparkSqlApplicationCosmetic = project
     exportJars := true,
     Compile / packageBin := (sparkSqlApplication / assembly).value)
 
+lazy val sparkPPLCosmetic = project
+  .settings(
+    name := "opensearch-spark-ppl",
+    commonSettings,
+    releaseSettings,
+    exportJars := true,
+    Compile / packageBin := (pplSparkIntegration / assembly).value)
+
 lazy val releaseSettings = Seq(
   publishMavenStyle := true,
   publishArtifact := true,
