@@ -857,41 +857,6 @@ class FlintSparkPPLITSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
-  ignore("create ppl simple count age by span of interval of 10 years query order by age test ") {
-    val frame = sql(s"""
-         | source = $testTable| stats count(age) by span(age, 10) as age_span | sort age_span
-         | """.stripMargin)
-
-    // Retrieve the results
-    val results: Array[Row] = frame.collect()
-    // Define the expected results
-    val expectedResults: Array[Row] = Array(Row(1, 70L), Row(1, 30L), Row(2, 20L))
-
-    // Compare the results
-    assert(results === expectedResults)
-
-    // Retrieve the logical plan
-    val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    // Define the expected logical plan
-    val star = Seq(UnresolvedStar(None))
-    val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
-
-    val aggregateExpressions =
-      Alias(UnresolvedFunction(Seq("COUNT"), Seq(ageField), isDistinct = false), "count(age)")()
-    val span = Alias(
-      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
-      "span (age,10,NONE)")()
-    val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), table)
-    val expectedPlan = Project(star, aggregatePlan)
-    val sortedPlan: LogicalPlan = Sort(
-      Seq(SortOrder(UnresolvedAttribute("span (age,10,NONE)"), Ascending)),
-      global = true,
-      expectedPlan)
-    // Compare the two plans
-    assert(sortedPlan === logicalPlan)
-  }
-
   /**
    * | age_span | average_age |
    * |:---------|------------:|
