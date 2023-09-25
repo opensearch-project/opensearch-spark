@@ -8,8 +8,11 @@ package org.opensearch.flint.spark
 import scala.Option.empty
 
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+
+import org.apache.spark.sql.Row
 
 class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
@@ -62,6 +65,48 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     sql(s"REFRESH INDEX $testIndex ON $testTable")
     indexData.count() shouldBe 2
+  }
+
+  test("show all covering index on the source table") {
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
+
+    // Create another covering index
+    flint
+      .coveringIndex()
+      .name("idx_address")
+      .onTable(testTable)
+      .addIndexColumns("address")
+      .create()
+
+    // Create a skipping index which is expected to be filtered
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+
+    val result = sql(s"SHOW INDEX ON $testTable")
+    checkAnswer(result, Seq(Row(testIndex), Row("idx_address")))
+
+    flint.deleteIndex(getFlintIndexName("idx_address", testTable))
+    flint.deleteIndex(getSkippingIndexName(testTable))
+  }
+
+  test("describe covering index") {
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
+
+    val result = sql(s"DESC INDEX $testIndex ON $testTable")
+    checkAnswer(result, Seq(Row("name", "string", "indexed"), Row("age", "int", "indexed")))
   }
 
   test("drop covering index") {

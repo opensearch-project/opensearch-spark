@@ -5,11 +5,10 @@
 
 package org.opensearch.flint.core;
 
+import java.util.List;
 import org.opensearch.flint.core.metadata.FlintMetadata;
 import org.opensearch.flint.core.storage.FlintReader;
 import org.opensearch.flint.core.storage.FlintWriter;
-
-import java.io.Writer;
 
 /**
  * Flint index client that provides API for metadata and data operations
@@ -32,6 +31,14 @@ public interface FlintClient {
    * @return true if the index exists, otherwise false
    */
   boolean exists(String indexName);
+
+  /**
+   * Retrieve all metadata for Flint index whose name matches the given pattern.
+   *
+   * @param indexNamePattern index name pattern
+   * @return all matched index metadata
+   */
+  List<FlintMetadata> getAllIndexMetadata(String indexNamePattern);
 
   /**
    * Retrieve metadata in a Flint index.

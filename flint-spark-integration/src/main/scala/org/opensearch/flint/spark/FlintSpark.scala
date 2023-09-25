@@ -150,6 +150,18 @@ class FlintSpark(val spark: SparkSession) {
   }
 
   /**
+   * Describe all Flint indexes whose name matches the given pattern.
+   *
+   * @param indexNamePattern
+   *   index name pattern which may contains wildcard
+   * @return
+   *   Flint index list
+   */
+  def describeIndexes(indexNamePattern: String): Seq[FlintSparkIndex] = {
+    flintClient.getAllIndexMetadata(indexNamePattern).asScala.map(deserialize)
+  }
+
+  /**
    * Describe a Flint index.
    *
    * @param indexName

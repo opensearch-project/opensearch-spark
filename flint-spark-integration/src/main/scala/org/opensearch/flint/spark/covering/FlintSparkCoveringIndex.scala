@@ -29,7 +29,7 @@ import org.apache.spark.sql.types.StructType
  * @param indexedColumns
  *   indexed column list
  */
-class FlintSparkCoveringIndex(
+case class FlintSparkCoveringIndex(
     indexName: String,
     tableName: String,
     indexedColumns: Map[String, String],

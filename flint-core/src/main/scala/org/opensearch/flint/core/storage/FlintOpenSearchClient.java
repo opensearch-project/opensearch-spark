@@ -5,9 +5,17 @@
 
 package org.opensearch.flint.core.storage;
 
+import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
+
 import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import org.apache.http.HttpHost;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
@@ -33,13 +41,6 @@ import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.search.SearchModule;
 import org.opensearch.search.builder.SearchSourceBuilder;
-
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
 
 /**
  * Flint client implementation for OpenSearch storage.
@@ -76,6 +77,19 @@ public class FlintOpenSearchClient implements FlintClient {
       return client.indices().exists(new GetIndexRequest(indexName), RequestOptions.DEFAULT);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to check if Flint index exists " + indexName, e);
+    }
+  }
+
+  @Override public List<FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
+    try (RestHighLevelClient client = createClient()) {
+      GetMappingsRequest request = new GetMappingsRequest().indices(indexNamePattern);
+      GetMappingsResponse response = client.indices().getMapping(request, RequestOptions.DEFAULT);
+
+      return response.mappings().values().stream()
+          .map(mapping -> new FlintMetadata(mapping.source().string()))
+          .collect(Collectors.toList());
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to get Flint index metadata for " + indexNamePattern, e);
     }
   }
 
