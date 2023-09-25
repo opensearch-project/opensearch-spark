@@ -88,6 +88,10 @@ class FlintSpark(val spark: SparkSession) {
     } else {
       flintClient.createIndex(indexName, index.metadata())
     }
+
+    val metadata = index.metadata()
+    index.options.indexSettings().foreach(metadata.setIndexSettings)
+    flintClient.createIndex(indexName, metadata)
   }
 
   /**

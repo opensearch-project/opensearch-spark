@@ -36,6 +36,14 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
    *   checkpoint location path
    */
   def checkpointLocation(): Option[String] = options.get("checkpoint_location")
+
+  /**
+   * The index settings for OpenSearch index created.
+   *
+   * @return
+   *   index setting JSON
+   */
+  def indexSettings(): Option[String] = options.get("index_settings")
 }
 
 object FlintSparkIndexOptions {

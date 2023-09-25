@@ -24,6 +24,7 @@ import org.opensearch.client.RestClientBuilder;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.GetIndexRequest;
+import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.client.indices.GetMappingsRequest;
 import org.opensearch.client.indices.GetMappingsResponse;
 import org.opensearch.cluster.metadata.MappingMetadata;
@@ -66,6 +67,9 @@ public class FlintOpenSearchClient implements FlintClient {
       CreateIndexRequest request = new CreateIndexRequest(indexName);
       request.mapping(metadata.getContent(), XContentType.JSON);
 
+      if (metadata.getIndexSettings() != null) {
+        request.settings(metadata.getIndexSettings(), XContentType.JSON);
+      }
       client.indices().create(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to create Flint index " + indexName, e);
@@ -95,11 +99,12 @@ public class FlintOpenSearchClient implements FlintClient {
 
   @Override public FlintMetadata getIndexMetadata(String indexName) {
     try (RestHighLevelClient client = createClient()) {
-      GetMappingsRequest request = new GetMappingsRequest().indices(indexName);
-      GetMappingsResponse response = client.indices().getMapping(request, RequestOptions.DEFAULT);
+      GetIndexRequest request = new GetIndexRequest(indexName);
+      GetIndexResponse response = client.indices().get(request, RequestOptions.DEFAULT);
 
-      MappingMetadata mapping = response.mappings().get(indexName);
-      return new FlintMetadata(mapping.source().string());
+      MappingMetadata mapping = response.getMappings().get(indexName);
+      Settings settings = response.getSettings().get(indexName);
+      return new FlintMetadata(mapping.source().string(), settings.toString());
     } catch (Exception e) {
       throw new IllegalStateException("Failed to get Flint index metadata for " + indexName, e);
     }
