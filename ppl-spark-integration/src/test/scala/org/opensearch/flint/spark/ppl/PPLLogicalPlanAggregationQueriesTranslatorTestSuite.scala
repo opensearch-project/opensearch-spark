@@ -219,7 +219,6 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
 
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
-  
   test("create ppl query count sales by weeks window and productId with sorting test") {
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(
@@ -246,10 +245,8 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
       Alias(
         UnresolvedFunction(Seq("SUM"), Seq(productsAmount), isDistinct = false),
         "sum(productsAmount)")()
-    val aggregatePlan = Aggregate(
-      Seq(windowExpression),
-      Seq(aggregateExpressions, windowExpression),
-      table)
+    val aggregatePlan =
+      Aggregate(Seq(windowExpression), Seq(aggregateExpressions, windowExpression), table)
     val expectedPlan = Project(star, aggregatePlan)
     val sortedPlan: LogicalPlan = Sort(
       Seq(SortOrder(UnresolvedAttribute("age_date"), Ascending)),
