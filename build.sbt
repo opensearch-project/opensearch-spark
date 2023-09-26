@@ -113,7 +113,10 @@ lazy val integtest = (project in file("integ-test"))
       "org.scalactic" %% "scalactic" % "3.2.15",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
-      "org.testcontainers" % "testcontainers" % "1.18.0" % "test"),
+      "org.testcontainers" % "testcontainers" % "1.18.0" % "test",
+      // add opensearch-java client to get node stats
+      "org.opensearch.client" % "opensearch-java" % "2.6.0" % "test"
+        exclude ("com.fasterxml.jackson.core", "jackson-databind")),
     libraryDependencies ++= deps(sparkVersion),
     Test / fullClasspath += (flintSparkIntegration / assembly).value)
 
@@ -130,8 +133,7 @@ lazy val sparkSqlApplication = (project in file("spark-sql-application"))
     commonSettings,
     name := "sql-job",
     scalaVersion := scala212,
-    libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.2.15" % "test"),
+    libraryDependencies ++= Seq("org.scalatest" %% "scalatest" % "3.2.15" % "test"),
     libraryDependencies ++= deps(sparkVersion))
 
 lazy val sparkSqlApplicationCosmetic = project

@@ -8,6 +8,9 @@ package org.opensearch.flint.core
 import scala.collection.JavaConverters._
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
+import org.opensearch.client.json.jackson.JacksonJsonpMapper
+import org.opensearch.client.opensearch.OpenSearchClient
+import org.opensearch.client.transport.rest_client.RestClientTransport
 import org.opensearch.flint.OpenSearchSuite
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
@@ -98,5 +101,31 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
       reader.hasNext shouldBe false
       reader.close()
     }
+  }
+
+  it should "scroll context close properly after read" in {
+    val indexName = "t0001"
+    withIndexName(indexName) {
+      simpleIndex(indexName)
+      val match_all = null
+      val reader = flintClient.createReader(indexName, match_all)
+
+      reader.hasNext shouldBe true
+      reader.next shouldBe """{"accountId":"123","eventName":"event","eventSource":"source"}"""
+      reader.hasNext shouldBe false
+      reader.close()
+
+      scrollShouldClosed()
+    }
+  }
+
+  def scrollShouldClosed(): Unit = {
+    val transport =
+      new RestClientTransport(openSearchClient.getLowLevelClient, new JacksonJsonpMapper)
+    val client = new OpenSearchClient(transport)
+
+    val response = client.nodes().stats()
+    response.nodes().size() should be > 0
+    response.nodes().forEach((_, stats) => stats.indices().search().scrollCurrent() shouldBe 0)
   }
 }
