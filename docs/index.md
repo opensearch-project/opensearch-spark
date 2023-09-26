@@ -125,7 +125,7 @@ CREATE SKIPPING INDEX
 ON <object>
 ( column <index_type> [, ...] )
 WHERE <filter_predicate>
-WITH (auto_refresh = (true|false))
+WITH ( options )
 
 REFRESH SKIPPING INDEX ON <object>
 
@@ -164,7 +164,7 @@ DROP SKIPPING INDEX ON alb_logs
 CREATE INDEX name ON <object>
 ( column [, ...] )
 WHERE <filter_predicate>
-WITH (auto_refresh = (true|false))
+WITH ( options )
 
 REFRESH INDEX name ON <object>
 
@@ -188,6 +188,34 @@ SHOW INDEX ON alb_logs
 DESCRIBE INDEX elb_and_requestUri ON alb_logs
 
 DROP INDEX elb_and_requestUri ON alb_logs
+```
+
+#### Create Index Options
+
+User can provide the following options in `WITH` clause of create statement:
+
++ `auto_refresh`: triggers Incremental Refresh immediately after index create complete if true. Otherwise, user has to trigger Full Refresh by `REFRESH` statement manually.
++ `refresh_interval`: a string as the time interval for incremental refresh, e.g. 1 minute, 10 seconds. This is only applicable when auto refresh enabled. Please check `org.apache.spark.unsafe.types.CalendarInterval` for valid duration identifiers. By default, next micro batch will be generated as soon as the previous one complete processing.
++ `checkpoint_location`: a string as the location path for incremental refresh job checkpoint. The location has to be a path in an HDFS compatible file system and only applicable when auto refresh enabled. If unspecified, temporary checkpoint directory will be used and may result in checkpoint data lost upon restart.
+
+```sql
+WITH (
+  auto_refresh = [true|false],
+  refresh_interval = 'time interval expression',
+  checkpoint_location = 'checkpoint directory path'
+)
+```
+
+Example:
+
+```sql
+CREATE INDEX elb_and_requestUri
+ON alb_logs ( elb, requestUri )
+WITH (
+  auto_refresh = true,
+  refresh_interval = '1 minute',
+  checkpoint_location = 's3://test/'
+)
 ```
 
 ## Index Store

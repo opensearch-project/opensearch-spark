@@ -165,7 +165,6 @@ ON: 'ON';
 PARTITION: 'PARTITION';
 REFRESH: 'REFRESH';
 SHOW: 'SHOW';
-STRING: 'STRING';
 TRUE: 'TRUE';
 WITH: 'WITH';
 
@@ -173,6 +172,13 @@ WITH: 'WITH';
 EQ  : '=' | '==';
 MINUS: '-';
 
+
+STRING
+    : '\'' ( ~('\''|'\\') | ('\\' .) )* '\''
+    | '"' ( ~('"'|'\\') | ('\\' .) )* '"'
+    | 'R\'' (~'\'')* '\''
+    | 'R"'(~'"')* '"'
+    ;
 
 INTEGER_VALUE
     : DIGIT+
