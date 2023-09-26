@@ -7,7 +7,6 @@ package org.opensearch.flint.spark
 
 import scala.Option.empty
 
-import org.opensearch.flint.OpenSearchSuite
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -54,6 +53,26 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     val indexData = spark.read.format(FLINT_DATASOURCE).load(testIndex)
     flint.describeIndex(testIndex) shouldBe defined
     indexData.count() shouldBe 2
+  }
+
+  test("create skipping index with streaming job options") {
+    withTempDir { checkpointDir =>
+      sql(s"""
+             | CREATE SKIPPING INDEX ON $testTable
+             | ( year PARTITION )
+             | WITH (
+             |   auto_refresh = true,
+             |   refresh_interval = '5 Seconds',
+             |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+             | )
+             | """.stripMargin)
+
+      val index = flint.describeIndex(testIndex)
+      index shouldBe defined
+      index.get.options.autoRefresh() shouldBe true
+      index.get.options.refreshInterval() shouldBe Some("5 Seconds")
+      index.get.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
+    }
   }
 
   test("create skipping index with manual refresh") {

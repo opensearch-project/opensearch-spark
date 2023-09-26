@@ -56,7 +56,8 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
          |        "columnName": "age",
          |        "columnType": "int"
          |     }],
-         |     "source": "default.ci_test"
+         |     "source": "default.ci_test",
+         |     "options": {}
          |   },
          |   "properties": {
          |     "name": {

@@ -9,8 +9,8 @@ import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
-import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor}
-import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, isAutoRefreshEnabled}
+import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.getFullTableName
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
 import org.apache.spark.sql.Row
@@ -21,7 +21,8 @@ import org.apache.spark.sql.types.StringType
 /**
  * Flint Spark AST builder that builds Spark command for Flint covering index statement.
  */
-trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[Command] {
+trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
+  self: SparkSqlAstBuilder =>
 
   override def visitCreateCoveringIndexStatement(
       ctx: CreateCoveringIndexStatementContext): Command = {
@@ -40,10 +41,13 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[C
       }
 
       val ignoreIfExists = ctx.EXISTS() != null
-      indexBuilder.create(ignoreIfExists)
+      val indexOptions = visitPropertyList(ctx.propertyList())
+      indexBuilder
+        .options(indexOptions)
+        .create(ignoreIfExists)
 
       // Trigger auto refresh if enabled
-      if (isAutoRefreshEnabled(ctx.propertyList())) {
+      if (indexOptions.autoRefresh()) {
         val flintIndexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
         flint.refreshIndex(flintIndexName, RefreshMode.INCREMENTAL)
       }
