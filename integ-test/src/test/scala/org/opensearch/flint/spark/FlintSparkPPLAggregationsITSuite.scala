@@ -5,14 +5,14 @@
 
 package org.opensearch.flint.spark
 
+import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Descending, Divide, EqualTo, Floor, GreaterThan, LessThan, LessThanOrEqual, Literal, Multiply, Not, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
-import org.apache.spark.sql.{QueryTest, Row}
 
 class FlintSparkPPLAggregationsITSuite
-  extends QueryTest
+    extends QueryTest
     with LogicalPlanTestUtils
     with FlintPPLSuite
     with StreamTest {
@@ -25,8 +25,7 @@ class FlintSparkPPLAggregationsITSuite
 
     // Create test table
     // Update table creation
-    sql(
-      s"""
+    sql(s"""
          | CREATE TABLE $testTable
          | (
          |   name STRING,
@@ -46,8 +45,7 @@ class FlintSparkPPLAggregationsITSuite
          |""".stripMargin)
 
     // Update data insertion
-    sql(
-      s"""
+    sql(s"""
          | INSERT INTO $testTable
          | PARTITION (year=2023, month=4)
          | VALUES ('Jake', 70, 'California', 'USA'),
@@ -67,8 +65,7 @@ class FlintSparkPPLAggregationsITSuite
   }
 
   test("create ppl simple age avg query test") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| stats avg(age)
          | """.stripMargin)
 
@@ -98,8 +95,7 @@ class FlintSparkPPLAggregationsITSuite
   }
 
   test("create ppl simple age avg query with filter test") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| where age < 50 | stats avg(age)
          | """.stripMargin)
 
@@ -131,8 +127,7 @@ class FlintSparkPPLAggregationsITSuite
   }
 
   test("create ppl simple age avg group by country query test ") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| stats avg(age) by country
          | """.stripMargin)
 
@@ -167,8 +162,7 @@ class FlintSparkPPLAggregationsITSuite
   }
 
   test("create ppl simple age avg group by country head (limit) query test ") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| stats avg(age) by country | head 1
          | """.stripMargin)
 
@@ -198,8 +192,7 @@ class FlintSparkPPLAggregationsITSuite
   }
 
   test("create ppl simple age max group by country query test ") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| stats max(age) by country
          | """.stripMargin)
 
@@ -234,8 +227,7 @@ class FlintSparkPPLAggregationsITSuite
   }
 
   test("create ppl simple age min group by country query test ") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| stats min(age) by country
          | """.stripMargin)
 
@@ -270,8 +262,7 @@ class FlintSparkPPLAggregationsITSuite
   }
 
   test("create ppl simple age sum group by country query test ") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| stats sum(age) by country
          | """.stripMargin)
 
@@ -306,8 +297,7 @@ class FlintSparkPPLAggregationsITSuite
   }
 
   test("create ppl simple age sum group by country order by age query test with sort ") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| stats sum(age) by country | sort country
          | """.stripMargin)
 
@@ -342,8 +332,7 @@ class FlintSparkPPLAggregationsITSuite
   }
 
   test("create ppl simple age count group by country query test ") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| stats count(age) by country
          | """.stripMargin)
 
@@ -382,8 +371,7 @@ class FlintSparkPPLAggregationsITSuite
   }
 
   test("create ppl simple age avg group by country with state filter query test ") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable|  where state != 'Quebec' | stats avg(age) by country
          | """.stripMargin)
 
@@ -420,4 +408,3 @@ class FlintSparkPPLAggregationsITSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 }
-

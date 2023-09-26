@@ -5,11 +5,11 @@
 
 package org.opensearch.flint.spark
 
+import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Literal, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
-import org.apache.spark.sql.{QueryTest, Row}
 
 class FlintSparkPPLITSuite
     extends QueryTest
@@ -200,7 +200,7 @@ class FlintSparkPPLITSuite
     // Compare the two plans
     assert(expectedPlan === logicalPlan)
   }
-  
+
   test("create ppl simple query two with fields and head (limit) with sorting test") {
     val frame = sql(s"""
          | source = $testTable| fields name, age | head 1 | sort age
@@ -222,5 +222,5 @@ class FlintSparkPPLITSuite
     // Compare the two plans
     assert(sortedPlan === logicalPlan)
   }
-  
+
 }

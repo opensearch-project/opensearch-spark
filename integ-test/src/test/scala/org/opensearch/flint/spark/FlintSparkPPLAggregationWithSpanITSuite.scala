@@ -5,14 +5,14 @@
 
 package org.opensearch.flint.spark
 
+import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Descending, Divide, Floor, Literal, Multiply, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
-import org.apache.spark.sql.{QueryTest, Row}
 
 class FlintSparkPPLAggregationWithSpanITSuite
-  extends QueryTest
+    extends QueryTest
     with LogicalPlanTestUtils
     with FlintPPLSuite
     with StreamTest {
@@ -63,7 +63,7 @@ class FlintSparkPPLAggregationWithSpanITSuite
       job.awaitTermination()
     }
   }
-  
+
   /**
    * | age_span | count_age |
    * |:---------|----------:|
@@ -144,7 +144,8 @@ class FlintSparkPPLAggregationWithSpanITSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
-  test("create ppl simple avg age by span of interval of 10 years with head (limit) query test ") {
+  test(
+    "create ppl simple avg age by span of interval of 10 years with head (limit) query test ") {
     val frame = sql(s"""
          | source = $testTable| stats avg(age) by span(age, 10) as age_span | head 2
          | """.stripMargin)
@@ -217,7 +218,8 @@ class FlintSparkPPLAggregationWithSpanITSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
-  test("create ppl average age by span of interval of 10 years group by country head (limit) 2 query test ") {
+  test(
+    "create ppl average age by span of interval of 10 years group by country head (limit) 2 query test ") {
     val frame = sql(s"""
          | source = $testTable| stats avg(age) by span(age, 10) as age_span, country | head 3
          | """.stripMargin)
@@ -253,7 +255,8 @@ class FlintSparkPPLAggregationWithSpanITSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
-  test("create ppl average age by span of interval of 10 years group by country head (limit) 2 query and sort by test ") {
+  test(
+    "create ppl average age by span of interval of 10 years group by country head (limit) 2 query and sort by test ") {
     val frame = sql(s"""
          | source = $testTable| stats avg(age) by span(age, 10) as age_span, country  | sort - age_span |  head 2
          | """.stripMargin)
@@ -288,4 +291,3 @@ class FlintSparkPPLAggregationWithSpanITSuite
     assert(compareByString(sortedPlan) === compareByString(logicalPlan))
   }
 }
-

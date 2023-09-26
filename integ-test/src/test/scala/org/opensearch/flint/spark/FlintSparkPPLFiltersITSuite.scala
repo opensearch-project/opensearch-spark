@@ -5,14 +5,14 @@
 
 package org.opensearch.flint.spark
 
+import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Descending, Divide, EqualTo, Floor, GreaterThan, LessThan, LessThanOrEqual, Literal, Multiply, Not, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
-import org.apache.spark.sql.{QueryTest, Row}
 
 class FlintSparkPPLFiltersITSuite
-  extends QueryTest
+    extends QueryTest
     with LogicalPlanTestUtils
     with FlintPPLSuite
     with StreamTest {
@@ -25,8 +25,7 @@ class FlintSparkPPLFiltersITSuite
 
     // Create test table
     // Update table creation
-    sql(
-      s"""
+    sql(s"""
          | CREATE TABLE $testTable
          | (
          |   name STRING,
@@ -46,8 +45,7 @@ class FlintSparkPPLFiltersITSuite
          |""".stripMargin)
 
     // Update data insertion
-    sql(
-      s"""
+    sql(s"""
          | INSERT INTO $testTable
          | PARTITION (year=2023, month=4)
          | VALUES ('Jake', 70, 'California', 'USA'),
@@ -67,8 +65,7 @@ class FlintSparkPPLFiltersITSuite
   }
 
   test("create ppl simple age literal equal filter query with two fields result test") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable age=25 | fields name, age
          | """.stripMargin)
 
@@ -93,9 +90,9 @@ class FlintSparkPPLFiltersITSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
-  test("create ppl simple age literal greater than filter AND country not equal filter query with two fields result test") {
-    val frame = sql(
-      s"""
+  test(
+    "create ppl simple age literal greater than filter AND country not equal filter query with two fields result test") {
+    val frame = sql(s"""
          | source = $testTable age>10 and country != 'USA' | fields name, age
          | """.stripMargin)
 
@@ -113,7 +110,8 @@ class FlintSparkPPLFiltersITSuite
     // Define the expected logical plan
     val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
     val filterExpr = And(
-      GreaterThan(UnresolvedAttribute("age"), Literal(10)), Not(EqualTo(UnresolvedAttribute("country"), Literal("USA"))))
+      GreaterThan(UnresolvedAttribute("age"), Literal(10)),
+      Not(EqualTo(UnresolvedAttribute("country"), Literal("USA"))))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
     val expectedPlan = Project(projectList, filterPlan)
@@ -121,9 +119,9 @@ class FlintSparkPPLFiltersITSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
-  test("create ppl simple age literal greater than filter AND country not equal filter query with two fields sorted result test") {
-    val frame = sql(
-      s"""
+  test(
+    "create ppl simple age literal greater than filter AND country not equal filter query with two fields sorted result test") {
+    val frame = sql(s"""
          | source = $testTable age>10 and country != 'USA' | sort - age | fields name, age
          | """.stripMargin)
 
@@ -151,9 +149,9 @@ class FlintSparkPPLFiltersITSuite
     assert(compareByString(sortedPlan) === compareByString(logicalPlan))
   }
 
-  test("create ppl simple age literal equal than filter OR country not equal filter query with two fields result test") {
-    val frame = sql(
-      s"""
+  test(
+    "create ppl simple age literal equal than filter OR country not equal filter query with two fields result test") {
+    val frame = sql(s"""
          | source = $testTable age<=20 OR country = 'USA' | fields name, age
          | """.stripMargin)
 
@@ -180,9 +178,9 @@ class FlintSparkPPLFiltersITSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
-  test("create ppl simple age literal equal than filter OR country not equal filter query with two fields result and head (limit) test") {
-    val frame = sql(
-      s"""
+  test(
+    "create ppl simple age literal equal than filter OR country not equal filter query with two fields result and head (limit) test") {
+    val frame = sql(s"""
          | source = $testTable age<=20 OR country = 'USA' | fields name, age | head 1
          | """.stripMargin)
 
@@ -206,8 +204,7 @@ class FlintSparkPPLFiltersITSuite
   }
 
   test("create ppl simple age literal greater than filter query with two fields result test") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable age>25 | fields name, age
          | """.stripMargin)
 
@@ -232,9 +229,9 @@ class FlintSparkPPLFiltersITSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
-  test("create ppl simple age literal smaller than equals filter query with two fields result test") {
-    val frame = sql(
-      s"""
+  test(
+    "create ppl simple age literal smaller than equals filter query with two fields result test") {
+    val frame = sql(s"""
          | source = $testTable age<=65 | fields name, age
          | """.stripMargin)
 
@@ -259,9 +256,9 @@ class FlintSparkPPLFiltersITSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
-  test("create ppl simple age literal smaller than equals filter query with two fields result with sort test") {
-    val frame = sql(
-      s"""
+  test(
+    "create ppl simple age literal smaller than equals filter query with two fields result with sort test") {
+    val frame = sql(s"""
          | source = $testTable age<=65 | sort name | fields name, age
          | """.stripMargin)
 
@@ -287,8 +284,7 @@ class FlintSparkPPLFiltersITSuite
   }
 
   test("create ppl simple name literal equal filter query with two fields result test") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable name='Jake' | fields name, age
          | """.stripMargin)
 
@@ -314,8 +310,7 @@ class FlintSparkPPLFiltersITSuite
   }
 
   test("create ppl simple name literal not equal filter query with two fields result test") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable name!='Jake' | fields name, age
          | """.stripMargin)
 
@@ -342,8 +337,7 @@ class FlintSparkPPLFiltersITSuite
   }
 
   test("create ppl simple avg age by span of interval of 10 years query test ") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| stats avg(age) by span(age, 10) as age_span
          | """.stripMargin)
 
@@ -377,8 +371,7 @@ class FlintSparkPPLFiltersITSuite
 
   test(
     "create ppl simple avg age by span of interval of 10 years with head (limit) query test ") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| stats avg(age) by span(age, 10) as age_span | head 2
          | """.stripMargin)
 
@@ -419,8 +412,7 @@ class FlintSparkPPLFiltersITSuite
     dataFrame.collect();
     dataFrame.show()
 
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| stats avg(age) by span(age, 10) as age_span, country
          | """.stripMargin)
 
