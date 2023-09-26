@@ -142,13 +142,11 @@ class FlintSparkPPLFiltersITSuite
       GreaterThan(UnresolvedAttribute("age"), Literal(10)),
       Not(EqualTo(UnresolvedAttribute("country"), Literal("USA"))))
     val filterPlan = Filter(filterExpr, table)
-    val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
-    val expectedPlan = Project(projectList, filterPlan)
-
     val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Descending)), global = true, expectedPlan)
+      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Descending)), global = true, filterPlan)
+    val expectedPlan = Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")), sortedPlan)
     // Compare the two plans
-    assert(compareByString(sortedPlan) === compareByString(logicalPlan))
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
   test(
@@ -199,8 +197,8 @@ class FlintSparkPPLFiltersITSuite
       EqualTo(UnresolvedAttribute("country"), Literal("USA")))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
-    val projectPlan = Project(Seq(UnresolvedStar(None)), Project(projectList, filterPlan))
-    val expectedPlan = Limit(Literal(1), projectPlan)
+    val limitPlan = Limit(Literal(1), Project(projectList, filterPlan))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), limitPlan)
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
@@ -278,11 +276,11 @@ class FlintSparkPPLFiltersITSuite
     val filterExpr = LessThanOrEqual(UnresolvedAttribute("age"), Literal(65))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
-    val expectedPlan = Project(projectList, filterPlan)
     val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("name"), Ascending)), global = true, expectedPlan)
+      Sort(Seq(SortOrder(UnresolvedAttribute("name"), Ascending)), global = true, filterPlan)
+    val expectedPlan = Project(projectList, sortedPlan)
     // Compare the two plans
-    assert(compareByString(sortedPlan) === compareByString(logicalPlan))
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
   test("create ppl simple name literal equal filter query with two fields result test") {
@@ -394,8 +392,8 @@ class FlintSparkPPLFiltersITSuite
       Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
       "age_span")()
     val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), table)
-    val projectPlan = Project(star, aggregatePlan)
-    val expectedPlan = Limit(Literal(2), projectPlan)
+    val limitPlan = Limit(Literal(2), aggregatePlan)
+    val expectedPlan = Project(star, limitPlan)
 
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))

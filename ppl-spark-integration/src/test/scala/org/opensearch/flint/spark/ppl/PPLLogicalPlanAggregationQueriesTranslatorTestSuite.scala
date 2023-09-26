@@ -138,11 +138,10 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
 
     val aggregatePlan =
       Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), filterPlan)
-    val expectedPlan = Project(star, aggregatePlan)
     val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("product"), Ascending)), global = true, expectedPlan)
-
-    assertEquals(compareByString(sortedPlan), compareByString(logPlan))
+      Sort(Seq(SortOrder(UnresolvedAttribute("product"), Ascending)), global = true, aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
+    assertEquals(compareByString(expectedPlan), compareByString(logPlan))
   }
   test("create ppl simple avg age by span of interval of 10 years query test ") {
     val context = new CatalystPlanContext
@@ -184,11 +183,11 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
       Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
       "age_span")()
     val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), tableRelation)
-    val expectedPlan = Project(star, aggregatePlan)
     val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, expectedPlan)
+      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
 
-    assert(compareByString(sortedPlan) === compareByString(logPlan))
+    assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
   test("create ppl simple avg age by span of interval of 10 years by country query test ") {
@@ -247,13 +246,13 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
         "sum(productsAmount)")()
     val aggregatePlan =
       Aggregate(Seq(windowExpression), Seq(aggregateExpressions, windowExpression), table)
-    val expectedPlan = Project(star, aggregatePlan)
+    
     val sortedPlan: LogicalPlan = Sort(
-      Seq(SortOrder(UnresolvedAttribute("age_date"), Ascending)),
-      global = true,
-      expectedPlan)
+      Seq(SortOrder(UnresolvedAttribute("age_date"), Ascending)), global = true, aggregatePlan)
+   
+    val expectedPlan = Project(star, sortedPlan)
     // Compare the two plans
-    assert(compareByString(sortedPlan) === compareByString(logPlan))
+    assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
   test("create ppl query count sales by days window and productId with sorting test") {
@@ -286,13 +285,13 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
       Seq(productsId, windowExpression),
       Seq(aggregateExpressions, productsId, windowExpression),
       table)
-    val expectedPlan = Project(star, aggregatePlan)
     val sortedPlan: LogicalPlan = Sort(
       Seq(SortOrder(UnresolvedAttribute("age_date"), Ascending)),
       global = true,
-      expectedPlan)
+      aggregatePlan )
+    val expectedPlan = Project(star, sortedPlan)
     // Compare the two plans
-    assert(compareByString(sortedPlan) === compareByString(logPlan))
+    assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
 }

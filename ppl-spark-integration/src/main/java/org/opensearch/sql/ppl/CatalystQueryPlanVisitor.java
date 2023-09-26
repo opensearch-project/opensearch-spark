@@ -11,6 +11,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
+import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
@@ -76,13 +77,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     public LogicalPlan visit(Statement plan, CatalystPlanContext context) {
-        //build plan 
-        plan.accept(this, context);
-        //add limit statement
-        visitLimit(context);
-        //add order statement
-        visitSort(context);
-        return context.getPlan();
+        return plan.accept(this, context);
     }
 
     /**
@@ -109,16 +104,15 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitFilter(Filter node, CatalystPlanContext context) {
-        LogicalPlan translatedPlan = node.getChild().get(0).accept(this, context);
+        node.getChild().get(0).accept(this, context);
         Expression conditionExpression = visitExpression(node.getCondition(), context);
         Expression innerConditionExpression = context.getNamedParseExpressions().pop();
-        context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(innerConditionExpression, p));
-        return translatedPlan;
+        return context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(innerConditionExpression, p));
     }
 
     @Override
     public LogicalPlan visitAggregation(Aggregation node, CatalystPlanContext context) {
-        LogicalPlan child = node.getChild().get(0).accept(this, context);
+        node.getChild().get(0).accept(this, context);
         List<Expression> aggsExpList = visitExpressionList(node.getAggExprList(), context);
         List<Expression> groupExpList = visitExpressionList(node.getGroupExprList(), context);
 
@@ -134,14 +128,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.getGroupingParseExpressions().add(context.getNamedParseExpressions().peek());
         }
         // build the aggregation logical step
-        extractedAggregation(context);
-        return child;
+        return extractedAggregation(context);
     }
     
-    private static void extractedAggregation(CatalystPlanContext context) {
+    private static LogicalPlan extractedAggregation(CatalystPlanContext context) {
         Seq<Expression> groupingExpression = context.retainAllGroupingNamedParseExpressions(p -> p);
         Seq<NamedExpression> aggregateExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
-        context.plan(p -> new Aggregate(groupingExpression, aggregateExpressions, p));
+        return context.plan(p -> new Aggregate(groupingExpression, aggregateExpressions, p));
     }
 
     @Override
@@ -160,7 +153,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         if (!projectList.isEmpty()) {
             Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
             // build the plan with the projection step
-            context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+            child = context.plan(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
         }
         if (node.hasArgument()) {
             Argument argument = node.getArgExprList().get(0);
@@ -168,33 +161,20 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         }
         return child;
     }
-
-    private static void visitSort(CatalystPlanContext context) {
-        if (!context.getSortOrders().isEmpty()) {
-            context.plan(p -> (LogicalPlan) new org.apache.spark.sql.catalyst.plans.logical.Sort(context.getSortOrders(), true, p));
-        }
-    }
-
-    private static void visitLimit(CatalystPlanContext context) {
-        if (context.getLimit() > 0) {
-            context.plan(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
-                    context.getLimit(), DataTypes.IntegerType), p));
-        }
-    }
-
+    
     @Override
     public LogicalPlan visitSort(Sort node, CatalystPlanContext context) {
-        LogicalPlan child = node.getChild().get(0).accept(this, context);
+        node.getChild().get(0).accept(this, context);
         visitFieldList(node.getSortList(), context);
-        context.sort(context.retainAllNamedParseExpressions(exp -> SortUtils.getSortDirection(node, (NamedExpression) exp)));
-        return child;
+        Seq<SortOrder> sortElements = context.retainAllNamedParseExpressions(exp -> SortUtils.getSortDirection(node, (NamedExpression) exp));
+        return context.plan(p -> (LogicalPlan) new org.apache.spark.sql.catalyst.plans.logical.Sort(sortElements, true, p));
     }
 
     @Override
     public LogicalPlan visitHead(Head node, CatalystPlanContext context) {
-        LogicalPlan child = node.getChild().get(0).accept(this, context);
-        context.limit(node.getSize());
-        return child;
+        node.getChild().get(0).accept(this, context);
+        return context.plan(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
+                node.getSize(), DataTypes.IntegerType), p));
     }
 
     private void visitFieldList(List<Field> fieldList, CatalystPlanContext context) {

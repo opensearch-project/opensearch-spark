@@ -29,12 +29,6 @@ public class CatalystPlanContext {
     private Stack<LogicalPlan> planBranches = new Stack<>();
 
     /**
-     * limit stands for the translation of the `head` command in PPL which transforms into a limit logical step.
-     * default limit -MAX_INT_VAL meaning no limit was set yet
-     */
-    private int limit = Integer.MIN_VALUE;
-
-    /**
      * NamedExpression contextual parameters
      **/
     private final Stack<org.apache.spark.sql.catalyst.expressions.Expression> namedParseExpressions = new Stack<>();
@@ -43,12 +37,7 @@ public class CatalystPlanContext {
      * Grouping NamedExpression contextual parameters
      **/
     private final Stack<org.apache.spark.sql.catalyst.expressions.Expression> groupingParseExpressions = new Stack<>();
-
-    /**
-     * SortOrder sort by parameters
-     **/
-    private Seq<SortOrder> sortOrders = seq(emptyList());
-
+    
     public LogicalPlan getPlan() {
         if (this.planBranches.size() == 1) {
             return planBranches.peek();
@@ -74,26 +63,12 @@ public class CatalystPlanContext {
         this.planBranches.push(plan);
     }
 
-    public void limit(int limit) {
-        this.limit = limit;
-    }
-
-    public int getLimit() {
-        return limit;
-    }
-
-    public Seq<SortOrder> getSortOrders() {
-        return sortOrders;
-    }
-
-    public void plan(Function<LogicalPlan, LogicalPlan> transformFunction) {
+    public LogicalPlan plan(Function<LogicalPlan, LogicalPlan> transformFunction) {
         this.planBranches.replaceAll(transformFunction::apply);
+        return getPlan();
     }
-    public void sort(Seq<SortOrder> sortOrders) {
-        this.sortOrders = sortOrders;
-    }
-
-    /**
+ 
+     /**
      * retain all expressions and clear expression stack
      * @return
      */

@@ -105,9 +105,11 @@ class FlintSparkPPLITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val expectedPlan: LogicalPlan = Limit(
+    val limitPlan: LogicalPlan = Limit(
       Literal(2),
-      Project(Seq(UnresolvedStar(None)), UnresolvedRelation(Seq("default", "flint_ppl_test"))))
+      UnresolvedRelation(Seq("default", "flint_ppl_test")))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), limitPlan)
+
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
@@ -124,14 +126,17 @@ class FlintSparkPPLITSuite
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    // Define the expected logical plan
-    val expectedPlan: LogicalPlan = Limit(
-      Literal(2),
-      Project(Seq(UnresolvedStar(None)), UnresolvedRelation(Seq("default", "flint_ppl_test"))))
+
     val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("name"), Ascending)), global = true, expectedPlan)
+      Sort(Seq(SortOrder(UnresolvedAttribute("name"), Ascending)), global = true, UnresolvedRelation(Seq("default", "flint_ppl_test")))
+
+    // Define the expected logical plan
+    val expectedPlan: LogicalPlan = Project(Seq(UnresolvedStar(None)), Limit(
+      Literal(2),
+      sortedPlan ))
+
     // Compare the two plans
-    assert(compareByString(sortedPlan) === compareByString(logicalPlan))
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
   test("create ppl simple query two with fields result test") {
@@ -172,15 +177,17 @@ class FlintSparkPPLITSuite
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, UnresolvedRelation(Seq("default", "flint_ppl_test")))
+
     // Define the expected logical plan
     val expectedPlan: LogicalPlan = Project(
       Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
-      UnresolvedRelation(Seq("default", "flint_ppl_test")))
+      sortedPlan)
 
-    val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, expectedPlan)
     // Compare the two plans
-    assert(sortedPlan === logicalPlan)
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
   test("create ppl simple query two with fields and head (limit) test") {
@@ -198,9 +205,10 @@ class FlintSparkPPLITSuite
       Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
       UnresolvedRelation(Seq("default", "flint_ppl_test")))
     // Define the expected logical plan
-    val expectedPlan: LogicalPlan = Limit(Literal(1), Project(Seq(UnresolvedStar(None)), project))
+    val limitPlan: LogicalPlan = Limit(Literal(1), project)
+    val expectedPlan: LogicalPlan = Project(Seq(UnresolvedStar(None)), limitPlan)
     // Compare the two plans
-    assert(expectedPlan === logicalPlan)
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
   test("create ppl simple query two with fields and head (limit) with sorting test") {
@@ -218,11 +226,13 @@ class FlintSparkPPLITSuite
       Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
       UnresolvedRelation(Seq("default", "flint_ppl_test")))
     // Define the expected logical plan
-    val expectedPlan: LogicalPlan = Limit(Literal(1), Project(Seq(UnresolvedStar(None)), project))
+    val limitPlan: LogicalPlan = Limit(Literal(1), project)
     val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, expectedPlan)
+      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, limitPlan)
+
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), sortedPlan);
     // Compare the two plans
-    assert(sortedPlan === logicalPlan)
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
 }

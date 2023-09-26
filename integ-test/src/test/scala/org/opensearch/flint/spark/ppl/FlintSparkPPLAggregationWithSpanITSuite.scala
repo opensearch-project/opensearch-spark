@@ -169,8 +169,8 @@ class FlintSparkPPLAggregationWithSpanITSuite
       Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
       "age_span")()
     val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), table)
-    val projectPlan = Project(star, aggregatePlan)
-    val expectedPlan = Limit(Literal(2), projectPlan)
+    val limitPlan = Limit(Literal(2), aggregatePlan)
+    val expectedPlan = Project(star, limitPlan)
 
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
@@ -250,8 +250,8 @@ class FlintSparkPPLAggregationWithSpanITSuite
       "age_span")()
     val aggregatePlan =
       Aggregate(Seq(countryAlias, span), Seq(aggregateExpressions, countryAlias, span), table)
-    val projectPlan = Project(star, aggregatePlan)
-    val expectedPlan = Limit(Literal(3), projectPlan)
+    val limitPlan = Limit(Literal(3), aggregatePlan)
+    val expectedPlan = Project(star, limitPlan)
 
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
@@ -283,13 +283,13 @@ class FlintSparkPPLAggregationWithSpanITSuite
       "age_span")()
     val aggregatePlan =
       Aggregate(Seq(countryAlias, span), Seq(aggregateExpressions, countryAlias, span), table)
-    val projectPlan = Project(star, aggregatePlan)
-    val expectedPlan = Limit(Literal(2), projectPlan)
     val sortedPlan: LogicalPlan = Sort(
       Seq(SortOrder(UnresolvedAttribute("age_span"), Descending)),
       global = true,
-      expectedPlan)
+      aggregatePlan)
+    val limitPlan = Limit(Literal(2), sortedPlan)
+    val expectedPlan = Project(star, limitPlan)
     // Compare the two plans
-    assert(compareByString(sortedPlan) === compareByString(logicalPlan))
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 }

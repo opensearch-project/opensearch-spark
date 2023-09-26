@@ -84,11 +84,11 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val table = UnresolvedRelation(Seq("t"))
     val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
     // Sort by A ascending
-    val expectedPlan = Project(projectList, table)
     val sortOrder = Seq(SortOrder(UnresolvedAttribute("A"), Ascending))
-    val sorted = Sort(sortOrder, true, expectedPlan)
+    val sorted = Sort(sortOrder, true, table)
+    val expectedPlan = Project(projectList, sorted)
 
-    assert(compareByString(sorted) === compareByString(logPlan))
+    assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
   test(
@@ -99,8 +99,8 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
     val table = UnresolvedRelation(Seq("t"))
     val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
-    val planWithLimit = Project(Seq(UnresolvedStar(None)), Project(projectList, table))
-    val expectedPlan = GlobalLimit(Literal(5), LocalLimit(Literal(5), planWithLimit))
+    val planWithLimit = GlobalLimit(Literal(5), LocalLimit(Literal(5), Project(projectList, table)))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
     assertEquals(expectedPlan, logPlan)
   }
 
@@ -112,15 +112,15 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
       context)
 
     val table = UnresolvedRelation(Seq("t"))
-    val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
-    val projectAB = Project(projectList, table)
-    val planWithLimit = Project(Seq(UnresolvedStar(None)), projectAB)
-
-    val expectedPlan = GlobalLimit(Literal(5), LocalLimit(Literal(5), planWithLimit))
     val sortOrder = Seq(SortOrder(UnresolvedAttribute("A"), Descending))
-    val sorted = Sort(sortOrder, true, expectedPlan)
+    val sorted = Sort(sortOrder, true, table)
+    val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
+    val projectAB = Project(projectList, sorted)
 
-    assertEquals(compareByString(sorted), compareByString(logPlan))
+    val planWithLimit = GlobalLimit(Literal(5), LocalLimit(Literal(5), projectAB))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
+
+    assertEquals(compareByString(expectedPlan), compareByString(logPlan))
   }
 
   test(

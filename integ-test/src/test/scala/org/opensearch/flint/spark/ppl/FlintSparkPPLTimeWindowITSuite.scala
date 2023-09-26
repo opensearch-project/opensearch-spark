@@ -205,13 +205,12 @@ class FlintSparkPPLTimeWindowITSuite
         "sum(productsAmount)")()
     val aggregatePlan =
       Aggregate(Seq(windowExpression), Seq(aggregateExpressions, windowExpression), table)
-    val expectedPlan = Project(star, aggregatePlan)
     val sortedPlan: LogicalPlan = Sort(
       Seq(SortOrder(UnresolvedAttribute("age_date"), Ascending)),
-      global = true,
-      expectedPlan)
+      global = true, aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
     // Compare the two plans
-    assert(compareByString(sortedPlan) === compareByString(logicalPlan))
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
   test("create ppl query count sales by days window and productId with sorting test") {
@@ -309,13 +308,13 @@ class FlintSparkPPLTimeWindowITSuite
       Seq(productsId, windowExpression),
       Seq(aggregateExpressions, productsId, windowExpression),
       table)
-    val expectedPlan = Project(star, aggregatePlan)
     val sortedPlan: LogicalPlan = Sort(
       Seq(SortOrder(UnresolvedAttribute("age_date"), Ascending)),
       global = true,
-      expectedPlan)
+      aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
     // Compare the two plans
-    assert(compareByString(sortedPlan) === compareByString(logicalPlan))
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
   test("create ppl query count sales by weeks window and productId with sorting test") {
     val frame = sql(s"""
@@ -367,13 +366,13 @@ class FlintSparkPPLTimeWindowITSuite
         "sum(productsAmount)")()
     val aggregatePlan =
       Aggregate(Seq(windowExpression), Seq(aggregateExpressions, windowExpression), table)
-    val expectedPlan = Project(star, aggregatePlan)
     val sortedPlan: LogicalPlan = Sort(
       Seq(SortOrder(UnresolvedAttribute("age_date"), Ascending)),
       global = true,
-      expectedPlan)
+      aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
     // Compare the two plans
-    assert(compareByString(sortedPlan) === compareByString(logicalPlan))
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
   ignore("create ppl simple count age by span of interval of 10 years query order by age test ") {

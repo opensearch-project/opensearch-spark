@@ -186,8 +186,8 @@ class FlintSparkPPLAggregationsITSuite
 
     val aggregatePlan =
       Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), table)
-    val projectPlan = Project(Seq(UnresolvedStar(None)), aggregatePlan)
-    val expectedPlan = Limit(Literal(1), projectPlan)
+    val projectPlan = Limit(Literal(1), aggregatePlan)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), projectPlan)
 
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
@@ -326,11 +326,11 @@ class FlintSparkPPLAggregationsITSuite
 
     val aggregatePlan =
       Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), table)
-    val expectedPlan = Project(star, aggregatePlan)
     val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("country"), Ascending)), global = true, expectedPlan)
+      Sort(Seq(SortOrder(UnresolvedAttribute("country"), Ascending)), global = true, aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
     // Compare the two plans
-    assert(compareByString(sortedPlan) === compareByString(logicalPlan))
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
   test("create ppl simple age count group by country query test ") {

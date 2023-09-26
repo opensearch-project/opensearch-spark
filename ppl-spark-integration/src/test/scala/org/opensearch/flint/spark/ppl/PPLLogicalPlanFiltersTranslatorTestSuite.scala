@@ -211,10 +211,10 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterExpr = Not(EqualTo(UnresolvedAttribute("a"), Literal(1)))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), Project(projectList, filterPlan))
     val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("a"), Ascending)), global = true, expectedPlan)
+      Sort(Seq(SortOrder(UnresolvedAttribute("a"), Ascending)), global = true, Project(projectList, filterPlan))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), sortedPlan)
 
-    assertEquals(compareByString(sortedPlan), compareByString(logPlan))
+    assertEquals(compareByString(expectedPlan), compareByString(logPlan))
   }
 }
