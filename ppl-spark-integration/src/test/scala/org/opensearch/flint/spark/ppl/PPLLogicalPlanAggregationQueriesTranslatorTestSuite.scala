@@ -139,7 +139,10 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     val aggregatePlan =
       Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), filterPlan)
     val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("product"), Ascending)), global = true, aggregatePlan)
+      Sort(
+        Seq(SortOrder(UnresolvedAttribute("product"), Ascending)),
+        global = true,
+        aggregatePlan)
     val expectedPlan = Project(star, sortedPlan)
     assertEquals(compareByString(expectedPlan), compareByString(logPlan))
   }
@@ -246,10 +249,12 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
         "sum(productsAmount)")()
     val aggregatePlan =
       Aggregate(Seq(windowExpression), Seq(aggregateExpressions, windowExpression), table)
-    
+
     val sortedPlan: LogicalPlan = Sort(
-      Seq(SortOrder(UnresolvedAttribute("age_date"), Ascending)), global = true, aggregatePlan)
-   
+      Seq(SortOrder(UnresolvedAttribute("age_date"), Ascending)),
+      global = true,
+      aggregatePlan)
+
     val expectedPlan = Project(star, sortedPlan)
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logPlan))
@@ -288,7 +293,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     val sortedPlan: LogicalPlan = Sort(
       Seq(SortOrder(UnresolvedAttribute("age_date"), Ascending)),
       global = true,
-      aggregatePlan )
+      aggregatePlan)
     val expectedPlan = Project(star, sortedPlan)
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logPlan))

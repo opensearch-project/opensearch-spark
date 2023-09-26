@@ -144,7 +144,8 @@ class FlintSparkPPLFiltersITSuite
     val filterPlan = Filter(filterExpr, table)
     val sortedPlan: LogicalPlan =
       Sort(Seq(SortOrder(UnresolvedAttribute("age"), Descending)), global = true, filterPlan)
-    val expectedPlan = Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")), sortedPlan)
+    val expectedPlan =
+      Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")), sortedPlan)
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }

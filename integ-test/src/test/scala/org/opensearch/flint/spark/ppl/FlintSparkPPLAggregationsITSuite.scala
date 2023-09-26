@@ -327,7 +327,10 @@ class FlintSparkPPLAggregationsITSuite
     val aggregatePlan =
       Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), table)
     val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("country"), Ascending)), global = true, aggregatePlan)
+      Sort(
+        Seq(SortOrder(UnresolvedAttribute("country"), Ascending)),
+        global = true,
+        aggregatePlan)
     val expectedPlan = Project(star, sortedPlan)
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))

@@ -207,7 +207,8 @@ class FlintSparkPPLTimeWindowITSuite
       Aggregate(Seq(windowExpression), Seq(aggregateExpressions, windowExpression), table)
     val sortedPlan: LogicalPlan = Sort(
       Seq(SortOrder(UnresolvedAttribute("age_date"), Ascending)),
-      global = true, aggregatePlan)
+      global = true,
+      aggregatePlan)
     val expectedPlan = Project(star, sortedPlan)
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))

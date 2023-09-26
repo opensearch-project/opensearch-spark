@@ -99,7 +99,8 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
     val table = UnresolvedRelation(Seq("t"))
     val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
-    val planWithLimit = GlobalLimit(Literal(5), LocalLimit(Literal(5), Project(projectList, table)))
+    val planWithLimit =
+      GlobalLimit(Literal(5), LocalLimit(Literal(5), Project(projectList, table)))
     val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
     assertEquals(expectedPlan, logPlan)
   }

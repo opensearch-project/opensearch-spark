@@ -105,9 +105,8 @@ class FlintSparkPPLITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val limitPlan: LogicalPlan = Limit(
-      Literal(2),
-      UnresolvedRelation(Seq("default", "flint_ppl_test")))
+    val limitPlan: LogicalPlan =
+      Limit(Literal(2), UnresolvedRelation(Seq("default", "flint_ppl_test")))
     val expectedPlan = Project(Seq(UnresolvedStar(None)), limitPlan)
 
     // Compare the two plans
@@ -128,12 +127,14 @@ class FlintSparkPPLITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
 
     val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("name"), Ascending)), global = true, UnresolvedRelation(Seq("default", "flint_ppl_test")))
+      Sort(
+        Seq(SortOrder(UnresolvedAttribute("name"), Ascending)),
+        global = true,
+        UnresolvedRelation(Seq("default", "flint_ppl_test")))
 
     // Define the expected logical plan
-    val expectedPlan: LogicalPlan = Project(Seq(UnresolvedStar(None)), Limit(
-      Literal(2),
-      sortedPlan ))
+    val expectedPlan: LogicalPlan =
+      Project(Seq(UnresolvedStar(None)), Limit(Literal(2), sortedPlan))
 
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
@@ -179,12 +180,14 @@ class FlintSparkPPLITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
 
     val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, UnresolvedRelation(Seq("default", "flint_ppl_test")))
+      Sort(
+        Seq(SortOrder(UnresolvedAttribute("age"), Ascending)),
+        global = true,
+        UnresolvedRelation(Seq("default", "flint_ppl_test")))
 
     // Define the expected logical plan
-    val expectedPlan: LogicalPlan = Project(
-      Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
-      sortedPlan)
+    val expectedPlan: LogicalPlan =
+      Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")), sortedPlan)
 
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
