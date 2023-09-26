@@ -124,27 +124,20 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         if (!groupExpList.isEmpty()) {
             //add group by fields to context
-            extractedGroupBy(node.getGroupExprList().size(), context);
+            context.getGroupingParseExpressions().addAll(groupExpList);
         }
 
         UnresolvedExpression span = node.getSpan();
         if (!Objects.isNull(span)) {
             span.accept(this, context);
-            //add span's group by field to context
-            extractedGroupBy(1, context);
+            //add span's group alias field (most recent added expression)
+            context.getGroupingParseExpressions().add(context.getNamedParseExpressions().peek());
         }
         // build the aggregation logical step
         extractedAggregation(context);
         return child;
     }
-
-    private static void extractedGroupBy(int groupByElementsCount, CatalystPlanContext context) {
-        //copy the group by aliases from the namedExpressionList to the groupByExpressionList  
-        for (int i = 1; i <= groupByElementsCount; i++) {
-            context.getGroupingParseExpressions().add(context.getNamedParseExpressions().get(context.getNamedParseExpressions().size() - i));
-        }
-    }
-
+    
     private static void extractedAggregation(CatalystPlanContext context) {
         Seq<Expression> groupingExpression = context.retainAllGroupingNamedParseExpressions(p -> p);
         Seq<NamedExpression> aggregateExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
@@ -160,7 +153,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitProject(Project node, CatalystPlanContext context) {
         LogicalPlan child = node.getChild().get(0).accept(this, context);
-        visitExpressionList(node.getProjectList(), context);
+        List<Expression> expressionList = visitExpressionList(node.getProjectList(), context);
 
         // Create a projection list from the existing expressions
         Seq<?> projectList = seq(context.getNamedParseExpressions());
@@ -171,7 +164,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         }
         if (node.hasArgument()) {
             Argument argument = node.getArgExprList().get(0);
-            //todo exclude the argument from the projected aruments list
+            //todo exclude the argument from the projected arguments list
         }
         return child;
     }

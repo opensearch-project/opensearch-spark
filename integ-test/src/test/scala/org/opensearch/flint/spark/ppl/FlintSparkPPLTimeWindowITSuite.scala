@@ -3,9 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark
+package org.opensearch.flint.spark.ppl
 
 import java.sql.Timestamp
+
+import org.opensearch.flint.spark.FlintPPLSuite
 
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
