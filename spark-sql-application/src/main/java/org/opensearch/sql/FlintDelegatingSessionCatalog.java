@@ -39,6 +39,9 @@ public class FlintDelegatingSessionCatalog implements CatalogExtension {
     // do nothing
   }
 
+  /**
+   * Using V2SessionCatalog name: spark_catalog.
+   */
   @Override
   public String name() {
     return delegate.name();
@@ -46,10 +49,8 @@ public class FlintDelegatingSessionCatalog implements CatalogExtension {
 
   @Override
   public final void initialize(String name, CaseInsensitiveStringMap options) {
-    delegate = SparkSession.getActiveSession()
-        .get()
-        .sessionState()
-        .catalogManager().v2SessionCatalog();
+    this.delegate =
+        SparkSession.getActiveSession().get().sessionState().catalogManager().v2SessionCatalog();
   }
 
   @Override
