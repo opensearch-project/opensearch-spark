@@ -31,8 +31,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, UnresolvedRelation(Seq("table")))
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[table] | fields + *")
+    assertEquals(expectedPlan, logPlan)
 
   }
 
@@ -43,8 +42,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, UnresolvedRelation(Seq("schema", "table")))
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[schema.table] | fields + *")
+    assertEquals(expectedPlan, logPlan)
 
   }
 
@@ -55,8 +53,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("A"))
     val expectedPlan = Project(projectList, UnresolvedRelation(Seq("schema", "table")))
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[schema.table] | fields + A")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test("test simple search with only one table with one field projected") {
@@ -66,8 +63,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("A"))
     val expectedPlan = Project(projectList, UnresolvedRelation(Seq("table")))
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[table] | fields + A")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test("test simple search with only one table with two fields projected") {
@@ -77,8 +73,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val table = UnresolvedRelation(Seq("t"))
     val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
     val expectedPlan = Project(projectList, table)
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | fields + A,B")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test("test simple search with one table with two fields projected sorted by one field") {
@@ -93,8 +88,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val sortOrder = Seq(SortOrder(UnresolvedAttribute("A"), Ascending))
     val sorted = Sort(sortOrder, true, expectedPlan)
 
-    assert(compareByString(sorted) === compareByString(context.getPlan))
-    assertEquals(logPlan, "source=[t] | sort A | fields + A,B")
+    assert(compareByString(sorted) === compareByString(logPlan))
   }
 
   test(
@@ -107,8 +101,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
     val planWithLimit = Project(Seq(UnresolvedStar(None)), Project(projectList, table))
     val expectedPlan = GlobalLimit(Literal(5), LocalLimit(Literal(5), planWithLimit))
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | fields + A,B | head 5 | fields + *")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test(
@@ -127,8 +120,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val sortOrder = Seq(SortOrder(UnresolvedAttribute("A"), Descending))
     val sorted = Sort(sortOrder, true, expectedPlan)
 
-    assertEquals(logPlan, "source=[t] | sort A | fields + A,B | head 5 | fields + *")
-    assertEquals(compareByString(sorted), compareByString(context.getPlan))
+    assertEquals(compareByString(sorted), compareByString(logPlan))
   }
 
   test(
@@ -150,8 +142,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val expectedPlan =
       Union(Seq(projectedTable1, projectedTable2), byName = true, allowMissingCol = true)
 
-    assertEquals(logPlan, "source=[table1, table2] | fields + A,B")
-    assertEquals(expectedPlan, context.getPlan)
+    assertEquals(expectedPlan, logPlan)
   }
 
   test("Search multiple tables - translated into union call with fields") {
@@ -171,7 +162,6 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val expectedPlan =
       Union(Seq(projectedTable1, projectedTable2), byName = true, allowMissingCol = true)
 
-    assertEquals(logPlan, "source=[table1, table2] | fields + *")
-    assertEquals(expectedPlan, context.getPlan)
+    assertEquals(expectedPlan, logPlan)
   }
 }

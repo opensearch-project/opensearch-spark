@@ -15,7 +15,6 @@ import org.apache.spark.sql.catalyst.expressions.Not;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
-import org.opensearch.sql.ppl.CatalystPlanContext;
 
 /**
  * Transform the PPL Logical comparator into catalyst comparator
@@ -26,16 +25,17 @@ public interface ComparatorTransformer {
      *
      * @return
      */
-    static Predicate comparator(Compare expression, CatalystPlanContext context) {
+    static Predicate comparator(Compare expression, Expression left, Expression right) {
         if (BuiltinFunctionName.of(expression.getOperator()).isEmpty())
             throw new IllegalStateException("Unexpected value: " + expression.getOperator());
 
-        if (context.getNamedParseExpressions().isEmpty()) {
-            throw new IllegalStateException("Unexpected value: No operands found in expression");
+        if (left == null) {
+            throw new IllegalStateException("Unexpected value: No Left operands found in expression");
         }
 
-        Expression right = context.getNamedParseExpressions().pop();
-        Expression left = context.getNamedParseExpressions().isEmpty() ? null : context.getNamedParseExpressions().pop();
+        if (right == null) {
+            throw new IllegalStateException("Unexpected value: No Right operands found in expression");
+        }
 
         // Additional function operators will be added here
         switch (BuiltinFunctionName.of(expression.getOperator()).get()) {
@@ -54,4 +54,5 @@ public interface ComparatorTransformer {
         }
         throw new IllegalStateException("Not Supported value: " + expression.getOperator());
     }
+
 }

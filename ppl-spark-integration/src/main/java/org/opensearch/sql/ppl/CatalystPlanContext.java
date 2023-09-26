@@ -6,19 +6,17 @@
 package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
 import scala.collection.Seq;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Stack;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.emptyList;
+import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
 /**
@@ -49,14 +47,14 @@ public class CatalystPlanContext {
     /**
      * SortOrder sort by parameters
      **/
-    private Seq<SortOrder> sortOrders = asScalaBuffer(Collections.emptyList());
+    private Seq<SortOrder> sortOrders = seq(emptyList());
 
     public LogicalPlan getPlan() {
         if (this.planBranches.size() == 1) {
             return planBranches.peek();
         }
         //default unify sub-plans
-        return new Union(asScalaBuffer(this.planBranches).toSeq(), true, true);
+        return new Union(asScalaBuffer(this.planBranches), true, true);
     }
 
     public Stack<Expression> getNamedParseExpressions() {
@@ -100,9 +98,9 @@ public class CatalystPlanContext {
      * @return
      */
     public <T> Seq<T> retainAllNamedParseExpressions(Function<Expression, T> transformFunction) {
-        Seq<T> aggregateExpressions = asScalaBuffer(getNamedParseExpressions().stream()
-                .map(transformFunction::apply).collect(Collectors.toList())).toSeq();
-        getNamedParseExpressions().retainAll(Collections.emptyList());
+        Seq<T> aggregateExpressions = seq(getNamedParseExpressions().stream()
+                .map(transformFunction::apply).collect(Collectors.toList()));
+        getNamedParseExpressions().retainAll(emptyList());
         return aggregateExpressions;
     }
 
@@ -111,9 +109,9 @@ public class CatalystPlanContext {
      * @return
      */
     public <T> Seq<T> retainAllGroupingNamedParseExpressions(Function<Expression, T> transformFunction) {
-        Seq<T> aggregateExpressions = asScalaBuffer(getGroupingParseExpressions().stream()
-                .map(transformFunction::apply).collect(Collectors.toList())).toSeq();
-        getGroupingParseExpressions().retainAll(Collections.emptyList());
+        Seq<T> aggregateExpressions = seq(getGroupingParseExpressions().stream()
+                .map(transformFunction::apply).collect(Collectors.toList()));
+        getGroupingParseExpressions().retainAll(emptyList());
         return aggregateExpressions;
     }
 }

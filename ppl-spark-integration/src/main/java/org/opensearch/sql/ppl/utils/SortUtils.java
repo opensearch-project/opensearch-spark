@@ -37,10 +37,9 @@ public interface SortUtils {
                 .filter(f -> f.getField().toString().equals(expression.name()))
                 .findAny();
 
-        if(field.isPresent()) {
-            return sortOrder((Expression) expression, (Boolean) field.get().getFieldArgs().get(0).getValue().getValue());
-        }
-        return null;
+        return field.map(value -> sortOrder((Expression) expression,
+                        (Boolean) value.getFieldArgs().get(0).getValue().getValue()))
+                .orElse(null);
     }
 
     @NotNull

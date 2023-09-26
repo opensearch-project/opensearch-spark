@@ -40,8 +40,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | where a = 1 | fields + *")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test("test simple search with only one table with two field with 'and' filtered ") {
@@ -52,11 +51,10 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val table = UnresolvedRelation(Seq("t"))
     val filterAExpr = EqualTo(UnresolvedAttribute("a"), Literal(1))
     val filterBExpr = Not(EqualTo(UnresolvedAttribute("b"), Literal(2)))
-    val filterPlan = Filter(And(filterBExpr, filterAExpr), table)
+    val filterPlan = Filter(And(filterAExpr, filterBExpr), table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | where a = 1 and b != 2 | fields + *")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test("test simple search with only one table with two field with 'or' filtered ") {
@@ -67,11 +65,10 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val table = UnresolvedRelation(Seq("t"))
     val filterAExpr = EqualTo(UnresolvedAttribute("a"), Literal(1))
     val filterBExpr = Not(EqualTo(UnresolvedAttribute("b"), Literal(2)))
-    val filterPlan = Filter(Or(filterBExpr, filterAExpr), table)
+    val filterPlan = Filter(Or(filterAExpr, filterBExpr), table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | where a = 1 or b != 2 | fields + *")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test("test simple search with only one table with two field with 'not' filtered ") {
@@ -82,11 +79,10 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val table = UnresolvedRelation(Seq("t"))
     val filterAExpr = Not(EqualTo(UnresolvedAttribute("a"), Literal(1)))
     val filterBExpr = Not(EqualTo(UnresolvedAttribute("b"), Literal(2)))
-    val filterPlan = Filter(Or(filterBExpr, filterAExpr), table)
+    val filterPlan = Filter(Or(filterAExpr, filterBExpr), table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | where not a = 1 or b != 2 | fields + *")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test(
@@ -100,8 +96,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | where a = 1 | fields + a")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test(
@@ -116,8 +111,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
 
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | where a = 'hi' | fields + a")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test(
@@ -133,8 +127,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
 
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | where a != 'bye' | fields + a")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test(
@@ -148,8 +141,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | where a > 1 | fields + a")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test(
@@ -163,8 +155,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | where a >= 1 | fields + a")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test(
@@ -178,8 +169,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | where a < 1 | fields + a")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test(
@@ -193,8 +183,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | where a <= 1 | fields + a")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test(
@@ -208,8 +197,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, context.getPlan)
-    assertEquals(logPlan, "source=[t] | where a != 1 | fields + a")
+    assertEquals(expectedPlan, logPlan)
   }
 
   test(
@@ -227,7 +215,6 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val sortedPlan: LogicalPlan =
       Sort(Seq(SortOrder(UnresolvedAttribute("a"), Ascending)), global = true, expectedPlan)
 
-    assertEquals(compareByString(sortedPlan), compareByString(context.getPlan))
-    assertEquals(logPlan, "source=[t] | where a != 1 | fields + a | sort a | fields + *")
+    assertEquals(compareByString(sortedPlan), compareByString(logPlan))
   }
 }
