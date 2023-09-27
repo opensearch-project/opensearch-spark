@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark.skipping
 
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.{doAnswer, when}
+import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, SKIPPING_INDEX_TYPE}
@@ -30,7 +30,7 @@ import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructT
 class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
 
   /** Test table and index */
-  private val testTable = "default.apply_skipping_index_test"
+  private val testTable = "spark_catalog.default.apply_skipping_index_test"
   private val testIndex = getSkippingIndexName(testTable)
   private val testSchema = StructType(
     Seq(
@@ -112,7 +112,12 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
   }
 
   private class AssertionHelper {
-    private val flint = mock[FlintSpark]
+    private val flint = {
+      val mockFlint = mock[FlintSpark](RETURNS_DEEP_STUBS)
+      when(mockFlint.spark.sessionState.catalogManager.currentCatalog.name())
+        .thenReturn("spark_catalog")
+      mockFlint
+    }
     private val rule = new ApplyFlintSparkSkippingIndex(flint)
     private var relation: LogicalRelation = _
     private var plan: LogicalPlan = _

@@ -12,8 +12,9 @@ import org.apache.spark.FlintSuite
 class FlintSparkCoveringIndexSuite extends FlintSuite {
 
   test("get covering index name") {
-    val index = new FlintSparkCoveringIndex("ci", "default.test", Map("name" -> "string"))
-    index.name() shouldBe "flint_default_test_ci_index"
+    val index =
+      new FlintSparkCoveringIndex("ci", "spark_catalog.default.test", Map("name" -> "string"))
+    index.name() shouldBe "flint_spark_catalog_default_test_ci_index"
   }
 
   test("should fail if get index name without full table name") {

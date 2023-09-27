@@ -17,7 +17,7 @@ import org.apache.spark.sql.Row
 class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
   /** Test table and index name */
-  private val testTable = "default.covering_sql_test"
+  private val testTable = "spark_catalog.default.covering_sql_test"
   private val testIndex = "name_and_age"
   private val testFlintIndex = getFlintIndexName(testIndex, testTable)
 

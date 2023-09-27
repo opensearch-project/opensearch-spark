@@ -127,7 +127,9 @@ object FlintSparkSkippingIndex {
    *   Flint skipping index name
    */
   def getSkippingIndexName(tableName: String): String = {
-    require(tableName.contains("."), "Full table name database.table is required")
+    require(
+      tableName.split("\\.").length >= 3,
+      "Qualified table name catalog.database.table is required")
 
     flintIndexNamePrefix(tableName) + SKIPPING_INDEX_SUFFIX
   }

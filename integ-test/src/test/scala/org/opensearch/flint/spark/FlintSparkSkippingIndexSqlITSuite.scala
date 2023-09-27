@@ -17,7 +17,7 @@ import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
   /** Test table and index name */
-  private val testTable = "default.skipping_sql_test"
+  private val testTable = "spark_catalog.default.skipping_sql_test"
   private val testIndex = getSkippingIndexName(testTable)
 
   override def beforeAll(): Unit = {

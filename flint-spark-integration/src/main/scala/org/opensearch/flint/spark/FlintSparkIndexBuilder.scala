@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark
 
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
+import org.opensearch.flint.spark.util.QualifiedTableName
 
 import org.apache.spark.sql.catalog.Column
 
@@ -27,8 +28,9 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
   lazy protected val allColumns: Map[String, Column] = {
     require(tableName.nonEmpty, "Source table name is not provided")
 
+    val qualified = new QualifiedTableName(tableName)(flint.spark)
     flint.spark.catalog
-      .listColumns(tableName)
+      .listColumns(qualified.nameWithoutCatalog)
       .collect()
       .map(col => (col.name, col))
       .toMap
