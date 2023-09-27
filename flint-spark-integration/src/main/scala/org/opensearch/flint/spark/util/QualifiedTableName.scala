@@ -18,10 +18,10 @@ import org.apache.spark.sql.SparkSession
  * @param spark
  *   Spark session to get current catalog and database info
  */
-class QualifiedTableName(tableName: String)(spark: SparkSession) {
+case class QualifiedTableName(spark: SparkSession, tableName: String) {
 
   /** Qualified table name */
-  lazy private val qualifiedTableName: String = {
+  private val qualifiedTableName: String = {
     val parts = tableName.split("\\.")
     if (parts.length == 1) {
       s"$currentCatalog.$currentDatabase.$tableName"
@@ -32,10 +32,22 @@ class QualifiedTableName(tableName: String)(spark: SparkSession) {
     }
   }
 
+  /**
+   * @return
+   *   Qualified table name
+   */
   def name: String = qualifiedTableName
 
+  /**
+   * @return
+   *   catalog name only
+   */
   def catalog: String = catalogName(qualifiedTableName)
 
+  /**
+   * @return
+   *   database and table name only
+   */
   def nameWithoutCatalog: String = tableNameWithoutCatalog(qualifiedTableName)
 
   private def currentCatalog: String = {
@@ -54,7 +66,7 @@ class QualifiedTableName(tableName: String)(spark: SparkSession) {
 }
 
 /**
- * Utility methods for table name already qualified and thus has no dependency on Spark session.
+ * Utility methods for table name already qualified and thus dont' need Spark session.
  */
 object QualifiedTableName {
 

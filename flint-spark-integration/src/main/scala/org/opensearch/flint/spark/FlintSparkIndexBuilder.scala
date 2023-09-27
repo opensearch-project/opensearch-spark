@@ -28,7 +28,7 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
   lazy protected val allColumns: Map[String, Column] = {
     require(tableName.nonEmpty, "Source table name is not provided")
 
-    val qualified = new QualifiedTableName(tableName)(flint.spark)
+    val qualified = new QualifiedTableName(flint.spark, tableName)
     flint.spark.catalog
       .listColumns(qualified.nameWithoutCatalog)
       .collect()
@@ -59,6 +59,9 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
    */
   protected def buildIndex(): FlintSparkIndex
 
+  /**
+   * Find column with the given name.
+   */
   protected def findColumn(colName: String): Column =
     allColumns.getOrElse(
       colName,

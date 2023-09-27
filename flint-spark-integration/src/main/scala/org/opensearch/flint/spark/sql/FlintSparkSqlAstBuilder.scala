@@ -9,6 +9,7 @@ import org.antlr.v4.runtime.tree.{ParseTree, RuleNode}
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.sql.covering.FlintSparkCoveringIndexAstBuilder
 import org.opensearch.flint.spark.sql.skipping.FlintSparkSkippingIndexAstBuilder
+import org.opensearch.flint.spark.util.QualifiedTableName
 
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 
@@ -33,7 +34,9 @@ class FlintSparkSqlAstBuilder
 object FlintSparkSqlAstBuilder {
 
   /**
-   * Get full table name if database not specified.
+   * Get full table name if catalog or database not specified. The reason we cannot do this in
+   * common SparkSqlAstBuilder.visitTableName is that SparkSession is required to qualify table
+   * name which is only available at execution time instead of parsing time.
    *
    * @param flint
    *   Flint Spark which has access to Spark Catalog
@@ -42,12 +45,6 @@ object FlintSparkSqlAstBuilder {
    * @return
    */
   def getFullTableName(flint: FlintSpark, tableNameCtx: RuleNode): String = {
-    val tableName = tableNameCtx.getText
-    if (tableName.contains(".")) {
-      tableName
-    } else {
-      val db = flint.spark.catalog.currentDatabase
-      s"$db.$tableName"
-    }
+    QualifiedTableName(flint.spark, tableNameCtx.getText).name
   }
 }

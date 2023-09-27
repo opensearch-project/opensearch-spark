@@ -132,7 +132,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     sql("CREATE TABLE test (name STRING) USING CSV")
     sql("CREATE SKIPPING INDEX ON test (name VALUE_SET)")
 
-    flint.describeIndex("flint_sample_test_skipping_index") shouldBe defined
+    flint.describeIndex("flint_spark_catalog_sample_test_skipping_index") shouldBe defined
   }
 
   test("should return empty if no skipping index to describe") {
