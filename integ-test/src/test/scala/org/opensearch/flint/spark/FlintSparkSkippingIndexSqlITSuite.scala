@@ -114,14 +114,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
   }
 
   test("create skipping index on table without database name") {
-    sql(s"""
-           | CREATE SKIPPING INDEX ON skipping_sql_test
-           | (
-           |   year PARTITION,
-           |   name VALUE_SET,
-           |   age MIN_MAX
-           | )
-           | """.stripMargin)
+    sql("CREATE SKIPPING INDEX ON skipping_sql_test ( year PARTITION )")
 
     flint.describeIndex(testIndex) shouldBe defined
   }
@@ -129,10 +122,35 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
   test("create skipping index on table in other database") {
     sql("CREATE SCHEMA sample")
     sql("USE sample")
-    sql("CREATE TABLE test (name STRING) USING CSV")
-    sql("CREATE SKIPPING INDEX ON test (name VALUE_SET)")
 
-    flint.describeIndex("flint_spark_catalog_sample_test_skipping_index") shouldBe defined
+    // Create index without database name specified
+    sql("CREATE TABLE test1 (name STRING) USING CSV")
+    sql("CREATE SKIPPING INDEX ON test1 (name VALUE_SET)")
+
+    // Create index with database name specified
+    sql("CREATE TABLE test2 (name STRING) USING CSV")
+    sql("CREATE SKIPPING INDEX ON sample.test2 (name VALUE_SET)")
+
+    try {
+      flint.describeIndex("flint_spark_catalog_sample_test1_skipping_index") shouldBe defined
+      flint.describeIndex("flint_spark_catalog_sample_test2_skipping_index") shouldBe defined
+    } finally {
+      sql("DROP DATABASE sample CASCADE")
+    }
+  }
+
+  test("create skipping index on table in other database than current") {
+    sql("CREATE SCHEMA sample")
+    sql("USE sample")
+
+    // Specify database "default" in table name instead of current "sample" database
+    sql(s"CREATE SKIPPING INDEX ON $testTable (name VALUE_SET)")
+
+    try {
+      flint.describeIndex(testIndex) shouldBe defined
+    } finally {
+      sql("DROP DATABASE sample CASCADE")
+    }
   }
 
   test("should return empty if no skipping index to describe") {
