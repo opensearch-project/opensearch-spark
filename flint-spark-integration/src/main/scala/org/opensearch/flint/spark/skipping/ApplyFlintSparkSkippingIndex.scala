@@ -7,13 +7,13 @@ package org.opensearch.flint.spark.skipping
 
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, SKIPPING_INDEX_TYPE}
-import org.opensearch.flint.spark.util.QualifiedTableName
 
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.catalyst.expressions.{And, Expression, Or, Predicate}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
+import org.apache.spark.sql.flint.qualifyTableName
 
 /**
  * Flint Spark skipping index apply rule that rewrites applicable query's filtering condition and
@@ -62,7 +62,7 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
   private def getIndexName(table: CatalogTable): String = {
     // Spark qualified name only contains database.table without catalog
     val tableName = table.qualifiedName
-    val qualifiedTableName = new QualifiedTableName(flint.spark, tableName).name
+    val qualifiedTableName = qualifyTableName(flint.spark, tableName)
     getSkippingIndexName(qualifiedTableName)
   }
 

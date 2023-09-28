@@ -6,9 +6,10 @@
 package org.opensearch.flint.spark
 
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
-import org.opensearch.flint.spark.util.QualifiedTableName
 
 import org.apache.spark.sql.catalog.Column
+import org.apache.spark.sql.catalyst.util.CharVarcharUtils
+import org.apache.spark.sql.flint.{loadTable, parseTableName}
 
 /**
  * Flint Spark index builder base class.
@@ -28,11 +29,24 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
   lazy protected val allColumns: Map[String, Column] = {
     require(tableName.nonEmpty, "Source table name is not provided")
 
-    val qualified = new QualifiedTableName(flint.spark, tableName)
-    flint.spark.catalog
-      .listColumns(qualified.nameWithoutCatalog)
-      .collect()
-      .map(col => (col.name, col))
+    val (catalog, ident) = parseTableName(flint.spark, tableName)
+    val table = loadTable(catalog, ident).getOrElse(
+      throw new IllegalStateException(s"Table $tableName is not found"))
+
+    table
+      .schema()
+      .fields
+      .map { field =>
+        field.name -> new Column(
+          name = field.name,
+          description = field.getComment().orNull,
+          dataType =
+            // CatalogImpl.listColumns: Varchar/Char is StringType with real type name in metadata
+            CharVarcharUtils.getRawType(field.metadata).getOrElse(field.dataType).catalogString,
+          nullable = field.nullable,
+          isPartition = false, // useless for now so just set to false
+          isBucket = false)
+      }
       .toMap
   }
 

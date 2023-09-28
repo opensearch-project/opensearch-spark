@@ -9,9 +9,9 @@ import org.antlr.v4.runtime.tree.{ParseTree, RuleNode}
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.sql.covering.FlintSparkCoveringIndexAstBuilder
 import org.opensearch.flint.spark.sql.skipping.FlintSparkSkippingIndexAstBuilder
-import org.opensearch.flint.spark.util.QualifiedTableName
 
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.flint.qualifyTableName
 
 /**
  * Flint Spark AST builder that builds Spark command for Flint index statement. This class mix-in
@@ -45,6 +45,6 @@ object FlintSparkSqlAstBuilder {
    * @return
    */
   def getFullTableName(flint: FlintSpark, tableNameCtx: RuleNode): String = {
-    QualifiedTableName(flint.spark, tableNameCtx.getText).name
+    qualifyTableName(flint.spark, tableNameCtx.getText)
   }
 }
