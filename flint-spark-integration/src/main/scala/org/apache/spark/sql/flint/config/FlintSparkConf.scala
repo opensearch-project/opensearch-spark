@@ -51,7 +51,8 @@ object FlintSparkConf {
 
   val AUTH = FlintConfig("spark.datasource.flint.auth")
     .datasourceOption()
-    .doc("authentication type. supported value: NONE_AUTH(false), SIGV4_AUTH(sigv4), BASIC_AUTH")
+    .doc("authentication type. supported value: " +
+      "noauth(no auth), sigv4(sigv4 auth), basic(basic auth)")
     .createWithDefault(FlintOptions.NONE_AUTH)
 
   val USERNAME = FlintConfig("spark.datasource.flint.auth.username")

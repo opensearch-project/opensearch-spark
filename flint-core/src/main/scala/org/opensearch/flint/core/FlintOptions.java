@@ -27,7 +27,7 @@ public class FlintOptions implements Serializable {
 
   public static final String AUTH = "auth";
 
-  public static final String NONE_AUTH = "false";
+  public static final String NONE_AUTH = "noauth";
 
   public static final String SIGV4_AUTH = "sigv4";
 
