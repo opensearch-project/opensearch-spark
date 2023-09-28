@@ -43,7 +43,7 @@ lazy val commonSettings = Seq(
   Test / test := ((Test / test) dependsOn testScalastyle).value)
 
 lazy val root = (project in file("."))
-  .aggregate(flintCore, flintSparkIntegration, sparkSqlApplication)
+  .aggregate(flintCore, flintSparkIntegration, pplSparkIntegration, sparkSqlApplication)
   .disablePlugins(AssemblyPlugin)
   .settings(name := "flint", publish / skip := true)
 
@@ -60,6 +60,42 @@ lazy val flintCore = (project in file("flint-core"))
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind")),
     publish / skip := true)
+
+lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
+  .enablePlugins(AssemblyPlugin, Antlr4Plugin)
+  .settings(
+    commonSettings,
+    name := "ppl-spark-integration",
+    scalaVersion := scala212,
+    libraryDependencies ++= Seq(
+      "org.scalactic" %% "scalactic" % "3.2.15" % "test",
+      "org.scalatest" %% "scalatest" % "3.2.15" % "test",
+      "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
+      "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
+      "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
+      "com.github.sbt" % "junit-interface" % "0.13.3" % "test"),
+    libraryDependencies ++= deps(sparkVersion),
+    // ANTLR settings
+    Antlr4 / antlr4Version := "4.8",
+    Antlr4 / antlr4PackageName := Some("org.opensearch.flint.spark.ppl"),
+    Antlr4 / antlr4GenListener := true,
+    Antlr4 / antlr4GenVisitor := true,
+    // Assembly settings
+    assemblyPackageScala / assembleArtifact := false,
+    assembly / assemblyOption ~= {
+      _.withIncludeScala(false)
+    },
+    assembly / assemblyMergeStrategy := {
+      case PathList(ps @ _*) if ps.last endsWith ("module-info.class") =>
+        MergeStrategy.discard
+      case PathList("module-info.class") => MergeStrategy.discard
+      case PathList("META-INF", "versions", xs @ _, "module-info.class") =>
+        MergeStrategy.discard
+      case x =>
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+    },
+    assembly / test := (Test / test).value)
 
 lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
   .dependsOn(flintCore)
@@ -102,7 +138,7 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
 
 // Test assembly package with integration test.
 lazy val integtest = (project in file("integ-test"))
-  .dependsOn(flintSparkIntegration % "test->test")
+  .dependsOn(flintSparkIntegration % "test->test", pplSparkIntegration % "test->test" )
   .settings(
     commonSettings,
     name := "integ-test",
@@ -113,9 +149,12 @@ lazy val integtest = (project in file("integ-test"))
       "org.scalactic" %% "scalactic" % "3.2.15",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
-      "org.testcontainers" % "testcontainers" % "1.18.0" % "test"),
+      "org.testcontainers" % "testcontainers" % "1.18.0" % "test",
+      // add opensearch-java client to get node stats
+      "org.opensearch.client" % "opensearch-java" % "2.6.0" % "test"
+        exclude ("com.fasterxml.jackson.core", "jackson-databind")),
     libraryDependencies ++= deps(sparkVersion),
-    Test / fullClasspath += (flintSparkIntegration / assembly).value)
+    Test / fullClasspath ++= Seq((flintSparkIntegration / assembly).value, (pplSparkIntegration / assembly).value))
 
 lazy val standaloneCosmetic = project
   .settings(
@@ -130,8 +169,7 @@ lazy val sparkSqlApplication = (project in file("spark-sql-application"))
     commonSettings,
     name := "sql-job",
     scalaVersion := scala212,
-    libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.2.15" % "test"),
+    libraryDependencies ++= Seq("org.scalatest" %% "scalatest" % "3.2.15" % "test"),
     libraryDependencies ++= deps(sparkVersion))
 
 lazy val sparkSqlApplicationCosmetic = project
@@ -141,6 +179,14 @@ lazy val sparkSqlApplicationCosmetic = project
     releaseSettings,
     exportJars := true,
     Compile / packageBin := (sparkSqlApplication / assembly).value)
+
+lazy val sparkPPLCosmetic = project
+  .settings(
+    name := "opensearch-spark-ppl",
+    commonSettings,
+    releaseSettings,
+    exportJars := true,
+    Compile / packageBin := (pplSparkIntegration / assembly).value)
 
 lazy val releaseSettings = Seq(
   publishMavenStyle := true,
