@@ -33,6 +33,7 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
     val table = loadTable(catalog, ident).getOrElse(
       throw new IllegalStateException(s"Table $tableName is not found"))
 
+    // Ref to CatalogImpl.listColumns(): Varchar/Char is StringType with real type name in metadata
     table
       .schema()
       .fields
@@ -41,7 +42,6 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
           name = field.name,
           description = field.getComment().orNull,
           dataType =
-            // CatalogImpl.listColumns: Varchar/Char is StringType with real type name in metadata
             CharVarcharUtils.getRawType(field.metadata).getOrElse(field.dataType).catalogString,
           nullable = field.nullable,
           isPartition = false, // useless for now so just set to false

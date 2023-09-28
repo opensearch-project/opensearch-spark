@@ -60,7 +60,8 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
   }
 
   private def getIndexName(table: CatalogTable): String = {
-    // Spark qualified name only contains database.table without catalog
+    // Because Spark qualified name only contains database.table without catalog
+    // the limitation here is qualifyTableName always use current catalog.
     val tableName = table.qualifiedName
     val qualifiedTableName = qualifyTableName(flint.spark, tableName)
     getSkippingIndexName(qualifiedTableName)
