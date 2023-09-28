@@ -44,10 +44,11 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
         }
       }
 
+      val ignoreIfExists = ctx.EXISTS() != null
       val indexOptions = visitPropertyList(ctx.propertyList())
       indexBuilder
         .options(indexOptions)
-        .create()
+        .create(ignoreIfExists)
 
       // Trigger auto refresh if enabled
       if (indexOptions.autoRefresh()) {

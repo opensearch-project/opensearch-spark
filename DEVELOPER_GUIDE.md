@@ -22,7 +22,7 @@ sbt scalafmtAll
 ```
 The code style is automatically checked, but users can also manually check it.
 ```
-sbt sbt scalastyle
+sbt scalastyle
 ```
 For IntelliJ user, read more in [scalafmt IntelliJ](https://scalameta.org/scalafmt/docs/installation.html#intellij) to integrate 
 scalafmt with IntelliJ

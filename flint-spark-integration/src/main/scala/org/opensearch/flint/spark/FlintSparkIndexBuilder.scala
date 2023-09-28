@@ -65,8 +65,12 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
 
   /**
    * Create Flint index.
+   *
+   * @param ignoreIfExists
+   *   ignore existing index
    */
-  def create(): Unit = flint.createIndex(buildIndex())
+  def create(ignoreIfExists: Boolean = false): Unit =
+    flint.createIndex(buildIndex(), ignoreIfExists)
 
   /**
    * Build method for concrete builder class to implement
