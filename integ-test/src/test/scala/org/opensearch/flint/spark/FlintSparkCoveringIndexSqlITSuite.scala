@@ -67,6 +67,26 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     indexData.count() shouldBe 2
   }
 
+  test("create covering index if not exists") {
+    sql(s"""
+           | CREATE INDEX IF NOT EXISTS $testIndex
+           | ON $testTable (name, age)
+           |""".stripMargin)
+    flint.describeIndex(testFlintIndex) shouldBe defined
+
+    // Expect error without IF NOT EXISTS, otherwise success
+    assertThrows[IllegalStateException] {
+      sql(s"""
+             | CREATE INDEX $testIndex
+             | ON $testTable (name, age)
+             |""".stripMargin)
+    }
+    sql(s"""
+           | CREATE INDEX IF NOT EXISTS $testIndex
+           | ON $testTable (name, age)
+           |""".stripMargin)
+  }
+
   test("show all covering index on the source table") {
     flint
       .coveringIndex()

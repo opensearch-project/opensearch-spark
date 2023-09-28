@@ -76,14 +76,18 @@ class FlintSpark(val spark: SparkSession) {
    *
    * @param index
    *   Flint index to create
+   * @param ignoreIfExists
+   *   Ignore existing index
    */
-  def createIndex(index: FlintSparkIndex): Unit = {
+  def createIndex(index: FlintSparkIndex, ignoreIfExists: Boolean = false): Unit = {
     val indexName = index.name()
     if (flintClient.exists(indexName)) {
-      throw new IllegalStateException(
-        s"A table can only have one Flint skipping index: Flint index $indexName is found")
+      if (!ignoreIfExists) {
+        throw new IllegalStateException(s"Flint index $indexName already exists")
+      }
+    } else {
+      flintClient.createIndex(indexName, index.metadata())
     }
-    flintClient.createIndex(indexName, index.metadata())
   }
 
   /**

@@ -94,6 +94,28 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     indexData.count() shouldBe 2
   }
 
+  test("create skipping index if not exists") {
+    sql(s"""
+           | CREATE SKIPPING INDEX
+           | IF NOT EXISTS
+           | ON $testTable ( year PARTITION )
+           | """.stripMargin)
+    flint.describeIndex(testIndex) shouldBe defined
+
+    // Expect error without IF NOT EXISTS, otherwise success
+    assertThrows[IllegalStateException] {
+      sql(s"""
+             | CREATE SKIPPING INDEX
+             | ON $testTable ( year PARTITION )
+             | """.stripMargin)
+    }
+    sql(s"""
+           | CREATE SKIPPING INDEX
+           | IF NOT EXISTS
+           | ON $testTable ( year PARTITION )
+           | """.stripMargin)
+  }
+
   test("describe skipping index") {
     flint
       .skippingIndex()
