@@ -133,11 +133,12 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         | }
         |""".stripMargin)
 
+    // Load index options from index mapping (verify OS index setting in SQL IT)
     index.get.options.autoRefresh() shouldBe true
     index.get.options.refreshInterval() shouldBe Some("1 Minute")
     index.get.options.checkpointLocation() shouldBe Some("s3a://test/")
     index.get.options.indexSettings() shouldBe
-      "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
+      Some("{\"number_of_shards\": 3,\"number_of_replicas\": 2}")
   }
 
   test("should not have ID column in index data") {

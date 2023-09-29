@@ -86,12 +86,10 @@ class FlintSpark(val spark: SparkSession) {
         throw new IllegalStateException(s"Flint index $indexName already exists")
       }
     } else {
-      flintClient.createIndex(indexName, index.metadata())
+      val metadata = index.metadata()
+      index.options.indexSettings().foreach(metadata.setIndexSettings)
+      flintClient.createIndex(indexName, metadata)
     }
-
-    val metadata = index.metadata()
-    index.options.indexSettings().foreach(metadata.setIndexSettings)
-    flintClient.createIndex(indexName, metadata)
   }
 
   /**

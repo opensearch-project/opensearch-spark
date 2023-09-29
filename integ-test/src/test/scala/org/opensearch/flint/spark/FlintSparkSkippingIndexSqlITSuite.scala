@@ -90,7 +90,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
            | )
            |""".stripMargin)
 
-    // Check if the index settings is set to OS index
+    // Check if the index setting option is set to OS index setting
     val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
 
     implicit val formats: Formats = Serialization.formats(NoTypeHints)
