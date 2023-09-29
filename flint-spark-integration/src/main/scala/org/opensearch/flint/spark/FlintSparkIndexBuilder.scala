@@ -9,7 +9,8 @@ import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 
 import org.apache.spark.sql.catalog.Column
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
-import org.apache.spark.sql.flint.{loadTable, parseTableName}
+import org.apache.spark.sql.flint.{loadTable, parseTableName, qualifyTableName}
+import org.apache.spark.sql.types.StructField
 
 /**
  * Flint Spark index builder base class.
@@ -19,35 +20,22 @@ import org.apache.spark.sql.flint.{loadTable, parseTableName}
  */
 abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
 
-  /** Source table name */
-  protected var tableName: String = ""
+  /** Qualified source table name */
+  protected var qualifiedTableName: String = ""
 
   /** Index options */
   protected var indexOptions: FlintSparkIndexOptions = empty
 
   /** All columns of the given source table */
   lazy protected val allColumns: Map[String, Column] = {
-    require(tableName.nonEmpty, "Source table name is not provided")
+    require(qualifiedTableName.nonEmpty, "Source table name is not provided")
 
-    val (catalog, ident) = parseTableName(flint.spark, tableName)
+    val (catalog, ident) = parseTableName(flint.spark, qualifiedTableName)
     val table = loadTable(catalog, ident).getOrElse(
-      throw new IllegalStateException(s"Table $tableName is not found"))
+      throw new IllegalStateException(s"Table $qualifiedTableName is not found"))
 
-    // Ref to CatalogImpl.listColumns(): Varchar/Char is StringType with real type name in metadata
-    table
-      .schema()
-      .fields
-      .map { field =>
-        field.name -> new Column(
-          name = field.name,
-          description = field.getComment().orNull,
-          dataType =
-            CharVarcharUtils.getRawType(field.metadata).getOrElse(field.dataType).catalogString,
-          nullable = field.nullable,
-          isPartition = false, // useless for now so just set to false
-          isBucket = false)
-      }
-      .toMap
+    val allFields = table.schema().fields
+    allFields.map { field => field.name -> convertFieldToColumn(field) }.toMap
   }
 
   /**
@@ -78,10 +66,36 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
   protected def buildIndex(): FlintSparkIndex
 
   /**
+   * Table name setter that qualifies given table name for subclass automatically.
+   */
+  protected def tableName_=(tableName: String): Unit = {
+    qualifiedTableName = qualifyTableName(flint.spark, tableName)
+  }
+
+  /**
+   * Table name getter
+   */
+  protected def tableName: String = {
+    qualifiedTableName
+  }
+
+  /**
    * Find column with the given name.
    */
   protected def findColumn(colName: String): Column =
     allColumns.getOrElse(
       colName,
       throw new IllegalArgumentException(s"Column $colName does not exist"))
+
+  private def convertFieldToColumn(field: StructField): Column = {
+    // Ref to CatalogImpl.listColumns(): Varchar/Char is StringType with real type name in metadata
+    new Column(
+      name = field.name,
+      description = field.getComment().orNull,
+      dataType =
+        CharVarcharUtils.getRawType(field.metadata).getOrElse(field.dataType).catalogString,
+      nullable = field.nullable,
+      isPartition = false, // useless for now so just set to false
+      isBucket = false)
+  }
 }

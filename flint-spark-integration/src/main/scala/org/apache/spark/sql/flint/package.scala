@@ -24,7 +24,17 @@ package object flint {
    */
   def qualifyTableName(spark: SparkSession, tableName: String): String = {
     val (catalog, ident) = parseTableName(spark, tableName)
-    s"${catalog.name}.${ident.namespace.mkString(".")}.${ident.name}"
+
+    // Tricky that our Flint delegate catalog's name has to be spark_catalog
+    // so we have to find its actual name in CatalogManager
+    val catalogMgr = spark.sessionState.catalogManager
+    val catalogName =
+      catalogMgr
+        .listCatalogs(Some("*"))
+        .find(catalogMgr.catalog(_) == catalog)
+        .getOrElse(catalog.name())
+
+    s"$catalogName.${ident.namespace.mkString(".")}.${ident.name}"
   }
 
   /**
