@@ -51,8 +51,19 @@ object FlintSparkConf {
 
   val AUTH = FlintConfig("spark.datasource.flint.auth")
     .datasourceOption()
-    .doc("authentication type. supported value: NONE_AUTH(false), SIGV4_AUTH(sigv4)")
+    .doc("authentication type. supported value: " +
+      "noauth(no auth), sigv4(sigv4 auth), basic(basic auth)")
     .createWithDefault(FlintOptions.NONE_AUTH)
+
+  val USERNAME = FlintConfig("spark.datasource.flint.auth.username")
+    .datasourceOption()
+    .doc("basic auth username")
+    .createWithDefault("flint")
+
+  val PASSWORD = FlintConfig("spark.datasource.flint.auth.password")
+    .datasourceOption()
+    .doc("basic auth password")
+    .createWithDefault("flint")
 
   val REGION = FlintConfig("spark.datasource.flint.region")
     .datasourceOption()
@@ -144,7 +155,9 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
         SCHEME,
         AUTH,
         REGION,
-        CUSTOM_AWS_CREDENTIALS_PROVIDER)
+        CUSTOM_AWS_CREDENTIALS_PROVIDER,
+        USERNAME,
+        PASSWORD)
         .map(conf => (conf.optionKey, conf.readFrom(reader)))
         .toMap
         .asJava)
