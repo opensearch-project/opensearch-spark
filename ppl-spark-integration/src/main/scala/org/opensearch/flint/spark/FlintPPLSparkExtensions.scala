@@ -20,8 +20,6 @@ class FlintPPLSparkExtensions extends (SparkSessionExtensions => Unit) {
       new FlintSparkPPLParser(parser)
     }
 
-    extensions.injectFunction(TumbleFunction.description)
-
     extensions.injectOptimizerRule { spark =>
       new FlintSparkOptimizer(spark)
     }

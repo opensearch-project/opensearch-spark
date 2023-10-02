@@ -11,6 +11,7 @@ import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Literal, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.flint.config.FlintSparkConf.OPTIMIZER_RULE_ENABLED
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLITSuite
@@ -20,10 +21,11 @@ class FlintSparkPPLITSuite
     with StreamTest {
 
   /** Test table and index name */
-  private val testTable = "default.flint_ppl_test"
+  private val testTable = "spark_catalog.default.flint_ppl_test"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    spark.conf.set(OPTIMIZER_RULE_ENABLED.key, "false")
 
     // Create test table
     // Update table creation
@@ -88,7 +90,9 @@ class FlintSparkPPLITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
     val expectedPlan: LogicalPlan =
-      Project(Seq(UnresolvedStar(None)), UnresolvedRelation(Seq("default", "flint_ppl_test")))
+      Project(
+        Seq(UnresolvedStar(None)),
+        UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
     // Compare the two plans
     assert(expectedPlan === logicalPlan)
   }
@@ -106,7 +110,7 @@ class FlintSparkPPLITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
     val limitPlan: LogicalPlan =
-      Limit(Literal(2), UnresolvedRelation(Seq("default", "flint_ppl_test")))
+      Limit(Literal(2), UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
     val expectedPlan = Project(Seq(UnresolvedStar(None)), limitPlan)
 
     // Compare the two plans
@@ -130,7 +134,7 @@ class FlintSparkPPLITSuite
       Sort(
         Seq(SortOrder(UnresolvedAttribute("name"), Ascending)),
         global = true,
-        UnresolvedRelation(Seq("default", "flint_ppl_test")))
+        UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
 
     // Define the expected logical plan
     val expectedPlan: LogicalPlan =
@@ -159,7 +163,7 @@ class FlintSparkPPLITSuite
     // Define the expected logical plan
     val expectedPlan: LogicalPlan = Project(
       Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
-      UnresolvedRelation(Seq("default", "flint_ppl_test")))
+      UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
     // Compare the two plans
     assert(expectedPlan === logicalPlan)
   }
@@ -183,7 +187,7 @@ class FlintSparkPPLITSuite
       Sort(
         Seq(SortOrder(UnresolvedAttribute("age"), Ascending)),
         global = true,
-        UnresolvedRelation(Seq("default", "flint_ppl_test")))
+        UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
 
     // Define the expected logical plan
     val expectedPlan: LogicalPlan =
@@ -206,7 +210,7 @@ class FlintSparkPPLITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val project = Project(
       Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
-      UnresolvedRelation(Seq("default", "flint_ppl_test")))
+      UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
     // Define the expected logical plan
     val limitPlan: LogicalPlan = Limit(Literal(1), project)
     val expectedPlan: LogicalPlan = Project(Seq(UnresolvedStar(None)), limitPlan)
@@ -227,7 +231,7 @@ class FlintSparkPPLITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val project = Project(
       Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
-      UnresolvedRelation(Seq("default", "flint_ppl_test")))
+      UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
     // Define the expected logical plan
     val limitPlan: LogicalPlan = Limit(Literal(1), project)
     val sortedPlan: LogicalPlan =

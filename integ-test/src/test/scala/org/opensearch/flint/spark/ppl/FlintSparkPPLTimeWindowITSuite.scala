@@ -13,6 +13,7 @@ import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Divide, Floor, GenericRowWithSchema, Literal, Multiply, SortOrder, TimeWindow}
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.flint.config.FlintSparkConf.OPTIMIZER_RULE_ENABLED
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLTimeWindowITSuite
@@ -22,10 +23,12 @@ class FlintSparkPPLTimeWindowITSuite
     with StreamTest {
 
   /** Test table and index name */
-  private val testTable = "default.flint_ppl_sales_test"
+  private val testTable = "spark_catalog.default.flint_ppl_sales_test"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    // disable optimization rule
+    spark.conf.set(OPTIMIZER_RULE_ENABLED.key, "false")
 
     // Create test table
     // Update table creation
@@ -130,7 +133,7 @@ class FlintSparkPPLTimeWindowITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val productsAmount = UnresolvedAttribute("productsAmount")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_sales_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_sales_test"))
 
     val windowExpression = Alias(
       TimeWindow(
@@ -189,7 +192,7 @@ class FlintSparkPPLTimeWindowITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val productsAmount = UnresolvedAttribute("productsAmount")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_sales_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_sales_test"))
 
     val windowExpression = Alias(
       TimeWindow(
@@ -291,7 +294,7 @@ class FlintSparkPPLTimeWindowITSuite
     val star = Seq(UnresolvedStar(None))
     val productsId = Alias(UnresolvedAttribute("productId"), "productId")()
     val productsAmount = UnresolvedAttribute("productsAmount")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_sales_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_sales_test"))
 
     val windowExpression = Alias(
       TimeWindow(
@@ -351,7 +354,7 @@ class FlintSparkPPLTimeWindowITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val productsAmount = UnresolvedAttribute("productsAmount")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_sales_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_sales_test"))
 
     val windowExpression = Alias(
       TimeWindow(
@@ -394,7 +397,7 @@ class FlintSparkPPLTimeWindowITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_sales_test"))
 
     val aggregateExpressions =
       Alias(UnresolvedFunction(Seq("COUNT"), Seq(ageField), isDistinct = false), "count(age)")()

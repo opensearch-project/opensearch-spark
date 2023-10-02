@@ -8,6 +8,7 @@ package org.opensearch.flint.spark
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
+import org.apache.spark.sql.flint.config.FlintSparkConf.OPTIMIZER_RULE_ENABLED
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 
@@ -24,4 +25,14 @@ trait FlintPPLSuite extends SharedSparkSession {
       .set("spark.sql.extensions", classOf[FlintPPLSparkExtensions].getName)
     conf
   }
+
+  private def withFlintOptimizerDisabled(block: => Unit): Unit = {
+    spark.conf.set(OPTIMIZER_RULE_ENABLED.key, "false")
+    try {
+      block
+    } finally {
+      spark.conf.set(OPTIMIZER_RULE_ENABLED.key, "true")
+    }
+  }
+
 }

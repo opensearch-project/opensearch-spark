@@ -11,6 +11,7 @@ import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Descending, Divide, EqualTo, Floor, GreaterThan, LessThanOrEqual, Literal, Multiply, Not, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.flint.config.FlintSparkConf.OPTIMIZER_RULE_ENABLED
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLFiltersITSuite
@@ -20,10 +21,11 @@ class FlintSparkPPLFiltersITSuite
     with StreamTest {
 
   /** Test table and index name */
-  private val testTable = "default.flint_ppl_test"
+  private val testTable = "spark_catalog.default.flint_ppl_test"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    spark.conf.set(OPTIMIZER_RULE_ENABLED.key, "false")
 
     // Create test table
     // Update table creation
@@ -83,7 +85,7 @@ class FlintSparkPPLFiltersITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = EqualTo(UnresolvedAttribute("age"), Literal(25))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
@@ -110,7 +112,7 @@ class FlintSparkPPLFiltersITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = And(
       GreaterThan(UnresolvedAttribute("age"), Literal(10)),
       Not(EqualTo(UnresolvedAttribute("country"), Literal("USA"))))
@@ -137,7 +139,7 @@ class FlintSparkPPLFiltersITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = And(
       GreaterThan(UnresolvedAttribute("age"), Literal(10)),
       Not(EqualTo(UnresolvedAttribute("country"), Literal("USA"))))
@@ -168,7 +170,7 @@ class FlintSparkPPLFiltersITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = Or(
       LessThanOrEqual(UnresolvedAttribute("age"), Literal(20)),
       EqualTo(UnresolvedAttribute("country"), Literal("USA")))
@@ -192,7 +194,7 @@ class FlintSparkPPLFiltersITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = Or(
       LessThanOrEqual(UnresolvedAttribute("age"), Literal(20)),
       EqualTo(UnresolvedAttribute("country"), Literal("USA")))
@@ -221,7 +223,7 @@ class FlintSparkPPLFiltersITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = GreaterThan(UnresolvedAttribute("age"), Literal(25))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
@@ -248,7 +250,7 @@ class FlintSparkPPLFiltersITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = LessThanOrEqual(UnresolvedAttribute("age"), Literal(65))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
@@ -273,7 +275,7 @@ class FlintSparkPPLFiltersITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = LessThanOrEqual(UnresolvedAttribute("age"), Literal(65))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
@@ -301,7 +303,7 @@ class FlintSparkPPLFiltersITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = EqualTo(UnresolvedAttribute("name"), Literal("Jake"))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
@@ -328,7 +330,7 @@ class FlintSparkPPLFiltersITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = Not(EqualTo(UnresolvedAttribute("name"), Literal("Jake")))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
@@ -356,7 +358,7 @@ class FlintSparkPPLFiltersITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
 
     val aggregateExpressions =
       Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")()
@@ -385,7 +387,7 @@ class FlintSparkPPLFiltersITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
 
     val aggregateExpressions =
       Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")()
@@ -432,7 +434,7 @@ class FlintSparkPPLFiltersITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val countryField = UnresolvedAttribute("country")
     val countryAlias = Alias(countryField, "country")()
 

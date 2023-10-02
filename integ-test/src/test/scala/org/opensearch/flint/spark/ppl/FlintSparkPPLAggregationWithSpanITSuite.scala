@@ -11,6 +11,7 @@ import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Descending, Divide, Floor, Literal, Multiply, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.flint.config.FlintSparkConf.OPTIMIZER_RULE_ENABLED
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLAggregationWithSpanITSuite
@@ -20,10 +21,11 @@ class FlintSparkPPLAggregationWithSpanITSuite
     with StreamTest {
 
   /** Test table and index name */
-  private val testTable = "default.flint_ppl_test"
+  private val testTable = "spark_catalog.default.flint_ppl_test"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    spark.conf.set(OPTIMIZER_RULE_ENABLED.key, "false")
 
     // Create test table
     // Update table creation
@@ -92,7 +94,7 @@ class FlintSparkPPLAggregationWithSpanITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
 
     val aggregateExpressions =
       Alias(UnresolvedFunction(Seq("COUNT"), Seq(ageField), isDistinct = false), "count(age)")()
@@ -132,7 +134,7 @@ class FlintSparkPPLAggregationWithSpanITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
 
     val aggregateExpressions =
       Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")()
@@ -161,7 +163,7 @@ class FlintSparkPPLAggregationWithSpanITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
 
     val aggregateExpressions =
       Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")()
@@ -203,7 +205,7 @@ class FlintSparkPPLAggregationWithSpanITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val countryField = UnresolvedAttribute("country")
     val countryAlias = Alias(countryField, "country")()
 
@@ -239,7 +241,7 @@ class FlintSparkPPLAggregationWithSpanITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val countryField = UnresolvedAttribute("country")
     val countryAlias = Alias(countryField, "country")()
 
@@ -272,7 +274,7 @@ class FlintSparkPPLAggregationWithSpanITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val countryField = UnresolvedAttribute("country")
     val countryAlias = Alias(countryField, "country")()
 
