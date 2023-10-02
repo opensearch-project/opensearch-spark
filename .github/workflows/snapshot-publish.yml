@@ -29,6 +29,7 @@ jobs:
       - name: Publish to Local Maven
         run: |
           sbt standaloneCosmetic/publishM2
+          sbt sparkPPLCosmetic/publishM2
           sbt sparkSqlApplicationCosmetic/publishM2
 
       - uses: actions/checkout@v3

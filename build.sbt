@@ -61,42 +61,6 @@ lazy val flintCore = (project in file("flint-core"))
         exclude ("com.fasterxml.jackson.core", "jackson-databind")),
     publish / skip := true)
 
-lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
-  .enablePlugins(AssemblyPlugin, Antlr4Plugin)
-  .settings(
-    commonSettings,
-    name := "ppl-spark-integration",
-    scalaVersion := scala212,
-    libraryDependencies ++= Seq(
-      "org.scalactic" %% "scalactic" % "3.2.15" % "test",
-      "org.scalatest" %% "scalatest" % "3.2.15" % "test",
-      "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
-      "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
-      "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
-      "com.github.sbt" % "junit-interface" % "0.13.3" % "test"),
-    libraryDependencies ++= deps(sparkVersion),
-    // ANTLR settings
-    Antlr4 / antlr4Version := "4.8",
-    Antlr4 / antlr4PackageName := Some("org.opensearch.flint.spark.ppl"),
-    Antlr4 / antlr4GenListener := true,
-    Antlr4 / antlr4GenVisitor := true,
-    // Assembly settings
-    assemblyPackageScala / assembleArtifact := false,
-    assembly / assemblyOption ~= {
-      _.withIncludeScala(false)
-    },
-    assembly / assemblyMergeStrategy := {
-      case PathList(ps @ _*) if ps.last endsWith ("module-info.class") =>
-        MergeStrategy.discard
-      case PathList("module-info.class") => MergeStrategy.discard
-      case PathList("META-INF", "versions", xs @ _, "module-info.class") =>
-        MergeStrategy.discard
-      case x =>
-        val oldStrategy = (assembly / assemblyMergeStrategy).value
-        oldStrategy(x)
-    },
-    assembly / test := (Test / test).value)
-
 lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
   .dependsOn(flintCore)
   .enablePlugins(AssemblyPlugin, Antlr4Plugin)
@@ -117,6 +81,43 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
     // ANTLR settings
     Antlr4 / antlr4Version := "4.8",
     Antlr4 / antlr4PackageName := Some("org.opensearch.flint.spark.sql"),
+    Antlr4 / antlr4GenListener := true,
+    Antlr4 / antlr4GenVisitor := true,
+    // Assembly settings
+    assemblyPackageScala / assembleArtifact := false,
+    assembly / assemblyOption ~= {
+      _.withIncludeScala(false)
+    },
+    assembly / assemblyMergeStrategy := {
+      case PathList(ps @ _*) if ps.last endsWith ("module-info.class") =>
+        MergeStrategy.discard
+      case PathList("module-info.class") => MergeStrategy.discard
+      case PathList("META-INF", "versions", xs @ _, "module-info.class") =>
+        MergeStrategy.discard
+      case x =>
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+    },
+    assembly / test := (Test / test).value)
+
+lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
+  .enablePlugins(AssemblyPlugin, Antlr4Plugin)
+  .dependsOn(flintSparkIntegration)
+  .settings(
+    commonSettings,
+    name := "ppl-spark-integration",
+    scalaVersion := scala212,
+    libraryDependencies ++= Seq(
+      "org.scalactic" %% "scalactic" % "3.2.15" % "test",
+      "org.scalatest" %% "scalatest" % "3.2.15" % "test",
+      "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
+      "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
+      "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
+      "com.github.sbt" % "junit-interface" % "0.13.3" % "test"),
+    libraryDependencies ++= deps(sparkVersion),
+    // ANTLR settings
+    Antlr4 / antlr4Version := "4.8",
+    Antlr4 / antlr4PackageName := Some("org.opensearch.flint.spark.ppl"),
     Antlr4 / antlr4GenListener := true,
     Antlr4 / antlr4GenVisitor := true,
     // Assembly settings
