@@ -272,7 +272,9 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.datasource.flint.host`: default is localhost.
 - `spark.datasource.flint.port`: default is 9200.
 - `spark.datasource.flint.scheme`: default is http. valid values [http, https]
-- `spark.datasource.flint.auth`: default is false. valid values [false, sigv4]
+- `spark.datasource.flint.auth`: default is noauth. valid values [noauth, sigv4, basic]
+- `spark.datasource.flint.auth.username`: basic auth username.
+- `spark.datasource.flint.auth.password`: basic auth password.
 - `spark.datasource.flint.region`: default is us-west-2. only been used when auth=sigv4
 - `spark.datasource.flint.customAWSCredentialsProvider`: default is empty.   
 - `spark.datasource.flint.write.id_name`: no default value.
@@ -455,4 +457,12 @@ Flint use [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJa
 --conf spark.datasource.flint.customAWSCredentialsProvider=com.amazonaws.emr.AssumeRoleAWSCredentialsProvider \
 --conf spark.emr-serverless.driverEnv.ASSUME_ROLE_CREDENTIALS_ROLE_ARN=arn:aws:iam::AccountB:role/CrossAccountRoleB \
 --conf spark.executorEnv.ASSUME_ROLE_CREDENTIALS_ROLE_ARN=arn:aws:iam::AccountBB:role/CrossAccountRoleB
+```
+
+### Basic Auth
+Add Basic Auth configuration in Spark configuration. Replace username and password with correct one.
+```
+--conf spark.datasource.flint.auth=basic
+--conf spark.datasource.flint.auth.username=username
+--conf spark.datasource.flint.auth.password=password
 ```

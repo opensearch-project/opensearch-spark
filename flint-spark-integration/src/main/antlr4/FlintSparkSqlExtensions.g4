@@ -28,21 +28,21 @@ skippingIndexStatement
 
 createSkippingIndexStatement
     : CREATE SKIPPING INDEX (IF NOT EXISTS)?
-        ON tableName=multipartIdentifier
+        ON tableName
         LEFT_PAREN indexColTypeList RIGHT_PAREN
         (WITH LEFT_PAREN propertyList RIGHT_PAREN)?
     ;
 
 refreshSkippingIndexStatement
-    : REFRESH SKIPPING INDEX ON tableName=multipartIdentifier
+    : REFRESH SKIPPING INDEX ON tableName
     ;
 
 describeSkippingIndexStatement
-    : (DESC | DESCRIBE) SKIPPING INDEX ON tableName=multipartIdentifier
+    : (DESC | DESCRIBE) SKIPPING INDEX ON tableName
     ;
 
 dropSkippingIndexStatement
-    : DROP SKIPPING INDEX ON tableName=multipartIdentifier
+    : DROP SKIPPING INDEX ON tableName
     ;
 
 coveringIndexStatement
@@ -54,26 +54,26 @@ coveringIndexStatement
     ;
 
 createCoveringIndexStatement
-    : CREATE INDEX (IF NOT EXISTS)? indexName=identifier
-        ON tableName=multipartIdentifier
+    : CREATE INDEX (IF NOT EXISTS)? indexName
+        ON tableName
         LEFT_PAREN indexColumns=multipartIdentifierPropertyList RIGHT_PAREN
         (WITH LEFT_PAREN propertyList RIGHT_PAREN)?
     ;
 
 refreshCoveringIndexStatement
-    : REFRESH INDEX indexName=identifier ON tableName=multipartIdentifier
+    : REFRESH INDEX indexName ON tableName
     ;
 
 showCoveringIndexStatement
-    : SHOW (INDEX | INDEXES) ON tableName=multipartIdentifier
+    : SHOW (INDEX | INDEXES) ON tableName
     ;
 
 describeCoveringIndexStatement
-    : (DESC | DESCRIBE) INDEX indexName=identifier ON tableName=multipartIdentifier
+    : (DESC | DESCRIBE) INDEX indexName ON tableName
     ;
 
 dropCoveringIndexStatement
-    : DROP INDEX indexName=identifier ON tableName=multipartIdentifier
+    : DROP INDEX indexName ON tableName
     ;
 
 indexColTypeList
@@ -82,4 +82,12 @@ indexColTypeList
 
 indexColType
     : identifier skipType=(PARTITION | VALUE_SET | MIN_MAX)
+    ;
+
+indexName
+    : identifier
+    ;
+
+tableName
+    : multipartIdentifier
     ;
