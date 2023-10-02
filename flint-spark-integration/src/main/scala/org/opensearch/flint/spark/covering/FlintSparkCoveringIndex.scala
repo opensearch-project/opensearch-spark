@@ -109,7 +109,9 @@ object FlintSparkCoveringIndex {
    *   Flint covering index name
    */
   def getFlintIndexName(indexName: String, tableName: String): String = {
-    require(tableName.contains("."), "Full table name database.table is required")
+    require(
+      tableName.split("\\.").length >= 3,
+      "Qualified table name catalog.database.table is required")
 
     flintIndexNamePrefix(tableName) + indexName + COVERING_INDEX_SUFFIX
   }

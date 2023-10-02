@@ -28,7 +28,7 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       ctx: CreateCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
       val indexName = ctx.indexName.getText
-      val tableName = ctx.tableName.getText
+      val tableName = getFullTableName(flint, ctx.tableName)
       val indexBuilder =
         flint
           .coveringIndex()

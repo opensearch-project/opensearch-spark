@@ -20,16 +20,18 @@ import org.apache.spark.sql.functions.col
 
 class FlintSparkSkippingIndexSuite extends FlintSuite {
 
+  private val testTable = "spark_catalog.default.test"
+
   test("get skipping index name") {
-    val index = new FlintSparkSkippingIndex("default.test", Seq(mock[FlintSparkSkippingStrategy]))
-    index.name() shouldBe "flint_default_test_skipping_index"
+    val index = new FlintSparkSkippingIndex(testTable, Seq(mock[FlintSparkSkippingStrategy]))
+    index.name() shouldBe "flint_spark_catalog_default_test_skipping_index"
   }
 
   test("can build index building job with unique ID column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.outputSchema()).thenReturn(Map("name" -> "string"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("name").expr)))
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
 
     val df = spark.createDataFrame(Seq(("hello", 20))).toDF("name", "age")
     val indexDf = index.build(df)
@@ -41,7 +43,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.outputSchema()).thenReturn(Map("boolean_col" -> "boolean"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("boolean_col").expr)))
 
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
       index.metadata(),
       s"""{
@@ -60,7 +62,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.outputSchema()).thenReturn(Map("string_col" -> "string"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("string_col").expr)))
 
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
       index.metadata(),
       s"""{
@@ -81,7 +83,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.outputSchema()).thenReturn(Map("varchar_col" -> "varchar(20)"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("varchar_col").expr)))
 
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
       index.metadata(),
       s"""{
@@ -100,7 +102,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.outputSchema()).thenReturn(Map("char_col" -> "char(20)"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("char_col").expr)))
 
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
       index.metadata(),
       s"""{
@@ -119,7 +121,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.outputSchema()).thenReturn(Map("long_col" -> "bigint"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("long_col").expr)))
 
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
       index.metadata(),
       s"""{
@@ -138,7 +140,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.outputSchema()).thenReturn(Map("int_col" -> "int"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("int_col").expr)))
 
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
       index.metadata(),
       s"""{
@@ -157,7 +159,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.outputSchema()).thenReturn(Map("short_col" -> "smallint"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("short_col").expr)))
 
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
       index.metadata(),
       s"""{
@@ -176,7 +178,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.outputSchema()).thenReturn(Map("byte_col" -> "tinyint"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("byte_col").expr)))
 
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
       index.metadata(),
       s"""{
@@ -195,7 +197,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.outputSchema()).thenReturn(Map("double_col" -> "double"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("double_col").expr)))
 
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
       index.metadata(),
       s"""{
@@ -214,7 +216,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.outputSchema()).thenReturn(Map("float_col" -> "float"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("float_col").expr)))
 
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
       index.metadata(),
       s"""{
@@ -233,7 +235,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.outputSchema()).thenReturn(Map("timestamp_col" -> "timestamp"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("timestamp_col").expr)))
 
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
       index.metadata(),
       s"""{
@@ -253,7 +255,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.outputSchema()).thenReturn(Map("date_col" -> "date"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("date_col").expr)))
 
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
       index.metadata(),
       s"""{
@@ -274,7 +276,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
       .thenReturn(Map("struct_col" -> "struct<subfield1:string,subfield2:int>"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("struct_col").expr)))
 
-    val index = new FlintSparkSkippingIndex("default.test", Seq(indexCol))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
       index.metadata(),
       s"""{
@@ -303,7 +305,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("should fail if no indexed column given") {
     assertThrows[IllegalArgumentException] {
-      new FlintSparkSkippingIndex("default.test", Seq.empty)
+      new FlintSparkSkippingIndex(testTable, Seq.empty)
     }
   }
 

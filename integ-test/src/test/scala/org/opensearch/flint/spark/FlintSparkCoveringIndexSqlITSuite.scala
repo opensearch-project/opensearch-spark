@@ -17,7 +17,7 @@ import org.apache.spark.sql.Row
 class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
   /** Test table and index name */
-  private val testTable = "default.covering_sql_test"
+  private val testTable = "spark_catalog.default.covering_sql_test"
   private val testIndex = "name_and_age"
   private val testFlintIndex = getFlintIndexName(testIndex, testTable)
 
@@ -65,6 +65,46 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     sql(s"REFRESH INDEX $testIndex ON $testTable")
     indexData.count() shouldBe 2
+  }
+
+  test("create covering index on table without database name") {
+    sql(s"CREATE INDEX $testIndex ON covering_sql_test (name)")
+
+    flint.describeIndex(testFlintIndex) shouldBe defined
+  }
+
+  test("create covering index on table in other database") {
+    sql("CREATE SCHEMA sample")
+    sql("USE sample")
+
+    // Create index without database name specified
+    sql("CREATE TABLE test1 (name STRING) USING CSV")
+    sql(s"CREATE INDEX $testIndex ON sample.test1 (name)")
+
+    // Create index with database name specified
+    sql("CREATE TABLE test2 (name STRING) USING CSV")
+    sql(s"CREATE INDEX $testIndex ON sample.test2 (name)")
+
+    try {
+      flint.describeIndex(s"flint_spark_catalog_sample_test1_${testIndex}_index") shouldBe defined
+      flint.describeIndex(s"flint_spark_catalog_sample_test2_${testIndex}_index") shouldBe defined
+    } finally {
+      sql("DROP DATABASE sample CASCADE")
+    }
+  }
+
+  test("create covering index on table in other database than current") {
+    sql("CREATE SCHEMA sample")
+    sql("USE sample")
+
+    // Specify database "default" in table name instead of current "sample" database
+    sql(s"CREATE INDEX $testIndex ON $testTable (name)")
+
+    try {
+      flint.describeIndex(testFlintIndex) shouldBe defined
+    } finally {
+      sql("DROP DATABASE sample CASCADE")
+    }
   }
 
   test("create covering index if not exists") {
