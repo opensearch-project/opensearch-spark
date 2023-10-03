@@ -78,7 +78,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |        "columnType": "int"
         |     }],
         |     "source": "spark_catalog.default.test",
-        |     "options": {}
+        |     "options": {},
+        |     "properties": {}
         |   },
         |   "properties": {
         |     "year": {
@@ -506,7 +507,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
          |        "columnType": "struct<subfield1:string,subfield2:int>"
          |     }],
          |     "source": "$testTable",
-         |     "options": {}
+         |     "options": {},
+         |     "properties": {}
          |   },
          |   "properties": {
          |     "boolean_col": {

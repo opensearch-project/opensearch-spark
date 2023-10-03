@@ -11,7 +11,7 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintVersion
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
-import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, ID_COLUMN}
+import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, populateEnvToMetadata, ID_COLUMN}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
@@ -59,7 +59,8 @@ class FlintSparkSkippingIndex(
         |     "kind": "$SKIPPING_INDEX_TYPE",
         |     "indexedColumns": $getMetaInfo,
         |     "source": "$tableName",
-        |     "options": $getIndexOptions
+        |     "options": $getIndexOptions,
+        |     "properties": $getIndexProperties
         |   },
         |   "properties": $getSchema
         | }
@@ -87,6 +88,15 @@ class FlintSparkSkippingIndex(
 
   private def getIndexOptions: String = {
     Serialization.write(options.options)
+  }
+
+  private def getIndexProperties: String = {
+    val envMap = populateEnvToMetadata
+    if (envMap.isEmpty) {
+      "{}"
+    } else {
+      s"""{ "env": ${Serialization.write(envMap)} }"""
+    }
   }
 
   private def getSchema: String = {
