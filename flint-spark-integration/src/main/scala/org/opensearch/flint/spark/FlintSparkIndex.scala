@@ -66,10 +66,6 @@ object FlintSparkIndex {
   def flintIndexNamePrefix(fullTableName: String): String =
     s"flint_${fullTableName.replace(".", "_")}_"
 
-  // TODO: avoid hardcoding env name below by providing another config
-  private val EMR_S_APP_ID_KEY = "SERVERLESS_EMR_VIRTUAL_CLUSTER_ID"
-  private val EMR_S_JOB_ID_KEY = "SERVERLESS_EMR_JOB_ID"
-
   /**
    * Populate environment variables to persist in Flint metadata.
    *
@@ -77,12 +73,12 @@ object FlintSparkIndex {
    *   env key value mapping to populate
    */
   def populateEnvToMetadata: Map[String, String] = {
-    val appId = System.getenv(EMR_S_APP_ID_KEY)
-    if (appId == null) {
-      Map.empty
-    } else {
-      val jobId = System.getenv(EMR_S_JOB_ID_KEY)
-      Map(EMR_S_APP_ID_KEY -> appId, EMR_S_JOB_ID_KEY -> jobId)
-    }
+    // TODO: avoid hardcoding env name below by providing another config
+    val envNames = Seq("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "SERVERLESS_EMR_JOB_ID")
+    envNames
+      .flatMap(key =>
+        Option(System.getenv(key))
+          .map(value => key -> value))
+      .toMap
   }
 }
