@@ -7,13 +7,10 @@ package org.opensearch.flint.spark.ppl
 
 import java.sql.Timestamp
 
-import org.opensearch.flint.spark.FlintPPLSuite
-
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Divide, Floor, GenericRowWithSchema, Literal, Multiply, SortOrder, TimeWindow}
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.flint.config.FlintSparkConf.OPTIMIZER_RULE_ENABLED
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLTimeWindowITSuite
@@ -27,9 +24,6 @@ class FlintSparkPPLTimeWindowITSuite
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    // disable optimization rule
-    spark.conf.set(OPTIMIZER_RULE_ENABLED.key, "false")
-
     // Create test table
     // Update table creation
     sql(s"""

@@ -5,13 +5,10 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.opensearch.flint.spark.FlintPPLSuite
-
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Descending, Divide, EqualTo, Floor, GreaterThan, LessThanOrEqual, Literal, Multiply, Not, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.flint.config.FlintSparkConf.OPTIMIZER_RULE_ENABLED
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLFiltersITSuite
@@ -25,8 +22,6 @@ class FlintSparkPPLFiltersITSuite
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    spark.conf.set(OPTIMIZER_RULE_ENABLED.key, "false")
-
     // Create test table
     // Update table creation
     sql(s"""
