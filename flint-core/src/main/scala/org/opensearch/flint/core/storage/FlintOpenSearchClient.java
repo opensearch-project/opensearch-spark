@@ -15,6 +15,8 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.http.HttpHost;
@@ -30,8 +32,6 @@ import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.client.indices.GetIndexResponse;
-import org.opensearch.client.indices.GetMappingsRequest;
-import org.opensearch.client.indices.GetMappingsResponse;
 import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.common.Strings;
 import org.opensearch.common.settings.Settings;
@@ -68,8 +68,9 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override public void createIndex(String indexName, FlintMetadata metadata) {
+    String osIndexName = toLowercase(indexName);
     try (RestHighLevelClient client = createClient()) {
-      CreateIndexRequest request = new CreateIndexRequest(indexName);
+      CreateIndexRequest request = new CreateIndexRequest(osIndexName);
       request.mapping(metadata.getContent(), XContentType.JSON);
 
       if (metadata.getIndexSettings() != null) {
@@ -77,21 +78,23 @@ public class FlintOpenSearchClient implements FlintClient {
       }
       client.indices().create(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
-      throw new IllegalStateException("Failed to create Flint index " + indexName, e);
+      throw new IllegalStateException("Failed to create Flint index " + osIndexName, e);
     }
   }
 
   @Override public boolean exists(String indexName) {
+    String osIndexName = toLowercase(indexName);
     try (RestHighLevelClient client = createClient()) {
-      return client.indices().exists(new GetIndexRequest(indexName), RequestOptions.DEFAULT);
+      return client.indices().exists(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT);
     } catch (IOException e) {
-      throw new IllegalStateException("Failed to check if Flint index exists " + indexName, e);
+      throw new IllegalStateException("Failed to check if Flint index exists " + osIndexName, e);
     }
   }
 
   @Override public List<FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
+    String osIndexNamePattern = toLowercase(indexNamePattern);
     try (RestHighLevelClient client = createClient()) {
-      GetIndexRequest request = new GetIndexRequest(indexNamePattern);
+      GetIndexRequest request = new GetIndexRequest(osIndexNamePattern);
       GetIndexResponse response = client.indices().get(request, RequestOptions.DEFAULT);
 
       return Arrays.stream(response.getIndices())
@@ -100,30 +103,32 @@ public class FlintOpenSearchClient implements FlintClient {
               response.getSettings().get(index).toString()))
           .collect(Collectors.toList());
     } catch (Exception e) {
-      throw new IllegalStateException("Failed to get Flint index metadata for " + indexNamePattern, e);
+      throw new IllegalStateException("Failed to get Flint index metadata for " + osIndexNamePattern, e);
     }
   }
 
   @Override public FlintMetadata getIndexMetadata(String indexName) {
+    String osIndexName = toLowercase(indexName);
     try (RestHighLevelClient client = createClient()) {
-      GetIndexRequest request = new GetIndexRequest(indexName);
+      GetIndexRequest request = new GetIndexRequest(osIndexName);
       GetIndexResponse response = client.indices().get(request, RequestOptions.DEFAULT);
 
-      MappingMetadata mapping = response.getMappings().get(indexName);
-      Settings settings = response.getSettings().get(indexName);
+      MappingMetadata mapping = response.getMappings().get(osIndexName);
+      Settings settings = response.getSettings().get(osIndexName);
       return new FlintMetadata(mapping.source().string(), settings.toString());
     } catch (Exception e) {
-      throw new IllegalStateException("Failed to get Flint index metadata for " + indexName, e);
+      throw new IllegalStateException("Failed to get Flint index metadata for " + osIndexName, e);
     }
   }
 
   @Override public void deleteIndex(String indexName) {
+    String osIndexName = toLowercase(indexName);
     try (RestHighLevelClient client = createClient()) {
-      DeleteIndexRequest request = new DeleteIndexRequest(indexName);
+      DeleteIndexRequest request = new DeleteIndexRequest(osIndexName);
 
       client.indices().delete(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
-      throw new IllegalStateException("Failed to delete Flint index " + indexName, e);
+      throw new IllegalStateException("Failed to delete Flint index " + osIndexName, e);
     }
   }
 
@@ -144,7 +149,7 @@ public class FlintOpenSearchClient implements FlintClient {
         queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
       }
       return new OpenSearchScrollReader(createClient(),
-          indexName,
+          toLowercase(indexName),
           new SearchSourceBuilder().query(queryBuilder),
           options);
     } catch (IOException e) {
@@ -153,7 +158,7 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   public FlintWriter createWriter(String indexName) {
-    return new OpenSearchWriter(createClient(), indexName, options.getRefreshPolicy());
+    return new OpenSearchWriter(createClient(), toLowercase(indexName), options.getRefreshPolicy());
   }
 
   private RestHighLevelClient createClient() {
@@ -193,5 +198,15 @@ public class FlintOpenSearchClient implements FlintClient {
           httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
     }
     return new RestHighLevelClient(restClientBuilder);
+  }
+
+  /*
+   * Because OpenSearch requires all lowercase letters in index name, we have to
+   * lowercase all letters in the given Flint index name.
+   */
+  private String toLowercase(String indexName) {
+    Objects.requireNonNull(indexName);
+
+    return indexName.toLowerCase(Locale.ROOT);
   }
 }
