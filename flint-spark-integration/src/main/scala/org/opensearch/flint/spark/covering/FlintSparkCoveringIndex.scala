@@ -11,7 +11,7 @@ import org.json4s.native.JsonMethods.{compact, parse, render}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
-import org.opensearch.flint.spark.FlintSparkIndex.flintIndexNamePrefix
+import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, populateEnvToMetadata}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{getFlintIndexName, COVERING_INDEX_TYPE}
 
@@ -52,7 +52,8 @@ case class FlintSparkCoveringIndex(
         |     "kind": "$kind",
         |     "indexedColumns": $getMetaInfo,
         |     "source": "$tableName",
-        |     "options": $getIndexOptions
+        |     "options": $getIndexOptions,
+        |     "properties": $getIndexProperties
         |   },
         |   "properties": $getSchema
         | }
@@ -74,6 +75,15 @@ case class FlintSparkCoveringIndex(
 
   private def getIndexOptions: String = {
     Serialization.write(options.options)
+  }
+
+  private def getIndexProperties: String = {
+    val envMap = populateEnvToMetadata
+    if (envMap.isEmpty) {
+      "{}"
+    } else {
+      s"""{ "env": ${Serialization.write(envMap)} }"""
+    }
   }
 
   private def getSchema: String = {
