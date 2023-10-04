@@ -129,7 +129,9 @@ For FlintJob, OpenSearch index document will look like
     ],
     "jobRunId" : "s-JZSB1139WIVU",
     "applicationId" : "application_1687726870985_0003",
-    "dataSourceName": "myS3Glue"
+    "dataSourceName": "myS3Glue",
+    "status": "SUCCESS",
+    "error": ""
   }
 }
 ```

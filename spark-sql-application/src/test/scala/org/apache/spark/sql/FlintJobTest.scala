@@ -34,7 +34,8 @@ class FlintJobTest extends SparkFunSuite with Matchers {
         StructField("jobRunId", StringType, nullable = true),
         StructField("applicationId", StringType, nullable = true),
         StructField("dataSourceName", StringType, nullable = true),
-        StructField("status", StringType, nullable = true)
+        StructField("status", StringType, nullable = true),
+        StructField("error", StringType, nullable = true)
       ))
     val expectedRows = Seq(
       Row(
@@ -48,7 +49,8 @@ class FlintJobTest extends SparkFunSuite with Matchers {
         "unknown",
         "unknown",
         dataSourceName,
-        "SUCCESS"
+        "SUCCESS",
+        ""
       ))
     val expected: DataFrame =
       spark.createDataFrame(spark.sparkContext.parallelize(expectedRows), expectedSchema)
@@ -66,16 +68,16 @@ class FlintJobTest extends SparkFunSuite with Matchers {
   test("test isSuperset") {
     // note in input false has enclosed double quotes, while mapping just has false
     val input =
-      """{"dynamic":"false","properties":{"result":{"type":"text","fields":{"keyword":{
-        |"ignore_above":256,"type":"keyword"}}},"schema":{"type":"text","fields":{"keyword":{
-        |"ignore_above":256,"type":"keyword"}}},"applicationId":{"type":"keyword"},"jobRunId":{
-        |"type":"keyword"},"dataSourceName":{"type":"keyword"},"status":{"type":"keyword"}}}
+      """{"dynamic":"false","properties":{"result":{"type":"object"},"schema":{"type":"object"},
+        |"applicationId":{"type":"keyword"},"jobRunId":{
+        |"type":"keyword"},"dataSourceName":{"type":"keyword"},"status":{"type":"keyword"},
+        |"error":{"type":"text"}}}
         |""".stripMargin
     val mapping =
-      """{"dynamic":false,"properties":{"result":{"type":"text","fields":{"keyword":{
-        |"type":"keyword","ignore_above":256}}},"schema":{"type":"text","fields":{"keyword":{
-        |"type":"keyword","ignore_above":256}}},"jobRunId":{"type":"keyword"},"applicationId":{
+      """{"dynamic":false,"properties":{"result":{"type":"object"},"schema":{"type":"object"},
+        |"jobRunId":{"type":"keyword"},"applicationId":{
         |"type":"keyword"},"dataSourceName":{"type":"keyword"},"status":{"type":"keyword"}}}
+        |"error":{"type":"text"}}}
         |""".stripMargin
     assert(FlintJob.isSuperset(input, mapping))
   }

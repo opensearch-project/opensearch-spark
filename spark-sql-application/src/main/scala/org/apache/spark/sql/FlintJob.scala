@@ -18,7 +18,7 @@ import scala.concurrent.duration.{Duration, MINUTES}
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.{StructField, _}
 import org.apache.spark.util.ThreadUtils
 
 /**
@@ -28,26 +28,27 @@ import org.apache.spark.util.ThreadUtils
   *   (0) sql query
   * @param args
   *   (1) opensearch index name
-  * @param args
-  *   (2) opensearch data source name
   * @return
   *   write sql query result to given opensearch index
   */
 object FlintJob extends Logging {
   def main(args: Array[String]): Unit = {
     // Validate command line arguments
-    if (args.length != 3) {
-      throw new IllegalArgumentException("Usage: FlintJob <query> <resultIndex> <dataSource>")
+    if (args.length != 2) {
+      throw new IllegalArgumentException("Usage: FlintJob <query> <resultIndex>")
     }
 
-    val Array(query, resultIndex, dataSource) = args
+    val Array(query, resultIndex) = args
 
     val conf = createSparkConf()
+    val wait = conf.get("spark.flint.job.type", "continue")
+    val dataSource = conf.get("spark.flint.datasource.name", "")
     val spark = createSparkSession(conf)
 
     val threadPool = ThreadUtils.newDaemonFixedThreadPool(1, "check-create-index")
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
 
+    var dataToWrite : Option[DataFrame] = None
     try {
       // flintClient needs spark session to be created first. Otherwise, we will have connection
       // exception from EMR-S to OS.
@@ -57,19 +58,26 @@ object FlintJob extends Logging {
       }
       val data = executeQuery(spark, query, dataSource)
 
-      val correctMapping = ThreadUtils.awaitResult(futureMappingCheck, Duration(10, MINUTES))
-      writeData(spark, data, resultIndex, correctMapping, dataSource)
-
+      val (correctMapping, error) = ThreadUtils.awaitResult(futureMappingCheck, Duration(1, MINUTES))
+      dataToWrite = Some(if (correctMapping) data else getFailedData(spark, dataSource, error))
     } catch {
       case e: TimeoutException =>
-        logError("Future operations timed out", e)
-        throw e
+        val error = "Future operations timed out"
+        logError(error, e)
+        dataToWrite = Some(getFailedData(spark, dataSource, error))
       case e: Exception =>
-        logError("Fail to verify existing mapping or write result", e)
-        throw e
+        val error = "Fail to verify existing mapping or write result"
+        logError(error, e)
+        dataToWrite = Some(getFailedData(spark, dataSource, error))
     } finally {
-      // Stop SparkSession
-      spark.stop()
+      dataToWrite.foreach(df => writeData(df, resultIndex))
+      // Stop SparkSession if it is not streaming job
+      if (wait.equalsIgnoreCase("streaming")) {
+        spark.streams.awaitAnyTermination()
+      } else {
+        spark.stop()
+      }
+
       threadPool.shutdown()
     }
   }
@@ -84,9 +92,7 @@ object FlintJob extends Logging {
     SparkSession.builder().config(conf).enableHiveSupport().getOrCreate()
   }
 
-  def writeData(spark: SparkSession, data: DataFrame, resultIndex: String, correctMapping: Boolean,
-                dataSource: String): Unit = {
-    val resultData = if (correctMapping) data else getFailedData(spark, dataSource)
+  def writeData(resultData: DataFrame, resultIndex: String): Unit = {
     resultData.write
       .format("flint")
       .mode("append")
@@ -138,7 +144,8 @@ object FlintJob extends Logging {
         StructField("jobRunId", StringType, nullable = true),
         StructField("applicationId", StringType, nullable = true),
         StructField("dataSourceName", StringType, nullable = true),
-        StructField("status", StringType, nullable = true)
+        StructField("status", StringType, nullable = true),
+          StructField("error", StringType, nullable = true)
       )
     )
 
@@ -151,7 +158,8 @@ object FlintJob extends Logging {
         sys.env.getOrElse("SERVERLESS_EMR_JOB_ID", "unknown"),
         sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown"),
         dataSource,
-        "SUCCESS"
+        "SUCCESS",
+        ""
       )
     )
 
@@ -159,7 +167,7 @@ object FlintJob extends Logging {
     spark.createDataFrame(rows).toDF(schema.fields.map(_.name): _*)
   }
 
-  def getFailedData(spark: SparkSession, dataSource: String): DataFrame = {
+  def getFailedData(spark: SparkSession, dataSource: String, error: String): DataFrame = {
 
     // Define the data schema
     val schema = StructType(
@@ -177,7 +185,8 @@ object FlintJob extends Logging {
         StructField("jobRunId", StringType, nullable = true),
         StructField("applicationId", StringType, nullable = true),
         StructField("dataSourceName", StringType, nullable = true),
-        StructField("status", StringType, nullable = true)
+        StructField("status", StringType, nullable = true),
+        StructField("error", StringType, nullable = true)
       )
     )
 
@@ -189,7 +198,8 @@ object FlintJob extends Logging {
         sys.env.getOrElse("SERVERLESS_EMR_JOB_ID", "unknown"),
         sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown"),
         dataSource,
-        "FAILED"
+        "FAILED",
+        error
       )
     )
 
@@ -258,39 +268,26 @@ object FlintJob extends Logging {
 
     val inputJson = Json.parse(input)
     val mappingJson = Json.parse(mapping)
-    logInfo(s"inputJson $inputJson")
-    logInfo(s"mappingJson $mappingJson")
 
     compareJson(inputJson, mappingJson)
   }
 
   def checkAndCreateIndex(
-      flintClient: FlintClient,
-      resultIndex: String
-  ): Boolean = {
-    var correctMapping = false
-
+                           flintClient: FlintClient,
+                           resultIndex: String
+                         ): (Boolean, String) = {
+    // The enabled setting, which can be applied only to the top-level mapping definition and to object fields,
     val mapping =
       """{
         "dynamic": false,
         "properties": {
           "result": {
-            "type": "text",
-            "fields": {
-              "keyword": {
-                "type": "keyword",
-                "ignore_above": 256
-              }
-            }
+            "type": "object",
+            "enabled": false
           },
           "schema": {
-            "type": "text",
-            "fields": {
-              "keyword": {
-                "type": "keyword",
-                "ignore_above": 256
-              }
-            }
+            "type": "object",
+            "enabled": false
           },
           "jobRunId": {
             "type": "keyword"
@@ -303,6 +300,9 @@ object FlintJob extends Logging {
           },
           "status": {
             "type": "keyword"
+          },
+          "error": {
+            "type": "text"
           }
         }
       }""".stripMargin
@@ -310,32 +310,37 @@ object FlintJob extends Logging {
     try {
       val existingSchema = flintClient.getIndexMetadata(resultIndex).getContent
       if (!isSuperset(existingSchema, mapping)) {
-        logError(s"The mapping of $resultIndex is incorrect.")
+        (false, s"The mapping of $resultIndex is incorrect.")
       } else {
-        correctMapping = true
+        (true, "")
       }
     } catch {
-      case e: IllegalStateException =>
-        logInfo("get mapping exception", e)
-        val cause = ExceptionsHelper.unwrapCause(e.getCause())
-        logInfo("cause", cause)
-        logInfo("cause2", cause.getCause())
-        if (cause.getMessage().contains("index_not_found_exception")) {
-          try {
-            logInfo(s"create $resultIndex")
-            flintClient.createIndex(resultIndex, new FlintMetadata(mapping))
-            logInfo(s"create $resultIndex successfully")
-            correctMapping = true
-          } catch {
-            case _: Exception =>
-              logError(s"Fail to create result index $resultIndex")
-          }
-        }
-      case e: Exception => logError("Fail to verify existing mapping", e);
+      case e: IllegalStateException if e.getCause().getMessage().contains("index_not_found_exception") =>
+        handleIndexNotFoundException(flintClient, resultIndex, mapping)
+      case e: Exception =>
+        val error = "Failed to verify existing mapping"
+        logError(error, e)
+        (false, error)
     }
-    correctMapping
   }
 
+  def handleIndexNotFoundException(
+                                    flintClient: FlintClient,
+                                    resultIndex: String,
+                                    mapping: String
+                                  ): (Boolean, String) = {
+    try {
+      logInfo(s"create $resultIndex")
+      flintClient.createIndex(resultIndex, new FlintMetadata(mapping))
+      logInfo(s"create $resultIndex successfully")
+      (true, "")
+    } catch {
+      case e: Exception =>
+        val error = s"Failed to create result index $resultIndex"
+        logError(error, e)
+        (false, error)
+    }
+  }
   def executeQuery(
       spark: SparkSession,
       query: String,
