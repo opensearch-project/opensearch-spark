@@ -165,12 +165,37 @@ lazy val standaloneCosmetic = project
     Compile / packageBin := (flintSparkIntegration / assembly).value)
 
 lazy val sparkSqlApplication = (project in file("spark-sql-application"))
+  // dependency will be provided at runtime, so it doesn't need to be included in the assembled JAR
+  .dependsOn(flintSparkIntegration % "provided")
   .settings(
     commonSettings,
     name := "sql-job",
     scalaVersion := scala212,
-    libraryDependencies ++= Seq("org.scalatest" %% "scalatest" % "3.2.15" % "test"),
-    libraryDependencies ++= deps(sparkVersion))
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % "3.2.15" % "test"),
+    libraryDependencies ++= deps(sparkVersion),
+    libraryDependencies += "com.typesafe.play" %% "play-json" % "2.9.2",
+    // Assembly settings
+    // the sbt assembly plugin found multiple copies of the module-info.class file with
+    // different contents in the jars  that it was merging flintCore dependencies.
+    // This can happen if you have multiple dependencies that include the same library,
+    // but with different versions.
+    assemblyPackageScala / assembleArtifact := false,
+    assembly / assemblyOption ~= {
+      _.withIncludeScala(false)
+    },
+    assembly / assemblyMergeStrategy := {
+      case PathList(ps@_*) if ps.last endsWith ("module-info.class") =>
+        MergeStrategy.discard
+      case PathList("module-info.class") => MergeStrategy.discard
+      case PathList("META-INF", "versions", xs@_, "module-info.class") =>
+        MergeStrategy.discard
+      case x =>
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+    },
+    assembly / test := (Test / test).value
+  )
 
 lazy val sparkSqlApplicationCosmetic = project
   .settings(
