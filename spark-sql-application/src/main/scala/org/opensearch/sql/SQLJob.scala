@@ -23,7 +23,6 @@ import org.apache.spark.sql.types._
  * write sql query result to given opensearch index
  */
 case class JobConfig(
-    extensions: String,
     query: String,
     index: String,
     host: String,
@@ -35,26 +34,24 @@ case class JobConfig(
 
 object SQLJob {
   private def parseArgs(args: Array[String]): JobConfig = {
-    if (args.length < 8) {
+    if (args.length < 7) {
       throw new IllegalArgumentException("Insufficient arguments provided! - args: [extensions, query, index, host, port, scheme, auth, region]")
     }
 
     JobConfig(
-      extensions = args(0),
-      query = args(1),
-      index = args(2),
-      host = args(3),
-      port = args(4),
-      scheme = args(5),
-      auth = args(6),
-      region = args(7)
+      query = args(0),
+      index = args(1),
+      host = args(2),
+      port = args(3),
+      scheme = args(4),
+      auth = args(5),
+      region = args(6)
     )
   }
 
   def createSparkConf(config: JobConfig): SparkConf = {
     new SparkConf()
       .setAppName("SQLJob")
-      .set("spark.sql.extensions", config.extensions)
       .set("spark.datasource.flint.host", config.host)
       .set("spark.datasource.flint.port", config.port)
       .set("spark.datasource.flint.scheme", config.scheme)

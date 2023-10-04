@@ -37,7 +37,6 @@ SQLJob
     --class org.opensearch.sql.SQLJob \
     --jars <flint-spark-integration-jar> \
     sql-job.jar \
-    <spark-extensions-list> \
     <spark-sql-query> \
     <opensearch-index> \
     <opensearch-host> \
@@ -54,7 +53,7 @@ aws emr-serverless start-job-run \
     --application-id <application-id> \
     --execution-role-arn <execution-role>  \
     --job-driver '{"sparkSubmit": {"entryPoint": "<flint-job-s3-path>", \
-      "entryPointArguments":["'<spark extensions>'","'<sql-query>'", "<result-index>", "<data-source-name>"], \
+      "entryPointArguments":["'<sql-query>'", "<result-index>", "<data-source-name>"], \
       "sparkSubmitParameters":"--class org.opensearch.sql.FlintJob \
         --conf spark.hadoop.fs.s3.customAWSCredentialsProvider=com.amazonaws.emr.AssumeRoleAWSCredentialsProvider \
         --conf spark.emr-serverless.driverEnv.ASSUME_ROLE_CREDENTIALS_ROLE_ARN=<role-to-access-s3-and-opensearch> \
