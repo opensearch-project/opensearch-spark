@@ -12,59 +12,84 @@ import org.apache.spark.sql.types._
 /**
  * Spark SQL Application entrypoint
  *
- * @param args(0)
- *   sql query
- * @param args(1)
- *   opensearch index name
- * @param args(2-6)
- *   opensearch connection values required for flint-integration jar.
- *   host, port, scheme, auth, region respectively.
+ * @param args (0)
+ *             sql query
+ * @param args (1)
+ *             opensearch index name
+ * @param args (2-6)
+ *             opensearch connection values required for flint-integration jar.
+ *             host, port, scheme, auth, region respectively.
  * @return
- *   write sql query result to given opensearch index
+ * write sql query result to given opensearch index
  */
-object SQLJob {
-  def main(args: Array[String]) {
-    // Get the SQL query and Opensearch Config from the command line arguments
-    val query = args(0)
-    val index = args(1)
-    val host = args(2)
-    val port = args(3)
-    val scheme = args(4)
-    val auth = args(5)
-    val region = args(6)
+case class JobConfig(
+    extensions: String,
+    query: String,
+    index: String,
+    host: String,
+    port: String,
+    scheme: String,
+    auth: String,
+    region: String
+  )
 
-    val conf: SparkConf = new SparkConf()
+object SQLJob {
+  private def parseArgs(args: Array[String]): JobConfig = {
+    if (args.length < 8) {
+      throw new IllegalArgumentException("Insufficient arguments provided! - args: [extensions, query, index, host, port, scheme, auth, region]")
+    }
+
+    JobConfig(
+      extensions = args(0),
+      query = args(1),
+      index = args(2),
+      host = args(3),
+      port = args(4),
+      scheme = args(5),
+      auth = args(6),
+      region = args(7)
+    )
+  }
+
+  def createSparkConf(config: JobConfig): SparkConf = {
+    new SparkConf()
       .setAppName("SQLJob")
-      .set("spark.sql.extensions", "org.opensearch.flint.spark.FlintSparkExtensions")
-      .set("spark.datasource.flint.host", host)
-      .set("spark.datasource.flint.port", port)
-      .set("spark.datasource.flint.scheme", scheme)
-      .set("spark.datasource.flint.auth", auth)
-      .set("spark.datasource.flint.region", region)
+      .set("spark.sql.extensions", config.extensions)
+      .set("spark.datasource.flint.host", config.host)
+      .set("spark.datasource.flint.port", config.port)
+      .set("spark.datasource.flint.scheme", config.scheme)
+      .set("spark.datasource.flint.auth", config.auth)
+      .set("spark.datasource.flint.region", config.region)
+  }
+  def main(args: Array[String]) {
+    val config = parseArgs(args)
+
+    val sparkConf = createSparkConf(config)
+ 
 
     // Create a SparkSession
-    val spark = SparkSession.builder().config(conf).enableHiveSupport().getOrCreate()
+    val spark = SparkSession.builder().config(sparkConf).enableHiveSupport().getOrCreate()
 
     try {
       // Execute SQL query
-      val result: DataFrame = spark.sql(query)
+      val result: DataFrame = spark.sql(config.query)
 
       // Get Data
       val data = getFormattedData(result, spark)
 
       // Write data to OpenSearch index
       val aos = Map(
-        "host" -> host,
-        "port" -> port,
-        "scheme" -> scheme,
-        "auth" -> auth,
-        "region" -> region)
+        "host" -> config.host,
+        "port" -> config.port,
+        "scheme" -> config.scheme,
+        "auth" -> config.auth,
+        "region" -> config.region)
 
       data.write
         .format("flint")
         .options(aos)
         .mode("append")
-        .save(index)
+        .save(config.index)
 
     } finally {
       // Stop SparkSession
@@ -76,11 +101,11 @@ object SQLJob {
    * Create a new formatted dataframe with json result, json schema and EMR_STEP_ID.
    *
    * @param result
-   *    sql query result dataframe
+   * sql query result dataframe
    * @param spark
-   *    spark session
+   * spark session
    * @return
-   *    dataframe with result, schema and emr step id
+   * dataframe with result, schema and emr step id
    */
   def getFormattedData(result: DataFrame, spark: SparkSession): DataFrame = {
     // Create the schema dataframe
@@ -89,8 +114,8 @@ object SQLJob {
     }
     val resultSchema = spark.createDataFrame(spark.sparkContext.parallelize(schemaRows),
       StructType(Seq(
-      StructField("column_name", StringType, nullable = false),
-      StructField("data_type", StringType, nullable = false))))
+        StructField("column_name", StringType, nullable = false),
+        StructField("data_type", StringType, nullable = false))))
 
     // Define the data schema
     val schema = StructType(Seq(
