@@ -225,8 +225,8 @@ WITH (
 
 OpenSearch index corresponding to the Flint index follows the naming convention below:
 
-1. Skipping index: flint_[catalog_database_table]_skipping_index
-2. Covering index: flint_[catalog_database_table]_[index_name]_index
+1. Skipping index: `flint_[catalog_database_table]_skipping_index`
+2. Covering index: `flint_[catalog_database_table]_[index_name]_index`
 
 It's important to note that any uppercase letters in the index name and table name (catalog, database and table) in SQL statement will be automatically converted to lowercase due to restriction imposed by OpenSearch.
 
@@ -413,11 +413,11 @@ Due to the conversion of uppercase letters to lowercase in OpenSearch index name
 For instance, only one of the statement per group can be successfully:
 
 ```sql
--- my[G]lue vs my[g]lue
+-- myGlue vs myglue
 CREATE SKIPPING INDEX ON myGlue.default.alb_logs ...
 CREATE SKIPPING INDEX ON myglue.default.alb_logs ...
 
--- [i]dx_elb vs [I]dx_elb
+-- idx_elb vs Idx_elb
 CREATE INDEX idx_elb ON alb_logs ...
 CREATE INDEX Idx_elb ON alb_logs ...
 ```
