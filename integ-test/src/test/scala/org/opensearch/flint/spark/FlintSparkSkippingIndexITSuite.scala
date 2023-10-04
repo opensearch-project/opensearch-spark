@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
+import org.json4s.native.JsonMethods._
 import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
@@ -115,15 +116,29 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .options(FlintSparkIndexOptions(Map(
         "auto_refresh" -> "true",
         "refresh_interval" -> "1 Minute",
-        "checkpoint_location" -> "s3a://test/"
-      )))
+        "checkpoint_location" -> "s3a://test/",
+        "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")))
       .create()
 
     val index = flint.describeIndex(testIndex)
     index shouldBe defined
+    val optionJson = compact(render(
+      parse(index.get.metadata().getContent) \ "_meta" \ "options"))
+    optionJson should matchJson("""
+        | {
+        |   "auto_refresh": "true",
+        |   "refresh_interval": "1 Minute",
+        |   "checkpoint_location": "s3a://test/",
+        |   "index_settings": "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
+        | }
+        |""".stripMargin)
+
+    // Load index options from index mapping (verify OS index setting in SQL IT)
     index.get.options.autoRefresh() shouldBe true
     index.get.options.refreshInterval() shouldBe Some("1 Minute")
     index.get.options.checkpointLocation() shouldBe Some("s3a://test/")
+    index.get.options.indexSettings() shouldBe
+      Some("{\"number_of_shards\": 3,\"number_of_replicas\": 2}")
   }
 
   test("should not have ID column in index data") {

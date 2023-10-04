@@ -6,7 +6,13 @@
 package org.opensearch.flint.spark
 
 import scala.Option.empty
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 
+import org.json4s.{Formats, NoTypeHints}
+import org.json4s.native.JsonMethods.parse
+import org.json4s.native.Serialization
+import org.opensearch.flint.core.FlintOptions
+import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -73,6 +79,24 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
       index.get.options.refreshInterval() shouldBe Some("5 Seconds")
       index.get.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
     }
+  }
+
+  test("create skipping index with index settings") {
+    sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | ( year PARTITION )
+           | WITH (
+           |   index_settings = '{"number_of_shards": 3, "number_of_replicas": 2}'
+           | )
+           |""".stripMargin)
+
+    // Check if the index setting option is set to OS index setting
+    val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
+
+    implicit val formats: Formats = Serialization.formats(NoTypeHints)
+    val settings = parse(flintClient.getIndexMetadata(testIndex).getIndexSettings)
+    (settings \ "index.number_of_shards").extract[String] shouldBe "3"
+    (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
 
   test("create skipping index with manual refresh") {

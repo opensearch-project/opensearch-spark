@@ -6,7 +6,13 @@
 package org.opensearch.flint.spark
 
 import scala.Option.empty
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 
+import org.json4s.{Formats, NoTypeHints}
+import org.json4s.native.JsonMethods.parse
+import org.json4s.native.Serialization
+import org.opensearch.flint.core.FlintOptions
+import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
@@ -50,6 +56,42 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     val indexData = flint.queryIndex(testFlintIndex)
     indexData.count() shouldBe 2
+  }
+
+  test("create skipping index with streaming job options") {
+    withTempDir { checkpointDir =>
+      sql(s"""
+             | CREATE INDEX $testIndex ON $testTable ( name )
+             | WITH (
+             |   auto_refresh = true,
+             |   refresh_interval = '5 Seconds',
+             |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+             | )
+             | """.stripMargin)
+
+      val index = flint.describeIndex(testFlintIndex)
+      index shouldBe defined
+      index.get.options.autoRefresh() shouldBe true
+      index.get.options.refreshInterval() shouldBe Some("5 Seconds")
+      index.get.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
+    }
+  }
+
+  test("create skipping index with index settings") {
+    sql(s"""
+           | CREATE INDEX $testIndex ON $testTable ( name )
+           | WITH (
+           |   index_settings = '{"number_of_shards": 2, "number_of_replicas": 3}'
+           | )
+           |""".stripMargin)
+
+    // Check if the index setting option is set to OS index setting
+    val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
+
+    implicit val formats: Formats = Serialization.formats(NoTypeHints)
+    val settings = parse(flintClient.getIndexMetadata(testFlintIndex).getIndexSettings)
+    (settings \ "index.number_of_shards").extract[String] shouldBe "2"
+    (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
   }
 
   test("create covering index with manual refresh") {
