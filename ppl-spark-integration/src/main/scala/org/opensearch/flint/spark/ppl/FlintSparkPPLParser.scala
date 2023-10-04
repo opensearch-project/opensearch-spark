@@ -27,20 +27,22 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.parser._
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
-import org.apache.spark.sql.types.{DataType, StructType}
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.common.antlr.SyntaxCheckException
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 
+import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.parser._
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.types.{DataType, StructType}
+
 /**
- * Flint SQL parser that extends Spark SQL parser with Flint SQL statements.
+ * Flint PPL parser that parse PPL Query Language into spark logical plan - if parse fails it will
+ * fall back to spark's parser.
  *
  * @param sparkParser
- * Spark SQL parser
+ *   Spark SQL parser
  */
 class FlintSparkPPLParser(sparkParser: ParserInterface) extends ParserInterface {
 
@@ -79,8 +81,4 @@ class FlintSparkPPLParser(sparkParser: ParserInterface) extends ParserInterface 
 
   override def parseQuery(sqlText: String): LogicalPlan = sparkParser.parseQuery(sqlText)
 
-
 }
-
-
-

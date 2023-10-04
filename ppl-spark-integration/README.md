@@ -7,8 +7,10 @@ translation between PPL's logical plan to Spark's Catalyst logical plan.
 The next concepts are the main purpose of introduction this functionality:
 - Transforming PPL to become OpenSearch default query language (specifically for logs/traces/metrics signals)
 - Promoting PPL as a viable candidate for the proposed  CNCF Observability universal query language.
-- Seamlessly Interact with different datasources (S3 / Prometheus / data-lake) from within OpenSearch
+- Seamlessly Interact with different datasources such as S3 / Prometheus / data-lake leveraging spark execution.
+- Using spark's federative capabilities as a general purpose query engine to facilitate complex queries including joins
 - Improve and promote PPL to become extensible and general purpose query language to be adopted by the community
+
 
 Acknowledging spark is an excellent conduit for promoting these goals and showcasing the capabilities of PPL to interact & federate data across multiple sources and domains.
 
@@ -213,7 +215,68 @@ Next tasks ahead will resolve this:
 - Separate the PPL / SQL drivers inside the OpenSearch PPL client to better distinguish
 - Create a thin PPL client capable of interaction with the PPL Driver regardless of which driver (Spark , OpenSearch , Prometheus )
 
+---
 
 ### Roadmap
+
+This section describes the next steps planned for enabling additional commands and gamer translation.
+
+#### Supported
+The next samples of PPL queries are currently supported:
+
+**Fields**
+ - `source = table`
+ - `source = table | fields a,b,c`
+
+**Filters**
+ - `source = table | where a = 1 | fields a,b,c`
+ - `source = table | where a >= 1 | fields a,b,c`
+ - `source = table | where a < 1 | fields a,b,c`
+ - `source = table | where b != 'test' | fields a,b,c`
+ - `source = table | where c = 'test' | fields a,b,c | head 3`
+
+**Filters With Logical Conditions**
+ - `source = table | where c = 'test' AND a = 1 | fields a,b,c`
+ - `source = table | where c != 'test' OR a > 1 | fields a,b,c | head 1`
+ - `source = table | where c = 'test' NOT a > 1 | fields a,b,c`
+
+**Aggregations**
+ - `source = table | stats avg(a) `
+ - `source = table | where a < 50 | stats avg(c) `
+ - `source = table | stats max(c) by b`
+ - `source = table | stats count(c) by b | head 5`
+
+**Aggregations With Span**
+- `source = table  | stats count(a) by span(a, 10) as a_span`
+- `source = table  | stats sum(age) by span(age, 5) as age_span | head 2`
+- `source = table  | stats avg(age) by span(age, 20) as age_span, country  | sort - age_span |  head 2`
+
+**Aggregations With TimeWindow Span (tumble windowing function) **
+- `source = table | stats sum(productsAmount) by span(transactionDate, 1d) as age_date | sort age_date`
+- `source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date, productId`
+
+#### Supported Commands:
+ - `search` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/search.rst)  
+ - `where`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/where.rst)  
+ - `fields` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/fields.rst)  
+ - `head`   - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/head.rst)
+ - `stats`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/stats.rst)
+ - `sort` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) 
+
+> For additional details review the next [Integration Test ](../integ-test/src/test/scala/org/opensearch/flint/spark/FlintSparkPPLITSuite.scala)
+> For additional details review the next [Integration Time Window Test ](../integ-test/src/test/scala/org/opensearch/flint/spark/FlintSparkPPLTimeWindowITSuite.scala)
  
-This section describes the next steps planned for enabling additional commands and gamer translation. 
+---
+
+#### Planned Support
+
+ - support the `explain` command to return the explained PPL query logical plan and expected execution plan
+
+ - attend [sort](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) partially supported, missing capability to sort by alias field (span like or aggregation)
+ - attend `alias` - partially supported, missing capability to sort by / group-by alias field name 
+
+ - add [conditions](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/condition.rst) support
+ - add [top](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/top.rst) support
+ - add [cast](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/conversion.rst) support
+ - add [math](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/math.rst) support
+ - add [deduplicate](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/dedup.rst) support

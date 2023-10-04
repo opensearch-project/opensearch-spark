@@ -5,8 +5,9 @@
 
 package org.opensearch.flint.spark
 
-import org.apache.spark.sql.SparkSessionExtensions
 import org.opensearch.flint.spark.ppl.FlintSparkPPLParser
+
+import org.apache.spark.sql.SparkSessionExtensions
 
 /**
  * Flint PPL Spark extension entrypoint.

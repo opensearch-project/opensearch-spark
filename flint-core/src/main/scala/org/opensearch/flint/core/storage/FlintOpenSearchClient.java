@@ -5,10 +5,23 @@
 
 package org.opensearch.flint.core.storage;
 
+import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
+
 import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestClient;
@@ -16,6 +29,7 @@ import org.opensearch.client.RestClientBuilder;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.GetIndexRequest;
+import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.client.indices.GetMappingsRequest;
 import org.opensearch.client.indices.GetMappingsResponse;
 import org.opensearch.cluster.metadata.MappingMetadata;
@@ -33,13 +47,6 @@ import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.search.SearchModule;
 import org.opensearch.search.builder.SearchSourceBuilder;
-
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
 
 /**
  * Flint client implementation for OpenSearch storage.
@@ -65,6 +72,9 @@ public class FlintOpenSearchClient implements FlintClient {
       CreateIndexRequest request = new CreateIndexRequest(indexName);
       request.mapping(metadata.getContent(), XContentType.JSON);
 
+      if (metadata.getIndexSettings() != null) {
+        request.settings(metadata.getIndexSettings(), XContentType.JSON);
+      }
       client.indices().create(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to create Flint index " + indexName, e);
@@ -79,13 +89,29 @@ public class FlintOpenSearchClient implements FlintClient {
     }
   }
 
+  @Override public List<FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
+    try (RestHighLevelClient client = createClient()) {
+      GetIndexRequest request = new GetIndexRequest(indexNamePattern);
+      GetIndexResponse response = client.indices().get(request, RequestOptions.DEFAULT);
+
+      return Arrays.stream(response.getIndices())
+          .map(index -> new FlintMetadata(
+              response.getMappings().get(index).source().toString(),
+              response.getSettings().get(index).toString()))
+          .collect(Collectors.toList());
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to get Flint index metadata for " + indexNamePattern, e);
+    }
+  }
+
   @Override public FlintMetadata getIndexMetadata(String indexName) {
     try (RestHighLevelClient client = createClient()) {
-      GetMappingsRequest request = new GetMappingsRequest().indices(indexName);
-      GetMappingsResponse response = client.indices().getMapping(request, RequestOptions.DEFAULT);
+      GetIndexRequest request = new GetIndexRequest(indexName);
+      GetIndexResponse response = client.indices().get(request, RequestOptions.DEFAULT);
 
-      MappingMetadata mapping = response.mappings().get(indexName);
-      return new FlintMetadata(mapping.source().string());
+      MappingMetadata mapping = response.getMappings().get(indexName);
+      Settings settings = response.getSettings().get(indexName);
+      return new FlintMetadata(mapping.source().string(), settings.toString());
     } catch (Exception e) {
       throw new IllegalStateException("Failed to get Flint index metadata for " + indexName, e);
     }
@@ -158,6 +184,13 @@ public class FlintOpenSearchClient implements FlintClient {
       restClientBuilder.setHttpClientConfigCallback(cb ->
           cb.addInterceptorLast(new AWSRequestSigningApacheInterceptor(signer.getServiceName(),
               signer, awsCredentialsProvider.get())));
+    } else if (options.getAuth().equals(FlintOptions.BASIC_AUTH)) {
+      CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+      credentialsProvider.setCredentials(
+          AuthScope.ANY,
+          new UsernamePasswordCredentials(options.getUsername(), options.getPassword()));
+      restClientBuilder.setHttpClientConfigCallback(
+          httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
     }
     return new RestHighLevelClient(restClientBuilder);
   }
