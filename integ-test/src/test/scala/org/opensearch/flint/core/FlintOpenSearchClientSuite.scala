@@ -73,6 +73,30 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     allMetadata.forEach(metadata => metadata.getIndexSettings should not be empty)
   }
 
+  it should "convert index name to all lowercase" in {
+    val indexName = "flint_ELB_logs_index"
+    flintClient.createIndex(
+      indexName,
+      new FlintMetadata("""{"properties": {"test": { "type": "integer" } } }"""))
+
+    flintClient.exists(indexName) shouldBe true
+    flintClient.getIndexMetadata(indexName) should not be null
+    flintClient.getAllIndexMetadata("flint_ELB_*") should not be empty
+
+    // Read write test
+    val writer = flintClient.createWriter(indexName)
+    writer.write("""{"create":{}}""")
+    writer.write("\n")
+    writer.write("""{"test":1}""")
+    writer.write("\n")
+    writer.flush()
+    writer.close()
+    flintClient.createReader(indexName, "").hasNext shouldBe true
+
+    flintClient.deleteIndex(indexName)
+    flintClient.exists(indexName) shouldBe false
+  }
+
   it should "return false if index not exist" in {
     flintClient.exists("non-exist-index") shouldBe false
   }
