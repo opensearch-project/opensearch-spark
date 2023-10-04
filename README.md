@@ -35,6 +35,11 @@ To use PPL to Spark translation, you can run Spark with PPL extension:
 spark-sql --conf "spark.sql.extensions=org.opensearch.flint.FlintPPLSparkExtensions"
 ```
 
+### Running With both Extension 
+```
+spark-sql --conf "spark.sql.extensions='org.opensearch.flint.FlintPPLSparkExtensions, org.opensearch.flint.FlintSparkExtensions'"
+```
+
 ## Build
 
 To build and run this application with Spark, you can run:

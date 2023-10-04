@@ -5,8 +5,6 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.opensearch.flint.spark.FlintPPLSuite
-
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, EqualTo, LessThan, Literal, Not, SortOrder}
@@ -20,7 +18,7 @@ class FlintSparkPPLAggregationsITSuite
     with StreamTest {
 
   /** Test table and index name */
-  private val testTable = "default.flint_ppl_test"
+  private val testTable = "spark_catalog.default.flint_ppl_test"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -86,7 +84,7 @@ class FlintSparkPPLAggregationsITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val aggregateExpressions =
       Seq(Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")())
     val aggregatePlan = Aggregate(Seq(), aggregateExpressions, table)
@@ -116,7 +114,7 @@ class FlintSparkPPLAggregationsITSuite
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = LessThan(ageField, Literal(50))
     val filterPlan = Filter(filterExpr, table)
     val aggregateExpressions =
@@ -148,7 +146,7 @@ class FlintSparkPPLAggregationsITSuite
     val star = Seq(UnresolvedStar(None))
     val countryField = UnresolvedAttribute("country")
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
 
     val groupByAttributes = Seq(Alias(countryField, "country")())
     val aggregateExpressions =
@@ -177,7 +175,7 @@ class FlintSparkPPLAggregationsITSuite
     // Define the expected logical plan
     val countryField = UnresolvedAttribute("country")
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
 
     val groupByAttributes = Seq(Alias(countryField, "country")())
     val aggregateExpressions =
@@ -213,7 +211,7 @@ class FlintSparkPPLAggregationsITSuite
     val star = Seq(UnresolvedStar(None))
     val countryField = UnresolvedAttribute("country")
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
 
     val groupByAttributes = Seq(Alias(countryField, "country")())
     val aggregateExpressions =
@@ -248,7 +246,7 @@ class FlintSparkPPLAggregationsITSuite
     val star = Seq(UnresolvedStar(None))
     val countryField = UnresolvedAttribute("country")
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
 
     val groupByAttributes = Seq(Alias(countryField, "country")())
     val aggregateExpressions =
@@ -283,7 +281,7 @@ class FlintSparkPPLAggregationsITSuite
     val star = Seq(UnresolvedStar(None))
     val countryField = UnresolvedAttribute("country")
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
 
     val groupByAttributes = Seq(Alias(countryField, "country")())
     val aggregateExpressions =
@@ -317,7 +315,7 @@ class FlintSparkPPLAggregationsITSuite
     val star = Seq(UnresolvedStar(None))
     val countryField = UnresolvedAttribute("country")
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
 
     val groupByAttributes = Seq(Alias(countryField, "country")())
     val aggregateExpressions =
@@ -358,7 +356,7 @@ class FlintSparkPPLAggregationsITSuite
     val star = Seq(UnresolvedStar(None))
     val countryField = UnresolvedAttribute("country")
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
 
     val groupByAttributes = Seq(Alias(countryField, "country")())
     val aggregateExpressions =
@@ -396,7 +394,7 @@ class FlintSparkPPLAggregationsITSuite
     val stateField = UnresolvedAttribute("state")
     val countryField = UnresolvedAttribute("country")
     val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
 
     val groupByAttributes = Seq(Alias(countryField, "country")())
     val aggregateExpressions =

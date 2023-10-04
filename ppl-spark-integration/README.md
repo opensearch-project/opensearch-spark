@@ -7,8 +7,10 @@ translation between PPL's logical plan to Spark's Catalyst logical plan.
 The next concepts are the main purpose of introduction this functionality:
 - Transforming PPL to become OpenSearch default query language (specifically for logs/traces/metrics signals)
 - Promoting PPL as a viable candidate for the proposed  CNCF Observability universal query language.
-- Seamlessly Interact with different datasources (S3 / Prometheus / data-lake) from within OpenSearch
+- Seamlessly Interact with different datasources such as S3 / Prometheus / data-lake leveraging spark execution.
+- Using spark's federative capabilities as a general purpose query engine to facilitate complex queries including joins
 - Improve and promote PPL to become extensible and general purpose query language to be adopted by the community
+
 
 Acknowledging spark is an excellent conduit for promoting these goals and showcasing the capabilities of PPL to interact & federate data across multiple sources and domains.
 
