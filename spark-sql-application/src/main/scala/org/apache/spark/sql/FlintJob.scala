@@ -85,7 +85,6 @@ object FlintJob extends Logging {
   def createSparkConf(): SparkConf = {
     new SparkConf()
       .setAppName("FlintJob")
-      .set("spark.sql.extensions", "org.opensearch.flint.spark.FlintSparkExtensions")
   }
 
   def createSparkSession(conf: SparkConf): SparkSession = {

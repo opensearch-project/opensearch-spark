@@ -25,6 +25,7 @@ FlintJob is designed for EMR Serverless Spark, executing SQL queries and storing
 + Spark 3.3.1
 + Scala 2.12.15
 + flint-spark-integration
++ ppl-spark-integration
 
 ## Usage
 
