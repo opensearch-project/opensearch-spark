@@ -37,7 +37,7 @@ spark-sql --conf "spark.sql.extensions=org.opensearch.flint.FlintPPLSparkExtensi
 
 ### Running With both Extension 
 ```
-spark-sql --conf "spark.sql.extensions='org.opensearch.flint.FlintPPLSparkExtensions, org.opensearch.flint.FlintSparkExtensions'"
+spark-sql --conf "spark.sql.extensions='org.opensearch.flint.spark.FlintPPLSparkExtensions, org.opensearch.flint.spark.FlintSparkExtensions'"
 ```
 
 ## Build
