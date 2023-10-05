@@ -62,7 +62,6 @@ object SQLJob {
     val config = parseArgs(args)
 
     val sparkConf = createSparkConf(config)
- 
 
     // Create a SparkSession
     val spark = SparkSession.builder().config(sparkConf).enableHiveSupport().getOrCreate()
