@@ -57,7 +57,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
          |        "columnType": "int"
          |     }],
          |     "source": "spark_catalog.default.ci_test",
-         |     "options": {},
+         |     "options": { "auto_refresh": "false" },
          |     "properties": {}
          |   },
          |   "properties": {

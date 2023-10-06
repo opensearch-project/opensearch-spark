@@ -74,7 +74,7 @@ case class FlintSparkCoveringIndex(
   }
 
   private def getIndexOptions: String = {
-    Serialization.write(options.options)
+    Serialization.write(options.optionsWithDefault)
   }
 
   private def getIndexProperties: String = {
