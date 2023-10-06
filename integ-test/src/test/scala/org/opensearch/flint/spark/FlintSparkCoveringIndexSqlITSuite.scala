@@ -16,7 +16,7 @@ import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
 
@@ -58,7 +58,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     indexData.count() shouldBe 2
   }
 
-  test("create skipping index with streaming job options") {
+  test("create covering index with streaming job options") {
     withTempDir { checkpointDir =>
       sql(s"""
              | CREATE INDEX $testIndex ON $testTable ( name )
@@ -77,7 +77,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     }
   }
 
-  test("create skipping index with index settings") {
+  test("create covering index with index settings") {
     sql(s"""
            | CREATE INDEX $testIndex ON $testTable ( name )
            | WITH (
@@ -92,6 +92,15 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     val settings = parse(flintClient.getIndexMetadata(testFlintIndex).getIndexSettings)
     (settings \ "index.number_of_shards").extract[String] shouldBe "2"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
+  }
+
+  test("create covering index with invalid option") {
+    the[IllegalArgumentException] thrownBy
+      sql(s"""
+             | CREATE INDEX $testIndex ON $testTable
+             | (name, age)
+             | WITH (autoRefresh = true)
+             | """.stripMargin)
   }
 
   test("create covering index with manual refresh") {
