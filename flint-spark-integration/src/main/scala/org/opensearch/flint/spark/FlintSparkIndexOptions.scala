@@ -5,9 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{
-  AUTO_REFRESH, CHECKPOINT_LOCATION, INDEX_SETTINGS, OptionName, REFRESH_INTERVAL
-}
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, INDEX_SETTINGS, OptionName, REFRESH_INTERVAL}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
 
 /**
@@ -89,12 +87,16 @@ object FlintSparkIndexOptions {
     val INDEX_SETTINGS: OptionName.Value = Value("index_settings")
   }
 
-  // This method has to be here otherwise Scala compilation failure
+  /**
+   * Validate option names and throw exception if any unknown found.
+   *
+   * @param options
+   *   options given
+   */
   def validateOptionNames(options: Map[String, String]): Unit = {
-    val allowedNames = OptionName.values.map(_.toString)
-    val unknownNames = options.keys.filterNot(allowedNames.contains)
+    val allOptions = OptionName.values.map(_.toString)
+    val invalidOptions = options.keys.filterNot(allOptions.contains)
 
-    require(unknownNames.isEmpty,
-      s"option name ${unknownNames.mkString(",")} is invalid")
+    require(invalidOptions.isEmpty, s"option name ${invalidOptions.mkString(",")} is invalid")
   }
 }
