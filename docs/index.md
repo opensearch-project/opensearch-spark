@@ -199,6 +199,8 @@ User can provide the following options in `WITH` clause of create statement:
 + `checkpoint_location`: a string as the location path for incremental refresh job checkpoint. The location has to be a path in an HDFS compatible file system and only applicable when auto refresh enabled. If unspecified, temporary checkpoint directory will be used and may result in checkpoint data lost upon restart.
 + `index_settings`: a JSON string as index settings for OpenSearch index that will be created. Please follow the format in OpenSearch documentation. If unspecified, default OpenSearch index settings will be applied.
 
+Note that the index option name is case-sensitive.
+
 ```sql
 WITH (
   auto_refresh = [true|false],
