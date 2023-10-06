@@ -54,6 +54,20 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
    */
   def indexSettings(): Option[String] = getOptionValue(INDEX_SETTINGS)
 
+  /**
+   * @return
+   *   all option values and fill default value if unspecified
+   */
+  def optionsWithDefault: Map[String, String] = {
+    val map = Map.newBuilder[String, String]
+    map ++= options
+
+    if (!options.contains(AUTO_REFRESH.toString)) {
+      map += (AUTO_REFRESH.toString -> autoRefresh().toString)
+    }
+    map.result()
+  }
+
   private def getOptionValue(name: OptionName): Option[String] = {
     options.get(name.toString)
   }
@@ -76,6 +90,10 @@ object FlintSparkIndexOptions {
     val CHECKPOINT_LOCATION: OptionName.Value = Value("checkpoint_location")
     val INDEX_SETTINGS: OptionName.Value = Value("index_settings")
 
+    /**
+     * @return
+     *   convert enum name to lowercase as public option name
+     */
     override def toString(): String = {
       super.toString().toLowerCase(Locale.ROOT)
     }

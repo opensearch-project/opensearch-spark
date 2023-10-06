@@ -32,17 +32,23 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     options.refreshInterval() shouldBe empty
     options.checkpointLocation() shouldBe empty
     options.indexSettings() shouldBe empty
+    options.optionsWithDefault should contain("auto_refresh" -> "false")
+  }
+
+  test("should return default option value if unspecified with specified value") {
+    val options = FlintSparkIndexOptions(Map("refresh_interval" -> "1 Minute"))
+
+    options.optionsWithDefault shouldBe Map(
+      "auto_refresh" -> "false",
+      "refresh_interval" -> "1 Minute")
   }
 
   test("should report error if any unknown option name") {
-    the [IllegalArgumentException] thrownBy
+    the[IllegalArgumentException] thrownBy
       FlintSparkIndexOptions(Map("autoRefresh" -> "true"))
 
-    the [IllegalArgumentException] thrownBy {
-      FlintSparkIndexOptions(Map(
-        "auto_refresh" -> "true",
-        "indexSetting" -> "test"
-      ))
+    the[IllegalArgumentException] thrownBy {
+      FlintSparkIndexOptions(Map("auto_refresh" -> "true", "indexSetting" -> "test"))
     } should have message "requirement failed: option name indexSetting is invalid"
   }
 }
