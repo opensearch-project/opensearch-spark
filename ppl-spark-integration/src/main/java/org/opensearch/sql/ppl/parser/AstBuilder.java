@@ -23,6 +23,7 @@ import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.UnresolvedArgument;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.tree.Aggregation;
+import org.opensearch.sql.ast.tree.Correlation;
 import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
@@ -97,6 +98,11 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   @Override
   public UnresolvedPlan visitWhereCommand(OpenSearchPPLParser.WhereCommandContext ctx) {
     return new Filter(internalVisitExpression(ctx.logicalExpression()));
+  }
+
+  @Override
+  public UnresolvedPlan visitCorrelateCommand(OpenSearchPPLParser.CorrelateCommandContext ctx) {
+    return new Correlation(ctx.correlationType(),ctx.fieldList(),ctx.scopeClause(),ctx.mappingList());
   }
 
   /** Fields command. */
