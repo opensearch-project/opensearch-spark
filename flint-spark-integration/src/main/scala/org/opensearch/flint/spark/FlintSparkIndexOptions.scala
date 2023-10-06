@@ -5,8 +5,6 @@
 
 package org.opensearch.flint.spark
 
-import java.util.Locale
-
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{
   AUTO_REFRESH, CHECKPOINT_LOCATION, INDEX_SETTINGS, OptionName, REFRESH_INTERVAL
 }
@@ -89,14 +87,6 @@ object FlintSparkIndexOptions {
     val REFRESH_INTERVAL: OptionName.Value = Value("refresh_interval")
     val CHECKPOINT_LOCATION: OptionName.Value = Value("checkpoint_location")
     val INDEX_SETTINGS: OptionName.Value = Value("index_settings")
-
-    /**
-     * @return
-     *   convert enum name to lowercase as public option name
-     */
-    override def toString(): String = {
-      super.toString().toLowerCase(Locale.ROOT)
-    }
   }
 
   // This method has to be here otherwise Scala compilation failure
