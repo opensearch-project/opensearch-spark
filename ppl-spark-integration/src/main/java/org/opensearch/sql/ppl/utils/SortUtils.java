@@ -10,13 +10,14 @@ import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
+import org.jetbrains.annotations.NotNull;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.tree.Sort;
 
 import java.util.ArrayList;
 import java.util.Optional;
 
-import static scala.collection.JavaConverters.asScalaBufferConverter;
+import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 
 /**
  * Utility interface for sorting operations.
@@ -36,14 +37,18 @@ public interface SortUtils {
                 .filter(f -> f.getField().toString().equals(expression.name()))
                 .findAny();
 
-        if(field.isPresent()) {
-            return new SortOrder(
-                    (Expression) expression,
-                    (Boolean)field.get().getFieldArgs().get(0).getValue().getValue() ? Ascending$.MODULE$ : Descending$.MODULE$,
-                    (Boolean)field.get().getFieldArgs().get(0).getValue().getValue() ? Ascending$.MODULE$.defaultNullOrdering() : Descending$.MODULE$.defaultNullOrdering(),
-                    asScalaBufferConverter(new ArrayList<Expression>()).asScala().seq()
-            );
-        }
-        return null;
+        return field.map(value -> sortOrder((Expression) expression,
+                        (Boolean) value.getFieldArgs().get(0).getValue().getValue()))
+                .orElse(null);
+    }
+
+    @NotNull
+    static SortOrder sortOrder(Expression expression, boolean ascending) {
+        return new SortOrder(
+                expression,
+                ascending ? Ascending$.MODULE$ : Descending$.MODULE$,
+                ascending ? Ascending$.MODULE$.defaultNullOrdering() : Descending$.MODULE$.defaultNullOrdering(),
+                seq(new ArrayList<Expression>())
+        );
     }
 }

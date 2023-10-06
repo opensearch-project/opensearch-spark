@@ -27,9 +27,15 @@ public class FlintOptions implements Serializable {
 
   public static final String AUTH = "auth";
 
-  public static final String NONE_AUTH = "false";
+  public static final String NONE_AUTH = "noauth";
 
   public static final String SIGV4_AUTH = "sigv4";
+
+  public static final String BASIC_AUTH = "basic";
+
+  public static final String USERNAME = "auth.username";
+
+  public static final String PASSWORD = "auth.password";
 
   public static final String CUSTOM_AWS_CREDENTIALS_PROVIDER = "customAWSCredentialsProvider";
 
@@ -86,5 +92,13 @@ public class FlintOptions implements Serializable {
 
   public String getCustomAwsCredentialsProvider() {
     return options.getOrDefault(CUSTOM_AWS_CREDENTIALS_PROVIDER, "");
+  }
+
+  public String getUsername() {
+    return options.getOrDefault(USERNAME, "flint");
+  }
+
+  public String getPassword() {
+    return options.getOrDefault(PASSWORD, "flint");
   }
 }

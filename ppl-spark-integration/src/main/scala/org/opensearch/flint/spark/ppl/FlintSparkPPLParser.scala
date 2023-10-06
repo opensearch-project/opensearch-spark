@@ -38,7 +38,8 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.types.{DataType, StructType}
 
 /**
- * Flint SQL parser that extends Spark SQL parser with Flint SQL statements.
+ * Flint PPL parser that parse PPL Query Language into spark logical plan - if parse fails it will
+ * fall back to spark's parser.
  *
  * @param sparkParser
  *   Spark SQL parser

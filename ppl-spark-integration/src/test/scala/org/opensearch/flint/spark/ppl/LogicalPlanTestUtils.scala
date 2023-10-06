@@ -12,9 +12,10 @@ import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Proj
  * general utility functions for ppl to spark transformation test
  */
 trait LogicalPlanTestUtils {
+
   /**
-   * utility function to compare two logical plans while ignoring the auto-generated expressionId associated with the alias
-   * which is used for projection or aggregation 
+   * utility function to compare two logical plans while ignoring the auto-generated expressionId
+   * associated with the alias which is used for projection or aggregation
    * @param plan
    * @return
    */
@@ -23,18 +24,21 @@ trait LogicalPlanTestUtils {
     val rule: PartialFunction[LogicalPlan, LogicalPlan] = {
       case p: Project =>
         val newProjections = p.projectList.map {
-          case alias: Alias => Alias(alias.child, alias.name)(exprId = ExprId(0), qualifier = alias.qualifier)
+          case alias: Alias =>
+            Alias(alias.child, alias.name)(exprId = ExprId(0), qualifier = alias.qualifier)
           case other => other
         }
         p.copy(projectList = newProjections)
 
       case agg: Aggregate =>
         val newGrouping = agg.groupingExpressions.map {
-          case alias: Alias => Alias(alias.child, alias.name)(exprId = ExprId(0), qualifier = alias.qualifier)
+          case alias: Alias =>
+            Alias(alias.child, alias.name)(exprId = ExprId(0), qualifier = alias.qualifier)
           case other => other
         }
         val newAggregations = agg.aggregateExpressions.map {
-          case alias: Alias => Alias(alias.child, alias.name)(exprId = ExprId(0), qualifier = alias.qualifier)
+          case alias: Alias =>
+            Alias(alias.child, alias.name)(exprId = ExprId(0), qualifier = alias.qualifier)
           case other => other
         }
         agg.copy(groupingExpressions = newGrouping, aggregateExpressions = newAggregations)

@@ -15,7 +15,7 @@ import java.util.List;
 
 /** Logical plan node of Project, the interface for building the list of searching fields. */
 public class Project extends UnresolvedPlan {
-  private List<UnresolvedExpression> projectList;
+   private List<UnresolvedExpression> projectList;
   private List<Argument> argExprList;
   private UnresolvedPlan child;
 

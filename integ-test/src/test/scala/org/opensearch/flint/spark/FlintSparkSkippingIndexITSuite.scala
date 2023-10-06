@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
-import org.opensearch.flint.OpenSearchSuite
+import org.json4s.native.JsonMethods._
 import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
@@ -16,64 +16,22 @@ import org.scalatest.matchers.{Matcher, MatchResult}
 import org.scalatest.matchers.must.Matchers._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
-import org.apache.spark.FlintSuite
-import org.apache.spark.sql.{Column, QueryTest, Row}
+import org.apache.spark.sql.{Column, Row}
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.flint.config.FlintSparkConf._
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.streaming.StreamTest
 
-class FlintSparkSkippingIndexITSuite
-    extends QueryTest
-    with FlintSuite
-    with OpenSearchSuite
-    with StreamTest {
-
-  /** Flint Spark high level API being tested */
-  lazy val flint: FlintSpark = {
-    setFlintSparkConf(HOST_ENDPOINT, openSearchHost)
-    setFlintSparkConf(HOST_PORT, openSearchPort)
-    setFlintSparkConf(REFRESH_POLICY, "true")
-    new FlintSpark(spark)
-  }
+class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
   /** Test table and index name */
-  private val testTable = "default.test"
+  private val testTable = "spark_catalog.default.test"
   private val testIndex = getSkippingIndexName(testTable)
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    sql(s"""
-        | CREATE TABLE $testTable
-        | (
-        |   name STRING,
-        |   age INT,
-        |   address STRING
-        | )
-        | USING CSV
-        | OPTIONS (
-        |  header 'false',
-        |  delimiter '\t'
-        | )
-        | PARTITIONED BY (
-        |    year INT,
-        |    month INT
-        | )
-        |""".stripMargin)
-
-    sql(s"""
-        | INSERT INTO $testTable
-        | PARTITION (year=2023, month=4)
-        | VALUES ('Hello', 30, 'Seattle')
-        | """.stripMargin)
-
-    sql(s"""
-        | INSERT INTO $testTable
-        | PARTITION (year=2023, month=5)
-        | VALUES ('World', 25, 'Portland')
-        | """.stripMargin)
+    createPartitionedTable(testTable)
   }
 
   override def afterEach(): Unit = {
@@ -92,11 +50,11 @@ class FlintSparkSkippingIndexITSuite
       .addMinMax("age")
       .create()
 
-    val indexName = s"flint_default_test_skipping_index"
-    val index = flint.describeIndex(indexName)
+    val index = flint.describeIndex(testIndex)
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
         |   "_meta": {
+        |     "name": "flint_spark_catalog_default_test_skipping_index",
         |     "version": "${current()}",
         |     "kind": "skipping",
         |     "indexedColumns": [
@@ -120,7 +78,9 @@ class FlintSparkSkippingIndexITSuite
         |        "columnName": "age",
         |        "columnType": "int"
         |     }],
-        |     "source": "default.test"
+        |     "source": "spark_catalog.default.test",
+        |     "options": {},
+        |     "properties": {}
         |   },
         |   "properties": {
         |     "year": {
@@ -144,6 +104,41 @@ class FlintSparkSkippingIndexITSuite
         |   }
         | }
         |""".stripMargin)
+
+    index.get.options shouldBe FlintSparkIndexOptions.empty
+  }
+
+  test("create skipping index with index options successfully") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addValueSet("address")
+      .options(FlintSparkIndexOptions(Map(
+        "auto_refresh" -> "true",
+        "refresh_interval" -> "1 Minute",
+        "checkpoint_location" -> "s3a://test/",
+        "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")))
+      .create()
+
+    val index = flint.describeIndex(testIndex)
+    index shouldBe defined
+    val optionJson = compact(render(
+      parse(index.get.metadata().getContent) \ "_meta" \ "options"))
+    optionJson should matchJson("""
+        | {
+        |   "auto_refresh": "true",
+        |   "refresh_interval": "1 Minute",
+        |   "checkpoint_location": "s3a://test/",
+        |   "index_settings": "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
+        | }
+        |""".stripMargin)
+
+    // Load index options from index mapping (verify OS index setting in SQL IT)
+    index.get.options.autoRefresh() shouldBe true
+    index.get.options.refreshInterval() shouldBe Some("1 Minute")
+    index.get.options.checkpointLocation() shouldBe Some("s3a://test/")
+    index.get.options.indexSettings() shouldBe
+      Some("{\"number_of_shards\": 3,\"number_of_replicas\": 2}")
   }
 
   test("should not have ID column in index data") {
@@ -391,7 +386,7 @@ class FlintSparkSkippingIndexITSuite
 
   test("create skipping index for all supported data types successfully") {
     // Prepare test table
-    val testTable = "default.data_type_table"
+    val testTable = "spark_catalog.default.data_type_table"
     val testIndex = getSkippingIndexName(testTable)
     sql(
       s"""
@@ -457,6 +452,7 @@ class FlintSparkSkippingIndexITSuite
     index.get.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
+         |     "name": "flint_spark_catalog_default_data_type_table_skipping_index",
          |     "version": "${current()}",
          |     "kind": "skipping",
          |     "indexedColumns": [
@@ -525,7 +521,9 @@ class FlintSparkSkippingIndexITSuite
          |        "columnName": "struct_col",
          |        "columnType": "struct<subfield1:string,subfield2:int>"
          |     }],
-         |     "source": "$testTable"
+         |     "source": "$testTable",
+         |     "options": {},
+         |     "properties": {}
          |   },
          |   "properties": {
          |     "boolean_col": {
@@ -587,7 +585,7 @@ class FlintSparkSkippingIndexITSuite
   }
 
   test("can build skipping index for varchar and char and rewrite applicable query") {
-    val testTable = "default.varchar_char_table"
+    val testTable = "spark_catalog.default.varchar_char_table"
     val testIndex = getSkippingIndexName(testTable)
     sql(
       s"""

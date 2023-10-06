@@ -39,7 +39,6 @@ import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
-import org.opensearch.sql.ast.tree.JoinClause;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Limit;
 import org.opensearch.sql.ast.tree.Parse;
@@ -95,10 +94,6 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitChildren(node, context);
   }
 
-  public T visitJoin(JoinClause node, C context) {
-    return visitChildren(node, context);
-  }
-  
   public T visitProject(Project node, C context) {
     return visitChildren(node, context);
   }

@@ -7,8 +7,10 @@ translation between PPL's logical plan to Spark's Catalyst logical plan.
 The next concepts are the main purpose of introduction this functionality:
 - Transforming PPL to become OpenSearch default query language (specifically for logs/traces/metrics signals)
 - Promoting PPL as a viable candidate for the proposed  CNCF Observability universal query language.
-- Seamlessly Interact with different datasources (S3 / Prometheus / data-lake) from within OpenSearch
+- Seamlessly Interact with different datasources such as S3 / Prometheus / data-lake leveraging spark execution.
+- Using spark's federative capabilities as a general purpose query engine to facilitate complex queries including joins
 - Improve and promote PPL to become extensible and general purpose query language to be adopted by the community
+
 
 Acknowledging spark is an excellent conduit for promoting these goals and showcasing the capabilities of PPL to interact & federate data across multiple sources and domains.
 
@@ -246,16 +248,23 @@ The next samples of PPL queries are currently supported:
 
 **Aggregations With Span**
 - `source = table  | stats count(a) by span(a, 10) as a_span`
+- `source = table  | stats sum(age) by span(age, 5) as age_span | head 2`
+- `source = table  | stats avg(age) by span(age, 20) as age_span, country  | sort - age_span |  head 2`
+
+**Aggregations With TimeWindow Span (tumble windowing function) **
+- `source = table | stats sum(productsAmount) by span(transactionDate, 1d) as age_date | sort age_date`
+- `source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date, productId`
 
 #### Supported Commands:
  - `search` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/search.rst)  
- - `where` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/where.rst)  
+ - `where`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/where.rst)  
  - `fields` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/fields.rst)  
- - `head` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/head.rst)
- - `stats` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/stats.rst)
- - `sort` -  [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) 
+ - `head`   - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/head.rst)
+ - `stats`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/stats.rst)
+ - `sort` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) 
 
 > For additional details review the next [Integration Test ](../integ-test/src/test/scala/org/opensearch/flint/spark/FlintSparkPPLITSuite.scala)
+> For additional details review the next [Integration Time Window Test ](../integ-test/src/test/scala/org/opensearch/flint/spark/FlintSparkPPLTimeWindowITSuite.scala)
  
 ---
 

@@ -85,6 +85,14 @@ grammar SparkSqlBase;
 }
 
 
+multipartIdentifierPropertyList
+    : multipartIdentifierProperty (COMMA multipartIdentifierProperty)*
+    ;
+
+multipartIdentifierProperty
+    : multipartIdentifier (options=propertyList)?
+    ;
+
 propertyList
     : property (COMMA property)*
     ;
@@ -150,12 +158,16 @@ CREATE: 'CREATE';
 DESC: 'DESC';
 DESCRIBE: 'DESCRIBE';
 DROP: 'DROP';
+EXISTS: 'EXISTS';
 FALSE: 'FALSE';
+IF: 'IF';
 INDEX: 'INDEX';
+INDEXES: 'INDEXES';
+NOT: 'NOT';
 ON: 'ON';
 PARTITION: 'PARTITION';
 REFRESH: 'REFRESH';
-STRING: 'STRING';
+SHOW: 'SHOW';
 TRUE: 'TRUE';
 WITH: 'WITH';
 
@@ -163,6 +175,13 @@ WITH: 'WITH';
 EQ  : '=' | '==';
 MINUS: '-';
 
+
+STRING
+    : '\'' ( ~('\''|'\\') | ('\\' .) )* '\''
+    | '"' ( ~('"'|'\\') | ('\\' .) )* '"'
+    | 'R\'' (~'\'')* '\''
+    | 'R"'(~'"')* '"'
+    ;
 
 INTEGER_VALUE
     : DIGIT+

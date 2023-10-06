@@ -54,7 +54,7 @@ public class OpenSearchScrollReader extends OpenSearchReader {
    * clean the scroll context.
    */
   void clean() throws IOException {
-    if (Strings.isNullOrEmpty(scrollId)) {
+    if (!Strings.isNullOrEmpty(scrollId)) {
       ClearScrollRequest clearScrollRequest = new ClearScrollRequest();
       clearScrollRequest.addScrollId(scrollId);
       client.clearScroll(clearScrollRequest, RequestOptions.DEFAULT);

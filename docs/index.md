@@ -10,18 +10,19 @@ A Flint index is ...
 
 ### Feature Highlights
 
-- Skipping Index
+- Skipping Index: accelerate data scan by maintaining compact aggregate data structure which includes
   - Partition: skip data scan by maintaining and filtering partitioned column value per file.
   - MinMax: skip data scan by maintaining lower and upper bound of the indexed column per file.
   - ValueSet: skip data scan by building a unique value set of the indexed column per file.
+- Covering Index: create index for selected columns within the source dataset to improve query performance
 
 Please see the following example in which Index Building Logic and Query Rewrite Logic column shows the basic idea behind each skipping index implementation.
 
 | Skipping Index | Create Index Statement                                                                                                                                                                | Index Building Logic                                                                                                                                                                                                                                                                                                    | Query Rewrite Logic                                                                                                                                                                                                                                                                                                                                                       |
 |----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Partition      | CREATE SKIPPING INDEX<br>ON alb_logs<br>FOR COLUMNS (<br>&nbsp;&nbsp;year PARTITION,<br>&nbsp;&nbsp;month PARTITION,<br>&nbsp;&nbsp;day PARTITION,<br>&nbsp;&nbsp;hour PARTITION<br>) | INSERT INTO flint_alb_logs_skipping_index<br>SELECT<br>&nbsp;&nbsp;FIRST(year) AS year,<br>&nbsp;&nbsp;FIRST(month) AS month,<br>&nbsp;&nbsp;FIRST(day) AS day,<br>&nbsp;&nbsp;FIRST(hour) AS hour,<br>&nbsp;&nbsp;input_file_name() AS file_path<br>FROM alb_logs<br>GROUP BY<br>&nbsp;&nbsp;input_file_name()         | SELECT *<br>FROM alb_logs<br>WHERE year = 2023 AND month = 4<br>=><br>SELECT *<br>FROM alb_logs (input_files = <br>&nbsp;&nbsp;SELECT file_path<br>&nbsp;&nbsp;FROM flint_alb_logs_skipping_index<br>&nbsp;&nbsp;WHERE year = 2023 AND month = 4<br>)<br>WHERE year = 2023 AND month = 4                                                                          |
-| ValueSet       | CREATE SKIPPING INDEX<br>ON alb_logs<br>FOR COLUMNS (<br>&nbsp;&nbsp;elb_status_code VALUE_SET<br>)                                                                                   | INSERT INTO flint_alb_logs_skipping_index<br>SELECT<br>&nbsp;&nbsp;COLLECT_SET(elb_status_code) AS elb_status_code,<br>&nbsp;&nbsp;input_file_name() AS file_path<br>FROM alb_logs<br>GROUP BY<br>&nbsp;&nbsp;input_file_name()                                                                                         | SELECT *<br>FROM alb_logs<br>WHERE elb_status_code = 404<br>=><br>SELECT *<br>FROM alb_logs (input_files = <br>&nbsp;&nbsp;SELECT file_path<br>&nbsp;&nbsp;FROM flint_alb_logs_skipping_index<br>&nbsp;&nbsp;WHERE ARRAY_CONTAINS(elb_status_code, 404)<br>)<br>WHERE elb_status_code = 404                                                                       |
-| MinMax         | CREATE SKIPPING INDEX<br>ON alb_logs<br>FOR COLUMNS (<br>&nbsp;&nbsp;request_processing_time MIN_MAX<br>)                                                                             | INSERT INTO flint_alb_logs_skipping_index<br>SELECT<br>&nbsp;&nbsp;MIN(request_processing_time) AS request_processing_time_min,<br>&nbsp;&nbsp;MAX(request_processing_time) AS request_processing_time_max,<br>&nbsp;&nbsp;input_file_name() AS file_path<br>FROM alb_logs<br>GROUP BY<br>&nbsp;&nbsp;input_file_name() | SELECT *<br>FROM alb_logs<br>WHERE request_processing_time = 100<br>=><br>SELECT *<br>FROM alb_logs (input_files = <br>  SELECT file_path<br>&nbsp;&nbsp;FROM flint_alb_logs_skipping_index<br>&nbsp;&nbsp;WHERE request_processing_time_min <= 100<br>&nbsp;&nbsp;&nbsp;&nbsp;AND 100 <= request_processing_time_max<br>)<br>WHERE request_processing_time = 100
+| Partition      | CREATE SKIPPING INDEX<br>ON alb_logs<br> (<br>&nbsp;&nbsp;year PARTITION,<br>&nbsp;&nbsp;month PARTITION,<br>&nbsp;&nbsp;day PARTITION,<br>&nbsp;&nbsp;hour PARTITION<br>) | INSERT INTO flint_alb_logs_skipping_index<br>SELECT<br>&nbsp;&nbsp;FIRST(year) AS year,<br>&nbsp;&nbsp;FIRST(month) AS month,<br>&nbsp;&nbsp;FIRST(day) AS day,<br>&nbsp;&nbsp;FIRST(hour) AS hour,<br>&nbsp;&nbsp;input_file_name() AS file_path<br>FROM alb_logs<br>GROUP BY<br>&nbsp;&nbsp;input_file_name()         | SELECT *<br>FROM alb_logs<br>WHERE year = 2023 AND month = 4<br>=><br>SELECT *<br>FROM alb_logs (input_files = <br>&nbsp;&nbsp;SELECT file_path<br>&nbsp;&nbsp;FROM flint_alb_logs_skipping_index<br>&nbsp;&nbsp;WHERE year = 2023 AND month = 4<br>)<br>WHERE year = 2023 AND month = 4                                                                          |
+| ValueSet       | CREATE SKIPPING INDEX<br>ON alb_logs<br> (<br>&nbsp;&nbsp;elb_status_code VALUE_SET<br>)                                                                                   | INSERT INTO flint_alb_logs_skipping_index<br>SELECT<br>&nbsp;&nbsp;COLLECT_SET(elb_status_code) AS elb_status_code,<br>&nbsp;&nbsp;input_file_name() AS file_path<br>FROM alb_logs<br>GROUP BY<br>&nbsp;&nbsp;input_file_name()                                                                                         | SELECT *<br>FROM alb_logs<br>WHERE elb_status_code = 404<br>=><br>SELECT *<br>FROM alb_logs (input_files = <br>&nbsp;&nbsp;SELECT file_path<br>&nbsp;&nbsp;FROM flint_alb_logs_skipping_index<br>&nbsp;&nbsp;WHERE ARRAY_CONTAINS(elb_status_code, 404)<br>)<br>WHERE elb_status_code = 404                                                                       |
+| MinMax         | CREATE SKIPPING INDEX<br>ON alb_logs<br> (<br>&nbsp;&nbsp;request_processing_time MIN_MAX<br>)                                                                             | INSERT INTO flint_alb_logs_skipping_index<br>SELECT<br>&nbsp;&nbsp;MIN(request_processing_time) AS request_processing_time_min,<br>&nbsp;&nbsp;MAX(request_processing_time) AS request_processing_time_max,<br>&nbsp;&nbsp;input_file_name() AS file_path<br>FROM alb_logs<br>GROUP BY<br>&nbsp;&nbsp;input_file_name() | SELECT *<br>FROM alb_logs<br>WHERE request_processing_time = 100<br>=><br>SELECT *<br>FROM alb_logs (input_files = <br>  SELECT file_path<br>&nbsp;&nbsp;FROM flint_alb_logs_skipping_index<br>&nbsp;&nbsp;WHERE request_processing_time_min <= 100<br>&nbsp;&nbsp;&nbsp;&nbsp;AND 100 <= request_processing_time_max<br>)<br>WHERE request_processing_time = 100
 
 ### Flint Index Specification
 
@@ -117,18 +118,18 @@ High level API is dependent on query engine implementation. Please see Query Eng
 
 ### SQL
 
-DDL statement:
+#### Skipping Index
 
 ```sql
-CREATE SKIPPING INDEX
+CREATE SKIPPING INDEX [IF NOT EXISTS]
 ON <object>
 ( column <index_type> [, ...] )
 WHERE <filter_predicate>
-WITH (auto_refresh = (true|false))
+WITH ( options )
 
 REFRESH SKIPPING INDEX ON <object>
 
-DESCRIBE SKIPPING INDEX ON <object>
+[DESC|DESCRIBE] SKIPPING INDEX ON <object>
 
 DROP SKIPPING INDEX ON <object>
 
@@ -157,11 +158,88 @@ DESCRIBE SKIPPING INDEX ON alb_logs
 DROP SKIPPING INDEX ON alb_logs
 ```
 
+#### Covering Index
+
+```sql
+CREATE INDEX [IF NOT EXISTS] name ON <object>
+( column [, ...] )
+WHERE <filter_predicate>
+WITH ( options )
+
+REFRESH INDEX name ON <object>
+
+SHOW [INDEX|INDEXES] ON <object>
+
+[DESC|DESCRIBE] INDEX name ON <object>
+
+DROP INDEX name ON <object>
+```
+
+Example:
+
+```sql
+CREATE INDEX elb_and_requestUri
+ON alb_logs ( elb, requestUri )
+
+REFRESH INDEX elb_and_requestUri ON alb_logs
+
+SHOW INDEX ON alb_logs
+
+DESCRIBE INDEX elb_and_requestUri ON alb_logs
+
+DROP INDEX elb_and_requestUri ON alb_logs
+```
+
+#### Create Index Options
+
+User can provide the following options in `WITH` clause of create statement:
+
++ `auto_refresh`: triggers Incremental Refresh immediately after index create complete if true. Otherwise, user has to trigger Full Refresh by `REFRESH` statement manually.
++ `refresh_interval`: a string as the time interval for incremental refresh, e.g. 1 minute, 10 seconds. This is only applicable when auto refresh enabled. Please check `org.apache.spark.unsafe.types.CalendarInterval` for valid duration identifiers. By default, next micro batch will be generated as soon as the previous one complete processing.
++ `checkpoint_location`: a string as the location path for incremental refresh job checkpoint. The location has to be a path in an HDFS compatible file system and only applicable when auto refresh enabled. If unspecified, temporary checkpoint directory will be used and may result in checkpoint data lost upon restart.
++ `index_settings`: a JSON string as index settings for OpenSearch index that will be created. Please follow the format in OpenSearch documentation. If unspecified, default OpenSearch index settings will be applied.
+
+```sql
+WITH (
+  auto_refresh = [true|false],
+  refresh_interval = 'time interval expression',
+  checkpoint_location = 'checkpoint directory path'
+)
+```
+
+Example:
+
+```sql
+CREATE INDEX elb_and_requestUri
+ON alb_logs ( elb, requestUri )
+WITH (
+  auto_refresh = true,
+  refresh_interval = '1 minute',
+  checkpoint_location = 's3://test/'
+)
+```
+
 ## Index Store
 
 ### OpenSearch
 
-OpenSearch stores the Flint index in an OpenSearch index of the given name.
+OpenSearch index corresponding to the Flint index follows the naming convention below:
+
+1. Skipping index: `flint_[catalog_database_table]_skipping_index`
+2. Covering index: `flint_[catalog_database_table]_[index_name]_index`
+
+It's important to note that any uppercase letters in the index name and table name (catalog, database and table) in SQL statement will be automatically converted to lowercase due to restriction imposed by OpenSearch.
+
+Examples:
+
+```sql
+-- OpenSearch index name is `flint_spark_catalog_default_alb_logs_skipping_index`
+CREATE SKIPPING INDEX ON spark_catalog.default.alb_logs ...
+
+-- OpenSearch index name is `flint_spark_catalog_default_alb_logs_elb_and_requesturi_index`
+CREATE INDEX elb_and_requestUri ON spark_catalog.default.alb_logs ...
+```
+
 In the index mapping, the `_meta` and `properties`field stores meta and schema info of a Flint index.
 
 ```json
@@ -210,7 +288,9 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.datasource.flint.host`: default is localhost.
 - `spark.datasource.flint.port`: default is 9200.
 - `spark.datasource.flint.scheme`: default is http. valid values [http, https]
-- `spark.datasource.flint.auth`: default is false. valid values [false, sigv4]
+- `spark.datasource.flint.auth`: default is noauth. valid values [noauth, sigv4, basic]
+- `spark.datasource.flint.auth.username`: basic auth username.
+- `spark.datasource.flint.auth.password`: basic auth password.
 - `spark.datasource.flint.region`: default is us-west-2. only been used when auth=sigv4
 - `spark.datasource.flint.customAWSCredentialsProvider`: default is empty.   
 - `spark.datasource.flint.write.id_name`: no default value.
@@ -264,6 +344,7 @@ Here is an example for Flint Spark integration:
 ```scala
 val flint = new FlintSpark(spark)
 
+// Skipping index
 flint.skippingIndex()
     .onTable("alb_logs")
     .filterBy("time > 2023-04-01 00:00:00")
@@ -273,6 +354,15 @@ flint.skippingIndex()
     .create()
 
 flint.refresh("flint_alb_logs_skipping_index", FULL)
+
+// Covering index
+flint.coveringIndex()
+    .name("elb_and_requestUri")
+    .onTable("alb_logs")
+    .addIndexColumns("elb", "requestUri")
+    .create()
+
+flint.refresh("flint_alb_logs_elb_and_requestUri_index")
 ```
 
 #### Skipping Index Provider SPI
@@ -315,6 +405,22 @@ val df = new SQLContext(sc).read
 TODO
 
 ## Limitations
+
+### Flint Index Naming
+
+Due to the conversion of uppercase letters to lowercase in OpenSearch index names, it is not permissible to create a Flint index with a table name or index name that differs solely by case.
+
+For instance, only one of the statement per group can be successfully:
+
+```sql
+-- myGlue vs myglue
+CREATE SKIPPING INDEX ON myGlue.default.alb_logs ...
+CREATE SKIPPING INDEX ON myglue.default.alb_logs ...
+
+-- idx_elb vs Idx_elb
+CREATE INDEX idx_elb ON alb_logs ...
+CREATE INDEX Idx_elb ON alb_logs ...
+```
 
 ### Query Optimization
 
@@ -383,4 +489,12 @@ Flint use [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJa
 --conf spark.datasource.flint.customAWSCredentialsProvider=com.amazonaws.emr.AssumeRoleAWSCredentialsProvider \
 --conf spark.emr-serverless.driverEnv.ASSUME_ROLE_CREDENTIALS_ROLE_ARN=arn:aws:iam::AccountB:role/CrossAccountRoleB \
 --conf spark.executorEnv.ASSUME_ROLE_CREDENTIALS_ROLE_ARN=arn:aws:iam::AccountBB:role/CrossAccountRoleB
+```
+
+### Basic Auth
+Add Basic Auth configuration in Spark configuration. Replace username and password with correct one.
+```
+--conf spark.datasource.flint.auth=basic
+--conf spark.datasource.flint.auth.username=username
+--conf spark.datasource.flint.auth.password=password
 ```

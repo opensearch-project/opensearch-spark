@@ -8,14 +8,16 @@ package org.opensearch.flint.spark
 import scala.collection.JavaConverters._
 
 import org.json4s.{Formats, JArray, NoTypeHints}
+import org.json4s.JsonAST.{JField, JObject}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.FlintMetadata
-import org.opensearch.flint.spark.FlintSpark._
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL, RefreshMode}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
-import org.opensearch.flint.spark.skipping.{FlintSparkSkippingIndex, FlintSparkSkippingStrategy}
+import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
+import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.SKIPPING_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.{SkippingKind, SkippingKindSerializer}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
@@ -25,12 +27,11 @@ import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.SaveMode._
-import org.apache.spark.sql.catalog.Column
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
 import org.apache.spark.sql.streaming.OutputMode.Append
-import org.apache.spark.sql.streaming.StreamingQuery
+import org.apache.spark.sql.streaming.Trigger
 
 /**
  * Flint Spark integration API entrypoint.
@@ -42,8 +43,7 @@ class FlintSpark(val spark: SparkSession) {
     FlintSparkConf(
       Map(
         DOC_ID_COLUMN_NAME.optionKey -> ID_COLUMN,
-        IGNORE_DOC_ID_COLUMN.optionKey -> "true"
-      ).asJava)
+        IGNORE_DOC_ID_COLUMN.optionKey -> "true").asJava)
 
   /** Flint client for low-level index operation */
   private val flintClient: FlintClient = FlintClientBuilder.build(flintSparkConf.flintOptions())
@@ -57,8 +57,18 @@ class FlintSpark(val spark: SparkSession) {
    * @return
    *   index builder
    */
-  def skippingIndex(): IndexBuilder = {
-    new IndexBuilder(this)
+  def skippingIndex(): FlintSparkSkippingIndex.Builder = {
+    new FlintSparkSkippingIndex.Builder(this)
+  }
+
+  /**
+   * Create index builder for creating index with fluent API.
+   *
+   * @return
+   *   index builder
+   */
+  def coveringIndex(): FlintSparkCoveringIndex.Builder = {
+    new FlintSparkCoveringIndex.Builder(this)
   }
 
   /**
@@ -66,14 +76,20 @@ class FlintSpark(val spark: SparkSession) {
    *
    * @param index
    *   Flint index to create
+   * @param ignoreIfExists
+   *   Ignore existing index
    */
-  def createIndex(index: FlintSparkIndex): Unit = {
+  def createIndex(index: FlintSparkIndex, ignoreIfExists: Boolean = false): Unit = {
     val indexName = index.name()
     if (flintClient.exists(indexName)) {
-      throw new IllegalStateException(
-        s"A table can only have one Flint skipping index: Flint index $indexName is found")
+      if (!ignoreIfExists) {
+        throw new IllegalStateException(s"Flint index $indexName already exists")
+      }
+    } else {
+      val metadata = index.metadata()
+      index.options.indexSettings().foreach(metadata.setIndexSettings)
+      flintClient.createIndex(indexName, metadata)
     }
-    flintClient.createIndex(indexName, index.metadata())
   }
 
   /**
@@ -120,12 +136,35 @@ class FlintSpark(val spark: SparkSession) {
           .writeStream
           .queryName(indexName)
           .outputMode(Append())
-          .foreachBatch { (batchDF: DataFrame, _: Long) =>
-            writeFlintIndex(batchDF)
-          }
-          .start()
-        Some(job.id.toString)
+
+        index.options
+          .checkpointLocation()
+          .foreach(location => job.option("checkpointLocation", location))
+        index.options
+          .refreshInterval()
+          .foreach(interval => job.trigger(Trigger.ProcessingTime(interval)))
+
+        val jobId =
+          job
+            .foreachBatch { (batchDF: DataFrame, _: Long) =>
+              writeFlintIndex(batchDF)
+            }
+            .start()
+            .id
+        Some(jobId.toString)
     }
+  }
+
+  /**
+   * Describe all Flint indexes whose name matches the given pattern.
+   *
+   * @param indexNamePattern
+   *   index name pattern which may contains wildcard
+   * @return
+   *   Flint index list
+   */
+  def describeIndexes(indexNamePattern: String): Seq[FlintSparkIndex] = {
+    flintClient.getAllIndexMetadata(indexNamePattern).asScala.map(deserialize)
   }
 
   /**
@@ -155,8 +194,8 @@ class FlintSpark(val spark: SparkSession) {
    */
   def deleteIndex(indexName: String): Boolean = {
     if (flintClient.exists(indexName)) {
-      flintClient.deleteIndex(indexName)
       stopRefreshingJob(indexName)
+      flintClient.deleteIndex(indexName)
       true
     } else {
       false
@@ -199,9 +238,18 @@ class FlintSpark(val spark: SparkSession) {
    */
   private def deserialize(metadata: FlintMetadata): FlintSparkIndex = {
     val meta = parse(metadata.getContent) \ "_meta"
+    val indexName = (meta \ "name").extract[String]
     val tableName = (meta \ "source").extract[String]
     val indexType = (meta \ "kind").extract[String]
     val indexedColumns = (meta \ "indexedColumns").asInstanceOf[JArray]
+    val indexOptions = FlintSparkIndexOptions(
+      (meta \ "options")
+        .asInstanceOf[JObject]
+        .obj
+        .map { case JField(key, value) =>
+          key -> value.values.toString
+        }
+        .toMap)
 
     indexType match {
       case SKIPPING_INDEX_TYPE =>
@@ -221,7 +269,15 @@ class FlintSpark(val spark: SparkSession) {
               throw new IllegalStateException(s"Unknown skipping strategy: $other")
           }
         }
-        new FlintSparkSkippingIndex(tableName, strategies)
+        new FlintSparkSkippingIndex(tableName, strategies, indexOptions)
+      case COVERING_INDEX_TYPE =>
+        new FlintSparkCoveringIndex(
+          indexName,
+          tableName,
+          indexedColumns.arr.map { obj =>
+            ((obj \ "columnName").extract[String], (obj \ "columnType").extract[String])
+          }.toMap,
+          indexOptions)
     }
   }
 }
@@ -235,103 +291,5 @@ object FlintSpark {
   object RefreshMode extends Enumeration {
     type RefreshMode = Value
     val FULL, INCREMENTAL = Value
-  }
-
-  /**
-   * Helper class for index class construct. For now only skipping index supported.
-   */
-  class IndexBuilder(flint: FlintSpark) {
-    var tableName: String = ""
-    var indexedColumns: Seq[FlintSparkSkippingStrategy] = Seq()
-
-    lazy val allColumns: Map[String, Column] = {
-      flint.spark.catalog
-        .listColumns(tableName)
-        .collect()
-        .map(col => (col.name, col))
-        .toMap
-    }
-
-    /**
-     * Configure which source table the index is based on.
-     *
-     * @param tableName
-     *   full table name
-     * @return
-     *   index builder
-     */
-    def onTable(tableName: String): IndexBuilder = {
-      this.tableName = tableName
-      this
-    }
-
-    /**
-     * Add partition skipping indexed columns.
-     *
-     * @param colNames
-     *   indexed column names
-     * @return
-     *   index builder
-     */
-    def addPartitions(colNames: String*): IndexBuilder = {
-      require(tableName.nonEmpty, "table name cannot be empty")
-
-      colNames
-        .map(findColumn)
-        .map(col => PartitionSkippingStrategy(columnName = col.name, columnType = col.dataType))
-        .foreach(addIndexedColumn)
-      this
-    }
-
-    /**
-     * Add value set skipping indexed column.
-     *
-     * @param colName
-     *   indexed column name
-     * @return
-     *   index builder
-     */
-    def addValueSet(colName: String): IndexBuilder = {
-      require(tableName.nonEmpty, "table name cannot be empty")
-
-      val col = findColumn(colName)
-      addIndexedColumn(ValueSetSkippingStrategy(columnName = col.name, columnType = col.dataType))
-      this
-    }
-
-    /**
-     * Add min max skipping indexed column.
-     *
-     * @param colName
-     *   indexed column name
-     * @return
-     *   index builder
-     */
-    def addMinMax(colName: String): IndexBuilder = {
-      val col = findColumn(colName)
-      indexedColumns =
-        indexedColumns :+ MinMaxSkippingStrategy(columnName = col.name, columnType = col.dataType)
-      this
-    }
-
-    /**
-     * Create index.
-     */
-    def create(): Unit = {
-      flint.createIndex(new FlintSparkSkippingIndex(tableName, indexedColumns))
-    }
-
-    private def findColumn(colName: String): Column =
-      allColumns.getOrElse(
-        colName,
-        throw new IllegalArgumentException(s"Column $colName does not exist"))
-
-    private def addIndexedColumn(indexedCol: FlintSparkSkippingStrategy): Unit = {
-      require(
-        indexedColumns.forall(_.columnName != indexedCol.columnName),
-        s"${indexedCol.columnName} is already indexed")
-
-      indexedColumns = indexedColumns :+ indexedCol
-    }
   }
 }
