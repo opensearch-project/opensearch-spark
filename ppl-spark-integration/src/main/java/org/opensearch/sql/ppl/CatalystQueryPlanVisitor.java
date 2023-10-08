@@ -40,6 +40,7 @@ import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.Aggregation;
+import org.opensearch.sql.ast.tree.Correlation;
 import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
@@ -63,6 +64,7 @@ import static java.util.Collections.emptyList;
 import static java.util.List.of;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
+import static org.opensearch.sql.ppl.utils.JoinSpecTransformer.join;
 import static org.opensearch.sql.ppl.utils.WindowSpecTransformer.window;
 
 /**
@@ -111,6 +113,18 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     @Override
+    public LogicalPlan visitCorrelation(Correlation node, CatalystPlanContext context) {
+        visitFieldList(node.getFieldsList().stream().map(Field::new).collect(Collectors.toList()), context);
+        Seq<Expression> fields = context.retainAllNamedParseExpressions(e -> e);
+        expressionAnalyzer.visitSpan(node.getScope(), context);
+        Expression scope = context.getNamedParseExpressions().pop();
+        node.getMappingListContext().accept(this, context);
+        Seq<Expression> mapping = context.retainAllNamedParseExpressions(e -> e);
+        return context.plan(p -> join(node.getCorrelationType(), fields, scope, mapping, p));
+    }
+
+    
+    @Override
     public LogicalPlan visitAggregation(Aggregation node, CatalystPlanContext context) {
         node.getChild().get(0).accept(this, context);
         List<Expression> aggsExpList = visitExpressionList(node.getAggExprList(), context);
@@ -130,7 +144,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         // build the aggregation logical step
         return extractedAggregation(context);
     }
-    
+
     private static LogicalPlan extractedAggregation(CatalystPlanContext context) {
         Seq<Expression> groupingExpression = context.retainAllGroupingNamedParseExpressions(p -> p);
         Seq<NamedExpression> aggregateExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
@@ -161,7 +175,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         }
         return child;
     }
-    
+
     @Override
     public LogicalPlan visitSort(Sort node, CatalystPlanContext context) {
         node.getChild().get(0).accept(this, context);

@@ -15,11 +15,14 @@ import org.opensearch.flint.spark.ppl.OpenSearchPPLParserBaseVisitor;
 import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.Field;
+import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Map;
 import org.opensearch.sql.ast.expression.ParseMethod;
 import org.opensearch.sql.ast.expression.QualifiedName;
+import org.opensearch.sql.ast.expression.Scope;
+import org.opensearch.sql.ast.expression.SpanUnit;
 import org.opensearch.sql.ast.expression.UnresolvedArgument;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.tree.Aggregation;
@@ -42,8 +45,11 @@ import org.opensearch.sql.ppl.utils.ArgumentFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static java.util.Collections.emptyList;
 
 
 /** Class of building the AST. Refines the visit path and build the AST nodes */
@@ -102,7 +108,17 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   @Override
   public UnresolvedPlan visitCorrelateCommand(OpenSearchPPLParser.CorrelateCommandContext ctx) {
-    return new Correlation(ctx.correlationType(),ctx.fieldList(),ctx.scopeClause(),ctx.mappingList());
+    return new Correlation(ctx.correlationType().getText(),
+            ctx.fieldList().fieldExpression().stream()
+                    .map(this::internalVisitExpression)
+                    .collect(Collectors.toList()),
+             new Scope(expressionBuilder.visit(ctx.scopeClause().fieldExpression()),
+                     expressionBuilder.visit(ctx.scopeClause().value), 
+                     SpanUnit.of(ctx.scopeClause().unit.getText())),
+            Objects.isNull(ctx.mappingList()) ? new FieldsMapping(emptyList()) : new FieldsMapping(ctx.mappingList()
+                    .mappingClause().stream()
+                    .map(this::internalVisitExpression)
+                    .collect(Collectors.toList())));
   }
 
   /** Fields command. */
@@ -155,7 +171,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                                         getTextInQuery(groupCtx),
                                         internalVisitExpression(groupCtx)))
                         .collect(Collectors.toList()))
-            .orElse(Collections.emptyList());
+            .orElse(emptyList());
 
     UnresolvedExpression span =
         Optional.ofNullable(ctx.statsByClause())
@@ -166,7 +182,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     Aggregation aggregation =
         new Aggregation(
             aggListBuilder.build(),
-            Collections.emptyList(),
+            emptyList(),
             groupList,
             span,
             ArgumentFactory.getArgumentList(ctx));
@@ -260,7 +276,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   @Override
   public UnresolvedPlan visitTopCommand(OpenSearchPPLParser.TopCommandContext ctx) {
     List<UnresolvedExpression> groupList =
-        ctx.byClause() == null ? Collections.emptyList() : getGroupByList(ctx.byClause());
+        ctx.byClause() == null ? emptyList() : getGroupByList(ctx.byClause());
     return new RareTopN(
         RareTopN.CommandType.TOP,
         ArgumentFactory.getArgumentList(ctx),
