@@ -12,15 +12,15 @@ import org.apache.spark.sql.types._
 /**
  * Spark SQL Application entrypoint
  *
- * @param args (0)
- *             sql query
- * @param args (1)
- *             opensearch index name
- * @param args (2-6)
- *             opensearch connection values required for flint-integration jar.
- *             host, port, scheme, auth, region respectively.
+ * @param args
+ *   (0) sql query
+ * @param args
+ *   (1) opensearch index name
+ * @param args
+ *   (2-6) opensearch connection values required for flint-integration jar. host, port, scheme,
+ *   auth, region respectively.
  * @return
- * write sql query result to given opensearch index
+ *   write sql query result to given opensearch index
  */
 case class JobConfig(
     query: String,
@@ -29,13 +29,13 @@ case class JobConfig(
     port: String,
     scheme: String,
     auth: String,
-    region: String
-  )
+    region: String)
 
 object SQLJob {
   private def parseArgs(args: Array[String]): JobConfig = {
     if (args.length < 7) {
-      throw new IllegalArgumentException("Insufficient arguments provided! - args: [extensions, query, index, host, port, scheme, auth, region]")
+      throw new IllegalArgumentException(
+        "Insufficient arguments provided! - args: [extensions, query, index, host, port, scheme, auth, region]")
     }
 
     JobConfig(
@@ -45,8 +45,7 @@ object SQLJob {
       port = args(3),
       scheme = args(4),
       auth = args(5),
-      region = args(6)
-    )
+      region = args(6))
   }
 
   def createSparkConf(config: JobConfig): SparkConf = {
@@ -97,35 +96,39 @@ object SQLJob {
    * Create a new formatted dataframe with json result, json schema and EMR_STEP_ID.
    *
    * @param result
-   * sql query result dataframe
+   *   sql query result dataframe
    * @param spark
-   * spark session
+   *   spark session
    * @return
-   * dataframe with result, schema and emr step id
+   *   dataframe with result, schema and emr step id
    */
   def getFormattedData(result: DataFrame, spark: SparkSession): DataFrame = {
     // Create the schema dataframe
     val schemaRows = result.schema.fields.map { field =>
       Row(field.name, field.dataType.typeName)
     }
-    val resultSchema = spark.createDataFrame(spark.sparkContext.parallelize(schemaRows),
-      StructType(Seq(
-        StructField("column_name", StringType, nullable = false),
-        StructField("data_type", StringType, nullable = false))))
+    val resultSchema = spark.createDataFrame(
+      spark.sparkContext.parallelize(schemaRows),
+      StructType(
+        Seq(
+          StructField("column_name", StringType, nullable = false),
+          StructField("data_type", StringType, nullable = false))))
 
     // Define the data schema
-    val schema = StructType(Seq(
-      StructField("result", ArrayType(StringType, containsNull = true), nullable = true),
-      StructField("schema", ArrayType(StringType, containsNull = true), nullable = true),
-      StructField("stepId", StringType, nullable = true),
-      StructField("applicationId", StringType, nullable = true)))
+    val schema = StructType(
+      Seq(
+        StructField("result", ArrayType(StringType, containsNull = true), nullable = true),
+        StructField("schema", ArrayType(StringType, containsNull = true), nullable = true),
+        StructField("stepId", StringType, nullable = true),
+        StructField("applicationId", StringType, nullable = true)))
 
     // Create the data rows
-    val rows = Seq((
-      result.toJSON.collect.toList.map(_.replaceAll("'", "\\\\'").replaceAll("\"", "'")),
-      resultSchema.toJSON.collect.toList.map(_.replaceAll("\"", "'")),
-      sys.env.getOrElse("EMR_STEP_ID", "unknown"),
-      spark.sparkContext.applicationId))
+    val rows = Seq(
+      (
+        result.toJSON.collect.toList.map(_.replaceAll("'", "\\\\'").replaceAll("\"", "'")),
+        resultSchema.toJSON.collect.toList.map(_.replaceAll("\"", "'")),
+        sys.env.getOrElse("EMR_STEP_ID", "unknown"),
+        spark.sparkContext.applicationId))
 
     // Create the DataFrame for data
     spark.createDataFrame(rows).toDF(schema.fields.map(_.name): _*)
