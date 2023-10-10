@@ -35,8 +35,7 @@ class FlintJobTest extends SparkFunSuite with Matchers {
         StructField("applicationId", StringType, nullable = true),
         StructField("dataSourceName", StringType, nullable = true),
         StructField("status", StringType, nullable = true),
-        StructField("error", StringType, nullable = true)
-      ))
+        StructField("error", StringType, nullable = true)))
     val expectedRows = Seq(
       Row(
         Array(
@@ -50,8 +49,7 @@ class FlintJobTest extends SparkFunSuite with Matchers {
         "unknown",
         dataSourceName,
         "SUCCESS",
-        ""
-      ))
+        ""))
     val expected: DataFrame =
       spark.createDataFrame(spark.sparkContext.parallelize(expectedRows), expectedSchema)
 

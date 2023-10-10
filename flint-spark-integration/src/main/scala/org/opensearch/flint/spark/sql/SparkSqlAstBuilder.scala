@@ -15,8 +15,8 @@ import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.{PropertyKey
 import org.apache.spark.sql.catalyst.parser.ParserUtils.string
 
 /**
- * AST builder that builds for common rule in Spark SQL grammar. The main logic is modified slightly
- * from Spark AstBuilder code.
+ * AST builder that builds for common rule in Spark SQL grammar. The main logic is modified
+ * slightly from Spark AstBuilder code.
  */
 trait SparkSqlAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
 
