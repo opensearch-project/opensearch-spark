@@ -49,18 +49,19 @@ class FlintMetadataSuite extends AnyFlatSpec with Matchers {
     metadata.name shouldBe "test_index"
     metadata.kind shouldBe "test_kind"
     metadata.source shouldBe "test_source_table"
-    metadata.indexedColumns shouldBe Map("test_field" -> "spark_type").asJava
+    metadata.indexedColumns shouldBe Array(Map("test_field" -> "spark_type").asJava)
     metadata.schema shouldBe Map("test_field" -> Map("type" -> "os_type").asJava).asJava
   }
 
   "getContent" should "serialize all fields to JSON" in {
-    val metadata = new FlintMetadata.Builder
-    metadata.name("test_index")
-    metadata.kind("test_kind")
-    metadata.source("test_source_table")
-    metadata.addIndexedColumn("test_field", "spark_type");
-    metadata.addSchemaField("test_field", Map("type" -> "os_type").asJava)
+    val builder = new FlintMetadata.Builder
+    builder.name("test_index")
+    builder.kind("test_kind")
+    builder.source("test_source_table")
+    builder.addIndexedColumn(Map[String, AnyRef]("test_field" -> "spark_type").asJava);
+    builder.addSchemaField("test_field", Map("type" -> "os_type").asJava)
 
-    metadata.build().getContent should matchJson(testMetadataJson)
+    val metadata = builder.build()
+    metadata.getContent should matchJson(testMetadataJson)
   }
 }

@@ -22,7 +22,7 @@ case class FlintMetadata(
     name: String,
     kind: String,
     source: String,
-    indexedColumns: util.Map[String, AnyRef] = new util.LinkedHashMap[String, AnyRef],
+    indexedColumns: Array[util.Map[String, AnyRef]] = Array(),
     options: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef],
     properties: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef],
     schema: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef],
@@ -40,7 +40,7 @@ case class FlintMetadata(
       builder.field("name", name)
       builder.field("kind", kind)
       builder.field("source", source)
-      builder.array("indexedColumns", indexedColumns)
+      builder.field("indexedColumns", indexedColumns)
 
       if (options == null) {
         builder.startObject("options").endObject()
@@ -103,22 +103,13 @@ object FlintMetadata {
         case "name" => builder.name(parser.text())
         case "kind" => builder.kind(parser.text())
         case "source" => builder.source(parser.text())
-        case "indexedColumns" => parseIndexedColumns(parser, builder)
+        case "indexedColumns" =>
+          while (parser.nextToken() != XContentParser.Token.END_ARRAY) {
+            builder.addIndexedColumn(parser.map())
+          }
         case "options" => builder.options(parser.map())
         case "properties" => builder.properties(parser.map())
         case _ => // Handle other fields as needed
-      }
-    }
-  }
-
-  private def parseIndexedColumns(parser: XContentParser, builder: Builder): Unit = {
-    while (parser.nextToken() != XContentParser.Token.END_ARRAY) {
-      while (parser.nextToken() != XContentParser.Token.END_OBJECT) {
-        val colName: String = parser.currentName()
-        parser.nextToken()
-
-        val colValue: String = parser.text()
-        builder.addIndexedColumn(colName, colValue)
       }
     }
   }
@@ -129,8 +120,7 @@ object FlintMetadata {
     private var kind: String = ""
     private var source: String = ""
     private var options: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef]()
-    private var indexedColumns: util.Map[String, AnyRef] =
-      new util.LinkedHashMap[String, AnyRef]()
+    private var indexedColumns: Array[util.Map[String, AnyRef]] = Array()
     private var properties: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef]()
     private var schema: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef]()
     private var indexSettings: String = null
@@ -166,13 +156,13 @@ object FlintMetadata {
       this
     }
 
-    def indexedColumns(indexedColumns: util.Map[String, AnyRef]): Builder = {
+    def indexedColumns(indexedColumns: Array[util.Map[String, AnyRef]]): Builder = {
       this.indexedColumns = indexedColumns
       this
     }
 
-    def addIndexedColumn(key: String, value: AnyRef): Builder = {
-      indexedColumns.put(key, value)
+    def addIndexedColumn(indexCol: util.Map[String, AnyRef]): Builder = {
+      indexedColumns = indexedColumns :+ indexCol
       this
     }
 
@@ -203,7 +193,16 @@ object FlintMetadata {
 
     // Build method to create the FlintMetadata instance
     def build(): FlintMetadata = {
-      FlintMetadata(version, name, kind, source, indexedColumns, options, properties, schema, indexSettings)
+      FlintMetadata(
+        version,
+        name,
+        kind,
+        source,
+        indexedColumns,
+        options,
+        properties,
+        schema,
+        indexSettings)
     }
   }
 }
