@@ -14,7 +14,7 @@ import org.scalatest.matchers.should.Matchers
 
 class FlintMetadataSuite extends AnyFlatSpec with Matchers {
 
-  /** Test metadata JSON string */
+  /** Test Flint index meta JSON string */
   val testMetadataJson: String = s"""
                 | {
                 |   "_meta": {
@@ -37,27 +37,30 @@ class FlintMetadataSuite extends AnyFlatSpec with Matchers {
                 | }
                 |""".stripMargin
 
-  "constructor" should "deserialize the given JSON and assign parsed value to field" in {
-    val metadata = new FlintMetadata(testMetadataJson)
+  val testIndexSettingsJson: String =
+    """
+      | { "number_of_shards": 3 }
+      |""".stripMargin
 
-    metadata.getVersion shouldBe current()
-    metadata.getName shouldBe "test_index"
-    metadata.getKind shouldBe "test_kind"
-    metadata.getSource shouldBe "test_source_table"
-    metadata.getIndexedColumns shouldBe Map("test_field" -> "spark_type").asJava
-    metadata.getSchema shouldBe Map("test_field" -> Map("type" -> "os_type").asJava).asJava
+  "constructor" should "deserialize the given JSON and assign parsed value to field" in {
+    val metadata = FlintMetadata.fromJson(testMetadataJson, testIndexSettingsJson)
+
+    metadata.version shouldBe current()
+    metadata.name shouldBe "test_index"
+    metadata.kind shouldBe "test_kind"
+    metadata.source shouldBe "test_source_table"
+    metadata.indexedColumns shouldBe Map("test_field" -> "spark_type").asJava
+    metadata.schema shouldBe Map("test_field" -> Map("type" -> "os_type").asJava).asJava
   }
 
   "getContent" should "serialize all fields to JSON" in {
-    val metadata = new FlintMetadata()
-    metadata.setName("test_index")
-    metadata.setKind("test_kind")
-    metadata.setSource("test_source_table")
-    metadata.getIndexedColumns.put("test_field", "spark_type");
-    metadata.getSchema.put("test_field", Map("type" -> "os_type").asJava)
-    // metadata.setIndexedColumns("""[{"test_field": "spark_type"}]""")
-    // metadata.setSchema("""{"test_field": {"type": "os_type"}}""")
+    val metadata = new FlintMetadata.Builder
+    metadata.name("test_index")
+    metadata.kind("test_kind")
+    metadata.source("test_source_table")
+    metadata.addIndexedColumn("test_field", "spark_type");
+    metadata.addSchemaField("test_field", Map("type" -> "os_type").asJava)
 
-    metadata.getContent should matchJson(testMetadataJson)
+    metadata.build().getContent should matchJson(testMetadataJson)
   }
 }

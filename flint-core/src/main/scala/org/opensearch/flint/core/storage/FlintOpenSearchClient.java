@@ -73,8 +73,8 @@ public class FlintOpenSearchClient implements FlintClient {
       CreateIndexRequest request = new CreateIndexRequest(osIndexName);
       request.mapping(metadata.getContent(), XContentType.JSON);
 
-      if (metadata.getIndexSettings() != null) {
-        request.settings(metadata.getIndexSettings(), XContentType.JSON);
+      if (metadata.indexSettings() != null) {
+        request.settings(metadata.indexSettings(), XContentType.JSON);
       }
       client.indices().create(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
@@ -98,7 +98,7 @@ public class FlintOpenSearchClient implements FlintClient {
       GetIndexResponse response = client.indices().get(request, RequestOptions.DEFAULT);
 
       return Arrays.stream(response.getIndices())
-          .map(index -> new FlintMetadata(
+          .map(index -> FlintMetadata.fromJson(
               response.getMappings().get(index).source().toString(),
               response.getSettings().get(index).toString()))
           .collect(Collectors.toList());
@@ -115,7 +115,7 @@ public class FlintOpenSearchClient implements FlintClient {
 
       MappingMetadata mapping = response.getMappings().get(osIndexName);
       Settings settings = response.getSettings().get(osIndexName);
-      return new FlintMetadata(mapping.source().string(), settings.toString());
+      return FlintMetadata.fromJson(mapping.source().string(), settings.toString());
     } catch (Exception e) {
       throw new IllegalStateException("Failed to get Flint index metadata for " + osIndexName, e);
     }
