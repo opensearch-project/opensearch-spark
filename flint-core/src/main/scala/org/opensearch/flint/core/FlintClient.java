@@ -73,7 +73,6 @@ public interface FlintClient {
    * @return {@link FlintWriter}
    */
   FlintWriter createWriter(String indexName);
-
   /**
    * Create {@link RestHighLevelClient}.
    * @return {@link RestHighLevelClient}
