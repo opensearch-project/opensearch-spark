@@ -17,6 +17,7 @@ singleStatement
 statement
     : skippingIndexStatement
     | coveringIndexStatement
+    | materializedViewStatement
     ;
 
 skippingIndexStatement
@@ -74,6 +75,21 @@ describeCoveringIndexStatement
 
 dropCoveringIndexStatement
     : DROP INDEX indexName ON tableName
+    ;
+
+materializedViewStatement
+    : createMaterializedViewStatement
+    | dropMaterializedViewStatement
+    ;
+
+createMaterializedViewStatement
+    : CREATE MATERIALIZED VIEW mvName=multipartIdentifier
+        AS mvQuery=.*
+        (WITH LEFT_PAREN propertyList RIGHT_PAREN)?
+    ;
+
+dropMaterializedViewStatement
+    : DROP MATERIALIZED VIEW mvName=multipartIdentifier
     ;
 
 indexColTypeList
