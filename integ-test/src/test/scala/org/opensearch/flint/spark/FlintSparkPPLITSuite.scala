@@ -112,7 +112,7 @@ class FlintSparkPPLITSuite
 
   test("create ppl simple query with head (limit) and sorted test") {
     val frame = sql(s"""
-         | source = $testTable| sort name | head 2 
+         | source = $testTable| sort name | head 2
          | """.stripMargin)
 
     // Retrieve the results
@@ -475,7 +475,7 @@ class FlintSparkPPLITSuite
 
   test("create ppl simple age avg query test") {
     val frame = sql(s"""
-         | source = $testTable| stats avg(age) 
+         | source = $testTable| stats avg(age)
          | """.stripMargin)
 
     // Retrieve the results
@@ -503,7 +503,7 @@ class FlintSparkPPLITSuite
 
   test("create ppl simple age avg query with filter test") {
     val frame = sql(s"""
-         | source = $testTable| where age < 50 | stats avg(age) 
+         | source = $testTable| where age < 50 | stats avg(age)
          | """.stripMargin)
 
     // Retrieve the results
