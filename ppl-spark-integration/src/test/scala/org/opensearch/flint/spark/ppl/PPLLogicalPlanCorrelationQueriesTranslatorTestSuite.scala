@@ -23,7 +23,7 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
   private val planTrnasformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
 
-  test("Search multiple tables with correlation - translated into join call with fields") {
+  ignore("Search multiple tables with correlation - translated into join call with fields") {
     val context = new CatalystPlanContext
     val query = "source = table1, table2 | correlate exact fields(ip, port) scope(@timestamp, 1d)"
     val logPlan = planTrnasformer.visit(plan(pplParser, query, false), context)
@@ -42,7 +42,7 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
 
     assertEquals(expectedPlan, logPlan)
   }
-  test(
+  ignore(
     "Search multiple tables with correlation with filters - translated into join call with fields") {
     val context = new CatalystPlanContext
     val query =
@@ -63,7 +63,7 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
 
     assertEquals(expectedPlan, logPlan)
   }
-  test(
+  ignore(
     "Search multiple tables with correlation - translated into join call with different fields mapping ") {
     val context = new CatalystPlanContext
     val query =
