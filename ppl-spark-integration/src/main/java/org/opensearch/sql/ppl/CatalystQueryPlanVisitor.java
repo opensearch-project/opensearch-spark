@@ -26,12 +26,14 @@ import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.Field;
+import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
+import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.expression.WindowFunction;
@@ -97,10 +99,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitRelation(Relation node, CatalystPlanContext context) {
-        node.getTableName().forEach(t -> {
+        node.getTableName().forEach(t -> 
             // Resolving the qualifiedName which is composed of a datasource.schema.table
-            context.with(new UnresolvedRelation(seq(of(t.split("\\."))), CaseInsensitiveStringMap.empty(), false));
-        });
+            context.with(new UnresolvedRelation(seq(of(t.split("\\."))), CaseInsensitiveStringMap.empty(), false))
+        );
         return context.getPlan();
     }
 
@@ -114,15 +116,15 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitCorrelation(Correlation node, CatalystPlanContext context) {
+        node.getChild().get(0).accept(this, context);
         visitFieldList(node.getFieldsList().stream().map(Field::new).collect(Collectors.toList()), context);
         Seq<Expression> fields = context.retainAllNamedParseExpressions(e -> e);
         expressionAnalyzer.visitSpan(node.getScope(), context);
         Expression scope = context.getNamedParseExpressions().pop();
-        node.getMappingListContext().accept(this, context);
+        expressionAnalyzer.visitCorrelationMapping(node.getMappingListContext(), context);
         Seq<Expression> mapping = context.retainAllNamedParseExpressions(e -> e);
-        return context.plan(p -> join(node.getCorrelationType(), fields, scope, mapping, p));
+        return join(node.getCorrelationType(), fields, scope, mapping, context);
     }
-
     
     @Override
     public LogicalPlan visitAggregation(Aggregation node, CatalystPlanContext context) {
@@ -318,8 +320,25 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         }
 
         @Override
+        public Expression visitQualifiedName(QualifiedName node, CatalystPlanContext context) {
+            return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
+        }
+
+        @Override
         public Expression visitField(Field node, CatalystPlanContext context) {
             return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getField().toString())));
+        }
+
+        @Override
+        public Expression visitCorrelation(Correlation node, CatalystPlanContext context) {
+            return super.visitCorrelation(node, context);
+        }
+
+        @Override
+        public Expression visitCorrelationMapping(FieldsMapping node, CatalystPlanContext context) {
+           return node.getChild().stream().map(expression -> 
+                visitCompare((Compare) expression, context)
+            ).reduce(org.apache.spark.sql.catalyst.expressions.And::new).orElse(null);
         }
 
         @Override

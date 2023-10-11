@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
+
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Divide, EqualTo, Floor, GreaterThanOrEqual, Literal, Multiply, SortOrder, TimeWindow}
@@ -332,7 +333,8 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
-  test("create ppl query count only error (status >= 400) status amount by day window and group by status test") {
+  test(
+    "create ppl query count only error (status >= 400) status amount by day window and group by status test") {
     val context = new CatalystPlanContext
     val logPlan = planTrnasformer.visit(
       plan(
@@ -358,12 +360,11 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
       "status_count_by_day")()
 
     val aggregateExpressions =
-      Alias(
-        UnresolvedFunction(Seq("SUM"), Seq(statusField), isDistinct = false),
-        "sum(status)")()
+      Alias(UnresolvedFunction(Seq("SUM"), Seq(statusField), isDistinct = false), "sum(status)")()
     val aggregatePlan = Aggregate(
       Seq(statusAlias, windowExpression),
-      Seq(aggregateExpressions, statusAlias, windowExpression), filterPlan)
+      Seq(aggregateExpressions, statusAlias, windowExpression),
+      filterPlan)
     val planWithLimit = GlobalLimit(Literal(100), LocalLimit(Literal(100), aggregatePlan))
     val expectedPlan = Project(star, planWithLimit)
     // Compare the two plans

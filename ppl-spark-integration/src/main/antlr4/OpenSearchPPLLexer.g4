@@ -38,6 +38,7 @@ ML:                                 'ML';
 
 //CORRELATION KEYWORDS
 CORRELATE:                          'CORRELATE';
+SELF:                               'SELF';
 EXACT:                              'EXACT';
 APPROXIMATE:                        'APPROXIMATE';
 SCOPE:                              'SCOPE';

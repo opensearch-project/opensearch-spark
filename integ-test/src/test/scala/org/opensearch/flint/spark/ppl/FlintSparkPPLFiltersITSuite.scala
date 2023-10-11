@@ -158,7 +158,6 @@ class FlintSparkPPLFiltersITSuite
     // Define the expected results
     val expectedResults: Array[Row] = Array(Row("Jane", 20), Row("Jake", 70), Row("Hello", 30))
     // Compare the results
-    // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
 

@@ -6,7 +6,6 @@
 package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
 import scala.collection.Seq;
@@ -37,7 +36,11 @@ public class CatalystPlanContext {
      * Grouping NamedExpression contextual parameters
      **/
     private final Stack<org.apache.spark.sql.catalyst.expressions.Expression> groupingParseExpressions = new Stack<>();
-    
+
+    public Stack<LogicalPlan> getPlanBranches() {
+        return planBranches;
+    }
+
     public LogicalPlan getPlan() {
         if (this.planBranches.size() == 1) {
             return planBranches.peek();
@@ -58,9 +61,10 @@ public class CatalystPlanContext {
      * append context with evolving plan
      *
      * @param plan
+     * @return
      */
-    public void with(LogicalPlan plan) {
-        this.planBranches.push(plan);
+    public LogicalPlan with(LogicalPlan plan) {
+        return this.planBranches.push(plan);
     }
 
     public LogicalPlan plan(Function<LogicalPlan, LogicalPlan> transformFunction) {
@@ -69,12 +73,22 @@ public class CatalystPlanContext {
     }
  
      /**
+     * retain all logical plans branches
+     * @return
+     */
+    public <T> Seq<T> retainAllPlans(Function<LogicalPlan, T> transformFunction) {
+        Seq<T> plans = seq(getPlanBranches().stream().map(transformFunction).collect(Collectors.toList()));
+        getPlanBranches().retainAll(emptyList());
+        return plans;
+    }
+     /**
+      * 
      * retain all expressions and clear expression stack
      * @return
      */
     public <T> Seq<T> retainAllNamedParseExpressions(Function<Expression, T> transformFunction) {
         Seq<T> aggregateExpressions = seq(getNamedParseExpressions().stream()
-                .map(transformFunction::apply).collect(Collectors.toList()));
+                .map(transformFunction).collect(Collectors.toList()));
         getNamedParseExpressions().retainAll(emptyList());
         return aggregateExpressions;
     }
@@ -85,7 +99,7 @@ public class CatalystPlanContext {
      */
     public <T> Seq<T> retainAllGroupingNamedParseExpressions(Function<Expression, T> transformFunction) {
         Seq<T> aggregateExpressions = seq(getGroupingParseExpressions().stream()
-                .map(transformFunction::apply).collect(Collectors.toList()));
+                .map(transformFunction).collect(Collectors.toList()));
         getGroupingParseExpressions().retainAll(emptyList());
         return aggregateExpressions;
     }

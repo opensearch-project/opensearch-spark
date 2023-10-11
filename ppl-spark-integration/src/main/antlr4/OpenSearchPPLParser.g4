@@ -62,32 +62,33 @@ describeCommand
    ;
 
 showDataSourcesCommand
-   : SHOW DATASOURCES
-   ;
+    : SHOW DATASOURCES
+    ;
 
 whereCommand
-   : WHERE logicalExpression
-   ;
+    : WHERE logicalExpression
+    ;
 
 correlateCommand
-   : CORRELATE correlationType FIELDS LT_PRTHS fieldList RT_PRTHS scopeClause  (mappingList)?
-   ;
+    : CORRELATE correlationType FIELDS LT_PRTHS fieldList RT_PRTHS scopeClause mappingList
+    ;
 
 correlationType
-    : EXACT
+    : SELF
+    | EXACT
     | APPROXIMATE
     ;
 
 scopeClause
-   : SCOPE LT_PRTHS fieldExpression COMMA value = literalValue (unit = timespanUnit)? RT_PRTHS
-   ;
+    : SCOPE LT_PRTHS fieldExpression COMMA value = literalValue (unit = timespanUnit)? RT_PRTHS
+    ;
 
 mappingList
     : MAPPING LT_PRTHS ( mappingClause (COMMA mappingClause)* ) RT_PRTHS
     ;
 
 mappingClause
-    : qualifiedName EQUAL qualifiedName
+    : left = qualifiedName comparisonOperator right = qualifiedName # mappingCompareExpr
     ;
 
 fieldsCommand

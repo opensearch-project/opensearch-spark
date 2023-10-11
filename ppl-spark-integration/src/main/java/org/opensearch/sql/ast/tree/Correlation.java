@@ -58,6 +58,7 @@ public class Correlation extends UnresolvedPlan {
     }
 
     public enum CorrelationType {
+        self,
         exact,
         approximate
     }
