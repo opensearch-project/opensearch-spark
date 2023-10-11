@@ -94,7 +94,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
 
     implicit val formats: Formats = Serialization.formats(NoTypeHints)
-    val settings = parse(flintClient.getIndexMetadata(testIndex).getIndexSettings)
+    val settings = parse(flintClient.getIndexMetadata(testIndex).indexSettings)
     (settings \ "index.number_of_shards").extract[String] shouldBe "3"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }

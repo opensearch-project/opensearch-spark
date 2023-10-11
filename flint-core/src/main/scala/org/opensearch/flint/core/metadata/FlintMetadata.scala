@@ -86,6 +86,8 @@ object FlintMetadata {
           builder.schema(parser.map())
         }
       }
+
+      builder.indexSettings(settings)
       builder.build()
     } catch {
       case e: Exception =>
@@ -114,6 +116,12 @@ object FlintMetadata {
     }
   }
 
+  def builder(): FlintMetadata.Builder = new Builder
+
+  /**
+   * Flint index metadata builder that can be extended by subclass to provide more custom build
+   * method.
+   */
   class Builder {
     private var version: FlintVersion = FlintVersion.current()
     private var name: String = ""
@@ -125,68 +133,67 @@ object FlintMetadata {
     private var schema: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef]()
     private var indexSettings: String = null
 
-    // Setters for each field
-    def version(version: FlintVersion): Builder = {
+    def version(version: FlintVersion): this.type = {
       this.version = version
       this
     }
 
-    def name(name: String): Builder = {
+    def name(name: String): this.type = {
       this.name = name
       this
     }
 
-    def kind(kind: String): Builder = {
+    def kind(kind: String): this.type = {
       this.kind = kind
       this
     }
 
-    def source(source: String): Builder = {
+    def source(source: String): this.type = {
       this.source = source
       this
     }
 
-    def options(options: util.Map[String, AnyRef]): Builder = {
+    def options(options: util.Map[String, AnyRef]): this.type = {
       this.options = options
       this
     }
 
-    def addOption(key: String, value: AnyRef): Builder = {
+    def addOption(key: String, value: AnyRef): this.type = {
       this.options.put(key, value)
       this
     }
 
-    def indexedColumns(indexedColumns: Array[util.Map[String, AnyRef]]): Builder = {
+    def indexedColumns(indexedColumns: Array[util.Map[String, AnyRef]]): this.type = {
       this.indexedColumns = indexedColumns
       this
     }
 
-    def addIndexedColumn(indexCol: util.Map[String, AnyRef]): Builder = {
+    def addIndexedColumn(indexCol: util.Map[String, AnyRef]): this.type = {
       indexedColumns = indexedColumns :+ indexCol
       this
     }
 
-    def properties(properties: util.Map[String, AnyRef]): Builder = {
+    def properties(properties: util.Map[String, AnyRef]): this.type = {
       this.properties = properties
       this
     }
 
-    def addProperty(key: String, value: AnyRef): Builder = {
+    def addProperty(key: String, value: AnyRef): this.type = {
       properties.put(key, value)
       this
     }
 
-    def schema(schema: util.Map[String, AnyRef]): Builder = {
+    def schema(schema: util.Map[String, AnyRef]): this.type = {
       this.schema = schema
       this
     }
 
-    def addSchemaField(key: String, value: AnyRef): Builder = {
+    def addSchemaField(key: String, value: AnyRef): this.type = {
       schema.put(key, value)
       this
     }
 
-    def indexSettings(indexSettings: String): Builder = {
+    def indexSettings(indexSettings: String): this.type = {
       this.indexSettings = indexSettings
       this
     }

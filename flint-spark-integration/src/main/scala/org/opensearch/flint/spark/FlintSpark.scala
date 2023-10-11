@@ -7,9 +7,7 @@ package org.opensearch.flint.spark
 
 import scala.collection.JavaConverters._
 
-import org.json4s.{Formats, JArray, NoTypeHints}
-import org.json4s.JsonAST.{JField, JObject}
-import org.json4s.native.JsonMethods.parse
+import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.FlintMetadata
@@ -87,7 +85,6 @@ class FlintSpark(val spark: SparkSession) {
       }
     } else {
       val metadata = index.metadata()
-      index.options.indexSettings().foreach(metadata.setIndexSettings)
       flintClient.createIndex(indexName, metadata)
     }
   }
@@ -105,7 +102,7 @@ class FlintSpark(val spark: SparkSession) {
   def refreshIndex(indexName: String, mode: RefreshMode): Option[String] = {
     val index = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
-    val tableName = getSourceTableName(index)
+    val tableName = index.metadata().source
 
     // Write Flint index data to Flint data source (shared by both refresh modes for now)
     def writeFlintIndex(df: DataFrame): Unit = {
@@ -224,39 +221,16 @@ class FlintSpark(val spark: SparkSession) {
     }
   }
 
-  // TODO: Remove all parsing logic below once Flint spec finalized and FlintMetadata strong typed
-  private def getSourceTableName(index: FlintSparkIndex): String = {
-    val json = parse(index.metadata().getContent)
-    (json \ "_meta" \ "source").extract[String]
-  }
-
-  /*
-   * For now, deserialize skipping strategies out of Flint metadata json
-   * ex. extract Seq(Partition("year", "int"), ValueList("name")) from
-   *  { "_meta": { "indexedColumns": [ {...partition...}, {...value list...} ] } }
-   *
-   */
   private def deserialize(metadata: FlintMetadata): FlintSparkIndex = {
-    val meta = parse(metadata.getContent) \ "_meta"
-    val indexName = (meta \ "name").extract[String]
-    val tableName = (meta \ "source").extract[String]
-    val indexType = (meta \ "kind").extract[String]
-    val indexedColumns = (meta \ "indexedColumns").asInstanceOf[JArray]
     val indexOptions = FlintSparkIndexOptions(
-      (meta \ "options")
-        .asInstanceOf[JObject]
-        .obj
-        .map { case JField(key, value) =>
-          key -> value.values.toString
-        }
-        .toMap)
+      metadata.options.asScala.mapValues(_.asInstanceOf[String]).toMap)
 
-    indexType match {
+    metadata.kind match {
       case SKIPPING_INDEX_TYPE =>
-        val strategies = indexedColumns.arr.map { colInfo =>
-          val skippingKind = SkippingKind.withName((colInfo \ "kind").extract[String])
-          val columnName = (colInfo \ "columnName").extract[String]
-          val columnType = (colInfo \ "columnType").extract[String]
+        val strategies = metadata.indexedColumns.map { colInfo =>
+          val skippingKind = SkippingKind.withName(getString(colInfo, "kind"))
+          val columnName = getString(colInfo, "columnName")
+          val columnType = getString(colInfo, "columnType")
 
           skippingKind match {
             case PARTITION =>
@@ -269,16 +243,20 @@ class FlintSpark(val spark: SparkSession) {
               throw new IllegalStateException(s"Unknown skipping strategy: $other")
           }
         }
-        new FlintSparkSkippingIndex(tableName, strategies, indexOptions)
+        new FlintSparkSkippingIndex(metadata.source, strategies, indexOptions)
       case COVERING_INDEX_TYPE =>
         new FlintSparkCoveringIndex(
-          indexName,
-          tableName,
-          indexedColumns.arr.map { obj =>
-            ((obj \ "columnName").extract[String], (obj \ "columnType").extract[String])
+          metadata.name,
+          metadata.source,
+          metadata.indexedColumns.map { colInfo =>
+            getString(colInfo, "columnName") -> getString(colInfo, "columnType")
           }.toMap,
           indexOptions)
     }
+  }
+
+  private def getString(map: java.util.Map[String, AnyRef], key: String): String = {
+    map.get(key).asInstanceOf[String]
   }
 }
 

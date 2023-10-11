@@ -5,25 +5,20 @@
 
 package org.opensearch.flint.spark.skipping
 
-import org.json4s._
-import org.json4s.native.JsonMethods._
-import org.json4s.native.Serialization
-import org.opensearch.flint.core.FlintVersion
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+
 import org.opensearch.flint.core.metadata.FlintMetadata
-import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
-import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, populateEnvToMetadata, ID_COLUMN}
+import org.opensearch.flint.spark._
+import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, ID_COLUMN}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
 import org.opensearch.flint.spark.skipping.partition.PartitionSkippingStrategy
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.catalyst.dsl.expressions.DslExpression
-import org.apache.spark.sql.flint.datatype.FlintDataType
 import org.apache.spark.sql.functions.{col, input_file_name, sha1}
-import org.apache.spark.sql.types.StructType
 
 /**
  * Flint skipping index in Spark.
@@ -41,9 +36,6 @@ class FlintSparkSkippingIndex(
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")
 
-  /** Required by json4s write function */
-  implicit val formats: Formats = Serialization.formats(NoTypeHints) + SkippingKindSerializer
-
   /** Skipping index type */
   override val kind: String = SKIPPING_INDEX_TYPE
 
@@ -52,19 +44,22 @@ class FlintSparkSkippingIndex(
   }
 
   override def metadata(): FlintMetadata = {
-    new FlintMetadata(s"""{
-        |   "_meta": {
-        |     "name": "${name()}",
-        |     "version": "${FlintVersion.current()}",
-        |     "kind": "$SKIPPING_INDEX_TYPE",
-        |     "indexedColumns": $getMetaInfo,
-        |     "source": "$tableName",
-        |     "options": $getIndexOptions,
-        |     "properties": $getIndexProperties
-        |   },
-        |   "properties": $getSchema
-        | }
-        |""".stripMargin)
+    val builder = FlintSparkIndexMetadataBuilder.builder(this)
+
+    indexedColumns.map(col =>
+      builder.addIndexedColumn(
+        Map[String, AnyRef](
+          "kind" -> col.kind.toString,
+          "columnName" -> col.columnName,
+          "columnType" -> col.columnType).asJava))
+
+    val allFieldTypes =
+      indexedColumns
+        .flatMap(_.outputSchema()).toMap + (FILE_PATH_COLUMN -> "string")
+    builder
+      .source(tableName)
+      .schema(allFieldTypes)
+      .build()
   }
 
   override def build(df: DataFrame): DataFrame = {
@@ -80,36 +75,6 @@ class FlintSparkSkippingIndex(
     df.groupBy(input_file_name().as(FILE_PATH_COLUMN))
       .agg(namedAggFuncs.head, namedAggFuncs.tail: _*)
       .withColumn(ID_COLUMN, sha1(col(FILE_PATH_COLUMN)))
-  }
-
-  private def getMetaInfo: String = {
-    Serialization.write(indexedColumns)
-  }
-
-  private def getIndexOptions: String = {
-    Serialization.write(options.options)
-  }
-
-  private def getIndexProperties: String = {
-    val envMap = populateEnvToMetadata
-    if (envMap.isEmpty) {
-      "{}"
-    } else {
-      s"""{ "env": ${Serialization.write(envMap)} }"""
-    }
-  }
-
-  private def getSchema: String = {
-    val allFieldTypes =
-      indexedColumns.flatMap(_.outputSchema()).toMap + (FILE_PATH_COLUMN -> "string")
-    val catalogDDL =
-      allFieldTypes
-        .map { case (colName, colType) => s"$colName $colType not null" }
-        .mkString(",")
-    val allFieldSparkTypes = StructType.fromDDL(catalogDDL)
-    // Convert StructType to {"properties": ...} and only need the properties value
-    val properties = FlintDataType.serialize(allFieldSparkTypes)
-    compact(render(parse(properties) \ "properties"))
   }
 }
 

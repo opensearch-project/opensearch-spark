@@ -11,6 +11,7 @@ import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
+import org.mockito.Mockito.when
 import org.opensearch.client.json.jackson.JacksonJsonpMapper
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.transport.rest_client.RestClientTransport
@@ -19,6 +20,7 @@ import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 
@@ -34,7 +36,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     val content =
       """ {
         |   "_meta": {
-        |     "kind": "SkippingIndex"
+        |     "kind": "test_kind"
         |   },
         |   "properties": {
         |     "age": {
@@ -43,41 +45,49 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
         |   }
         | }
         |""".stripMargin
-    flintClient.createIndex(indexName, new FlintMetadata(content))
+
+    val metadata = mock[FlintMetadata]
+    when(metadata.getContent).thenReturn(content)
+    flintClient.createIndex(indexName, metadata)
 
     flintClient.exists(indexName) shouldBe true
-    flintClient.getIndexMetadata(indexName).getContent should matchJson(content)
+    flintClient.getIndexMetadata(indexName).kind shouldBe "test_kind"
   }
 
   it should "create index with settings" in {
     val indexName = "flint_test_with_settings"
     val indexSettings = "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
-    flintClient.createIndex(indexName, new FlintMetadata("{}", indexSettings))
+    val metadata = mock[FlintMetadata]
+    when(metadata.getContent).thenReturn("{}")
+    when(metadata.indexSettings).thenReturn(indexSettings)
 
+    flintClient.createIndex(indexName, metadata)
     flintClient.exists(indexName) shouldBe true
 
     // OS uses full setting name ("index" prefix) and store as string
     implicit val formats: Formats = Serialization.formats(NoTypeHints)
-    val settings = parse(flintClient.getIndexMetadata(indexName).getIndexSettings)
+    val settings = parse(flintClient.getIndexMetadata(indexName).indexSettings)
     (settings \ "index.number_of_shards").extract[String] shouldBe "3"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
 
   it should "get all index metadata with the given index name pattern" in {
-    flintClient.createIndex("flint_test_1_index", new FlintMetadata("{}"))
-    flintClient.createIndex("flint_test_2_index", new FlintMetadata("{}"))
+    val metadata = mock[FlintMetadata]
+    when(metadata.getContent).thenReturn("{}")
+    flintClient.createIndex("flint_test_1_index", metadata)
+    flintClient.createIndex("flint_test_2_index", metadata)
 
     val allMetadata = flintClient.getAllIndexMetadata("flint_*_index")
     allMetadata should have size 2
-    allMetadata.forEach(metadata => metadata.getContent shouldBe "{}")
-    allMetadata.forEach(metadata => metadata.getIndexSettings should not be empty)
+    allMetadata.forEach(metadata => metadata.getContent should not be empty)
+    allMetadata.forEach(metadata => metadata.indexSettings should not be empty)
   }
 
   it should "convert index name to all lowercase" in {
     val indexName = "flint_ELB_logs_index"
     flintClient.createIndex(
       indexName,
-      new FlintMetadata("""{"properties": {"test": { "type": "integer" } } }"""))
+      FlintMetadata.fromJson("""{"properties": {"test": { "type": "integer" } } }""", null))
 
     flintClient.exists(indexName) shouldBe true
     flintClient.getIndexMetadata(indexName) should not be null
