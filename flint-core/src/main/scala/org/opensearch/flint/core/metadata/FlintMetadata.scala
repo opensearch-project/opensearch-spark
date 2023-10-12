@@ -8,6 +8,7 @@ package org.opensearch.flint.core.metadata
 import java.util
 
 import org.opensearch.flint.core.FlintVersion
+import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.core.metadata.XContentBuilderHelper._
 
 /**
@@ -15,15 +16,29 @@ import org.opensearch.flint.core.metadata.XContentBuilderHelper._
  * regardless of query engine integration and storage.
  */
 case class FlintMetadata(
-    version: FlintVersion = FlintVersion.current(),
+    /** Flint spec version */
+    version: FlintVersion,
+    /** Flint index name */
     name: String,
+    /** Flint index kind */
     kind: String,
+    /** Flint index source that index data derived from */
     source: String,
+    /** Flint indexed column list */
     indexedColumns: Array[util.Map[String, AnyRef]] = Array(),
+    /** Flint indexed options. TODO: move to properties? */
     options: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef],
+    /** Flint index properties for any custom fields */
     properties: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef],
+    /** Flint index schema */
     schema: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef],
-    indexSettings: String = null) {
+    /** Optional Flint index settings. TODO: move elsewhere? */
+    indexSettings: Option[String]) {
+
+  require(version != null, "version is required")
+  require(name != null, "name is required")
+  require(kind != null, "kind is required")
+  require(source != null, "source is required")
 
   /**
    * Generate JSON content as index metadata.
@@ -36,7 +51,7 @@ case class FlintMetadata(
       buildJson(builder => {
         // Add _meta field
         objectField(builder, "_meta") {
-          builder.field("version", versionOrDefault())
+          builder.field("version", version.version)
           builder.field("name", name)
           builder.field("kind", kind)
           builder.field("source", source)
@@ -54,21 +69,13 @@ case class FlintMetadata(
         throw new IllegalStateException("Failed to jsonify Flint metadata", e)
     }
   }
-
-  private def versionOrDefault(): String = {
-    if (version == null) {
-      FlintVersion.current().version
-    } else {
-      version.version
-    }
-  }
 }
 
 object FlintMetadata {
 
   def apply(content: String, settings: String): FlintMetadata = {
     val metadata = FlintMetadata(content)
-    metadata.copy(indexSettings = settings)
+    metadata.copy(indexSettings = Option(settings))
   }
 
   /**
@@ -200,7 +207,7 @@ object FlintMetadata {
     // Build method to create the FlintMetadata instance
     def build(): FlintMetadata = {
       FlintMetadata(
-        version,
+        if (version == null) current() else version,
         name,
         kind,
         source,
@@ -208,7 +215,7 @@ object FlintMetadata {
         options,
         properties,
         schema,
-        indexSettings)
+        Option(indexSettings))
     }
   }
 }

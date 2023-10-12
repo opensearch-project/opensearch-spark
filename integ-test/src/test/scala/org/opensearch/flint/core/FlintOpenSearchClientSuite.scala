@@ -7,7 +7,6 @@ package org.opensearch.flint.core
 
 import scala.collection.JavaConverters._
 
-import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
@@ -48,6 +47,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
 
     val metadata = mock[FlintMetadata]
     when(metadata.getContent).thenReturn(content)
+    when(metadata.indexSettings).thenReturn(None)
     flintClient.createIndex(indexName, metadata)
 
     flintClient.exists(indexName) shouldBe true
@@ -59,14 +59,14 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     val indexSettings = "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
     val metadata = mock[FlintMetadata]
     when(metadata.getContent).thenReturn("{}")
-    when(metadata.indexSettings).thenReturn(indexSettings)
+    when(metadata.indexSettings).thenReturn(Some(indexSettings))
 
     flintClient.createIndex(indexName, metadata)
     flintClient.exists(indexName) shouldBe true
 
     // OS uses full setting name ("index" prefix) and store as string
     implicit val formats: Formats = Serialization.formats(NoTypeHints)
-    val settings = parse(flintClient.getIndexMetadata(indexName).indexSettings)
+    val settings = parse(flintClient.getIndexMetadata(indexName).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "3"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
@@ -74,6 +74,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
   it should "get all index metadata with the given index name pattern" in {
     val metadata = mock[FlintMetadata]
     when(metadata.getContent).thenReturn("{}")
+    when(metadata.indexSettings).thenReturn(None)
     flintClient.createIndex("flint_test_1_index", metadata)
     flintClient.createIndex("flint_test_2_index", metadata)
 

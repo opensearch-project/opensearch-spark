@@ -89,7 +89,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
 
     implicit val formats: Formats = Serialization.formats(NoTypeHints)
-    val settings = parse(flintClient.getIndexMetadata(testFlintIndex).indexSettings)
+    val settings = parse(flintClient.getIndexMetadata(testFlintIndex).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "2"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
   }

@@ -47,6 +47,7 @@ import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.search.SearchModule;
 import org.opensearch.search.builder.SearchSourceBuilder;
+import scala.Option;
 
 /**
  * Flint client implementation for OpenSearch storage.
@@ -73,8 +74,9 @@ public class FlintOpenSearchClient implements FlintClient {
       CreateIndexRequest request = new CreateIndexRequest(osIndexName);
       request.mapping(metadata.getContent(), XContentType.JSON);
 
-      if (metadata.indexSettings() != null) {
-        request.settings(metadata.indexSettings(), XContentType.JSON);
+      Option<String> settings = metadata.indexSettings();
+      if (settings.isDefined()) {
+        request.settings(settings.get(), XContentType.JSON);
       }
       client.indices().create(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
