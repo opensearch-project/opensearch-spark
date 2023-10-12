@@ -8,10 +8,10 @@ package org.opensearch.flint.core.metadata
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util
 
-import org.opensearch.common.bytes.BytesReference
 import org.opensearch.common.xcontent._
 import org.opensearch.common.xcontent.json.JsonXContent
 import org.opensearch.flint.core.FlintVersion
+import org.opensearch.flint.core.metadata.XContentBuilderHelper.{buildJson, objectField, optionalObjectField}
 
 /**
  * Flint metadata follows Flint index specification and defines metadata for a Flint index
@@ -30,37 +30,35 @@ case class FlintMetadata(
 
   def getContent: String = {
     try {
-      val builder: XContentBuilder = XContentFactory.jsonBuilder
-      builder.startObject
+      buildJson(builder => {
+        // Add _meta field
+        objectField(
+          builder,
+          "_meta", {
+            builder.field("version", versionOrDefault())
+            builder.field("name", name)
+            builder.field("kind", kind)
+            builder.field("source", source)
+            builder.field("indexedColumns", indexedColumns)
 
-      builder.startObject("_meta")
-      builder.field(
-        "version",
-        if (version == null) FlintVersion.current().version else version.version)
-      builder.field("name", name)
-      builder.field("kind", kind)
-      builder.field("source", source)
-      builder.field("indexedColumns", indexedColumns)
+            optionalObjectField(builder, "options", options)
+            optionalObjectField(builder, "properties", properties)
+          })
 
-      if (options == null) {
-        builder.startObject("options").endObject()
-      } else {
-        builder.field("options", options)
-      }
-
-      if (properties == null) {
-        builder.startObject("properties").endObject()
-      } else {
-        builder.field("properties", properties)
-      }
-
-      builder.endObject
-      builder.field("properties", schema)
-      builder.endObject
-      BytesReference.bytes(builder).utf8ToString
+        // Add properties (schema) field
+        builder.field("properties", schema)
+      })
     } catch {
       case e: Exception =>
         throw new IllegalStateException("Failed to jsonify Flint metadata", e)
+    }
+  }
+
+  private def versionOrDefault(): String = {
+    if (version == null) {
+      FlintVersion.current().version
+    } else {
+      version.version
     }
   }
 }
