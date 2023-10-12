@@ -5,8 +5,11 @@
 
 package org.opensearch.flint.core.metadata
 
+import java.nio.charset.StandardCharsets.UTF_8
+
 import org.opensearch.common.bytes.BytesReference
-import org.opensearch.common.xcontent.{XContentBuilder, XContentFactory}
+import org.opensearch.common.xcontent._
+import org.opensearch.common.xcontent.json.JsonXContent
 
 object XContentBuilderHelper {
 
@@ -29,6 +32,32 @@ object XContentBuilderHelper {
       builder.startObject(name).endObject()
     } else {
       builder.field(name, value)
+    }
+  }
+
+  def parseJson(json: String, block: (XContentParser, String) => Unit): Unit = {
+    val parser = JsonXContent.jsonXContent.createParser(
+      NamedXContentRegistry.EMPTY,
+      DeprecationHandler.IGNORE_DEPRECATIONS,
+      json.getBytes(UTF_8))
+
+    // Start parsing
+    parser.nextToken()
+    parseObjectField(parser, block)
+  }
+
+  def parseObjectField(parser: XContentParser, block: (XContentParser, String) => Unit): Unit = {
+    while (parser.nextToken() != XContentParser.Token.END_OBJECT) {
+      val fieldName: String = parser.currentName()
+      parser.nextToken() // Move to the field value
+
+      block(parser, fieldName)
+    }
+  }
+
+  def parseArrayField(parser: XContentParser, block: => Unit): Unit = {
+    while (parser.nextToken() != XContentParser.Token.END_ARRAY) {
+      block
     }
   }
 }

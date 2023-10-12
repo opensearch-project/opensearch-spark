@@ -5,13 +5,10 @@
 
 package org.opensearch.flint.core.metadata
 
-import java.nio.charset.StandardCharsets.UTF_8
 import java.util
 
-import org.opensearch.common.xcontent._
-import org.opensearch.common.xcontent.json.JsonXContent
 import org.opensearch.flint.core.FlintVersion
-import org.opensearch.flint.core.metadata.XContentBuilderHelper.{buildJson, objectField, optionalObjectField}
+import org.opensearch.flint.core.metadata.XContentBuilderHelper._
 
 /**
  * Flint metadata follows Flint index specification and defines metadata for a Flint index
@@ -66,52 +63,40 @@ case class FlintMetadata(
 object FlintMetadata {
 
   def fromJson(content: String, settings: String): FlintMetadata = {
+    val builder = new FlintMetadata.Builder()
     try {
-      val parser: XContentParser = JsonXContent.jsonXContent.createParser(
-        NamedXContentRegistry.EMPTY,
-        DeprecationHandler.IGNORE_DEPRECATIONS,
-        content.getBytes(UTF_8))
-      parser.nextToken() // Start parsing
-
-      val builder = new FlintMetadata.Builder()
-      while (parser.nextToken() != XContentParser.Token.END_OBJECT) {
-        val fieldName: String = parser.currentName()
-        parser.nextToken() // Move to the field value
-
-        if ("_meta".equals(fieldName)) {
-          parseMetaField(parser, builder)
-        } else if ("properties".equals(fieldName)) {
-          builder.schema(parser.map())
-        }
-      }
-
-      builder.indexSettings(settings)
-      builder.build()
+      parseJson(
+        content,
+        (parser, fieldName) =>
+          fieldName match {
+            case "_meta" =>
+              parseObjectField(
+                parser,
+                (parser, innerFieldName) =>
+                  innerFieldName match {
+                    case "version" => builder.version(FlintVersion.apply(parser.text()))
+                    case "name" => builder.name(parser.text())
+                    case "kind" => builder.kind(parser.text())
+                    case "source" => builder.source(parser.text())
+                    case "indexedColumns" =>
+                      parseArrayField(
+                        parser, {
+                          builder.addIndexedColumn(parser.map())
+                        })
+                    case "options" => builder.options(parser.map())
+                    case "properties" => builder.properties(parser.map())
+                    case _ => // Handle other fields as needed
+                  })
+            case "properties" =>
+              builder.schema(parser.map())
+          })
     } catch {
       case e: Exception =>
         throw new IllegalStateException("Failed to parse metadata JSON", e)
     }
-  }
 
-  private def parseMetaField(parser: XContentParser, builder: Builder): Unit = {
-    while (parser.nextToken() != XContentParser.Token.END_OBJECT) {
-      val metaFieldName: String = parser.currentName()
-      parser.nextToken()
-
-      metaFieldName match {
-        case "version" => builder.version(FlintVersion.apply(parser.text()))
-        case "name" => builder.name(parser.text())
-        case "kind" => builder.kind(parser.text())
-        case "source" => builder.source(parser.text())
-        case "indexedColumns" =>
-          while (parser.nextToken() != XContentParser.Token.END_ARRAY) {
-            builder.addIndexedColumn(parser.map())
-          }
-        case "options" => builder.options(parser.map())
-        case "properties" => builder.properties(parser.map())
-        case _ => // Handle other fields as needed
-      }
-    }
+    builder.indexSettings(settings)
+    builder.build()
   }
 
   def builder(): FlintMetadata.Builder = new Builder
