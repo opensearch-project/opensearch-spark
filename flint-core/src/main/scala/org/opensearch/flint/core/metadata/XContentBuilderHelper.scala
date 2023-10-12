@@ -21,7 +21,7 @@ object XContentBuilderHelper {
     BytesReference.bytes(builder).utf8ToString
   }
 
-  def objectField(builder: XContentBuilder, name: String, block: => Unit): Unit = {
+  def objectField(builder: XContentBuilder, name: String)(block: => Unit): Unit = {
     builder.startObject(name)
     block
     builder.endObject()
@@ -41,7 +41,7 @@ object XContentBuilderHelper {
       DeprecationHandler.IGNORE_DEPRECATIONS,
       json.getBytes(UTF_8))
 
-    // Start parsing
+    // Read first root object token and start parsing
     parser.nextToken()
     parseObjectField(parser, block)
   }
@@ -55,7 +55,7 @@ object XContentBuilderHelper {
     }
   }
 
-  def parseArrayField(parser: XContentParser, block: => Unit): Unit = {
+  def parseArrayField(parser: XContentParser)(block: => Unit): Unit = {
     while (parser.nextToken() != XContentParser.Token.END_ARRAY) {
       block
     }

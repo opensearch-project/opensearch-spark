@@ -43,7 +43,7 @@ class FlintMetadataSuite extends AnyFlatSpec with Matchers {
       |""".stripMargin
 
   "constructor" should "deserialize the given JSON and assign parsed value to field" in {
-    val metadata = FlintMetadata.fromJson(testMetadataJson, testIndexSettingsJson)
+    val metadata = FlintMetadata(testMetadataJson, testIndexSettingsJson)
 
     metadata.version shouldBe current()
     metadata.name shouldBe "test_index"

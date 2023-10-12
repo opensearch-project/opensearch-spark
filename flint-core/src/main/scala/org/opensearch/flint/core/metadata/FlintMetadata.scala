@@ -29,18 +29,16 @@ case class FlintMetadata(
     try {
       buildJson(builder => {
         // Add _meta field
-        objectField(
-          builder,
-          "_meta", {
-            builder.field("version", versionOrDefault())
-            builder.field("name", name)
-            builder.field("kind", kind)
-            builder.field("source", source)
-            builder.field("indexedColumns", indexedColumns)
+        objectField(builder, "_meta") {
+          builder.field("version", versionOrDefault())
+          builder.field("name", name)
+          builder.field("kind", kind)
+          builder.field("source", source)
+          builder.field("indexedColumns", indexedColumns)
 
-            optionalObjectField(builder, "options", options)
-            optionalObjectField(builder, "properties", properties)
-          })
+          optionalObjectField(builder, "options", options)
+          optionalObjectField(builder, "properties", properties)
+        }
 
         // Add properties (schema) field
         builder.field("properties", schema)
@@ -62,7 +60,11 @@ case class FlintMetadata(
 
 object FlintMetadata {
 
-  def fromJson(content: String, settings: String): FlintMetadata = {
+  def apply(content: String): FlintMetadata = {
+    FlintMetadata(content, null)
+  }
+
+  def apply(content: String, settings: String): FlintMetadata = {
     val builder = new FlintMetadata.Builder()
     try {
       parseJson(
@@ -79,10 +81,9 @@ object FlintMetadata {
                     case "kind" => builder.kind(parser.text())
                     case "source" => builder.source(parser.text())
                     case "indexedColumns" =>
-                      parseArrayField(
-                        parser, {
-                          builder.addIndexedColumn(parser.map())
-                        })
+                      parseArrayField(parser) {
+                        builder.addIndexedColumn(parser.map())
+                      }
                     case "options" => builder.options(parser.map())
                     case "properties" => builder.properties(parser.map())
                     case _ => // Handle other fields as needed

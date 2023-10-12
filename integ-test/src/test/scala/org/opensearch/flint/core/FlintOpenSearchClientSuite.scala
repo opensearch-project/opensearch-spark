@@ -87,7 +87,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     val indexName = "flint_ELB_logs_index"
     flintClient.createIndex(
       indexName,
-      FlintMetadata.fromJson("""{"properties": {"test": { "type": "integer" } } }""", null))
+      FlintMetadata("""{"properties": {"test": { "type": "integer" } } }"""))
 
     flintClient.exists(indexName) shouldBe true
     flintClient.getIndexMetadata(indexName) should not be null
