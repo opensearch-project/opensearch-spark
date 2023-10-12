@@ -9,7 +9,7 @@ import java.util
 
 import org.opensearch.flint.core.FlintVersion
 import org.opensearch.flint.core.FlintVersion.current
-import org.opensearch.flint.core.metadata.XContentBuilderHelper._
+import org.opensearch.flint.core.metadata.FlintJsonHelper._
 
 /**
  * Flint metadata follows Flint index specification and defines metadata for a Flint index
@@ -73,6 +73,16 @@ case class FlintMetadata(
 
 object FlintMetadata {
 
+  /**
+   * Construct Flint metadata with JSON content and index settings.
+   *
+   * @param content
+   *   JSON content
+   * @param settings
+   *   index settings
+   * @return
+   *   Flint metadata
+   */
   def apply(content: String, settings: String): FlintMetadata = {
     val metadata = FlintMetadata(content)
     metadata.copy(indexSettings = Option(settings))
@@ -137,7 +147,7 @@ object FlintMetadata {
     private var indexedColumns: Array[util.Map[String, AnyRef]] = Array()
     private var properties: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef]()
     private var schema: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef]()
-    private var indexSettings: String = null
+    private var indexSettings: Option[String] = None
 
     def version(version: FlintVersion): this.type = {
       this.version = version
@@ -200,7 +210,7 @@ object FlintMetadata {
     }
 
     def indexSettings(indexSettings: String): this.type = {
-      this.indexSettings = indexSettings
+      this.indexSettings = Option(indexSettings)
       this
     }
 
@@ -215,7 +225,7 @@ object FlintMetadata {
         options,
         properties,
         schema,
-        Option(indexSettings))
+        indexSettings)
     }
   }
 }
