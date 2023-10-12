@@ -24,22 +24,9 @@ class FlintSparkIndexMetadataBuilder(index: FlintSparkIndex) extends FlintMetada
       allFieldTypes
         .map { case (colName, colType) => s"$colName $colType not null" }
         .mkString(",")
-    val struckType = StructType.fromDDL(catalogDDL)
-
-    // Assume each value is an JSON Object
-    struckType.fields.foreach(field => {
-      val (fieldName, fieldType) = FlintDataType.serializeField(field)
-      val fieldTypeMap =
-        fieldType
-          .asInstanceOf[JObject]
-          .values
-          .mapValues {
-            case v: Map[_, _] => v.asJava
-            case other => other
-          }
-          .asJava
-      addSchemaField(fieldName, fieldTypeMap)
-    })
+    val structType = StructType.fromDDL(catalogDDL)
+    val properties = FlintDataType.serialize(structType)
+    schema(properties)
     this
   }
 

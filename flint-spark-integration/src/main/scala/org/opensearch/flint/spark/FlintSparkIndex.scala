@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark
 
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+
 import org.opensearch.flint.core.metadata.FlintMetadata
 
 import org.apache.spark.sql.DataFrame
@@ -80,5 +82,34 @@ object FlintSparkIndex {
         Option(System.getenv(key))
           .map(value => key -> value))
       .toMap
+  }
+
+  /**
+   * Create Flint metadata builder with common fields.
+   *
+   * @param index
+   *   Flint index
+   * @return
+   *   Flint metadata builder
+   */
+  def metadataBuilder(index: FlintSparkIndex): FlintMetadata.Builder = {
+    val builder = new FlintMetadata.Builder()
+    // Common fields
+    builder.kind(index.kind)
+    builder.name(index.name())
+    builder.options(index.options.options.mapValues(_.asInstanceOf[AnyRef]).asJava)
+
+    // Index properties
+    val envs = populateEnvToMetadata
+    if (envs.nonEmpty) {
+      builder.addProperty("env", envs.asJava)
+    }
+
+    // Optional index settings
+    val settings = index.options.indexSettings()
+    if (settings.isDefined) {
+      builder.indexSettings(settings.get)
+    }
+    builder
   }
 }

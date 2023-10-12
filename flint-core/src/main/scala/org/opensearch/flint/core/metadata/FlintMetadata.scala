@@ -25,6 +25,12 @@ case class FlintMetadata(
     schema: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef],
     indexSettings: String = null) {
 
+  /**
+   * Generate JSON content as index metadata.
+   *
+   * @return
+   *   JSON content
+   */
   def getContent: String = {
     try {
       buildJson(builder => {
@@ -66,6 +72,14 @@ object FlintMetadata {
     metadata
   }
 
+  /**
+   * Parse the given JSON content and construct Flint metadata class.
+   *
+   * @param content
+   *   JSON content
+   * @return
+   *   Flint metadata
+   */
   def apply(content: String): FlintMetadata = {
     try {
       val builder = new FlintMetadata.Builder()
@@ -144,11 +158,6 @@ object FlintMetadata {
       this
     }
 
-    def addOption(key: String, value: AnyRef): this.type = {
-      this.options.put(key, value)
-      this
-    }
-
     def indexedColumns(indexedColumns: Array[util.Map[String, AnyRef]]): this.type = {
       this.indexedColumns = indexedColumns
       this
@@ -174,8 +183,13 @@ object FlintMetadata {
       this
     }
 
-    def addSchemaField(key: String, value: AnyRef): this.type = {
-      schema.put(key, value)
+    def schema(schema: String): this.type = {
+      parseJson(schema) { (parser, fieldName) =>
+        fieldName match {
+          case "properties" => this.schema = parser.map()
+          case _ => // do nothing
+        }
+      }
       this
     }
 

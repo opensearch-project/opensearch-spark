@@ -59,7 +59,7 @@ class FlintMetadataSuite extends AnyFlatSpec with Matchers {
     builder.kind("test_kind")
     builder.source("test_source_table")
     builder.addIndexedColumn(Map[String, AnyRef]("test_field" -> "spark_type").asJava);
-    builder.addSchemaField("test_field", Map("type" -> "os_type").asJava)
+    builder.schema("""{"properties": {"test_field": {"type": "os_type"}}}""")
 
     val metadata = builder.build()
     metadata.getContent should matchJson(testMetadataJson)

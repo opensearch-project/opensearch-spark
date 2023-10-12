@@ -35,11 +35,15 @@ object XContentBuilderHelper {
     }
   }
 
-  def parseJson(json: String)(block: (XContentParser, String) => Unit): Unit = {
-    val parser = JsonXContent.jsonXContent.createParser(
+  def createJsonParser(json: String): XContentParser = {
+    JsonXContent.jsonXContent.createParser(
       NamedXContentRegistry.EMPTY,
       DeprecationHandler.IGNORE_DEPRECATIONS,
       json.getBytes(UTF_8))
+  }
+
+  def parseJson(json: String)(block: (XContentParser, String) => Unit): Unit = {
+    val parser = createJsonParser(json)
 
     // Read first root object token and start parsing
     parser.nextToken()
