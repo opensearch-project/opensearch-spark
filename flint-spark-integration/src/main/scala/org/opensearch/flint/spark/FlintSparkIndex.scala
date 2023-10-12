@@ -9,8 +9,9 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{DataFrame, DataFrameWriter, Row, SparkSession}
 import org.apache.spark.sql.flint.datatype.FlintDataType
+import org.apache.spark.sql.streaming.DataStreamWriter
 import org.apache.spark.sql.types.StructType
 
 /**
@@ -50,6 +51,10 @@ trait FlintSparkIndex {
    *   index building data frame
    */
   def build(df: DataFrame): DataFrame
+
+  def buildBatch(spark: SparkSession): DataFrameWriter[Row]
+
+  def buildStream(spark: SparkSession): DataStreamWriter[Row]
 }
 
 object FlintSparkIndex {

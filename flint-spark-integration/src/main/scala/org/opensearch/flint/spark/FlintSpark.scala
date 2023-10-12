@@ -15,6 +15,8 @@ import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL, Ref
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.SKIPPING_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.{SkippingKind, SkippingKindSerializer}
@@ -67,6 +69,16 @@ class FlintSpark(val spark: SparkSession) {
    */
   def coveringIndex(): FlintSparkCoveringIndex.Builder = {
     new FlintSparkCoveringIndex.Builder(this)
+  }
+
+  /**
+   * Create materialized view builder for creating mv with fluent API.
+   *
+   * @return
+   *   mv builder
+   */
+  def materializedView(): FlintSparkMaterializedView.Builder = {
+    new FlintSparkMaterializedView.Builder(this)
   }
 
   /**
@@ -246,6 +258,14 @@ class FlintSpark(val spark: SparkSession) {
         new FlintSparkSkippingIndex(metadata.source, strategies, indexOptions)
       case COVERING_INDEX_TYPE =>
         new FlintSparkCoveringIndex(
+          metadata.name,
+          metadata.source,
+          metadata.indexedColumns.map { colInfo =>
+            getString(colInfo, "columnName") -> getString(colInfo, "columnType")
+          }.toMap,
+          indexOptions)
+      case MV_INDEX_TYPE =>
+        new FlintSparkMaterializedView(
           metadata.name,
           metadata.source,
           metadata.indexedColumns.map { colInfo =>

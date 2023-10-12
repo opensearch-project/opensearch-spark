@@ -5,12 +5,39 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog._
 
 /**
  * Flint utility methods that rely on access to private code in Spark SQL package.
  */
 package object flint {
+
+  /**
+   * Convert data frame to logical plan.
+   *
+   * @param df
+   *   data frame
+   * @return
+   *   logical plan
+   */
+  def dataFrameToLogicalPlan(df: DataFrame): LogicalPlan = {
+    df.logicalPlan
+  }
+
+  /**
+   * Convert logical plan to data frame.
+   *
+   * @param spark
+   *   Spark session
+   * @param logicalPlan
+   *   logical plan
+   * @return
+   *   data frame
+   */
+  def logicalPlanToDataFrame(spark: SparkSession, logicalPlan: LogicalPlan): DataFrame = {
+    Dataset.ofRows(spark, logicalPlan)
+  }
 
   /**
    * Qualify a given table name.

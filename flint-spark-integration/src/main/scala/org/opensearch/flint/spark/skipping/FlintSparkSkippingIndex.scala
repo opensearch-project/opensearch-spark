@@ -16,9 +16,11 @@ import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
 import org.opensearch.flint.spark.skipping.partition.PartitionSkippingStrategy
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
-import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.dsl.expressions.DslExpression
+import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.functions.{col, input_file_name, sha1}
+import org.apache.spark.sql.streaming.DataStreamWriter
 
 /**
  * Flint skipping index in Spark.
@@ -80,6 +82,25 @@ class FlintSparkSkippingIndex(
     df.groupBy(input_file_name().as(FILE_PATH_COLUMN))
       .agg(namedAggFuncs.head, namedAggFuncs.tail: _*)
       .withColumn(ID_COLUMN, sha1(col(FILE_PATH_COLUMN)))
+  }
+
+  override def buildBatch(spark: SparkSession): DataFrameWriter[Row] = {
+    build(spark.read.table(tableName)).write
+  }
+
+  override def buildStream(spark: SparkSession): DataStreamWriter[Row] = {
+    spark.readStream
+      .table(tableName)
+      .writeStream
+      .foreachBatch { (batch: DataFrame, _: Long) =>
+        build(batch)
+          .withColumn(ID_COLUMN, sha1(col(FILE_PATH_COLUMN)))
+          .write
+          .format(FLINT_DATASOURCE)
+          // .options(flint.flintSparkConf.properties)
+          .mode(SaveMode.Overwrite)
+          .save(name())
+      }
   }
 }
 
