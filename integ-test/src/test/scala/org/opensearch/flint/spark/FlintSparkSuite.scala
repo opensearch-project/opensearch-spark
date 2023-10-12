@@ -28,6 +28,13 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     setFlintSparkConf(REFRESH_POLICY, "true")
   }
 
+  protected def awaitStreamingComplete(jobId: String): Unit = {
+    val job = spark.streams.get(jobId)
+    failAfter(streamingTimeout) {
+      job.processAllAvailable()
+    }
+  }
+
   protected def createPartitionedTable(testTable: String): Unit = {
     sql(s"""
          | CREATE TABLE $testTable

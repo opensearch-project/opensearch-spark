@@ -140,11 +140,12 @@ class FlintSpark(val spark: SparkSession) {
       case INCREMENTAL =>
         // TODO: Use Foreach sink for now. Need to move this to FlintSparkSkippingIndex
         //  once finalized. Otherwise, covering index/MV may have different logic.
-        val job = spark.readStream
-          .table(tableName)
-          .writeStream
-          .queryName(indexName)
-          .outputMode(Append())
+        val job =
+          index.buildStream(spark)
+            .queryName(indexName)
+            .outputMode(Append())
+            .format(FLINT_DATASOURCE)
+            .options(flintSparkConf.properties)
 
         index.options
           .checkpointLocation()
@@ -153,6 +154,7 @@ class FlintSpark(val spark: SparkSession) {
           .refreshInterval()
           .foreach(interval => job.trigger(Trigger.ProcessingTime(interval)))
 
+        /*
         val jobId =
           job
             .foreachBatch { (batchDF: DataFrame, _: Long) =>
@@ -160,6 +162,9 @@ class FlintSpark(val spark: SparkSession) {
             }
             .start()
             .id
+         */
+
+        val jobId = job.start(indexName).id
         Some(jobId.toString)
     }
   }

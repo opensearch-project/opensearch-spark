@@ -19,7 +19,7 @@ import org.apache.spark.sql.catalyst.analysis.{UnresolvedFunction, UnresolvedRel
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, EventTimeWatermark}
 import org.apache.spark.sql.catalyst.util.IntervalUtils
-import org.apache.spark.sql.flint.{dataFrameToLogicalPlan, logicalPlanToDataFrame}
+import org.apache.spark.sql.flint.logicalPlanToDataFrame
 import org.apache.spark.sql.streaming.DataStreamWriter
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -61,14 +61,14 @@ case class FlintSparkMaterializedView(
   }
 
   override def buildStream(spark: SparkSession): DataStreamWriter[Row] = {
-    val batchPlan = dataFrameToLogicalPlan(spark.sql(query))
+    val batchPlan = spark.sql(query).queryExecution.logical
     val streamingPlan = batchPlan transform {
 
       // Insert watermark operator between Aggregate and its child
       case Aggregate(grouping, agg, child) =>
         val timeCol = grouping.collect {
           case UnresolvedFunction(identifier, args, _, _, _)
-              if identifier.mkString(".") == TumbleFunction.identifier.funcName =>
+              if identifier.mkString(".").equalsIgnoreCase(TumbleFunction.identifier.funcName) =>
             args.head
         }
 

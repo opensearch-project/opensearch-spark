@@ -5,16 +5,22 @@
 
 package org.opensearch.flint.spark
 
+import java.sql.Timestamp
+
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.opensearch.flint.core.FlintVersion.current
+import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
+import org.apache.spark.sql.Row
+
 class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
-  private val testTable = "spark_catalog.default.ci_test"
-  private val testMvName = "spark_catalog.default.mv_test"
+  /** Test table, MV, index name and query */
+  private val testTable = "spark_catalog.default.mv_test"
+  private val testMvName = "spark_catalog.default.mv_test_metrics"
   private val testFlintIndex = getFlintIndexName(testMvName)
   private val testQuery =
     s"""
@@ -27,18 +33,15 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-
     createTimeSeriesTable(testTable)
   }
 
   override def afterEach(): Unit = {
     super.afterEach()
-
-    // Delete all test indices
     flint.deleteIndex(testFlintIndex)
   }
 
-  test("create materialized view") {
+  test("create materialized view with metadata successfully") {
     flint
       .materializedView()
       .name(testMvName)
@@ -51,7 +54,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          | {
          |  "_meta": {
          |    "version": "${current()}",
-         |    "name": "spark_catalog.default.mv_test",
+         |    "name": "spark_catalog.default.mv_test_metrics",
          |    "kind": "mv",
          |    "source": "$testQuery",
          |    "indexedColumns": [
@@ -76,6 +79,57 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |  }
          | }
          |""".stripMargin)
-
   }
+
+  ignore("full refresh materialized view") {
+    flint
+      .materializedView()
+      .name(testMvName)
+      .query(testQuery)
+      .create()
+
+    flint.refreshIndex(testFlintIndex, FULL)
+
+    val indexData = flint.queryIndex(testFlintIndex)
+    checkAnswer(
+      indexData,
+      Seq(
+        Row(timestamp("2023-10-01 00:00:00"), 1),
+        Row(timestamp("2023-10-01 00:10:00"), 2),
+        Row(timestamp("2023-10-01 01:00:00"), 1),
+        Row(timestamp("2023-10-01 02:00:00"), 1)))
+  }
+
+  test("incremental refresh materialized view") {
+    withTempDir { checkpointDir =>
+      val checkpointOption =
+        FlintSparkIndexOptions(Map("checkpoint_location" -> checkpointDir.getAbsolutePath))
+      flint
+        .materializedView()
+        .name(testMvName)
+        .query(testQuery)
+        .options(checkpointOption)
+        .create()
+
+      flint
+        .refreshIndex(testFlintIndex, INCREMENTAL)
+        .map(awaitStreamingComplete)
+        .orElse(throw new RuntimeException)
+
+      val indexData = flint.queryIndex(testFlintIndex).select("startTime", "count")
+      checkAnswer(
+        indexData,
+        Seq(
+          Row(timestamp("2023-10-01 00:00:00"), 1),
+          Row(timestamp("2023-10-01 00:10:00"), 2),
+          Row(timestamp("2023-10-01 01:00:00"), 1)
+          /*
+           * The last row is pending to fire upon watermark
+           *   Row(timestamp("2023-10-01 02:00:00"), 1)
+           */
+        ))
+    }
+  }
+
+  private def timestamp(ts: String): Timestamp = Timestamp.valueOf(ts)
 }
