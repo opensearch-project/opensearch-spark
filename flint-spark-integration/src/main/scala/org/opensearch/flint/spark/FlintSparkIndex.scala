@@ -8,16 +8,16 @@ package org.opensearch.flint.spark
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
+import org.opensearch.flint.spark.FlintSparkIndex.BatchRefresh
 
-import org.apache.spark.sql.{DataFrame, DataFrameWriter, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.flint.datatype.FlintDataType
-import org.apache.spark.sql.streaming.DataStreamWriter
 import org.apache.spark.sql.types.StructType
 
 /**
  * Flint index interface in Spark.
  */
-trait FlintSparkIndex {
+trait FlintSparkIndex extends BatchRefresh {
 
   /**
    * Index type
@@ -50,14 +50,26 @@ trait FlintSparkIndex {
    * @return
    *   index building data frame
    */
+  /*
   def build(df: DataFrame): DataFrame
 
   def buildBatch(spark: SparkSession): DataFrameWriter[Row]
 
   def buildStream(spark: SparkSession): DataStreamWriter[Row]
+   */
 }
 
 object FlintSparkIndex {
+
+  trait BatchRefresh {
+
+    def build(spark: SparkSession, df: Option[DataFrame]): DataFrame
+  }
+
+  trait StreamingRefresh {
+
+    def build(spark: SparkSession): DataFrame
+  }
 
   /**
    * ID column name.

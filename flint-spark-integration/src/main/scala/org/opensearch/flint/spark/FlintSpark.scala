@@ -12,7 +12,7 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL, RefreshMode}
-import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
+import org.opensearch.flint.spark.FlintSparkIndex.{ID_COLUMN, StreamingRefresh}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
@@ -117,9 +117,21 @@ class FlintSpark(val spark: SparkSession) {
     val tableName = index.metadata().source
 
     // Write Flint index data to Flint data source (shared by both refresh modes for now)
+    /*
     def writeFlintIndex(df: DataFrame): Unit = {
       index
         .build(df)
+        .write
+        .format(FLINT_DATASOURCE)
+        .options(flintSparkConf.properties)
+        .mode(Overwrite)
+        .save(indexName)
+    }
+     */
+
+    def batchRefresh(df: Option[DataFrame] = None): Unit = {
+      index
+        .build(spark, df)
         .write
         .format(FLINT_DATASOURCE)
         .options(flintSparkConf.properties)
@@ -131,17 +143,17 @@ class FlintSpark(val spark: SparkSession) {
       case FULL if isIncrementalRefreshing(indexName) =>
         throw new IllegalStateException(
           s"Index $indexName is incremental refreshing and cannot be manual refreshed")
+
       case FULL =>
-        writeFlintIndex(
-          spark.read
-            .table(tableName))
+        batchRefresh()
         None
 
-      case INCREMENTAL =>
-        // TODO: Use Foreach sink for now. Need to move this to FlintSparkSkippingIndex
-        //  once finalized. Otherwise, covering index/MV may have different logic.
+      case INCREMENTAL if index.isInstanceOf[StreamingRefresh] =>
         val job =
-          index.buildStream(spark)
+          index
+            .asInstanceOf[StreamingRefresh]
+            .build(spark)
+            .writeStream
             .queryName(indexName)
             .outputMode(Append())
             .format(FLINT_DATASOURCE)
@@ -154,17 +166,30 @@ class FlintSpark(val spark: SparkSession) {
           .refreshInterval()
           .foreach(interval => job.trigger(Trigger.ProcessingTime(interval)))
 
-        /*
+        val jobId = job.start(indexName).id
+        Some(jobId.toString)
+
+      case INCREMENTAL =>
+        val job = spark.readStream
+          .table(tableName)
+          .writeStream
+          .queryName(indexName)
+          .outputMode(Append())
+
+        index.options
+          .checkpointLocation()
+          .foreach(location => job.option("checkpointLocation", location))
+        index.options
+          .refreshInterval()
+          .foreach(interval => job.trigger(Trigger.ProcessingTime(interval)))
+
         val jobId =
           job
             .foreachBatch { (batchDF: DataFrame, _: Long) =>
-              writeFlintIndex(batchDF)
+              batchRefresh(Some(batchDF))
             }
             .start()
             .id
-         */
-
-        val jobId = job.start(indexName).id
         Some(jobId.toString)
     }
   }

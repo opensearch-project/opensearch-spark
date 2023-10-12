@@ -9,18 +9,17 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
-import org.opensearch.flint.spark.FlintSparkIndex.{generateSchemaJSON, metadataBuilder}
+import org.opensearch.flint.spark.FlintSparkIndex.{generateSchemaJSON, metadataBuilder, StreamingRefresh}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getFlintIndexName, MV_INDEX_TYPE}
 
-import org.apache.spark.sql.{DataFrame, DataFrameWriter, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedFunction, UnresolvedRelation}
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, EventTimeWatermark}
 import org.apache.spark.sql.catalyst.util.IntervalUtils
 import org.apache.spark.sql.flint.logicalPlanToDataFrame
-import org.apache.spark.sql.streaming.DataStreamWriter
 import org.apache.spark.unsafe.types.UTF8String
 
 case class FlintSparkMaterializedView(
@@ -28,7 +27,8 @@ case class FlintSparkMaterializedView(
     query: String,
     outputSchema: Map[String, String],
     override val options: FlintSparkIndexOptions = empty)
-    extends FlintSparkIndex {
+    extends FlintSparkIndex
+    with StreamingRefresh {
 
   /** TODO: add it to index option */
   private val watermarkDelay = UTF8String.fromString("0 Minute")
@@ -52,15 +52,13 @@ case class FlintSparkMaterializedView(
       .build()
   }
 
-  override def build(df: DataFrame): DataFrame = {
-    null
+  override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
+    require(df.isEmpty, "materialized view doesn't support reading from other table")
+
+    spark.sql(query)
   }
 
-  override def buildBatch(spark: SparkSession): DataFrameWriter[Row] = {
-    spark.sql(query).write
-  }
-
-  override def buildStream(spark: SparkSession): DataStreamWriter[Row] = {
+  override def build(spark: SparkSession): DataFrame = {
     val batchPlan = spark.sql(query).queryExecution.logical
     val streamingPlan = batchPlan transform {
 
@@ -89,7 +87,7 @@ case class FlintSparkMaterializedView(
         UnresolvedRelation(multipartIdentifier, options, isStreaming = true)
     }
 
-    logicalPlanToDataFrame(spark, streamingPlan).writeStream
+    logicalPlanToDataFrame(spark, streamingPlan)
   }
 }
 
