@@ -6,7 +6,9 @@
 package org.opensearch.flint.spark
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+
 import org.opensearch.flint.core.metadata.FlintMetadata
+
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.flint.datatype.FlintDataType
 import org.apache.spark.sql.types.StructType
