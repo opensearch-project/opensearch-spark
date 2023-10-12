@@ -6,10 +6,10 @@
 package org.opensearch.flint.spark
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
-
 import org.opensearch.flint.core.metadata.FlintMetadata
-
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.flint.datatype.FlintDataType
+import org.apache.spark.sql.types.StructType
 
 /**
  * Flint index interface in Spark.
@@ -111,5 +111,15 @@ object FlintSparkIndex {
       builder.indexSettings(settings.get)
     }
     builder
+  }
+
+  def generateSchemaJSON(allFieldTypes: Map[String, String]): String = {
+    val catalogDDL =
+      allFieldTypes
+        .map { case (colName, colType) => s"$colName $colType not null" }
+        .mkString(",")
+
+    val structType = StructType.fromDDL(catalogDDL)
+    FlintDataType.serialize(structType)
   }
 }

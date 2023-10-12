@@ -69,7 +69,6 @@ object FlintMetadata {
   def apply(content: String, settings: String): FlintMetadata = {
     val metadata = FlintMetadata(content)
     metadata.copy(indexSettings = settings)
-    metadata
   }
 
   /**

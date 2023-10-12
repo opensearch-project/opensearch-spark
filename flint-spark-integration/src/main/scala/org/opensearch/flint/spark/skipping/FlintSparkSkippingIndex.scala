@@ -9,7 +9,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark._
-import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, ID_COLUMN}
+import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder, ID_COLUMN}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
@@ -44,21 +44,25 @@ class FlintSparkSkippingIndex(
   }
 
   override def metadata(): FlintMetadata = {
-    val builder = FlintSparkIndexMetadataBuilder.builder(this)
-
-    indexedColumns.map(col =>
-      builder.addIndexedColumn(
-        Map[String, AnyRef](
-          "kind" -> col.kind.toString,
-          "columnName" -> col.columnName,
-          "columnType" -> col.columnType).asJava))
-
-    val allFieldTypes =
+    val indexColumnMaps =
       indexedColumns
-        .flatMap(_.outputSchema()).toMap + (FILE_PATH_COLUMN -> "string")
-    builder
+        .map(col =>
+          Map[String, AnyRef](
+            "kind" -> col.kind.toString,
+            "columnName" -> col.columnName,
+            "columnType" -> col.columnType).asJava)
+        .toArray
+
+    val fieldTypes =
+      indexedColumns
+        .flatMap(_.outputSchema())
+        .toMap + (FILE_PATH_COLUMN -> "string")
+    val schemaJson = generateSchemaJSON(fieldTypes)
+
+    metadataBuilder(this)
       .source(tableName)
-      .schema(allFieldTypes)
+      .indexedColumns(indexColumnMaps)
+      .schema(schemaJson)
       .build()
   }
 
