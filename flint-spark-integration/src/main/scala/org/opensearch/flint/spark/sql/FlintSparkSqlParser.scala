@@ -79,7 +79,6 @@ class FlintSparkSqlParser(sparkParser: ParserInterface) extends ParserInterface 
 
   override def parseQuery(sqlText: String): LogicalPlan = sparkParser.parseQuery(sqlText)
 
-
   // Starting from here is copied and modified from Spark 3.3.1
 
   protected def parse[T](sqlText: String)(toResult: FlintSparkSqlExtensionsParser => T): T = {
