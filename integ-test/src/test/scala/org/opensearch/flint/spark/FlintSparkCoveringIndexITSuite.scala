@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
+import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.scalatest.matchers.must.Matchers.defined
@@ -45,6 +46,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
          |   "_meta": {
+         |     "version": "${current()}",
          |     "name": "name_and_age",
          |     "kind": "covering",
          |     "indexedColumns": [

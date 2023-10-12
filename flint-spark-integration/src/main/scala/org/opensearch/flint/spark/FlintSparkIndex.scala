@@ -98,7 +98,6 @@ object FlintSparkIndex {
     val builder = new FlintMetadata.Builder()
     // Common fields
     builder.kind(index.kind)
-    builder.name(index.name())
     builder.options(index.options.options.mapValues(_.asInstanceOf[AnyRef]).asJava)
 
     // Index properties

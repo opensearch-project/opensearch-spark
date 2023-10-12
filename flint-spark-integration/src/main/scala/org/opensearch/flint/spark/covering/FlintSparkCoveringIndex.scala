@@ -47,6 +47,7 @@ case class FlintSparkCoveringIndex(
     val schemaJson = generateSchemaJSON(indexedColumns)
 
     metadataBuilder(this)
+      .name(indexName)
       .source(tableName)
       .indexedColumns(indexColumnMaps)
       .schema(schemaJson)
