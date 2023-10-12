@@ -35,7 +35,7 @@ object XContentBuilderHelper {
     }
   }
 
-  def parseJson(json: String, block: (XContentParser, String) => Unit): Unit = {
+  def parseJson(json: String)(block: (XContentParser, String) => Unit): Unit = {
     val parser = JsonXContent.jsonXContent.createParser(
       NamedXContentRegistry.EMPTY,
       DeprecationHandler.IGNORE_DEPRECATIONS,
@@ -43,10 +43,10 @@ object XContentBuilderHelper {
 
     // Read first root object token and start parsing
     parser.nextToken()
-    parseObjectField(parser, block)
+    parseObjectField(parser)(block)
   }
 
-  def parseObjectField(parser: XContentParser, block: (XContentParser, String) => Unit): Unit = {
+  def parseObjectField(parser: XContentParser)(block: (XContentParser, String) => Unit): Unit = {
     while (parser.nextToken() != XContentParser.Token.END_OBJECT) {
       val fieldName: String = parser.currentName()
       parser.nextToken() // Move to the field value

@@ -60,21 +60,21 @@ case class FlintMetadata(
 
 object FlintMetadata {
 
-  def apply(content: String): FlintMetadata = {
-    FlintMetadata(content, null)
+  def apply(content: String, settings: String): FlintMetadata = {
+    val metadata = FlintMetadata(content)
+    metadata.copy(indexSettings = settings)
+    metadata
   }
 
-  def apply(content: String, settings: String): FlintMetadata = {
-    val builder = new FlintMetadata.Builder()
+  def apply(content: String): FlintMetadata = {
     try {
-      parseJson(
-        content,
-        (parser, fieldName) =>
+      val builder = new FlintMetadata.Builder()
+      parseJson(content) { (parser, fieldName) =>
+        {
           fieldName match {
             case "_meta" =>
-              parseObjectField(
-                parser,
-                (parser, innerFieldName) =>
+              parseObjectField(parser) { (parser, innerFieldName) =>
+                {
                   innerFieldName match {
                     case "version" => builder.version(FlintVersion.apply(parser.text()))
                     case "name" => builder.name(parser.text())
@@ -87,17 +87,19 @@ object FlintMetadata {
                     case "options" => builder.options(parser.map())
                     case "properties" => builder.properties(parser.map())
                     case _ => // Handle other fields as needed
-                  })
+                  }
+                }
+              }
             case "properties" =>
               builder.schema(parser.map())
-          })
+          }
+        }
+      }
+      builder.build()
     } catch {
       case e: Exception =>
         throw new IllegalStateException("Failed to parse metadata JSON", e)
     }
-
-    builder.indexSettings(settings)
-    builder.build()
   }
 
   def builder(): FlintMetadata.Builder = new Builder
