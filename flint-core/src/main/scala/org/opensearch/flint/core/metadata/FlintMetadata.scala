@@ -51,11 +51,12 @@ case class FlintMetadata(
       buildJson(builder => {
         // Add _meta field
         objectField(builder, "_meta") {
-          builder.field("version", version.version)
-          builder.field("name", name)
-          builder.field("kind", kind)
-          builder.field("source", source)
-          builder.field("indexedColumns", indexedColumns)
+          builder
+            .field("version", version.version)
+            .field("name", name)
+            .field("kind", kind)
+            .field("source", source)
+            .field("indexedColumns", indexedColumns)
 
           optionalObjectField(builder, "options", options)
           optionalObjectField(builder, "properties", properties)
