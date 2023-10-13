@@ -58,7 +58,7 @@ case class FlintSparkMaterializedView(
     spark.sql(query)
   }
 
-  override def build(spark: SparkSession): DataFrame = {
+  override def buildStream(spark: SparkSession): DataFrame = {
     val batchPlan = spark.sql(query).queryExecution.logical
     val streamingPlan = batchPlan transform {
 

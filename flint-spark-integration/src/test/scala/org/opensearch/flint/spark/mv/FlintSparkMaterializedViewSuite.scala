@@ -9,9 +9,11 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
+import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.FlintSuite
+import org.apache.spark.sql.{DataFrame, Row}
 
 class FlintSparkMaterializedViewSuite extends FlintSuite {
 
@@ -56,5 +58,15 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
       "auto_refresh" -> "true",
       "index_settings" -> indexSettings).asJava
     mv.metadata().indexSettings shouldBe Some(indexSettings)
+  }
+
+  test("build batch data frame") {
+    val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
+    mv.build(spark, None).collect() shouldBe Array(Row(1))
+  }
+
+  test("should fail if build given other source data frame") {
+    val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
+    the[IllegalArgumentException] thrownBy mv.build(spark, Some(mock[DataFrame]))
   }
 }

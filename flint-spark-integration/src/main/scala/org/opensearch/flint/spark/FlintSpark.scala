@@ -152,7 +152,7 @@ class FlintSpark(val spark: SparkSession) {
         val job =
           index
             .asInstanceOf[StreamingRefresh]
-            .build(spark)
+            .buildStream(spark)
             .writeStream
             .queryName(indexName)
             .outputMode(Append())
