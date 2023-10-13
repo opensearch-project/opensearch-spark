@@ -114,21 +114,10 @@ class FlintSpark(val spark: SparkSession) {
   def refreshIndex(indexName: String, mode: RefreshMode): Option[String] = {
     val index = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+    val options = index.options
     val tableName = index.metadata().source
 
-    // Write Flint index data to Flint data source (shared by both refresh modes for now)
-    /*
-    def writeFlintIndex(df: DataFrame): Unit = {
-      index
-        .build(df)
-        .write
-        .format(FLINT_DATASOURCE)
-        .options(flintSparkConf.properties)
-        .mode(Overwrite)
-        .save(indexName)
-    }
-     */
-
+    // Batch refresh Flint index from the given source data frame
     def batchRefresh(df: Option[DataFrame] = None): Unit = {
       index
         .build(spark, df)
@@ -158,16 +147,10 @@ class FlintSpark(val spark: SparkSession) {
             .outputMode(Append())
             .format(FLINT_DATASOURCE)
             .options(flintSparkConf.properties)
-
-        index.options
-          .checkpointLocation()
-          .foreach(location => job.option("checkpointLocation", location))
-        index.options
-          .refreshInterval()
-          .foreach(interval => job.trigger(Trigger.ProcessingTime(interval)))
-
-        val jobId = job.start(indexName).id
-        Some(jobId.toString)
+            .options(checkpointLocationOrEmpty(options))
+            .trigger(triggerOrDefault(options))
+            .start(indexName)
+        Some(job.id.toString)
 
       case INCREMENTAL =>
         val job = spark.readStream
@@ -175,22 +158,13 @@ class FlintSpark(val spark: SparkSession) {
           .writeStream
           .queryName(indexName)
           .outputMode(Append())
-
-        index.options
-          .checkpointLocation()
-          .foreach(location => job.option("checkpointLocation", location))
-        index.options
-          .refreshInterval()
-          .foreach(interval => job.trigger(Trigger.ProcessingTime(interval)))
-
-        val jobId =
-          job
-            .foreachBatch { (batchDF: DataFrame, _: Long) =>
-              batchRefresh(Some(batchDF))
-            }
-            .start()
-            .id
-        Some(jobId.toString)
+          .options(checkpointLocationOrEmpty(options))
+          .trigger(triggerOrDefault(options))
+          .foreachBatch { (batchDF: DataFrame, _: Long) =>
+            batchRefresh(Some(batchDF))
+          }
+          .start()
+        Some(job.id.toString)
     }
   }
 
@@ -261,6 +235,21 @@ class FlintSpark(val spark: SparkSession) {
     if (job.isDefined) {
       job.get.stop()
     }
+  }
+
+  // These methods are designed to prevent interruptions in method chaining of Spark data frame fluent API
+  private def checkpointLocationOrEmpty(options: FlintSparkIndexOptions): Map[String, String] = {
+    options
+      .checkpointLocation()
+      .map(value => Map("checkpointLocation" -> value))
+      .getOrElse(Map.empty)
+  }
+
+  private def triggerOrDefault(options: FlintSparkIndexOptions): Trigger = {
+    options
+      .refreshInterval()
+      .map(Trigger.ProcessingTime)
+      .getOrElse(Trigger.ProcessingTime(0L))
   }
 
   private def deserialize(metadata: FlintMetadata): FlintSparkIndex = {
