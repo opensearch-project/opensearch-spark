@@ -120,7 +120,7 @@ object FlintSparkIndex {
     builder.kind(index.kind)
     builder.options(index.options.optionsWithDefault.mapValues(_.asInstanceOf[AnyRef]).asJava)
 
-    // Index properties
+    // Optional index properties
     val envs = populateEnvToMetadata
     if (envs.nonEmpty) {
       builder.addProperty("env", envs.asJava)

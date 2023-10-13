@@ -42,10 +42,13 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
   }
 
   test("create materialized view with metadata successfully") {
+    val indexOptions =
+      FlintSparkIndexOptions(Map("auto_refresh" -> "true", "checkpoint_location" -> "s3://test/"))
     flint
       .materializedView()
       .name(testMvName)
       .query(testQuery)
+      .options(indexOptions)
       .create()
 
     val index = flint.describeIndex(testFlintIndex)
@@ -65,7 +68,10 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |      "columnName": "count",
          |      "columnType": "long"
          |    }],
-         |    "options": {},
+         |    "options": {
+         |      "auto_refresh": "true",
+         |      "checkpoint_location": "s3://test/"
+         |    },
          |    "properties": {}
          |  },
          |  "properties": {
@@ -102,13 +108,13 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
   test("incremental refresh materialized view") {
     withTempDir { checkpointDir =>
-      val checkpointOption =
-        FlintSparkIndexOptions(Map("checkpoint_location" -> checkpointDir.getAbsolutePath))
+      val indexOptions = FlintSparkIndexOptions(
+        Map("auto_refresh" -> "true", "checkpoint_location" -> checkpointDir.getAbsolutePath))
       flint
         .materializedView()
         .name(testMvName)
         .query(testQuery)
-        .options(checkpointOption)
+        .options(indexOptions)
         .create()
 
       flint

@@ -22,6 +22,18 @@ import org.apache.spark.sql.catalyst.util.IntervalUtils
 import org.apache.spark.sql.flint.logicalPlanToDataFrame
 import org.apache.spark.unsafe.types.UTF8String
 
+/**
+ * Flint materialized view in Spark.
+ *
+ * @param mvName
+ *   MV name
+ * @param query
+ *   source query that generates MV data
+ * @param outputSchema
+ *   output schema
+ * @param options
+ *   index options
+ */
 case class FlintSparkMaterializedView(
     mvName: String,
     query: String,

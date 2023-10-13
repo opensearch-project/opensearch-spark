@@ -137,6 +137,7 @@ class FlintSpark(val spark: SparkSession) {
         batchRefresh()
         None
 
+      // Flint index has specialized logic and capability for incremental refresh
       case INCREMENTAL if index.isInstanceOf[StreamingRefresh] =>
         val job =
           index
@@ -152,6 +153,7 @@ class FlintSpark(val spark: SparkSession) {
             .start(indexName)
         Some(job.id.toString)
 
+      // Otherwise, fall back to foreachBatch + batch refresh
       case INCREMENTAL =>
         val job = spark.readStream
           .table(tableName)
@@ -256,6 +258,7 @@ class FlintSpark(val spark: SparkSession) {
     val indexOptions = FlintSparkIndexOptions(
       metadata.options.asScala.mapValues(_.asInstanceOf[String]).toMap)
 
+    // Convert generic Map[String,AnyRef] in metadata to specific data structure in Flint index
     metadata.kind match {
       case SKIPPING_INDEX_TYPE =>
         val strategies = metadata.indexedColumns.map { colInfo =>
