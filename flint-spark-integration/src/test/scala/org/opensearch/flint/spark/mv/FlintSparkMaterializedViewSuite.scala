@@ -14,13 +14,21 @@ import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation}
+import org.apache.spark.sql.catalyst.dsl.expressions.{DslAttr, DslExpression}
+import org.apache.spark.sql.catalyst.expressions.Literal
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, EventTimeWatermark}
+import org.apache.spark.sql.catalyst.util.IntervalUtils
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.apache.spark.unsafe.types.UTF8String
 
 class FlintSparkMaterializedViewSuite extends FlintSuite {
 
   val testMvName = "spark_catalog.default.mv"
   val testQuery = "SELECT 1"
 
-  test("get MV name") {
+  test("get name") {
     val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
     mv.name() shouldBe "flint_spark_catalog_default_mv"
   }
@@ -32,7 +40,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     }
   }
 
-  test("get MV metadata") {
+  test("get metadata") {
     val mv = FlintSparkMaterializedView(testMvName, testQuery, Map("test_col" -> "integer"))
 
     val metadata = mv.metadata()
@@ -44,7 +52,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     metadata.schema shouldBe Map("test_col" -> Map("type" -> "integer").asJava).asJava
   }
 
-  test("get MV metadata with index options") {
+  test("get metadata with index options") {
     val indexSettings = """{"number_of_shards": 2}"""
     val indexOptions =
       FlintSparkIndexOptions(Map("auto_refresh" -> "true", "index_settings" -> indexSettings))
@@ -68,5 +76,45 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
   test("should fail if build given other source data frame") {
     val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
     the[IllegalArgumentException] thrownBy mv.build(spark, Some(mock[DataFrame]))
+  }
+
+  test("build stream should insert watermark operator and replace batch relation") {
+    val testTable = "mv_build_test"
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
+
+      val testQuery =
+        s"""
+          | SELECT
+          |   window.start AS startTime,
+          |   COUNT(*) AS count
+          | FROM $testTable
+          | GROUP BY TUMBLE(time, '1 Minute')
+          |""".stripMargin
+
+      val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
+      val actualPlan = mv.buildStream(spark).queryExecution.logical
+
+      val timeColumn = UnresolvedAttribute("time")
+      val expectPlan =
+        Aggregate(
+          Seq(
+            UnresolvedFunction(
+              "TUMBLE",
+              Seq(timeColumn, Literal("1 Minute")),
+              isDistinct = false)),
+          Seq(
+            UnresolvedAttribute("window.start") as "startTime",
+            UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false) as "count"),
+          EventTimeWatermark(
+            timeColumn,
+            IntervalUtils.stringToInterval(UTF8String.fromString("0 Minute")),
+            UnresolvedRelation(
+              TableIdentifier(testTable),
+              CaseInsensitiveStringMap.empty(),
+              isStreaming = true)))
+
+      actualPlan.sameSemantics(expectPlan)
+    }
   }
 }
