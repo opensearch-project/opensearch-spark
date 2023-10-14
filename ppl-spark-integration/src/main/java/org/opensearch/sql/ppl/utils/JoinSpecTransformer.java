@@ -29,24 +29,23 @@ public interface JoinSpecTransformer {
      * @param fields          - fields (columns) that needed to be joined by
      * @param scope           - this is a time base expression that timeframes the join to a specific period : (Time-field-name, value, unit)
      * @param mapping         - in case fields in different relations have different name, that can be aliased with the following names
-     * @param context         - parent context including the plan to evolve to join with
      * @return
      */
-    static LogicalPlan join(Correlation.CorrelationType correlationType, Seq<Expression> fields, Expression scope, Seq<Expression> mapping, CatalystPlanContext context) {
+    static LogicalPlan join(Correlation.CorrelationType correlationType, Seq<Expression> fields, Expression scope, Seq<Expression> mapping, LogicalPlan left, LogicalPlan right) {
         //create a join statement - which will replace all the different plans with a single plan which contains the joined plans
         switch (correlationType) {
             case self:
                 //expecting exactly one source relation
-                if (context.getPlanBranches().size() != 1)
+                if (left != null && right != null)
                     throw new IllegalStateException("Correlation command with `inner` type must have exactly on source table ");
                 break;
             case exact:
                 //expecting at least two source relations
-                if (context.getPlanBranches().size() < 2)
+                if (left == null || right == null)
                     throw new IllegalStateException("Correlation command with `exact` type must at least two source tables ");
                 break;
             case approximate:
-                if (context.getPlanBranches().size() < 2)
+                if (left == null || right == null)
                     throw new IllegalStateException("Correlation command with `approximate` type must at least two source tables ");
                 //expecting at least two source relations
                 break;
@@ -54,11 +53,8 @@ public interface JoinSpecTransformer {
 
         // Define join condition
         Expression joinCondition = buildJoinCondition(seqAsJavaListConverter(fields).asJava(), seqAsJavaListConverter(mapping).asJava(), correlationType);
-        // extract the plans from the context
-        List<LogicalPlan> logicalPlans = seqAsJavaListConverter(context.retainAllPlans(p -> p)).asJava();
         // Define join step instead on the multiple query branches
-        return context.with(logicalPlans.stream().reduce((left, right)
-                -> new Join(left, right, getType(correlationType), Option.apply(joinCondition), JoinHint.NONE())).get());
+        return new Join(left, right, getType(correlationType), Option.apply(joinCondition), JoinHint.NONE());
     }
 
     static Expression buildJoinCondition(List<Expression> fields, List<Expression> mapping, Correlation.CorrelationType correlationType) {

@@ -122,8 +122,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex(testIndex)
     index shouldBe defined
-    val optionJson = compact(render(
-      parse(index.get.metadata().getContent) \ "_meta" \ "options"))
+    val optionJson = compact(render(parse(index.get.metadata().getContent) \ "_meta" \ "options"))
     optionJson should matchJson("""
         | {
         |   "auto_refresh": "true",
@@ -321,8 +320,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
                        |""".stripMargin)
 
     query.queryExecution.executedPlan should
-      useFlintSparkSkippingFileIndex(
-        hasIndexFilter(col("year") === 2023))
+      useFlintSparkSkippingFileIndex(hasIndexFilter(col("year") === 2023))
   }
 
   test("should not rewrite original query if filtering condition has disjunction") {
@@ -388,8 +386,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     // Prepare test table
     val testTable = "spark_catalog.default.data_type_table"
     val testIndex = getSkippingIndexName(testTable)
-    sql(
-      s"""
+    sql(s"""
          | CREATE TABLE $testTable
          | (
          |   boolean_col BOOLEAN,
@@ -408,8 +405,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
          | )
          | USING PARQUET
          |""".stripMargin)
-    sql(
-      s"""
+    sql(s"""
          | INSERT INTO $testTable
          | VALUES (
          |   TRUE,
@@ -449,8 +445,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex(testIndex)
     index shouldBe defined
-    index.get.metadata().getContent should matchJson(
-      s"""{
+    index.get.metadata().getContent should matchJson(s"""{
          |   "_meta": {
          |     "name": "flint_spark_catalog_default_data_type_table_skipping_index",
          |     "version": "${current()}",
@@ -587,8 +582,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   test("can build skipping index for varchar and char and rewrite applicable query") {
     val testTable = "spark_catalog.default.varchar_char_table"
     val testIndex = getSkippingIndexName(testTable)
-    sql(
-      s"""
+    sql(s"""
          | CREATE TABLE $testTable
          | (
          |   varchar_col VARCHAR(20),
@@ -596,8 +590,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
          | )
          | USING PARQUET
          |""".stripMargin)
-    sql(
-      s"""
+    sql(s"""
          | INSERT INTO $testTable
          | VALUES (
          |   "sample varchar",
@@ -613,8 +606,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .create()
     flint.refreshIndex(testIndex, FULL)
 
-    val query = sql(
-      s"""
+    val query = sql(s"""
          | SELECT varchar_col, char_col
          | FROM $testTable
          | WHERE varchar_col = "sample varchar" AND char_col = "sample char"
@@ -624,8 +616,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     val paddedChar = "sample char".padTo(20, ' ')
     checkAnswer(query, Row("sample varchar", paddedChar))
     query.queryExecution.executedPlan should
-      useFlintSparkSkippingFileIndex(hasIndexFilter(
-        col("varchar_col") === "sample varchar" && col("char_col") === paddedChar))
+      useFlintSparkSkippingFileIndex(
+        hasIndexFilter(col("varchar_col") === "sample varchar" && col("char_col") === paddedChar))
 
     flint.deleteIndex(testIndex)
   }

@@ -15,11 +15,7 @@ import org.apache.spark.sql.streaming.StreamTest
 /**
  * Flint Spark suite trait that initializes [[FlintSpark]] API instance.
  */
-trait FlintSparkSuite
-    extends QueryTest
-    with FlintSuite
-    with OpenSearchSuite
-    with StreamTest {
+trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite with StreamTest {
 
   /** Flint Spark high level API being tested */
   lazy protected val flint: FlintSpark = new FlintSpark(spark)
@@ -33,8 +29,7 @@ trait FlintSparkSuite
   }
 
   protected def createPartitionedTable(testTable: String): Unit = {
-    sql(
-      s"""
+    sql(s"""
          | CREATE TABLE $testTable
          | (
          |   name STRING,
@@ -52,15 +47,13 @@ trait FlintSparkSuite
          | )
          |""".stripMargin)
 
-    sql(
-      s"""
+    sql(s"""
          | INSERT INTO $testTable
          | PARTITION (year=2023, month=4)
          | VALUES ('Hello', 30, 'Seattle')
          | """.stripMargin)
 
-    sql(
-      s"""
+    sql(s"""
          | INSERT INTO $testTable
          | PARTITION (year=2023, month=5)
          | VALUES ('World', 25, 'Portland')
