@@ -158,7 +158,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     }
   }
 
-  test("build stream should fail if there is aggregation without windowing function") {
+  test("build stream should fail if there is aggregation but no windowing function") {
     val testTable = "mv_build_test"
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
