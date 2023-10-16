@@ -76,9 +76,11 @@ case class FlintSparkMaterializedView(
   override def buildStream(spark: SparkSession): DataFrame = {
     val batchPlan = spark.sql(query).queryExecution.logical
 
-    // Convert unresolved batch plan to streaming plan by:
-    // 1.Insert Watermark operator below Aggregate (required by Spark streaming)
-    // 2.Set isStreaming flag to true in Relation operator
+    /*
+     * Convert unresolved batch plan to streaming plan by:
+     *  1.Insert Watermark operator below Aggregate (required by Spark streaming)
+     *  2.Set isStreaming flag to true in Relation operator
+     */
     val streamingPlan = batchPlan transform {
       case WindowingAggregate(agg, timeCol) =>
         agg.copy(child = watermark(timeCol, watermarkDelay, agg.child))
@@ -92,10 +94,13 @@ case class FlintSparkMaterializedView(
   private def watermark(timeCol: Attribute, delay: String, child: LogicalPlan) = {
     EventTimeWatermark(
       timeCol,
-      IntervalUtils.stringToInterval(UTF8String.fromString(watermarkDelay)),
+      IntervalUtils.stringToInterval(UTF8String.fromString(delay)),
       child)
   }
 
+  /**
+   * Extractor that extract event time column out of Aggregate operator.
+   */
   private object WindowingAggregate {
 
     def unapply(agg: Aggregate): Option[(Aggregate, Attribute)] = {

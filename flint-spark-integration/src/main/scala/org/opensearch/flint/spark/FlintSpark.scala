@@ -254,6 +254,7 @@ class FlintSpark(val spark: SparkSession) {
       .getOrElse(Trigger.ProcessingTime(0L))
   }
 
+  // TODO: move this to Flint index factory
   private def deserialize(metadata: FlintMetadata): FlintSparkIndex = {
     val indexOptions = FlintSparkIndexOptions(
       metadata.options.asScala.mapValues(_.asInstanceOf[String]).toMap)
