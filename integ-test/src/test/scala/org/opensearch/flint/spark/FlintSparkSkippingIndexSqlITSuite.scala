@@ -15,7 +15,7 @@ import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
@@ -97,6 +97,15 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     val settings = parse(flintClient.getIndexMetadata(testIndex).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "3"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
+  }
+
+  test("create skipping index with invalid option") {
+    the[IllegalArgumentException] thrownBy
+      sql(s"""
+             | CREATE SKIPPING INDEX ON $testTable
+             | ( year PARTITION )
+             | WITH (autoRefresh = true)
+             | """.stripMargin)
   }
 
   test("create skipping index with manual refresh") {

@@ -79,7 +79,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |        "columnType": "int"
         |     }],
         |     "source": "spark_catalog.default.test",
-        |     "options": {},
+        |     "options": { "auto_refresh": "false" },
         |     "properties": {}
         |   },
         |   "properties": {
@@ -105,7 +105,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         | }
         |""".stripMargin)
 
-    index.get.options shouldBe FlintSparkIndexOptions.empty
+    index.get.options shouldBe FlintSparkIndexOptions(Map("auto_refresh" -> "false"))
   }
 
   test("create skipping index with index options successfully") {
@@ -522,7 +522,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
          |        "columnType": "struct<subfield1:string,subfield2:int>"
          |     }],
          |     "source": "$testTable",
-         |     "options": {},
+         |     "options": { "auto_refresh": "false" },
          |     "properties": {}
          |   },
          |   "properties": {
