@@ -22,7 +22,7 @@ import org.apache.spark.sql.catalyst.analysis.{UnresolvedFunction, UnresolvedRel
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, EventTimeWatermark, LogicalPlan}
 import org.apache.spark.sql.catalyst.util.IntervalUtils
-import org.apache.spark.sql.flint.logicalPlanToDataFrame
+import org.apache.spark.sql.flint.{logicalPlanToDataFrame, qualifyTableName}
 
 /**
  * Flint materialized view in Spark.
@@ -160,7 +160,7 @@ object FlintSparkMaterializedView {
      *   builder
      */
     def name(mvName: String): Builder = {
-      this.mvName = mvName
+      this.mvName = qualifyTableName(flint.spark, mvName)
       this
     }
 
