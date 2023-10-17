@@ -5,9 +5,13 @@
 
 package org.opensearch.flint.spark
 
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+
 import org.opensearch.flint.core.metadata.FlintMetadata
 
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.flint.datatype.FlintDataType
+import org.apache.spark.sql.types.StructType
 
 /**
  * Flint index interface in Spark.
@@ -80,5 +84,43 @@ object FlintSparkIndex {
         Option(System.getenv(key))
           .map(value => key -> value))
       .toMap
+  }
+
+  /**
+   * Create Flint metadata builder with common fields.
+   *
+   * @param index
+   *   Flint index
+   * @return
+   *   Flint metadata builder
+   */
+  def metadataBuilder(index: FlintSparkIndex): FlintMetadata.Builder = {
+    val builder = new FlintMetadata.Builder()
+    // Common fields
+    builder.kind(index.kind)
+    builder.options(index.options.optionsWithDefault.mapValues(_.asInstanceOf[AnyRef]).asJava)
+
+    // Index properties
+    val envs = populateEnvToMetadata
+    if (envs.nonEmpty) {
+      builder.addProperty("env", envs.asJava)
+    }
+
+    // Optional index settings
+    val settings = index.options.indexSettings()
+    if (settings.isDefined) {
+      builder.indexSettings(settings.get)
+    }
+    builder
+  }
+
+  def generateSchemaJSON(allFieldTypes: Map[String, String]): String = {
+    val catalogDDL =
+      allFieldTypes
+        .map { case (colName, colType) => s"$colName $colType not null" }
+        .mkString(",")
+
+    val structType = StructType.fromDDL(catalogDDL)
+    FlintDataType.serialize(structType)
   }
 }

@@ -5,19 +5,15 @@
 
 package org.opensearch.flint.spark.covering
 
-import org.json4s.{Formats, NoTypeHints}
-import org.json4s.JsonAST.{JArray, JObject, JString}
-import org.json4s.native.JsonMethods.{compact, parse, render}
-import org.json4s.native.Serialization
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+
 import org.opensearch.flint.core.metadata.FlintMetadata
-import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
-import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, populateEnvToMetadata}
+import org.opensearch.flint.spark._
+import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{getFlintIndexName, COVERING_INDEX_TYPE}
 
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.flint.datatype.FlintDataType
-import org.apache.spark.sql.types.StructType
 
 /**
  * Flint covering index in Spark.
@@ -38,61 +34,29 @@ case class FlintSparkCoveringIndex(
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")
 
-  /** Required by json4s write function */
-  implicit val formats: Formats = Serialization.formats(NoTypeHints)
-
   override val kind: String = COVERING_INDEX_TYPE
 
   override def name(): String = getFlintIndexName(indexName, tableName)
 
   override def metadata(): FlintMetadata = {
-    new FlintMetadata(s"""{
-        |   "_meta": {
-        |     "name": "$indexName",
-        |     "kind": "$kind",
-        |     "indexedColumns": $getMetaInfo,
-        |     "source": "$tableName",
-        |     "options": $getIndexOptions,
-        |     "properties": $getIndexProperties
-        |   },
-        |   "properties": $getSchema
-        | }
-        |""".stripMargin)
+    val indexColumnMaps = {
+      indexedColumns.map { case (colName, colType) =>
+        Map[String, AnyRef]("columnName" -> colName, "columnType" -> colType).asJava
+      }.toArray
+    }
+    val schemaJson = generateSchemaJSON(indexedColumns)
+
+    metadataBuilder(this)
+      .name(indexName)
+      .source(tableName)
+      .indexedColumns(indexColumnMaps)
+      .schema(schemaJson)
+      .build()
   }
 
   override def build(df: DataFrame): DataFrame = {
     val colNames = indexedColumns.keys.toSeq
     df.select(colNames.head, colNames.tail: _*)
-  }
-
-  // TODO: refactor all these once Flint metadata spec finalized
-  private def getMetaInfo: String = {
-    val objects = indexedColumns.map { case (colName, colType) =>
-      JObject("columnName" -> JString(colName), "columnType" -> JString(colType))
-    }.toList
-    Serialization.write(JArray(objects))
-  }
-
-  private def getIndexOptions: String = {
-    Serialization.write(options.optionsWithDefault)
-  }
-
-  private def getIndexProperties: String = {
-    val envMap = populateEnvToMetadata
-    if (envMap.isEmpty) {
-      "{}"
-    } else {
-      s"""{ "env": ${Serialization.write(envMap)} }"""
-    }
-  }
-
-  private def getSchema: String = {
-    val catalogDDL =
-      indexedColumns
-        .map { case (colName, colType) => s"$colName $colType not null" }
-        .mkString(",")
-    val properties = FlintDataType.serialize(StructType.fromDDL(catalogDDL))
-    compact(render(parse(properties) \ "properties"))
   }
 }
 

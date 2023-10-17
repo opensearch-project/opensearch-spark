@@ -294,7 +294,7 @@ object FlintJob extends Logging {
       mapping: String): (Boolean, String) = {
     try {
       logInfo(s"create $resultIndex")
-      flintClient.createIndex(resultIndex, new FlintMetadata(mapping))
+      flintClient.createIndex(resultIndex, FlintMetadata.apply(mapping))
       logInfo(s"create $resultIndex successfully")
       (true, "")
     } catch {
