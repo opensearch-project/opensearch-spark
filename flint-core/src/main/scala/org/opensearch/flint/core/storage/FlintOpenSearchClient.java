@@ -163,7 +163,7 @@ public class FlintOpenSearchClient implements FlintClient {
     return new OpenSearchWriter(createClient(), toLowercase(indexName), options.getRefreshPolicy());
   }
 
-  private RestHighLevelClient createClient() {
+  @Override public RestHighLevelClient createClient() {
     RestClientBuilder
         restClientBuilder =
         RestClient.builder(new HttpHost(options.getHost(), options.getPort(), options.getScheme()));
