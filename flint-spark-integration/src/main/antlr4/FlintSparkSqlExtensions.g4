@@ -84,12 +84,20 @@ materializedViewStatement
 
 createMaterializedViewStatement
     : CREATE MATERIALIZED VIEW mvName=multipartIdentifier
-        AS mvQuery=.*
+        AS query=materializedViewQuery
         (WITH LEFT_PAREN propertyList RIGHT_PAREN)?
     ;
 
 dropMaterializedViewStatement
     : DROP MATERIALIZED VIEW mvName=multipartIdentifier
+    ;
+
+/*
+ * Match all remaining tokens in non-greedy way
+ * so WITH clause won't be captured by this rule.
+ */
+materializedViewQuery
+    : .+?
     ;
 
 indexColTypeList

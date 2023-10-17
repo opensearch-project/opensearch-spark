@@ -37,6 +37,7 @@ import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.parser._
+import org.apache.spark.sql.catalyst.parser.ParserUtils.withOrigin
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.trees.Origin
 import org.apache.spark.sql.types.{DataType, StructType}
@@ -54,7 +55,10 @@ class FlintSparkSqlParser(sparkParser: ParserInterface) extends ParserInterface 
 
   override def parsePlan(sqlText: String): LogicalPlan = parse(sqlText) { flintParser =>
     try {
-      flintAstBuilder.visit(flintParser.singleStatement())
+      val ctx = flintParser.singleStatement()
+      withOrigin(ctx, Some(sqlText)) {
+        flintAstBuilder.visit(ctx)
+      }
     } catch {
       // Fall back to Spark parse plan logic if flint cannot parse
       case _: ParseException => sparkParser.parsePlan(sqlText)

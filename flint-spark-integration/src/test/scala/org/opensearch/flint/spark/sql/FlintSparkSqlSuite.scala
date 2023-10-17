@@ -19,6 +19,9 @@ class FlintSparkSqlSuite extends FlintSuite {
         | SELECT elb, COUNT(*)
         | FROM alb_logs
         | GROUP BY TUMBLE(time, '1 Minute')
+        | WITH (
+        |   auto_refresh = true
+        | )
         |""".stripMargin)
 
     the[UnsupportedOperationException] thrownBy
