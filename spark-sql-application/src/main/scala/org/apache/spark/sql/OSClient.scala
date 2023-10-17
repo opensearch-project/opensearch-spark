@@ -42,7 +42,7 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
    *   use Either for representing success or failure. A Right value indicates success, while a
    *   Left value indicates an error.
    */
-  def createIndex(osIndexName: String, mapping: String): Either[String, Unit] = {
+  def createIndex(osIndexName: String, mapping: String): Unit = {
     logInfo(s"create $osIndexName")
 
     using(FlintClientBuilder.build(flintOptions).createClient()) { client =>
@@ -52,12 +52,9 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
       try {
         client.indices.create(request, RequestOptions.DEFAULT)
         logInfo(s"create $osIndexName successfully")
-        Right(())
       } catch {
         case e: Exception =>
-          val error = s"Failed to create result index $osIndexName"
-          logError(error, e)
-          Left(error)
+          throw new IllegalStateException(s"Failed to create index $osIndexName", e);
       }
     }
   }

@@ -286,9 +286,14 @@ object FlintJob extends Logging {
     } catch {
       case e: IllegalStateException
           if e.getCause().getMessage().contains("index_not_found_exception") =>
-        osClient.createIndex(resultIndex, mapping) match {
-          case Right(_) => Right(())
-          case Left(errorMsg) => Left(errorMsg)
+        try {
+          osClient.createIndex(resultIndex, mapping)
+          Right(())
+        } catch {
+          case e: Exception =>
+            val error = s"Failed to create result index $resultIndex"
+            logError(error, e)
+            Left(error)
         }
       case e: Exception =>
         val error = "Failed to verify existing mapping"
