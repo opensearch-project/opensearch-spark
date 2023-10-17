@@ -90,6 +90,7 @@ public class CatalystPlanContext {
     public LogicalPlan with(LogicalPlan plan) {
         return this.planBranches.push(plan);
     }
+
     /**
      * append plans collection with evolving plans branches
      *
@@ -103,11 +104,24 @@ public class CatalystPlanContext {
 
     /**
      * reduce all plans with the given reduce function
+     *
      * @param transformFunction
      * @return
      */
     public LogicalPlan reduce(BiFunction<LogicalPlan, LogicalPlan, LogicalPlan> transformFunction) {
-        return with(asJavaCollection(retainAllPlans(p -> p)).stream().reduce((left, right) -> {
+        Collection<LogicalPlan> logicalPlans = asJavaCollection(retainAllPlans(p -> p));
+        // in case it is a self join - single table - apply the same plan
+        if (logicalPlans.size() < 2) {
+            return with(logicalPlans.stream().map(plan -> {
+                planTraversalContext.push(plan);
+                LogicalPlan result = transformFunction.apply(plan, plan);
+                planTraversalContext.pop();
+                return result;
+            }).findAny()
+                    .orElse(getPlan()));            
+        }
+        // in case there are multiple join tables - reduce the tables
+        return with(logicalPlans.stream().reduce((left, right) -> {
             planTraversalContext.push(left);
             planTraversalContext.push(right);
             LogicalPlan result = transformFunction.apply(left, right);
@@ -118,7 +132,8 @@ public class CatalystPlanContext {
     }
 
     /**
-     * apply for each plan with the given function 
+     * apply for each plan with the given function
+     *
      * @param transformFunction
      * @return
      */
@@ -173,23 +188,23 @@ public class CatalystPlanContext {
                 .map(Optional::get)
                 .collect(Collectors.toList());
     }
-   
+
     public static Optional<UnresolvedRelation> findRelation(LogicalPlan plan) {
         // Check if the current node is an UnresolvedRelation
-            if (plan instanceof UnresolvedRelation) {
-                return Optional.of((UnresolvedRelation) plan);
-            }
-    
-            // Traverse the children of the current node
-            Iterator<LogicalPlan> children = plan.children().iterator();
-            while (children.hasNext()) {
-                Optional<UnresolvedRelation> result = findRelation(children.next());
-                if (result.isPresent()) {
-                    return result;
-                }
-            }
-    
-            // Return null if no UnresolvedRelation is found
-            return Optional.empty();
+        if (plan instanceof UnresolvedRelation) {
+            return Optional.of((UnresolvedRelation) plan);
         }
+
+        // Traverse the children of the current node
+        Iterator<LogicalPlan> children = plan.children().iterator();
+        while (children.hasNext()) {
+            Optional<UnresolvedRelation> result = findRelation(children.next());
+            if (result.isPresent()) {
+                return result;
+            }
+        }
+
+        // Return null if no UnresolvedRelation is found
+        return Optional.empty();
+    }
 }

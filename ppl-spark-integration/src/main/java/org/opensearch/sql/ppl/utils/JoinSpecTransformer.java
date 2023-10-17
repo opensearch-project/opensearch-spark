@@ -1,6 +1,5 @@
 package org.opensearch.sql.ppl.utils;
 
-import org.apache.spark.sql.catalyst.expressions.And;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.plans.FullOuter$;
 import org.apache.spark.sql.catalyst.plans.Inner$;
@@ -8,18 +7,12 @@ import org.apache.spark.sql.catalyst.plans.JoinType;
 import org.apache.spark.sql.catalyst.plans.logical.Join;
 import org.apache.spark.sql.catalyst.plans.logical.JoinHint;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
-import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.tree.Correlation;
-import org.opensearch.sql.ppl.CatalystPlanContext;
 import scala.Option;
-import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.Stack;
 
-import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static scala.collection.JavaConverters.seqAsJavaListConverter;
 
 public interface JoinSpecTransformer {
@@ -36,20 +29,29 @@ public interface JoinSpecTransformer {
         switch (correlationType) {
             case self:
                 //expecting exactly one source relation
-                if (left != null && right != null)
+                if (!left.equals(right))
                     throw new IllegalStateException("Correlation command with `inner` type must have exactly on source table ");
                 break;
             case exact:
                 //expecting at least two source relations
-                if (left == null || right == null)
-                    throw new IllegalStateException("Correlation command with `exact` type must at least two source tables ");
+                if (left.equals(right))
+                    throw new IllegalStateException("Correlation command with `exact` type must at least two different source tables ");
                 break;
             case approximate:
-                if (left == null || right == null)
-                    throw new IllegalStateException("Correlation command with `approximate` type must at least two source tables ");
+                if (left.equals(right))
+                    throw new IllegalStateException("Correlation command with `approximate` type must at least two different source tables ");
                 //expecting at least two source relations
                 break;
         }
+
+        if (fields.isEmpty())
+            throw new IllegalStateException("Correlation command was called with `empty` correlation fields ");
+
+        if (mapping.isEmpty())
+            throw new IllegalStateException("Correlation command was called with `empty` correlation mappings ");
+
+        if (mapping.seq().size() != fields.seq().size())
+            throw new IllegalStateException("Correlation command was called with `fields` attribute having different elements from the 'mapping' attributes ");
 
         // Define join condition
         Expression joinCondition = buildJoinCondition(seqAsJavaListConverter(fields).asJava(), seqAsJavaListConverter(mapping).asJava(), correlationType);
