@@ -12,7 +12,11 @@ import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.concurrent.duration.{Duration, MINUTES}
 
 import org.opensearch.ExceptionsHelper
-import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
+import org.opensearch.client.{RequestOptions, RestHighLevelClient}
+import org.opensearch.cluster.metadata.MappingMetadata
+import org.opensearch.common.settings.Settings
+import org.opensearch.common.xcontent.XContentType
+import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
 import org.opensearch.flint.core.metadata.FlintMetadata
 import play.api.libs.json._
 
@@ -51,17 +55,19 @@ object FlintJob extends Logging {
 
     var dataToWrite: Option[DataFrame] = None
     try {
-      // flintClient needs spark session to be created first. Otherwise, we will have connection
+      // osClient needs spark session to be created first. Otherwise, we will have connection
       // exception from EMR-S to OS.
-      val flintClient = FlintClientBuilder.build(FlintSparkConf().flintOptions())
+      val osClient = new OSClient(FlintSparkConf().flintOptions())
       val futureMappingCheck = Future {
-        checkAndCreateIndex(flintClient, resultIndex)
+        checkAndCreateIndex(osClient, resultIndex)
       }
       val data = executeQuery(spark, query, dataSource)
 
-      val (correctMapping, error) =
-        ThreadUtils.awaitResult(futureMappingCheck, Duration(1, MINUTES))
-      dataToWrite = Some(if (correctMapping) data else getFailedData(spark, dataSource, error))
+      val mappingCheckResult = ThreadUtils.awaitResult(futureMappingCheck, Duration(1, MINUTES))
+      dataToWrite = Some(mappingCheckResult match {
+        case Right(_) => data
+        case Left(error) => getFailedData(spark, dataSource, error)
+      })
     } catch {
       case e: TimeoutException =>
         val error = "Future operations timed out"
@@ -238,7 +244,7 @@ object FlintJob extends Logging {
     compareJson(inputJson, mappingJson)
   }
 
-  def checkAndCreateIndex(flintClient: FlintClient, resultIndex: String): (Boolean, String) = {
+  def checkAndCreateIndex(osClient: OSClient, resultIndex: String): Either[String, Unit] = {
     // The enabled setting, which can be applied only to the top-level mapping definition and to object fields,
     val mapping =
       """{
@@ -271,39 +277,26 @@ object FlintJob extends Logging {
       }""".stripMargin
 
     try {
-      val existingSchema = flintClient.getIndexMetadata(resultIndex).getContent
+      val existingSchema = osClient.getIndexMetadata(resultIndex)
       if (!isSuperset(existingSchema, mapping)) {
-        (false, s"The mapping of $resultIndex is incorrect.")
+        Left(s"The mapping of $resultIndex is incorrect.")
       } else {
-        (true, "")
+        Right(())
       }
     } catch {
       case e: IllegalStateException
           if e.getCause().getMessage().contains("index_not_found_exception") =>
-        handleIndexNotFoundException(flintClient, resultIndex, mapping)
+        osClient.createIndex(resultIndex, mapping) match {
+          case Right(_) => Right(())
+          case Left(errorMsg) => Left(errorMsg)
+        }
       case e: Exception =>
         val error = "Failed to verify existing mapping"
         logError(error, e)
-        (false, error)
+        Left(error)
     }
   }
 
-  def handleIndexNotFoundException(
-      flintClient: FlintClient,
-      resultIndex: String,
-      mapping: String): (Boolean, String) = {
-    try {
-      logInfo(s"create $resultIndex")
-      flintClient.createIndex(resultIndex, FlintMetadata.apply(mapping))
-      logInfo(s"create $resultIndex successfully")
-      (true, "")
-    } catch {
-      case e: Exception =>
-        val error = s"Failed to create result index $resultIndex"
-        logError(error, e)
-        (false, error)
-    }
-  }
   def executeQuery(spark: SparkSession, query: String, dataSource: String): DataFrame = {
     // Execute SQL query
     val result: DataFrame = spark.sql(query)

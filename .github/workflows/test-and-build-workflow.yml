@@ -25,5 +25,8 @@ jobs:
       - name: Integ Test
         run: sbt integtest/test
 
+      - name: Unit Test
+        run: sbt test
+
       - name: Style check
         run: sbt scalafmtCheckAll
