@@ -28,9 +28,9 @@ import org.apache.spark.sql.functions.{col, input_file_name, sha1}
  * @param indexedColumns
  *   indexed column list
  */
-class FlintSparkSkippingIndex(
+case class FlintSparkSkippingIndex(
     tableName: String,
-    val indexedColumns: Seq[FlintSparkSkippingStrategy],
+    indexedColumns: Seq[FlintSparkSkippingStrategy],
     override val options: FlintSparkIndexOptions = empty)
     extends FlintSparkIndex {
 

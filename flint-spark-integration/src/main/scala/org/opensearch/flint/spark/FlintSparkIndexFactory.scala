@@ -57,9 +57,9 @@ object FlintSparkIndexFactory {
               throw new IllegalStateException(s"Unknown skipping strategy: $other")
           }
         }
-        new FlintSparkSkippingIndex(metadata.source, strategies, indexOptions)
+        FlintSparkSkippingIndex(metadata.source, strategies, indexOptions)
       case COVERING_INDEX_TYPE =>
-        new FlintSparkCoveringIndex(
+        FlintSparkCoveringIndex(
           metadata.name,
           metadata.source,
           metadata.indexedColumns.map { colInfo =>
@@ -67,7 +67,7 @@ object FlintSparkIndexFactory {
           }.toMap,
           indexOptions)
       case MV_INDEX_TYPE =>
-        new FlintSparkMaterializedView(
+        FlintSparkMaterializedView(
           metadata.name,
           metadata.source,
           metadata.indexedColumns.map { colInfo =>

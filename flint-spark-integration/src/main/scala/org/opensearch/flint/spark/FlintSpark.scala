@@ -17,13 +17,12 @@ import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.SaveMode._
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
-import org.apache.spark.sql.streaming.OutputMode.Append
-import org.apache.spark.sql.streaming.Trigger
+import org.apache.spark.sql.streaming.{DataStreamWriter, Trigger}
 
 /**
  * Flint Spark integration API entrypoint.
@@ -137,11 +136,9 @@ class FlintSpark(val spark: SparkSession) {
             .buildStream(spark)
             .writeStream
             .queryName(indexName)
-            .outputMode(Append())
             .format(FLINT_DATASOURCE)
             .options(flintSparkConf.properties)
-            .options(checkpointLocationOrEmpty(options))
-            .trigger(triggerOrDefault(options))
+            .addIndexOptions(options)
             .start(indexName)
         Some(job.id.toString)
 
@@ -151,9 +148,7 @@ class FlintSpark(val spark: SparkSession) {
           .table(tableName)
           .writeStream
           .queryName(indexName)
-          .outputMode(Append())
-          .options(checkpointLocationOrEmpty(options))
-          .trigger(triggerOrDefault(options))
+          .addIndexOptions(options)
           .foreachBatch { (batchDF: DataFrame, _: Long) =>
             batchRefresh(Some(batchDF))
           }
@@ -235,19 +230,30 @@ class FlintSpark(val spark: SparkSession) {
     }
   }
 
-  // These methods are designed to prevent interruptions in method chaining of Spark data frame fluent API
-  private def checkpointLocationOrEmpty(options: FlintSparkIndexOptions): Map[String, String] = {
-    options
-      .checkpointLocation()
-      .map(value => Map("checkpointLocation" -> value))
-      .getOrElse(Map.empty)
-  }
+  // Using Scala implicit class to avoid breaking method chaining of Spark data frame fluent API
+  private implicit class FlintDataStreamWriter(val dataStream: DataStreamWriter[Row]) {
 
-  private def triggerOrDefault(options: FlintSparkIndexOptions): Trigger = {
-    options
-      .refreshInterval()
-      .map(Trigger.ProcessingTime)
-      .getOrElse(Trigger.ProcessingTime(0L))
+    def addIndexOptions(options: FlintSparkIndexOptions): DataStreamWriter[Row] = {
+      dataStream
+        .addCheckpointLocation(options.checkpointLocation())
+        .addRefreshInterval(options.refreshInterval())
+    }
+
+    def addCheckpointLocation(checkpointLocation: Option[String]): DataStreamWriter[Row] = {
+      if (checkpointLocation.isDefined) {
+        dataStream.option("checkpointLocation", checkpointLocation.get)
+      } else {
+        dataStream
+      }
+    }
+
+    def addRefreshInterval(refreshInterval: Option[String]): DataStreamWriter[Row] = {
+      if (refreshInterval.isDefined) {
+        dataStream.trigger(Trigger.ProcessingTime(refreshInterval.get))
+      } else {
+        dataStream
+      }
+    }
   }
 }
 
