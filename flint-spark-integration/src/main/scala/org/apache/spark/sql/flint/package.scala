@@ -14,19 +14,7 @@ import org.apache.spark.sql.connector.catalog._
 package object flint {
 
   /**
-   * Convert data frame to logical plan.
-   *
-   * @param df
-   *   data frame
-   * @return
-   *   logical plan
-   */
-  def dataFrameToLogicalPlan(df: DataFrame): LogicalPlan = {
-    df.logicalPlan
-  }
-
-  /**
-   * Convert logical plan to data frame.
+   * Convert the given logical plan to Spark data frame.
    *
    * @param spark
    *   Spark session

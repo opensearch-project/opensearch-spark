@@ -10,20 +10,12 @@ import scala.collection.JavaConverters._
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
-import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL, RefreshMode}
 import org.opensearch.flint.spark.FlintSparkIndex.{ID_COLUMN, StreamingRefresh}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
-import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
-import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.SKIPPING_INDEX_TYPE
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.{SkippingKind, SkippingKindSerializer}
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
-import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
-import org.opensearch.flint.spark.skipping.partition.PartitionSkippingStrategy
-import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.SaveMode._
@@ -179,7 +171,10 @@ class FlintSpark(val spark: SparkSession) {
    *   Flint index list
    */
   def describeIndexes(indexNamePattern: String): Seq[FlintSparkIndex] = {
-    flintClient.getAllIndexMetadata(indexNamePattern).asScala.map(deserialize)
+    flintClient
+      .getAllIndexMetadata(indexNamePattern)
+      .asScala
+      .map(FlintSparkIndexFactory.create)
   }
 
   /**
@@ -193,7 +188,8 @@ class FlintSpark(val spark: SparkSession) {
   def describeIndex(indexName: String): Option[FlintSparkIndex] = {
     if (flintClient.exists(indexName)) {
       val metadata = flintClient.getIndexMetadata(indexName)
-      Some(deserialize(metadata))
+      val index = FlintSparkIndexFactory.create(metadata)
+      Some(index)
     } else {
       Option.empty
     }
@@ -252,54 +248,6 @@ class FlintSpark(val spark: SparkSession) {
       .refreshInterval()
       .map(Trigger.ProcessingTime)
       .getOrElse(Trigger.ProcessingTime(0L))
-  }
-
-  // TODO: move this to Flint index factory
-  private def deserialize(metadata: FlintMetadata): FlintSparkIndex = {
-    val indexOptions = FlintSparkIndexOptions(
-      metadata.options.asScala.mapValues(_.asInstanceOf[String]).toMap)
-
-    // Convert generic Map[String,AnyRef] in metadata to specific data structure in Flint index
-    metadata.kind match {
-      case SKIPPING_INDEX_TYPE =>
-        val strategies = metadata.indexedColumns.map { colInfo =>
-          val skippingKind = SkippingKind.withName(getString(colInfo, "kind"))
-          val columnName = getString(colInfo, "columnName")
-          val columnType = getString(colInfo, "columnType")
-
-          skippingKind match {
-            case PARTITION =>
-              PartitionSkippingStrategy(columnName = columnName, columnType = columnType)
-            case VALUE_SET =>
-              ValueSetSkippingStrategy(columnName = columnName, columnType = columnType)
-            case MIN_MAX =>
-              MinMaxSkippingStrategy(columnName = columnName, columnType = columnType)
-            case other =>
-              throw new IllegalStateException(s"Unknown skipping strategy: $other")
-          }
-        }
-        new FlintSparkSkippingIndex(metadata.source, strategies, indexOptions)
-      case COVERING_INDEX_TYPE =>
-        new FlintSparkCoveringIndex(
-          metadata.name,
-          metadata.source,
-          metadata.indexedColumns.map { colInfo =>
-            getString(colInfo, "columnName") -> getString(colInfo, "columnType")
-          }.toMap,
-          indexOptions)
-      case MV_INDEX_TYPE =>
-        new FlintSparkMaterializedView(
-          metadata.name,
-          metadata.source,
-          metadata.indexedColumns.map { colInfo =>
-            getString(colInfo, "columnName") -> getString(colInfo, "columnType")
-          }.toMap,
-          indexOptions)
-    }
-  }
-
-  private def getString(map: java.util.Map[String, AnyRef], key: String): String = {
-    map.get(key).asInstanceOf[String]
   }
 }
 

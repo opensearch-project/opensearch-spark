@@ -23,7 +23,6 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, EventTimeWatermark, LogicalPlan}
 import org.apache.spark.sql.catalyst.util.IntervalUtils
 import org.apache.spark.sql.flint.logicalPlanToDataFrame
-import org.apache.spark.unsafe.types.UTF8String
 
 /**
  * Flint materialized view in Spark.
@@ -92,10 +91,7 @@ case class FlintSparkMaterializedView(
   }
 
   private def watermark(timeCol: Attribute, delay: String, child: LogicalPlan) = {
-    EventTimeWatermark(
-      timeCol,
-      IntervalUtils.stringToInterval(UTF8String.fromString(delay)),
-      child)
+    EventTimeWatermark(timeCol, IntervalUtils.fromIntervalString(delay), child)
   }
 
   /**
