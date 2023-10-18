@@ -15,6 +15,7 @@ A Flint index is ...
   - MinMax: skip data scan by maintaining lower and upper bound of the indexed column per file.
   - ValueSet: skip data scan by building a unique value set of the indexed column per file.
 - Covering Index: create index for selected columns within the source dataset to improve query performance
+- Materialized View: enhance query performance by storing precomputed and aggregated data from the source dataset
 
 Please see the following example in which Index Building Logic and Query Rewrite Logic column shows the basic idea behind each skipping index implementation.
 
@@ -187,6 +188,30 @@ DESCRIBE INDEX elb_and_requestUri ON alb_logs
 DROP INDEX elb_and_requestUri ON alb_logs
 ```
 
+#### Materialized View
+
+```sql
+CREATE MATERIALIZED VIEW [IF NOT EXISTS] name
+AS <query>
+WITH ( options )
+
+DROP MATERIALIZED VIEW name
+```
+
+Example:
+
+```sql
+CREATE MATERIALIZED VIEW alb_logs_metrics
+AS
+SELECT
+  window.start AS startTime,
+  COUNT(*) AS count
+FROM alb_logs
+GROUP BY TUMBLE(time, '1 Minute')
+
+DROP MATERIALIZED VIEW alb_logs_metrics
+```
+
 #### Create Index Options
 
 User can provide the following options in `WITH` clause of create statement:
@@ -345,23 +370,31 @@ val flint = new FlintSpark(spark)
 
 // Skipping index
 flint.skippingIndex()
-    .onTable("alb_logs")
+    .onTable("spark_catalog.default.alb_logs")
     .filterBy("time > 2023-04-01 00:00:00")
     .addPartitions("year", "month", "day")
     .addValueSet("elb_status_code")
     .addMinMax("request_processing_time")
     .create()
 
-flint.refresh("flint_alb_logs_skipping_index", FULL)
+flint.refreshIndex("flint_spark_catalog_default_alb_logs_skipping_index", FULL)
 
 // Covering index
 flint.coveringIndex()
     .name("elb_and_requestUri")
-    .onTable("alb_logs")
+    .onTable("spark_catalog.default.alb_logs")
     .addIndexColumns("elb", "requestUri")
     .create()
 
-flint.refresh("flint_alb_logs_elb_and_requestUri_index")
+flint.refreshIndex("flint_spark_catalog_default_alb_logs_elb_and_requestUri_index")
+
+// Materialized view
+flint.materializedView()
+    .name("spark_catalog.default.alb_logs_metrics")
+    .query("SELECT ...")
+    .create()
+
+flint.refreshIndex("flint_spark_catalog_default_alb_logs_metrics")
 ```
 
 #### Skipping Index Provider SPI
