@@ -40,11 +40,12 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     mv.name() shouldBe "flint_spark_catalog_default_mv"
   }
 
-  test("should fail if not full MV name") {
-    val mv = FlintSparkMaterializedView("mv", "SELECT 1", Map.empty)
-    assertThrows[IllegalArgumentException] {
-      mv.name()
-    }
+  test("should fail if get name with unqualified MV name") {
+    the[IllegalArgumentException] thrownBy
+      FlintSparkMaterializedView("mv", testQuery, Map.empty).name()
+
+    the[IllegalArgumentException] thrownBy
+      FlintSparkMaterializedView("default.mv", testQuery, Map.empty).name()
   }
 
   test("get metadata") {

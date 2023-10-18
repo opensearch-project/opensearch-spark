@@ -141,7 +141,9 @@ object FlintSparkMaterializedView {
    *   Flint index name
    */
   def getFlintIndexName(mvName: String): String = {
-    require(mvName.contains("."), "Full table name database.mv is required")
+    require(
+      mvName.split("\\.").length >= 3,
+      "Qualified materialized view name catalog.database.mv is required")
 
     s"flint_${mvName.replace(".", "_")}"
   }
