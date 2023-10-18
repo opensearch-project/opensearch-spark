@@ -18,6 +18,8 @@ import org.opensearch.flint.core.metadata.FlintJsonHelper._
 case class FlintMetadata(
     /** Flint spec version */
     version: FlintVersion,
+    /** Flint index target name */
+    targetName: Option[String],
     /** Flint index name */
     name: String,
     /** Flint index kind */
@@ -53,11 +55,11 @@ case class FlintMetadata(
         objectField(builder, "_meta") {
           builder
             .field("version", version.version)
+            .field("targetName", targetName.getOrElse(name) )
             .field("name", name)
             .field("kind", kind)
             .field("source", source)
             .field("indexedColumns", indexedColumns)
-
           optionalObjectField(builder, "options", options)
           optionalObjectField(builder, "properties", properties)
         }
@@ -109,6 +111,7 @@ object FlintMetadata {
                   innerFieldName match {
                     case "version" => builder.version(FlintVersion.apply(parser.text()))
                     case "name" => builder.name(parser.text())
+                    case "targetName" => builder.targetName(parser.text())
                     case "kind" => builder.kind(parser.text())
                     case "source" => builder.source(parser.text())
                     case "indexedColumns" =>
@@ -142,6 +145,7 @@ object FlintMetadata {
   class Builder {
     private var version: FlintVersion = FlintVersion.current()
     private var name: String = ""
+    private var targetName: Option[String] = None
     private var kind: String = ""
     private var source: String = ""
     private var options: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef]()
@@ -157,6 +161,11 @@ object FlintMetadata {
 
     def name(name: String): this.type = {
       this.name = name
+      this
+    }
+
+    def targetName(name: String): this.type = {
+      this.targetName = Option(name)
       this
     }
 
@@ -219,6 +228,7 @@ object FlintMetadata {
     def build(): FlintMetadata = {
       FlintMetadata(
         if (version == null) current() else version,
+        targetName,
         name,
         kind,
         source,

@@ -27,7 +27,7 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
   override def visitCreateCoveringIndexStatement(
       ctx: CreateCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
-      val indexName = ctx.indexName.getText
+      val indexName = ctx.indexName.get(0).getText
       val tableName = getFullTableName(flint, ctx.tableName)
       val indexBuilder =
         flint
@@ -41,6 +41,10 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       }
 
       val ignoreIfExists = ctx.EXISTS() != null
+      if (ctx.USING() != null) {
+        indexBuilder.targetName(ctx.indexName().get(1).getText)
+      }
+
       val indexOptions = visitPropertyList(ctx.propertyList())
       indexBuilder
         .options(indexOptions)
@@ -48,7 +52,7 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
 
       // Trigger auto refresh if enabled
       if (indexOptions.autoRefresh()) {
-        val flintIndexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
+        val flintIndexName = getFlintIndexName(flint, ctx.indexName.get(0), ctx.tableName)
         flint.refreshIndex(flintIndexName, RefreshMode.INCREMENTAL)
       }
       Seq.empty

@@ -60,6 +60,7 @@ object FlintSparkIndexFactory {
         FlintSparkSkippingIndex(metadata.source, strategies, indexOptions)
       case COVERING_INDEX_TYPE =>
         FlintSparkCoveringIndex(
+          metadata.targetName,
           metadata.name,
           metadata.source,
           metadata.indexedColumns.map { colInfo =>
@@ -68,6 +69,7 @@ object FlintSparkIndexFactory {
           indexOptions)
       case MV_INDEX_TYPE =>
         FlintSparkMaterializedView(
+          metadata.targetName,
           metadata.name,
           metadata.source,
           metadata.indexedColumns.map { colInfo =>

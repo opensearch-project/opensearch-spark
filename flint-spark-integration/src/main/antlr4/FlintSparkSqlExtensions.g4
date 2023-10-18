@@ -55,7 +55,7 @@ coveringIndexStatement
 
 createCoveringIndexStatement
     : CREATE INDEX (IF NOT EXISTS)? indexName
-        ON tableName
+        ON tableName (USING indexName)?
         LEFT_PAREN indexColumns=multipartIdentifierPropertyList RIGHT_PAREN
         (WITH LEFT_PAREN propertyList RIGHT_PAREN)?
     ;

@@ -39,6 +39,14 @@ case class FlintSparkSkippingIndex(
   /** Skipping index type */
   override val kind: String = SKIPPING_INDEX_TYPE
 
+  /**
+   * @return
+   * Flint target index name ( in skipping index case not allowing using existing indices)
+   */
+  def targetName(): String = {
+    name()
+  }
+
   override def name(): String = {
     getSkippingIndexName(tableName)
   }

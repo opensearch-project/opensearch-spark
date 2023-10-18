@@ -139,6 +139,7 @@ nonReserved
 
 // Flint lexical tokens
 
+USING: 'USING';
 MIN_MAX: 'MIN_MAX';
 SKIPPING: 'SKIPPING';
 VALUE_SET: 'VALUE_SET';

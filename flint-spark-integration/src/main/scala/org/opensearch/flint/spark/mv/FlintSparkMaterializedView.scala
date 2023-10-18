@@ -37,6 +37,7 @@ import org.apache.spark.sql.flint.{logicalPlanToDataFrame, qualifyTableName}
  *   index options
  */
 case class FlintSparkMaterializedView(
+    targetIndexName: Option[String],
     mvName: String,
     query: String,
     outputSchema: Map[String, String],
@@ -50,6 +51,14 @@ case class FlintSparkMaterializedView(
   override val kind: String = MV_INDEX_TYPE
 
   override def name(): String = getFlintIndexName(mvName)
+
+  /**
+   * @return
+   * Flint target index name - index that already exist or has existing template to be created with
+   */
+  override def targetName(): String = {
+    targetIndexName.getOrElse(name())
+  }
 
   override def metadata(): FlintMetadata = {
     val indexColumnMaps =
@@ -150,8 +159,22 @@ object FlintSparkMaterializedView {
 
   /** Builder class for MV build */
   class Builder(flint: FlintSpark) extends FlintSparkIndexBuilder(flint) {
+    private var targetIndexName: String = ""
     private var mvName: String = ""
     private var query: String = ""
+
+    /**
+     * Set covering index target name.
+     *
+     * @param indexName
+     * index name
+     * @return
+     * index builder
+     */
+    def targetName(indexName: String): Builder = {
+      this.targetIndexName = indexName
+      this
+    }
 
     /**
      * Set MV name.
@@ -188,7 +211,7 @@ object FlintSparkMaterializedView {
           field.name -> field.dataType.typeName
         }
         .toMap
-      FlintSparkMaterializedView(mvName, query, outputSchema, indexOptions)
+      FlintSparkMaterializedView(Option.apply(targetIndexName), mvName, query, outputSchema, indexOptions)
     }
   }
 }

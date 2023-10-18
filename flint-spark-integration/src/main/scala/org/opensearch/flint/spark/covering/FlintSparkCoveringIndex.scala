@@ -18,6 +18,8 @@ import org.apache.spark.sql._
 /**
  * Flint covering index in Spark.
  *
+ * @param targetIndexName
+ *   optional index target name
  * @param indexName
  *   index name
  * @param tableName
@@ -26,6 +28,7 @@ import org.apache.spark.sql._
  *   indexed column list
  */
 case class FlintSparkCoveringIndex(
+    targetIndexName: Option[String],
     indexName: String,
     tableName: String,
     indexedColumns: Map[String, String],
@@ -37,6 +40,14 @@ case class FlintSparkCoveringIndex(
   override val kind: String = COVERING_INDEX_TYPE
 
   override def name(): String = getFlintIndexName(indexName, tableName)
+
+  /**
+   * @return
+   * Flint target index name - index that already exist or has existing template to be created with
+   */
+  override def targetName(): String = {
+    targetIndexName.getOrElse(name())
+  }
 
   override def metadata(): FlintMetadata = {
     val indexColumnMaps = {
@@ -93,6 +104,7 @@ object FlintSparkCoveringIndex {
 
   /** Builder class for covering index build */
   class Builder(flint: FlintSpark) extends FlintSparkIndexBuilder(flint) {
+    private var targetIndexName: String = ""
     private var indexName: String = ""
     private var indexedColumns: Map[String, String] = Map()
 
@@ -106,6 +118,19 @@ object FlintSparkCoveringIndex {
      */
     def name(indexName: String): Builder = {
       this.indexName = indexName
+      this
+    }
+
+    /**
+     * Set covering index target name.
+     *
+     * @param indexName
+     *   index name
+     * @return
+     *   index builder
+     */
+    def targetName(indexName: String): Builder = {
+      this.targetIndexName = indexName
       this
     }
 
@@ -138,6 +163,6 @@ object FlintSparkCoveringIndex {
     }
 
     override protected def buildIndex(): FlintSparkIndex =
-      new FlintSparkCoveringIndex(indexName, tableName, indexedColumns, indexOptions)
+      new FlintSparkCoveringIndex(Option.apply(targetIndexName), indexName, tableName, indexedColumns, indexOptions)
   }
 }

@@ -36,6 +36,12 @@ trait FlintSparkIndex {
 
   /**
    * @return
+   *    Flint target index name
+   */
+  def targetName(): String
+
+  /**
+   * @return
    *   Flint index metadata
    */
   def metadata(): FlintMetadata
