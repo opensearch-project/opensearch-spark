@@ -52,7 +52,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex(testIndex)
     index shouldBe defined
-    index.get.metadata().getContent should matchJson(s"""{
+    index.get.metadata().getContent() should matchJson(s"""{
         |   "_meta": {
         |     "name": "flint_spark_catalog_default_test_skipping_index",
         |     "version": "${current()}",
@@ -123,7 +123,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     val index = flint.describeIndex(testIndex)
     index shouldBe defined
     val optionJson = compact(render(
-      parse(index.get.metadata().getContent) \ "_meta" \ "options"))
+      parse(index.get.metadata().getContent()) \ "_meta" \ "options"))
     optionJson should matchJson("""
         | {
         |   "auto_refresh": "true",
@@ -449,7 +449,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex(testIndex)
     index shouldBe defined
-    index.get.metadata().getContent should matchJson(
+    index.get.metadata().getContent() should matchJson(
       s"""{
          |   "_meta": {
          |     "name": "flint_spark_catalog_default_data_type_table_skipping_index",

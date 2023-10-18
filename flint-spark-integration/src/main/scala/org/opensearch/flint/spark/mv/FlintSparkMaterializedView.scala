@@ -69,6 +69,7 @@ case class FlintSparkMaterializedView(
 
     metadataBuilder(this)
       .name(mvName)
+      .targetName(targetIndexName)
       .source(query)
       .indexedColumns(indexColumnMaps)
       .schema(schemaJson)
@@ -159,7 +160,7 @@ object FlintSparkMaterializedView {
 
   /** Builder class for MV build */
   class Builder(flint: FlintSpark) extends FlintSparkIndexBuilder(flint) {
-    private var targetIndexName: String = ""
+    private var targetIndexName: Option[String] = None
     private var mvName: String = ""
     private var query: String = ""
 
@@ -172,7 +173,7 @@ object FlintSparkMaterializedView {
      * index builder
      */
     def targetName(indexName: String): Builder = {
-      this.targetIndexName = indexName
+      this.targetIndexName = Option.apply(indexName)
       this
     }
 
@@ -211,7 +212,7 @@ object FlintSparkMaterializedView {
           field.name -> field.dataType.typeName
         }
         .toMap
-      FlintSparkMaterializedView(Option.apply(targetIndexName), mvName, query, outputSchema, indexOptions)
+      FlintSparkMaterializedView(targetIndexName, mvName, query, outputSchema, indexOptions)
     }
   }
 }

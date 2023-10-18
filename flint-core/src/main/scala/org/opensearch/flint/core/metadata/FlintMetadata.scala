@@ -48,24 +48,30 @@ case class FlintMetadata(
    * @return
    *   JSON content
    */
-  def getContent: String = {
+  def getContent(includeProperties: Boolean = true): String = {
     try {
       buildJson(builder => {
         // Add _meta field
         objectField(builder, "_meta") {
           builder
             .field("version", version.version)
-            .field("targetName", targetName.getOrElse(name) )
             .field("name", name)
             .field("kind", kind)
             .field("source", source)
             .field("indexedColumns", indexedColumns)
+          // Only add targetName if it's not empty
+          targetName.foreach(tn => builder.field("targetName", tn))
           optionalObjectField(builder, "options", options)
-          optionalObjectField(builder, "properties", properties)
+
+          if (includeProperties) {
+            optionalObjectField(builder, "properties", properties)
+          }
         }
 
         // Add properties (schema) field
-        builder.field("properties", schema)
+        if (includeProperties) {
+          builder.field("properties", schema)
+        }
       })
     } catch {
       case e: Exception =>
@@ -111,7 +117,7 @@ object FlintMetadata {
                   innerFieldName match {
                     case "version" => builder.version(FlintVersion.apply(parser.text()))
                     case "name" => builder.name(parser.text())
-                    case "targetName" => builder.targetName(parser.text())
+                    case "targetName" => builder.targetName(Option.apply(parser.text()))
                     case "kind" => builder.kind(parser.text())
                     case "source" => builder.source(parser.text())
                     case "indexedColumns" =>
@@ -144,8 +150,8 @@ object FlintMetadata {
    */
   class Builder {
     private var version: FlintVersion = FlintVersion.current()
-    private var name: String = ""
     private var targetName: Option[String] = None
+    private var name: String = ""
     private var kind: String = ""
     private var source: String = ""
     private var options: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef]()
@@ -164,8 +170,8 @@ object FlintMetadata {
       this
     }
 
-    def targetName(name: String): this.type = {
-      this.targetName = Option(name)
+    def targetName(name: Option[String]): this.type = {
+      this.targetName = name
       this
     }
 

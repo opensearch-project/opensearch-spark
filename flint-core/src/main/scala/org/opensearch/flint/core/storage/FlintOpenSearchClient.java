@@ -110,10 +110,12 @@ public class FlintOpenSearchClient implements FlintClient {
         String osIndexName = toLowercase(indexName);
         try (RestHighLevelClient client = createClient()) {
             CreateIndexRequest request = new CreateIndexRequest(osIndexName);
-            request.mapping(metadata.getContent(), XContentType.JSON);
-            metadata.targetName().exists(name -> {
-                return request.alias(new Alias(toLowercase(metadata.name())));
-            });
+            boolean includeMappingProperties = true;
+            if(metadata.targetName().nonEmpty()) {
+                request.alias(new Alias(toLowercase(metadata.name())));
+                includeMappingProperties = false;
+            }
+            request.mapping(metadata.getContent(includeMappingProperties), XContentType.JSON);
             Option<String> settings = metadata.indexSettings();
             if (settings.isDefined()) {
                 request.settings(settings.get(), XContentType.JSON);

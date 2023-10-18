@@ -86,13 +86,15 @@ class FlintSpark(val spark: SparkSession) {
     if (targetName.nonEmpty) {
       //use targetIndex as the index to store the acceleration data
       flintClient.alias(targetName.get, indexName, index.metadata())
-    } else if (flintClient.exists(indexName)) {
-      if (!ignoreIfExists) {
-        throw new IllegalStateException(s"Flint index $indexName already exists")
-      }
     } else {
-      val metadata = index.metadata()
-      flintClient.createIndex(indexName, metadata)
+      if (flintClient.exists(indexName)) {
+        if (!ignoreIfExists) {
+          throw new IllegalStateException(s"Flint index $indexName already exists")
+        }
+      } else {
+        val metadata = index.metadata()
+        flintClient.createIndex(indexName, metadata)
+      }
     }
   }
 

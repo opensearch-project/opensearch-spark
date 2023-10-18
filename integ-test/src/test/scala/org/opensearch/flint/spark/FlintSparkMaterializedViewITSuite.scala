@@ -22,6 +22,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
   private val testTable = "spark_catalog.default.mv_test"
   private val testMvName = "spark_catalog.default.mv_test_metrics"
   private val testFlintIndex = getFlintIndexName(testMvName)
+  private val testTargetIndex = "existing_index"
   private val testQuery =
     s"""
        | SELECT
@@ -53,7 +54,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex(testFlintIndex)
     index shouldBe defined
-    index.get.metadata().getContent should matchJson(s"""
+    index.get.metadata().getContent() should matchJson(s"""
          | {
          |  "_meta": {
          |    "version": "${current()}",
@@ -87,12 +88,12 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |""".stripMargin)
   }
   
-  test("create materialized view using existing OpebnSearch index successfully") {
+  test("create materialized view using existing OpenSearch index successfully") {
     val indexOptions =
       FlintSparkIndexOptions(Map("auto_refresh" -> "true", "checkpoint_location" -> "s3://test/"))
     flint
       .materializedView()
-      .targetName("existing_index")
+      .targetName(testTargetIndex)
       .name(testMvName)
       .query(testQuery)
       .options(indexOptions)
@@ -100,12 +101,13 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex("existing_index")
     index shouldBe defined
-    index.get.metadata().getContent should matchJson(s"""
+    index.get.metadata().getContent() should matchJson(s"""
          | {
          |  "_meta": {
          |    "version": "${current()}",
          |    "name": "spark_catalog.default.mv_test_metrics",
          |    "kind": "mv",
+         |    "targetName": "$testTargetIndex",
          |    "source": "$testQuery",
          |    "indexedColumns": [
          |    {

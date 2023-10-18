@@ -44,7 +44,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex(testFlintIndex)
     index shouldBe defined
-    index.get.metadata().getContent should matchJson(s"""{
+    index.get.metadata().getContent() should matchJson(s"""{
          |   "_meta": {
          |     "version": "${current()}",
          |     "name": "name_and_age",

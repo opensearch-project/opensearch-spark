@@ -62,6 +62,6 @@ class FlintMetadataSuite extends AnyFlatSpec with Matchers {
     builder.schema("""{"properties": {"test_field": {"type": "os_type"}}}""")
 
     val metadata = builder.build()
-    metadata.getContent should matchJson(testMetadataJson)
+    metadata.getContent() should matchJson(testMetadataJson)
   }
 }

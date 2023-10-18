@@ -345,7 +345,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
   }
 
   private def schemaShouldMatch(metadata: FlintMetadata, expected: String): Unit = {
-    val actual = parse(metadata.getContent) \ "properties"
+    val actual = parse(metadata.getContent()) \ "properties"
     assert(actual == parse(expected))
   }
 }

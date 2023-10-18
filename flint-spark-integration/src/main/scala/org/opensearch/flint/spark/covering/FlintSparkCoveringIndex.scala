@@ -59,6 +59,7 @@ case class FlintSparkCoveringIndex(
 
     metadataBuilder(this)
       .name(indexName)
+      .targetName(targetIndexName)
       .source(tableName)
       .indexedColumns(indexColumnMaps)
       .schema(schemaJson)
@@ -104,7 +105,7 @@ object FlintSparkCoveringIndex {
 
   /** Builder class for covering index build */
   class Builder(flint: FlintSpark) extends FlintSparkIndexBuilder(flint) {
-    private var targetIndexName: String = ""
+    private var targetIndexName: Option[String] = None
     private var indexName: String = ""
     private var indexedColumns: Map[String, String] = Map()
 
@@ -130,7 +131,7 @@ object FlintSparkCoveringIndex {
      *   index builder
      */
     def targetName(indexName: String): Builder = {
-      this.targetIndexName = indexName
+      this.targetIndexName = Option.apply(indexName)
       this
     }
 
@@ -163,6 +164,6 @@ object FlintSparkCoveringIndex {
     }
 
     override protected def buildIndex(): FlintSparkIndex =
-      new FlintSparkCoveringIndex(Option.apply(targetIndexName), indexName, tableName, indexedColumns, indexOptions)
+      new FlintSparkCoveringIndex(targetIndexName, indexName, tableName, indexedColumns, indexOptions)
   }
 }

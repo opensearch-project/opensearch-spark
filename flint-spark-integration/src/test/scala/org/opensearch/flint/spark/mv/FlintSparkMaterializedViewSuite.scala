@@ -36,20 +36,20 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
   val testQuery = "SELECT 1"
 
   test("get name") {
-    val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
+    val mv = FlintSparkMaterializedView(None, testMvName, testQuery, Map.empty)
     mv.name() shouldBe "flint_spark_catalog_default_mv"
   }
 
   test("should fail if get name with unqualified MV name") {
     the[IllegalArgumentException] thrownBy
-      FlintSparkMaterializedView("mv", testQuery, Map.empty).name()
+      FlintSparkMaterializedView(None, "mv", testQuery, Map.empty).name()
 
     the[IllegalArgumentException] thrownBy
-      FlintSparkMaterializedView("default.mv", testQuery, Map.empty).name()
+      FlintSparkMaterializedView(None, "default.mv", testQuery, Map.empty).name()
   }
 
   test("get metadata") {
-    val mv = FlintSparkMaterializedView(testMvName, testQuery, Map("test_col" -> "integer"))
+    val mv = FlintSparkMaterializedView(None, testMvName, testQuery, Map("test_col" -> "integer"))
 
     val metadata = mv.metadata()
     metadata.name shouldBe mv.mvName
@@ -64,7 +64,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     val indexSettings = """{"number_of_shards": 2}"""
     val indexOptions =
       FlintSparkIndexOptions(Map("auto_refresh" -> "true", "index_settings" -> indexSettings))
-    val mv = FlintSparkMaterializedView(
+    val mv = FlintSparkMaterializedView(None,
       testMvName,
       testQuery,
       Map("test_col" -> "integer"),
@@ -77,12 +77,12 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
   }
 
   test("build batch data frame") {
-    val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
+    val mv = FlintSparkMaterializedView(None, testMvName, testQuery, Map.empty)
     mv.build(spark, None).collect() shouldBe Array(Row(1))
   }
 
   test("should fail if build given other source data frame") {
-    val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
+    val mv = FlintSparkMaterializedView(None, testMvName, testQuery, Map.empty)
     the[IllegalArgumentException] thrownBy mv.build(spark, Some(mock[DataFrame]))
   }
 
@@ -100,7 +100,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
           | GROUP BY TUMBLE(time, '1 Minute')
           |""".stripMargin
 
-      val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
+      val mv = FlintSparkMaterializedView(None, testMvName, testQuery, Map.empty)
       val actualPlan = mv.buildStream(spark).queryExecution.logical
       assert(
         actualPlan.sameSemantics(
@@ -127,7 +127,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
            | GROUP BY TUMBLE(time, '1 Minute')
            |""".stripMargin
 
-      val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
+      val mv = FlintSparkMaterializedView(None, testMvName, testQuery, Map.empty)
       val actualPlan = mv.buildStream(spark).queryExecution.logical
       assert(
         actualPlan.sameSemantics(
@@ -145,7 +145,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
 
-      val mv = FlintSparkMaterializedView(
+      val mv = FlintSparkMaterializedView(None,
         testMvName,
         s"SELECT name, age FROM $testTable WHERE age > 30",
         Map.empty)
@@ -164,7 +164,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
 
-      val mv = FlintSparkMaterializedView(
+      val mv = FlintSparkMaterializedView(None,
         testMvName,
         s"SELECT name, COUNT(*) AS count FROM $testTable GROUP BY name",
         Map.empty)

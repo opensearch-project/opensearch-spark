@@ -46,7 +46,7 @@ case class FlintTable(conf: util.Map[String, String], userSpecifiedSchema: Optio
           FlintClientBuilder
             .build(flintSparkConf.flintOptions())
             .getIndexMetadata(name)
-            .getContent)
+            .getContent())
       }
     }
     schema
