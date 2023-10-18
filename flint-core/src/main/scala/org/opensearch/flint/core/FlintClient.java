@@ -27,6 +27,13 @@ public interface FlintClient {
   void createIndex(String indexName, FlintMetadata metadata);
 
   /**
+   * Create an alias name for the given index
+   * @param indexName
+   * @param aliasName
+   */
+  void alias(String indexName, String aliasName, FlintMetadata metadata);
+
+  /**
    * Does Flint index with the given name exist
    *
    * @param indexName index name

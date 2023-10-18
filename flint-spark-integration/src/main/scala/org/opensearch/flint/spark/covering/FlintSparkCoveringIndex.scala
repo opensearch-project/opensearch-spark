@@ -28,7 +28,7 @@ import org.apache.spark.sql._
  *   indexed column list
  */
 case class FlintSparkCoveringIndex(
-    targetIndexName: Option[String],
+    targetIndexName: Option[String] = None,
     indexName: String,
     tableName: String,
     indexedColumns: Map[String, String],
@@ -45,8 +45,8 @@ case class FlintSparkCoveringIndex(
    * @return
    * Flint target index name - index that already exist or has existing template to be created with
    */
-  override def targetName(): String = {
-    targetIndexName.getOrElse(name())
+  override def targetName(): Option[String] = {
+    targetIndexName
   }
 
   override def metadata(): FlintMetadata = {

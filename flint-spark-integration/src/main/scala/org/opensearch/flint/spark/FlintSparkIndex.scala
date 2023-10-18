@@ -38,7 +38,7 @@ trait FlintSparkIndex {
    * @return
    *    Flint target index name
    */
-  def targetName(): String
+  def targetName(): Option[String]
 
   /**
    * @return

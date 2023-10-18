@@ -37,7 +37,7 @@ import org.apache.spark.sql.flint.{logicalPlanToDataFrame, qualifyTableName}
  *   index options
  */
 case class FlintSparkMaterializedView(
-    targetIndexName: Option[String],
+    targetIndexName: Option[String] = None,
     mvName: String,
     query: String,
     outputSchema: Map[String, String],
@@ -56,8 +56,8 @@ case class FlintSparkMaterializedView(
    * @return
    * Flint target index name - index that already exist or has existing template to be created with
    */
-  override def targetName(): String = {
-    targetIndexName.getOrElse(name())
+  override def targetName(): Option[String] = {
+    targetIndexName
   }
 
   override def metadata(): FlintMetadata = {

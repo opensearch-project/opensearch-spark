@@ -43,8 +43,8 @@ case class FlintSparkSkippingIndex(
    * @return
    * Flint target index name ( in skipping index case not allowing using existing indices)
    */
-  def targetName(): String = {
-    name()
+  def targetName(): Option[String] = {
+    None
   }
 
   override def name(): String = {
