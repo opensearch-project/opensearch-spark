@@ -32,6 +32,8 @@ import org.apache.spark.unsafe.types.UTF8String
  */
 class FlintSparkMaterializedViewSuite extends FlintSuite {
 
+  /** Test table, MV name and query */
+  val testTable = "mv_build_test"
   val testMvName = "spark_catalog.default.mv"
   val testQuery = "SELECT 1"
 
@@ -87,26 +89,17 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
   }
 
   test("build stream should insert watermark operator and replace batch relation") {
-    val testTable = "mv_build_test"
-    withTable(testTable) {
-      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
-
-      val testQuery =
-        s"""
+    val testQuery =
+      s"""
           | SELECT
           |   window.start AS startTime,
           |   COUNT(*) AS count
           | FROM $testTable
           | GROUP BY TUMBLE(time, '1 Minute')
           |""".stripMargin
+    val options = Map("watermark_delay" -> "30 Seconds")
 
-      val mv = FlintSparkMaterializedView(
-        testMvName,
-        testQuery,
-        Map.empty,
-        FlintSparkIndexOptions(Map("watermark_delay" -> "30 Seconds")))
-
-      val actualPlan = mv.buildStream(spark).queryExecution.logical
+    withAggregateMaterializedView(testQuery, options) { actualPlan =>
       assert(
         actualPlan.sameSemantics(
           streamingRelation(testTable)
@@ -118,12 +111,8 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
   }
 
   test("build stream with filtering aggregate query") {
-    val testTable = "mv_build_test"
-    withTable(testTable) {
-      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
-
-      val testQuery =
-        s"""
+    val testQuery =
+      s"""
            | SELECT
            |   window.start AS startTime,
            |   COUNT(*) AS count
@@ -131,14 +120,9 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
            | WHERE age > 30
            | GROUP BY TUMBLE(time, '1 Minute')
            |""".stripMargin
+    val options = Map("watermark_delay" -> "30 Seconds")
 
-      val mv = FlintSparkMaterializedView(
-        testMvName,
-        testQuery,
-        Map.empty,
-        FlintSparkIndexOptions(Map("watermark_delay" -> "30 Seconds")))
-
-      val actualPlan = mv.buildStream(spark).queryExecution.logical
+    withAggregateMaterializedView(testQuery, options) { actualPlan =>
       assert(
         actualPlan.sameSemantics(
           streamingRelation(testTable)
@@ -151,16 +135,9 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
   }
 
   test("build stream with non-aggregate query") {
-    val testTable = "mv_build_test"
-    withTable(testTable) {
-      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
+    val testQuery = s"SELECT name, age FROM $testTable WHERE age > 30"
 
-      val mv = FlintSparkMaterializedView(
-        testMvName,
-        s"SELECT name, age FROM $testTable WHERE age > 30",
-        Map.empty)
-      val actualPlan = mv.buildStream(spark).queryExecution.logical
-
+    withAggregateMaterializedView(testQuery, Map.empty) { actualPlan =>
       assert(
         actualPlan.sameSemantics(
           streamingRelation(testTable)
@@ -181,6 +158,23 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
 
       the[IllegalStateException] thrownBy
         mv.buildStream(spark)
+    }
+  }
+
+  private def withAggregateMaterializedView(query: String, options: Map[String, String])(
+      codeBlock: LogicalPlan => Unit): Unit = {
+
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
+
+      val mv = FlintSparkMaterializedView(
+        testMvName,
+        query,
+        Map.empty,
+        FlintSparkIndexOptions(Map("watermark_delay" -> "30 Seconds")))
+
+      val actualPlan = mv.buildStream(spark).queryExecution.logical
+      codeBlock(actualPlan)
     }
   }
 }
