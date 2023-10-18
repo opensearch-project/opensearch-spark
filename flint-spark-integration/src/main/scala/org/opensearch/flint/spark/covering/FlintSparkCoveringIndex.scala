@@ -13,7 +13,7 @@ import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generat
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{getFlintIndexName, COVERING_INDEX_TYPE}
 
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql._
 
 /**
  * Flint covering index in Spark.
@@ -54,9 +54,10 @@ case class FlintSparkCoveringIndex(
       .build()
   }
 
-  override def build(df: DataFrame): DataFrame = {
+  override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
     val colNames = indexedColumns.keys.toSeq
-    df.select(colNames.head, colNames.tail: _*)
+    df.getOrElse(spark.read.table(tableName))
+      .select(colNames.head, colNames.tail: _*)
   }
 }
 

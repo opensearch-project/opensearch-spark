@@ -10,26 +10,19 @@ import scala.collection.JavaConverters._
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
-import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL, RefreshMode}
-import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
+import org.opensearch.flint.spark.FlintSparkIndex.{ID_COLUMN, StreamingRefresh}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
-import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.SKIPPING_INDEX_TYPE
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.{SkippingKind, SkippingKindSerializer}
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
-import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
-import org.opensearch.flint.spark.skipping.partition.PartitionSkippingStrategy
-import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.SaveMode._
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
-import org.apache.spark.sql.streaming.OutputMode.Append
-import org.apache.spark.sql.streaming.Trigger
+import org.apache.spark.sql.streaming.{DataStreamWriter, Trigger}
 
 /**
  * Flint Spark integration API entrypoint.
@@ -70,6 +63,16 @@ class FlintSpark(val spark: SparkSession) {
   }
 
   /**
+   * Create materialized view builder for creating mv with fluent API.
+   *
+   * @return
+   *   mv builder
+   */
+  def materializedView(): FlintSparkMaterializedView.Builder = {
+    new FlintSparkMaterializedView.Builder(this)
+  }
+
+  /**
    * Create the given index with metadata.
    *
    * @param index
@@ -102,12 +105,13 @@ class FlintSpark(val spark: SparkSession) {
   def refreshIndex(indexName: String, mode: RefreshMode): Option[String] = {
     val index = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+    val options = index.options
     val tableName = index.metadata().source
 
-    // Write Flint index data to Flint data source (shared by both refresh modes for now)
-    def writeFlintIndex(df: DataFrame): Unit = {
+    // Batch refresh Flint index from the given source data frame
+    def batchRefresh(df: Option[DataFrame] = None): Unit = {
       index
-        .build(df)
+        .build(spark, df)
         .write
         .format(FLINT_DATASOURCE)
         .options(flintSparkConf.properties)
@@ -119,36 +123,37 @@ class FlintSpark(val spark: SparkSession) {
       case FULL if isIncrementalRefreshing(indexName) =>
         throw new IllegalStateException(
           s"Index $indexName is incremental refreshing and cannot be manual refreshed")
+
       case FULL =>
-        writeFlintIndex(
-          spark.read
-            .table(tableName))
+        batchRefresh()
         None
 
+      // Flint index has specialized logic and capability for incremental refresh
+      case INCREMENTAL if index.isInstanceOf[StreamingRefresh] =>
+        val job =
+          index
+            .asInstanceOf[StreamingRefresh]
+            .buildStream(spark)
+            .writeStream
+            .queryName(indexName)
+            .format(FLINT_DATASOURCE)
+            .options(flintSparkConf.properties)
+            .addIndexOptions(options)
+            .start(indexName)
+        Some(job.id.toString)
+
+      // Otherwise, fall back to foreachBatch + batch refresh
       case INCREMENTAL =>
-        // TODO: Use Foreach sink for now. Need to move this to FlintSparkSkippingIndex
-        //  once finalized. Otherwise, covering index/MV may have different logic.
         val job = spark.readStream
           .table(tableName)
           .writeStream
           .queryName(indexName)
-          .outputMode(Append())
-
-        index.options
-          .checkpointLocation()
-          .foreach(location => job.option("checkpointLocation", location))
-        index.options
-          .refreshInterval()
-          .foreach(interval => job.trigger(Trigger.ProcessingTime(interval)))
-
-        val jobId =
-          job
-            .foreachBatch { (batchDF: DataFrame, _: Long) =>
-              writeFlintIndex(batchDF)
-            }
-            .start()
-            .id
-        Some(jobId.toString)
+          .addIndexOptions(options)
+          .foreachBatch { (batchDF: DataFrame, _: Long) =>
+            batchRefresh(Some(batchDF))
+          }
+          .start()
+        Some(job.id.toString)
     }
   }
 
@@ -161,7 +166,10 @@ class FlintSpark(val spark: SparkSession) {
    *   Flint index list
    */
   def describeIndexes(indexNamePattern: String): Seq[FlintSparkIndex] = {
-    flintClient.getAllIndexMetadata(indexNamePattern).asScala.map(deserialize)
+    flintClient
+      .getAllIndexMetadata(indexNamePattern)
+      .asScala
+      .map(FlintSparkIndexFactory.create)
   }
 
   /**
@@ -175,7 +183,8 @@ class FlintSpark(val spark: SparkSession) {
   def describeIndex(indexName: String): Option[FlintSparkIndex] = {
     if (flintClient.exists(indexName)) {
       val metadata = flintClient.getIndexMetadata(indexName)
-      Some(deserialize(metadata))
+      val index = FlintSparkIndexFactory.create(metadata)
+      Some(index)
     } else {
       Option.empty
     }
@@ -221,42 +230,30 @@ class FlintSpark(val spark: SparkSession) {
     }
   }
 
-  private def deserialize(metadata: FlintMetadata): FlintSparkIndex = {
-    val indexOptions = FlintSparkIndexOptions(
-      metadata.options.asScala.mapValues(_.asInstanceOf[String]).toMap)
+  // Using Scala implicit class to avoid breaking method chaining of Spark data frame fluent API
+  private implicit class FlintDataStreamWriter(val dataStream: DataStreamWriter[Row]) {
 
-    metadata.kind match {
-      case SKIPPING_INDEX_TYPE =>
-        val strategies = metadata.indexedColumns.map { colInfo =>
-          val skippingKind = SkippingKind.withName(getString(colInfo, "kind"))
-          val columnName = getString(colInfo, "columnName")
-          val columnType = getString(colInfo, "columnType")
-
-          skippingKind match {
-            case PARTITION =>
-              PartitionSkippingStrategy(columnName = columnName, columnType = columnType)
-            case VALUE_SET =>
-              ValueSetSkippingStrategy(columnName = columnName, columnType = columnType)
-            case MIN_MAX =>
-              MinMaxSkippingStrategy(columnName = columnName, columnType = columnType)
-            case other =>
-              throw new IllegalStateException(s"Unknown skipping strategy: $other")
-          }
-        }
-        new FlintSparkSkippingIndex(metadata.source, strategies, indexOptions)
-      case COVERING_INDEX_TYPE =>
-        new FlintSparkCoveringIndex(
-          metadata.name,
-          metadata.source,
-          metadata.indexedColumns.map { colInfo =>
-            getString(colInfo, "columnName") -> getString(colInfo, "columnType")
-          }.toMap,
-          indexOptions)
+    def addIndexOptions(options: FlintSparkIndexOptions): DataStreamWriter[Row] = {
+      dataStream
+        .addCheckpointLocation(options.checkpointLocation())
+        .addRefreshInterval(options.refreshInterval())
     }
-  }
 
-  private def getString(map: java.util.Map[String, AnyRef], key: String): String = {
-    map.get(key).asInstanceOf[String]
+    def addCheckpointLocation(checkpointLocation: Option[String]): DataStreamWriter[Row] = {
+      if (checkpointLocation.isDefined) {
+        dataStream.option("checkpointLocation", checkpointLocation.get)
+      } else {
+        dataStream
+      }
+    }
+
+    def addRefreshInterval(refreshInterval: Option[String]): DataStreamWriter[Row] = {
+      if (refreshInterval.isDefined) {
+        dataStream.trigger(Trigger.ProcessingTime(refreshInterval.get))
+      } else {
+        dataStream
+      }
+    }
   }
 }
 

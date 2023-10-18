@@ -9,14 +9,14 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark._
-import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder, ID_COLUMN}
+import org.opensearch.flint.spark.FlintSparkIndex._
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
 import org.opensearch.flint.spark.skipping.partition.PartitionSkippingStrategy
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
-import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.dsl.expressions.DslExpression
 import org.apache.spark.sql.functions.{col, input_file_name, sha1}
 
@@ -28,9 +28,9 @@ import org.apache.spark.sql.functions.{col, input_file_name, sha1}
  * @param indexedColumns
  *   indexed column list
  */
-class FlintSparkSkippingIndex(
+case class FlintSparkSkippingIndex(
     tableName: String,
-    val indexedColumns: Seq[FlintSparkSkippingStrategy],
+    indexedColumns: Seq[FlintSparkSkippingStrategy],
     override val options: FlintSparkIndexOptions = empty)
     extends FlintSparkIndex {
 
@@ -67,7 +67,7 @@ class FlintSparkSkippingIndex(
       .build()
   }
 
-  override def build(df: DataFrame): DataFrame = {
+  override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
     val outputNames = indexedColumns.flatMap(_.outputSchema().keys)
     val aggFuncs = indexedColumns.flatMap(_.getAggregators)
 
@@ -77,7 +77,8 @@ class FlintSparkSkippingIndex(
         new Column(aggFunc.toAggregateExpression().as(name))
       }
 
-    df.groupBy(input_file_name().as(FILE_PATH_COLUMN))
+    df.getOrElse(spark.read.table(tableName))
+      .groupBy(input_file_name().as(FILE_PATH_COLUMN))
       .agg(namedAggFuncs.head, namedAggFuncs.tail: _*)
       .withColumn(ID_COLUMN, sha1(col(FILE_PATH_COLUMN)))
   }

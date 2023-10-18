@@ -9,7 +9,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.flint.datatype.FlintDataType
 import org.apache.spark.sql.types.StructType
 
@@ -44,15 +44,35 @@ trait FlintSparkIndex {
    * Build a data frame to represent index data computation logic. Upper level code decides how to
    * use this, ex. batch or streaming, fully or incremental refresh.
    *
+   * @param spark
+   *   Spark session for implementation class to use as needed
    * @param df
-   *   data frame to append building logic
+   *   data frame to append building logic. If none, implementation class create source data frame
+   *   on its own
    * @return
    *   index building data frame
    */
-  def build(df: DataFrame): DataFrame
+  def build(spark: SparkSession, df: Option[DataFrame]): DataFrame
 }
 
 object FlintSparkIndex {
+
+  /**
+   * Interface indicates a Flint index has custom streaming refresh capability other than foreach
+   * batch streaming.
+   */
+  trait StreamingRefresh {
+
+    /**
+     * Build streaming refresh data frame.
+     *
+     * @param spark
+     *   Spark session
+     * @return
+     *   data frame represents streaming logic
+     */
+    def buildStream(spark: SparkSession): DataFrame
+  }
 
   /**
    * ID column name.

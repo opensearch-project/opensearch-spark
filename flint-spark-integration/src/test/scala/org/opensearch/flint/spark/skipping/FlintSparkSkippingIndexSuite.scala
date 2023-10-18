@@ -56,7 +56,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
 
     val df = spark.createDataFrame(Seq(("hello", 20))).toDF("name", "age")
-    val indexDf = index.build(df)
+    val indexDf = index.build(spark, Some(df))
     indexDf.schema.fieldNames should contain only ("name", FILE_PATH_COLUMN, ID_COLUMN)
   }
 

@@ -15,11 +15,7 @@ import org.apache.spark.sql.streaming.StreamTest
 /**
  * Flint Spark suite trait that initializes [[FlintSpark]] API instance.
  */
-trait FlintSparkSuite
-    extends QueryTest
-    with FlintSuite
-    with OpenSearchSuite
-    with StreamTest {
+trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite with StreamTest {
 
   /** Flint Spark high level API being tested */
   lazy protected val flint: FlintSpark = new FlintSpark(spark)
@@ -32,9 +28,15 @@ trait FlintSparkSuite
     setFlintSparkConf(REFRESH_POLICY, "true")
   }
 
+  protected def awaitStreamingComplete(jobId: String): Unit = {
+    val job = spark.streams.get(jobId)
+    failAfter(streamingTimeout) {
+      job.processAllAvailable()
+    }
+  }
+
   protected def createPartitionedTable(testTable: String): Unit = {
-    sql(
-      s"""
+    sql(s"""
          | CREATE TABLE $testTable
          | (
          |   name STRING,
@@ -52,18 +54,39 @@ trait FlintSparkSuite
          | )
          |""".stripMargin)
 
-    sql(
-      s"""
+    sql(s"""
          | INSERT INTO $testTable
          | PARTITION (year=2023, month=4)
          | VALUES ('Hello', 30, 'Seattle')
          | """.stripMargin)
 
-    sql(
-      s"""
+    sql(s"""
          | INSERT INTO $testTable
          | PARTITION (year=2023, month=5)
          | VALUES ('World', 25, 'Portland')
          | """.stripMargin)
+  }
+
+  protected def createTimeSeriesTable(testTable: String): Unit = {
+    sql(s"""
+         | CREATE TABLE $testTable
+         | (
+         |   time TIMESTAMP,
+         |   name STRING,
+         |   age INT,
+         |   address STRING
+         | )
+         | USING CSV
+         | OPTIONS (
+         |  header 'false',
+         |  delimiter '\t'
+         | )
+         |""".stripMargin)
+
+    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:01:00', 'A', 30, 'Seattle')")
+    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:10:00', 'B', 20, 'Seattle')")
+    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:15:00', 'C', 35, 'Portland')")
+    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 01:00:00', 'D', 40, 'Portland')")
+    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 03:00:00', 'E', 15, 'Vancouver')")
   }
 }
