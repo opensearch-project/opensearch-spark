@@ -138,17 +138,18 @@ class FlintSpark(val spark: SparkSession) {
             .queryName(indexName)
             .format(FLINT_DATASOURCE)
             .options(flintSparkConf.properties)
-            .addIndexOptions(options)
+            .addSinkOptions(options)
             .start(indexName)
         Some(job.id.toString)
 
       // Otherwise, fall back to foreachBatch + batch refresh
       case INCREMENTAL =>
         val job = spark.readStream
+          .options(options.extraSourceOptions(tableName))
           .table(tableName)
           .writeStream
           .queryName(indexName)
-          .addIndexOptions(options)
+          .addSinkOptions(options)
           .foreachBatch { (batchDF: DataFrame, _: Long) =>
             batchRefresh(Some(batchDF))
           }
@@ -233,7 +234,7 @@ class FlintSpark(val spark: SparkSession) {
   // Using Scala implicit class to avoid breaking method chaining of Spark data frame fluent API
   private implicit class FlintDataStreamWriter(val dataStream: DataStreamWriter[Row]) {
 
-    def addIndexOptions(options: FlintSparkIndexOptions): DataStreamWriter[Row] = {
+    def addSinkOptions(options: FlintSparkIndexOptions): DataStreamWriter[Row] = {
       dataStream
         .addCheckpointLocation(options.checkpointLocation())
         .addRefreshInterval(options.refreshInterval())

@@ -31,7 +31,16 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
         "watermark_delay" -> "30 Seconds",
         "output_mode" -> "complete",
         "index_settings" -> """{"number_of_shards": 3}""",
-        "extra_options" -> """{"sink": {"opt1": "val1", "opt2": "val2"}}"""))
+        "extra_options" ->
+          """ {
+            |   "alb_logs": {
+            |     "opt1": "val1"
+            |   },
+            |   "sink": {
+            |     "opt2": "val2",
+            |     "opt3": "val3"
+            |   }
+            | }""".stripMargin))
 
     options.autoRefresh() shouldBe true
     options.refreshInterval() shouldBe Some("1 Minute")
@@ -39,7 +48,22 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     options.watermarkDelay() shouldBe Some("30 Seconds")
     options.outputMode() shouldBe Some("complete")
     options.indexSettings() shouldBe Some("""{"number_of_shards": 3}""")
-    options.extraSinkOptions() shouldBe Map("opt1" -> "val1", "opt2" -> "val2")
+    options.extraSourceOptions("alb_logs") shouldBe Map("opt1" -> "val1")
+    options.extraSinkOptions() shouldBe Map("opt2" -> "val2", "opt3" -> "val3")
+  }
+
+  test("should return extra source option value and empty sink option values") {
+    val options = FlintSparkIndexOptions(
+      Map("extra_options" ->
+        """ {
+            |   "alb_logs": {
+            |     "opt1": "val1"
+            |   }
+            | }""".stripMargin))
+
+    options.extraSourceOptions("alb_logs") shouldBe Map("opt1" -> "val1")
+    options.extraSourceOptions("alb_logs_metrics") shouldBe empty
+    options.extraSinkOptions() shouldBe empty
   }
 
   test("should return default option value if unspecified") {
@@ -51,6 +75,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     options.watermarkDelay() shouldBe empty
     options.outputMode() shouldBe empty
     options.indexSettings() shouldBe empty
+    options.extraSourceOptions("alb_logs") shouldBe empty
     options.extraSinkOptions() shouldBe empty
     options.optionsWithDefault should contain("auto_refresh" -> "false")
   }

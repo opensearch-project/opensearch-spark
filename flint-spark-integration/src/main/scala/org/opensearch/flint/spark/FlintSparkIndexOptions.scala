@@ -71,15 +71,25 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
   def indexSettings(): Option[String] = getOptionValue(INDEX_SETTINGS)
 
   /**
-   * Extra streaming sink options that simply pass to DataStreamWriter.options()
+   * Extra streaming source options that can be simply passed to DataStreamReader or
+   * Relation.options
+   * @param source
+   *   source name (full table name)
+   * @return
+   *   extra source option map or empty map if not exist
+   */
+  def extraSourceOptions(source: String): Map[String, String] = {
+    parseExtraOptions(source)
+  }
+
+  /**
+   * Extra streaming sink options that can be simply passed to DataStreamWriter.options()
    *
    * @return
-   *   extra sink option map
+   *   extra sink option map or empty map if not exist
    */
   def extraSinkOptions(): Map[String, String] = {
-    getOptionValue(EXTRA_OPTIONS)
-      .map(opt => (parse(opt) \ "sink").extract[Map[String, String]])
-      .getOrElse(Map.empty)
+    parseExtraOptions("sink")
   }
 
   /**
@@ -98,6 +108,12 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
 
   private def getOptionValue(name: OptionName): Option[String] = {
     options.get(name.toString)
+  }
+
+  private def parseExtraOptions(key: String): Map[String, String] = {
+    getOptionValue(EXTRA_OPTIONS)
+      .map(opt => (parse(opt) \ key).extract[Map[String, String]])
+      .getOrElse(Map.empty)
   }
 }
 

@@ -91,7 +91,8 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
              |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
              |   watermark_delay = '1 Second',
              |   output_mode = 'complete',
-             |   index_settings = '{"number_of_shards": 3, "number_of_replicas": 2}'
+             |   index_settings = '{"number_of_shards": 3, "number_of_replicas": 2}',
+             |   extra_options = '{"$testTable": {"maxFilesPerTrigger": "1"}}'
              | )
              |""".stripMargin)
 
@@ -104,6 +105,8 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
       options.watermarkDelay() shouldBe Some("1 Second")
       options.outputMode() shouldBe Some("complete")
+      options.extraSourceOptions(testTable) shouldBe Map("maxFilesPerTrigger" -> "1")
+      options.extraSinkOptions() shouldBe Map.empty
     }
   }
 
