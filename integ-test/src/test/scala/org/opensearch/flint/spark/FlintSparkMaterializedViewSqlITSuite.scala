@@ -7,6 +7,7 @@ package org.opensearch.flint.spark
 
 import java.sql.Timestamp
 
+import scala.Option.empty
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.json4s.{Formats, NoTypeHints}
@@ -126,6 +127,18 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       sql(s"CREATE MATERIALIZED VIEW $testMvName AS $testQuery")
 
     sql(s"CREATE MATERIALIZED VIEW IF NOT EXISTS $testMvName AS $testQuery")
+  }
+
+  test("drop materialized view") {
+    flint
+      .materializedView()
+      .name(testMvName)
+      .query(testQuery)
+      .create()
+
+    sql(s"DROP MATERIALIZED VIEW $testMvName")
+
+    flint.describeIndex(testFlintIndex) shouldBe empty
   }
 
   private def timestamp(ts: String): Timestamp = Timestamp.valueOf(ts)
