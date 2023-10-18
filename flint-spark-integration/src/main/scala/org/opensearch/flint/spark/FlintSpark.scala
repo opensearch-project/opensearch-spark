@@ -237,22 +237,21 @@ class FlintSpark(val spark: SparkSession) {
       dataStream
         .addCheckpointLocation(options.checkpointLocation())
         .addRefreshInterval(options.refreshInterval())
+        .addOutputMode(options.outputMode())
     }
 
     def addCheckpointLocation(checkpointLocation: Option[String]): DataStreamWriter[Row] = {
-      if (checkpointLocation.isDefined) {
-        dataStream.option("checkpointLocation", checkpointLocation.get)
-      } else {
-        dataStream
-      }
+      checkpointLocation.map(dataStream.option("checkpointLocation", _)).getOrElse(dataStream)
     }
 
     def addRefreshInterval(refreshInterval: Option[String]): DataStreamWriter[Row] = {
-      if (refreshInterval.isDefined) {
-        dataStream.trigger(Trigger.ProcessingTime(refreshInterval.get))
-      } else {
-        dataStream
-      }
+      refreshInterval
+        .map(interval => dataStream.trigger(Trigger.ProcessingTime(interval)))
+        .getOrElse(dataStream)
+    }
+
+    def addOutputMode(outputMode: Option[String]): DataStreamWriter[Row] = {
+      outputMode.map(dataStream.outputMode).getOrElse(dataStream)
     }
   }
 }

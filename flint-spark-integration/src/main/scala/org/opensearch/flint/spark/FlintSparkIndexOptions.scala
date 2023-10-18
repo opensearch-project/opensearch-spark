@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, INDEX_SETTINGS, OptionName, REFRESH_INTERVAL, WATERMARK_DELAY}
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, WATERMARK_DELAY}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
 
 /**
@@ -51,6 +51,13 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
   def watermarkDelay(): Option[String] = getOptionValue(WATERMARK_DELAY)
 
   /**
+   * The output mode that describes how data will be written to streaming sink.
+   * @return
+   *   output mode
+   */
+  def outputMode(): Option[String] = getOptionValue(OUTPUT_MODE)
+
+  /**
    * The index settings for OpenSearch index created.
    *
    * @return
@@ -93,6 +100,7 @@ object FlintSparkIndexOptions {
     val REFRESH_INTERVAL: OptionName.Value = Value("refresh_interval")
     val CHECKPOINT_LOCATION: OptionName.Value = Value("checkpoint_location")
     val WATERMARK_DELAY: OptionName.Value = Value("watermark_delay")
+    val OUTPUT_MODE: OptionName.Value = Value("output_mode")
     val INDEX_SETTINGS: OptionName.Value = Value("index_settings")
   }
 

@@ -90,6 +90,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
              |   refresh_interval = '5 Seconds',
              |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
              |   watermark_delay = '1 Second',
+             |   output_mode = 'complete',
              |   index_settings = '{"number_of_shards": 3, "number_of_replicas": 2}'
              | )
              |""".stripMargin)
@@ -102,6 +103,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       options.refreshInterval() shouldBe Some("5 Seconds")
       options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
       options.watermarkDelay() shouldBe Some("1 Second")
+      options.outputMode() shouldBe Some("complete")
     }
   }
 

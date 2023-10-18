@@ -17,6 +17,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     REFRESH_INTERVAL.toString shouldBe "refresh_interval"
     CHECKPOINT_LOCATION.toString shouldBe "checkpoint_location"
     WATERMARK_DELAY.toString shouldBe "watermark_delay"
+    OUTPUT_MODE.toString shouldBe "output_mode"
     INDEX_SETTINGS.toString shouldBe "index_settings"
   }
 
@@ -27,12 +28,14 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
         "refresh_interval" -> "1 Minute",
         "checkpoint_location" -> "s3://test/",
         "watermark_delay" -> "30 Seconds",
+        "output_mode" -> "complete",
         "index_settings" -> """{"number_of_shards": 3}"""))
 
     options.autoRefresh() shouldBe true
     options.refreshInterval() shouldBe Some("1 Minute")
     options.checkpointLocation() shouldBe Some("s3://test/")
     options.watermarkDelay() shouldBe Some("30 Seconds")
+    options.outputMode() shouldBe Some("complete")
     options.indexSettings() shouldBe Some("""{"number_of_shards": 3}""")
   }
 
@@ -44,6 +47,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     options.checkpointLocation() shouldBe empty
     options.watermarkDelay() shouldBe empty
     options.indexSettings() shouldBe empty
+    options.outputMode() shouldBe empty
     options.optionsWithDefault should contain("auto_refresh" -> "false")
   }
 
