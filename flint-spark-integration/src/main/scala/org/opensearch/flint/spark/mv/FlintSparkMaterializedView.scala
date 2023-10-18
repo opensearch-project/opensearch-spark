@@ -8,6 +8,7 @@ package org.opensearch.flint.spark.mv
 import java.util.Locale
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.convert.ImplicitConversions.`map AsScala`
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
@@ -23,6 +24,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, EventTimeWatermark, LogicalPlan}
 import org.apache.spark.sql.catalyst.util.IntervalUtils
 import org.apache.spark.sql.flint.{logicalPlanToDataFrame, qualifyTableName}
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 /**
  * Flint materialized view in Spark.
@@ -82,7 +84,7 @@ case class FlintSparkMaterializedView(
         aggregate.copy(child = watermark(timeCol, aggregate.child))
 
       case relation: UnresolvedRelation if !relation.isStreaming =>
-        relation.copy(isStreaming = true)
+        relation.copy(isStreaming = true, options = optionsWithExtra(relation))
     }
     logicalPlanToDataFrame(spark, streamingPlan)
   }
@@ -94,6 +96,12 @@ case class FlintSparkMaterializedView(
 
     val delay = options.watermarkDelay().get
     EventTimeWatermark(timeCol, IntervalUtils.fromIntervalString(delay), child)
+  }
+
+  private def optionsWithExtra(relation: UnresolvedRelation): CaseInsensitiveStringMap = {
+    val originalOptions = relation.options.asCaseSensitiveMap
+    val extraOptions = options.extraSourceOptions(relation.tableName).asJava
+    new CaseInsensitiveStringMap((originalOptions ++ extraOptions).asJava)
   }
 
   /**

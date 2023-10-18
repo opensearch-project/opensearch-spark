@@ -146,6 +146,17 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     }
   }
 
+  test("build stream with extra source options") {
+    val testQuery = s"SELECT name, age FROM $testTable"
+    val options = Map("extra_options" -> s"""{"$testTable": {"maxFilesPerTrigger": "1"}}""")
+
+    withAggregateMaterializedView(testQuery, options) { actualPlan =>
+      val expectPlan =
+        streamingRelation(testTable, Map("maxFilesPerTrigger" -> "1")).select("name", "age")
+      assert(actualPlan.sameSemantics(expectPlan))
+    }
+  }
+
   test("build stream should fail if there is aggregation but no windowing function") {
     val testTable = "mv_build_test"
     withTable(testTable) {
@@ -167,11 +178,8 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
 
-      val mv = FlintSparkMaterializedView(
-        testMvName,
-        query,
-        Map.empty,
-        FlintSparkIndexOptions(Map("watermark_delay" -> "30 Seconds")))
+      val mv =
+        FlintSparkMaterializedView(testMvName, query, Map.empty, FlintSparkIndexOptions(options))
 
       val actualPlan = mv.buildStream(spark).queryExecution.logical
       codeBlock(actualPlan)
@@ -184,10 +192,12 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
  */
 object FlintSparkMaterializedViewSuite {
 
-  def streamingRelation(tableName: String): UnresolvedRelation = {
+  def streamingRelation(
+      tableName: String,
+      extraOptions: Map[String, String] = Map.empty): UnresolvedRelation = {
     UnresolvedRelation(
       TableIdentifier(tableName),
-      CaseInsensitiveStringMap.empty(),
+      new CaseInsensitiveStringMap(extraOptions.asJava),
       isStreaming = true)
   }
 
