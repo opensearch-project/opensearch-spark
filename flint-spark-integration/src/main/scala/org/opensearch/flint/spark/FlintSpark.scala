@@ -238,6 +238,7 @@ class FlintSpark(val spark: SparkSession) {
         .addCheckpointLocation(options.checkpointLocation())
         .addRefreshInterval(options.refreshInterval())
         .addOutputMode(options.outputMode())
+        .options(options.extraSinkOptions())
     }
 
     def addCheckpointLocation(checkpointLocation: Option[String]): DataStreamWriter[Row] = {

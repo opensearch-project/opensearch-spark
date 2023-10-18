@@ -19,6 +19,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     WATERMARK_DELAY.toString shouldBe "watermark_delay"
     OUTPUT_MODE.toString shouldBe "output_mode"
     INDEX_SETTINGS.toString shouldBe "index_settings"
+    EXTRA_OPTIONS.toString shouldBe "extra_options"
   }
 
   test("should return specified option value") {
@@ -29,7 +30,8 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
         "checkpoint_location" -> "s3://test/",
         "watermark_delay" -> "30 Seconds",
         "output_mode" -> "complete",
-        "index_settings" -> """{"number_of_shards": 3}"""))
+        "index_settings" -> """{"number_of_shards": 3}""",
+        "extra_options" -> """{"sink": {"opt1": "val1", "opt2": "val2"}}"""))
 
     options.autoRefresh() shouldBe true
     options.refreshInterval() shouldBe Some("1 Minute")
@@ -37,6 +39,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     options.watermarkDelay() shouldBe Some("30 Seconds")
     options.outputMode() shouldBe Some("complete")
     options.indexSettings() shouldBe Some("""{"number_of_shards": 3}""")
+    options.extraSinkOptions() shouldBe Map("opt1" -> "val1", "opt2" -> "val2")
   }
 
   test("should return default option value if unspecified") {
@@ -46,8 +49,9 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     options.refreshInterval() shouldBe empty
     options.checkpointLocation() shouldBe empty
     options.watermarkDelay() shouldBe empty
-    options.indexSettings() shouldBe empty
     options.outputMode() shouldBe empty
+    options.indexSettings() shouldBe empty
+    options.extraSinkOptions() shouldBe empty
     options.optionsWithDefault should contain("auto_refresh" -> "false")
   }
 
