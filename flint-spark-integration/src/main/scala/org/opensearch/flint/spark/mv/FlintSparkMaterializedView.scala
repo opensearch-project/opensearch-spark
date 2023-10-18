@@ -44,9 +44,6 @@ case class FlintSparkMaterializedView(
     extends FlintSparkIndex
     with StreamingRefresh {
 
-  /** TODO: add it to index option */
-  private val watermarkDelay = "0 Minute"
-
   override val kind: String = MV_INDEX_TYPE
 
   override def name(): String = getFlintIndexName(mvName)
@@ -81,8 +78,8 @@ case class FlintSparkMaterializedView(
      *  2.Set isStreaming flag to true in Relation operator
      */
     val streamingPlan = batchPlan transform {
-      case WindowingAggregate(agg, timeCol) =>
-        agg.copy(child = watermark(timeCol, watermarkDelay, agg.child))
+      case WindowingAggregate(aggregate, timeCol) =>
+        aggregate.copy(child = watermark(timeCol, aggregate.child))
 
       case relation: UnresolvedRelation if !relation.isStreaming =>
         relation.copy(isStreaming = true)
@@ -90,7 +87,12 @@ case class FlintSparkMaterializedView(
     logicalPlanToDataFrame(spark, streamingPlan)
   }
 
-  private def watermark(timeCol: Attribute, delay: String, child: LogicalPlan) = {
+  private def watermark(timeCol: Attribute, child: LogicalPlan) = {
+    require(
+      options.watermarkDelay().isDefined,
+      "watermark delay is required for incremental refresh with aggregation")
+
+    val delay = options.watermarkDelay().get
     EventTimeWatermark(timeCol, IntervalUtils.fromIntervalString(delay), child)
   }
 
@@ -107,7 +109,7 @@ case class FlintSparkMaterializedView(
 
       if (winFuncs.size != 1) {
         throw new IllegalStateException(
-          "A windowing function is required for streaming aggregation")
+          "A windowing function is required for incremental refresh with aggregation")
       }
 
       // Assume first aggregate item must be time column

@@ -100,19 +100,24 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
           | GROUP BY TUMBLE(time, '1 Minute')
           |""".stripMargin
 
-      val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
+      val mv = FlintSparkMaterializedView(
+        testMvName,
+        testQuery,
+        Map.empty,
+        FlintSparkIndexOptions(Map("watermark_delay" -> "30 Seconds")))
+
       val actualPlan = mv.buildStream(spark).queryExecution.logical
       assert(
         actualPlan.sameSemantics(
           streamingRelation(testTable)
-            .watermark($"time", "0 Minute")
+            .watermark($"time", "30 Seconds")
             .groupBy($"TUMBLE".function($"time", "1 Minute"))(
               $"window.start" as "startTime",
               count(1) as "count")))
     }
   }
 
-  test("build stream with filtering query") {
+  test("build stream with filtering aggregate query") {
     val testTable = "mv_build_test"
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
@@ -127,13 +132,18 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
            | GROUP BY TUMBLE(time, '1 Minute')
            |""".stripMargin
 
-      val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
+      val mv = FlintSparkMaterializedView(
+        testMvName,
+        testQuery,
+        Map.empty,
+        FlintSparkIndexOptions(Map("watermark_delay" -> "30 Seconds")))
+
       val actualPlan = mv.buildStream(spark).queryExecution.logical
       assert(
         actualPlan.sameSemantics(
           streamingRelation(testTable)
             .where($"age" > 30)
-            .watermark($"time", "0 Minute")
+            .watermark($"time", "30 Seconds")
             .groupBy($"TUMBLE".function($"time", "1 Minute"))(
               $"window.start" as "startTime",
               count(1) as "count")))
