@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, INDEX_SETTINGS, OptionName, REFRESH_INTERVAL}
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, INDEX_SETTINGS, OptionName, REFRESH_INTERVAL, WATERMARK_DELAY}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
 
 /**
@@ -41,6 +41,14 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
    *   checkpoint location path
    */
   def checkpointLocation(): Option[String] = getOptionValue(CHECKPOINT_LOCATION)
+
+  /**
+   * How late the data can come and still be processed.
+   *
+   * @return
+   *   watermark delay time expression
+   */
+  def watermarkDelay(): Option[String] = getOptionValue(WATERMARK_DELAY)
 
   /**
    * The index settings for OpenSearch index created.
@@ -84,6 +92,7 @@ object FlintSparkIndexOptions {
     val AUTO_REFRESH: OptionName.Value = Value("auto_refresh")
     val REFRESH_INTERVAL: OptionName.Value = Value("refresh_interval")
     val CHECKPOINT_LOCATION: OptionName.Value = Value("checkpoint_location")
+    val WATERMARK_DELAY: OptionName.Value = Value("watermark_delay")
     val INDEX_SETTINGS: OptionName.Value = Value("index_settings")
   }
 

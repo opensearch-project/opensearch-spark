@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, INDEX_SETTINGS, REFRESH_INTERVAL}
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.FlintSuite
@@ -16,6 +16,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     AUTO_REFRESH.toString shouldBe "auto_refresh"
     REFRESH_INTERVAL.toString shouldBe "refresh_interval"
     CHECKPOINT_LOCATION.toString shouldBe "checkpoint_location"
+    WATERMARK_DELAY.toString shouldBe "watermark_delay"
     INDEX_SETTINGS.toString shouldBe "index_settings"
   }
 
@@ -25,11 +26,13 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
         "auto_refresh" -> "true",
         "refresh_interval" -> "1 Minute",
         "checkpoint_location" -> "s3://test/",
+        "watermark_delay" -> "30 Seconds",
         "index_settings" -> """{"number_of_shards": 3}"""))
 
     options.autoRefresh() shouldBe true
     options.refreshInterval() shouldBe Some("1 Minute")
     options.checkpointLocation() shouldBe Some("s3://test/")
+    options.watermarkDelay() shouldBe Some("30 Seconds")
     options.indexSettings() shouldBe Some("""{"number_of_shards": 3}""")
   }
 
@@ -39,11 +42,12 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     options.autoRefresh() shouldBe false
     options.refreshInterval() shouldBe empty
     options.checkpointLocation() shouldBe empty
+    options.watermarkDelay() shouldBe empty
     options.indexSettings() shouldBe empty
     options.optionsWithDefault should contain("auto_refresh" -> "false")
   }
 
-  test("should return default option value if unspecified with specified value") {
+  test("should return include unspecified option if it has default value") {
     val options = FlintSparkIndexOptions(Map("refresh_interval" -> "1 Minute"))
 
     options.optionsWithDefault shouldBe Map(
