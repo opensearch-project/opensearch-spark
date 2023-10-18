@@ -83,7 +83,7 @@ materializedViewStatement
     ;
 
 createMaterializedViewStatement
-    : CREATE MATERIALIZED VIEW mvName=multipartIdentifier
+    : CREATE MATERIALIZED VIEW (IF NOT EXISTS)? mvName=multipartIdentifier
         AS query=materializedViewQuery
         (WITH LEFT_PAREN propertyList RIGHT_PAREN)?
     ;
