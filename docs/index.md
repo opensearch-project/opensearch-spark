@@ -251,6 +251,7 @@ OpenSearch index corresponding to the Flint index follows the naming convention 
 
 1. Skipping index: `flint_[catalog_database_table]_skipping_index`
 2. Covering index: `flint_[catalog_database_table]_[index_name]_index`
+3. Materialized view: `flint_[catalog_database_table]_[mv_name]`
 
 It's important to note that any uppercase letters in the index name and table name (catalog, database and table) in SQL statement will be automatically converted to lowercase due to restriction imposed by OpenSearch.
 
