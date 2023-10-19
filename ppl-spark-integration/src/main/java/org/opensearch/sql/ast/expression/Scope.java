@@ -5,5 +5,4 @@ public class Scope extends Span {
     public Scope(UnresolvedExpression field, UnresolvedExpression value, SpanUnit unit) {
         super(field, value, unit);
     }
-    
 }

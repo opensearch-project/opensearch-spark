@@ -112,9 +112,9 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
             ctx.fieldList().fieldExpression().stream()
                     .map(this::internalVisitExpression)
                     .collect(Collectors.toList()),
-             new Scope(expressionBuilder.visit(ctx.scopeClause().fieldExpression()),
+            Objects.isNull(ctx.scopeClause()) ? null : new Scope(expressionBuilder.visit(ctx.scopeClause().fieldExpression()),
                      expressionBuilder.visit(ctx.scopeClause().value), 
-                     SpanUnit.of(ctx.scopeClause().unit.getText())),
+                     SpanUnit.of(Objects.isNull(ctx.scopeClause().unit) ? "" : ctx.scopeClause().unit.getText())),
             Objects.isNull(ctx.mappingList()) ? new FieldsMapping(emptyList()) : new FieldsMapping(ctx.mappingList()
                     .mappingClause().stream()
                     .map(this::internalVisitExpression)

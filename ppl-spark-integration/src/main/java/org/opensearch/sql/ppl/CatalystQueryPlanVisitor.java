@@ -127,11 +127,14 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         context.reduce((left,right) -> {
             visitFieldList(node.getFieldsList().stream().map(Field::new).collect(Collectors.toList()), context);
             Seq<Expression> fields = context.retainAllNamedParseExpressions(e -> e);
-            expressionAnalyzer.visitSpan(node.getScope(), context);
-            Expression scope = context.popNamedParseExpressions().get();
+            if(!Objects.isNull(node.getScope())) {
+                // scope - this is a time base expression that timeframes the join to a specific period : (Time-field-name, value, unit)
+                expressionAnalyzer.visitSpan(node.getScope(), context);
+                context.popNamedParseExpressions().get();
+            }
             expressionAnalyzer.visitCorrelationMapping(node.getMappingListContext(), context);
             Seq<Expression> mapping = context.retainAllNamedParseExpressions(e -> e);
-            return join(node.getCorrelationType(), fields, scope, mapping, left, right);
+            return join(node.getCorrelationType(), fields, mapping, left, right);
         });
         return context.getPlan();
     }

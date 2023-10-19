@@ -142,6 +142,16 @@ class FlintSparkPPLCorrelationITSuite
     assert(
       thrown.getMessage === "Correlation command was called with `fields` attribute having different elements from the 'mapping' attributes ")
   }
+  
+  test("create failing ppl correlation query with no scope - due to mismatch fields to mappings test") {
+    val thrown = intercept[IllegalStateException] {
+      val frame = sql(s"""
+           | source = $testTable1, $testTable2| correlate exact fields(name, country) mapping($testTable1.name = $testTable2.name)
+           | """.stripMargin)
+    }
+    assert(
+      thrown.getMessage === "Correlation command was called with `fields` attribute having different elements from the 'mapping' attributes ")
+  }
 
   test(
     "create failing ppl correlation query - due to mismatch correlation self type and source amount test") {
@@ -244,6 +254,60 @@ class FlintSparkPPLCorrelationITSuite
     "create ppl correlation approximate query with filters and two tables correlating on a single field test") {
     val frame = sql(s"""
          | source = $testTable1, $testTable2| correlate approximate fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
+         | """.stripMargin)
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("David", 40, "Washington", "USA", 2023, 4, "David", "Doctor", "USA", 120000, 2023, 4),
+      Row("David", 40, "Washington", "USA", 2023, 4, "David", "Unemployed", "Canada", 0, 2023, 4),
+      Row("Hello", 30, "New York", "USA", 2023, 4, "Hello", "Artist", "USA", 70000, 2023, 4),
+      Row(
+        "Jake",
+        70,
+        "California",
+        "USA",
+        2023,
+        4,
+        "Jake",
+        "Engineer",
+        "England",
+        100000,
+        2023,
+        4),
+      Row("Jane", 20, "Quebec", "Canada", 2023, 4, "Jane", "Scientist", "Canada", 90000, 2023, 4),
+      Row("Jim", 27, "B.C", "Canada", 2023, 4, null, null, null, null, null, null),
+      Row("John", 25, "Ontario", "Canada", 2023, 4, "John", "Doctor", "Canada", 120000, 2023, 4),
+      Row("Peter", 57, "B.C", "Canada", 2023, 4, null, null, null, null, null, null),
+      Row("Rick", 70, "B.C", "Canada", 2023, 4, null, null, null, null, null, null))
+
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    // Compare the results
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Define unresolved relations
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    // Define join condition
+    val joinCondition =
+      EqualTo(UnresolvedAttribute(s"$testTable1.name"), UnresolvedAttribute(s"$testTable2.name"))
+
+    // Create Join plan
+    val joinPlan = Join(table1, table2, FullOuter, Some(joinCondition), JoinHint.NONE)
+
+    // Add the projection
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+  
+  test(
+    "create ppl correlation approximate query with two tables correlating on a single field and not scope test") {
+    val frame = sql(s"""
+         | source = $testTable1, $testTable2| correlate approximate fields(name) mapping($testTable1.name = $testTable2.name)
          | """.stripMargin)
     // Retrieve the results
     val results: Array[Row] = frame.collect()
@@ -509,6 +573,64 @@ class FlintSparkPPLCorrelationITSuite
     val frame = sql(s"""
          | source = $testTable1, $testTable2 | where country = 'USA' OR country = 'England' |
          | correlate exact fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name) |
+         | stats avg(salary) by span(age, 10) as age_span, $testTable2.country
+         | """.stripMargin)
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] =
+      Array(Row(120000.0, "USA", 40), Row(100000.0, "England", 70), Row(70000.0, "USA", 30))
+
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
+    // Compare the results
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Define unresolved relations
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+
+    // Define filter expressions
+    val filter1Expr = Or(
+      EqualTo(UnresolvedAttribute("country"), Literal("USA")),
+      EqualTo(UnresolvedAttribute("country"), Literal("England")))
+    val filter2Expr = Or(
+      EqualTo(UnresolvedAttribute("country"), Literal("USA")),
+      EqualTo(UnresolvedAttribute("country"), Literal("England")))
+    // Define subquery aliases
+    val plan1 = Filter(filter1Expr, table1)
+    val plan2 = Filter(filter2Expr, table2)
+
+    // Define join condition
+    val joinCondition =
+      EqualTo(UnresolvedAttribute(s"$testTable1.name"), UnresolvedAttribute(s"$testTable2.name"))
+
+    // Create Join plan
+    val joinPlan = Join(plan1, plan2, Inner, Some(joinCondition), JoinHint.NONE)
+
+    val salaryField = UnresolvedAttribute("salary")
+    val countryField = UnresolvedAttribute(s"$testTable2.country")
+    val countryAlias = Alias(countryField, s"$testTable2.country")()
+    val star = Seq(UnresolvedStar(None))
+    val aggregateExpressions =
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(salaryField), isDistinct = false), "avg(salary)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
+      "age_span")()
+    val aggregatePlan =
+      Aggregate(Seq(countryAlias, span), Seq(aggregateExpressions, countryAlias, span), joinPlan)
+    // Add the projection
+    val expectedPlan = Project(star, aggregatePlan)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+  test(
+    "create ppl correlation (exact) query with two tables correlating by name,country and group by avg salary by age span (10 years bucket) with country filter without scope test") {
+    val frame = sql(s"""
+         | source = $testTable1, $testTable2 | where country = 'USA' OR country = 'England' |
+         | correlate exact fields(name) mapping($testTable1.name = $testTable2.name) |
          | stats avg(salary) by span(age, 10) as age_span, $testTable2.country
          | """.stripMargin)
     // Retrieve the results

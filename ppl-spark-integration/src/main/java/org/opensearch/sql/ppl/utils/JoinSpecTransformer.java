@@ -20,11 +20,10 @@ public interface JoinSpecTransformer {
     /**
      * @param correlationType the correlation type which can be exact (inner join) or approximate (outer join)
      * @param fields          - fields (columns) that needed to be joined by
-     * @param scope           - this is a time base expression that timeframes the join to a specific period : (Time-field-name, value, unit)
      * @param mapping         - in case fields in different relations have different name, that can be aliased with the following names
      * @return
      */
-    static LogicalPlan join(Correlation.CorrelationType correlationType, Seq<Expression> fields, Expression scope, Seq<Expression> mapping, LogicalPlan left, LogicalPlan right) {
+    static LogicalPlan join(Correlation.CorrelationType correlationType, Seq<Expression> fields, Seq<Expression> mapping, LogicalPlan left, LogicalPlan right) {
         //create a join statement - which will replace all the different plans with a single plan which contains the joined plans
         switch (correlationType) {
             case self:

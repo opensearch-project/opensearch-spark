@@ -70,7 +70,7 @@ whereCommand
     ;
 
 correlateCommand
-    : CORRELATE correlationType FIELDS LT_PRTHS fieldList RT_PRTHS scopeClause mappingList
+    : CORRELATE correlationType FIELDS LT_PRTHS fieldList RT_PRTHS (scopeClause)? mappingList
     ;
 
 correlationType
