@@ -25,6 +25,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
   /** Test table and index name */
   private val testTable = "spark_catalog.default.covering_sql_test"
   private val testIndex = "name_and_age"
+  private val targetIndex = "target_index"
   private val testFlintIndex = getFlintIndexName(testIndex, testTable)
 
   override def beforeAll(): Unit = {
@@ -32,7 +33,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     createPartitionedTable(testTable)
   }
-
+  
   override def afterEach(): Unit = {
     super.afterEach()
 
@@ -93,7 +94,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     (settings \ "index.number_of_shards").extract[String] shouldBe "2"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
   }
-
+ 
   test("create covering index with invalid option") {
     the[IllegalArgumentException] thrownBy
       sql(s"""
@@ -232,4 +233,27 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     flint.describeIndex(testFlintIndex) shouldBe empty
   }
+
+  test("use existing index as the covering index") {
+    sql(
+      s"""
+         | CREATE INDEX $testIndex ON $testTable USING $targetIndex ( name )
+         | WITH (
+         |   index_settings = '{"number_of_shards": 2, "number_of_replicas": 3}'
+         | )
+         |""".stripMargin)
+
+    // Check if the index setting option is set to OS index setting
+    val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
+
+    implicit val formats: Formats = Serialization.formats(NoTypeHints)
+    var settings = parse(flintClient.getIndexMetadata(targetIndex).indexSettings.get)
+    (settings \ "index.number_of_shards").extract[String] shouldBe "2"
+    (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
+    //validate the index alias is working
+    settings = parse(flintClient.getIndexMetadata(testFlintIndex).indexSettings.get)
+    (settings \ "index.number_of_shards").extract[String] shouldBe "2"
+    (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
+  }
+
 }

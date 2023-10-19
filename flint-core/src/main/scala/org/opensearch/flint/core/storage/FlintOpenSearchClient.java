@@ -18,7 +18,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -39,6 +41,7 @@ import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.CreateIndexResponse;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.client.indices.GetIndexResponse;
+import org.opensearch.cluster.metadata.AliasMetadata;
 import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.common.Strings;
 import org.opensearch.common.settings.Settings;
@@ -85,19 +88,18 @@ public class FlintOpenSearchClient implements FlintClient {
             if (!exists) {
                 // create index including the alias name with is the flint convention name
                 createIndex(osIndexName, metadata);
-            } else {
-                // Adding the alias to the existing index
-                IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest();
-                IndicesAliasesRequest.AliasActions aliasAction =
-                        new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.ADD)
-                                .index(osIndexName)
-                                .alias(osAliasName);
-                aliasesRequest.addAliasAction(aliasAction);
-                // Executing the updateAliases request
-                AcknowledgedResponse response = client.indices().updateAliases(aliasesRequest, RequestOptions.DEFAULT);
-                if (!response.isAcknowledged()) {
-                    throw new IllegalStateException(String.format("Failed to acknowledge Alias %s for index %s", aliasName, indexName));
-                }
+            }
+            // Adding the alias to the existing index
+            IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest();
+            IndicesAliasesRequest.AliasActions aliasAction =
+                    new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.ADD)
+                            .index(osIndexName)
+                            .alias(osAliasName);
+            aliasesRequest.addAliasAction(aliasAction);
+            // Executing the updateAliases request
+            AcknowledgedResponse response = client.indices().updateAliases(aliasesRequest, RequestOptions.DEFAULT);
+            if (!response.isAcknowledged()) {
+                throw new IllegalStateException(String.format("Failed to acknowledge Alias %s for index %s", aliasName, indexName));
             }
         } catch (
                 Exception e) {
@@ -110,17 +112,16 @@ public class FlintOpenSearchClient implements FlintClient {
         String osIndexName = toLowercase(indexName);
         try (RestHighLevelClient client = createClient()) {
             CreateIndexRequest request = new CreateIndexRequest(osIndexName);
-            boolean includeMappingProperties = true;
-            if(metadata.targetName().nonEmpty()) {
-                request.alias(new Alias(toLowercase(metadata.name())));
-                includeMappingProperties = false;
-            }
+            boolean includeMappingProperties = !metadata.targetName().nonEmpty();
             request.mapping(metadata.getContent(includeMappingProperties), XContentType.JSON);
             Option<String> settings = metadata.indexSettings();
             if (settings.isDefined()) {
                 request.settings(settings.get(), XContentType.JSON);
             }
-            client.indices().create(request, RequestOptions.DEFAULT);
+            CreateIndexResponse response = client.indices().create(request, RequestOptions.DEFAULT);
+            if (!response.isAcknowledged()) {
+                throw new IllegalStateException(String.format("Failed to acknowledge create index %s", indexName));
+            }
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create Flint index " + osIndexName, e);
         }
@@ -159,10 +160,24 @@ public class FlintOpenSearchClient implements FlintClient {
         try (RestHighLevelClient client = createClient()) {
             GetIndexRequest request = new GetIndexRequest(osIndexName);
             GetIndexResponse response = client.indices().get(request, RequestOptions.DEFAULT);
+            if (response.getMappings().containsKey(osIndexName)) {
+                MappingMetadata mapping = response.getMappings().get(osIndexName);
+                Settings settings = response.getSettings().get(osIndexName);
+                return FlintMetadata.apply(mapping.source().string(), settings.toString());
+            }
+            if (!response.getAliases().isEmpty()) {
+                Optional<String> aliasAncestor = response.getAliases().entrySet().stream()
+                        .filter(entry -> entry.getValue().stream().anyMatch(alias -> alias.alias().equals(indexName)))
+                        .map(Map.Entry::getKey)
+                        .findFirst();
 
-            MappingMetadata mapping = response.getMappings().get(osIndexName);
-            Settings settings = response.getSettings().get(osIndexName);
-            return FlintMetadata.apply(mapping.source().string(), settings.toString());
+                if(aliasAncestor.isPresent()) {
+                    MappingMetadata mapping = response.getMappings().get(aliasAncestor.get());
+                    Settings settings = response.getSettings().get(aliasAncestor.get());
+                    return FlintMetadata.apply(mapping.source().string(), settings.toString());
+                }
+            }
+            throw new IllegalStateException("Failed to get Flint index metadata for " + osIndexName);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to get Flint index metadata for " + osIndexName, e);
         }
@@ -173,8 +188,10 @@ public class FlintOpenSearchClient implements FlintClient {
         String osIndexName = toLowercase(indexName);
         try (RestHighLevelClient client = createClient()) {
             DeleteIndexRequest request = new DeleteIndexRequest(osIndexName);
-
-            client.indices().delete(request, RequestOptions.DEFAULT);
+            AcknowledgedResponse response = client.indices().delete(request, RequestOptions.DEFAULT);
+            if (!response.isAcknowledged()) {
+                throw new IllegalStateException(String.format("Failed to acknowledge delete index %s", indexName));
+            }
         } catch (Exception e) {
             throw new IllegalStateException("Failed to delete Flint index " + osIndexName, e);
         }

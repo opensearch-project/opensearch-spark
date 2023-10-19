@@ -88,54 +88,6 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |""".stripMargin)
   }
   
-  test("create materialized view using existing OpenSearch index successfully") {
-    val indexOptions =
-      FlintSparkIndexOptions(Map("auto_refresh" -> "true", "checkpoint_location" -> "s3://test/"))
-    flint
-      .materializedView()
-      .targetName(testTargetIndex)
-      .name(testMvName)
-      .query(testQuery)
-      .options(indexOptions)
-      .create()
-
-    val index = flint.describeIndex("existing_index")
-    index shouldBe defined
-    index.get.metadata().getContent() should matchJson(s"""
-         | {
-         |  "_meta": {
-         |    "version": "${current()}",
-         |    "name": "spark_catalog.default.mv_test_metrics",
-         |    "kind": "mv",
-         |    "targetName": "$testTargetIndex",
-         |    "source": "$testQuery",
-         |    "indexedColumns": [
-         |    {
-         |      "columnName": "startTime",
-         |      "columnType": "timestamp"
-         |    },{
-         |      "columnName": "count",
-         |      "columnType": "long"
-         |    }],
-         |    "options": {
-         |      "auto_refresh": "true",
-         |      "checkpoint_location": "s3://test/"
-         |    },
-         |    "properties": {}
-         |  },
-         |  "properties": {
-         |    "startTime": {
-         |      "type": "date",
-         |      "format": "strict_date_optional_time_nanos"
-         |    },
-         |    "count": {
-         |      "type": "long"
-         |    }
-         |  }
-         | }
-         |""".stripMargin)
-  }
-
   // TODO: fix this windowing function unable to be used in GROUP BY
   ignore("full refresh materialized view") {
     flint
@@ -231,6 +183,55 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
     withIncrementalMaterializedView(nonAggQuery) { indexData =>
       checkAnswer(indexData.select("name", "age"), Seq(Row("A", 30), Row("B", 20), Row("E", 15)))
     }
+  }
+
+  test("use existing existing OpenSearch index for materialized view  successfully") {
+    val indexOptions =
+      FlintSparkIndexOptions(Map("auto_refresh" -> "true", "checkpoint_location" -> "s3://test/"))
+    flint
+      .materializedView()
+      .targetName(testTargetIndex)
+      .name(testMvName)
+      .query(testQuery)
+      .options(indexOptions)
+      .create()
+
+    val index = flint.describeIndex("existing_index")
+    index shouldBe defined
+    index.get.metadata().getContent() should matchJson(
+      s"""
+         | {
+         |  "_meta": {
+         |    "version": "${current()}",
+         |    "name": "spark_catalog.default.mv_test_metrics",
+         |    "kind": "mv",
+         |    "targetName": "$testTargetIndex",
+         |    "source": "$testQuery",
+         |    "indexedColumns": [
+         |    {
+         |      "columnName": "startTime",
+         |      "columnType": "timestamp"
+         |    },{
+         |      "columnName": "count",
+         |      "columnType": "long"
+         |    }],
+         |    "options": {
+         |      "auto_refresh": "true",
+         |      "checkpoint_location": "s3://test/"
+         |    },
+         |    "properties": {}
+         |  },
+         |  "properties": {
+         |    "startTime": {
+         |      "type": "date",
+         |      "format": "strict_date_optional_time_nanos"
+         |    },
+         |    "count": {
+         |      "type": "long"
+         |    }
+         |  }
+         | }
+         |""".stripMargin)
   }
 
   private def timestamp(ts: String): Timestamp = Timestamp.valueOf(ts)
