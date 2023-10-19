@@ -33,7 +33,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     createPartitionedTable(testTable)
   }
-  
+
   override def afterEach(): Unit = {
     super.afterEach()
 
@@ -94,7 +94,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     (settings \ "index.number_of_shards").extract[String] shouldBe "2"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
   }
- 
+
   test("create covering index with invalid option") {
     the[IllegalArgumentException] thrownBy
       sql(s"""
@@ -235,8 +235,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
   }
 
   test("use existing index as the covering index") {
-    sql(
-      s"""
+    sql(s"""
          | CREATE INDEX $testIndex ON $testTable USING $targetIndex ( name )
          | WITH (
          |   index_settings = '{"number_of_shards": 2, "number_of_replicas": 3}'
@@ -250,7 +249,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     var settings = parse(flintClient.getIndexMetadata(targetIndex).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "2"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
-    //validate the index alias is working
+    // validate the index alias is working
     settings = parse(flintClient.getIndexMetadata(testFlintIndex).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "2"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "3"

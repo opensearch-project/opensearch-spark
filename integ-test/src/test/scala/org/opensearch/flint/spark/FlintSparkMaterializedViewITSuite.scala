@@ -87,7 +87,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          | }
          |""".stripMargin)
   }
-  
+
   // TODO: fix this windowing function unable to be used in GROUP BY
   ignore("full refresh materialized view") {
     flint
@@ -198,8 +198,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex("existing_index")
     index shouldBe defined
-    index.get.metadata().getContent() should matchJson(
-      s"""
+    index.get.metadata().getContent() should matchJson(s"""
          | {
          |  "_meta": {
          |    "version": "${current()}",
