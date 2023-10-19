@@ -10,12 +10,11 @@ import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
 import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
-import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.getFullTableName
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.trees.CurrentOrigin
 import org.apache.spark.sql.types.StringType
 
 /**
@@ -28,7 +27,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
       ctx: CreateMaterializedViewStatementContext): AnyRef = {
     FlintSparkSqlCommand() { flint =>
       val mvName = getFullTableName(flint, ctx.mvName)
-      val query = getMvQuery(ctx.query)
+      val query = getSqlText(ctx.query)
 
       val mvBuilder = flint
         .materializedView()
@@ -91,14 +90,6 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
       flint.deleteIndex(getFlintIndexName(flint, ctx.mvName))
       Seq.empty
     }
-  }
-
-  private def getMvQuery(ctx: MaterializedViewQueryContext): String = {
-    // Assume origin must be preserved at the beginning of parsing
-    val sqlText = CurrentOrigin.get.sqlText.get
-    val startIndex = ctx.getStart.getStartIndex
-    val stopIndex = ctx.getStop.getStopIndex
-    sqlText.substring(startIndex, stopIndex + 1)
   }
 
   private def getFlintIndexName(flint: FlintSpark, mvNameCtx: RuleNode): String = {

@@ -31,6 +31,7 @@ createSkippingIndexStatement
     : CREATE SKIPPING INDEX (IF NOT EXISTS)?
         ON tableName
         LEFT_PAREN indexColTypeList RIGHT_PAREN
+        whereClause
         (WITH LEFT_PAREN propertyList RIGHT_PAREN)?
     ;
 
@@ -58,6 +59,7 @@ createCoveringIndexStatement
     : CREATE INDEX (IF NOT EXISTS)? indexName
         ON tableName
         LEFT_PAREN indexColumns=multipartIdentifierPropertyList RIGHT_PAREN
+        whereClause
         (WITH LEFT_PAREN propertyList RIGHT_PAREN)?
     ;
 
@@ -108,6 +110,10 @@ dropMaterializedViewStatement
  */
 materializedViewQuery
     : .+?
+    ;
+
+whereClause
+    : WHERE .+?
     ;
 
 indexColTypeList

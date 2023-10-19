@@ -10,7 +10,7 @@ import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
-import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.getFullTableName
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
 import org.apache.spark.sql.Row
@@ -27,6 +27,12 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
   override def visitCreateCoveringIndexStatement(
       ctx: CreateCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
+      // TODO: support filtering condition
+      if (ctx.whereClause() != null) {
+        throw new UnsupportedOperationException(
+          s"Filtering condition is not supported: ${getSqlText(ctx.whereClause())}")
+      }
+
       val indexName = ctx.indexName.getText
       val tableName = getFullTableName(flint, ctx.tableName)
       val indexBuilder =
