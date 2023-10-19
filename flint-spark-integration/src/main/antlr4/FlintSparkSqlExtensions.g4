@@ -18,6 +18,7 @@ statement
     : skippingIndexStatement
     | coveringIndexStatement
     | materializedViewStatement
+    | indexJobManagementStatement
     ;
 
 skippingIndexStatement
@@ -100,6 +101,14 @@ describeMaterializedViewStatement
 
 dropMaterializedViewStatement
     : DROP MATERIALIZED VIEW mvName=multipartIdentifier
+    ;
+
+indexJobManagementStatement
+    : showIndexJobStatement
+    ;
+
+showIndexJobStatement
+    : SHOW INDEX (JOB|JOBS)
     ;
 
 /*
