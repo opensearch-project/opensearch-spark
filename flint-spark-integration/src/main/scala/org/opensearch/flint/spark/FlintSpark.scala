@@ -167,10 +167,14 @@ class FlintSpark(val spark: SparkSession) {
    *   Flint index list
    */
   def describeIndexes(indexNamePattern: String): Seq[FlintSparkIndex] = {
-    flintClient
-      .getAllIndexMetadata(indexNamePattern)
-      .asScala
-      .map(FlintSparkIndexFactory.create)
+    if (flintClient.exists(indexNamePattern)) {
+      flintClient
+        .getAllIndexMetadata(indexNamePattern)
+        .asScala
+        .map(FlintSparkIndexFactory.create)
+    } else {
+      Seq.empty
+    }
   }
 
   /**

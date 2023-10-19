@@ -195,6 +195,10 @@ CREATE MATERIALIZED VIEW [IF NOT EXISTS] name
 AS <query>
 WITH ( options )
 
+SHOW MATERIALIZED [VIEW|VIEWS] IN catalog[.database]
+
+[DESC|DESCRIBE] MATERIALIZED VIEW name
+
 DROP MATERIALIZED VIEW name
 ```
 
@@ -208,6 +212,10 @@ SELECT
   COUNT(*) AS count
 FROM alb_logs
 GROUP BY TUMBLE(time, '1 Minute')
+
+SHOW MATERIALIZED VIEWS IN spark_catalog.default
+
+DESC MATERIALIZED VIEW alb_logs_metrics
 
 DROP MATERIALIZED VIEW alb_logs_metrics
 ```
