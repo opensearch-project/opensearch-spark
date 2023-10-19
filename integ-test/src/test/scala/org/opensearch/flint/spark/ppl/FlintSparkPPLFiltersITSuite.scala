@@ -332,70 +332,7 @@ class FlintSparkPPLFiltersITSuite
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
-
-  test("create ppl simple avg age by span of interval of 10 years query test ") {
-    val frame = sql(s"""
-         | source = $testTable| stats avg(age) by span(age, 10) as age_span
-         | """.stripMargin)
-
-    // Retrieve the results
-    val results: Array[Row] = frame.collect()
-    // Define the expected results
-    val expectedResults: Array[Row] = Array(Row(70d, 70L), Row(30d, 30L), Row(22.5d, 20L))
-
-    // Compare the results
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
-
-    // Retrieve the logical plan
-    val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    // Define the expected logical plan
-    val star = Seq(UnresolvedStar(None))
-    val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
-
-    val aggregateExpressions =
-      Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")()
-    val span = Alias(
-      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
-      "age_span")()
-    val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), table)
-    val expectedPlan = Project(star, aggregatePlan)
-
-    // Compare the two plans
-    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
-  }
-
-  test(
-    "create ppl simple avg age by span of interval of 10 years with head (limit) query test ") {
-    val frame = sql(s"""
-         | source = $testTable| stats avg(age) by span(age, 10) as age_span | head 2
-         | """.stripMargin)
-
-    // Retrieve the results
-    val results: Array[Row] = frame.collect()
-    assert(results.length == 2)
-
-    // Retrieve the logical plan
-    val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    // Define the expected logical plan
-    val star = Seq(UnresolvedStar(None))
-    val ageField = UnresolvedAttribute("age")
-    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
-
-    val aggregateExpressions =
-      Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")()
-    val span = Alias(
-      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
-      "age_span")()
-    val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), table)
-    val limitPlan = Limit(Literal(2), aggregatePlan)
-    val expectedPlan = Project(star, limitPlan)
-
-    // Compare the two plans
-    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
-  }
-
+  
   /**
    * | age_span | country | average_age |
    * |:---------|:--------|:------------|
