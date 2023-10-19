@@ -251,6 +251,9 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     settings = parse(flintClient.getIndexMetadata(testFlintIndex).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "2"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
+
+    //remove test index
+    flint.deleteIndex(targetIndex)
   }
 
 }

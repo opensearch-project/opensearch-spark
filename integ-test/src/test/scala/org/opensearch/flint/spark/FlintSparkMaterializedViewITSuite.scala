@@ -195,7 +195,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
       .options(indexOptions)
       .create()
 
-    val index = flint.describeIndex("existing_index")
+    val index = flint.describeIndex(testTargetIndex)
     index shouldBe defined
     index.get.metadata().getContent() should matchJson(s"""
          | {
@@ -230,6 +230,8 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |  }
          | }
          |""".stripMargin)
+    //remove test index
+    flint.deleteIndex(testTargetIndex)
   }
 
   private def timestamp(ts: String): Timestamp = Timestamp.valueOf(ts)
