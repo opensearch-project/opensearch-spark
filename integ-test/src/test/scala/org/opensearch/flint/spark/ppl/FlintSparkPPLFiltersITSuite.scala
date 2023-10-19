@@ -305,7 +305,6 @@ class FlintSparkPPLFiltersITSuite
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
-
   test("create ppl simple name literal not equal filter query with two fields result test") {
     val frame = sql(s"""
          | source = $testTable name!='Jake' | fields name, age
@@ -332,7 +331,6 @@ class FlintSparkPPLFiltersITSuite
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
-  
   /**
    * | age_span | country | average_age |
    * |:---------|:--------|:------------|
