@@ -87,7 +87,6 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          | }
          |""".stripMargin)
   }
-
   // TODO: fix this windowing function unable to be used in GROUP BY
   ignore("full refresh materialized view") {
     flint

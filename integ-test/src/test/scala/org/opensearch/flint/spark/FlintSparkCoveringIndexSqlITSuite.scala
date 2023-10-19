@@ -33,7 +33,6 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     createPartitionedTable(testTable)
   }
-
   override def afterEach(): Unit = {
     super.afterEach()
 
@@ -94,7 +93,6 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     (settings \ "index.number_of_shards").extract[String] shouldBe "2"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
   }
-
   test("create covering index with invalid option") {
     the[IllegalArgumentException] thrownBy
       sql(s"""
