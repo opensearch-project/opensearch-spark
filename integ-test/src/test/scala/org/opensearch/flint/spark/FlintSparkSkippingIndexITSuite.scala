@@ -447,7 +447,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex(testIndex)
     index shouldBe defined
-    index.get.metadata().getContent(anyBoolean()) should matchJson(s"""{
+    index.get.metadata().getContent() should matchJson(s"""{
          |   "_meta": {
          |     "name": "flint_spark_catalog_default_data_type_table_skipping_index",
          |     "version": "${current()}",
