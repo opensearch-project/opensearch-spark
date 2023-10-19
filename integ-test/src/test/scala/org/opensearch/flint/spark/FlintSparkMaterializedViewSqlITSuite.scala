@@ -129,6 +129,42 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     sql(s"CREATE MATERIALIZED VIEW IF NOT EXISTS $testMvName AS $testQuery")
   }
 
+  test("show all materialized views in catalog and database") {
+    // Show in catalog
+    flint.materializedView().name("spark_catalog.default.mv1").query(testQuery).create()
+    checkAnswer(
+      sql(s"SHOW MATERIALIZED VIEW IN spark_catalog"),
+      Seq(Row("spark_catalog.default.mv1")))
+
+    // Show in catalog.database
+    flint.materializedView().name("spark_catalog.default.mv2").query(testQuery).create()
+    checkAnswer(
+      sql(s"SHOW MATERIALIZED VIEW IN spark_catalog.default"),
+      Seq(Row("spark_catalog.default.mv1"), Row("spark_catalog.default.mv2")))
+
+    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN spark_catalog.other"), Seq.empty)
+  }
+
+  test("should return emtpy when show materialized views in empty database") {
+    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN spark_catalog.other"), Seq.empty)
+  }
+
+  test("describe materialized view") {
+    flint
+      .materializedView()
+      .name(testMvName)
+      .query(testQuery)
+      .create()
+
+    checkAnswer(
+      sql(s"DESC MATERIALIZED VIEW $testMvName"),
+      Seq(Row("startTime", "timestamp"), Row("count", "long")))
+  }
+
+  test("should return empty when describe nonexistent materialized view") {
+    checkAnswer(sql("DESC MATERIALIZED VIEW nonexistent_mv"), Seq())
+  }
+
   test("drop materialized view") {
     flint
       .materializedView()
