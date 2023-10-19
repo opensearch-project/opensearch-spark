@@ -13,7 +13,11 @@ class FlintSparkCoveringIndexSuite extends FlintSuite {
 
   test("get covering index name") {
     val index =
-      new FlintSparkCoveringIndex(None, "ci", "spark_catalog.default.test", Map("name" -> "string"))
+      new FlintSparkCoveringIndex(
+        None,
+        "ci",
+        "spark_catalog.default.test",
+        Map("name" -> "string"))
     index.name() shouldBe "flint_spark_catalog_default_test_ci_index"
   }
 
