@@ -142,7 +142,6 @@ class FlintSparkPPLCorrelationITSuite
     assert(
       thrown.getMessage === "Correlation command was called with `fields` attribute having different elements from the 'mapping' attributes ")
   }
-  
   test("create failing ppl correlation query with no scope - due to mismatch fields to mappings test") {
     val thrown = intercept[IllegalStateException] {
       val frame = sql(s"""
@@ -303,7 +302,6 @@ class FlintSparkPPLCorrelationITSuite
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
-  
   test(
     "create ppl correlation approximate query with two tables correlating on a single field and not scope test") {
     val frame = sql(s"""
