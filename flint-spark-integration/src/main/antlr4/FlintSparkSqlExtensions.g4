@@ -80,6 +80,7 @@ dropCoveringIndexStatement
 materializedViewStatement
     : createMaterializedViewStatement
     | showMaterializedViewStatement
+    | describeMaterializedViewStatement
     | dropMaterializedViewStatement
     ;
 
@@ -91,6 +92,10 @@ createMaterializedViewStatement
 
 showMaterializedViewStatement
     : SHOW MATERIALIZED (VIEW | VIEWS) IN catalogDb=multipartIdentifier
+    ;
+
+describeMaterializedViewStatement
+    : (DESC | DESCRIBE) MATERIALIZED VIEW mvName=multipartIdentifier
     ;
 
 dropMaterializedViewStatement

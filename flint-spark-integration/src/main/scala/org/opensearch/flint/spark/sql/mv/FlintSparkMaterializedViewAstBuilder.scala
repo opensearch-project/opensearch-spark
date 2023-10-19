@@ -11,7 +11,7 @@ import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.getFullTableName
-import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.{CreateMaterializedViewStatementContext, DropMaterializedViewStatementContext, MaterializedViewQueryContext, ShowMaterializedViewStatementContext}
+import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
@@ -63,6 +63,25 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
         .collect { case mv: FlintSparkMaterializedView =>
           Row(mv.mvName)
         }
+    }
+  }
+
+  override def visitDescribeMaterializedViewStatement(
+      ctx: DescribeMaterializedViewStatementContext): AnyRef = {
+    val outputSchema = Seq(
+      AttributeReference("output_col_name", StringType, nullable = false)(),
+      AttributeReference("data_type", StringType, nullable = false)())
+
+    FlintSparkSqlCommand(outputSchema) { flint =>
+      val flintIndexName = getFlintIndexName(flint, ctx.mvName)
+      flint
+        .describeIndex(flintIndexName)
+        .map { case mv: FlintSparkMaterializedView =>
+          mv.outputSchema.map { case (colName, colType) =>
+            Row(colName, colType)
+          }.toSeq
+        }
+        .getOrElse(Seq.empty)
     }
   }
 

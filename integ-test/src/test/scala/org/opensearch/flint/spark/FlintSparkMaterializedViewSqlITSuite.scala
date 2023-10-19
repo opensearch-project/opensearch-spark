@@ -143,6 +143,18 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN spark_catalog.other"), Seq.empty)
   }
 
+  test("describe materialized view") {
+    flint
+      .materializedView()
+      .name(testMvName)
+      .query(testQuery)
+      .create()
+
+    checkAnswer(
+      sql(s"DESC MATERIALIZED VIEW $testMvName"),
+      Seq(Row("startTime", "timestamp"), Row("count", "long")))
+  }
+
   test("drop materialized view") {
     flint
       .materializedView()
