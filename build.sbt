@@ -58,7 +58,12 @@ lazy val flintCore = (project in file("flint-core"))
       "org.opensearch.client" % "opensearch-rest-high-level-client" % opensearchVersion
         exclude ("org.apache.logging.log4j", "log4j-api"),
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
-        exclude ("com.fasterxml.jackson.core", "jackson-databind")),
+        exclude ("com.fasterxml.jackson.core", "jackson-databind"),
+      "org.scalactic" %% "scalactic" % "3.2.15" % "test",
+      "org.scalatest" %% "scalatest" % "3.2.15" % "test",
+      "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
+      "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
+      "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test"),
     publish / skip := true)
 
 lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))

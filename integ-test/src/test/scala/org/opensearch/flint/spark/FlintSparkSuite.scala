@@ -28,6 +28,13 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     setFlintSparkConf(REFRESH_POLICY, "true")
   }
 
+  protected def awaitStreamingComplete(jobId: String): Unit = {
+    val job = spark.streams.get(jobId)
+    failAfter(streamingTimeout) {
+      job.processAllAvailable()
+    }
+  }
+
   protected def createPartitionedTable(testTable: String): Unit = {
     sql(s"""
          | CREATE TABLE $testTable
@@ -58,5 +65,28 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          | PARTITION (year=2023, month=5)
          | VALUES ('World', 25, 'Portland')
          | """.stripMargin)
+  }
+
+  protected def createTimeSeriesTable(testTable: String): Unit = {
+    sql(s"""
+         | CREATE TABLE $testTable
+         | (
+         |   time TIMESTAMP,
+         |   name STRING,
+         |   age INT,
+         |   address STRING
+         | )
+         | USING CSV
+         | OPTIONS (
+         |  header 'false',
+         |  delimiter '\t'
+         | )
+         |""".stripMargin)
+
+    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:01:00', 'A', 30, 'Seattle')")
+    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:10:00', 'B', 20, 'Seattle')")
+    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:15:00', 'C', 35, 'Portland')")
+    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 01:00:00', 'D', 40, 'Portland')")
+    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 03:00:00', 'E', 15, 'Vancouver')")
   }
 }

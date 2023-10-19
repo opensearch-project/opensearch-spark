@@ -5,11 +5,14 @@
 
 package org.opensearch.flint.spark.skipping
 
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+
 import org.json4s.native.JsonMethods.parse
 import org.mockito.Mockito.when
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.FILE_PATH_COLUMN
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
 import org.scalatest.matchers.must.Matchers.contain
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.mockito.MockitoSugar.mock
@@ -27,6 +30,25 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     index.name() shouldBe "flint_spark_catalog_default_test_skipping_index"
   }
 
+  test("get index metadata") {
+    val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
+    when(indexCol.columnName).thenReturn("test_field")
+    when(indexCol.columnType).thenReturn("integer")
+    when(indexCol.outputSchema()).thenReturn(Map("test_field" -> "integer"))
+    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
+
+    val metadata = index.metadata()
+    metadata.kind shouldBe SKIPPING_INDEX_TYPE
+    metadata.name shouldBe index.name()
+    metadata.source shouldBe testTable
+    metadata.indexedColumns shouldBe Array(
+      Map(
+        "kind" -> SkippingKind.PARTITION.toString,
+        "columnName" -> "test_field",
+        "columnType" -> "integer").asJava)
+  }
+
   test("can build index building job with unique ID column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.outputSchema()).thenReturn(Map("name" -> "string"))
@@ -34,12 +56,13 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
 
     val df = spark.createDataFrame(Seq(("hello", 20))).toDF("name", "age")
-    val indexDf = index.build(df)
+    val indexDf = index.build(spark, Some(df))
     indexDf.schema.fieldNames should contain only ("name", FILE_PATH_COLUMN, ID_COLUMN)
   }
 
   test("can build index for boolean column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("boolean_col" -> "boolean"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("boolean_col").expr)))
 
@@ -59,6 +82,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("can build index for string column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("string_col" -> "string"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("string_col").expr)))
 
@@ -80,6 +104,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("can build index for varchar column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("varchar_col" -> "varchar(20)"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("varchar_col").expr)))
 
@@ -99,6 +124,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("can build index for char column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("char_col" -> "char(20)"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("char_col").expr)))
 
@@ -118,6 +144,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("can build index for long column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("long_col" -> "bigint"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("long_col").expr)))
 
@@ -137,6 +164,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("can build index for int column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("int_col" -> "int"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("int_col").expr)))
 
@@ -156,6 +184,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("can build index for short column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("short_col" -> "smallint"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("short_col").expr)))
 
@@ -175,6 +204,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("can build index for byte column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("byte_col" -> "tinyint"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("byte_col").expr)))
 
@@ -194,6 +224,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("can build index for double column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("double_col" -> "double"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("double_col").expr)))
 
@@ -213,6 +244,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("can build index for float column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("float_col" -> "float"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("float_col").expr)))
 
@@ -232,6 +264,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("can build index for timestamp column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("timestamp_col" -> "timestamp"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("timestamp_col").expr)))
 
@@ -252,6 +285,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("can build index for date column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("date_col" -> "date"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("date_col").expr)))
 
@@ -272,6 +306,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
   test("can build index for struct column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema())
       .thenReturn(Map("struct_col" -> "struct<subfield1:string,subfield2:int>"))
     when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("struct_col").expr)))
