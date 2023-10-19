@@ -61,6 +61,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     val indexSettings = "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
     val metadata = mock[FlintMetadata]
     when(metadata.getContent(anyBoolean())).thenReturn("{}")
+    when(metadata.targetName).thenReturn(None)
     when(metadata.indexSettings).thenReturn(Some(indexSettings))
 
     flintClient.createIndex(indexName, metadata)
@@ -75,8 +76,9 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
 
   it should "get all index metadata with the given index name pattern" in {
     val metadata = mock[FlintMetadata]
-    when(metadata.getContent()).thenReturn("{}")
+    when(metadata.getContent(anyBoolean())).thenReturn("{}")
     when(metadata.indexSettings).thenReturn(None)
+    when(metadata.targetName).thenReturn(None)
     flintClient.createIndex("flint_test_1_index", metadata)
     flintClient.createIndex("flint_test_2_index", metadata)
 
