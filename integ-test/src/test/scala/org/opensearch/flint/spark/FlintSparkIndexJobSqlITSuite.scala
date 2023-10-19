@@ -45,13 +45,13 @@ class FlintSparkIndexJobSqlITSuite extends FlintSparkSuite {
     startSkippingIndexJob()
     checkAnswer(
       sql("SHOW INDEX JOBS"),
-      Seq(Row(testSkippingIndex, testSkippingIndex, testTable, "{}")))
+      Seq(Row(testSkippingIndex, "", testTable, "{}")))
 
     startCoveringIndexJob()
     checkAnswer(
       sql("SHOW INDEX JOBS"),
       Seq(
-        Row(testSkippingIndex, testSkippingIndex, testTable, "{}"),
+        Row(testSkippingIndex, "", testTable, "{}"),
         Row(testCoveringIndex, testIndex, testTable, "{}")))
 
     withTempDir { checkpointDir =>
@@ -59,7 +59,7 @@ class FlintSparkIndexJobSqlITSuite extends FlintSparkSuite {
       checkAnswer(
         sql("SHOW INDEX JOBS"),
         Seq(
-          Row(testSkippingIndex, testSkippingIndex, testTable, "{}"),
+          Row(testSkippingIndex, "", testTable, "{}"),
           Row(testCoveringIndex, testIndex, testTable, "{}"),
           Row(testMvIndex, testMv, testMvQuery, "{}")))
     }

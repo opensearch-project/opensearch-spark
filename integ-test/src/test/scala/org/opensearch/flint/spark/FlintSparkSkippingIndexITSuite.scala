@@ -54,7 +54,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
         |   "_meta": {
-        |     "name": "flint_spark_catalog_default_test_skipping_index",
+        |     "name": "",
         |     "version": "${current()}",
         |     "kind": "skipping",
         |     "indexedColumns": [
@@ -452,7 +452,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     index.get.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
-         |     "name": "flint_spark_catalog_default_data_type_table_skipping_index",
+         |     "name": "",
          |     "version": "${current()}",
          |     "kind": "skipping",
          |     "indexedColumns": [

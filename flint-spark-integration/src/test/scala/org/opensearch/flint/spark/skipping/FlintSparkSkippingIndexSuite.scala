@@ -40,7 +40,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
     val metadata = index.metadata()
     metadata.kind shouldBe SKIPPING_INDEX_TYPE
-    metadata.name shouldBe index.name()
+    metadata.name shouldBe ""
     metadata.source shouldBe testTable
     metadata.indexedColumns shouldBe Array(
       Map(

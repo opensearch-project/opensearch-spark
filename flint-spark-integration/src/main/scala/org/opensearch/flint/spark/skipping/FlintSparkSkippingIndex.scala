@@ -60,7 +60,7 @@ case class FlintSparkSkippingIndex(
     val schemaJson = generateSchemaJSON(fieldTypes)
 
     metadataBuilder(this)
-      .name(name())
+      .name("") // skipping index is unique per table without name
       .source(tableName)
       .indexedColumns(indexColumnMaps)
       .schema(schemaJson)
