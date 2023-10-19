@@ -64,7 +64,8 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     val indexSettings = """{"number_of_shards": 2}"""
     val indexOptions =
       FlintSparkIndexOptions(Map("auto_refresh" -> "true", "index_settings" -> indexSettings))
-    val mv = FlintSparkMaterializedView(None,
+    val mv = FlintSparkMaterializedView(
+      None,
       testMvName,
       testQuery,
       Map("test_col" -> "integer"),
@@ -145,7 +146,8 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
 
-      val mv = FlintSparkMaterializedView(None,
+      val mv = FlintSparkMaterializedView(
+        None,
         testMvName,
         s"SELECT name, age FROM $testTable WHERE age > 30",
         Map.empty)
@@ -164,7 +166,8 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
 
-      val mv = FlintSparkMaterializedView(None,
+      val mv = FlintSparkMaterializedView(
+        None,
         testMvName,
         s"SELECT name, COUNT(*) AS count FROM $testTable GROUP BY name",
         Map.empty)

@@ -84,7 +84,7 @@ class FlintSpark(val spark: SparkSession) {
     val indexName = index.name()
     val targetName = index.targetName()
     if (targetName.nonEmpty) {
-      //use targetIndex as the index to store the acceleration data
+      // use targetIndex as the index to store the acceleration data
       flintClient.alias(targetName.get, indexName, index.metadata())
     } else {
       if (flintClient.exists(indexName)) {

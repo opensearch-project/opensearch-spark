@@ -54,7 +54,8 @@ case class FlintSparkMaterializedView(
 
   /**
    * @return
-   * Flint target index name - index that already exist or has existing template to be created with
+   *   Flint target index name - index that already exist or has existing template to be created
+   *   with
    */
   override def targetName(): Option[String] = {
     targetIndexName
@@ -168,9 +169,9 @@ object FlintSparkMaterializedView {
      * Set covering index target name.
      *
      * @param indexName
-     * index name
+     *   index name
      * @return
-     * index builder
+     *   index builder
      */
     def targetName(indexName: String): Builder = {
       this.targetIndexName = Option.apply(indexName)

@@ -43,7 +43,8 @@ case class FlintSparkCoveringIndex(
 
   /**
    * @return
-   * Flint target index name - index that already exist or has existing template to be created with
+   *   Flint target index name - index that already exist or has existing template to be created
+   *   with
    */
   override def targetName(): Option[String] = {
     targetIndexName
@@ -164,6 +165,11 @@ object FlintSparkCoveringIndex {
     }
 
     override protected def buildIndex(): FlintSparkIndex =
-      new FlintSparkCoveringIndex(targetIndexName, indexName, tableName, indexedColumns, indexOptions)
+      new FlintSparkCoveringIndex(
+        targetIndexName,
+        indexName,
+        tableName,
+        indexedColumns,
+        indexOptions)
   }
 }
