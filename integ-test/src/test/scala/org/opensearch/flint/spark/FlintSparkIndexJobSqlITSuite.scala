@@ -8,8 +8,11 @@ package org.opensearch.flint.spark
 import java.io.File
 
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
+import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.SKIPPING_INDEX_TYPE
 
 import org.apache.spark.sql.Row
 
@@ -45,23 +48,23 @@ class FlintSparkIndexJobSqlITSuite extends FlintSparkSuite {
     startSkippingIndexJob()
     checkAnswer(
       sql("SHOW INDEX JOBS"),
-      Seq(Row(testSkippingIndex, "", testTable, "{}")))
+      Seq(Row(testSkippingIndex, SKIPPING_INDEX_TYPE, "", testTable, "{}")))
 
     startCoveringIndexJob()
     checkAnswer(
       sql("SHOW INDEX JOBS"),
       Seq(
-        Row(testSkippingIndex, "", testTable, "{}"),
-        Row(testCoveringIndex, testIndex, testTable, "{}")))
+        Row(testSkippingIndex, SKIPPING_INDEX_TYPE, "", testTable, "{}"),
+        Row(testCoveringIndex, COVERING_INDEX_TYPE, testIndex, testTable, "{}")))
 
     withTempDir { checkpointDir =>
       startMaterializedViewIndexJob(checkpointDir)
       checkAnswer(
         sql("SHOW INDEX JOBS"),
         Seq(
-          Row(testSkippingIndex, "", testTable, "{}"),
-          Row(testCoveringIndex, testIndex, testTable, "{}"),
-          Row(testMvIndex, testMv, testMvQuery, "{}")))
+          Row(testSkippingIndex, SKIPPING_INDEX_TYPE, "", testTable, "{}"),
+          Row(testCoveringIndex, COVERING_INDEX_TYPE, testIndex, testTable, "{}"),
+          Row(testMvIndex, MV_INDEX_TYPE, testMv, testMvQuery, "{}")))
     }
   }
 

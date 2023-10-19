@@ -23,8 +23,9 @@ trait FlintSparkIndexJobAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef
 
   override def visitShowIndexJobStatement(ctx: ShowIndexJobStatementContext): AnyRef = {
     val outputSchema = Seq(
-      AttributeReference("job name", StringType, nullable = false)(),
-      AttributeReference("index name", StringType, nullable = false)(),
+      AttributeReference("job_name", StringType, nullable = false)(),
+      AttributeReference("index_type", StringType, nullable = false)(),
+      AttributeReference("index_name", StringType, nullable = false)(),
       AttributeReference("source", StringType, nullable = false)(),
       AttributeReference("properties", StringType, nullable = false)())
 
@@ -35,7 +36,12 @@ trait FlintSparkIndexJobAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef
         .collect {
           case index: FlintSparkIndex if index.options.autoRefresh() =>
             val metadata = index.metadata()
-            Row(index.name(), metadata.name, metadata.source, jsonify(metadata.properties))
+            Row(
+              index.name(),
+              metadata.kind,
+              metadata.name,
+              metadata.source,
+              jsonify(metadata.properties))
         }
     }
   }
