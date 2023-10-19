@@ -10,6 +10,7 @@ import scala.collection.JavaConverters._
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
+import org.mockito.ArgumentMatchers.anyBoolean
 import org.mockito.Mockito.when
 import org.opensearch.client.json.jackson.JacksonJsonpMapper
 import org.opensearch.client.opensearch.OpenSearchClient
@@ -46,8 +47,9 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
         |""".stripMargin
 
     val metadata = mock[FlintMetadata]
-    when(metadata.getContent()).thenReturn(content)
+    when(metadata.getContent(anyBoolean())).thenReturn(content)
     when(metadata.indexSettings).thenReturn(None)
+    when(metadata.targetName).thenReturn(None)
     flintClient.createIndex(indexName, metadata)
 
     flintClient.exists(indexName) shouldBe true
@@ -58,7 +60,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     val indexName = "flint_test_with_settings"
     val indexSettings = "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
     val metadata = mock[FlintMetadata]
-    when(metadata.getContent()).thenReturn("{}")
+    when(metadata.getContent(anyBoolean())).thenReturn("{}")
     when(metadata.indexSettings).thenReturn(Some(indexSettings))
 
     flintClient.createIndex(indexName, metadata)

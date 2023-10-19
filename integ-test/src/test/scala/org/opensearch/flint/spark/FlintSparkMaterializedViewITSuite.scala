@@ -230,7 +230,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |  }
          | }
          |""".stripMargin)
-    //remove test index
+    // remove test index
     flint.deleteIndex(testTargetIndex)
   }
 

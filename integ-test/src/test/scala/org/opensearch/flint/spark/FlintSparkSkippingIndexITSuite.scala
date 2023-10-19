@@ -7,6 +7,7 @@ package org.opensearch.flint.spark
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.native.JsonMethods._
+import org.mockito.ArgumentMatchers.anyBoolean
 import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
@@ -446,7 +447,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex(testIndex)
     index shouldBe defined
-    index.get.metadata().getContent() should matchJson(s"""{
+    index.get.metadata().getContent(anyBoolean()) should matchJson(s"""{
          |   "_meta": {
          |     "name": "flint_spark_catalog_default_data_type_table_skipping_index",
          |     "version": "${current()}",
