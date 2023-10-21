@@ -8,6 +8,7 @@ package org.opensearch.flint.spark.mv
 import java.util.Locale
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.convert.ImplicitConversions.`map AsScala`
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
@@ -23,6 +24,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, EventTimeWatermark, LogicalPlan}
 import org.apache.spark.sql.catalyst.util.IntervalUtils
 import org.apache.spark.sql.flint.{logicalPlanToDataFrame, qualifyTableName}
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 /**
  * Flint materialized view in Spark.
@@ -43,9 +45,6 @@ case class FlintSparkMaterializedView(
     override val options: FlintSparkIndexOptions = empty)
     extends FlintSparkIndex
     with StreamingRefresh {
-
-  /** TODO: add it to index option */
-  private val watermarkDelay = "0 Minute"
 
   override val kind: String = MV_INDEX_TYPE
 
@@ -81,17 +80,31 @@ case class FlintSparkMaterializedView(
      *  2.Set isStreaming flag to true in Relation operator
      */
     val streamingPlan = batchPlan transform {
-      case WindowingAggregate(agg, timeCol) =>
-        agg.copy(child = watermark(timeCol, watermarkDelay, agg.child))
+      case WindowingAggregate(aggregate, timeCol) =>
+        aggregate.copy(child = watermark(timeCol, aggregate.child))
 
       case relation: UnresolvedRelation if !relation.isStreaming =>
-        relation.copy(isStreaming = true)
+        relation.copy(isStreaming = true, options = optionsWithExtra(spark, relation))
     }
     logicalPlanToDataFrame(spark, streamingPlan)
   }
 
-  private def watermark(timeCol: Attribute, delay: String, child: LogicalPlan) = {
+  private def watermark(timeCol: Attribute, child: LogicalPlan) = {
+    require(
+      options.watermarkDelay().isDefined,
+      "watermark delay is required for incremental refresh with aggregation")
+
+    val delay = options.watermarkDelay().get
     EventTimeWatermark(timeCol, IntervalUtils.fromIntervalString(delay), child)
+  }
+
+  private def optionsWithExtra(
+      spark: SparkSession,
+      relation: UnresolvedRelation): CaseInsensitiveStringMap = {
+    val originalOptions = relation.options.asCaseSensitiveMap
+    val tableName = qualifyTableName(spark, relation.tableName)
+    val extraOptions = options.extraSourceOptions(tableName).asJava
+    new CaseInsensitiveStringMap((originalOptions ++ extraOptions).asJava)
   }
 
   /**
@@ -107,7 +120,7 @@ case class FlintSparkMaterializedView(
 
       if (winFuncs.size != 1) {
         throw new IllegalStateException(
-          "A windowing function is required for streaming aggregation")
+          "A windowing function is required for incremental refresh with aggregation")
       }
 
       // Assume first aggregate item must be time column

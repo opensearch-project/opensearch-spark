@@ -43,7 +43,11 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
   test("create materialized view with metadata successfully") {
     val indexOptions =
-      FlintSparkIndexOptions(Map("auto_refresh" -> "true", "checkpoint_location" -> "s3://test/"))
+      FlintSparkIndexOptions(
+        Map(
+          "auto_refresh" -> "true",
+          "checkpoint_location" -> "s3://test/",
+          "watermark_delay" -> "30 Seconds"))
     flint
       .materializedView()
       .name(testMvName)
@@ -70,7 +74,8 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |    }],
          |    "options": {
          |      "auto_refresh": "true",
-         |      "checkpoint_location": "s3://test/"
+         |      "checkpoint_location": "s3://test/",
+         |      "watermark_delay": "30 Seconds"
          |    },
          |    "properties": {}
          |  },
@@ -147,7 +152,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
     }
   }
 
-  test("incremental refresh materialized view with filtering query") {
+  test("incremental refresh materialized view with filtering aggregate query") {
     val filterQuery =
       s"""
          | SELECT
@@ -155,7 +160,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |   COUNT(*) AS count
          | FROM $testTable
          | WHERE address = 'Seattle'
-         | GROUP BY TUMBLE(time, '10 Minutes')
+         | GROUP BY TUMBLE(time, '5 Minutes')
          |""".stripMargin
 
     withIncrementalMaterializedView(filterQuery) { indexData =>
@@ -190,7 +195,10 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
       codeBlock: DataFrame => Unit): Unit = {
     withTempDir { checkpointDir =>
       val indexOptions = FlintSparkIndexOptions(
-        Map("auto_refresh" -> "true", "checkpoint_location" -> checkpointDir.getAbsolutePath))
+        Map(
+          "auto_refresh" -> "true",
+          "checkpoint_location" -> checkpointDir.getAbsolutePath,
+          "watermark_delay" -> "1 Minute")) // This must be small to ensure window closed soon
 
       flint
         .materializedView()
