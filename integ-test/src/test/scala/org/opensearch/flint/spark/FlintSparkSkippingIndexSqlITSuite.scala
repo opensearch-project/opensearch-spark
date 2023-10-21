@@ -69,7 +69,8 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
              | WITH (
              |   auto_refresh = true,
              |   refresh_interval = '5 Seconds',
-             |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+             |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+             |   extra_options = '{"$testTable": {"maxFilesPerTrigger": "1"}}'
              | )
              | """.stripMargin)
 

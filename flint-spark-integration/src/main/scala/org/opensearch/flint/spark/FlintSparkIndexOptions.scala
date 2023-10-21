@@ -5,7 +5,10 @@
 
 package org.opensearch.flint.spark
 
-import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, INDEX_SETTINGS, OptionName, REFRESH_INTERVAL}
+import org.json4s.{Formats, NoTypeHints}
+import org.json4s.native.JsonMethods._
+import org.json4s.native.Serialization
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, WATERMARK_DELAY}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
 
 /**
@@ -15,6 +18,8 @@ import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
  *   index option mappings
  */
 case class FlintSparkIndexOptions(options: Map[String, String]) {
+
+  implicit val formats: Formats = Serialization.formats(NoTypeHints)
 
   validateOptionNames(options)
 
@@ -43,12 +48,49 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
   def checkpointLocation(): Option[String] = getOptionValue(CHECKPOINT_LOCATION)
 
   /**
+   * How late the data can come and still be processed.
+   *
+   * @return
+   *   watermark delay time expression
+   */
+  def watermarkDelay(): Option[String] = getOptionValue(WATERMARK_DELAY)
+
+  /**
+   * The output mode that describes how data will be written to streaming sink.
+   * @return
+   *   output mode
+   */
+  def outputMode(): Option[String] = getOptionValue(OUTPUT_MODE)
+
+  /**
    * The index settings for OpenSearch index created.
    *
    * @return
    *   index setting JSON
    */
   def indexSettings(): Option[String] = getOptionValue(INDEX_SETTINGS)
+
+  /**
+   * Extra streaming source options that can be simply passed to DataStreamReader or
+   * Relation.options
+   * @param source
+   *   source name (full table name)
+   * @return
+   *   extra source option map or empty map if not exist
+   */
+  def extraSourceOptions(source: String): Map[String, String] = {
+    parseExtraOptions(source)
+  }
+
+  /**
+   * Extra streaming sink options that can be simply passed to DataStreamWriter.options()
+   *
+   * @return
+   *   extra sink option map or empty map if not exist
+   */
+  def extraSinkOptions(): Map[String, String] = {
+    parseExtraOptions("sink")
+  }
 
   /**
    * @return
@@ -67,6 +109,12 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
   private def getOptionValue(name: OptionName): Option[String] = {
     options.get(name.toString)
   }
+
+  private def parseExtraOptions(key: String): Map[String, String] = {
+    getOptionValue(EXTRA_OPTIONS)
+      .map(opt => (parse(opt) \ key).extract[Map[String, String]])
+      .getOrElse(Map.empty)
+  }
 }
 
 object FlintSparkIndexOptions {
@@ -84,7 +132,10 @@ object FlintSparkIndexOptions {
     val AUTO_REFRESH: OptionName.Value = Value("auto_refresh")
     val REFRESH_INTERVAL: OptionName.Value = Value("refresh_interval")
     val CHECKPOINT_LOCATION: OptionName.Value = Value("checkpoint_location")
+    val WATERMARK_DELAY: OptionName.Value = Value("watermark_delay")
+    val OUTPUT_MODE: OptionName.Value = Value("output_mode")
     val INDEX_SETTINGS: OptionName.Value = Value("index_settings")
+    val EXTRA_OPTIONS: OptionName.Value = Value("extra_options")
   }
 
   /**

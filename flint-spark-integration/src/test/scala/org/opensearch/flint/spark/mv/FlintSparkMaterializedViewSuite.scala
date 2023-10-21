@@ -15,7 +15,6 @@ import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{DataFrame, Row}
-import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.catalyst.dsl.expressions.{count, intToLiteral, stringToLiteral, DslAttr, DslExpression, StringToAttributeConversionHelper}
 import org.apache.spark.sql.catalyst.dsl.plans.DslLogicalPlan
@@ -32,6 +31,8 @@ import org.apache.spark.unsafe.types.UTF8String
  */
 class FlintSparkMaterializedViewSuite extends FlintSuite {
 
+  /** Test table, MV name and query */
+  val testTable = "spark_catalog.default.mv_build_test"
   val testMvName = "spark_catalog.default.mv"
   val testQuery = "SELECT 1"
 
@@ -87,38 +88,32 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
   }
 
   test("build stream should insert watermark operator and replace batch relation") {
-    val testTable = "mv_build_test"
-    withTable(testTable) {
-      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
-
-      val testQuery =
-        s"""
+    val testQuery =
+      s"""
           | SELECT
           |   window.start AS startTime,
           |   COUNT(*) AS count
           | FROM $testTable
           | GROUP BY TUMBLE(time, '1 Minute')
           |""".stripMargin
+    val options = Map("watermark_delay" -> "30 Seconds")
 
-      val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
-      val actualPlan = mv.buildStream(spark).queryExecution.logical
-      assert(
-        actualPlan.sameSemantics(
-          streamingRelation(testTable)
-            .watermark($"time", "0 Minute")
-            .groupBy($"TUMBLE".function($"time", "1 Minute"))(
-              $"window.start" as "startTime",
-              count(1) as "count")))
+    withAggregateMaterializedView(testQuery, options) { actualPlan =>
+      comparePlans(
+        actualPlan,
+        streamingRelation(testTable)
+          .watermark($"time", "30 Seconds")
+          .groupBy($"TUMBLE".function($"time", "1 Minute"))(
+            $"window.start" as "startTime",
+            $"COUNT".function(1) as "count"),
+        checkAnalysis = false
+      ) // don't analyze due to full test table name
     }
   }
 
-  test("build stream with filtering query") {
-    val testTable = "mv_build_test"
-    withTable(testTable) {
-      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
-
-      val testQuery =
-        s"""
+  test("build stream with filtering aggregate query") {
+    val testQuery =
+      s"""
            | SELECT
            |   window.start AS startTime,
            |   COUNT(*) AS count
@@ -126,36 +121,44 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
            | WHERE age > 30
            | GROUP BY TUMBLE(time, '1 Minute')
            |""".stripMargin
+    val options = Map("watermark_delay" -> "30 Seconds")
 
-      val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
-      val actualPlan = mv.buildStream(spark).queryExecution.logical
-      assert(
-        actualPlan.sameSemantics(
-          streamingRelation(testTable)
-            .where($"age" > 30)
-            .watermark($"time", "0 Minute")
-            .groupBy($"TUMBLE".function($"time", "1 Minute"))(
-              $"window.start" as "startTime",
-              count(1) as "count")))
+    withAggregateMaterializedView(testQuery, options) { actualPlan =>
+      comparePlans(
+        actualPlan,
+        streamingRelation(testTable)
+          .where($"age" > 30)
+          .watermark($"time", "30 Seconds")
+          .groupBy($"TUMBLE".function($"time", "1 Minute"))(
+            $"window.start" as "startTime",
+            $"COUNT".function(1) as "count"),
+        checkAnalysis = false)
     }
   }
 
   test("build stream with non-aggregate query") {
-    val testTable = "mv_build_test"
-    withTable(testTable) {
-      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
+    val testQuery = s"SELECT name, age FROM $testTable WHERE age > 30"
 
-      val mv = FlintSparkMaterializedView(
-        testMvName,
-        s"SELECT name, age FROM $testTable WHERE age > 30",
-        Map.empty)
-      val actualPlan = mv.buildStream(spark).queryExecution.logical
+    withAggregateMaterializedView(testQuery, Map.empty) { actualPlan =>
+      comparePlans(
+        actualPlan,
+        streamingRelation(testTable)
+          .where($"age" > 30)
+          .select($"name", $"age"),
+        checkAnalysis = false)
+    }
+  }
 
-      assert(
-        actualPlan.sameSemantics(
-          streamingRelation(testTable)
-            .where($"age" > 30)
-            .select($"name", $"age")))
+  test("build stream with extra source options") {
+    val testQuery = s"SELECT name, age FROM $testTable"
+    val options = Map("extra_options" -> s"""{"$testTable": {"maxFilesPerTrigger": "1"}}""")
+
+    withAggregateMaterializedView(testQuery, options) { actualPlan =>
+      comparePlans(
+        actualPlan,
+        streamingRelation(testTable, Map("maxFilesPerTrigger" -> "1"))
+          .select($"name", $"age"),
+        checkAnalysis = false)
     }
   }
 
@@ -173,6 +176,20 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
         mv.buildStream(spark)
     }
   }
+
+  private def withAggregateMaterializedView(query: String, options: Map[String, String])(
+      codeBlock: LogicalPlan => Unit): Unit = {
+
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
+
+      val mv =
+        FlintSparkMaterializedView(testMvName, query, Map.empty, FlintSparkIndexOptions(options))
+
+      val actualPlan = mv.buildStream(spark).queryExecution.logical
+      codeBlock(actualPlan)
+    }
+  }
 }
 
 /**
@@ -180,10 +197,12 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
  */
 object FlintSparkMaterializedViewSuite {
 
-  def streamingRelation(tableName: String): UnresolvedRelation = {
-    UnresolvedRelation(
-      TableIdentifier(tableName),
-      CaseInsensitiveStringMap.empty(),
+  def streamingRelation(
+      tableName: String,
+      extraOptions: Map[String, String] = Map.empty): UnresolvedRelation = {
+    new UnresolvedRelation(
+      tableName.split('.'),
+      new CaseInsensitiveStringMap(extraOptions.asJava),
       isStreaming = true)
   }
 

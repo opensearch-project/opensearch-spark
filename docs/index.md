@@ -227,15 +227,22 @@ User can provide the following options in `WITH` clause of create statement:
 + `auto_refresh`: triggers Incremental Refresh immediately after index create complete if true. Otherwise, user has to trigger Full Refresh by `REFRESH` statement manually.
 + `refresh_interval`: a string as the time interval for incremental refresh, e.g. 1 minute, 10 seconds. This is only applicable when auto refresh enabled. Please check `org.apache.spark.unsafe.types.CalendarInterval` for valid duration identifiers. By default, next micro batch will be generated as soon as the previous one complete processing.
 + `checkpoint_location`: a string as the location path for incremental refresh job checkpoint. The location has to be a path in an HDFS compatible file system and only applicable when auto refresh enabled. If unspecified, temporary checkpoint directory will be used and may result in checkpoint data lost upon restart.
++ `watermark_delay`: a string as time expression for how late data can come and still be processed, e.g. 1 minute, 10 seconds. This is required by incremental refresh on materialized view if it has aggregation in the query.
++ `output_mode`: a mode string that describes how data will be written to streaming sink. If unspecified, default append mode will be applied.
 + `index_settings`: a JSON string as index settings for OpenSearch index that will be created. Please follow the format in OpenSearch documentation. If unspecified, default OpenSearch index settings will be applied.
++ `extra_options`: a JSON string as extra options that can be passed to Spark streaming source and sink API directly. Use qualified source table name (because there could be multiple) and "sink", e.g. '{"sink": "{key: val}", "table1": {key: val}}'
 
-Note that the index option name is case-sensitive.
+Note that the index option name is case-sensitive. Here is an example:
 
 ```sql
 WITH (
-  auto_refresh = [true|false],
-  refresh_interval = 'time interval expression',
-  checkpoint_location = 'checkpoint directory path'
+  auto_refresh = true,
+  refresh_interval = '10 Seconds',
+  checkpoint_location = 's3://test/',
+  watermark_delay = '1 Second',
+  output_mode = 'complete',
+  index_settings = '{"number_of_shards": 2, "number_of_replicas": 3}',
+  extra_options = '{"spark_catalog.default.alb_logs": {"maxFilesPerTrigger": "1"}}'
 )
 ```
 
