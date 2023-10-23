@@ -65,6 +65,7 @@ object FlintSparkIndexFactory {
           metadata.indexedColumns.map { colInfo =>
             getString(colInfo, "columnName") -> getString(colInfo, "columnType")
           }.toMap,
+          getOptString(metadata.properties, "filterCondition"),
           indexOptions)
       case MV_INDEX_TYPE =>
         FlintSparkMaterializedView(
@@ -79,5 +80,14 @@ object FlintSparkIndexFactory {
 
   private def getString(map: java.util.Map[String, AnyRef], key: String): String = {
     map.get(key).asInstanceOf[String]
+  }
+
+  private def getOptString(map: java.util.Map[String, AnyRef], key: String): Option[String] = {
+    val value = map.get(key)
+    if (value == null) {
+      None
+    } else {
+      Some(value.asInstanceOf[String])
+    }
   }
 }

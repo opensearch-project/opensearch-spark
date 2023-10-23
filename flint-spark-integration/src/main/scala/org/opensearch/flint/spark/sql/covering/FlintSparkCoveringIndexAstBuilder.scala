@@ -27,12 +27,6 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
   override def visitCreateCoveringIndexStatement(
       ctx: CreateCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
-      // TODO: support filtering condition
-      if (ctx.whereClause() != null) {
-        throw new UnsupportedOperationException(
-          s"Filtering condition is not supported: ${getSqlText(ctx.whereClause())}")
-      }
-
       val indexName = ctx.indexName.getText
       val tableName = getFullTableName(flint, ctx.tableName)
       val indexBuilder =
@@ -44,6 +38,10 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       ctx.indexColumns.multipartIdentifierProperty().forEach { indexColCtx =>
         val colName = indexColCtx.multipartIdentifier().getText
         indexBuilder.addIndexColumns(colName)
+      }
+
+      if (ctx.whereClause() != null) {
+        indexBuilder.filterBy(getSqlText(ctx.whereClause().filterCondition()))
       }
 
       val ignoreIfExists = ctx.EXISTS() != null

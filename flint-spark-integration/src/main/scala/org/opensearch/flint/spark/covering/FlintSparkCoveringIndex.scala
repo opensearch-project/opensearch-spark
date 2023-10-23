@@ -29,6 +29,7 @@ case class FlintSparkCoveringIndex(
     indexName: String,
     tableName: String,
     indexedColumns: Map[String, String],
+    filterCondition: Option[String] = None,
     override val options: FlintSparkIndexOptions = empty)
     extends FlintSparkIndex {
 
@@ -46,17 +47,25 @@ case class FlintSparkCoveringIndex(
     }
     val schemaJson = generateSchemaJSON(indexedColumns)
 
-    metadataBuilder(this)
+    val builder = metadataBuilder(this)
       .name(indexName)
       .source(tableName)
       .indexedColumns(indexColumnMaps)
       .schema(schemaJson)
-      .build()
+
+    // Add optional index properties
+    filterCondition.map(builder.addProperty("filterCondition", _))
+    builder.build()
   }
 
   override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
     val colNames = indexedColumns.keys.toSeq
-    df.getOrElse(spark.read.table(tableName))
+    val job = df.getOrElse(spark.read.table(tableName))
+
+    // Add optional filtering condition
+    filterCondition
+      .map(job.where)
+      .getOrElse(job)
       .select(colNames.head, colNames.tail: _*)
   }
 }
@@ -95,6 +104,7 @@ object FlintSparkCoveringIndex {
   class Builder(flint: FlintSpark) extends FlintSparkIndexBuilder(flint) {
     private var indexName: String = ""
     private var indexedColumns: Map[String, String] = Map()
+    private var filterCondition: Option[String] = None
 
     /**
      * Set covering index name.
@@ -137,7 +147,25 @@ object FlintSparkCoveringIndex {
       this
     }
 
+    /**
+     * Add filtering condition.
+     *
+     * @param condition
+     *   filter condition
+     * @return
+     *   index builder
+     */
+    def filterBy(condition: String): Builder = {
+      filterCondition = Some(condition)
+      this
+    }
+
     override protected def buildIndex(): FlintSparkIndex =
-      new FlintSparkCoveringIndex(indexName, tableName, indexedColumns, indexOptions)
+      new FlintSparkCoveringIndex(
+        indexName,
+        tableName,
+        indexedColumns,
+        filterCondition,
+        indexOptions)
   }
 }

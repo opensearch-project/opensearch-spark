@@ -40,6 +40,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
       .name(testIndex)
       .onTable(testTable)
       .addIndexColumns("name", "age")
+      .filterBy("age > 30")
       .create()
 
     val index = flint.describeIndex(testFlintIndex)
@@ -60,7 +61,9 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
          |     }],
          |     "source": "spark_catalog.default.ci_test",
          |     "options": { "auto_refresh": "false" },
-         |     "properties": {}
+         |     "properties": {
+         |       "filterCondition": "age > 30"
+         |     }
          |   },
          |   "properties": {
          |     "name": {

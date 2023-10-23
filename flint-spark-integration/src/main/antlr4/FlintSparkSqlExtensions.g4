@@ -113,7 +113,11 @@ materializedViewQuery
     ;
 
 whereClause
-    : WHERE .+?
+    : WHERE filterCondition
+    ;
+
+filterCondition
+    : .+?
     ;
 
 indexColTypeList
