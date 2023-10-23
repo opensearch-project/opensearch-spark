@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark
 
 import scala.Option.empty
-import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
@@ -177,6 +177,21 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
            | CREATE INDEX IF NOT EXISTS $testIndex
            | ON $testTable (name, age)
            |""".stripMargin)
+  }
+
+  test("create skipping index with quoted index, table and column name") {
+    sql(s"""
+           | CREATE INDEX `$testIndex` ON `spark_catalog`.`default`.`covering_sql_test`
+           | (`name`, `age`)
+           | """.stripMargin)
+
+    val index = flint.describeIndex(testFlintIndex)
+    index shouldBe defined
+
+    val metadata = index.get.metadata()
+    metadata.name shouldBe testIndex
+    metadata.source shouldBe testTable
+    metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("name", "age")
   }
 
   test("show all covering index on the source table") {
