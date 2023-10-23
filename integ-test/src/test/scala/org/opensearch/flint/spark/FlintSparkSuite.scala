@@ -6,10 +6,9 @@
 package org.opensearch.flint.spark
 
 import org.opensearch.flint.OpenSearchSuite
-
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.QueryTest
-import org.apache.spark.sql.flint.config.FlintSparkConf.{HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
+import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
 import org.apache.spark.sql.streaming.StreamTest
 
 /**
@@ -26,6 +25,9 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     setFlintSparkConf(HOST_ENDPOINT, openSearchHost)
     setFlintSparkConf(HOST_PORT, openSearchPort)
     setFlintSparkConf(REFRESH_POLICY, "true")
+
+    // Disable mandatory checkpoint for test convenience
+    setFlintSparkConf(CHECKPOINT_MANDATORY, "false")
   }
 
   protected def awaitStreamingComplete(jobId: String): Unit = {
