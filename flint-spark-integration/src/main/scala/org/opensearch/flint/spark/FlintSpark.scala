@@ -138,17 +138,18 @@ class FlintSpark(val spark: SparkSession) {
             .queryName(indexName)
             .format(FLINT_DATASOURCE)
             .options(flintSparkConf.properties)
-            .addIndexOptions(options)
+            .addSinkOptions(options)
             .start(indexName)
         Some(job.id.toString)
 
       // Otherwise, fall back to foreachBatch + batch refresh
       case INCREMENTAL =>
         val job = spark.readStream
+          .options(options.extraSourceOptions(tableName))
           .table(tableName)
           .writeStream
           .queryName(indexName)
-          .addIndexOptions(options)
+          .addSinkOptions(options)
           .foreachBatch { (batchDF: DataFrame, _: Long) =>
             batchRefresh(Some(batchDF))
           }
@@ -237,26 +238,26 @@ class FlintSpark(val spark: SparkSession) {
   // Using Scala implicit class to avoid breaking method chaining of Spark data frame fluent API
   private implicit class FlintDataStreamWriter(val dataStream: DataStreamWriter[Row]) {
 
-    def addIndexOptions(options: FlintSparkIndexOptions): DataStreamWriter[Row] = {
+    def addSinkOptions(options: FlintSparkIndexOptions): DataStreamWriter[Row] = {
       dataStream
         .addCheckpointLocation(options.checkpointLocation())
         .addRefreshInterval(options.refreshInterval())
+        .addOutputMode(options.outputMode())
+        .options(options.extraSinkOptions())
     }
 
     def addCheckpointLocation(checkpointLocation: Option[String]): DataStreamWriter[Row] = {
-      if (checkpointLocation.isDefined) {
-        dataStream.option("checkpointLocation", checkpointLocation.get)
-      } else {
-        dataStream
-      }
+      checkpointLocation.map(dataStream.option("checkpointLocation", _)).getOrElse(dataStream)
     }
 
     def addRefreshInterval(refreshInterval: Option[String]): DataStreamWriter[Row] = {
-      if (refreshInterval.isDefined) {
-        dataStream.trigger(Trigger.ProcessingTime(refreshInterval.get))
-      } else {
-        dataStream
-      }
+      refreshInterval
+        .map(interval => dataStream.trigger(Trigger.ProcessingTime(interval)))
+        .getOrElse(dataStream)
+    }
+
+    def addOutputMode(outputMode: Option[String]): DataStreamWriter[Row] = {
+      outputMode.map(dataStream.outputMode).getOrElse(dataStream)
     }
   }
 }

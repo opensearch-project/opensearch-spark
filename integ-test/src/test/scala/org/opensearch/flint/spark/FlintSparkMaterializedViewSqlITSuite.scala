@@ -53,7 +53,8 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
            | AS $testQuery
            | WITH (
            |   auto_refresh = true,
-           |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+           |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+           |   watermark_delay = '1 Second'
            | )
            |""".stripMargin)
 
@@ -88,15 +89,24 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
              |   auto_refresh = true,
              |   refresh_interval = '5 Seconds',
              |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
-             |   index_settings = '{"number_of_shards": 3, "number_of_replicas": 2}'
+             |   watermark_delay = '1 Second',
+             |   output_mode = 'complete',
+             |   index_settings = '{"number_of_shards": 3, "number_of_replicas": 2}',
+             |   extra_options = '{"$testTable": {"maxFilesPerTrigger": "1"}}'
              | )
              |""".stripMargin)
 
       val index = flint.describeIndex(testFlintIndex)
       index shouldBe defined
-      index.get.options.autoRefresh() shouldBe true
-      index.get.options.refreshInterval() shouldBe Some("5 Seconds")
-      index.get.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
+
+      val options = index.get.options
+      options.autoRefresh() shouldBe true
+      options.refreshInterval() shouldBe Some("5 Seconds")
+      options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
+      options.watermarkDelay() shouldBe Some("1 Second")
+      options.outputMode() shouldBe Some("complete")
+      options.extraSourceOptions(testTable) shouldBe Map("maxFilesPerTrigger" -> "1")
+      options.extraSinkOptions() shouldBe Map.empty
     }
   }
 
