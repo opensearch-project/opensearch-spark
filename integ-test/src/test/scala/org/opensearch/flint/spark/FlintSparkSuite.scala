@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark
 
 import org.opensearch.flint.OpenSearchSuite
+
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
