@@ -92,8 +92,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |""".stripMargin)
   }
 
-  // TODO: fix this windowing function unable to be used in GROUP BY
-  ignore("full refresh materialized view") {
+  test("full refresh materialized view") {
     flint
       .materializedView()
       .name(testMvName)
@@ -104,12 +103,12 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
     val indexData = flint.queryIndex(testFlintIndex)
     checkAnswer(
-      indexData,
+      indexData.select("startTime", "count"),
       Seq(
         Row(timestamp("2023-10-01 00:00:00"), 1),
         Row(timestamp("2023-10-01 00:10:00"), 2),
         Row(timestamp("2023-10-01 01:00:00"), 1),
-        Row(timestamp("2023-10-01 02:00:00"), 1)))
+        Row(timestamp("2023-10-01 03:00:00"), 1)))
   }
 
   test("incremental refresh materialized view") {

@@ -15,6 +15,7 @@ import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.plans.logical.Command
 import org.apache.spark.sql.catalyst.trees.CurrentOrigin
 import org.apache.spark.sql.types.StringType
 
@@ -25,7 +26,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
   self: SparkSqlAstBuilder =>
 
   override def visitCreateMaterializedViewStatement(
-      ctx: CreateMaterializedViewStatementContext): AnyRef = {
+      ctx: CreateMaterializedViewStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
       val mvName = getFullTableName(flint, ctx.mvName)
       val query = getMvQuery(ctx.query)
@@ -50,8 +51,17 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
     }
   }
 
+  override def visitRefreshMaterializedViewStatement(
+      ctx: RefreshMaterializedViewStatementContext): Command = {
+    FlintSparkSqlCommand() { flint =>
+      val flintIndexName = getFlintIndexName(flint, ctx.mvName)
+      flint.refreshIndex(flintIndexName, RefreshMode.FULL)
+      Seq.empty
+    }
+  }
+
   override def visitShowMaterializedViewStatement(
-      ctx: ShowMaterializedViewStatementContext): AnyRef = {
+      ctx: ShowMaterializedViewStatementContext): Command = {
     val outputSchema = Seq(
       AttributeReference("materialized_view_name", StringType, nullable = false)())
 
@@ -67,7 +77,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
   }
 
   override def visitDescribeMaterializedViewStatement(
-      ctx: DescribeMaterializedViewStatementContext): AnyRef = {
+      ctx: DescribeMaterializedViewStatementContext): Command = {
     val outputSchema = Seq(
       AttributeReference("output_col_name", StringType, nullable = false)(),
       AttributeReference("data_type", StringType, nullable = false)())
@@ -86,7 +96,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
   }
 
   override def visitDropMaterializedViewStatement(
-      ctx: DropMaterializedViewStatementContext): AnyRef = {
+      ctx: DropMaterializedViewStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
       flint.deleteIndex(getFlintIndexName(flint, ctx.mvName))
       Seq.empty
