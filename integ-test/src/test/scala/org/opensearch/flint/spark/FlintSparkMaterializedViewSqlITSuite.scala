@@ -142,7 +142,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
   test("create materialized view with quoted name and column name") {
     val testQuotedQuery =
       """ SELECT
-        |   window.start AS `startTime`,
+        |   window.start AS `start.time`,
         |   COUNT(*) AS `count`
         | FROM `spark_catalog`.`default`.`mv_test`
         | GROUP BY TUMBLE(`time`, '10 Minutes')""".stripMargin.trim
@@ -158,7 +158,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     val metadata = index.get.metadata()
     metadata.name shouldBe testMvName
     metadata.source shouldBe testQuotedQuery
-    metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("startTime", "count")
+    metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("start.time", "count")
   }
 
   test("show all materialized views in catalog and database") {
