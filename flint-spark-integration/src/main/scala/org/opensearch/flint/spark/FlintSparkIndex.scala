@@ -135,9 +135,10 @@ object FlintSparkIndex {
   }
 
   def generateSchemaJSON(allFieldTypes: Map[String, String]): String = {
+    // Backtick column names to escape special characters, otherwise fromDDL() will fail
     val catalogDDL =
       allFieldTypes
-        .map { case (colName, colType) => s"$colName $colType not null" }
+        .map { case (colName, colType) => s"`$colName` $colType not null" }
         .mkString(",")
 
     val structType = StructType.fromDDL(catalogDDL)
