@@ -20,6 +20,7 @@ import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 
 class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
@@ -126,6 +127,23 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     val settings = parse(flintClient.getIndexMetadata(testFlintIndex).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "3"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
+  }
+
+  test("create materialized view with manual refresh") {
+    sql(s"""
+         | CREATE MATERIALIZED VIEW $testMvName
+         | AS $testQuery
+         | WITH (
+         |   auto_refresh = false
+         | )
+         |""".stripMargin)
+
+    val indexData = spark.read.format(FLINT_DATASOURCE).load(testFlintIndex)
+    flint.describeIndex(testFlintIndex) shouldBe defined
+    indexData.count() shouldBe 0
+
+    sql(s"REFRESH MATERIALIZED VIEW $testMvName")
+    indexData.count() shouldBe 4
   }
 
   test("create materialized view if not exists") {
