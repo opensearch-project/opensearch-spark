@@ -10,7 +10,7 @@ import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
-import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.getFullTableName
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
 import org.apache.spark.sql.Row
@@ -38,6 +38,10 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       ctx.indexColumns.multipartIdentifierProperty().forEach { indexColCtx =>
         val colName = indexColCtx.multipartIdentifier().getText
         indexBuilder.addIndexColumns(colName)
+      }
+
+      if (ctx.whereClause() != null) {
+        indexBuilder.filterBy(getSqlText(ctx.whereClause().filterCondition()))
       }
 
       val ignoreIfExists = ctx.EXISTS() != null

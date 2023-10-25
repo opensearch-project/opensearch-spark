@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.spark.sql
 
+import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.tree.{ParseTree, RuleNode}
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.sql.covering.FlintSparkCoveringIndexAstBuilder
@@ -12,6 +13,7 @@ import org.opensearch.flint.spark.sql.mv.FlintSparkMaterializedViewAstBuilder
 import org.opensearch.flint.spark.sql.skipping.FlintSparkSkippingIndexAstBuilder
 
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.trees.CurrentOrigin
 import org.apache.spark.sql.flint.qualifyTableName
 
 /**
@@ -48,5 +50,21 @@ object FlintSparkSqlAstBuilder {
    */
   def getFullTableName(flint: FlintSpark, tableNameCtx: RuleNode): String = {
     qualifyTableName(flint.spark, tableNameCtx.getText)
+  }
+
+  /**
+   * Get original SQL text from the origin.
+   *
+   * @param ctx
+   *   rule context to get SQL text associated with
+   * @return
+   *   SQL text
+   */
+  def getSqlText(ctx: ParserRuleContext): String = {
+    // Origin must be preserved at the beginning of parsing
+    val sqlText = CurrentOrigin.get.sqlText.get
+    val startIndex = ctx.getStart.getStartIndex
+    val stopIndex = ctx.getStop.getStopIndex
+    sqlText.substring(startIndex, stopIndex + 1)
   }
 }

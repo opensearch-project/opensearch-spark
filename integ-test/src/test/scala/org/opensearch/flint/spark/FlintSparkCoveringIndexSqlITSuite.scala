@@ -59,6 +59,22 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     indexData.count() shouldBe 2
   }
 
+  test("create covering index with filtering condition") {
+    sql(s"""
+           | CREATE INDEX $testIndex ON $testTable
+           | (name, age)
+           | WHERE address = 'Portland'
+           | WITH (auto_refresh = true)
+           |""".stripMargin)
+
+    // Wait for streaming job complete current micro batch
+    val job = spark.streams.active.find(_.name == testFlintIndex)
+    awaitStreamingComplete(job.get.id.toString)
+
+    val indexData = flint.queryIndex(testFlintIndex)
+    indexData.count() shouldBe 1
+  }
+
   test("create covering index with streaming job options") {
     withTempDir { checkpointDir =>
       sql(s"""
