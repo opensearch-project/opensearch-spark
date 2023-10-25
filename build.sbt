@@ -179,7 +179,17 @@ lazy val sparkSqlApplication = (project in file("spark-sql-application"))
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.15" % "test"),
     libraryDependencies ++= deps(sparkVersion),
-    libraryDependencies += "com.typesafe.play" %% "play-json" % "2.9.2",
+    libraryDependencies ++= Seq(
+      "com.typesafe.play" %% "play-json" % "2.9.2",
+      // handle AmazonS3Exception
+      "com.amazonaws" % "aws-java-sdk-s3" % "1.12.568" % "provided"
+        // the transitive jackson.core dependency conflicts with existing scala
+        // error: Scala module 2.13.4 requires Jackson Databind version >= 2.13.0 and < 2.14.0 -
+        // Found jackson-databind version 2.14.2
+        exclude ("com.fasterxml.jackson.core", "jackson-databind"),
+      "org.scalatest" %% "scalatest" % "3.2.15" % "test",
+      "org.mockito" %% "mockito-scala" % "1.16.42" % "test",
+      "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test"),
     // Assembly settings
     // the sbt assembly plugin found multiple copies of the module-info.class file with
     // different contents in the jars  that it was merging flintCore dependencies.
