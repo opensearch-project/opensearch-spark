@@ -5,12 +5,10 @@
 
 package org.apache.spark.sql
 
-import org.scalatest.matchers.should.Matchers
-
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.types._
 
-class FlintJobTest extends SparkFunSuite with Matchers {
+class FlintJobTest extends SparkFunSuite with JobMatchers {
 
   val spark =
     SparkSession.builder().appName("Test").master("local").getOrCreate()
@@ -35,7 +33,16 @@ class FlintJobTest extends SparkFunSuite with Matchers {
         StructField("applicationId", StringType, nullable = true),
         StructField("dataSourceName", StringType, nullable = true),
         StructField("status", StringType, nullable = true),
-        StructField("error", StringType, nullable = true)))
+        StructField("error", StringType, nullable = true),
+        StructField("queryId", StringType, nullable = true),
+        StructField("queryText", StringType, nullable = true),
+        StructField("sessionId", StringType, nullable = true),
+        StructField("updateTime", LongType, nullable = false),
+        StructField("queryRunTime", LongType, nullable = false)))
+
+    val currentTime: Long = System.currentTimeMillis()
+    val queryRunTime: Long = 3000L
+
     val expectedRows = Seq(
       Row(
         Array(
@@ -49,18 +56,27 @@ class FlintJobTest extends SparkFunSuite with Matchers {
         "unknown",
         dataSourceName,
         "SUCCESS",
-        ""))
+        "",
+        "10",
+        "select 1",
+        "20",
+        currentTime,
+        queryRunTime))
     val expected: DataFrame =
       spark.createDataFrame(spark.sparkContext.parallelize(expectedRows), expectedSchema)
 
     // Compare the result
-    val result = FlintJob.getFormattedData(input, spark, dataSourceName)
+    val result =
+      FlintJob.getFormattedData(
+        input,
+        spark,
+        dataSourceName,
+        "10",
+        "select 1",
+        "20",
+        currentTime - queryRunTime,
+        new MockTimeProvider(currentTime))
     assertEqualDataframe(expected, result)
-  }
-
-  def assertEqualDataframe(expected: DataFrame, result: DataFrame): Unit = {
-    assert(expected.schema === result.schema)
-    assert(expected.collect() === result.collect())
   }
 
   test("test isSuperset") {

@@ -8,7 +8,7 @@ package org.opensearch.flint.spark
 import java.sql.Timestamp
 
 import scala.Option.empty
-import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
@@ -20,6 +20,7 @@ import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 
 class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
@@ -128,6 +129,23 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
 
+  test("create materialized view with manual refresh") {
+    sql(s"""
+         | CREATE MATERIALIZED VIEW $testMvName
+         | AS $testQuery
+         | WITH (
+         |   auto_refresh = false
+         | )
+         |""".stripMargin)
+
+    val indexData = spark.read.format(FLINT_DATASOURCE).load(testFlintIndex)
+    flint.describeIndex(testFlintIndex) shouldBe defined
+    indexData.count() shouldBe 0
+
+    sql(s"REFRESH MATERIALIZED VIEW $testMvName")
+    indexData.count() shouldBe 4
+  }
+
   test("create materialized view if not exists") {
     sql(s"CREATE MATERIALIZED VIEW IF NOT EXISTS $testMvName AS $testQuery")
     flint.describeIndex(testFlintIndex) shouldBe defined
@@ -137,6 +155,28 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       sql(s"CREATE MATERIALIZED VIEW $testMvName AS $testQuery")
 
     sql(s"CREATE MATERIALIZED VIEW IF NOT EXISTS $testMvName AS $testQuery")
+  }
+
+  test("create materialized view with quoted name and column name") {
+    val testQuotedQuery =
+      """ SELECT
+        |   window.start AS `start.time`,
+        |   COUNT(*) AS `count`
+        | FROM `spark_catalog`.`default`.`mv_test`
+        | GROUP BY TUMBLE(`time`, '10 Minutes')""".stripMargin.trim
+
+    sql(s"""
+           | CREATE MATERIALIZED VIEW `spark_catalog`.`default`.`mv_test_metrics`
+           | AS $testQuotedQuery
+           |""".stripMargin)
+
+    val index = flint.describeIndex(testFlintIndex)
+    index shouldBe defined
+
+    val metadata = index.get.metadata()
+    metadata.name shouldBe testMvName
+    metadata.source shouldBe testQuotedQuery
+    metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("start.time", "count")
   }
 
   test("show all materialized views in catalog and database") {

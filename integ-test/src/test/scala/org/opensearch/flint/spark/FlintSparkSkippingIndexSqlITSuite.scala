@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark
 
 import scala.Option.empty
-import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
@@ -165,6 +165,24 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
            | IF NOT EXISTS
            | ON $testTable ( year PARTITION )
            | """.stripMargin)
+  }
+
+  test("create skipping index with quoted table and column name") {
+    sql(s"""
+           | CREATE SKIPPING INDEX ON `spark_catalog`.`default`.`skipping_sql_test`
+           | (
+           |   `year` PARTITION,
+           |   `name` VALUE_SET,
+           |   `age` MIN_MAX
+           | )
+           | """.stripMargin)
+
+    val index = flint.describeIndex(testIndex)
+    index shouldBe defined
+
+    val metadata = index.get.metadata()
+    metadata.source shouldBe testTable
+    metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("year", "name", "age")
   }
 
   test("describe skipping index") {

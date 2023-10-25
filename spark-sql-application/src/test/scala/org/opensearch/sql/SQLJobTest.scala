@@ -5,13 +5,11 @@
 
 package org.opensearch.sql
 
-import org.scalatest.matchers.should.Matchers
-
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, JobMatchers, Row, SparkSession}
 import org.apache.spark.sql.types.{ArrayType, IntegerType, StringType, StructField, StructType}
 
-class SQLJobTest extends SparkFunSuite with Matchers {
+class SQLJobTest extends SparkFunSuite with JobMatchers {
 
   val spark = SparkSession.builder().appName("Test").master("local").getOrCreate()
 
@@ -49,10 +47,5 @@ class SQLJobTest extends SparkFunSuite with Matchers {
     // Compare the result
     val result = SQLJob.getFormattedData(input, spark)
     assertEqualDataframe(expected, result)
-  }
-
-  def assertEqualDataframe(expected: DataFrame, result: DataFrame): Unit = {
-    assert(expected.schema === result.schema)
-    assert(expected.collect() === result.collect())
   }
 }
