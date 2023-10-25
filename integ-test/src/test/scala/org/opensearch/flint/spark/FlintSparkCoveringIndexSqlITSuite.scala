@@ -15,10 +15,11 @@ import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.defined
+import org.scalatest.matchers.must.Matchers.{defined, have}
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
 
 class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
@@ -102,6 +103,22 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
              | (name, age)
              | WITH (autoRefresh = true)
              | """.stripMargin)
+  }
+
+  test("create skipping index with auto refresh should fail if mandatory checkpoint enabled") {
+    setFlintSparkConf(CHECKPOINT_MANDATORY, "true")
+    try {
+      the[IllegalStateException] thrownBy {
+        sql(s"""
+               | CREATE INDEX $testIndex ON $testTable
+               | (name, age)
+               | WITH (auto_refresh = true)
+               | """.stripMargin)
+      } should have message
+        "Checkpoint location is mandatory for incremental refresh if spark.flint.index.checkpoint.mandatory enabled"
+    } finally {
+      setFlintSparkConf(CHECKPOINT_MANDATORY, "false")
+    }
   }
 
   test("create covering index with manual refresh") {

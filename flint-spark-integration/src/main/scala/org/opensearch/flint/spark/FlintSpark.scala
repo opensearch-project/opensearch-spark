@@ -21,7 +21,7 @@ import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.SaveMode._
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
+import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
 import org.apache.spark.sql.streaming.{DataStreamWriter, Trigger}
 
 /**
@@ -247,7 +247,13 @@ class FlintSpark(val spark: SparkSession) {
     }
 
     def addCheckpointLocation(checkpointLocation: Option[String]): DataStreamWriter[Row] = {
-      checkpointLocation.map(dataStream.option("checkpointLocation", _)).getOrElse(dataStream)
+      checkpointLocation match {
+        case Some(location) => dataStream.option("checkpointLocation", location)
+        case None if flintSparkConf.isCheckpointMandatory =>
+          throw new IllegalStateException(
+            s"Checkpoint location is mandatory for incremental refresh if ${CHECKPOINT_MANDATORY.key} enabled")
+        case _ => dataStream
+      }
     }
 
     def addRefreshInterval(refreshInterval: Option[String]): DataStreamWriter[Row] = {
