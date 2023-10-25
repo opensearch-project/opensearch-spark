@@ -195,6 +195,8 @@ CREATE MATERIALIZED VIEW [IF NOT EXISTS] name
 AS <query>
 WITH ( options )
 
+REFRESH MATERIALIZED VIEW name
+
 SHOW MATERIALIZED [VIEW|VIEWS] IN catalog[.database]
 
 [DESC|DESCRIBE] MATERIALIZED VIEW name
@@ -212,6 +214,8 @@ SELECT
   COUNT(*) AS count
 FROM alb_logs
 GROUP BY TUMBLE(time, '1 Minute')
+
+REFRESH MATERIALIZED VIEW alb_logs_metrics
 
 SHOW MATERIALIZED VIEWS IN spark_catalog.default
 
@@ -341,6 +345,7 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.datasource.flint.read.scroll_size`: default value is 100.
 - `spark.flint.optimizer.enabled`: default is true.
 - `spark.flint.index.hybridscan.enabled`: default is false.
+- `spark.flint.index.checkpoint.mandatory`: default is true.
 
 #### Data Type Mapping
 

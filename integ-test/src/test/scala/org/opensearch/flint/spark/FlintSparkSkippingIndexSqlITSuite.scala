@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark
 
 import scala.Option.empty
-import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
@@ -14,11 +14,12 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.defined
+import org.scalatest.matchers.must.Matchers.{defined, have}
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
+import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
 
 class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
@@ -109,6 +110,22 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
              | """.stripMargin)
   }
 
+  test("create skipping index with auto refresh should fail if mandatory checkpoint enabled") {
+    setFlintSparkConf(CHECKPOINT_MANDATORY, "true")
+    try {
+      the[IllegalStateException] thrownBy {
+        sql(s"""
+               | CREATE SKIPPING INDEX ON $testTable
+               | ( year PARTITION )
+               | WITH (auto_refresh = true)
+               | """.stripMargin)
+      } should have message
+        "Checkpoint location is mandatory for incremental refresh if spark.flint.index.checkpoint.mandatory enabled"
+    } finally {
+      setFlintSparkConf(CHECKPOINT_MANDATORY, "false")
+    }
+  }
+
   test("create skipping index with manual refresh") {
     sql(s"""
          | CREATE SKIPPING INDEX ON $testTable
@@ -148,6 +165,24 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
            | IF NOT EXISTS
            | ON $testTable ( year PARTITION )
            | """.stripMargin)
+  }
+
+  test("create skipping index with quoted table and column name") {
+    sql(s"""
+           | CREATE SKIPPING INDEX ON `spark_catalog`.`default`.`skipping_sql_test`
+           | (
+           |   `year` PARTITION,
+           |   `name` VALUE_SET,
+           |   `age` MIN_MAX
+           | )
+           | """.stripMargin)
+
+    val index = flint.describeIndex(testIndex)
+    index shouldBe defined
+
+    val metadata = index.get.metadata()
+    metadata.source shouldBe testTable
+    metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("year", "name", "age")
   }
 
   test("describe skipping index") {

@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark
 
 import scala.Option.empty
-import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
@@ -15,10 +15,11 @@ import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.defined
+import org.scalatest.matchers.must.Matchers.{defined, have}
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
 
 class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
@@ -120,6 +121,22 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
              | """.stripMargin)
   }
 
+  test("create skipping index with auto refresh should fail if mandatory checkpoint enabled") {
+    setFlintSparkConf(CHECKPOINT_MANDATORY, "true")
+    try {
+      the[IllegalStateException] thrownBy {
+        sql(s"""
+               | CREATE INDEX $testIndex ON $testTable
+               | (name, age)
+               | WITH (auto_refresh = true)
+               | """.stripMargin)
+      } should have message
+        "Checkpoint location is mandatory for incremental refresh if spark.flint.index.checkpoint.mandatory enabled"
+    } finally {
+      setFlintSparkConf(CHECKPOINT_MANDATORY, "false")
+    }
+  }
+
   test("create covering index with manual refresh") {
     sql(s"""
            | CREATE INDEX $testIndex ON $testTable
@@ -193,6 +210,21 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
            | CREATE INDEX IF NOT EXISTS $testIndex
            | ON $testTable (name, age)
            |""".stripMargin)
+  }
+
+  test("create skipping index with quoted index, table and column name") {
+    sql(s"""
+           | CREATE INDEX `$testIndex` ON `spark_catalog`.`default`.`covering_sql_test`
+           | (`name`, `age`)
+           | """.stripMargin)
+
+    val index = flint.describeIndex(testFlintIndex)
+    index shouldBe defined
+
+    val metadata = index.get.metadata()
+    metadata.name shouldBe testIndex
+    metadata.source shouldBe testTable
+    metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("name", "age")
   }
 
   test("show all covering index on the source table") {

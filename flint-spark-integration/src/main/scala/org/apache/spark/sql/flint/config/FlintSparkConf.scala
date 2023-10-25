@@ -113,6 +113,10 @@ object FlintSparkConf {
   val HYBRID_SCAN_ENABLED = FlintConfig("spark.flint.index.hybridscan.enabled")
     .doc("Enable hybrid scan to include latest source data not refreshed to index yet")
     .createWithDefault("false")
+
+  val CHECKPOINT_MANDATORY = FlintConfig("spark.flint.index.checkpoint.mandatory")
+    .doc("Checkpoint location for incremental refresh index will be mandatory if enabled")
+    .createWithDefault("true")
 }
 
 /**
@@ -136,6 +140,8 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
   def isOptimizerEnabled: Boolean = OPTIMIZER_RULE_ENABLED.readFrom(reader).toBoolean
 
   def isHybridScanEnabled: Boolean = HYBRID_SCAN_ENABLED.readFrom(reader).toBoolean
+
+  def isCheckpointMandatory: Boolean = CHECKPOINT_MANDATORY.readFrom(reader).toBoolean
 
   /**
    * spark.sql.session.timeZone
