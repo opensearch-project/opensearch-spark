@@ -5,19 +5,17 @@
 
 package org.opensearch.flint.core.storage;
 
-import java.io.IOException;
 import java.util.Base64;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.get.GetResponse;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.support.WriteRequest;
 import org.opensearch.action.update.UpdateRequest;
-import org.opensearch.action.update.UpdateResponse;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.common.xcontent.XContentType;
@@ -25,14 +23,27 @@ import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
 
+/**
+ * Optimistic transaction implementation by OpenSearch OCC.
+ * For now use single doc instead of maintaining history of metadata log.
+ *
+ * @param <T> result type
+ */
 public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction<T> {
 
+  /**
+   * Flint client to create Rest OpenSearch client (This will be refactored later)
+   */
   private final FlintClient flintClient;
 
-  // Reuse query request index as Flint metadata log store
+  /**
+   * Reuse query request index as Flint metadata log store
+   */
   private final String metadataLogIndexName = ".query_request_history_mys3"; // TODO: get suffix ds name from Spark conf
 
-  // No need to query Flint index metadata
+  /**
+   * Doc id for latest log entry (Naming rule is static so no need to query Flint index metadata)
+   */
   private final String latestId;
 
   private Predicate<FlintMetadataLogEntry> initialCondition = null;
@@ -70,9 +81,11 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
 
     FlintMetadataLogEntry latest = getLatestLogEntry();
     if (initialCondition.test(latest)) {
-      updateDoc(transientAction.apply(latest));
+      // TODO: log entry can be same?
+      createOrUpdateDoc(transientAction.apply(latest));
       T result = operation.get();
-      updateDoc(finalAction.apply(getLatestLogEntry()));
+      // TODO: don't get latest, use previous entry again. (set seqno in update)
+      createOrUpdateDoc(finalAction.apply(getLatestLogEntry()));
       return result;
     } else {
       throw new IllegalStateException();
@@ -80,60 +93,46 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
   }
 
   private FlintMetadataLogEntry getLatestLogEntry() {
-    return getDoc(latestId).orElse(
-        new FlintMetadataLogEntry("", -1, -1, "empty", "mys3", ""));
-  }
-
-  // Visible for IT
-  public Optional<FlintMetadataLogEntry> getDoc(String docId) {
-    RestHighLevelClient client = flintClient.createClient();
-    try {
-      GetResponse response = client.get(new GetRequest(metadataLogIndexName, docId), RequestOptions.DEFAULT);
-      return Optional.of(new FlintMetadataLogEntry(response.getId(), response.getSeqNo(), response.getPrimaryTerm(), response.getSourceAsMap()));
+    try (RestHighLevelClient client = flintClient.createClient()) {
+      GetResponse response =
+          client.get(new GetRequest(metadataLogIndexName, latestId), RequestOptions.DEFAULT);
+      return new FlintMetadataLogEntry(
+          response.getId(),
+          response.getSeqNo(),
+          response.getPrimaryTerm(),
+          response.getSourceAsMap());
     } catch (Exception e) {
-      return Optional.empty();
+      return new FlintMetadataLogEntry("", -1, -1, "empty", "mys3", "");
     }
   }
 
-  private void createDoc(FlintMetadataLogEntry logEntry) {
+  private void createOrUpdateDoc(FlintMetadataLogEntry logEntry) {
     try (RestHighLevelClient client = flintClient.createClient()) {
-      IndexRequest request = new IndexRequest()
-          .index(metadataLogIndexName)
-          .id(logEntry.docId())
-          .source(logEntry.toJson(), XContentType.JSON);
-      client.index(request, RequestOptions.DEFAULT);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
+      DocWriteResponse response;
+      if (logEntry.id().isEmpty()) {
+        logEntry.id_$eq(latestId);
+        response = client.index(
+            new IndexRequest()
+                .index(metadataLogIndexName)
+                .id(logEntry.id())
+                .source(logEntry.toJson(), XContentType.JSON),
+            RequestOptions.DEFAULT);
+      } else {
+        response =
+            client.update(
+                new UpdateRequest(metadataLogIndexName, logEntry.id())
+                    .doc(logEntry.toJson(), XContentType.JSON)
+                    .setRefreshPolicy(WriteRequest.RefreshPolicy.WAIT_UNTIL)
+                    .setIfSeqNo(logEntry.seqNo())
+                    .setIfPrimaryTerm(logEntry.primaryTerm()),
+                RequestOptions.DEFAULT);
+      }
 
-  private void updateDoc(FlintMetadataLogEntry logEntry) {
-    if (logEntry.docId().isEmpty()) {
-      createDoc(
-          logEntry.copy(
-              latestId,
-              logEntry.seqNo(),
-              logEntry.primaryTerm(),
-              logEntry.state(),
-              logEntry.dataSource(),
-              logEntry.error()));
-    } else {
-      updateIf(logEntry.docId(), logEntry.toJson(), logEntry.seqNo(), logEntry.primaryTerm());
-    }
-  }
-
-  public void updateIf(String id, String doc, long seqNo, long primaryTerm) {
-    try (RestHighLevelClient client = flintClient.createClient()) {
-      UpdateRequest updateRequest = new UpdateRequest(metadataLogIndexName, id)
-          .doc(doc, XContentType.JSON)
-          .setRefreshPolicy(WriteRequest.RefreshPolicy.WAIT_UNTIL)
-          .setIfSeqNo(seqNo)
-          .setIfPrimaryTerm(primaryTerm);
-      UpdateResponse response = client.update(updateRequest, RequestOptions.DEFAULT);
-    } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Failed to execute update request on index: %s, id: %s", metadataLogIndexName, id),
-          e);
+      // Update seqNo and primaryTerm in log entry object
+      logEntry.seqNo_$eq(response.getSeqNo()); // TODO: convert log entry to Java class?
+      logEntry.primaryTerm_$eq(response.getPrimaryTerm());
+    } catch (Exception e) {
+      throw new RuntimeException(e); // TODO: handle expression properly
     }
   }
 }

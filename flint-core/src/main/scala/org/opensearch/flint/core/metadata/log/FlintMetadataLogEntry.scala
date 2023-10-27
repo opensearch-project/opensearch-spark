@@ -5,13 +5,30 @@
 
 package org.opensearch.flint.core.metadata.log
 
+/**
+ * Flint metadata log entry. This is temporary and will merge field in FlintMetadata here and move
+ * implementation specific field, such as seqNo, primaryTerm, dataSource to properties.
+ *
+ * @param id
+ *   log entry id
+ * @param seqNo
+ *   OpenSearch sequence number
+ * @param primaryTerm
+ *   OpenSearch primary term
+ * @param state
+ *   Flint index state
+ * @param dataSource
+ *   OpenSearch data source associated //TODO: remove?
+ * @param error
+ *   error details if in error state
+ */
 case class FlintMetadataLogEntry(
-    docId: String = "",
-    seqNo: Long = -1,
-    primaryTerm: Long = -1,
-    state: String = "empty",
-    dataSource: String = "", // TODO: get from Spark conf
-    error: String = "") {
+    var id: String = "",
+    var seqNo: Long = -1,
+    var primaryTerm: Long = -1,
+    var state: String = "empty",
+    var dataSource: String = "", // TODO: get from Spark conf
+    var error: String = "") {
 
   def this(docId: String, seqNo: Long, primaryTerm: Long, map: java.util.Map[String, AnyRef]) {
     this(
