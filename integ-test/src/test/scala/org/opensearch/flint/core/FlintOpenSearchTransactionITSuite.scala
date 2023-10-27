@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.spark
+package org.opensearch.flint.core
 
 import java.util.{Base64, Collections}
 
@@ -12,11 +12,11 @@ import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConv
 import org.opensearch.action.get.GetRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.CreateIndexRequest
-import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
+import org.opensearch.flint.spark.FlintSparkSuite
 import org.scalatest.matchers.should.Matchers
 
-class FlintSparkIndexOperationITSuite extends FlintSparkSuite with Matchers {
+class FlintOpenSearchTransactionITSuite extends FlintSparkSuite with Matchers {
 
   val testFlintIndex = "flint_test_index"
   val testMetadataLogIndex = ".query_request_history_mys3"
