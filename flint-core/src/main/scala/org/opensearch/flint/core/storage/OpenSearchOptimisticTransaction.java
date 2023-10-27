@@ -30,7 +30,7 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
   private final FlintClient flintClient;
 
   // Reuse query request index as Flint metadata log store
-  private final String metadataLogIndexName = ".query_request_history_mys3"; // + ds name
+  private final String metadataLogIndexName = ".query_request_history_mys3"; // TODO: get suffix ds name from Spark conf
 
   // No need to query Flint index metadata
   private final String latestId;
@@ -63,7 +63,7 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
   }
 
   @Override
-  public T execute(Supplier<T> action) {
+  public T execute(Supplier<T> operation) {
     Objects.requireNonNull(initialCondition);
     Objects.requireNonNull(transientAction);
     Objects.requireNonNull(finalAction);
@@ -71,7 +71,7 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
     FlintMetadataLogEntry latest = getLatestLogEntry();
     if (initialCondition.test(latest)) {
       updateDoc(transientAction.apply(latest));
-      T result = action.get();
+      T result = operation.get();
       updateDoc(finalAction.apply(getLatestLogEntry()));
       return result;
     } else {
