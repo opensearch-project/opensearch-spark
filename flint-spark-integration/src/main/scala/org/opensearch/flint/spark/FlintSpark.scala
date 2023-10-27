@@ -88,7 +88,16 @@ class FlintSpark(val spark: SparkSession) {
       }
     } else {
       val metadata = index.metadata()
-      flintClient.createIndex(indexName, metadata)
+
+      FlintSparkIndexOperation(indexName, flintClient)
+        .before(latest => latest.state == "empty")
+        .transient(latest => latest.copy(state = "creating"))
+        .operation {
+          flintClient.createIndex(indexName, metadata)
+          null
+        }
+        .after(latest => latest.copy(state = "created"))
+        .execute()
     }
   }
 
