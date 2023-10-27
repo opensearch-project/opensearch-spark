@@ -42,6 +42,7 @@ import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.auth.AWSRequestSigningApacheInterceptor;
 import org.opensearch.flint.core.metadata.FlintMetadata;
+import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
 import org.opensearch.index.query.AbstractQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
@@ -66,6 +67,10 @@ public class FlintOpenSearchClient implements FlintClient {
 
   public FlintOpenSearchClient(FlintOptions options) {
     this.options = options;
+  }
+
+  @Override public <T> OptimisticTransaction<T> startTransaction(String indexName) {
+    return new OpenSearchOptimisticTransaction<>(indexName, this);
   }
 
   @Override public void createIndex(String indexName, FlintMetadata metadata) {

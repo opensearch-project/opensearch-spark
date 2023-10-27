@@ -32,19 +32,18 @@ class FlintSparkIndexOperationITSuite extends FlintSparkSuite with Matchers {
   test("test") {
     val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
 
-    FlintSparkIndexOperation(testFlintIndex, flintClient)
-      .before(latest => {
-        // latest.docId shouldBe
+    flintClient
+      .startTransaction(testFlintIndex)
+      .initialLog(latest => {
         latest.state shouldBe "empty"
         true
       })
-      .transient(latest => latest.copy(state = "creating"))
-      .operation(() => {
+      .transientLog(latest => latest.copy(state = "creating"))
+      .finalLog(latest => latest.copy(state = "created"))
+      .execute(() => {
         latestLogEntry should contain("state" -> "creating")
         null
       })
-      .after(latest => latest.copy(state = "created"))
-      .execute()
 
     latestLogEntry should contain("state" -> "created")
   }
