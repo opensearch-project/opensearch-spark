@@ -32,7 +32,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
   behavior of "Flint OpenSearch client"
 
   it should "start no optimistic transaction if metadata log index doesn't exists" in {
-    val transaction = flintClient.startTransaction("test")
+    val transaction = flintClient.startTransaction("test", "non-exist-index")
     transaction shouldBe a[NoOptimisticTransaction[AnyRef]]
   }
 

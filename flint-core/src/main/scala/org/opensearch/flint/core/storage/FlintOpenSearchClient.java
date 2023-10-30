@@ -74,9 +74,8 @@ public class FlintOpenSearchClient implements FlintClient {
     this.options = options;
   }
 
-  @Override public <T> OptimisticTransaction<T> startTransaction(String indexName) {
-    LOG.info("Starting transaction on index " + indexName);
-    String metaLogIndexName = ".query_request_history_mys3";
+  @Override public <T> OptimisticTransaction<T> startTransaction(String indexName, String metaLogIndexName) {
+    LOG.info("Starting transaction on index " + indexName + " and metadata log index " + metaLogIndexName);
     try (RestHighLevelClient client = createClient()) {
       if (client.indices().exists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
         return new DefaultOptimisticTransaction<>(

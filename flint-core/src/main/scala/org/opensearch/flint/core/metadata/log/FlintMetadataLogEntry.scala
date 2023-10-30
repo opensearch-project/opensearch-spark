@@ -44,11 +44,12 @@ case class FlintMetadataLogEntry(
   }
 
   def toJson: String = {
+    // Implicitly populate latest appId, jobId and timestamp whenever persist
     s"""
        |{
        |  "version": "1.0",
        |  "type": "flintindexstate",
-       |  "state": "${state.toString}",
+       |  "state": "$state",
        |  "applicationId": "${sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown")}",
        |  "jobId": "${sys.env.getOrElse("SERVERLESS_EMR_JOB_ID", "unknown")}",
        |  "dataSourceName": "$dataSource",

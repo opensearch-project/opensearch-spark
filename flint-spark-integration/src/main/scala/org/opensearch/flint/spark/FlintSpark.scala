@@ -50,6 +50,15 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   private val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
 
   /**
+   * Metadata log index name with a default name for backward compatibility. If the index doesn't
+   * exist, the transaction support will be disabled in FlintClient.
+   */
+  private val metaLogIndexName: String = {
+    val indexName = spark.conf.getOption("spark.flint.job.requestIndex")
+    indexName.getOrElse(".query_execution_request")
+  }
+
+  /**
    * Create index builder for creating index with fluent API.
    *
    * @return
@@ -98,7 +107,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       val metadata = index.metadata()
       try {
         flintClient
-          .startTransaction(indexName)
+          .startTransaction(indexName, metaLogIndexName)
           .initialLog(latest => latest.state == EMPTY)
           .transientLog(latest => latest.copy(state = CREATING))
           .finalLog(latest => latest.copy(state = ACTIVE))
@@ -128,7 +137,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
 
     try {
       flintClient
-        .startTransaction(indexName)
+        .startTransaction(indexName, metaLogIndexName)
         .initialLog(latest => latest.state == ACTIVE)
         .transientLog(latest => latest.copy(state = REFRESHING))
         .finalLog(latest => {
@@ -201,7 +210,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     if (flintClient.exists(indexName)) {
       try {
         flintClient
-          .startTransaction(indexName)
+          .startTransaction(indexName, metaLogIndexName)
           .initialLog(latest => latest.state == ACTIVE || latest.state == REFRESHING)
           .transientLog(latest => latest.copy(state = DELETING))
           .finalLog(latest => latest.copy(state = DELETED))
@@ -242,7 +251,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         logInfo("Scheduler triggers index log entry update")
         try {
           flintClient
-            .startTransaction(indexName)
+            .startTransaction(indexName, metaLogIndexName)
             .initialLog(latest => latest.state == REFRESHING)
             .finalLog(latest => latest) // timestamp will update automatically
             .commit(latest => logInfo("Updating log entry to " + latest))

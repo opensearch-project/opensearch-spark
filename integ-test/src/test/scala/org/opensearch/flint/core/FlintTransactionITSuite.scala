@@ -13,14 +13,10 @@ import org.opensearch.flint.OpenSearchTransactionSuite
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
-import org.opensearch.flint.spark.FlintSparkSuite
 import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
 import org.scalatest.matchers.should.Matchers
 
-class FlintTransactionITSuite
-    extends FlintSparkSuite
-    with OpenSearchTransactionSuite
-    with Matchers {
+class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   val testFlintIndex = "flint_test_index"
   val testLatestId: String = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
@@ -33,7 +29,7 @@ class FlintTransactionITSuite
 
   test("should transit from initial to final log if initial log is empty") {
     flintClient
-      .startTransaction(testFlintIndex)
+      .startTransaction(testFlintIndex, testMetaLogIndex)
       .initialLog(latest => {
         latest.state shouldBe EMPTY
         true
@@ -47,7 +43,7 @@ class FlintTransactionITSuite
 
   test("should transit from initial to final log directly if no transient log") {
     flintClient
-      .startTransaction(testFlintIndex)
+      .startTransaction(testFlintIndex, testMetaLogIndex)
       .initialLog(_ => true)
       .finalLog(latest => latest.copy(state = ACTIVE))
       .commit(_ => latestLogEntry(testLatestId) should contain("state" -> "empty"))
@@ -68,7 +64,7 @@ class FlintTransactionITSuite
         error = ""))
 
     flintClient
-      .startTransaction(testFlintIndex)
+      .startTransaction(testFlintIndex, testMetaLogIndex)
       .initialLog(latest => {
         latest.state shouldBe ACTIVE
         true
@@ -83,7 +79,7 @@ class FlintTransactionITSuite
   test("should exit if initial log entry doesn't meet precondition") {
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex)
+        .startTransaction(testFlintIndex, testMetaLogIndex)
         .initialLog(_ => false)
         .transientLog(latest => latest)
         .finalLog(latest => latest)
@@ -94,7 +90,7 @@ class FlintTransactionITSuite
   test("should fail if initial log entry updated by others when updating transient log entry") {
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex)
+        .startTransaction(testFlintIndex, testMetaLogIndex)
         .initialLog(_ => true)
         .transientLog(latest => {
           // This update will happen first and thus cause version conflict as expected
@@ -110,7 +106,7 @@ class FlintTransactionITSuite
   test("should fail if transient log entry updated by others when updating final log entry") {
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex)
+        .startTransaction(testFlintIndex, testMetaLogIndex)
         .initialLog(_ => true)
         .transientLog(latest => {
 

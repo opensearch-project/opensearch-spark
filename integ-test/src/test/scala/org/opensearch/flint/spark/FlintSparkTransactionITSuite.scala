@@ -13,8 +13,7 @@ import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIn
 import org.scalatest.matchers.should.Matchers
 
 class FlintSparkTransactionITSuite
-    extends FlintSparkSuite
-    with OpenSearchTransactionSuite
+    extends OpenSearchTransactionSuite
     with Matchers {
 
   /** Test table and index name */

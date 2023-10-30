@@ -24,26 +24,32 @@ import org.opensearch.flint.spark.FlintSparkSuite
  * Transaction test base suite that creates the metadata log index which enables transaction
  * support in index operation.
  */
-trait OpenSearchTransactionSuite {
-  self: FlintSparkSuite =>
+trait OpenSearchTransactionSuite extends FlintSparkSuite {
 
-  val testMetadataLogIndex = ".query_request_history_mys3"
+  val testMetaLogIndex = ".query_execution_request_mys3"
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    spark.conf.set("spark.flint.job.requestIndex", testMetaLogIndex)
+  }
 
   override def beforeEach(): Unit = {
+    super.beforeEach()
     openSearchClient
       .indices()
-      .create(new CreateIndexRequest(testMetadataLogIndex), RequestOptions.DEFAULT)
+      .create(new CreateIndexRequest(testMetaLogIndex), RequestOptions.DEFAULT)
   }
 
   override def afterEach(): Unit = {
     openSearchClient
       .indices()
-      .delete(new DeleteIndexRequest(testMetadataLogIndex), RequestOptions.DEFAULT)
+      .delete(new DeleteIndexRequest(testMetaLogIndex), RequestOptions.DEFAULT)
+    super.afterEach()
   }
 
   def latestLogEntry(latestId: String): Map[String, AnyRef] = {
     val response = openSearchClient
-      .get(new GetRequest(testMetadataLogIndex, latestId), RequestOptions.DEFAULT)
+      .get(new GetRequest(testMetaLogIndex, latestId), RequestOptions.DEFAULT)
 
     Option(response.getSourceAsMap).getOrElse(Collections.emptyMap()).asScala.toMap
   }
@@ -51,7 +57,7 @@ trait OpenSearchTransactionSuite {
   def createLatestLogEntry(latest: FlintMetadataLogEntry): Unit = {
     openSearchClient.index(
       new IndexRequest()
-        .index(testMetadataLogIndex)
+        .index(testMetaLogIndex)
         .id(latest.id)
         .source(latest.toJson, XContentType.JSON),
       RequestOptions.DEFAULT)
@@ -59,7 +65,7 @@ trait OpenSearchTransactionSuite {
 
   def updateLatestLogEntry(latest: FlintMetadataLogEntry, newState: IndexState): Unit = {
     openSearchClient.update(
-      new UpdateRequest(testMetadataLogIndex, latest.id)
+      new UpdateRequest(testMetaLogIndex, latest.id)
         .doc(latest.copy(state = newState).toJson, XContentType.JSON),
       RequestOptions.DEFAULT)
   }
