@@ -95,7 +95,7 @@ class FlintOpenSearchTransactionITSuite extends FlintSparkSuite with Matchers {
     }
   }
 
-  ignore("should exit if initial log entry updated by others when adding transient log entry") {
+  test("should exit if initial log entry updated by others when adding transient log entry") {
     the[IllegalStateException] thrownBy {
       flintClient
         .startTransaction(testFlintIndex)

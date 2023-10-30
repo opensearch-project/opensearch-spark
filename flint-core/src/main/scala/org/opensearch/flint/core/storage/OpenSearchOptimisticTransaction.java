@@ -11,6 +11,8 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
+import org.opensearch.OpenSearchException;
 import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.get.GetResponse;
 import org.opensearch.action.index.IndexRequest;
@@ -32,6 +34,8 @@ import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
  * @param <T> result type
  */
 public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction<T> {
+
+  private static final Logger LOG = Logger.getLogger(OpenSearchOptimisticTransaction.class.getName());
 
   /**
    * Flint client to create Rest OpenSearch client (This will be refactored later)
@@ -96,9 +100,11 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
       updateLogEntry(finalAction.apply(latest));
       return result;
     } else {
-      throw new IllegalStateException();
+      throw new IllegalStateException("Exit due to initial log precondition not satisfied");
     }
   }
+
+  // TODO: Move all these to FlintLogEntry <- FlintOpenSearchLogEntry
 
   private FlintMetadataLogEntry getLatestLogEntry() {
     RestHighLevelClient client = flintClient.createClient();
@@ -121,6 +127,7 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
   }
 
   private FlintMetadataLogEntry createLogEntry(FlintMetadataLogEntry logEntry) {
+    LOG.info("Creating log entry " + logEntry);
     try (RestHighLevelClient client = flintClient.createClient()) {
       logEntry = logEntry.copy(
           latestId,
@@ -137,12 +144,13 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
       return logEntry.copy(
           logEntry.id(), response.getSeqNo(), response.getPrimaryTerm(),
           logEntry.state(), logEntry.dataSource(), logEntry.error());
-    } catch (IOException e) {
+    } catch (OpenSearchException | IOException e) {
       throw new IllegalStateException("Failed to create initial log entry", e);
     }
   }
 
   private FlintMetadataLogEntry updateLogEntry(FlintMetadataLogEntry logEntry) {
+    LOG.info("Updating log entry " + logEntry);
     try (RestHighLevelClient client = flintClient.createClient()) {
       UpdateResponse response =
           client.update(
@@ -157,7 +165,7 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
       return logEntry.copy(
           logEntry.id(), response.getSeqNo(), response.getPrimaryTerm(),
           logEntry.state(), logEntry.dataSource(), logEntry.error());
-    } catch (IOException e) {
+    } catch (OpenSearchException | IOException e) {
       throw new IllegalStateException("Failed to update log entry: " + logEntry, e);
     }
   }

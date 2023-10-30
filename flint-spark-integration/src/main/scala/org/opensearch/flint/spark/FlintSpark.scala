@@ -17,6 +17,7 @@ import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.SaveMode._
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
@@ -27,7 +28,7 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, Trigger}
 /**
  * Flint Spark integration API entrypoint.
  */
-class FlintSpark(val spark: SparkSession) {
+class FlintSpark(val spark: SparkSession) extends Logging {
 
   /** Flint spark configuration */
   private val flintSparkConf: FlintSparkConf =
@@ -81,6 +82,7 @@ class FlintSpark(val spark: SparkSession) {
    *   Ignore existing index
    */
   def createIndex(index: FlintSparkIndex, ignoreIfExists: Boolean = false): Unit = {
+    logInfo(s"Creating Flint index $index with ignoreIfExists $ignoreIfExists")
     val indexName = index.name()
     if (flintClient.exists(indexName)) {
       if (!ignoreIfExists) {
@@ -88,16 +90,16 @@ class FlintSpark(val spark: SparkSession) {
       }
     } else {
       val metadata = index.metadata()
-
-      flintClient
-        .startTransaction(indexName)
-        .initialLog(latest => latest.state == "empty")
-        .transientLog(latest => latest.copy(state = "creating"))
-        .finalLog(latest => latest.copy(state = "created"))
-        .execute(() => {
-          flintClient.createIndex(indexName, metadata)
-          null
-        })
+      try {
+        flintClient
+          .startTransaction(indexName)
+          .initialLog(latest => latest.state == "empty")
+          .transientLog(latest => latest.copy(state = "creating"))
+          .finalLog(latest => latest.copy(state = "created"))
+          .execute(() => flintClient.createIndex(indexName, metadata))
+      } catch {
+        case e: Exception => logError("Failed to create Flint index", e)
+      }
     }
   }
 
@@ -112,8 +114,30 @@ class FlintSpark(val spark: SparkSession) {
    *   refreshing job ID (empty if batch job for now)
    */
   def refreshIndex(indexName: String, mode: RefreshMode): Option[String] = {
+    logInfo(s"Refreshing Flint index $indexName with mode $mode")
     val index = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+
+    flintClient
+      .startTransaction(indexName)
+      .initialLog(latest => latest.state == "active")
+      .transientLog(latest => latest.copy(state = "refreshing"))
+      .finalLog(latest => {
+        if (mode == FULL) {
+          latest.copy(state = "active")
+        } else {
+          // TODO: scheduling regular update on heartbeat timestamp
+          latest
+        }
+      })
+      .execute(() => doRefreshIndex(index, indexName, mode))
+  }
+
+  // TODO: move to separate class
+  def doRefreshIndex(
+      index: FlintSparkIndex,
+      indexName: String,
+      mode: RefreshMode): Option[String] = {
     val options = index.options
     val tableName = index.metadata().source
 
@@ -176,6 +200,7 @@ class FlintSpark(val spark: SparkSession) {
    *   Flint index list
    */
   def describeIndexes(indexNamePattern: String): Seq[FlintSparkIndex] = {
+    logInfo(s"Describing indexes with pattern $indexNamePattern")
     if (flintClient.exists(indexNamePattern)) {
       flintClient
         .getAllIndexMetadata(indexNamePattern)
@@ -195,6 +220,7 @@ class FlintSpark(val spark: SparkSession) {
    *   Flint index
    */
   def describeIndex(indexName: String): Option[FlintSparkIndex] = {
+    logInfo(s"Describing index name $indexName")
     if (flintClient.exists(indexName)) {
       val metadata = flintClient.getIndexMetadata(indexName)
       val index = FlintSparkIndexFactory.create(metadata)
@@ -213,7 +239,9 @@ class FlintSpark(val spark: SparkSession) {
    *   true if exist and deleted, otherwise false
    */
   def deleteIndex(indexName: String): Boolean = {
+    logInfo(s"Deleting Flint index $indexName")
     if (flintClient.exists(indexName)) {
+
       stopRefreshingJob(indexName)
       flintClient.deleteIndex(indexName)
       true
