@@ -23,7 +23,8 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
 
 /**
- * Flint metadata log in OpenSearch store.
+ * Flint metadata log in OpenSearch store. For now use single doc instead of maintaining history
+ * of metadata log.
  */
 public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadataLogEntry> {
 
@@ -46,8 +47,8 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
 
   public FlintOpenSearchMetadataLog(FlintClient flintClient, String flintIndexName, String metadataLogIndexName) {
     this.flintClient = flintClient;
-    this.latestId = Base64.getEncoder().encodeToString(flintIndexName.getBytes());
     this.metadataLogIndexName = metadataLogIndexName;
+    this.latestId = Base64.getEncoder().encodeToString(flintIndexName.getBytes());
   }
 
   @Override
@@ -64,17 +65,22 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
 
   @Override
   public Optional<FlintMetadataLogEntry> getLatest() {
+    LOG.info("Fetching latest log entry with id " + latestId);
     try (RestHighLevelClient client = flintClient.createClient()) {
       GetResponse response =
           client.get(new GetRequest(metadataLogIndexName, latestId), RequestOptions.DEFAULT);
+
       if (response.isExists()) {
-        return Optional.of(
-            new FlintMetadataLogEntry(
-                response.getId(),
-                response.getSeqNo(),
-                response.getPrimaryTerm(),
-                response.getSourceAsMap()));
+        FlintMetadataLogEntry latest = new FlintMetadataLogEntry(
+            response.getId(),
+            response.getSeqNo(),
+            response.getPrimaryTerm(),
+            response.getSourceAsMap());
+
+        LOG.info("Found latest log entry " + latest);
+        return Optional.of(latest);
       } else {
+        LOG.info("Latest log entry not found");
         return Optional.empty();
       }
     } catch (Exception e) {
@@ -97,9 +103,12 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
           RequestOptions.DEFAULT);
 
       // Update seqNo and primaryTerm in log entry object
-      return logEntry.copy(
+      logEntry = logEntry.copy(
           logEntry.id(), response.getSeqNo(), response.getPrimaryTerm(),
           logEntry.state(), logEntry.dataSource(), logEntry.error());
+
+      LOG.info("Create log entry " + logEntry);
+      return logEntry;
     } catch (OpenSearchException | IOException e) {
       throw new IllegalStateException("Failed to create initial log entry", e);
     }
@@ -118,9 +127,12 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
               RequestOptions.DEFAULT);
 
       // Update seqNo and primaryTerm in log entry object
-      return logEntry.copy(
+      logEntry = logEntry.copy(
           logEntry.id(), response.getSeqNo(), response.getPrimaryTerm(),
           logEntry.state(), logEntry.dataSource(), logEntry.error());
+
+      LOG.info("Log entry updated " + logEntry);
+      return logEntry;
     } catch (OpenSearchException | IOException e) {
       throw new IllegalStateException("Failed to update log entry: " + logEntry, e);
     }

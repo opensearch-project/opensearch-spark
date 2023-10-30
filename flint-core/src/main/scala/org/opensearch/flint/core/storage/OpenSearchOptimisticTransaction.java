@@ -18,8 +18,8 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
 
 /**
- * Optimistic transaction implementation by OpenSearch OCC.
- * For now use single doc instead of maintaining history of metadata log.
+ * Default optimistic transaction implementation that captures the basic workflow for
+ * transaction support by optimistic locking.
  *
  * @param <T> result type
  */
