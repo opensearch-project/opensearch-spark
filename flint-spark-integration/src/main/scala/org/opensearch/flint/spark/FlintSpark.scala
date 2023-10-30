@@ -10,6 +10,7 @@ import scala.collection.JavaConverters._
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL, RefreshMode}
 import org.opensearch.flint.spark.FlintSparkIndex.{ID_COLUMN, StreamingRefresh}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
@@ -93,9 +94,9 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       try {
         flintClient
           .startTransaction(indexName)
-          .initialLog(latest => latest.state == "empty")
-          .transientLog(latest => latest.copy(state = "creating"))
-          .finalLog(latest => latest.copy(state = "created"))
+          .initialLog(latest => latest.state == EMPTY)
+          .transientLog(latest => latest.copy(state = CREATING))
+          .finalLog(latest => latest.copy(state = ACTIVE))
           .execute(() => flintClient.createIndex(indexName, metadata))
       } catch {
         case e: Exception => logError("Failed to create Flint index", e)
@@ -120,11 +121,11 @@ class FlintSpark(val spark: SparkSession) extends Logging {
 
     flintClient
       .startTransaction(indexName)
-      .initialLog(latest => latest.state == "active")
-      .transientLog(latest => latest.copy(state = "refreshing"))
+      .initialLog(latest => latest.state == ACTIVE)
+      .transientLog(latest => latest.copy(state = REFRESHING))
       .finalLog(latest => {
         if (mode == FULL) {
-          latest.copy(state = "active")
+          latest.copy(state = ACTIVE)
         } else {
           // TODO: scheduling regular update on heartbeat timestamp
           latest
@@ -241,9 +242,16 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   def deleteIndex(indexName: String): Boolean = {
     logInfo(s"Deleting Flint index $indexName")
     if (flintClient.exists(indexName)) {
-
-      stopRefreshingJob(indexName)
-      flintClient.deleteIndex(indexName)
+      flintClient
+        .startTransaction(indexName)
+        .initialLog(latest => latest.state == ACTIVE || latest.state == REFRESHING)
+        .transientLog(latest => latest.copy(state = DELETING))
+        .finalLog(latest => latest.copy(state = DELETED))
+        .execute(() => {
+          // TODO: share same transaction for now
+          stopRefreshingJob(indexName)
+          flintClient.deleteIndex(indexName)
+        })
       true
     } else {
       false
@@ -266,9 +274,12 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     spark.streams.active.exists(_.name == indexName)
 
   private def stopRefreshingJob(indexName: String): Unit = {
+    logInfo(s"Terminating refreshing job $indexName")
     val job = spark.streams.active.find(_.name == indexName)
     if (job.isDefined) {
       job.get.stop()
+    } else {
+      logWarning("Refreshing job not found")
     }
   }
 

@@ -5,6 +5,9 @@
 
 package org.opensearch.flint.core.metadata.log
 
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
+
 /**
  * Flint metadata log entry. This is temporary and will merge field in FlintMetadata here and move
  * implementation specific field, such as seqNo, primaryTerm, dataSource to properties.
@@ -23,19 +26,19 @@ package org.opensearch.flint.core.metadata.log
  *   error details if in error state
  */
 case class FlintMetadataLogEntry(
-    id: String = "",
-    seqNo: Long = -1,
-    primaryTerm: Long = -1,
-    state: String = "empty",
-    dataSource: String = "", // TODO: get from Spark conf
-    error: String = "") {
+    id: String,
+    seqNo: Long,
+    primaryTerm: Long,
+    state: IndexState,
+    dataSource: String, // TODO: get from Spark conf
+    error: String) {
 
   def this(docId: String, seqNo: Long, primaryTerm: Long, map: java.util.Map[String, AnyRef]) {
     this(
       docId,
       seqNo,
       primaryTerm,
-      map.get("state").asInstanceOf[String],
+      IndexState.from(map.get("state").asInstanceOf[String]),
       map.get("dataSourceName").asInstanceOf[String],
       map.get("error").asInstanceOf[String])
   }
@@ -53,5 +56,29 @@ case class FlintMetadataLogEntry(
        |  "error": "$error"
        |}
        |""".stripMargin
+  }
+}
+
+object FlintMetadataLogEntry {
+
+  /**
+   * Flint index state enum.
+   */
+  object IndexState extends Enumeration {
+    type IndexState = Value
+    val EMPTY: IndexState.Value = Value("empty")
+    val CREATING: IndexState.Value = Value("creating")
+    val ACTIVE: IndexState.Value = Value("active")
+    val REFRESHING: IndexState.Value = Value("refreshing")
+    val DELETING: IndexState.Value = Value("deleting")
+    val DELETED: IndexState.Value = Value("deleted")
+    val FAILED: IndexState.Value = Value("failed")
+    val UNKNOWN: IndexState.Value = Value("unknown")
+
+    def from(s: String): IndexState.Value = {
+      IndexState.values
+        .find(_.toString.equalsIgnoreCase(s))
+        .getOrElse(IndexState.UNKNOWN)
+    }
   }
 }

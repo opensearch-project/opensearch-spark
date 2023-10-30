@@ -17,6 +17,7 @@ import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.CreateIndexRequest
 import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.FlintSparkSuite
 import org.scalatest.matchers.should.Matchers
@@ -54,12 +55,9 @@ class FlintOpenSearchTransactionITSuite extends FlintSparkSuite with Matchers {
         latest.state shouldBe "empty"
         true
       })
-      .transientLog(latest => latest.copy(state = "creating"))
-      .finalLog(latest => latest.copy(state = "active"))
-      .execute(() => {
-        latestLogEntry should contain("state" -> "creating")
-        null
-      })
+      .transientLog(latest => latest.copy(state = CREATING))
+      .finalLog(latest => latest.copy(state = ACTIVE))
+      .execute(() => latestLogEntry should contain("state" -> "creating"))
 
     latestLogEntry should contain("state" -> "active")
   }
@@ -74,12 +72,9 @@ class FlintOpenSearchTransactionITSuite extends FlintSparkSuite with Matchers {
         latest.state shouldBe "active"
         true
       })
-      .transientLog(latest => latest.copy(state = "refreshing"))
-      .finalLog(latest => latest.copy(state = "active"))
-      .execute(() => {
-        latestLogEntry should contain("state" -> "refreshing")
-        null
-      })
+      .transientLog(latest => latest.copy(state = REFRESHING))
+      .finalLog(latest => latest.copy(state = ACTIVE))
+      .execute(() => latestLogEntry should contain("state" -> "refreshing"))
 
     latestLogEntry should contain("state" -> "active")
   }
@@ -101,10 +96,10 @@ class FlintOpenSearchTransactionITSuite extends FlintSparkSuite with Matchers {
         .startTransaction(testFlintIndex)
         .initialLog(_ => true)
         .transientLog(latest => {
-          // This update will happen first and thus cause version conflict
-          updateLatestLogEntry(latest, "deleting")
+          // This update will happen first and thus cause version conflict as expected
+          updateLatestLogEntry(latest, DELETING)
 
-          latest.copy(state = "creating")
+          latest.copy(state = CREATING)
         })
         .finalLog(latest => latest)
         .execute(() => {})
@@ -127,7 +122,7 @@ class FlintOpenSearchTransactionITSuite extends FlintSparkSuite with Matchers {
       RequestOptions.DEFAULT)
   }
 
-  private def updateLatestLogEntry(latest: FlintMetadataLogEntry, newState: String): Unit = {
+  private def updateLatestLogEntry(latest: FlintMetadataLogEntry, newState: IndexState): Unit = {
     openSearchClient.update(
       new UpdateRequest(testMetadataLogIndex, testLatestId)
         .doc(latest.copy(state = newState).toJson, XContentType.JSON),

@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.core.storage;
 
+import static org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState$;
+
 import java.io.IOException;
 import java.util.Base64;
 import java.util.Objects;
@@ -119,7 +121,7 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
             response.getPrimaryTerm(),
             response.getSourceAsMap());
       } else {
-        return new FlintMetadataLogEntry("", -1, -1, "empty", "mys3", "");
+        return new FlintMetadataLogEntry("", -1, -1, IndexState$.MODULE$.EMPTY(), "mys3", "");
       }
     } catch (Exception e) { // TODO: resource not found exception?
       throw new IllegalStateException("Failed to fetch latest metadata log entry", e);
