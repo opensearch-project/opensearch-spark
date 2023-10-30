@@ -43,7 +43,7 @@ import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.auth.AWSRequestSigningApacheInterceptor;
 import org.opensearch.flint.core.metadata.FlintMetadata;
-import org.opensearch.flint.core.metadata.log.FlintOpenSearchMetadataLog;
+import org.opensearch.flint.core.metadata.log.DefaultOptimisticTransaction;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NoOptimisticTransaction;
 import org.opensearch.index.query.AbstractQueryBuilder;
@@ -79,7 +79,7 @@ public class FlintOpenSearchClient implements FlintClient {
     String metaLogIndexName = ".query_request_history_mys3";
     try (RestHighLevelClient client = createClient()) {
       if (client.indices().exists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
-        return new OpenSearchOptimisticTransaction<>(
+        return new DefaultOptimisticTransaction<>(
             new FlintOpenSearchMetadataLog(this, indexName, metaLogIndexName));
       } else {
         return new NoOptimisticTransaction<>();

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.core.storage;
+package org.opensearch.flint.core.metadata.log;
 
 import static org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState$;
 import static org.opensearch.index.seqno.SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
@@ -13,9 +13,6 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
-import org.opensearch.flint.core.metadata.log.FlintMetadataLog;
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
-import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
 
 /**
  * Default optimistic transaction implementation that captures the basic workflow for
@@ -23,9 +20,9 @@ import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
  *
  * @param <T> result type
  */
-public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction<T> {
+public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T> {
 
-  private static final Logger LOG = Logger.getLogger(OpenSearchOptimisticTransaction.class.getName());
+  private static final Logger LOG = Logger.getLogger(DefaultOptimisticTransaction.class.getName());
 
   /**
    * Flint metadata log
@@ -36,27 +33,27 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
   private Function<FlintMetadataLogEntry, FlintMetadataLogEntry> transientAction = null;
   private Function<FlintMetadataLogEntry, FlintMetadataLogEntry> finalAction = null;
 
-  public OpenSearchOptimisticTransaction(
+  public DefaultOptimisticTransaction(
       FlintMetadataLog<FlintMetadataLogEntry> metadataLog) {
     this.metadataLog = metadataLog;
   }
 
   @Override
-  public OpenSearchOptimisticTransaction<T> initialLog(
+  public DefaultOptimisticTransaction<T> initialLog(
       Predicate<FlintMetadataLogEntry> initialCondition) {
     this.initialCondition = initialCondition;
     return this;
   }
 
   @Override
-  public OpenSearchOptimisticTransaction<T> transientLog(
+  public DefaultOptimisticTransaction<T> transientLog(
       Function<FlintMetadataLogEntry, FlintMetadataLogEntry> action) {
     this.transientAction = action;
     return this;
   }
 
   @Override
-  public OpenSearchOptimisticTransaction<T> finalLog(
+  public DefaultOptimisticTransaction<T> finalLog(
       Function<FlintMetadataLogEntry, FlintMetadataLogEntry> action) {
     this.finalAction = action;
     return this;
@@ -65,21 +62,28 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
   @Override
   public T commit(Function<FlintMetadataLogEntry, T> operation) {
     Objects.requireNonNull(initialCondition);
-    Objects.requireNonNull(transientAction);
     Objects.requireNonNull(finalAction);
 
+    // Get the latest log and create if not exists
     FlintMetadataLogEntry latest =
         metadataLog.getLatest().orElseGet(() -> metadataLog.add(emptyLogEntry()));
 
+    // Perform initial log check
     if (initialCondition.test(latest)) {
-      // TODO: log entry can be same?
-      latest = metadataLog.add(transientAction.apply(latest));
 
+      // Append optional transient log
+      if (transientAction != null) {
+        latest = metadataLog.add(transientAction.apply(latest));
+      }
+
+      // Perform operation
       T result = operation.apply(latest);
 
+      // Append final log
       metadataLog.add(finalAction.apply(latest));
       return result;
     } else {
+      LOG.warning("Initial log entry doesn't satisfy precondition " + latest);
       throw new IllegalStateException(
           "Transaction failed due to initial log precondition not satisfied");
     }

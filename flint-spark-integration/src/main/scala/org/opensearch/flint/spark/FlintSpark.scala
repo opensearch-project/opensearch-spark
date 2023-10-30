@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark
 
+import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
+
 import scala.collection.JavaConverters._
 
 import org.json4s.{Formats, NoTypeHints}
@@ -43,6 +45,9 @@ class FlintSpark(val spark: SparkSession) extends Logging {
 
   /** Required by json4s parse function */
   implicit val formats: Formats = Serialization.formats(NoTypeHints) + SkippingKindSerializer
+
+  /** Scheduler for updating index state regularly as needed, such as incremental refreshing */
+  private val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
 
   /**
    * Create index builder for creating index with fluent API.
@@ -99,7 +104,10 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           .finalLog(latest => latest.copy(state = ACTIVE))
           .commit(latest => flintClient.createIndex(indexName, metadata))
       } catch {
-        case e: Exception => logError("Failed to create Flint index", e)
+        case e: Exception =>
+          logError("Failed to create Flint index", e)
+          throw new IllegalStateException(
+            "Failed to create Flint index due to transaction failure")
       }
     }
   }
@@ -124,10 +132,24 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       .initialLog(latest => latest.state == ACTIVE)
       .transientLog(latest => latest.copy(state = REFRESHING))
       .finalLog(latest => {
+        // Change state to active if full, otherwise update index state regularly
         if (mode == FULL) {
           latest.copy(state = ACTIVE)
         } else {
-          // TODO: scheduling regular update on heartbeat timestamp
+          executor.scheduleAtFixedRate(
+            () => {
+              logInfo("Scheduler triggers log entry update")
+              flintClient
+                .startTransaction(indexName)
+                .initialLog(latest => latest.state == REFRESHING)
+                .finalLog(latest => latest) // timestamp will update automatically
+                .commit(latest => logInfo("Updating log entry to " + latest))
+            },
+            15, // Delay to ensure final logging is complete first, otherwise version conflicts
+            60, // TODO: make interval configurable
+            TimeUnit.SECONDS)
+
+          // Return log entry and keep its state as refreshing
           latest
         }
       })

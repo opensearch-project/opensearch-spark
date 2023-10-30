@@ -20,6 +20,10 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
 import org.opensearch.flint.spark.FlintSparkSuite
 
+/**
+ * Transaction test base suite that creates the metadata log index which enables transaction
+ * support in index operation.
+ */
 trait OpenSearchTransactionSuite {
   self: FlintSparkSuite =>
 

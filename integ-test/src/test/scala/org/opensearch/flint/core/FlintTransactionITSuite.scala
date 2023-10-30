@@ -17,7 +17,7 @@ import org.opensearch.flint.spark.FlintSparkSuite
 import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
 import org.scalatest.matchers.should.Matchers
 
-class FlintOpenSearchTransactionITSuite
+class FlintTransactionITSuite
     extends FlintSparkSuite
     with OpenSearchTransactionSuite
     with Matchers {
@@ -41,6 +41,16 @@ class FlintOpenSearchTransactionITSuite
       .transientLog(latest => latest.copy(state = CREATING))
       .finalLog(latest => latest.copy(state = ACTIVE))
       .commit(_ => latestLogEntry(testLatestId) should contain("state" -> "creating"))
+
+    latestLogEntry(testLatestId) should contain("state" -> "active")
+  }
+
+  test("should transit from initial to final log directly if no transient log") {
+    flintClient
+      .startTransaction(testFlintIndex)
+      .initialLog(_ => true)
+      .finalLog(latest => latest.copy(state = ACTIVE))
+      .commit(_ => latestLogEntry(testLatestId) should contain("state" -> "empty"))
 
     latestLogEntry(testLatestId) should contain("state" -> "active")
   }

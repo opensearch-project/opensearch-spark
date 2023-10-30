@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.core.metadata.log;
+package org.opensearch.flint.core.storage;
 
 import java.io.IOException;
 import java.util.Base64;
@@ -21,6 +21,8 @@ import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
+import org.opensearch.flint.core.metadata.log.FlintMetadataLog;
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
 
 /**
  * Flint metadata log in OpenSearch store. For now use single doc instead of maintaining history
@@ -38,16 +40,16 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   /**
    * Reuse query request index as Flint metadata log store
    */
-  private final String metadataLogIndexName;
+  private final String indexName;
 
   /**
    * Doc id for latest log entry (Naming rule is static so no need to query Flint index metadata)
    */
   private final String latestId;
 
-  public FlintOpenSearchMetadataLog(FlintClient flintClient, String flintIndexName, String metadataLogIndexName) {
+  public FlintOpenSearchMetadataLog(FlintClient flintClient, String flintIndexName, String indexName) {
     this.flintClient = flintClient;
-    this.metadataLogIndexName = metadataLogIndexName;
+    this.indexName = indexName;
     this.latestId = Base64.getEncoder().encodeToString(flintIndexName.getBytes());
   }
 
@@ -68,7 +70,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     LOG.info("Fetching latest log entry with id " + latestId);
     try (RestHighLevelClient client = flintClient.createClient()) {
       GetResponse response =
-          client.get(new GetRequest(metadataLogIndexName, latestId), RequestOptions.DEFAULT);
+          client.get(new GetRequest(indexName, latestId), RequestOptions.DEFAULT);
 
       if (response.isExists()) {
         FlintMetadataLogEntry latest = new FlintMetadataLogEntry(
@@ -97,7 +99,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
 
       IndexResponse response = client.index(
           new IndexRequest()
-              .index(metadataLogIndexName)
+              .index(indexName)
               .id(logEntry.id())
               .source(logEntry.toJson(), XContentType.JSON),
           RequestOptions.DEFAULT);
@@ -119,7 +121,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     try (RestHighLevelClient client = flintClient.createClient()) {
       UpdateResponse response =
           client.update(
-              new UpdateRequest(metadataLogIndexName, logEntry.id())
+              new UpdateRequest(indexName, logEntry.id())
                   .doc(logEntry.toJson(), XContentType.JSON)
                   .setRefreshPolicy(WriteRequest.RefreshPolicy.WAIT_UNTIL)
                   .setIfSeqNo(logEntry.seqNo())
