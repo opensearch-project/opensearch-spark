@@ -106,8 +106,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       } catch {
         case e: Exception =>
           logError("Failed to create Flint index", e)
-          throw new IllegalStateException(
-            "Failed to create Flint index due to transaction failure")
+          throw new IllegalStateException("Failed to create Flint index")
       }
     }
   }
@@ -127,37 +126,139 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     val index = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
 
-    flintClient
-      .startTransaction(indexName)
-      .initialLog(latest => latest.state == ACTIVE)
-      .transientLog(latest => latest.copy(state = REFRESHING))
-      .finalLog(latest => {
-        // Change state to active if full, otherwise update index state regularly
-        if (mode == FULL) {
-          latest.copy(state = ACTIVE)
-        } else {
-          executor.scheduleAtFixedRate(
-            () => {
-              logInfo("Scheduler triggers log entry update")
-              flintClient
-                .startTransaction(indexName)
-                .initialLog(latest => latest.state == REFRESHING)
-                .finalLog(latest => latest) // timestamp will update automatically
-                .commit(latest => logInfo("Updating log entry to " + latest))
-            },
-            15, // Delay to ensure final logging is complete first, otherwise version conflicts
-            60, // TODO: make interval configurable
-            TimeUnit.SECONDS)
+    try {
+      flintClient
+        .startTransaction(indexName)
+        .initialLog(latest => latest.state == ACTIVE)
+        .transientLog(latest => latest.copy(state = REFRESHING))
+        .finalLog(latest => {
+          // Change state to active if full, otherwise update index state regularly
+          if (mode == FULL) {
+            latest.copy(state = ACTIVE)
+          } else {
+            // Schedule regular update and return log entry as refreshing state
+            scheduleIndexStateUpdate(indexName)
+            latest
+          }
+        })
+        .commit(_ => doRefreshIndex(index, indexName, mode))
+    } catch {
+      case e: Exception =>
+        logError("Failed to refresh Flint index", e)
+        throw new IllegalStateException("Failed to refresh Flint index")
+    }
+  }
 
-          // Return log entry and keep its state as refreshing
-          latest
+  /**
+   * Describe all Flint indexes whose name matches the given pattern.
+   *
+   * @param indexNamePattern
+   *   index name pattern which may contains wildcard
+   * @return
+   *   Flint index list
+   */
+  def describeIndexes(indexNamePattern: String): Seq[FlintSparkIndex] = {
+    logInfo(s"Describing indexes with pattern $indexNamePattern")
+    if (flintClient.exists(indexNamePattern)) {
+      flintClient
+        .getAllIndexMetadata(indexNamePattern)
+        .asScala
+        .map(FlintSparkIndexFactory.create)
+    } else {
+      Seq.empty
+    }
+  }
+
+  /**
+   * Describe a Flint index.
+   *
+   * @param indexName
+   *   index name
+   * @return
+   *   Flint index
+   */
+  def describeIndex(indexName: String): Option[FlintSparkIndex] = {
+    logInfo(s"Describing index name $indexName")
+    if (flintClient.exists(indexName)) {
+      val metadata = flintClient.getIndexMetadata(indexName)
+      val index = FlintSparkIndexFactory.create(metadata)
+      Some(index)
+    } else {
+      Option.empty
+    }
+  }
+
+  /**
+   * Delete index and refreshing job associated.
+   *
+   * @param indexName
+   *   index name
+   * @return
+   *   true if exist and deleted, otherwise false
+   */
+  def deleteIndex(indexName: String): Boolean = {
+    logInfo(s"Deleting Flint index $indexName")
+    if (flintClient.exists(indexName)) {
+      try {
+        flintClient
+          .startTransaction(indexName)
+          .initialLog(latest => latest.state == ACTIVE || latest.state == REFRESHING)
+          .transientLog(latest => latest.copy(state = DELETING))
+          .finalLog(latest => latest.copy(state = DELETED))
+          .commit(_ => {
+            // TODO: share same transaction for now
+            stopRefreshingJob(indexName)
+            flintClient.deleteIndex(indexName)
+            true
+          })
+      } catch {
+        case e: Exception =>
+          logError("Failed to delete Flint index", e)
+          throw new IllegalStateException("Failed to delete Flint index")
+      }
+    } else {
+      false
+    }
+  }
+
+  /**
+   * Build data frame for querying the given index. This is mostly for unit test convenience.
+   *
+   * @param indexName
+   *   index name
+   * @return
+   *   index query data frame
+   */
+  def queryIndex(indexName: String): DataFrame = {
+    spark.read.format(FLINT_DATASOURCE).load(indexName)
+  }
+
+  private def isIncrementalRefreshing(indexName: String): Boolean =
+    spark.streams.active.exists(_.name == indexName)
+
+  private def scheduleIndexStateUpdate(indexName: String): Unit = {
+    executor.scheduleAtFixedRate(
+      () => {
+        logInfo("Scheduler triggers index log entry update")
+        try {
+          flintClient
+            .startTransaction(indexName)
+            .initialLog(latest => latest.state == REFRESHING)
+            .finalLog(latest => latest) // timestamp will update automatically
+            .commit(latest => logInfo("Updating log entry to " + latest))
+        } catch {
+          case e: Exception =>
+            logError("Failed to update index log entry", e)
+            throw new IllegalStateException("Failed to update index log entry")
         }
-      })
-      .commit(_ => doRefreshIndex(index, indexName, mode))
+      },
+      15, // Delay to ensure final logging is complete first, otherwise version conflicts
+      60, // TODO: make interval configurable
+      TimeUnit.SECONDS)
   }
 
   // TODO: move to separate class
-  def doRefreshIndex(
+  private def doRefreshIndex(
       index: FlintSparkIndex,
       indexName: String,
       mode: RefreshMode): Option[String] = {
@@ -213,87 +314,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         Some(job.id.toString)
     }
   }
-
-  /**
-   * Describe all Flint indexes whose name matches the given pattern.
-   *
-   * @param indexNamePattern
-   *   index name pattern which may contains wildcard
-   * @return
-   *   Flint index list
-   */
-  def describeIndexes(indexNamePattern: String): Seq[FlintSparkIndex] = {
-    logInfo(s"Describing indexes with pattern $indexNamePattern")
-    if (flintClient.exists(indexNamePattern)) {
-      flintClient
-        .getAllIndexMetadata(indexNamePattern)
-        .asScala
-        .map(FlintSparkIndexFactory.create)
-    } else {
-      Seq.empty
-    }
-  }
-
-  /**
-   * Describe a Flint index.
-   *
-   * @param indexName
-   *   index name
-   * @return
-   *   Flint index
-   */
-  def describeIndex(indexName: String): Option[FlintSparkIndex] = {
-    logInfo(s"Describing index name $indexName")
-    if (flintClient.exists(indexName)) {
-      val metadata = flintClient.getIndexMetadata(indexName)
-      val index = FlintSparkIndexFactory.create(metadata)
-      Some(index)
-    } else {
-      Option.empty
-    }
-  }
-
-  /**
-   * Delete index and refreshing job associated.
-   *
-   * @param indexName
-   *   index name
-   * @return
-   *   true if exist and deleted, otherwise false
-   */
-  def deleteIndex(indexName: String): Boolean = {
-    logInfo(s"Deleting Flint index $indexName")
-    if (flintClient.exists(indexName)) {
-      flintClient
-        .startTransaction(indexName)
-        .initialLog(latest => latest.state == ACTIVE || latest.state == REFRESHING)
-        .transientLog(latest => latest.copy(state = DELETING))
-        .finalLog(latest => latest.copy(state = DELETED))
-        .commit(_ => {
-          // TODO: share same transaction for now
-          stopRefreshingJob(indexName)
-          flintClient.deleteIndex(indexName)
-        })
-      true
-    } else {
-      false
-    }
-  }
-
-  /**
-   * Build data frame for querying the given index. This is mostly for unit test convenience.
-   *
-   * @param indexName
-   *   index name
-   * @return
-   *   index query data frame
-   */
-  def queryIndex(indexName: String): DataFrame = {
-    spark.read.format(FLINT_DATASOURCE).load(indexName)
-  }
-
-  private def isIncrementalRefreshing(indexName: String): Boolean =
-    spark.streams.active.exists(_.name == indexName)
 
   private def stopRefreshingJob(indexName: String): Unit = {
     logInfo(s"Terminating refreshing job $indexName")
