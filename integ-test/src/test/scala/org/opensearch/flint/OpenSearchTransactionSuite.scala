@@ -5,7 +5,7 @@
 
 package org.opensearch.flint
 
-import java.util.{Base64, Collections}
+import java.util.Collections
 
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 
@@ -23,8 +23,6 @@ import org.opensearch.flint.spark.FlintSparkSuite
 trait OpenSearchTransactionSuite {
   self: FlintSparkSuite =>
 
-  val testFlintIndex = "flint_test_index"
-  val testLatestId: String = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
   val testMetadataLogIndex = ".query_request_history_mys3"
 
   override def beforeEach(): Unit = {
@@ -39,9 +37,9 @@ trait OpenSearchTransactionSuite {
       .delete(new DeleteIndexRequest(testMetadataLogIndex), RequestOptions.DEFAULT)
   }
 
-  def latestLogEntry: Map[String, AnyRef] = {
+  def latestLogEntry(latestId: String): Map[String, AnyRef] = {
     val response = openSearchClient
-      .get(new GetRequest(testMetadataLogIndex, testLatestId), RequestOptions.DEFAULT)
+      .get(new GetRequest(testMetadataLogIndex, latestId), RequestOptions.DEFAULT)
 
     Option(response.getSourceAsMap).getOrElse(Collections.emptyMap()).asScala.toMap
   }
@@ -50,14 +48,14 @@ trait OpenSearchTransactionSuite {
     openSearchClient.index(
       new IndexRequest()
         .index(testMetadataLogIndex)
-        .id(testLatestId)
+        .id(latest.id)
         .source(latest.toJson, XContentType.JSON),
       RequestOptions.DEFAULT)
   }
 
   def updateLatestLogEntry(latest: FlintMetadataLogEntry, newState: IndexState): Unit = {
     openSearchClient.update(
-      new UpdateRequest(testMetadataLogIndex, testLatestId)
+      new UpdateRequest(testMetadataLogIndex, latest.id)
         .doc(latest.copy(state = newState).toJson, XContentType.JSON),
       RequestOptions.DEFAULT)
   }

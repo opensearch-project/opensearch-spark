@@ -5,36 +5,71 @@
 
 package org.opensearch.flint.spark
 
-import org.opensearch.flint.OpenSearchTransactionSuite
-import org.opensearch.flint.core.FlintVersion
-import org.opensearch.flint.core.metadata.FlintMetadata
-import org.scalatest.matchers.should.Matchers
+import java.util.Base64
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.opensearch.flint.OpenSearchTransactionSuite
+import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
+import org.scalatest.matchers.should.Matchers
 
 class FlintSparkTransactionITSuite
     extends FlintSparkSuite
     with OpenSearchTransactionSuite
     with Matchers {
 
-  /** Test Flint index implementation */
-  class FlintSparkFakeIndex extends FlintSparkIndex {
-    override val kind: String = "fake"
+  /** Test table and index name */
+  private val testTable = "spark_catalog.default.test"
+  private val testFlintIndex = getSkippingIndexName(testTable)
+  private val testLatestId: String = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
 
-    override val options: FlintSparkIndexOptions = FlintSparkIndexOptions.empty
-
-    override def name(): String = "fake_index"
-
-    override def metadata(): FlintMetadata =
-      new FlintMetadata(FlintVersion.current(), name(), kind, "source", indexSettings = None)
-
-    override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
-      null
-    }
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    createPartitionedTable(testTable)
   }
 
-  test("create and refresh index") {
+  override def afterEach(): Unit = {
+    super.afterEach()
+    flint.deleteIndex(testFlintIndex)
+  }
 
-    flint.createIndex(new FlintSparkFakeIndex)
+  test("create index") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+    latestLogEntry(testLatestId) should contain("state" -> "active")
+  }
+
+  test("manual refresh index") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+    flint.refreshIndex(testFlintIndex, FULL)
+
+    latestLogEntry(testLatestId) should contain("state" -> "active")
+  }
+
+  test("incremental refresh index") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+    flint.refreshIndex(testFlintIndex, INCREMENTAL)
+    latestLogEntry(testLatestId) should contain("state" -> "refreshing")
+  }
+
+  test("delete index") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+    flint.deleteIndex(testFlintIndex)
+
+    latestLogEntry(testLatestId) should contain("state" -> "deleted")
   }
 }

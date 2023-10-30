@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.core
 
+import java.util.Base64
+
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.OpenSearchTransactionSuite
@@ -20,6 +22,8 @@ class FlintOpenSearchTransactionITSuite
     with OpenSearchTransactionSuite
     with Matchers {
 
+  val testFlintIndex = "flint_test_index"
+  val testLatestId: String = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
   var flintClient: FlintClient = _
 
   override def beforeAll(): Unit = {
@@ -27,7 +31,7 @@ class FlintOpenSearchTransactionITSuite
     flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
   }
 
-  test("should transit from initial to final if initial is empty") {
+  test("should transit from initial to final log if initial log is empty") {
     flintClient
       .startTransaction(testFlintIndex)
       .initialLog(latest => {
@@ -36,12 +40,13 @@ class FlintOpenSearchTransactionITSuite
       })
       .transientLog(latest => latest.copy(state = CREATING))
       .finalLog(latest => latest.copy(state = ACTIVE))
-      .commit(_ => latestLogEntry should contain("state" -> "creating"))
+      .commit(_ => latestLogEntry(testLatestId) should contain("state" -> "creating"))
 
-    latestLogEntry should contain("state" -> "active")
+    latestLogEntry(testLatestId) should contain("state" -> "active")
   }
 
-  test("should transit from initial to final if initial is not empty but meet precondition") {
+  test(
+    "should transit from initial to final log if initial is not empty but precondition satisfied") {
     // Create doc first to simulate this scenario
     createLatestLogEntry(
       FlintMetadataLogEntry(
@@ -60,9 +65,9 @@ class FlintOpenSearchTransactionITSuite
       })
       .transientLog(latest => latest.copy(state = REFRESHING))
       .finalLog(latest => latest.copy(state = ACTIVE))
-      .commit(_ => latestLogEntry should contain("state" -> "refreshing"))
+      .commit(_ => latestLogEntry(testLatestId) should contain("state" -> "refreshing"))
 
-    latestLogEntry should contain("state" -> "active")
+    latestLogEntry(testLatestId) should contain("state" -> "active")
   }
 
   test("should exit if initial log entry doesn't meet precondition") {
