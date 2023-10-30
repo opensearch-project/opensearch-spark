@@ -83,7 +83,7 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
   }
 
   @Override
-  public T execute(Supplier<T> operation) {
+  public T execute(Function<FlintMetadataLogEntry, T> operation) {
     Objects.requireNonNull(initialCondition);
     Objects.requireNonNull(transientAction);
     Objects.requireNonNull(finalAction);
@@ -97,7 +97,7 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
       // TODO: log entry can be same?
       latest = updateLogEntry(transientAction.apply(latest));
 
-      T result = operation.get();
+      T result = operation.apply(latest);
 
       updateLogEntry(finalAction.apply(latest));
       return result;

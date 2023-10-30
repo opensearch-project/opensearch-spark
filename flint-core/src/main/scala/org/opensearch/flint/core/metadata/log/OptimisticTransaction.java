@@ -45,7 +45,7 @@ public interface OptimisticTransaction<T> {
    * @param operation operation
    * @return result
    */
-  T execute(Supplier<T> operation);
+  T execute(Function<FlintMetadataLogEntry, T> operation);
 
   /**
    * No optimistic transaction.
@@ -67,8 +67,8 @@ public interface OptimisticTransaction<T> {
     }
 
     @Override
-    public T execute(Supplier<T> operation) {
-      return operation.get();
+    public T execute(Function<FlintMetadataLogEntry, T> operation) {
+      return operation.apply(null);
     }
   };
 }

@@ -5,28 +5,20 @@
 
 package org.opensearch.flint.core
 
-import java.util.{Base64, Collections}
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 
-import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
-
-import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
-import org.opensearch.action.get.GetRequest
-import org.opensearch.action.index.IndexRequest
-import org.opensearch.action.update.UpdateRequest
-import org.opensearch.client.RequestOptions
-import org.opensearch.client.indices.CreateIndexRequest
-import org.opensearch.common.xcontent.XContentType
+import org.opensearch.flint.OpenSearchTransactionSuite
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.FlintSparkSuite
 import org.scalatest.matchers.should.Matchers
 
-class FlintOpenSearchTransactionITSuite extends FlintSparkSuite with Matchers {
+class FlintOpenSearchTransactionITSuite
+    extends FlintSparkSuite
+    with OpenSearchTransactionSuite
+    with Matchers {
 
-  val testFlintIndex = "flint_test_index"
-  val testMetadataLogIndex = ".query_request_history_mys3"
-  val testLatestId: String = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
   var flintClient: FlintClient = _
 
   override def beforeAll(): Unit = {
@@ -34,47 +26,34 @@ class FlintOpenSearchTransactionITSuite extends FlintSparkSuite with Matchers {
     flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
   }
 
-  override def beforeEach(): Unit = {
-    super.beforeEach()
-    openSearchClient
-      .indices()
-      .create(new CreateIndexRequest(testMetadataLogIndex), RequestOptions.DEFAULT)
-  }
-
-  override def afterEach(): Unit = {
-    openSearchClient
-      .indices()
-      .delete(new DeleteIndexRequest(testMetadataLogIndex), RequestOptions.DEFAULT)
-    super.afterEach()
-  }
-
   test("should transit from initial to final if initial is empty") {
     flintClient
       .startTransaction(testFlintIndex)
       .initialLog(latest => {
-        latest.state shouldBe "empty"
+        latest.state shouldBe EMPTY
         true
       })
       .transientLog(latest => latest.copy(state = CREATING))
       .finalLog(latest => latest.copy(state = ACTIVE))
-      .execute(() => latestLogEntry should contain("state" -> "creating"))
+      .execute(_ => latestLogEntry should contain("state" -> "creating"))
 
     latestLogEntry should contain("state" -> "active")
   }
 
   test("should transit from initial to final if initial is not empty but meet precondition") {
     // Create doc first to simulate this scenario
-    createLatestLogEntry(FlintMetadataLogEntry(id = testLatestId, state = "active"))
+    createLatestLogEntry(
+      FlintMetadataLogEntry(id = testLatestId, state = ACTIVE, dataSource = "mys3", error = ""))
 
     flintClient
       .startTransaction(testFlintIndex)
       .initialLog(latest => {
-        latest.state shouldBe "active"
+        latest.state shouldBe ACTIVE
         true
       })
       .transientLog(latest => latest.copy(state = REFRESHING))
       .finalLog(latest => latest.copy(state = ACTIVE))
-      .execute(() => latestLogEntry should contain("state" -> "refreshing"))
+      .execute(_ => latestLogEntry should contain("state" -> "refreshing"))
 
     latestLogEntry should contain("state" -> "active")
   }
@@ -86,11 +65,11 @@ class FlintOpenSearchTransactionITSuite extends FlintSparkSuite with Matchers {
         .initialLog(_ => false)
         .transientLog(latest => latest)
         .finalLog(latest => latest)
-        .execute(() => {})
+        .execute(_ => {})
     }
   }
 
-  test("should exit if initial log entry updated by others when adding transient log entry") {
+  test("should fail if initial log entry updated by others when updating transient log entry") {
     the[IllegalStateException] thrownBy {
       flintClient
         .startTransaction(testFlintIndex)
@@ -102,30 +81,24 @@ class FlintOpenSearchTransactionITSuite extends FlintSparkSuite with Matchers {
           latest.copy(state = CREATING)
         })
         .finalLog(latest => latest)
-        .execute(() => {})
+        .execute(_ => {})
     }
   }
 
-  private def latestLogEntry: Map[String, AnyRef] = {
-    val response = openSearchClient
-      .get(new GetRequest(testMetadataLogIndex, testLatestId), RequestOptions.DEFAULT)
+  test("should fail if transient log entry updated by others when updating final log entry") {
+    the[IllegalStateException] thrownBy {
+      flintClient
+        .startTransaction(testFlintIndex)
+        .initialLog(_ => true)
+        .transientLog(latest => {
 
-    Option(response.getSourceAsMap).getOrElse(Collections.emptyMap()).asScala.toMap
-  }
-
-  private def createLatestLogEntry(latest: FlintMetadataLogEntry): Unit = {
-    openSearchClient.index(
-      new IndexRequest()
-        .index(testMetadataLogIndex)
-        .id(testLatestId)
-        .source(latest.toJson, XContentType.JSON),
-      RequestOptions.DEFAULT)
-  }
-
-  private def updateLatestLogEntry(latest: FlintMetadataLogEntry, newState: IndexState): Unit = {
-    openSearchClient.update(
-      new UpdateRequest(testMetadataLogIndex, testLatestId)
-        .doc(latest.copy(state = newState).toJson, XContentType.JSON),
-      RequestOptions.DEFAULT)
+          latest.copy(state = CREATING)
+        })
+        .finalLog(latest => latest)
+        .execute(latest => {
+          // This update will happen first and thus cause version conflict as expected
+          updateLatestLogEntry(latest, DELETING)
+        })
+    }
   }
 }

@@ -27,8 +27,8 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.I
  */
 case class FlintMetadataLogEntry(
     id: String,
-    seqNo: Long,
-    primaryTerm: Long,
+    seqNo: Long = -1,
+    primaryTerm: Long = -1,
     state: IndexState,
     dataSource: String, // TODO: get from Spark conf
     error: String) {
@@ -48,7 +48,7 @@ case class FlintMetadataLogEntry(
        |{
        |  "version": "1.0",
        |  "type": "flintindexstate",
-       |  "state": "$state",
+       |  "state": "${state.toString}",
        |  "applicationId": "${sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown")}",
        |  "jobId": "${sys.env.getOrElse("SERVERLESS_EMR_JOB_ID", "unknown")}",
        |  "dataSourceName": "$dataSource",

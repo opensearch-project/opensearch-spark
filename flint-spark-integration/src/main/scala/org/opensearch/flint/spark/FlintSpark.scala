@@ -97,7 +97,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           .initialLog(latest => latest.state == EMPTY)
           .transientLog(latest => latest.copy(state = CREATING))
           .finalLog(latest => latest.copy(state = ACTIVE))
-          .execute(() => flintClient.createIndex(indexName, metadata))
+          .execute(latest => flintClient.createIndex(indexName, metadata))
       } catch {
         case e: Exception => logError("Failed to create Flint index", e)
       }
@@ -131,7 +131,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           latest
         }
       })
-      .execute(() => doRefreshIndex(index, indexName, mode))
+      .execute(_ => doRefreshIndex(index, indexName, mode))
   }
 
   // TODO: move to separate class
@@ -247,7 +247,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         .initialLog(latest => latest.state == ACTIVE || latest.state == REFRESHING)
         .transientLog(latest => latest.copy(state = DELETING))
         .finalLog(latest => latest.copy(state = DELETED))
-        .execute(() => {
+        .execute(_ => {
           // TODO: share same transaction for now
           stopRefreshingJob(indexName)
           flintClient.deleteIndex(indexName)
