@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.core.storage;
 
+import java.io.IOException;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.function.Function;
@@ -39,7 +40,7 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
   /**
    * Reuse query request index as Flint metadata log store
    */
-  private final String metadataLogIndexName = ".query_request_history_mys3"; // TODO: get suffix ds name from Spark conf
+  private final String metadataLogIndexName;
 
   /**
    * Doc id for latest log entry (Naming rule is static so no need to query Flint index metadata)
@@ -50,9 +51,10 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
   private Function<FlintMetadataLogEntry, FlintMetadataLogEntry> transientAction = null;
   private Function<FlintMetadataLogEntry, FlintMetadataLogEntry> finalAction = null;
 
-  public OpenSearchOptimisticTransaction(String flintIndexName, FlintClient flintClient) {
-    this.latestId = Base64.getEncoder().encodeToString(flintIndexName.getBytes());
+  public OpenSearchOptimisticTransaction(FlintClient flintClient, String flintIndexName, String metadataLogIndexName) {
     this.flintClient = flintClient;
+    this.latestId = Base64.getEncoder().encodeToString(flintIndexName.getBytes());
+    this.metadataLogIndexName = metadataLogIndexName;
   }
 
   @Override
@@ -79,16 +81,22 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
     Objects.requireNonNull(transientAction);
     Objects.requireNonNull(finalAction);
 
-    FlintMetadataLogEntry latest = getLatestLogEntry();
-    if (initialCondition.test(latest)) {
-      // TODO: log entry can be same?
-      createOrUpdateDoc(transientAction.apply(latest));
-      T result = operation.get();
-      // TODO: don't get latest, use previous entry again. (set seqno in update)
-      createOrUpdateDoc(finalAction.apply(getLatestLogEntry()));
-      return result;
-    } else {
-      throw new IllegalStateException();
+    try {
+      FlintMetadataLogEntry latest = getLatestLogEntry();
+      if (initialCondition.test(latest)) {
+        // TODO: log entry can be same?
+        createOrUpdateDoc(transientAction.apply(latest));
+
+        T result = operation.get();
+
+        // TODO: don't get latest, use previous entry again. (set seqno in update)
+        createOrUpdateDoc(finalAction.apply(getLatestLogEntry()));
+        return result;
+      } else {
+        throw new IllegalStateException();
+      }
+    } catch (IOException e) {
+      throw new RuntimeException();
     }
   }
 
@@ -101,15 +109,15 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
           response.getSeqNo(),
           response.getPrimaryTerm(),
           response.getSourceAsMap());
-    } catch (Exception e) {
+    } catch (Exception e) { // TODO: resource not found exception?
       return new FlintMetadataLogEntry("", -1, -1, "empty", "mys3", "");
     }
   }
 
-  private void createOrUpdateDoc(FlintMetadataLogEntry logEntry) {
+  private void createOrUpdateDoc(FlintMetadataLogEntry logEntry) throws IOException {
     try (RestHighLevelClient client = flintClient.createClient()) {
       DocWriteResponse response;
-      if (logEntry.id().isEmpty()) {
+      if (logEntry.id().isEmpty()) { // TODO: Only create before initialLog for the first time
         logEntry.id_$eq(latestId);
         response = client.index(
             new IndexRequest()
@@ -131,8 +139,6 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
       // Update seqNo and primaryTerm in log entry object
       logEntry.seqNo_$eq(response.getSeqNo()); // TODO: convert log entry to Java class?
       logEntry.primaryTerm_$eq(response.getPrimaryTerm());
-    } catch (Exception e) {
-      throw new RuntimeException(e); // TODO: handle expression properly
     }
   }
 }

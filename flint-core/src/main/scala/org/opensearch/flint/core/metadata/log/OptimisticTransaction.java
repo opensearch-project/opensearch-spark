@@ -15,7 +15,7 @@ import java.util.function.Supplier;
  * initial log (precondition)
  * => transient log (with pending operation to do)
  * => final log (after operation succeeds)
- * For example, "empty" => creating (operation is to create index) => created
+ * For example, "empty" => creating (operation is to create index) => active
  *
  * @param <T> result type
  */
@@ -46,4 +46,29 @@ public interface OptimisticTransaction<T> {
    * @return result
    */
   T execute(Supplier<T> operation);
+
+  /**
+   * No optimistic transaction.
+   */
+  class NoOptimisticTransaction<T> implements OptimisticTransaction<T> {
+    @Override
+    public OptimisticTransaction<T> initialLog(Predicate<FlintMetadataLogEntry> initialCondition) {
+      return this;
+    }
+
+    @Override
+    public OptimisticTransaction<T> transientLog(Function<FlintMetadataLogEntry, FlintMetadataLogEntry> action) {
+      return this;
+    }
+
+    @Override
+    public OptimisticTransaction<T> finalLog(Function<FlintMetadataLogEntry, FlintMetadataLogEntry> action) {
+      return this;
+    }
+
+    @Override
+    public T execute(Supplier<T> operation) {
+      return operation.get();
+    }
+  };
 }

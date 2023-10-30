@@ -43,6 +43,7 @@ import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.auth.AWSRequestSigningApacheInterceptor;
 import org.opensearch.flint.core.metadata.FlintMetadata;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
+import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NoOptimisticTransaction;
 import org.opensearch.index.query.AbstractQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
@@ -70,7 +71,16 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override public <T> OptimisticTransaction<T> startTransaction(String indexName) {
-    return new OpenSearchOptimisticTransaction<>(indexName, this);
+    String metaLogIndexName = ".query_request_history_mys3";
+    try (RestHighLevelClient client = createClient()) {
+      if (client.indices().exists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
+        return new OpenSearchOptimisticTransaction<>(this, indexName, metaLogIndexName);
+      } else {
+        return new NoOptimisticTransaction<>();
+      }
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to check if index metadata log index exists " + metaLogIndexName, e);
+    }
   }
 
   @Override public void createIndex(String indexName, FlintMetadata metadata) {
