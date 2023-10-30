@@ -17,7 +17,7 @@ class FlintSparkTransactionITSuite
     with Matchers {
 
   /** Test table and index name */
-  private val testTable = "spark_catalog.default.test"
+  private val testTable = "spark_catalog.default.flint_tx_test"
   private val testFlintIndex = getSkippingIndexName(testTable)
   private val testLatestId: String = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
 

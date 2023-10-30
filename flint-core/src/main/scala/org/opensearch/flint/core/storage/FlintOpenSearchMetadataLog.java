@@ -5,20 +5,18 @@
 
 package org.opensearch.flint.core.storage;
 
+import static org.opensearch.action.support.WriteRequest.RefreshPolicy;
+
 import java.io.IOException;
 import java.util.Base64;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.logging.Logger;
 import org.opensearch.OpenSearchException;
 import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.get.GetResponse;
 import org.opensearch.action.index.IndexRequest;
-import org.opensearch.action.index.IndexResponse;
-import org.opensearch.action.support.WriteRequest;
 import org.opensearch.action.update.UpdateRequest;
-import org.opensearch.action.update.UpdateResponse;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.common.xcontent.XContentType;
@@ -94,74 +92,45 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
 
   private FlintMetadataLogEntry createLogEntry(FlintMetadataLogEntry logEntry) {
     LOG.info("Creating log entry " + logEntry);
-    try (RestHighLevelClient client = flintClient.createClient()) {
-      // Assign doc ID here
-      logEntry = logEntry.copy(
-          latestId,
-          logEntry.seqNo(),
-          logEntry.primaryTerm(),
-          logEntry.state(),
-          logEntry.dataSource(),
-          logEntry.error());
+    // Assign doc ID here
+    FlintMetadataLogEntry logEntryWithId =
+        logEntry.copy(
+            latestId,
+            logEntry.seqNo(),
+            logEntry.primaryTerm(),
+            logEntry.state(),
+            logEntry.dataSource(),
+            logEntry.error());
 
-      IndexResponse response = client.index(
-          new IndexRequest()
-              .index(indexName)
-              .id(logEntry.id())
-              .source(logEntry.toJson(), XContentType.JSON),
-          RequestOptions.DEFAULT);
-
-      // Update seqNo and primaryTerm in log entry
-      logEntry = logEntry.copy(
-          logEntry.id(),
-          response.getSeqNo(),
-          response.getPrimaryTerm(),
-          logEntry.state(),
-          logEntry.dataSource(),
-          logEntry.error());
-
-      LOG.info("Log entry created " + logEntry);
-      return logEntry;
-    } catch (OpenSearchException | IOException e) {
-      throw new IllegalStateException("Failed to create initial log entry", e);
-    }
+    return writeLogEntry(logEntryWithId,
+        client -> client.index(
+            new IndexRequest()
+                .index(indexName)
+                .id(logEntryWithId.id())
+                .source(logEntryWithId.toJson(), XContentType.JSON),
+            RequestOptions.DEFAULT));
   }
 
   private FlintMetadataLogEntry updateLogEntry(FlintMetadataLogEntry logEntry) {
     LOG.info("Updating log entry " + logEntry);
-    try (RestHighLevelClient client = flintClient.createClient()) {
-      UpdateResponse response =
-          client.update(
-              new UpdateRequest(indexName, logEntry.id())
-                  .doc(logEntry.toJson(), XContentType.JSON)
-                  .setRefreshPolicy(WriteRequest.RefreshPolicy.WAIT_UNTIL)
-                  .setIfSeqNo(logEntry.seqNo())
-                  .setIfPrimaryTerm(logEntry.primaryTerm()),
-              RequestOptions.DEFAULT);
-
-      // Update seqNo and primaryTerm in log entry
-      logEntry = logEntry.copy(
-          logEntry.id(),
-          response.getSeqNo(),
-          response.getPrimaryTerm(),
-          logEntry.state(),
-          logEntry.dataSource(),
-          logEntry.error());
-
-      LOG.info("Log entry updated " + logEntry);
-      return logEntry;
-    } catch (OpenSearchException | IOException e) {
-      throw new IllegalStateException("Failed to update log entry: " + logEntry, e);
-    }
+    return writeLogEntry(logEntry,
+        client -> client.update(
+            new UpdateRequest(indexName, logEntry.id())
+                .doc(logEntry.toJson(), XContentType.JSON)
+                .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
+                .setIfSeqNo(logEntry.seqNo())
+                .setIfPrimaryTerm(logEntry.primaryTerm()),
+            RequestOptions.DEFAULT));
   }
 
   private FlintMetadataLogEntry writeLogEntry(
       FlintMetadataLogEntry logEntry,
-      Function<RestHighLevelClient, DocWriteResponse> write) {
+      CheckedFunction<RestHighLevelClient, DocWriteResponse> write) {
     try (RestHighLevelClient client = flintClient.createClient()) {
+      // Write (create or update) the doc
       DocWriteResponse response = write.apply(client);
 
-      // Update seqNo and primaryTerm in log entry
+      // Copy latest seqNo and primaryTerm after write
       logEntry = logEntry.copy(
           logEntry.id(),
           response.getSeqNo(),
@@ -175,5 +144,10 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     } catch (OpenSearchException | IOException e) {
       throw new IllegalStateException("Failed to write log entry " + logEntry, e);
     }
+  }
+
+  @FunctionalInterface
+  public interface CheckedFunction<T, R> {
+    R apply(T t) throws IOException;
   }
 }
