@@ -23,12 +23,12 @@ package org.opensearch.flint.core.metadata.log
  *   error details if in error state
  */
 case class FlintMetadataLogEntry(
-    var id: String = "",
-    var seqNo: Long = -1,
-    var primaryTerm: Long = -1,
-    var state: String = "empty",
-    var dataSource: String = "", // TODO: get from Spark conf
-    var error: String = "") {
+    id: String = "",
+    seqNo: Long = -1,
+    primaryTerm: Long = -1,
+    state: String = "empty",
+    dataSource: String = "", // TODO: get from Spark conf
+    error: String = "") {
 
   def this(docId: String, seqNo: Long, primaryTerm: Long, map: java.util.Map[String, AnyRef]) {
     this(

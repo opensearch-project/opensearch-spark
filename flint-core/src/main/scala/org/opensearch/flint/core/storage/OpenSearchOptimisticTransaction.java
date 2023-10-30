@@ -11,12 +11,13 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.get.GetResponse;
 import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.index.IndexResponse;
 import org.opensearch.action.support.WriteRequest;
 import org.opensearch.action.update.UpdateRequest;
+import org.opensearch.action.update.UpdateResponse;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.common.xcontent.XContentType;
@@ -81,64 +82,83 @@ public class OpenSearchOptimisticTransaction<T> implements OptimisticTransaction
     Objects.requireNonNull(transientAction);
     Objects.requireNonNull(finalAction);
 
-    try {
-      FlintMetadataLogEntry latest = getLatestLogEntry();
-      if (initialCondition.test(latest)) {
-        // TODO: log entry can be same?
-        createOrUpdateDoc(transientAction.apply(latest));
+    FlintMetadataLogEntry latest = getLatestLogEntry();
+    if (latest.id().isEmpty()) {
+      latest = createLogEntry(latest);
+    }
 
-        T result = operation.get();
+    if (initialCondition.test(latest)) {
+      // TODO: log entry can be same?
+      latest = updateLogEntry(transientAction.apply(latest));
 
-        // TODO: don't get latest, use previous entry again. (set seqno in update)
-        createOrUpdateDoc(finalAction.apply(getLatestLogEntry()));
-        return result;
-      } else {
-        throw new IllegalStateException();
-      }
-    } catch (IOException e) {
-      throw new RuntimeException();
+      T result = operation.get();
+
+      updateLogEntry(finalAction.apply(latest));
+      return result;
+    } else {
+      throw new IllegalStateException();
     }
   }
 
   private FlintMetadataLogEntry getLatestLogEntry() {
-    try (RestHighLevelClient client = flintClient.createClient()) {
+    RestHighLevelClient client = flintClient.createClient();
+    try {
       GetResponse response =
           client.get(new GetRequest(metadataLogIndexName, latestId), RequestOptions.DEFAULT);
-      return new FlintMetadataLogEntry(
-          response.getId(),
-          response.getSeqNo(),
-          response.getPrimaryTerm(),
-          response.getSourceAsMap());
+
+      if (response.isExists()) {
+        return new FlintMetadataLogEntry(
+            response.getId(),
+            response.getSeqNo(),
+            response.getPrimaryTerm(),
+            response.getSourceAsMap());
+      } else {
+        return new FlintMetadataLogEntry("", -1, -1, "empty", "mys3", "");
+      }
     } catch (Exception e) { // TODO: resource not found exception?
-      return new FlintMetadataLogEntry("", -1, -1, "empty", "mys3", "");
+      throw new IllegalStateException("Failed to fetch latest metadata log entry", e);
     }
   }
 
-  private void createOrUpdateDoc(FlintMetadataLogEntry logEntry) throws IOException {
+  private FlintMetadataLogEntry createLogEntry(FlintMetadataLogEntry logEntry) {
     try (RestHighLevelClient client = flintClient.createClient()) {
-      DocWriteResponse response;
-      if (logEntry.id().isEmpty()) { // TODO: Only create before initialLog for the first time
-        logEntry.id_$eq(latestId);
-        response = client.index(
-            new IndexRequest()
-                .index(metadataLogIndexName)
-                .id(logEntry.id())
-                .source(logEntry.toJson(), XContentType.JSON),
-            RequestOptions.DEFAULT);
-      } else {
-        response =
-            client.update(
-                new UpdateRequest(metadataLogIndexName, logEntry.id())
-                    .doc(logEntry.toJson(), XContentType.JSON)
-                    .setRefreshPolicy(WriteRequest.RefreshPolicy.WAIT_UNTIL)
-                    .setIfSeqNo(logEntry.seqNo())
-                    .setIfPrimaryTerm(logEntry.primaryTerm()),
-                RequestOptions.DEFAULT);
-      }
+      logEntry = logEntry.copy(
+          latestId,
+          logEntry.seqNo(), logEntry.primaryTerm(), logEntry.state(), logEntry.dataSource(), logEntry.error());
+
+      IndexResponse response = client.index(
+          new IndexRequest()
+              .index(metadataLogIndexName)
+              .id(logEntry.id())
+              .source(logEntry.toJson(), XContentType.JSON),
+          RequestOptions.DEFAULT);
 
       // Update seqNo and primaryTerm in log entry object
-      logEntry.seqNo_$eq(response.getSeqNo()); // TODO: convert log entry to Java class?
-      logEntry.primaryTerm_$eq(response.getPrimaryTerm());
+      return logEntry.copy(
+          logEntry.id(), response.getSeqNo(), response.getPrimaryTerm(),
+          logEntry.state(), logEntry.dataSource(), logEntry.error());
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to create initial log entry", e);
+    }
+  }
+
+  private FlintMetadataLogEntry updateLogEntry(FlintMetadataLogEntry logEntry) {
+    try (RestHighLevelClient client = flintClient.createClient()) {
+      UpdateResponse response =
+          client.update(
+              new UpdateRequest(metadataLogIndexName, logEntry.id())
+                  .doc(logEntry.toJson(), XContentType.JSON)
+                  .setRefreshPolicy(WriteRequest.RefreshPolicy.WAIT_UNTIL)
+                  .setIfSeqNo(logEntry.seqNo())
+                  .setIfPrimaryTerm(logEntry.primaryTerm()),
+              RequestOptions.DEFAULT);
+
+      // Update seqNo and primaryTerm in log entry object
+      return logEntry.copy(
+          logEntry.id(), response.getSeqNo(), response.getPrimaryTerm(),
+          logEntry.state(), logEntry.dataSource(), logEntry.error());
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to update log entry: " + logEntry, e);
     }
   }
 }
