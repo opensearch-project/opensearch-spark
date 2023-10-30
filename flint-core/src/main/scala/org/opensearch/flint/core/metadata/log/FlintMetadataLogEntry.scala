@@ -27,15 +27,15 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.I
  */
 case class FlintMetadataLogEntry(
     id: String,
-    seqNo: Long = -1,
-    primaryTerm: Long = -1,
+    seqNo: Long,
+    primaryTerm: Long,
     state: IndexState,
     dataSource: String, // TODO: get from Spark conf
     error: String) {
 
-  def this(docId: String, seqNo: Long, primaryTerm: Long, map: java.util.Map[String, AnyRef]) {
+  def this(id: String, seqNo: Long, primaryTerm: Long, map: java.util.Map[String, AnyRef]) {
     this(
-      docId,
+      id,
       seqNo,
       primaryTerm,
       IndexState.from(map.get("state").asInstanceOf[String]),

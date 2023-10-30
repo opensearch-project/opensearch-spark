@@ -7,7 +7,6 @@ package org.opensearch.flint.core.metadata.log;
 
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 /**
  * Optimistic transaction interface that represents a state transition on the state machine.
@@ -45,7 +44,7 @@ public interface OptimisticTransaction<T> {
    * @param operation operation
    * @return result
    */
-  T execute(Function<FlintMetadataLogEntry, T> operation);
+  T commit(Function<FlintMetadataLogEntry, T> operation);
 
   /**
    * No optimistic transaction.
@@ -67,7 +66,7 @@ public interface OptimisticTransaction<T> {
     }
 
     @Override
-    public T execute(Function<FlintMetadataLogEntry, T> operation) {
+    public T commit(Function<FlintMetadataLogEntry, T> operation) {
       return operation.apply(null);
     }
   };

@@ -12,6 +12,7 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.FlintSparkSuite
+import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
 import org.scalatest.matchers.should.Matchers
 
 class FlintOpenSearchTransactionITSuite
@@ -35,7 +36,7 @@ class FlintOpenSearchTransactionITSuite
       })
       .transientLog(latest => latest.copy(state = CREATING))
       .finalLog(latest => latest.copy(state = ACTIVE))
-      .execute(_ => latestLogEntry should contain("state" -> "creating"))
+      .commit(_ => latestLogEntry should contain("state" -> "creating"))
 
     latestLogEntry should contain("state" -> "active")
   }
@@ -43,7 +44,13 @@ class FlintOpenSearchTransactionITSuite
   test("should transit from initial to final if initial is not empty but meet precondition") {
     // Create doc first to simulate this scenario
     createLatestLogEntry(
-      FlintMetadataLogEntry(id = testLatestId, state = ACTIVE, dataSource = "mys3", error = ""))
+      FlintMetadataLogEntry(
+        id = testLatestId,
+        seqNo = UNASSIGNED_SEQ_NO,
+        primaryTerm = UNASSIGNED_PRIMARY_TERM,
+        state = ACTIVE,
+        dataSource = "mys3",
+        error = ""))
 
     flintClient
       .startTransaction(testFlintIndex)
@@ -53,7 +60,7 @@ class FlintOpenSearchTransactionITSuite
       })
       .transientLog(latest => latest.copy(state = REFRESHING))
       .finalLog(latest => latest.copy(state = ACTIVE))
-      .execute(_ => latestLogEntry should contain("state" -> "refreshing"))
+      .commit(_ => latestLogEntry should contain("state" -> "refreshing"))
 
     latestLogEntry should contain("state" -> "active")
   }
@@ -65,7 +72,7 @@ class FlintOpenSearchTransactionITSuite
         .initialLog(_ => false)
         .transientLog(latest => latest)
         .finalLog(latest => latest)
-        .execute(_ => {})
+        .commit(_ => {})
     }
   }
 
@@ -81,7 +88,7 @@ class FlintOpenSearchTransactionITSuite
           latest.copy(state = CREATING)
         })
         .finalLog(latest => latest)
-        .execute(_ => {})
+        .commit(_ => {})
     }
   }
 
@@ -95,7 +102,7 @@ class FlintOpenSearchTransactionITSuite
           latest.copy(state = CREATING)
         })
         .finalLog(latest => latest)
-        .execute(latest => {
+        .commit(latest => {
           // This update will happen first and thus cause version conflict as expected
           updateLatestLogEntry(latest, DELETING)
         })
