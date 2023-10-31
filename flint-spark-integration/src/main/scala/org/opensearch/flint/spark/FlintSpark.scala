@@ -109,7 +109,12 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           .initialLog(latest => latest.state == EMPTY)
           .transientLog(latest => latest.copy(state = CREATING))
           .finalLog(latest => latest.copy(state = ACTIVE))
-          .commit(latest => flintClient.createIndex(indexName, metadata))
+          .commit(latest =>
+            if (latest == null) {
+              flintClient.createIndex(indexName, metadata)
+            } else {
+              flintClient.createIndex(indexName, metadata.copy(latestId = Some(latest.id)))
+            })
       } catch {
         case e: Exception =>
           logError("Failed to create Flint index", e)
