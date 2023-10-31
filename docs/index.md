@@ -262,6 +262,20 @@ WITH (
 )
 ```
 
+### Index Job Management
+
+Currently Flint index job ID is same as internal Flint index name in [OpenSearch](./index.md#OpenSearch) section below.
+
+```sql
+RECOVER INDEX JOB <id>
+```
+
+Example:
+
+```sql
+RECOVER INDEX JOB `flint_spark_catalog_default_test_skipping_index`
+```
+
 ## Index Store
 
 ### OpenSearch

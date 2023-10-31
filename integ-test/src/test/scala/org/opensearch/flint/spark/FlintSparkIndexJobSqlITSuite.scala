@@ -48,6 +48,13 @@ class FlintSparkIndexJobSqlITSuite extends FlintSparkSuite with Matchers {
              |""".stripMargin)
         .run(s"RECOVER INDEX JOB $testSkippingIndex")
         .assertIndexData(indexData => indexData should have size 6)
+        .stopStreamingJob()
+        .run(s"""
+                | INSERT INTO $testTable VALUES
+                | (TIMESTAMP '2023-10-01 06:00:00', 'G', 40, 'Vancouver')
+                |""".stripMargin)
+        .run(s"RECOVER INDEX JOB `$testSkippingIndex`") // test backtick name
+        .assertIndexData(indexData => indexData should have size 7)
 
     }
   }
