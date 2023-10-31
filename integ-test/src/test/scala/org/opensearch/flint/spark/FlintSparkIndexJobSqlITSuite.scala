@@ -12,13 +12,15 @@ import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.scalatest.matchers.should.Matchers
 
+import org.apache.spark.sql.Row
+
 class FlintSparkIndexJobSqlITSuite extends FlintSparkSuite with Matchers {
 
   private val testTable = "spark_catalog.default.index_job_test"
   private val testSkippingIndex = FlintSparkSkippingIndex.getSkippingIndexName(testTable)
 
   /** Covering index names */
-  private val testIndex = "test"
+  private val testIndex = "test_ci"
   private val testCoveringIndex = FlintSparkCoveringIndex.getFlintIndexName(testIndex, testTable)
 
   /** Materialized view names and query */
@@ -26,73 +28,87 @@ class FlintSparkIndexJobSqlITSuite extends FlintSparkSuite with Matchers {
   private val testMvQuery = s"SELECT name, age FROM $testTable"
   private val testMvIndex = FlintSparkMaterializedView.getFlintIndexName(testMv)
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    createTimeSeriesTable(testTable)
-  }
-
-  override def afterEach(): Unit = {
-    super.afterEach()
-    flint.deleteIndex(testSkippingIndex)
-    flint.deleteIndex(testCoveringIndex)
-    flint.deleteIndex(testMvIndex)
-  }
-
   test("recover skipping index refresh job") {
-    withTempDir { checkpointDir =>
-      sql(s"""
-           | CREATE SKIPPING INDEX ON $testTable
-           | (name VALUE_SET)
-           | WITH (
-           |   auto_refresh = true,
-           |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
-           | )
-           |""".stripMargin)
+    withFlintIndex(testSkippingIndex) { assertion =>
+      assertion
+        .run { checkpointDir =>
+          s""" CREATE SKIPPING INDEX ON $testTable
+             | (name VALUE_SET)
+             | WITH (
+             |   auto_refresh = true,
+             |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+             | )
+             |""".stripMargin
+        }
+        .assertIndexData(indexData => indexData should have size 5)
+        .stopStreamingJob()
+        .run(s""" INSERT INTO $testTable VALUES
+             | (TIMESTAMP '2023-10-01 05:00:00', 'F', 35, 'Vancouver')
+             |""".stripMargin)
+        .run(s"RECOVER INDEX JOB $testSkippingIndex")
+        .assertIndexData(indexData => indexData should have size 6)
 
-      // Wait complete
-      var job = spark.streams.active.head
-      failAfter(streamingTimeout) {
-        job.processAllAvailable()
-      }
-
-      // Check result size
-      flint.queryIndex(testSkippingIndex).collect() should have size 5
-
-      // Stop job
-      job.stop()
-
-      // Append 1 row
-      sql(
-        s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 05:00:00', 'F', 35, 'Vancouver')")
-
-      // Recover job
-      sql(s"RECOVER INDEX JOB $testSkippingIndex")
-
-      // Wait complete
-      job = spark.streams.active.head
-      failAfter(streamingTimeout) {
-        job.processAllAvailable()
-      }
-
-      // Check size again
-      flint.queryIndex(testSkippingIndex).collect() should have size 6
     }
   }
 
-  private def startSkippingIndexJob(): Unit = {
-    sql(s"""
-           | CREATE SKIPPING INDEX ON $testTable
-           | (name VALUE_SET)
-           | WITH (auto_refresh = true)
-           |""".stripMargin)
+  test("recover covering index refresh job") {
+    withFlintIndex(testCoveringIndex) { assertion =>
+      assertion
+        .run { checkpointDir =>
+          s""" CREATE INDEX $testIndex ON $testTable
+             | (time, name)
+             | WITH (
+             |   auto_refresh = true,
+             |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+             | )
+             |""".stripMargin
+        }
+        .assertIndexData(indexData => indexData should have size 5)
+        .stopStreamingJob()
+        .run(s""" INSERT INTO $testTable VALUES
+             | (TIMESTAMP '2023-10-01 05:00:00', 'F', 35, 'Vancouver')
+             |""".stripMargin)
+        .run(s"RECOVER INDEX JOB $testCoveringIndex")
+        .assertIndexData(indexData => indexData should have size 6)
+    }
   }
 
-  private def startCoveringIndexJob(): Unit = {
-    sql(s"""
-           | CREATE INDEX $testIndex ON $testTable
-           | (time, name)
-           | WITH (auto_refresh = true)
-           |""".stripMargin)
+  private def withFlintIndex(flintIndexName: String)(test: AssertionHelper => Unit): Unit = {
+    withTable(testTable) {
+      createTimeSeriesTable(testTable)
+
+      withTempDir { checkpointDir =>
+        try {
+          test(new AssertionHelper(flintIndexName, checkpointDir))
+        } finally {
+          flint.deleteIndex(flintIndexName)
+        }
+      }
+    }
+  }
+
+  private class AssertionHelper(flintIndexName: String, checkpointDir: File) {
+
+    def run(createIndex: File => String): AssertionHelper = {
+      sql(createIndex(checkpointDir))
+      this
+    }
+
+    def run(sqlText: String): AssertionHelper = {
+      sql(sqlText)
+      this
+    }
+
+    def assertIndexData(assertion: Array[Row] => Unit): AssertionHelper = {
+      awaitStreamingComplete(findJobId(flintIndexName))
+      assertion(flint.queryIndex(flintIndexName).collect())
+      this
+    }
+
+    def stopStreamingJob(): AssertionHelper = {
+      spark.streams.get(findJobId(flintIndexName)).stop()
+      this
+    }
   }
 
   private def startMaterializedViewIndexJob(checkpointDir: File): Unit = {

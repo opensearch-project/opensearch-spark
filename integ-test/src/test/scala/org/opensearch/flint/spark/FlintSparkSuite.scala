@@ -31,11 +31,22 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     setFlintSparkConf(CHECKPOINT_MANDATORY, "false")
   }
 
+  protected def findJobId(indexName: String): String = {
+    val job = spark.streams.active.find(_.name == indexName)
+    job
+      .map(_.id.toString)
+      .getOrElse(throw new RuntimeException(s"Streaming job not found for index $indexName"))
+  }
+
   protected def awaitStreamingComplete(jobId: String): Unit = {
     val job = spark.streams.get(jobId)
     failAfter(streamingTimeout) {
       job.processAllAvailable()
     }
+  }
+
+  protected def stopStreamingJob(jobId: String): Unit = {
+    spark.streams.get(jobId).stop()
   }
 
   protected def createPartitionedTable(testTable: String): Unit = {
