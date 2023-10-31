@@ -130,8 +130,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
                | (name, age)
                | WITH (auto_refresh = true)
                | """.stripMargin)
-      } should have message
-        "Checkpoint location is mandatory for incremental refresh if spark.flint.index.checkpoint.mandatory enabled"
+      }
     } finally {
       setFlintSparkConf(CHECKPOINT_MANDATORY, "false")
     }

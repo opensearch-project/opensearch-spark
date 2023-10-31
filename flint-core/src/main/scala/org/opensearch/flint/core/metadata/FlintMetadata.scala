@@ -32,6 +32,8 @@ case class FlintMetadata(
     properties: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef],
     /** Flint index schema */
     schema: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef],
+    /** Optional latest metadata log entry */
+    latestId: Option[String] = None,
     /** Optional Flint index settings. TODO: move elsewhere? */
     indexSettings: Option[String]) {
 
@@ -58,6 +60,9 @@ case class FlintMetadata(
             .field("source", source)
             .field("indexedColumns", indexedColumns)
 
+          if (latestId.isDefined) {
+            builder.field("latestId", latestId.get)
+          }
           optionalObjectField(builder, "options", options)
           optionalObjectField(builder, "properties", properties)
         }
@@ -219,14 +224,14 @@ object FlintMetadata {
     def build(): FlintMetadata = {
       FlintMetadata(
         if (version == null) current() else version,
-        name,
-        kind,
-        source,
-        indexedColumns,
-        options,
-        properties,
-        schema,
-        indexSettings)
+        name = name,
+        kind = kind,
+        source = source,
+        indexedColumns = indexedColumns,
+        options = options,
+        properties = properties,
+        schema = schema,
+        indexSettings = indexSettings)
     }
   }
 }

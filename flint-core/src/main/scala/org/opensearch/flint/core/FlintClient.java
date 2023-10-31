@@ -9,6 +9,7 @@ import java.util.List;
 
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.flint.core.metadata.FlintMetadata;
+import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
 import org.opensearch.flint.core.storage.FlintReader;
 import org.opensearch.flint.core.storage.FlintWriter;
 
@@ -17,6 +18,15 @@ import org.opensearch.flint.core.storage.FlintWriter;
  * on a Flint index regardless of concrete storage.
  */
 public interface FlintClient {
+
+  /**
+   * Start a new optimistic transaction.
+   *
+   * @param indexName index name
+   * @param dataSourceName TODO: read from elsewhere in future
+   * @return transaction handle
+   */
+  <T> OptimisticTransaction<T> startTransaction(String indexName, String dataSourceName);
 
   /**
    * Create a Flint index with the metadata given.
