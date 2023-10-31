@@ -229,7 +229,37 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           throw new IllegalStateException("Failed to delete Flint index")
       }
     } else {
+      logInfo("Flint index to be deleted doesn't exist")
       false
+    }
+  }
+
+  /**
+   * Recover index job.
+   *
+   * @param indexName
+   *   index name
+   */
+  def recoverIndex(indexName: String): Unit = {
+    logInfo(s"Recovering Flint index $indexName")
+    val index = describeIndex(indexName)
+    if (index.exists(_.options.autoRefresh())) {
+      try {
+        flintClient
+          .startTransaction(indexName, dataSourceName)
+          .initialLog(_ => true) // bypass state check and recover anyway
+          .finalLog(latest => {
+            scheduleIndexStateUpdate(indexName)
+            latest.copy(state = REFRESHING)
+          })
+          .commit(_ => doRefreshIndex(index.get, indexName, INCREMENTAL))
+      } catch {
+        case e: Exception =>
+          logError("Failed to recover Flint index", e)
+          throw new IllegalStateException("Failed to recover Flint index")
+      }
+    } else {
+      logInfo("Index to be recovered either doesn't exist or auto refreshed")
     }
   }
 
