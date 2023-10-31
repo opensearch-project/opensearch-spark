@@ -81,15 +81,17 @@ public class FlintOpenSearchClient implements FlintClient {
 
   @Override
   public <T> OptimisticTransaction<T> startTransaction(String indexName, String dataSourceName) {
+    LOG.info("Starting transaction on index " + indexName + " and data source " + dataSourceName);
     String metaLogIndexName = dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX
         : META_LOG_NAME_PREFIX + "_" + dataSourceName;
-    LOG.info("Starting transaction on index " + indexName + " and metadata log index " + metaLogIndexName);
 
     try (RestHighLevelClient client = createClient()) {
       if (client.indices().exists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
+        LOG.info("Found metadata log index " + metaLogIndexName);
         return new DefaultOptimisticTransaction<>(dataSourceName,
             new FlintOpenSearchMetadataLog(this, indexName, metaLogIndexName));
       } else {
+        LOG.info("Metadata log index not found " + metaLogIndexName);
         return new NoOptimisticTransaction<>();
       }
     } catch (IOException e) {

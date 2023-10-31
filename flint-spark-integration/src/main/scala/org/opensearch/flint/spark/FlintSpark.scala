@@ -110,7 +110,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           .transientLog(latest => latest.copy(state = CREATING))
           .finalLog(latest => latest.copy(state = ACTIVE))
           .commit(latest =>
-            if (latest == null) {
+            if (latest == null) { // in case transaction capability is disabled
               flintClient.createIndex(indexName, metadata)
             } else {
               flintClient.createIndex(indexName, metadata.copy(latestId = Some(latest.id)))
