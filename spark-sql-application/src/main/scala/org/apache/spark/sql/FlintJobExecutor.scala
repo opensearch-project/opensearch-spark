@@ -28,7 +28,9 @@ trait FlintJobExecutor {
   def createSparkConf(): SparkConf = {
     new SparkConf()
       .setAppName(getClass.getSimpleName)
-      .set("spark.sql.extensions", "org.opensearch.flint.spark.FlintSparkExtensions")
+      .set(
+        "spark.sql.extensions",
+        "org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions")
   }
 
   def createSparkSession(conf: SparkConf): SparkSession = {
