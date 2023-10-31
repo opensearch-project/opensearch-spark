@@ -50,9 +50,9 @@ class FlintSparkIndexJobSqlITSuite extends FlintSparkSuite with Matchers {
         .assertIndexData(indexData => indexData should have size 6)
         .stopStreamingJob()
         .run(s"""
-                | INSERT INTO $testTable VALUES
-                | (TIMESTAMP '2023-10-01 06:00:00', 'G', 40, 'Vancouver')
-                |""".stripMargin)
+             | INSERT INTO $testTable VALUES
+             | (TIMESTAMP '2023-10-01 06:00:00', 'G', 40, 'Vancouver')
+             |""".stripMargin)
         .run(s"RECOVER INDEX JOB `$testSkippingIndex`") // test backtick name
         .assertIndexData(indexData => indexData should have size 7)
 
@@ -98,9 +98,9 @@ class FlintSparkIndexJobSqlITSuite extends FlintSparkSuite with Matchers {
         .assertIndexData(indexData => indexData should have size 5)
         .stopStreamingJob()
         .run(s"""
-                | INSERT INTO $testTable VALUES
-                | (TIMESTAMP '2023-10-01 05:00:00', 'F', 35, 'Vancouver')
-                |""".stripMargin)
+             | INSERT INTO $testTable VALUES
+             | (TIMESTAMP '2023-10-01 05:00:00', 'F', 35, 'Vancouver')
+             |""".stripMargin)
         .run(s"RECOVER INDEX JOB $testMvIndex")
         .assertIndexData(indexData => indexData should have size 6)
     }
