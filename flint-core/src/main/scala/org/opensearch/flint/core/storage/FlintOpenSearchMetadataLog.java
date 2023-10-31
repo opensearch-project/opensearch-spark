@@ -40,16 +40,16 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   /**
    * Reuse query request index as Flint metadata log store
    */
-  private final String indexName;
+  private final String metaLogIndexName;
 
   /**
    * Doc id for latest log entry (Naming rule is static so no need to query Flint index metadata)
    */
   private final String latestId;
 
-  public FlintOpenSearchMetadataLog(FlintClient flintClient, String flintIndexName, String indexName) {
+  public FlintOpenSearchMetadataLog(FlintClient flintClient, String flintIndexName, String metaLogIndexName) {
     this.flintClient = flintClient;
-    this.indexName = indexName;
+    this.metaLogIndexName = metaLogIndexName;
     this.latestId = Base64.getEncoder().encodeToString(flintIndexName.getBytes());
   }
 
@@ -70,7 +70,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     LOG.info("Fetching latest log entry with id " + latestId);
     try (RestHighLevelClient client = flintClient.createClient()) {
       GetResponse response =
-          client.get(new GetRequest(indexName, latestId), RequestOptions.DEFAULT);
+          client.get(new GetRequest(metaLogIndexName, latestId), RequestOptions.DEFAULT);
 
       if (response.isExists()) {
         FlintMetadataLogEntry latest = new FlintMetadataLogEntry(
@@ -105,7 +105,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     return writeLogEntry(logEntryWithId,
         client -> client.index(
             new IndexRequest()
-                .index(indexName)
+                .index(metaLogIndexName)
                 .id(logEntryWithId.id())
                 .source(logEntryWithId.toJson(), XContentType.JSON),
             RequestOptions.DEFAULT));
@@ -115,7 +115,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     LOG.info("Updating log entry " + logEntry);
     return writeLogEntry(logEntry,
         client -> client.update(
-            new UpdateRequest(indexName, logEntry.id())
+            new UpdateRequest(metaLogIndexName, logEntry.id())
                 .doc(logEntry.toJson(), XContentType.JSON)
                 .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
                 .setIfSeqNo(logEntry.seqNo())

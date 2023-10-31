@@ -18,6 +18,7 @@ import org.opensearch.client.indices.CreateIndexRequest
 import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
+import org.opensearch.flint.core.storage.FlintOpenSearchClient._
 import org.opensearch.flint.spark.FlintSparkSuite
 
 /**
@@ -26,11 +27,12 @@ import org.opensearch.flint.spark.FlintSparkSuite
  */
 trait OpenSearchTransactionSuite extends FlintSparkSuite {
 
-  val testMetaLogIndex = ".query_execution_request_mys3"
+  val testDataSourceName = "myglue"
+  lazy val testMetaLogIndex: String = META_LOG_NAME_PREFIX + "_" + testDataSourceName
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    spark.conf.set("spark.flint.job.requestIndex", testMetaLogIndex)
+    spark.conf.set("spark.flint.datasource.name", testDataSourceName)
   }
 
   override def beforeEach(): Unit = {

@@ -68,17 +68,26 @@ public class FlintOpenSearchClient implements FlintClient {
       new NamedXContentRegistry(new SearchModule(Settings.builder().build(),
           new ArrayList<>()).getNamedXContents());
 
+  /**
+   * Metadata log index name prefix
+   */
+  public final static String META_LOG_NAME_PREFIX = ".query_execution_request";
+
   private final FlintOptions options;
 
   public FlintOpenSearchClient(FlintOptions options) {
     this.options = options;
   }
 
-  @Override public <T> OptimisticTransaction<T> startTransaction(String indexName, String metaLogIndexName) {
+  @Override
+  public <T> OptimisticTransaction<T> startTransaction(String indexName, String dataSourceName) {
+    String metaLogIndexName = dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX
+        : META_LOG_NAME_PREFIX + "_" + dataSourceName;
     LOG.info("Starting transaction on index " + indexName + " and metadata log index " + metaLogIndexName);
+
     try (RestHighLevelClient client = createClient()) {
       if (client.indices().exists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
-        return new DefaultOptimisticTransaction<>(
+        return new DefaultOptimisticTransaction<>(dataSourceName,
             new FlintOpenSearchMetadataLog(this, indexName, metaLogIndexName));
       } else {
         return new NoOptimisticTransaction<>();
@@ -88,7 +97,8 @@ public class FlintOpenSearchClient implements FlintClient {
     }
   }
 
-  @Override public void createIndex(String indexName, FlintMetadata metadata) {
+  @Override
+  public void createIndex(String indexName, FlintMetadata metadata) {
     LOG.info("Creating Flint index " + indexName + " with metadata " + metadata);
     String osIndexName = toLowercase(indexName);
     try (RestHighLevelClient client = createClient()) {
@@ -105,7 +115,8 @@ public class FlintOpenSearchClient implements FlintClient {
     }
   }
 
-  @Override public boolean exists(String indexName) {
+  @Override
+  public boolean exists(String indexName) {
     LOG.info("Checking if Flint index exists " + indexName);
     String osIndexName = toLowercase(indexName);
     try (RestHighLevelClient client = createClient()) {
@@ -115,7 +126,8 @@ public class FlintOpenSearchClient implements FlintClient {
     }
   }
 
-  @Override public List<FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
+  @Override
+  public List<FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
     LOG.info("Fetching all Flint index metadata for pattern " + indexNamePattern);
     String osIndexNamePattern = toLowercase(indexNamePattern);
     try (RestHighLevelClient client = createClient()) {
@@ -132,7 +144,8 @@ public class FlintOpenSearchClient implements FlintClient {
     }
   }
 
-  @Override public FlintMetadata getIndexMetadata(String indexName) {
+  @Override
+  public FlintMetadata getIndexMetadata(String indexName) {
     LOG.info("Fetching Flint index metadata for " + indexName);
     String osIndexName = toLowercase(indexName);
     try (RestHighLevelClient client = createClient()) {
@@ -147,7 +160,8 @@ public class FlintOpenSearchClient implements FlintClient {
     }
   }
 
-  @Override public void deleteIndex(String indexName) {
+  @Override
+  public void deleteIndex(String indexName) {
     LOG.info("Deleting Flint index " + indexName);
     String osIndexName = toLowercase(indexName);
     try (RestHighLevelClient client = createClient()) {
@@ -163,10 +177,11 @@ public class FlintOpenSearchClient implements FlintClient {
    * Create {@link FlintReader}.
    *
    * @param indexName index name.
-   * @param query DSL query. DSL query is null means match_all.
+   * @param query     DSL query. DSL query is null means match_all.
    * @return {@link FlintReader}.
    */
-  @Override public FlintReader createReader(String indexName, String query) {
+  @Override
+  public FlintReader createReader(String indexName, String query) {
     LOG.info("Creating Flint index reader for " + indexName + " with query " + query);
     try {
       QueryBuilder queryBuilder = new MatchAllQueryBuilder();
@@ -190,7 +205,8 @@ public class FlintOpenSearchClient implements FlintClient {
     return new OpenSearchWriter(createClient(), toLowercase(indexName), options.getRefreshPolicy());
   }
 
-  @Override public RestHighLevelClient createClient() {
+  @Override
+  public RestHighLevelClient createClient() {
     RestClientBuilder
         restClientBuilder =
         RestClient.builder(new HttpHost(options.getHost(), options.getPort(), options.getScheme()));

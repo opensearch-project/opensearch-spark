@@ -29,7 +29,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should transit from initial to final log if initial log is empty") {
     flintClient
-      .startTransaction(testFlintIndex, testMetaLogIndex)
+      .startTransaction(testFlintIndex, testDataSourceName)
       .initialLog(latest => {
         latest.state shouldBe EMPTY
         true
@@ -43,7 +43,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should transit from initial to final log directly if no transient log") {
     flintClient
-      .startTransaction(testFlintIndex, testMetaLogIndex)
+      .startTransaction(testFlintIndex, testDataSourceName)
       .initialLog(_ => true)
       .finalLog(latest => latest.copy(state = ACTIVE))
       .commit(_ => latestLogEntry(testLatestId) should contain("state" -> "empty"))
@@ -64,7 +64,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         error = ""))
 
     flintClient
-      .startTransaction(testFlintIndex, testMetaLogIndex)
+      .startTransaction(testFlintIndex, testDataSourceName)
       .initialLog(latest => {
         latest.state shouldBe ACTIVE
         true
@@ -79,7 +79,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   test("should exit if initial log entry doesn't meet precondition") {
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex, testMetaLogIndex)
+        .startTransaction(testFlintIndex, testDataSourceName)
         .initialLog(_ => false)
         .transientLog(latest => latest)
         .finalLog(latest => latest)
@@ -90,7 +90,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   test("should fail if initial log entry updated by others when updating transient log entry") {
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex, testMetaLogIndex)
+        .startTransaction(testFlintIndex, testDataSourceName)
         .initialLog(_ => true)
         .transientLog(latest => {
           // This update will happen first and thus cause version conflict as expected
@@ -106,7 +106,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   test("should fail if transient log entry updated by others when updating final log entry") {
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex, testMetaLogIndex)
+        .startTransaction(testFlintIndex, testDataSourceName)
         .initialLog(_ => true)
         .transientLog(latest => {
 

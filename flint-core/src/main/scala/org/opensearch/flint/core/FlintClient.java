@@ -23,10 +23,10 @@ public interface FlintClient {
    * Start a new optimistic transaction.
    *
    * @param indexName index name
-   * @param metaLogIndexName metadata log index name
+   * @param dataSourceName TODO: read from elsewhere in future
    * @return transaction handle
    */
-  <T> OptimisticTransaction<T> startTransaction(String indexName, String metaLogIndexName);
+  <T> OptimisticTransaction<T> startTransaction(String indexName, String dataSourceName);
 
   /**
    * Create a Flint index with the metadata given.

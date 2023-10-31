@@ -25,6 +25,11 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
   private static final Logger LOG = Logger.getLogger(DefaultOptimisticTransaction.class.getName());
 
   /**
+   * Data source name. TODO: remove this in future.
+   */
+  private final String dataSourceName;
+
+  /**
    * Flint metadata log
    */
   private final FlintMetadataLog<FlintMetadataLogEntry> metadataLog;
@@ -34,7 +39,9 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
   private Function<FlintMetadataLogEntry, FlintMetadataLogEntry> finalAction = null;
 
   public DefaultOptimisticTransaction(
+      String dataSourceName,
       FlintMetadataLog<FlintMetadataLogEntry> metadataLog) {
+    this.dataSourceName = dataSourceName;
     this.metadataLog = metadataLog;
   }
 
@@ -95,7 +102,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
         UNASSIGNED_SEQ_NO,
         UNASSIGNED_PRIMARY_TERM,
         IndexState$.MODULE$.EMPTY(),
-        "mys3", // TODO: get it from spark conf
+        dataSourceName,
         "");
   }
 }
