@@ -1,0 +1,1 @@
+SELECT * FROM mys3.default.http_logs ORDER BY "@timestamp" LIMIT 5;

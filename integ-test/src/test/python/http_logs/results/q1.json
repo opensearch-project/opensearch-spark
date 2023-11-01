@@ -1,0 +1,96 @@
+{
+  "data": {
+    "ok": true,
+    "resp": {
+      "status": "SUCCESS",
+      "schema": [
+        {
+          "name": "@timestamp",
+          "type": "date"
+        },
+        {
+          "name": "clientip",
+          "type": "string"
+        },
+        {
+          "name": "request",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "integer"
+        },
+        {
+          "name": "size",
+          "type": "integer"
+        },
+        {
+          "name": "year",
+          "type": "integer"
+        },
+        {
+          "name": "month",
+          "type": "integer"
+        },
+        {
+          "name": "day",
+          "type": "integer"
+        }
+      ],
+      "datarows": [
+        [
+          "1998-06-10T14:37:23.000Z",
+          "76.112.16.0",
+          "GET /images/102325.gif HTTP/1.0",
+          200,
+          1555,
+          1998,
+          6,
+          10
+        ],
+        [
+          "1998-06-10T14:37:23.000Z",
+          "78.109.16.0",
+          "GET /english/images/comp_bu_stage1n.gif HTTP/1.0",
+          200,
+          1548,
+          1998,
+          6,
+          10
+        ],
+        [
+          "1998-06-10T14:37:23.000Z",
+          "140.48.14.0",
+          "GET /images/102321.gif HTTP/1.0",
+          200,
+          1602,
+          1998,
+          6,
+          10
+        ],
+        [
+          "1998-06-10T14:37:23.000Z",
+          "114.113.16.0",
+          "GET /english/images/team_bu_roster_on.gif HTTP/1.0",
+          200,
+          1567,
+          1998,
+          6,
+          10
+        ],
+        [
+          "1998-06-10T14:37:24.000Z",
+          "79.48.14.0",
+          "GET /english/images/comp_bu_stage1n.gif HTTP/1.0",
+          200,
+          1548,
+          1998,
+          6,
+          10
+        ]
+      ],
+      "total": 5,
+      "size": 5
+    }
+  }
+}
