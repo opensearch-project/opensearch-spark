@@ -14,6 +14,9 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.sql.Row
 
+/**
+ * This suite doesn't enable transaction to avoid side effect of scheduled update task.
+ */
 class FlintSparkIndexJobSqlITSuite extends FlintSparkSuite with Matchers {
 
   private val testTable = "spark_catalog.default.index_job_test"

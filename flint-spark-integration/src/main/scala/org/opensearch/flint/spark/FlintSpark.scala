@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
+import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
 
@@ -288,15 +288,28 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     spark.streams.active.exists(_.name == indexName)
 
   private def scheduleIndexStateUpdate(indexName: String): Unit = {
-    executor.scheduleAtFixedRate(
+    var task: ScheduledFuture[_] = null // avoid forward reference compile error at task.cancel()
+    task = executor.scheduleAtFixedRate(
       () => {
-        logInfo("Scheduler triggers index log entry update")
+        logInfo(s"Scheduler triggers index log entry update for $indexName")
         try {
-          flintClient
-            .startTransaction(indexName, dataSourceName)
-            .initialLog(latest => latest.state == REFRESHING)
-            .finalLog(latest => latest) // timestamp will update automatically
-            .commit(latest => logInfo("Updating log entry to " + latest))
+          if (isIncrementalRefreshing(indexName)) {
+            logInfo("Streaming job is still active")
+            flintClient
+              .startTransaction(indexName, dataSourceName)
+              .initialLog(latest => latest.state == REFRESHING)
+              .finalLog(latest => latest) // timestamp will update automatically
+              .commit(_ => {})
+          } else {
+            logError("Streaming job is not active. Cancelling update task")
+            flintClient
+              .startTransaction(indexName, dataSourceName)
+              .initialLog(_ => true)
+              .finalLog(latest => latest.copy(state = FAILED))
+              .commit(_ => {})
+            task.cancel(true)
+            logInfo("Update task is cancelled")
+          }
         } catch {
           case e: Exception =>
             logError("Failed to update index log entry", e)
