@@ -9,11 +9,13 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark._
-import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder}
+import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder, ID_COLUMN}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{getFlintIndexName, COVERING_INDEX_TYPE}
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql._
+import org.apache.spark.sql.functions.{col, concat, input_file_name, sha1}
 
 /**
  * Flint covering index in Spark.
@@ -31,7 +33,8 @@ case class FlintSparkCoveringIndex(
     indexedColumns: Map[String, String],
     filterCondition: Option[String] = None,
     override val options: FlintSparkIndexOptions = empty)
-    extends FlintSparkIndex {
+    extends FlintSparkIndex
+    with Logging {
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")
 
@@ -60,13 +63,29 @@ case class FlintSparkCoveringIndex(
 
   override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
     val colNames = indexedColumns.keys.toSeq
-    val job = df.getOrElse(spark.read.table(tableName))
+    var job = df.getOrElse(spark.read.table(tableName))
 
     // Add optional filtering condition
-    filterCondition
+    job = filterCondition
       .map(job.where)
       .getOrElse(job)
       .select(colNames.head, colNames.tail: _*)
+
+    // Add optional ID column
+    val uniqueColNames =
+      spark
+        .table(tableName)
+        .columns
+        .toSet
+        .intersect(Set("timestamp", "@timestamp"))
+
+    if (uniqueColNames.nonEmpty) {
+      logInfo(s"Generate ID column based on first column in $uniqueColNames")
+      job = job.withColumn(ID_COLUMN, sha1(concat(input_file_name(), col(uniqueColNames.head))))
+    } else {
+      logWarning("Cannot generate ID column which may cause duplicate data when restart")
+    }
+    job
   }
 }
 
