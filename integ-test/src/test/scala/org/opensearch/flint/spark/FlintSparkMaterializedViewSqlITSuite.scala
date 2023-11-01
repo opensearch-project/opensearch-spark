@@ -34,7 +34,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
        |   window.start AS startTime,
        |   COUNT(*) AS count
        | FROM $testTable
-       | GROUP BY TUMBLE(time, '10 Minutes')
+       | GROUP BY TUMBLE(timestamp, '10 Minutes')
        |""".stripMargin
 
   override def beforeAll(): Unit = {
@@ -163,7 +163,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
         |   window.start AS `start.time`,
         |   COUNT(*) AS `count`
         | FROM `spark_catalog`.`default`.`mv_test`
-        | GROUP BY TUMBLE(`time`, '10 Minutes')""".stripMargin.trim
+        | GROUP BY TUMBLE(`timestamp`, '10 Minutes')""".stripMargin.trim
 
     sql(s"""
            | CREATE MATERIALIZED VIEW `spark_catalog`.`default`.`mv_test_metrics`

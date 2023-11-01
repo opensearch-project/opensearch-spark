@@ -28,7 +28,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
        |   window.start AS startTime,
        |   COUNT(*) AS count
        | FROM $testTable
-       | GROUP BY TUMBLE(time, '10 Minutes')
+       | GROUP BY TUMBLE(timestamp, '10 Minutes')
        |""".stripMargin
 
   override def beforeAll(): Unit = {
@@ -134,7 +134,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |   window.start AS startTime,
          |   COUNT(*) AS count
          | FROM $testTable
-         | GROUP BY TUMBLE(time, '1 Hour')
+         | GROUP BY TUMBLE(timestamp, '1 Hour')
          |""".stripMargin
 
     withIncrementalMaterializedView(largeWindowQuery) { indexData =>
@@ -159,7 +159,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |   COUNT(*) AS count
          | FROM $testTable
          | WHERE address = 'Seattle'
-         | GROUP BY TUMBLE(time, '5 Minutes')
+         | GROUP BY TUMBLE(timestamp, '5 Minutes')
          |""".stripMargin
 
     withIncrementalMaterializedView(filterQuery) { indexData =>

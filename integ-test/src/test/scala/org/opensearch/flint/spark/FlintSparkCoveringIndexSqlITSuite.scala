@@ -15,7 +15,7 @@ import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.{defined, have}
+import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
@@ -24,14 +24,17 @@ import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
 class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
   /** Test table and index name */
-  private val testTable = "spark_catalog.default.covering_sql_test"
   private val testIndex = "name_and_age"
+  private val testTable = "spark_catalog.default.covering_sql_test"
   private val testFlintIndex = getFlintIndexName(testIndex, testTable)
+  private val testTimeSeriesTable = "spark_catalog.default.ci_time_test"
+  private val testFlintTimeSeriesIndex = getFlintIndexName(testIndex, testTimeSeriesTable)
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
     createPartitionedTable(testTable)
+    createTimeSeriesTable(testTimeSeriesTable)
   }
 
   override def afterEach(): Unit = {
@@ -39,6 +42,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     // Delete all test indices
     flint.deleteIndex(testFlintIndex)
+    flint.deleteIndex(testFlintTimeSeriesIndex)
   }
 
   test("create covering index with auto refresh") {
@@ -211,7 +215,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
            |""".stripMargin)
   }
 
-  test("create skipping index with quoted index, table and column name") {
+  test("create covering index with quoted index, table and column name") {
     sql(s"""
            | CREATE INDEX `$testIndex` ON `spark_catalog`.`default`.`covering_sql_test`
            | (`name`, `age`)
@@ -224,6 +228,72 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     metadata.name shouldBe testIndex
     metadata.source shouldBe testTable
     metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("name", "age")
+  }
+
+  test("create covering index on time series time with timestamp column") {
+    sql(s"""
+             | CREATE INDEX $testIndex ON $testTimeSeriesTable
+             | (timestamp, age)
+             | WITH (auto_refresh = true)
+             |""".stripMargin)
+
+    val job = spark.streams.active.find(_.name == testFlintTimeSeriesIndex)
+    awaitStreamingComplete(job.get.id.toString)
+
+    val indexData = flint.queryIndex(testFlintTimeSeriesIndex)
+    indexData.count() shouldBe 5
+  }
+
+  test("create covering index on time series time without indexing timestamp column") {
+    sql(s"""
+           | CREATE INDEX $testIndex ON $testTimeSeriesTable
+           | (name)
+           | WITH (auto_refresh = true)
+           |""".stripMargin)
+
+    val job = spark.streams.active.find(_.name == testFlintTimeSeriesIndex)
+    awaitStreamingComplete(job.get.id.toString)
+
+    val indexData = flint.queryIndex(testFlintTimeSeriesIndex)
+    indexData.count() shouldBe 5
+  }
+
+  test("create covering index on time series time with @timestamp column") {
+    val testTimeSeriesTable2 = "spark_catalog.default.ci_time_table2"
+    val testFlintTimeSeriesIndex2 = getFlintIndexName(testIndex, testTimeSeriesTable2)
+    withTable(testTimeSeriesTable2) {
+      sql(s"CREATE TABLE $testTimeSeriesTable2 (`@timestamp` TIMESTAMP, name STRING) USING JSON")
+      sql(s"INSERT INTO $testTimeSeriesTable2 VALUES (TIMESTAMP '2023-10-01 00:01:00', 'A')")
+      sql(s"INSERT INTO $testTimeSeriesTable2 VALUES (TIMESTAMP '2023-10-01 00:10:00', 'B')")
+      sql(s"""
+           | CREATE INDEX $testIndex ON $testTimeSeriesTable2
+           | (`@timestamp`, name)
+           | WITH (auto_refresh = true)
+           |""".stripMargin)
+
+      val job = spark.streams.active.find(_.name == testFlintTimeSeriesIndex2)
+      awaitStreamingComplete(job.get.id.toString)
+
+      val indexData = flint.queryIndex(testFlintTimeSeriesIndex2)
+      indexData.count() shouldBe 2
+    }
+  }
+
+  test("create covering index on time series time with ID expression") {
+    sql(s"""
+             | CREATE INDEX $testIndex ON $testTimeSeriesTable
+             | (timestamp, age)
+             | WITH (
+             |   auto_refresh = true,
+             |   id_expression = 'address'
+             | )
+             |""".stripMargin)
+
+    val job = spark.streams.active.find(_.name == testFlintTimeSeriesIndex)
+    awaitStreamingComplete(job.get.id.toString)
+
+    val indexData = flint.queryIndex(testFlintTimeSeriesIndex)
+    indexData.count() shouldBe 3 // only 3 rows left due to same ID
   }
 
   test("show all covering index on the source table") {

@@ -234,6 +234,7 @@ User can provide the following options in `WITH` clause of create statement:
 + `watermark_delay`: a string as time expression for how late data can come and still be processed, e.g. 1 minute, 10 seconds. This is required by incremental refresh on materialized view if it has aggregation in the query.
 + `output_mode`: a mode string that describes how data will be written to streaming sink. If unspecified, default append mode will be applied.
 + `index_settings`: a JSON string as index settings for OpenSearch index that will be created. Please follow the format in OpenSearch documentation. If unspecified, default OpenSearch index settings will be applied.
++ `id_expression`: an expression string that generates an ID column to avoid duplicate data when incremental refresh job restart, especially for covering index. If unspecified, an ID column based on source file path and `timestamp` or `@timestamp` column. If not found, no ID column generated and may cause duplicate data when refresh job restart.
 + `extra_options`: a JSON string as extra options that can be passed to Spark streaming source and sink API directly. Use qualified source table name (because there could be multiple) and "sink", e.g. '{"sink": "{key: val}", "table1": {key: val}}'
 
 Note that the index option name is case-sensitive. Here is an example:
@@ -246,6 +247,7 @@ WITH (
   watermark_delay = '1 Second',
   output_mode = 'complete',
   index_settings = '{"number_of_shards": 2, "number_of_replicas": 3}',
+  id_expression = 'id_col_name',
   extra_options = '{"spark_catalog.default.alb_logs": {"maxFilesPerTrigger": "1"}}'
 )
 ```

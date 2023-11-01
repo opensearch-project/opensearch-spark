@@ -74,7 +74,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     sql(s"""
          | CREATE TABLE $testTable
          | (
-         |   time TIMESTAMP,
+         |   timestamp TIMESTAMP,
          |   name STRING,
          |   age INT,
          |   address STRING
