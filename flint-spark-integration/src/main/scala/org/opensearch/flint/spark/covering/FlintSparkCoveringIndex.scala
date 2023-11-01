@@ -68,18 +68,12 @@ case class FlintSparkCoveringIndex(
     // Add optional ID column
     if (options.idExpression().isDefined) {
       val idExpr = options.idExpression().get
-
       logInfo(s"Generate ID column based on expression $idExpr")
+
       job = job.withColumn(ID_COLUMN, expr(idExpr))
       colNames = colNames :+ ID_COLUMN
     } else {
-      val idColNames =
-        spark
-          .table(tableName)
-          .columns
-          .toSet
-          .intersect(Set("timestamp", "@timestamp"))
-
+      val idColNames = job.columns.toSet.intersect(Set("timestamp", "@timestamp"))
       if (idColNames.isEmpty) {
         logWarning("Cannot generate ID column which may cause duplicate data when restart")
       } else {
