@@ -8,7 +8,7 @@ package org.opensearch.flint.spark
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
-import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, WATERMARK_DELAY}
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, ID_EXPRESSION, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, WATERMARK_DELAY}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
 
 /**
@@ -69,6 +69,14 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
    *   index setting JSON
    */
   def indexSettings(): Option[String] = getOptionValue(INDEX_SETTINGS)
+
+  /**
+   * An expression that generates unique value as source data row ID.
+   *
+   * @return
+   *   ID expression
+   */
+  def idExpression(): Option[String] = getOptionValue(ID_EXPRESSION)
 
   /**
    * Extra streaming source options that can be simply passed to DataStreamReader or
@@ -136,6 +144,7 @@ object FlintSparkIndexOptions {
     val OUTPUT_MODE: OptionName.Value = Value("output_mode")
     val INDEX_SETTINGS: OptionName.Value = Value("index_settings")
     val EXTRA_OPTIONS: OptionName.Value = Value("extra_options")
+    val ID_EXPRESSION: OptionName.Value = Value("id_expression")
   }
 
   /**
