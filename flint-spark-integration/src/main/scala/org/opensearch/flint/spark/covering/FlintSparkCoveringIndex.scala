@@ -9,13 +9,11 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark._
-import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder, ID_COLUMN}
+import org.opensearch.flint.spark.FlintSparkIndex._
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{getFlintIndexName, COVERING_INDEX_TYPE}
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql._
-import org.apache.spark.sql.functions._
 
 /**
  * Flint covering index in Spark.
@@ -33,8 +31,7 @@ case class FlintSparkCoveringIndex(
     indexedColumns: Map[String, String],
     filterCondition: Option[String] = None,
     override val options: FlintSparkIndexOptions = empty)
-    extends FlintSparkIndex
-    with Logging {
+    extends FlintSparkIndex {
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")
 
@@ -66,13 +63,7 @@ case class FlintSparkCoveringIndex(
     var job = df.getOrElse(spark.read.table(tableName))
 
     // Add optional ID column
-    val idColumn =
-      options
-        .idExpression()
-        .map(idExpr => Some(expr(idExpr)))
-        .getOrElse(findTimestampColumn(job)
-          .map(tsCol => sha1(concat(input_file_name(), col(tsCol)))))
-
+    val idColumn = generateIdColumn(job, options.idExpression())
     if (idColumn.isDefined) {
       logInfo(s"Generate ID column based on expression $idColumn")
       colNames = colNames :+ ID_COLUMN
@@ -86,10 +77,6 @@ case class FlintSparkCoveringIndex(
       .map(job.where)
       .getOrElse(job)
       .select(colNames.head, colNames.tail: _*)
-  }
-
-  private def findTimestampColumn(df: DataFrame): Option[String] = {
-    df.columns.toSet.intersect(Set("timestamp", "@timestamp")).headOption
   }
 }
 

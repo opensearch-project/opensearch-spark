@@ -9,14 +9,16 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.{Column, DataFrame, SparkSession}
 import org.apache.spark.sql.flint.datatype.FlintDataType
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
 
 /**
  * Flint index interface in Spark.
  */
-trait FlintSparkIndex {
+trait FlintSparkIndex extends Logging {
 
   /**
    * Index type
@@ -55,7 +57,7 @@ trait FlintSparkIndex {
   def build(spark: SparkSession, df: Option[DataFrame]): DataFrame
 }
 
-object FlintSparkIndex {
+object FlintSparkIndex extends Logging {
 
   /**
    * Interface indicates a Flint index has custom streaming refresh capability other than foreach
@@ -78,6 +80,32 @@ object FlintSparkIndex {
    * ID column name.
    */
   val ID_COLUMN: String = "__id__"
+
+  /**
+   * Generate an ID column in the precedence below: (1) Use ID expression directly if provided in
+   * index option; (2) SHA-1 based on all aggregated columns if found; (3) SHA-1 based on source
+   * file path and timestamp column; 4) No ID column generated
+   *
+   * @param df
+   *   data frame to generate ID column for
+   * @param idExpr
+   *   ID expression option
+   * @return
+   *   optional ID column expression
+   */
+  def generateIdColumn(df: DataFrame, idExpr: Option[String]): Option[Column] = {
+    def timestampColumn: Option[String] = {
+      df.columns.toSet.intersect(Set("timestamp", "@timestamp")).headOption
+    }
+
+    if (idExpr.isDefined) {
+      Some(expr(idExpr.get))
+    } else if (timestampColumn.isDefined) {
+      Some(sha1(concat(input_file_name(), col(timestampColumn.get))))
+    } else {
+      None
+    }
+  }
 
   /**
    * Common prefix of Flint index name which is "flint_database_table_"
