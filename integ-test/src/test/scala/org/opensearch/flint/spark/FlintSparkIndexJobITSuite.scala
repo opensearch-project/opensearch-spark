@@ -20,6 +20,7 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
   /** Test table and index name */
   private val testTable = "spark_catalog.default.test"
   private val testIndex = getSkippingIndexName(testTable)
+  private val latestId = Base64.getEncoder.encodeToString(testIndex.getBytes)
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -54,6 +55,7 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
 
     flint.recoverIndex(testIndex) shouldBe true
     spark.streams.active.exists(_.name == testIndex)
+    latestLogEntry(latestId) should contain("state" -> "refreshing")
   }
 
   test("recover should succeed even if index is in failed state") {
@@ -64,12 +66,12 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
       .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
       .create()
 
-    val latestId = Base64.getEncoder.encodeToString(testIndex.getBytes)
     updateLatestLogEntry(
       new FlintMetadataLogEntry(latestId, 1, 1, latestLogEntry(latestId).asJava),
       FAILED)
 
     flint.recoverIndex(testIndex) shouldBe true
     spark.streams.active.exists(_.name == testIndex)
+    latestLogEntry(latestId) should contain("state" -> "refreshing")
   }
 }

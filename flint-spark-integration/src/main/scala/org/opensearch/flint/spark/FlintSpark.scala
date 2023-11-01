@@ -252,6 +252,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         flintClient
           .startTransaction(indexName, dataSourceName)
           .initialLog(_ => true) // bypass state check and recover anyway
+          .transientLog(latest => latest.copy(state = RECOVERING))
           .finalLog(latest => {
             scheduleIndexStateUpdate(indexName)
             latest.copy(state = REFRESHING)
