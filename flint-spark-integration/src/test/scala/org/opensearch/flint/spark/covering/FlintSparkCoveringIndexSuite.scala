@@ -121,6 +121,25 @@ class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     }
   }
 
+  test("should build with filtering condition") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (timestamp TIMESTAMP, name STRING) USING JSON")
+      val index = FlintSparkCoveringIndex(
+        "name_idx",
+        testTable,
+        Map("name" -> "string"),
+        Some("name = 'test'"))
+
+      assertDataFrameEquals(
+        index.build(spark, None),
+        spark
+          .table(testTable)
+          .withColumn(ID_COLUMN, sha1(concat(input_file_name(), col("timestamp"))))
+          .where("name = 'test'")
+          .select(col("name"), col(ID_COLUMN)))
+    }
+  }
+
   /* Assert unresolved logical plan in DataFrame equals without semantic analysis */
   private def assertDataFrameEquals(df1: DataFrame, df2: DataFrame): Unit = {
     comparePlans(df1.queryExecution.logical, df2.queryExecution.logical, checkAnalysis = false)

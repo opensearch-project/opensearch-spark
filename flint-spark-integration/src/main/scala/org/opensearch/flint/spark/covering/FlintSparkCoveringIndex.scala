@@ -66,21 +66,19 @@ case class FlintSparkCoveringIndex(
     var job = df.getOrElse(spark.read.table(tableName))
 
     // Add optional ID column
-    if (options.idExpression().isDefined) {
-      val idExpr = options.idExpression().get
-      logInfo(s"Generate ID column based on expression $idExpr")
+    val idColumn =
+      options
+        .idExpression()
+        .map(idExpr => Some(expr(idExpr)))
+        .getOrElse(findTimestampColumn(job)
+          .map(tsCol => sha1(concat(input_file_name(), col(tsCol)))))
 
-      job = job.withColumn(ID_COLUMN, expr(idExpr))
+    if (idColumn.isDefined) {
+      logInfo(s"Generate ID column based on expression $idColumn")
       colNames = colNames :+ ID_COLUMN
+      job = job.withColumn(ID_COLUMN, idColumn.get)
     } else {
-      val idColNames = job.columns.toSet.intersect(Set("timestamp", "@timestamp"))
-      if (idColNames.isEmpty) {
-        logWarning("Cannot generate ID column which may cause duplicate data when restart")
-      } else {
-        logInfo(s"Generate ID column based on first column in $idColNames")
-        job = job.withColumn(ID_COLUMN, sha1(concat(input_file_name(), col(idColNames.head))))
-        colNames = colNames :+ ID_COLUMN
-      }
+      logWarning("Cannot generate ID column which may cause duplicate data when restart")
     }
 
     // Add optional filtering condition
@@ -88,6 +86,10 @@ case class FlintSparkCoveringIndex(
       .map(job.where)
       .getOrElse(job)
       .select(colNames.head, colNames.tail: _*)
+  }
+
+  private def findTimestampColumn(df: DataFrame): Option[String] = {
+    df.columns.toSet.intersect(Set("timestamp", "@timestamp")).headOption
   }
 }
 
