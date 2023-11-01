@@ -15,7 +15,7 @@ import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{getFlintInde
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql._
-import org.apache.spark.sql.functions.{col, concat, input_file_name, sha1}
+import org.apache.spark.sql.functions._
 
 /**
  * Flint covering index in Spark.
@@ -62,30 +62,38 @@ case class FlintSparkCoveringIndex(
   }
 
   override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
-    val colNames = indexedColumns.keys.toSeq
+    var colNames = indexedColumns.keys.toSeq
     var job = df.getOrElse(spark.read.table(tableName))
 
+    // Add optional ID column
+    if (options.idExpression().isDefined) {
+      val idExpr = options.idExpression().get
+
+      logInfo(s"Generate ID column based on expression $idExpr")
+      job = job.withColumn(ID_COLUMN, expr(idExpr))
+      colNames = colNames :+ ID_COLUMN
+    } else {
+      val idColNames =
+        spark
+          .table(tableName)
+          .columns
+          .toSet
+          .intersect(Set("timestamp", "@timestamp"))
+
+      if (idColNames.isEmpty) {
+        logWarning("Cannot generate ID column which may cause duplicate data when restart")
+      } else {
+        logInfo(s"Generate ID column based on first column in $idColNames")
+        job = job.withColumn(ID_COLUMN, sha1(concat(input_file_name(), col(idColNames.head))))
+        colNames = colNames :+ ID_COLUMN
+      }
+    }
+
     // Add optional filtering condition
-    job = filterCondition
+    filterCondition
       .map(job.where)
       .getOrElse(job)
       .select(colNames.head, colNames.tail: _*)
-
-    // Add optional ID column
-    val uniqueColNames =
-      spark
-        .table(tableName)
-        .columns
-        .toSet
-        .intersect(Set("timestamp", "@timestamp"))
-
-    if (uniqueColNames.nonEmpty) {
-      logInfo(s"Generate ID column based on first column in $uniqueColNames")
-      job = job.withColumn(ID_COLUMN, sha1(concat(input_file_name(), col(uniqueColNames.head))))
-    } else {
-      logWarning("Cannot generate ID column which may cause duplicate data when restart")
-    }
-    job
   }
 }
 
