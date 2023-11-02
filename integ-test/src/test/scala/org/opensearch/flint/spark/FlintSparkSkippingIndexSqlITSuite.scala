@@ -14,7 +14,7 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.{defined, have}
+import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
@@ -50,16 +50,26 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
            | WITH (auto_refresh = true)
            | """.stripMargin)
 
-    // Wait for streaming job complete current micro batch
-    val job = spark.streams.active.find(_.name == testIndex)
-    job shouldBe defined
-    failAfter(streamingTimeout) {
-      job.get.processAllAvailable()
-    }
-
-    val indexData = spark.read.format(FLINT_DATASOURCE).load(testIndex)
+    val indexData = awaitStreamingDataComplete(testIndex)
     flint.describeIndex(testIndex) shouldBe defined
     indexData.count() shouldBe 2
+  }
+
+  test("create skipping index with filtering condition") {
+    sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | (
+           |   year PARTITION,
+           |   name VALUE_SET,
+           |   age MIN_MAX
+           | )
+           | WHERE address = 'Portland'
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
+
+    val indexData = awaitStreamingDataComplete(testIndex)
+    flint.describeIndex(testIndex) shouldBe defined
+    indexData.count() shouldBe 1
   }
 
   test("create skipping index with streaming job options") {

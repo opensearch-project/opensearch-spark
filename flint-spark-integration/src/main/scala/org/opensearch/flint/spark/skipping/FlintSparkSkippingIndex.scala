@@ -81,7 +81,14 @@ case class FlintSparkSkippingIndex(
         new Column(aggFunc.toAggregateExpression().as(name))
       }
 
-    df.getOrElse(spark.read.table(tableName))
+    var job = df.getOrElse(spark.read.table(tableName))
+
+    // Add optional filtering condition
+    if (filterCondition.isDefined) {
+      job = job.where(filterCondition.get)
+    }
+
+    job
       .groupBy(input_file_name().as(FILE_PATH_COLUMN))
       .agg(namedAggFuncs.head, namedAggFuncs.tail: _*)
       .withColumn(ID_COLUMN, sha1(col(FILE_PATH_COLUMN)))

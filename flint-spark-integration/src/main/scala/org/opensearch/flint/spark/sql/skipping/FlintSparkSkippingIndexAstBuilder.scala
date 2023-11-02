@@ -43,6 +43,10 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
         }
       }
 
+      if (ctx.whereClause() != null) {
+        indexBuilder.filterBy(getSqlText(ctx.whereClause().filterCondition()))
+      }
+
       val ignoreIfExists = ctx.EXISTS() != null
       val indexOptions = visitPropertyList(ctx.propertyList())
       indexBuilder
