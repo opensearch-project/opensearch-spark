@@ -14,6 +14,7 @@ import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{getFlintIndexName, COVERING_INDEX_TYPE}
 
 import org.apache.spark.sql._
+import org.apache.spark.sql.execution.SimpleMode
 
 /**
  * Flint covering index in Spark.
@@ -73,10 +74,15 @@ case class FlintSparkCoveringIndex(
     }
 
     // Add optional filtering condition
-    filterCondition
-      .map(job.where)
-      .getOrElse(job)
-      .select(colNames.head, colNames.tail: _*)
+    if (filterCondition.isDefined) {
+      job = job.where(filterCondition.get)
+    }
+
+    // Add indexed columns
+    job = job.select(colNames.head, colNames.tail: _*)
+
+    logInfo(s"Building covering index by " + job.queryExecution.explainString(SimpleMode))
+    job
   }
 }
 

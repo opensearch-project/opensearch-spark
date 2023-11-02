@@ -57,7 +57,7 @@ trait FlintSparkIndex extends Logging {
   def build(spark: SparkSession, df: Option[DataFrame]): DataFrame
 }
 
-object FlintSparkIndex extends Logging {
+object FlintSparkIndex {
 
   /**
    * Interface indicates a Flint index has custom streaming refresh capability other than foreach

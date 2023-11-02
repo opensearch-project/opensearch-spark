@@ -247,7 +247,7 @@ WITH (
   watermark_delay = '1 Second',
   output_mode = 'complete',
   index_settings = '{"number_of_shards": 2, "number_of_replicas": 3}',
-  id_expression = 'id_col_name',
+  id_expression = 'uuid()',
   extra_options = '{"spark_catalog.default.alb_logs": {"maxFilesPerTrigger": "1"}}'
 )
 ```
