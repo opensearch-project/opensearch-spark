@@ -1,4 +1,4 @@
-CREATE EXTERNAL TABLE mys3.default.http_logs (
+CREATE EXTERNAL TABLE mys3.default.http_logs_{date} (
    `@timestamp` TIMESTAMP,
     clientip STRING,
     request STRING, 
@@ -8,4 +8,4 @@ CREATE EXTERNAL TABLE mys3.default.http_logs (
     month INT, 
     day INT) 
 USING json PARTITIONED BY(year, month, day) OPTIONS 
-   (path 's3://path/data/http_log/http_logs_partitioned_json_bz2/', compression 'bzip2')"
+   (path 's3://path/data/http_log/http_logs_partitioned_json_bz2/', compression 'bzip2')

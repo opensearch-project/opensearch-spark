@@ -3,12 +3,28 @@ import time
 import json
 import os
 import logging
+from datetime import datetime
+import argparse
 
 url = os.environ.get('OPENSEARCH_URL', "http://opensearch_server:9200")  # Modify this line
-logging.basicConfig(filename='sanity_report.log', level=logging.INFO)
+table_name = 'http_logs'
+# Generate a timestamp for the file name
+timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+filename = f'sanity_report_{timestamp}.log'
 
+# Configure logging
+logging.basicConfig(filename=filename,
+                    level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
 test_result = []
 sanity_report = []
+
+def get_current_date_str():
+    return datetime.now().strftime('%Y%m%d')
+
+# default date for the test
+current_date_str =  get_current_date_str()
 
 def log_to_report(query, status, runtime, reason=None):
     report_entry = {
@@ -94,7 +110,7 @@ def create_session():
             return sessionId
         elif response['status'] == 'FAILED':
             raise Exception("FAILED")
-        time.sleep(5)
+        time.sleep(10)
 
 def asnyc_query_session(query, sessionId):
     async_url = url + "/_plugins/_async_query"
@@ -150,71 +166,108 @@ def test_repl(expected, query, sessionId):
             log_to_report(query, "FAILED", runtime, str(e))
             logging.info(f"{e}")
             break
-        time.sleep(2)
+        time.sleep(10)
+
+# Rest of your imports remain the same
+
+def read_query(table_name, query_file):
+    with open(f"{table_name}/queries/{query_file}", 'r') as file:
+        query = file.read()
+    query_with_date = query.replace("{date}", current_date_str)
+    logging.debug(f"read_query {query_file} with resulting query: {query_with_date} ")
+    return query_with_date
+def read_table(table_name, table_file):
+    with open(f"{table_name}/tables/{table_file}", 'r') as file:
+        query = file.read()
+    query_with_date = query.replace("{date}", current_date_str)
+    logging.debug(f"read_table {table_file} with resulting table: {query_with_date} ")
+    return query_with_date
+
+def read_response(table_name, result_file):
+    # Ensure the file has a .json extension
+    result_file_json = f"{os.path.splitext(result_file)[0]}.json"
+
+    with open(f"{table_name}/results/{result_file_json}", 'r') as file:
+        expected_result = json.load(file)
+
+    # Define a lambda that captures expected_result and returns it when called
+    response_lambda = lambda: {
+        'status': expected_result['data']['resp']['status'],
+        'schema': expected_result['data']['resp']['schema'],
+        'datarows': expected_result['data']['resp']['datarows'],
+        'total': expected_result['data']['resp']['total'],
+        'size': expected_result['data']['resp']['size']
+    }
+
+    # Log the lambda and its result for debugging
+    logging.debug(f"read_response {response_lambda} with resulting result: {response_lambda()} ")
+
+    # Return the lambda function
+    return response_lambda
 
 
+def main(use_date, run_tables, run_queries):    # Default to current date if no argument is provided
+    current_date_str = get_current_date_str()
 
-def main():
+    # Check if a date argument has been provided
+    if use_date:
+        # Use the provided date instead of the current date
+        provided_date_str = use_date
+        try:
+            # Validate that the provided date is in the correct format
+            datetime.strptime(provided_date_str, '%Y%m%d')
+            current_date_str = provided_date_str
+        except ValueError as e:
+            logging.error(f"Date argument provided is not in the correct format: {provided_date_str}")
+            logging.error(f"Error: {e}")
+            sys.exit(1)  # Exit the script if the date format is incorrect
+    pass
+
+    logging.info(f"Running tests for the date: {current_date_str}")
+    logging.info(f"Enabling REPLE...")
     enable_repl()
+    logging.info(f"Creating Session...")
     sessionId = create_session()
 
-    expected_lambda = lambda response: (
-            response['status'] == 'SUCCESS' and
-            response['total'] == 1 and
-            response['datarows'][0] == [1998] and
-            response['schema'][0]['name'] == 'year' and
-            response['schema'][0]['type'] == 'integer'
-    )
-    test_repl(expected_lambda, "select year from mys3.default.http_logs where year = 1998 limit 1", sessionId)
+    logging.info(f"Starting Tests ...")
+    # Iterate over tables files
+    if run_tables:
+        logging.info(f"Starting Create Table Tests ...")
+        tables_files = os.listdir(f"{table_name}/tables")
+        for table_file in tables_files:
+            query = read_table(table_name, table_file)
+            expected_lambda = lambda response: (
+                    response['size'] == 0
+            )
+            test_repl(expected_lambda, query, sessionId)
+    pass
 
+    # Iterate over query files
+    if run_queries:
+        logging.info(f"Starting Queries Tests ...")
+        query_files = os.listdir(f"{table_name}/queries")
+        for query_file in query_files:
+            query = read_query(table_name, query_file)
+            expected_result = read_response(table_name, query_file)
+            test_repl(expected_result, query, sessionId)
+    pass
 
-    expected_lambda = lambda response: (
-            response['size'] == 13 and
-            response['total'] == 13 and
-            response['datarows'][0] == [
-                "@timestamp",
-                "timestamp",
-                ""
-            ] and
-            response['schema'] == [
-                {
-                    "name": "col_name",
-                    "type": "string"
-                },
-                {
-                    "name": "data_type",
-                    "type": "string"
-                },
-                {
-                    "name": "comment",
-                    "type": "string"
-                }
-            ]
-    )
-    test_repl(expected_lambda, "DESC mys3.default.http_logs", sessionId)
-
-    expected_lambda = lambda response: (
-            response['size'] == 1 and
-            response['total'] == 1 and
-            response['datarows'][0] == [
-                "default",
-                "http_logs",
-                False
-            ] and
-            response['schema'] == [
-                {"name": "namespace", "type": "string"},
-                {"name": "tableName", "type": "string"},
-                {"name": "isTemporary", "type": "boolean"}
-            ]
-    )
-    test_repl(expected_lambda, "SHOW TABLES IN mys3.default LIKE 'http_logs'", sessionId)
-
-
-    expected_lambda = lambda response: (
-            response['size'] == 0
-    )
-    test_repl(expected_lambda, "create skipping index on mys3.default.http_logs (status VALUE_SET)", sessionId)
     print_sanity_report()
 
 if __name__ == '__main__':
-    main()    
+    # Initialize the argument parser
+    parser = argparse.ArgumentParser(description='Run table queries and/or other queries.')
+
+    # Add arguments
+    parser.add_argument('--use-date', type=str, help='Specify a date for the tables in YYYYMMDD format', default='')
+    parser.add_argument('--run-tables', action='store_true', help='Run table queries')
+    parser.add_argument('--run-queries', action='store_true', help='Run other queries')
+
+    # Parse the arguments
+    args = parser.parse_args()
+
+    # Call main with the parsed arguments
+    main(use_date=args.use_date ,run_tables=args.run_tables, run_queries=args.run_queries)
+
+
+

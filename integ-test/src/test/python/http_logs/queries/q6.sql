@@ -1,3 +1,3 @@
-SELECT day, SUM(size) as total_size FROM mys3.default.http_logs
+SELECT day, SUM(size) as total_size FROM mys3.default.http_logs_{date}
 WHERE year = 1998 AND month =6
 GROUP BY day;
