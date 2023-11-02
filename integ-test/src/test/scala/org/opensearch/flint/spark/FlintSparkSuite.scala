@@ -6,13 +6,14 @@
 package org.opensearch.flint.spark
 
 import org.opensearch.flint.OpenSearchSuite
+import org.scalatest.matchers.must.Matchers.defined
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{DataFrame, QueryTest}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
 import org.apache.spark.sql.streaming.StreamTest
-import org.scalatest.matchers.must.Matchers.defined
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 /**
  * Flint Spark suite trait that initializes [[FlintSpark]] API instance.
