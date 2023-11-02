@@ -31,6 +31,7 @@ import org.apache.spark.sql.functions.{col, input_file_name, sha1}
 case class FlintSparkSkippingIndex(
     tableName: String,
     indexedColumns: Seq[FlintSparkSkippingStrategy],
+    filterCondition: Option[String] = None,
     override val options: FlintSparkIndexOptions = empty)
     extends FlintSparkIndex {
 
@@ -59,12 +60,15 @@ case class FlintSparkSkippingIndex(
         .toMap + (FILE_PATH_COLUMN -> "string")
     val schemaJson = generateSchemaJSON(fieldTypes)
 
-    metadataBuilder(this)
-      .name(name())
+    val builder = metadataBuilder(this)
+      .name("") // skipping index is unique per table without name
       .source(tableName)
       .indexedColumns(indexColumnMaps)
       .schema(schemaJson)
-      .build()
+
+    // Add optional index properties
+    filterCondition.map(builder.addProperty("filterCondition", _))
+    builder.build()
   }
 
   override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
@@ -118,6 +122,7 @@ object FlintSparkSkippingIndex {
   /** Builder class for skipping index build */
   class Builder(flint: FlintSpark) extends FlintSparkIndexBuilder(flint) {
     private var indexedColumns: Seq[FlintSparkSkippingStrategy] = Seq()
+    private var filterCondition: Option[String] = None
 
     /**
      * Configure which source table the index is based on.
@@ -181,8 +186,21 @@ object FlintSparkSkippingIndex {
       this
     }
 
+    /**
+     * Add filtering condition.
+     *
+     * @param condition
+     *   filter condition
+     * @return
+     *   index builder
+     */
+    def filterBy(condition: String): Builder = {
+      filterCondition = Some(condition)
+      this
+    }
+
     override def buildIndex(): FlintSparkIndex =
-      new FlintSparkSkippingIndex(tableName, indexedColumns, indexOptions)
+      new FlintSparkSkippingIndex(tableName, indexedColumns, filterCondition, indexOptions)
 
     private def addIndexedColumn(indexedCol: FlintSparkSkippingStrategy): Unit = {
       require(

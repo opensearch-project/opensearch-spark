@@ -29,13 +29,6 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
   override def visitCreateSkippingIndexStatement(
       ctx: CreateSkippingIndexStatementContext): Command =
     FlintSparkSqlCommand() { flint =>
-      // TODO: support filtering condition
-      if (ctx.whereClause() != null) {
-        throw new UnsupportedOperationException(
-          s"Filtering condition is not supported: ${getSqlText(ctx.whereClause())}")
-      }
-
-      // Create skipping index
       val indexBuilder = flint
         .skippingIndex()
         .onTable(getFullTableName(flint, ctx.tableName))

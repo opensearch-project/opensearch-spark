@@ -48,13 +48,14 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .addPartitions("year", "month")
       .addValueSet("address")
       .addMinMax("age")
+      .filterBy("age > 30")
       .create()
 
     val index = flint.describeIndex(testIndex)
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
         |   "_meta": {
-        |     "name": "flint_spark_catalog_default_test_skipping_index",
+        |     "name": "",
         |     "version": "${current()}",
         |     "kind": "skipping",
         |     "indexedColumns": [
@@ -80,7 +81,9 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |     }],
         |     "source": "spark_catalog.default.test",
         |     "options": { "auto_refresh": "false" },
-        |     "properties": {}
+        |     "properties": {
+        |       "filterCondition": "age > 30"
+        |     }
         |   },
         |   "properties": {
         |     "year": {
@@ -452,7 +455,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     index.get.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
-         |     "name": "flint_spark_catalog_default_data_type_table_skipping_index",
+         |     "name": "",
          |     "version": "${current()}",
          |     "kind": "skipping",
          |     "indexedColumns": [

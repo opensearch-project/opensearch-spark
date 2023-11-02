@@ -57,7 +57,11 @@ object FlintSparkIndexFactory {
               throw new IllegalStateException(s"Unknown skipping strategy: $other")
           }
         }
-        FlintSparkSkippingIndex(metadata.source, strategies, indexOptions)
+        FlintSparkSkippingIndex(
+          metadata.source,
+          strategies,
+          getOptString(metadata.properties, "filterCondition"),
+          indexOptions)
       case COVERING_INDEX_TYPE =>
         FlintSparkCoveringIndex(
           metadata.name,
