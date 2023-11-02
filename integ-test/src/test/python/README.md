@@ -9,6 +9,8 @@ This script is designed to perform sanity checks on OpenSearch queries by execut
 
 ## Configuration
 
+Before running the script, ensure that the `s3://path/data/http_log/` is correctly pointing to the http_logs s3 bucket - for additional information see [data-preparation](data-preparation.md).
+
 Before running the script, ensure that the `OPENSEARCH_URL` environment variable is set to your OpenSearch cluster's URL.
 
 Example:
