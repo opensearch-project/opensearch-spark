@@ -132,10 +132,13 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       flintClient
         .startTransaction(testFlintIndex, testDataSourceName)
         .initialLog(_ => false)
-        .transientLog(latest => latest)
+        .transientLog(latest => latest.copy(state = ACTIVE))
         .finalLog(latest => latest)
         .commit(_ => {})
     }
+
+    // Initial empty log should not be changed
+    latestLogEntry(testLatestId) should contain("state" -> "empty")
   }
 
   test("should fail if initial log entry updated by others when updating transient log entry") {
@@ -169,5 +172,59 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
           updateLatestLogEntry(latest, DELETING)
         })
     }
+  }
+
+  test("should revert to initial log if transaction operation failed") {
+    // Use create index scenario in this test case
+    the[IllegalStateException] thrownBy {
+      flintClient
+        .startTransaction(testFlintIndex, testDataSourceName)
+        .initialLog(_ => true)
+        .transientLog(latest => latest.copy(state = CREATING))
+        .finalLog(latest => latest.copy(state = ACTIVE))
+        .commit(_ => throw new RuntimeException("Mock operation error"))
+    }
+
+    // Should revert to initial empty log
+    latestLogEntry(testLatestId) should contain("state" -> "empty")
+  }
+
+  test("should revert to initial log if updating final log failed") {
+    // Use refresh index scenario in this test case
+    createLatestLogEntry(
+      FlintMetadataLogEntry(
+        id = testLatestId,
+        seqNo = UNASSIGNED_SEQ_NO,
+        primaryTerm = UNASSIGNED_PRIMARY_TERM,
+        createTime = 1234567890123L,
+        state = ACTIVE,
+        dataSource = testDataSourceName,
+        error = ""))
+
+    the[IllegalStateException] thrownBy {
+      flintClient
+        .startTransaction(testFlintIndex, testDataSourceName)
+        .initialLog(_ => true)
+        .transientLog(latest => latest.copy(state = REFRESHING))
+        .finalLog(_ => throw new RuntimeException("Mock final log error"))
+        .commit(_ => {})
+    }
+
+    // Should revert to initial active log
+    latestLogEntry(testLatestId) should contain("state" -> "active")
+  }
+
+  test("should not necessarily revert if transaction operation failed but no transient action") {
+    // Use create index scenario in this test case
+    the[IllegalStateException] thrownBy {
+      flintClient
+        .startTransaction(testFlintIndex, testDataSourceName)
+        .initialLog(_ => true)
+        .finalLog(latest => latest.copy(state = ACTIVE))
+        .commit(_ => throw new RuntimeException("Mock operation error"))
+    }
+
+    // Should revert to initial empty log
+    latestLogEntry(testLatestId) should contain("state" -> "empty")
   }
 }
