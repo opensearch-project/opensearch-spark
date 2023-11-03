@@ -33,6 +33,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       .initialLog(latest => {
         latest.id shouldBe testLatestId
         latest.state shouldBe EMPTY
+        latest.createTime shouldBe 0L
         latest.dataSource shouldBe testDataSourceName
         latest.error shouldBe ""
         true
@@ -42,11 +43,13 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   }
 
   test("should preserve original values when transition") {
+    val testCreateTime = 1234567890123L
     createLatestLogEntry(
       FlintMetadataLogEntry(
         id = testLatestId,
         seqNo = UNASSIGNED_SEQ_NO,
         primaryTerm = UNASSIGNED_PRIMARY_TERM,
+        createTime = testCreateTime,
         state = ACTIVE,
         dataSource = testDataSourceName,
         error = ""))
@@ -55,6 +58,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       .startTransaction(testFlintIndex, testDataSourceName)
       .initialLog(latest => {
         latest.id shouldBe testLatestId
+        latest.createTime shouldBe testCreateTime
         latest.dataSource shouldBe testDataSourceName
         latest.error shouldBe ""
         true
@@ -63,6 +67,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       .finalLog(latest => latest.copy(state = DELETED))
       .commit(latest => {
         latest.id shouldBe testLatestId
+        latest.createTime shouldBe testCreateTime
         latest.dataSource shouldBe testDataSourceName
         latest.error shouldBe ""
       })
@@ -104,6 +109,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         id = testLatestId,
         seqNo = UNASSIGNED_SEQ_NO,
         primaryTerm = UNASSIGNED_PRIMARY_TERM,
+        createTime = 1234567890123L,
         state = ACTIVE,
         dataSource = testDataSourceName,
         error = ""))

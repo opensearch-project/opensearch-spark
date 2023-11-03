@@ -98,6 +98,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
             latestId,
             logEntry.seqNo(),
             logEntry.primaryTerm(),
+            logEntry.createTime(),
             logEntry.state(),
             logEntry.dataSource(),
             logEntry.error());
@@ -135,6 +136,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
           logEntry.id(),
           response.getSeqNo(),
           response.getPrimaryTerm(),
+          logEntry.createTime(),
           logEntry.state(),
           logEntry.dataSource(),
           logEntry.error());

@@ -101,6 +101,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
         "",
         UNASSIGNED_SEQ_NO,
         UNASSIGNED_PRIMARY_TERM,
+        0L,
         IndexState$.MODULE$.EMPTY(),
         dataSourceName,
         "");

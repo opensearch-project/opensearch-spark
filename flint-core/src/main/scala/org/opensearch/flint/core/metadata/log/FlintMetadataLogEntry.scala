@@ -29,6 +29,7 @@ case class FlintMetadataLogEntry(
     id: String,
     seqNo: Long,
     primaryTerm: Long,
+    createTime: Long,
     state: IndexState,
     dataSource: String, // TODO: get from Spark conf
     error: String) {
@@ -38,6 +39,7 @@ case class FlintMetadataLogEntry(
       id,
       seqNo,
       primaryTerm,
+      map.get("jobStartTime").asInstanceOf[Long],
       IndexState.from(map.get("state").asInstanceOf[String]),
       map.get("dataSourceName").asInstanceOf[String],
       map.get("error").asInstanceOf[String])
@@ -54,7 +56,8 @@ case class FlintMetadataLogEntry(
        |  "applicationId": "${sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown")}",
        |  "jobId": "${sys.env.getOrElse("SERVERLESS_EMR_JOB_ID", "unknown")}",
        |  "dataSourceName": "$dataSource",
-       |  "lastUpdateTime": "${System.currentTimeMillis()}",
+       |  "jobStartTime": $createTime,
+       |  "lastUpdateTime": ${System.currentTimeMillis()},
        |  "error": "$error"
        |}
        |""".stripMargin
