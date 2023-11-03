@@ -8,6 +8,7 @@ package org.opensearch.flint.spark
 import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
 
 import scala.collection.JavaConverters._
+import scala.sys.addShutdownHook
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
@@ -45,9 +46,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
 
   /** Required by json4s parse function */
   implicit val formats: Formats = Serialization.formats(NoTypeHints) + SkippingKindSerializer
-
-  /** Scheduler for updating index state regularly as needed, such as incremental refreshing */
-  private val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
 
   /**
    * Data source name. Assign empty string in case of backward compatibility. TODO: remove this in
@@ -250,7 +248,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     spark.streams.active.exists(_.name == indexName)
 
   private def scheduleIndexStateUpdate(indexName: String): Unit = {
-    executor.scheduleAtFixedRate(
+    FlintSpark.executor.scheduleAtFixedRate(
       () => {
         logInfo("Scheduler triggers index log entry update")
         try {
@@ -371,7 +369,26 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   }
 }
 
-object FlintSpark {
+object FlintSpark extends Logging {
+
+  /**
+   * Scheduler for updating index state regularly as needed, currently only incremental refreshing
+   * Global shared by all FlintSpark instance (ExecutorService is thread-safe) and will be
+   * shutdown in Spark application upon exit. Make it var for unit test mock convenience.
+   */
+  var executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
+
+  /*
+   * Register shutdown hook to SparkContext with default priority (higher than SparkContext.close itself)
+   */
+  addShutdownHook(() => {
+    logInfo("Shutdown scheduled executor service")
+    try {
+      executor.shutdownNow()
+    } catch {
+      case e: Exception => logWarning("Failed to shutdown scheduled executor service", e)
+    }
+  })
 
   /**
    * Index refresh mode: FULL: refresh on current source data in batch style at one shot
