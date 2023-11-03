@@ -27,6 +27,51 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
   }
 
+  test("empty metadata log entry content") {
+    flintClient
+      .startTransaction(testFlintIndex, testDataSourceName)
+      .initialLog(latest => {
+        latest.id shouldBe testLatestId
+        latest.state shouldBe EMPTY
+        latest.dataSource shouldBe testDataSourceName
+        latest.error shouldBe ""
+        true
+      })
+      .finalLog(latest => latest)
+      .commit(_ => {})
+  }
+
+  test("should preserve original values when transition") {
+    createLatestLogEntry(
+      FlintMetadataLogEntry(
+        id = testLatestId,
+        seqNo = UNASSIGNED_SEQ_NO,
+        primaryTerm = UNASSIGNED_PRIMARY_TERM,
+        state = ACTIVE,
+        dataSource = testDataSourceName,
+        error = ""))
+
+    flintClient
+      .startTransaction(testFlintIndex, testDataSourceName)
+      .initialLog(latest => {
+        latest.id shouldBe testLatestId
+        latest.dataSource shouldBe testDataSourceName
+        latest.error shouldBe ""
+        true
+      })
+      .transientLog(latest => latest.copy(state = DELETING))
+      .finalLog(latest => latest.copy(state = DELETED))
+      .commit(latest => {
+        latest.id shouldBe testLatestId
+        latest.dataSource shouldBe testDataSourceName
+        latest.error shouldBe ""
+      })
+
+    latestLogEntry(testLatestId) should (contain("latestId" -> testLatestId) and
+      contain("dataSourceName" -> testDataSourceName) and
+      contain("error" -> ""))
+  }
+
   test("should transit from initial to final log if initial log is empty") {
     flintClient
       .startTransaction(testFlintIndex, testDataSourceName)
@@ -60,7 +105,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         seqNo = UNASSIGNED_SEQ_NO,
         primaryTerm = UNASSIGNED_PRIMARY_TERM,
         state = ACTIVE,
-        dataSource = "mys3",
+        dataSource = testDataSourceName,
         error = ""))
 
     flintClient

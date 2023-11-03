@@ -48,6 +48,7 @@ case class FlintMetadataLogEntry(
     s"""
        |{
        |  "version": "1.0",
+       |  "latestId": "$id",
        |  "type": "flintindexstate",
        |  "state": "$state",
        |  "applicationId": "${sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown")}",
