@@ -87,8 +87,13 @@ object FlintSparkIndex {
    * @return
    *   Flint index name
    */
-  def flintIndexNamePrefix(fullTableName: String): String =
-    s"flint_${fullTableName.replace(".", "_")}_"
+  def flintIndexNamePrefix(fullTableName: String): String = {
+    require(fullTableName.split('.').length >= 3, "Table name is not qualified")
+
+    // Keep all parts since the third as it is
+    val parts = fullTableName.split('.')
+    s"flint_${parts(0)}_${parts(1)}_${parts.drop(2).mkString(".")}"
+  }
 
   /**
    * Populate environment variables to persist in Flint metadata.

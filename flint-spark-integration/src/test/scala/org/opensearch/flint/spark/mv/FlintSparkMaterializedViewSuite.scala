@@ -16,7 +16,7 @@ import org.scalatestplus.mockito.MockitoSugar.mock
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
-import org.apache.spark.sql.catalyst.dsl.expressions.{count, intToLiteral, stringToLiteral, DslAttr, DslExpression, StringToAttributeConversionHelper}
+import org.apache.spark.sql.catalyst.dsl.expressions.{intToLiteral, stringToLiteral, DslAttr, DslExpression, StringToAttributeConversionHelper}
 import org.apache.spark.sql.catalyst.dsl.plans.DslLogicalPlan
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{EventTimeWatermark, LogicalPlan}
@@ -36,9 +36,15 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
   val testMvName = "spark_catalog.default.mv"
   val testQuery = "SELECT 1"
 
-  test("get name") {
+  test("get mv name") {
     val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
     mv.name() shouldBe "flint_spark_catalog_default_mv"
+  }
+
+  test("get mv name with dots") {
+    val testMvNameDots = "spark_catalog.default.mv.2023.10"
+    val mv = FlintSparkMaterializedView(testMvNameDots, testQuery, Map.empty)
+    mv.name() shouldBe "flint_spark_catalog_default_mv.2023.10"
   }
 
   test("should fail if get name with unqualified MV name") {

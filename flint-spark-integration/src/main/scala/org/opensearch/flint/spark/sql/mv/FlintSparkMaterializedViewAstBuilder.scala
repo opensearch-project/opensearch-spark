@@ -66,7 +66,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
 
     FlintSparkSqlCommand(outputSchema) { flint =>
       val catalogDbName = ctx.catalogDb.getText
-      val indexNamePattern = FlintSparkIndex.flintIndexNamePrefix(catalogDbName) + "*"
+      val indexNamePattern = FlintSparkIndex.flintIndexNamePrefix(catalogDbName) + "_*"
       flint
         .describeIndexes(indexNamePattern)
         .collect { case mv: FlintSparkMaterializedView =>

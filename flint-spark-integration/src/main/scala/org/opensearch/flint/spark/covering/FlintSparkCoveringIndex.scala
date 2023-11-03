@@ -97,7 +97,7 @@ object FlintSparkCoveringIndex {
       tableName.split("\\.").length >= 3,
       "Qualified table name catalog.database.table is required")
 
-    flintIndexNamePrefix(tableName) + indexName + COVERING_INDEX_SUFFIX
+    flintIndexNamePrefix(tableName) + "_" + indexName + COVERING_INDEX_SUFFIX
   }
 
   /** Builder class for covering index build */
