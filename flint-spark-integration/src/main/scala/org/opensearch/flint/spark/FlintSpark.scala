@@ -150,7 +150,8 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           } else {
             // Schedule regular update and return log entry as refreshing state
             scheduleIndexStateUpdate(indexName)
-            latest
+            // Update job start time. TODO: make same changes for recoverIndex
+            latest.copy(createTime = System.currentTimeMillis())
           }
         })
         .commit(_ => doRefreshIndex(index, indexName, mode))

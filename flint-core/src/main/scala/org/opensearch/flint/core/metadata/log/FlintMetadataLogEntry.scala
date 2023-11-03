@@ -29,9 +29,13 @@ case class FlintMetadataLogEntry(
     id: String,
     seqNo: Long,
     primaryTerm: Long,
+    /**
+     * This is currently used as streaming job start time. In future, this should represent the
+     * create timestamp of the log entry
+     */
     createTime: Long,
     state: IndexState,
-    dataSource: String, // TODO: get from Spark conf
+    dataSource: String,
     error: String) {
 
   def this(id: String, seqNo: Long, primaryTerm: Long, map: java.util.Map[String, AnyRef]) {
@@ -39,7 +43,8 @@ case class FlintMetadataLogEntry(
       id,
       seqNo,
       primaryTerm,
-      map.get("jobStartTime").asInstanceOf[Long],
+      /* getSourceAsMap() may use Integer or Long even though it's always long in index mapping */
+      map.get("jobStartTime").asInstanceOf[Number].longValue(),
       IndexState.from(map.get("state").asInstanceOf[String]),
       map.get("dataSourceName").asInstanceOf[String],
       map.get("error").asInstanceOf[String])
