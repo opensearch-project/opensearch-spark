@@ -10,9 +10,12 @@ import java.util.Base64
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
+import org.opensearch.action.get.GetRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.OpenSearchTransactionSuite
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.DELETED
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.should.Matchers
@@ -103,5 +106,57 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
     flint.deleteIndex(testFlintIndex)
 
     latestLogEntry(testLatestId) should contain("state" -> "deleted")
+  }
+
+  test("should recreate index if logical deleted") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+
+    // Simulate that user deletes index data manually
+    flint.deleteIndex(testFlintIndex)
+    latestLogEntry(testLatestId) should contain("state" -> "deleted")
+
+    // Simulate that user recreate the index
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addValueSet("name")
+      .create()
+  }
+
+  test("should not recreate index if index data still exists") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+
+    // Simulate that PPL plugin leaves index data as logical deleted
+    deleteLogically(testLatestId)
+    latestLogEntry(testLatestId) should contain("state" -> "deleted")
+
+    // Simulate that user recreate the index but forgot to cleanup index data
+    the[IllegalStateException] thrownBy {
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addValueSet("name")
+        .create()
+    } should have message s"Flint index $testFlintIndex already exists"
+  }
+
+  private def deleteLogically(latestId: String): Unit = {
+    val response = openSearchClient
+      .get(new GetRequest(testMetaLogIndex, latestId), RequestOptions.DEFAULT)
+
+    val latest = new FlintMetadataLogEntry(
+      latestId,
+      response.getSeqNo,
+      response.getPrimaryTerm,
+      response.getSourceAsMap)
+    updateLatestLogEntry(latest, DELETED)
   }
 }

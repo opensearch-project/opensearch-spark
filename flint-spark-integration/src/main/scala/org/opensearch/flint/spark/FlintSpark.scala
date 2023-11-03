@@ -104,7 +104,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       try {
         flintClient
           .startTransaction(indexName, dataSourceName)
-          .initialLog(latest => latest.state == EMPTY)
+          .initialLog(latest => latest.state == EMPTY || latest.state == DELETED)
           .transientLog(latest => latest.copy(state = CREATING))
           .finalLog(latest => latest.copy(state = ACTIVE))
           .commit(latest =>
@@ -144,7 +144,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         .finalLog(latest => {
           // Change state to active if full, otherwise update index state regularly
           if (mode == FULL) {
-            latest.copy(state = ACTIVE)
+            latest.copy(state = ACTIVE) // TODO: do we need jobStartTime for manual refresh?
           } else {
             // Schedule regular update and return log entry as refreshing state
             scheduleIndexStateUpdate(indexName)
