@@ -1,0 +1,96 @@
+{
+  "data": {
+    "ok": true,
+    "resp": {
+      "status": "SUCCESS",
+      "schema": [
+        {
+          "name": "@timestamp",
+          "type": "date"
+        },
+        {
+          "name": "clientip",
+          "type": "string"
+        },
+        {
+          "name": "request",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "integer"
+        },
+        {
+          "name": "size",
+          "type": "integer"
+        },
+        {
+          "name": "year",
+          "type": "integer"
+        },
+        {
+          "name": "month",
+          "type": "integer"
+        },
+        {
+          "name": "day",
+          "type": "integer"
+        }
+      ],
+      "datarows": [
+        [
+          "1998-06-14T19:59:55.000Z",
+          "185.163.25.0",
+          "GET /images/comp_bg2_hm.gif HTTP/1.1",
+          404,
+          340,
+          1998,
+          6,
+          14
+        ],
+        [
+          "1998-06-14T19:59:55.000Z",
+          "161.62.26.0",
+          "GET /images/comp_bg2_hm.gif HTTP/1.0",
+          404,
+          343,
+          1998,
+          6,
+          14
+        ],
+        [
+          "1998-06-14T19:59:55.000Z",
+          "63.158.15.0",
+          "GET /images/comp_bg2_hm.gif HTTP/1.1",
+          404,
+          335,
+          1998,
+          6,
+          14
+        ],
+        [
+          "1998-06-14T19:59:55.000Z",
+          "190.10.13.0",
+          "GET /images/comp_bg2_hm.gif HTTP/1.1",
+          404,
+          335,
+          1998,
+          6,
+          14
+        ],
+        [
+          "1998-06-14T19:59:53.000Z",
+          "28.87.6.0",
+          "GET /images/comp_bg2_hm.gif HTTP/1.0",
+          404,
+          349,
+          1998,
+          6,
+          14
+        ]
+      ],
+      "total": 5,
+      "size": 5
+    }
+  }
+}
