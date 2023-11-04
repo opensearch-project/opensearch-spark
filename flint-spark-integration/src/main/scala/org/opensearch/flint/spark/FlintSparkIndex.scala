@@ -88,7 +88,7 @@ object FlintSparkIndex {
    *   Flint index name
    */
   def flintIndexNamePrefix(fullTableName: String): String = {
-    require(fullTableName.split('.').length >= 3, "Table name is not qualified")
+    require(fullTableName.split('.').length >= 3, s"Table name $fullTableName is not qualified")
 
     // Keep all parts since the third as it is
     val parts = fullTableName.split('.')
