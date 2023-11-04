@@ -1,9 +1,9 @@
-CREATE MATERIALIZED VIEW mys3.default.http_count_view_{date}
+CREATE MATERIALIZED VIEW mys3.default.http_count_view
 AS
 SELECT
     window.start AS `start.time`,
     COUNT(*) AS count
-FROM mys3.default.http_logs_{date}
+FROM mys3.default.http_logs
 WHERE status != 200
 GROUP BY TUMBLE(`@timestamp`, '1 Minutes')
 WITH (

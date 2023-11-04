@@ -9,9 +9,15 @@ This script is designed to perform sanity checks on OpenSearch queries by execut
 
 ## Configuration
 
-Before running the script, ensure that the `s3://path/data/http_log/` is correctly pointing to the http_logs s3 bucket - for additional information see [data-preparation](data-preparation.md).
+Before running the script, ensure that the `s3://flint/-data/-dp/-eu/-west/-1/-beta/data/http_log/` is correctly pointing to the http_logs s3 bucket - for additional information see [data-preparation](data-preparation.md).
 
 Before running the script, ensure that the `OPENSEARCH_URL` environment variable is set to your OpenSearch cluster's URL.
+
+Before running the script, ensure that the datasource name (in this sample `mys3`) match the correct location of your EMR spark cluster.
+
+Before running the script, ensure that the catalog name (in this sample `default`) match the correct schema name within the AWS-GLUE catalog.
+
+Before running the script, ensure that the table name (in this sample `http_logs_plain`) match the correct name of table ([Or create table using the next script](./http_logs/tables/create_table.sql)).
 
 Example:
 ```bash
@@ -62,10 +68,15 @@ The script accepts several optional parameters to control its behavior:
    ```bash
    ./run_sanity.sh --run-tables --run-queries --use-date 20231102
    ```
+4. Run both table (creation) queries and data queries:
+   ```bash
+   python sanity_script.py --run-tables --run-queries
+   ```
 
 ## Output
 
 The script will generate a log file with a timestamp in its name (e.g., `sanity_report_2023-11-02_12-00-00.log`) that contains the results of the sanity checks, including any errors encountered during execution.
+
 
 ## Support
 

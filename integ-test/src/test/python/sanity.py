@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 import argparse
 
-url = os.environ.get('OPENSEARCH_URL', "http://opensearch_server:9200")  # Modify this line
+url = os.environ.get('OPENSEARCH_URL', "http://opensearch:9200")  # Modify this line
 table_name = 'http_logs'
 # Generate a timestamp for the file name
 timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
@@ -140,6 +140,7 @@ def test_repl(expected, query, sessionId):
     while True:
         try:
             response = fetch_result(queryId).json()
+            logging.debug(f"actual response {response} ")
             logging.info(f"status: {response['status']}")
             if response['status'] == 'SUCCESS':
                 query_end_time = time.time()
@@ -191,7 +192,7 @@ def read_response(table_name, result_file):
         expected_result = json.load(file)
 
     # Define a lambda that captures expected_result and returns it when called
-    response_lambda = lambda: {
+    response_lambda = lambda response : {
         'status': expected_result['data']['resp']['status'],
         'schema': expected_result['data']['resp']['schema'],
         'datarows': expected_result['data']['resp']['datarows'],
@@ -200,7 +201,7 @@ def read_response(table_name, result_file):
     }
 
     # Log the lambda and its result for debugging
-    logging.debug(f"read_response {response_lambda} with resulting result: {response_lambda()} ")
+    logging.debug(f"expected response {expected_result} ")
 
     # Return the lambda function
     return response_lambda
@@ -214,8 +215,6 @@ def main(use_date, run_tables, run_queries):    # Default to current date if no 
         # Use the provided date instead of the current date
         provided_date_str = use_date
         try:
-            # Validate that the provided date is in the correct format
-            datetime.strptime(provided_date_str, '%Y%m%d')
             current_date_str = provided_date_str
         except ValueError as e:
             logging.error(f"Date argument provided is not in the correct format: {provided_date_str}")
