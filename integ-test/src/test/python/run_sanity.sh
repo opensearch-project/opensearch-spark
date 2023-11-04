@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set the environment variable for the OpenSearch URL
-export OPENSEARCH_URL="http://opensearch:9200"
+export OPENSEARCH_URL="http://ec2-52-39-211-201.us-west-2.compute.amazonaws.com:9200"
 
 
 # ASCII Art for OpenSearch Spark

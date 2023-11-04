@@ -172,7 +172,7 @@ def test_repl(expected, query, sessionId):
 # Rest of your imports remain the same
 
 def read_query(table_name, query_file):
-    with open(f"{table_name}/queries/{query_file}", 'r') as file:
+    with open(f"{table_name}/sql/{query_file}", 'r') as file:
         query = file.read()
     query_with_date = query.replace("{date}", current_date_str)
     logging.debug(f"read_query {query_file} with resulting query: {query_with_date} ")
@@ -241,14 +241,22 @@ def main(use_date, run_tables, run_queries):    # Default to current date if no 
             test_repl(expected_lambda, query, sessionId)
     pass
 
-    # Iterate over query files
+    # Iterate over SQL query files
     if run_queries:
-        logging.info(f"Starting Queries Tests ...")
-        query_files = os.listdir(f"{table_name}/queries")
+        logging.info(f"Starting SQL Queries Tests ...")
+        query_files = os.listdir(f"{table_name}/sql")
         for query_file in query_files:
             query = read_query(table_name, query_file)
             expected_result = read_response(table_name, query_file)
             test_repl(expected_result, query, sessionId)
+
+        # Iterate over PPL query files
+        # logging.info(f"Starting PPL Queries Tests ...")
+        # query_files = os.listdir(f"{table_name}/ppl")
+        # for query_file in query_files:
+        #     query = read_query(table_name, query_file)
+        #     expected_result = read_response(table_name, query_file)
+        #     test_repl(expected_result, query, sessionId)
     pass
 
     print_sanity_report()
