@@ -9,6 +9,7 @@ import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.tree.{ParseTree, RuleNode}
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.sql.covering.FlintSparkCoveringIndexAstBuilder
+import org.opensearch.flint.spark.sql.job.FlintSparkIndexJobAstBuilder
 import org.opensearch.flint.spark.sql.mv.FlintSparkMaterializedViewAstBuilder
 import org.opensearch.flint.spark.sql.skipping.FlintSparkSkippingIndexAstBuilder
 
@@ -25,6 +26,7 @@ class FlintSparkSqlAstBuilder
     with FlintSparkSkippingIndexAstBuilder
     with FlintSparkCoveringIndexAstBuilder
     with FlintSparkMaterializedViewAstBuilder
+    with FlintSparkIndexJobAstBuilder
     with SparkSqlAstBuilder {
 
   override def visit(tree: ParseTree): LogicalPlan = {
