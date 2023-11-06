@@ -47,7 +47,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   implicit val formats: Formats = Serialization.formats(NoTypeHints) + SkippingKindSerializer
 
   /** Scheduler for updating index state regularly as needed, such as incremental refreshing */
-  private val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
+  var executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
 
   /**
    * Data source name. Assign empty string in case of backward compatibility. TODO: remove this in
@@ -251,7 +251,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       try {
         flintClient
           .startTransaction(indexName, dataSourceName)
-          .initialLog(_ => true) // bypass state check and recover anyway
+          .initialLog(latest => Set(ACTIVE, REFRESHING, FAILED).contains(latest.state))
           .transientLog(latest => latest.copy(state = RECOVERING))
           .finalLog(latest => {
             scheduleIndexStateUpdate(indexName)

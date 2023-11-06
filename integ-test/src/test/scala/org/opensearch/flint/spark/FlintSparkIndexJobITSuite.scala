@@ -11,8 +11,9 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.OpenSearchTransactionSuite
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.FAILED
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
+import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
 import org.scalatest.matchers.should.Matchers
 
 class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers {
@@ -28,7 +29,7 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
   }
 
   override def afterEach(): Unit = {
-    super.afterEach()
+    super.afterEach() // must clean up metadata log first and then delete
     flint.deleteIndex(testIndex)
   }
 
@@ -58,20 +59,49 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
     latestLogEntry(latestId) should contain("state" -> "refreshing")
   }
 
-  test("recover should succeed even if index is in failed state") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
-      .create()
+  Seq(EMPTY, CREATING, DELETING, DELETED, RECOVERING, UNKNOWN).foreach { state =>
+    test(s"recover should fail if index is in $state state") {
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year")
+        .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+        .create()
 
-    updateLatestLogEntry(
-      new FlintMetadataLogEntry(latestId, 1, 1, latestLogEntry(latestId).asJava),
-      FAILED)
+      updateLatestLogEntry(
+        new FlintMetadataLogEntry(
+          latestId,
+          UNASSIGNED_SEQ_NO,
+          UNASSIGNED_PRIMARY_TERM,
+          latestLogEntry(latestId).asJava),
+        state)
 
-    flint.recoverIndex(testIndex) shouldBe true
-    spark.streams.active.exists(_.name == testIndex)
-    latestLogEntry(latestId) should contain("state" -> "refreshing")
+      assertThrows[IllegalStateException] {
+        flint.recoverIndex(testIndex) shouldBe true
+      }
+    }
+  }
+
+  Seq(ACTIVE, REFRESHING, FAILED).foreach { state =>
+    test(s"recover should succeed if index is in $state state") {
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year")
+        .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+        .create()
+
+      updateLatestLogEntry(
+        new FlintMetadataLogEntry(
+          latestId,
+          UNASSIGNED_SEQ_NO,
+          UNASSIGNED_PRIMARY_TERM,
+          latestLogEntry(latestId).asJava),
+        state)
+
+      flint.recoverIndex(testIndex) shouldBe true
+      spark.streams.active.exists(_.name == testIndex)
+      latestLogEntry(latestId) should contain("state" -> "refreshing")
+    }
   }
 }
