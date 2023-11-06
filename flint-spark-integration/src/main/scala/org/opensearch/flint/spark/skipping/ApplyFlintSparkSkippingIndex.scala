@@ -6,10 +6,11 @@
 package org.opensearch.flint.spark.skipping
 
 import org.opensearch.flint.spark.FlintSpark
+import org.opensearch.flint.spark.FlintSparkIndexUtils.isConjunction
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, SKIPPING_INDEX_TYPE}
 
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
-import org.apache.spark.sql.catalyst.expressions.{And, Expression, Or, Predicate}
+import org.apache.spark.sql.catalyst.expressions.{And, Expression, Predicate}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
@@ -33,7 +34,7 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
             _,
             Some(table),
             false))
-        if hasNoDisjunction(condition) && !location.isInstanceOf[FlintSparkSkippingFileIndex] =>
+        if isConjunction(condition) && !location.isInstanceOf[FlintSparkSkippingFileIndex] =>
       val index = flint.describeIndex(getIndexName(table))
       if (index.exists(_.kind == SKIPPING_INDEX_TYPE)) {
         val skippingIndex = index.get.asInstanceOf[FlintSparkSkippingIndex]
@@ -65,12 +66,6 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
     val tableName = table.qualifiedName
     val qualifiedTableName = qualifyTableName(flint.spark, tableName)
     getSkippingIndexName(qualifiedTableName)
-  }
-
-  private def hasNoDisjunction(condition: Expression): Boolean = {
-    condition.collectFirst { case Or(_, _) =>
-      true
-    }.isEmpty
   }
 
   private def rewriteToIndexFilter(

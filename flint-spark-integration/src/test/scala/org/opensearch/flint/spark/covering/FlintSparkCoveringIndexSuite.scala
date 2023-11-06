@@ -24,6 +24,24 @@ class FlintSparkCoveringIndexSuite extends FlintSuite {
     }
   }
 
+  test("should succeed if filtering condition is conjunction") {
+    new FlintSparkCoveringIndex(
+      "ci",
+      "test",
+      Map("name" -> "string"),
+      Some("test_field1 = 1 AND test_field2 = 2"))
+  }
+
+  test("should fail if filtering condition is not conjunction") {
+    assertThrows[IllegalArgumentException] {
+      new FlintSparkCoveringIndex(
+        "ci",
+        "test",
+        Map("name" -> "string"),
+        Some("test_field1 = 1 OR test_field2 = 2"))
+    }
+  }
+
   test("should fail if no indexed column given") {
     assertThrows[IllegalArgumentException] {
       new FlintSparkCoveringIndex("ci", "default.test", Map.empty)

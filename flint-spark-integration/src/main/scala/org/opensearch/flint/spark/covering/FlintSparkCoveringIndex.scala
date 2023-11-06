@@ -11,6 +11,7 @@ import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark._
 import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
+import org.opensearch.flint.spark.FlintSparkIndexUtils.isConjunction
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{getFlintIndexName, COVERING_INDEX_TYPE}
 
 import org.apache.spark.sql._
@@ -34,6 +35,7 @@ case class FlintSparkCoveringIndex(
     extends FlintSparkIndex {
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")
+  require(filterCondition.forall(isConjunction), "filtering condition must be conjunction")
 
   override val kind: String = COVERING_INDEX_TYPE
 

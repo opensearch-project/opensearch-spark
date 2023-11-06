@@ -11,6 +11,7 @@ import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark._
 import org.opensearch.flint.spark.FlintSparkIndex._
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
+import org.opensearch.flint.spark.FlintSparkIndexUtils.isConjunction
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
 import org.opensearch.flint.spark.skipping.partition.PartitionSkippingStrategy
@@ -18,7 +19,7 @@ import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.dsl.expressions.DslExpression
-import org.apache.spark.sql.functions.{col, input_file_name, sha1}
+import org.apache.spark.sql.functions.{col, expr, input_file_name, sha1}
 
 /**
  * Flint skipping index in Spark.
@@ -36,6 +37,7 @@ case class FlintSparkSkippingIndex(
     extends FlintSparkIndex {
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")
+  require(filterCondition.forall(isConjunction), "filtering condition must be conjunction")
 
   /** Skipping index type */
   override val kind: String = SKIPPING_INDEX_TYPE
@@ -85,7 +87,11 @@ case class FlintSparkSkippingIndex(
 
     // Add optional filtering condition
     if (filterCondition.isDefined) {
-      job = job.where(filterCondition.get)
+      if (isConjunction(expr(filterCondition.get).expr)) { // TODO: do the same for covering and add UT/IT
+        job = job.where(filterCondition.get)
+      } else {
+        throw new IllegalStateException("Filtering condition is not conjunction")
+      }
     }
 
     job

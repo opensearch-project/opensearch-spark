@@ -49,6 +49,22 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
         "columnType" -> "integer").asJava)
   }
 
+  test("should succeed if filtering condition is conjunction") {
+    new FlintSparkSkippingIndex(
+      testTable,
+      Seq(mock[FlintSparkSkippingStrategy]),
+      Some("test_field1 = 1 AND test_field2 = 2"))
+  }
+
+  test("should fail if filtering condition is not conjunction") {
+    assertThrows[IllegalArgumentException] {
+      new FlintSparkSkippingIndex(
+        testTable,
+        Seq(mock[FlintSparkSkippingStrategy]),
+        Some("test_field1 = 1 OR test_field2 = 2"))
+    }
+  }
+
   test("can build index building job with unique ID column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.outputSchema()).thenReturn(Map("name" -> "string"))
