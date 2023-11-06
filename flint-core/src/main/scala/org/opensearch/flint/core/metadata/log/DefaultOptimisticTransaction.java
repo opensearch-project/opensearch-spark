@@ -110,6 +110,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
     } catch (Exception e) {
       LOG.log(SEVERE, "Reverting transient log due to transaction operation failure", e);
       try {
+        // Roll back transient log if any
         if (transientAction != null) {
           metadataLog.add(initialLog);
         }

@@ -69,16 +69,17 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .create()
     flint.refreshIndex(testFlintIndex, FULL)
 
-    latestLogEntry(testLatestId) should (contain("state" -> "active")
-      and contain("jobStartTime" -> 0))
+    val latest = latestLogEntry(testLatestId)
+    latest should contain("state" -> "active")
+    latest("jobStartTime").asInstanceOf[Number].longValue() should be > 0L
   }
 
-  // TODO: this test needs recover command
-  ignore("incremental refresh index") {
+  test("incremental refresh index") {
     flint
       .skippingIndex()
       .onTable(testTable)
       .addPartitions("year", "month")
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
       .create()
     flint.refreshIndex(testFlintIndex, INCREMENTAL)
 
@@ -90,7 +91,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
 
     // Restart streaming job
     spark.streams.active.head.stop()
-    // flint.refreshIndex(testFlintIndex, INCREMENTAL)
+    flint.recoverIndex(testFlintIndex)
 
     // Make sure job start time is updated
     latest = latestLogEntry(testLatestId)

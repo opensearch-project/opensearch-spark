@@ -174,7 +174,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     }
   }
 
-  test("should revert to initial log if transaction operation failed") {
+  test("should rollback to initial log if transaction operation failed") {
     // Use create index scenario in this test case
     the[IllegalStateException] thrownBy {
       flintClient
@@ -185,11 +185,11 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         .commit(_ => throw new RuntimeException("Mock operation error"))
     }
 
-    // Should revert to initial empty log
+    // Should rollback to initial empty log
     latestLogEntry(testLatestId) should contain("state" -> "empty")
   }
 
-  test("should revert to initial log if updating final log failed") {
+  test("should rollback to initial log if updating final log failed") {
     // Use refresh index scenario in this test case
     createLatestLogEntry(
       FlintMetadataLogEntry(
@@ -210,11 +210,11 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         .commit(_ => {})
     }
 
-    // Should revert to initial active log
+    // Should rollback to initial active log
     latestLogEntry(testLatestId) should contain("state" -> "active")
   }
 
-  test("should not necessarily revert if transaction operation failed but no transient action") {
+  test("should not necessarily rollback if transaction operation failed but no transient action") {
     // Use create index scenario in this test case
     the[IllegalStateException] thrownBy {
       flintClient
@@ -224,7 +224,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         .commit(_ => throw new RuntimeException("Mock operation error"))
     }
 
-    // Should revert to initial empty log
+    // Should rollback to initial empty log
     latestLogEntry(testLatestId) should contain("state" -> "empty")
   }
 }

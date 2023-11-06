@@ -149,7 +149,8 @@ class FlintSpark(
       flintClient
         .startTransaction(indexName, dataSourceName)
         .initialLog(latest => latest.state == ACTIVE)
-        .transientLog(latest => latest.copy(state = REFRESHING))
+        .transientLog(latest =>
+          latest.copy(state = REFRESHING, createTime = System.currentTimeMillis()))
         .finalLog(latest => {
           // Change state to active if full, otherwise update index state regularly
           if (mode == FULL) {
@@ -159,8 +160,7 @@ class FlintSpark(
             // Schedule regular update and return log entry as refreshing state
             logInfo("Scheduling index state updater")
             scheduleIndexStateUpdate(indexName)
-            // Update job start time. TODO: make same changes for recoverIndex
-            latest.copy(createTime = System.currentTimeMillis())
+            latest
           }
         })
         .commit(_ => doRefreshIndex(index, indexName, mode))
@@ -258,7 +258,8 @@ class FlintSpark(
         flintClient
           .startTransaction(indexName, dataSourceName)
           .initialLog(latest => Set(ACTIVE, REFRESHING, FAILED).contains(latest.state))
-          .transientLog(latest => latest.copy(state = RECOVERING))
+          .transientLog(latest =>
+            latest.copy(state = RECOVERING, createTime = System.currentTimeMillis()))
           .finalLog(latest => {
             scheduleIndexStateUpdate(indexName)
             latest.copy(state = REFRESHING)
@@ -438,9 +439,8 @@ class FlintSpark(
 object FlintSpark extends Logging {
 
   /**
-   * Scheduler for updating index state regularly as needed, currently only incremental refreshing
-   * Global shared by all FlintSpark instance (ExecutorService is thread-safe) and will be
-   * shutdown in Spark application upon exit. Make it var for unit test mock convenience.
+   * Thread-safe ExecutorService globally shared by all FlintSpark instance and will be shutdown
+   * in Spark application upon exit.
    */
   val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
 
