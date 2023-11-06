@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
+import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
 
@@ -47,7 +47,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   implicit val formats: Formats = Serialization.formats(NoTypeHints) + SkippingKindSerializer
 
   /** Scheduler for updating index state regularly as needed, such as incremental refreshing */
-  private val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
+  var executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
 
   /**
    * Data source name. Assign empty string in case of backward compatibility. TODO: remove this in
@@ -113,8 +113,10 @@ class FlintSpark(val spark: SparkSession) extends Logging {
             if (latest == null) { // in case transaction capability is disabled
               flintClient.createIndex(indexName, metadata)
             } else {
+              logInfo(s"Creating index with metadata log entry ID ${latest.id}")
               flintClient.createIndex(indexName, metadata.copy(latestId = Some(latest.id)))
             })
+        logInfo("Create index complete")
       } catch {
         case e: Exception =>
           logError("Failed to create Flint index", e)
@@ -146,9 +148,11 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         .finalLog(latest => {
           // Change state to active if full, otherwise update index state regularly
           if (mode == FULL) {
+            logInfo("Updating index state to active")
             latest.copy(state = ACTIVE)
           } else {
             // Schedule regular update and return log entry as refreshing state
+            logInfo("Scheduling index state updater")
             scheduleIndexStateUpdate(indexName)
             latest
           }
@@ -229,6 +233,41 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           throw new IllegalStateException("Failed to delete Flint index")
       }
     } else {
+      logInfo("Flint index to be deleted doesn't exist")
+      false
+    }
+  }
+
+  /**
+   * Recover index job.
+   *
+   * @param indexName
+   *   index name
+   */
+  def recoverIndex(indexName: String): Boolean = {
+    logInfo(s"Recovering Flint index $indexName")
+    val index = describeIndex(indexName)
+    if (index.exists(_.options.autoRefresh())) {
+      try {
+        flintClient
+          .startTransaction(indexName, dataSourceName)
+          .initialLog(latest => Set(ACTIVE, REFRESHING, FAILED).contains(latest.state))
+          .transientLog(latest => latest.copy(state = RECOVERING))
+          .finalLog(latest => {
+            scheduleIndexStateUpdate(indexName)
+            latest.copy(state = REFRESHING)
+          })
+          .commit(_ => doRefreshIndex(index.get, indexName, INCREMENTAL))
+
+        logInfo("Recovery complete")
+        true
+      } catch {
+        case e: Exception =>
+          logError("Failed to recover Flint index", e)
+          throw new IllegalStateException("Failed to recover Flint index")
+      }
+    } else {
+      logInfo("Index to be recovered either doesn't exist or not auto refreshed")
       false
     }
   }
@@ -249,15 +288,28 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     spark.streams.active.exists(_.name == indexName)
 
   private def scheduleIndexStateUpdate(indexName: String): Unit = {
-    executor.scheduleAtFixedRate(
+    var task: ScheduledFuture[_] = null // avoid forward reference compile error at task.cancel()
+    task = executor.scheduleAtFixedRate(
       () => {
-        logInfo("Scheduler triggers index log entry update")
+        logInfo(s"Scheduler triggers index log entry update for $indexName")
         try {
-          flintClient
-            .startTransaction(indexName, dataSourceName)
-            .initialLog(latest => latest.state == REFRESHING)
-            .finalLog(latest => latest) // timestamp will update automatically
-            .commit(latest => logInfo("Updating log entry to " + latest))
+          if (isIncrementalRefreshing(indexName)) {
+            logInfo("Streaming job is still active")
+            flintClient
+              .startTransaction(indexName, dataSourceName)
+              .initialLog(latest => latest.state == REFRESHING)
+              .finalLog(latest => latest) // timestamp will update automatically
+              .commit(_ => {})
+          } else {
+            logError("Streaming job is not active. Cancelling update task")
+            flintClient
+              .startTransaction(indexName, dataSourceName)
+              .initialLog(_ => true)
+              .finalLog(latest => latest.copy(state = FAILED))
+              .commit(_ => {})
+            task.cancel(true)
+            logInfo("Update task is cancelled")
+          }
         } catch {
           case e: Exception =>
             logError("Failed to update index log entry", e)
@@ -274,6 +326,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       index: FlintSparkIndex,
       indexName: String,
       mode: RefreshMode): Option[String] = {
+    logInfo(s"Refreshing index $indexName in $mode mode")
     val options = index.options
     val tableName = index.metadata().source
 
@@ -288,17 +341,19 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         .save(indexName)
     }
 
-    mode match {
+    val jobId = mode match {
       case FULL if isIncrementalRefreshing(indexName) =>
         throw new IllegalStateException(
           s"Index $indexName is incremental refreshing and cannot be manual refreshed")
 
       case FULL =>
+        logInfo("Start refreshing index in batch style")
         batchRefresh()
         None
 
       // Flint index has specialized logic and capability for incremental refresh
       case INCREMENTAL if index.isInstanceOf[StreamingRefresh] =>
+        logInfo("Start refreshing index in streaming style")
         val job =
           index
             .asInstanceOf[StreamingRefresh]
@@ -313,6 +368,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
 
       // Otherwise, fall back to foreachBatch + batch refresh
       case INCREMENTAL =>
+        logInfo("Start refreshing index in foreach streaming style")
         val job = spark.readStream
           .options(options.extraSourceOptions(tableName))
           .table(tableName)
@@ -325,6 +381,9 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           .start()
         Some(job.id.toString)
     }
+
+    logInfo("Refresh index complete")
+    jobId
   }
 
   private def stopRefreshingJob(indexName: String): Unit = {
