@@ -316,6 +316,8 @@ trait FlintJobExecutor {
       sessionId: String): DataFrame = {
     // Execute SQL query
     val startTime = System.currentTimeMillis()
+    // we have to set job group in the same thread that started the query according to spark doc
+    spark.sparkContext.setJobGroup(queryId, "Job group for " + queryId, interruptOnCancel = true)
     val result: DataFrame = spark.sql(query)
     // Get Data
     getFormattedData(
@@ -378,7 +380,7 @@ trait FlintJobExecutor {
       case r: SparkException =>
         handleQueryException(
           r,
-          "Fail to run query. Cause",
+          "Spark exception. Cause",
           spark,
           dataSource,
           query,
@@ -387,7 +389,7 @@ trait FlintJobExecutor {
       case r: Exception =>
         handleQueryException(
           r,
-          "Fail to write result, cause",
+          "Fail to run query, cause",
           spark,
           dataSource,
           query,

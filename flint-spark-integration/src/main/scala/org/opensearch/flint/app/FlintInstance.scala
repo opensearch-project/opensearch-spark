@@ -41,13 +41,13 @@ object FlintInstance {
   }
 
   def serialize(job: FlintInstance): String = {
+    // jobId is only readable by spark, thus we don't override jobId
     Serialization.write(
       Map(
         "type" -> "session",
         "sessionId" -> job.sessionId,
         "error" -> job.error.getOrElse(""),
         "applicationId" -> job.applicationId,
-        "jobId" -> job.jobId,
         "state" -> job.state,
         // update last update time
         "lastUpdateTime" -> System.currentTimeMillis()))
