@@ -19,7 +19,7 @@ import org.scalatest.matchers.should.Matchers
 class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers {
 
   /** Test table and index name */
-  private val testTable = "spark_catalog.default.test"
+  private val testTable = "spark_catalog.default.index_job_test"
   private val testIndex = getSkippingIndexName(testTable)
   private val latestId = Base64.getEncoder.encodeToString(testIndex.getBytes)
 
