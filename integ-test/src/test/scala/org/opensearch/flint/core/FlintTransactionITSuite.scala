@@ -27,6 +27,56 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
   }
 
+  test("empty metadata log entry content") {
+    flintClient
+      .startTransaction(testFlintIndex, testDataSourceName)
+      .initialLog(latest => {
+        latest.id shouldBe testLatestId
+        latest.state shouldBe EMPTY
+        latest.createTime shouldBe 0L
+        latest.dataSource shouldBe testDataSourceName
+        latest.error shouldBe ""
+        true
+      })
+      .finalLog(latest => latest)
+      .commit(_ => {})
+  }
+
+  test("should preserve original values when transition") {
+    val testCreateTime = 1234567890123L
+    createLatestLogEntry(
+      FlintMetadataLogEntry(
+        id = testLatestId,
+        seqNo = UNASSIGNED_SEQ_NO,
+        primaryTerm = UNASSIGNED_PRIMARY_TERM,
+        createTime = testCreateTime,
+        state = ACTIVE,
+        dataSource = testDataSourceName,
+        error = ""))
+
+    flintClient
+      .startTransaction(testFlintIndex, testDataSourceName)
+      .initialLog(latest => {
+        latest.id shouldBe testLatestId
+        latest.createTime shouldBe testCreateTime
+        latest.dataSource shouldBe testDataSourceName
+        latest.error shouldBe ""
+        true
+      })
+      .transientLog(latest => latest.copy(state = DELETING))
+      .finalLog(latest => latest.copy(state = DELETED))
+      .commit(latest => {
+        latest.id shouldBe testLatestId
+        latest.createTime shouldBe testCreateTime
+        latest.dataSource shouldBe testDataSourceName
+        latest.error shouldBe ""
+      })
+
+    latestLogEntry(testLatestId) should (contain("latestId" -> testLatestId) and
+      contain("dataSourceName" -> testDataSourceName) and
+      contain("error" -> ""))
+  }
+
   test("should transit from initial to final log if initial log is empty") {
     flintClient
       .startTransaction(testFlintIndex, testDataSourceName)
@@ -59,8 +109,9 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         id = testLatestId,
         seqNo = UNASSIGNED_SEQ_NO,
         primaryTerm = UNASSIGNED_PRIMARY_TERM,
+        createTime = 1234567890123L,
         state = ACTIVE,
-        dataSource = "mys3",
+        dataSource = testDataSourceName,
         error = ""))
 
     flintClient
@@ -81,10 +132,13 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       flintClient
         .startTransaction(testFlintIndex, testDataSourceName)
         .initialLog(_ => false)
-        .transientLog(latest => latest)
+        .transientLog(latest => latest.copy(state = ACTIVE))
         .finalLog(latest => latest)
         .commit(_ => {})
     }
+
+    // Initial empty log should not be changed
+    latestLogEntry(testLatestId) should contain("state" -> "empty")
   }
 
   test("should fail if initial log entry updated by others when updating transient log entry") {
@@ -118,5 +172,59 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
           updateLatestLogEntry(latest, DELETING)
         })
     }
+  }
+
+  test("should rollback to initial log if transaction operation failed") {
+    // Use create index scenario in this test case
+    the[IllegalStateException] thrownBy {
+      flintClient
+        .startTransaction(testFlintIndex, testDataSourceName)
+        .initialLog(_ => true)
+        .transientLog(latest => latest.copy(state = CREATING))
+        .finalLog(latest => latest.copy(state = ACTIVE))
+        .commit(_ => throw new RuntimeException("Mock operation error"))
+    }
+
+    // Should rollback to initial empty log
+    latestLogEntry(testLatestId) should contain("state" -> "empty")
+  }
+
+  test("should rollback to initial log if updating final log failed") {
+    // Use refresh index scenario in this test case
+    createLatestLogEntry(
+      FlintMetadataLogEntry(
+        id = testLatestId,
+        seqNo = UNASSIGNED_SEQ_NO,
+        primaryTerm = UNASSIGNED_PRIMARY_TERM,
+        createTime = 1234567890123L,
+        state = ACTIVE,
+        dataSource = testDataSourceName,
+        error = ""))
+
+    the[IllegalStateException] thrownBy {
+      flintClient
+        .startTransaction(testFlintIndex, testDataSourceName)
+        .initialLog(_ => true)
+        .transientLog(latest => latest.copy(state = REFRESHING))
+        .finalLog(_ => throw new RuntimeException("Mock final log error"))
+        .commit(_ => {})
+    }
+
+    // Should rollback to initial active log
+    latestLogEntry(testLatestId) should contain("state" -> "active")
+  }
+
+  test("should not necessarily rollback if transaction operation failed but no transient action") {
+    // Use create index scenario in this test case
+    the[IllegalStateException] thrownBy {
+      flintClient
+        .startTransaction(testFlintIndex, testDataSourceName)
+        .initialLog(_ => true)
+        .finalLog(latest => latest.copy(state = ACTIVE))
+        .commit(_ => throw new RuntimeException("Mock operation error"))
+    }
+
+    // Should rollback to initial empty log
+    latestLogEntry(testLatestId) should contain("state" -> "empty")
   }
 }

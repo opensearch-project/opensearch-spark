@@ -5,9 +5,17 @@
 
 package org.opensearch.flint.spark
 
+import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture}
+
+import scala.concurrent.duration.TimeUnit
+
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.when
+import org.mockito.invocation.InvocationOnMock
 import org.opensearch.flint.OpenSearchSuite
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{DataFrame, QueryTest}
@@ -32,6 +40,13 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
 
     // Disable mandatory checkpoint for test convenience
     setFlintSparkConf(CHECKPOINT_MANDATORY, "false")
+
+    // Replace executor to avoid impact on IT.
+    // TODO: Currently no IT test scheduler so no need to restore it back.
+    val mockExecutor = mock[ScheduledExecutorService]
+    when(mockExecutor.scheduleWithFixedDelay(any[Runnable], any[Long], any[Long], any[TimeUnit]))
+      .thenAnswer((_: InvocationOnMock) => mock[ScheduledFuture[_]])
+    FlintSparkIndexMonitor.executor = mockExecutor
   }
 
   protected def awaitStreamingDataComplete(flintIndexName: String): DataFrame = {
