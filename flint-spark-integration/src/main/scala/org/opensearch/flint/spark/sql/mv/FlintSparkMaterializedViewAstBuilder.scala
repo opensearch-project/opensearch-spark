@@ -5,8 +5,10 @@
 
 package org.opensearch.flint.spark.sql.mv
 
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+
 import org.antlr.v4.runtime.tree.RuleNode
-import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
+import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
@@ -65,12 +67,16 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
       AttributeReference("materialized_view_name", StringType, nullable = false)())
 
     FlintSparkSqlCommand(outputSchema) { flint =>
-      val catalogDbName = ctx.catalogDb.getText
-      val indexNamePattern = FlintSparkIndex.flintIndexNamePrefix(catalogDbName) + "*"
+      val catalogDbName =
+        ctx.catalogDb.parts
+          .map(part => part.getText)
+          .mkString("_")
+      val indexNamePattern = s"flint_${catalogDbName}_*"
       flint
         .describeIndexes(indexNamePattern)
         .collect { case mv: FlintSparkMaterializedView =>
-          Row(mv.mvName)
+          // MV name must be qualified when metadata created
+          Row(mv.mvName.split('.').drop(2).mkString("."))
         }
     }
   }
