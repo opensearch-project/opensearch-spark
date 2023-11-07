@@ -89,7 +89,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
     if (transientAction != null) {
       latest = metadataLog.add(transientAction.apply(latest));
 
-      // Copy latest seqNo and primaryTerm to initialLog for potential revert use
+      // Copy latest seqNo and primaryTerm to initialLog for potential rollback use
       initialLog = initialLog.copy(
           initialLog.id(),
           latest.seqNo(),
@@ -108,14 +108,14 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
       metadataLog.add(finalAction.apply(latest));
       return result;
     } catch (Exception e) {
-      LOG.log(SEVERE, "Reverting transient log due to transaction operation failure", e);
+      LOG.log(SEVERE, "Rolling back transient log due to transaction operation failure", e);
       try {
         // Roll back transient log if any
         if (transientAction != null) {
           metadataLog.add(initialLog);
         }
       } catch (Exception ex) {
-        LOG.log(WARNING, "Failed to revert transient log", ex);
+        LOG.log(WARNING, "Failed to rollback transient log", ex);
       }
       throw new IllegalStateException("Failed to commit transaction operation");
     }

@@ -5,10 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture, TimeUnit}
-
 import scala.collection.JavaConverters._
-import scala.sys.addShutdownHook
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
@@ -32,14 +29,7 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, Trigger}
 /**
  * Flint Spark integration API entrypoint.
  */
-class FlintSpark(
-    val spark: SparkSession,
-    /**
-     * Scheduler for updating index state regularly as needed, such as incremental refreshing.
-     * Non-final variable so this can be replaced in IT.
-     */
-    var executor: ScheduledExecutorService = FlintSpark.executor)
-    extends Logging {
+class FlintSpark(val spark: SparkSession) extends Logging {
 
   /** Flint spark configuration */
   private val flintSparkConf: FlintSparkConf =
@@ -60,6 +50,10 @@ class FlintSpark(
    */
   private val dataSourceName: String =
     spark.conf.getOption("spark.flint.datasource.name").getOrElse("")
+
+  /** Flint Spark index monitor */
+  private val flintIndexMonitor: FlintSparkIndexMonitor =
+    new FlintSparkIndexMonitor(spark, flintClient, dataSourceName)
 
   /**
    * Create index builder for creating index with fluent API.
@@ -158,8 +152,8 @@ class FlintSpark(
             latest.copy(state = ACTIVE)
           } else {
             // Schedule regular update and return log entry as refreshing state
-            logInfo("Scheduling index state updater")
-            scheduleIndexStateUpdate(indexName)
+            logInfo("Scheduling index state monitor")
+            flintIndexMonitor.startMonitor(indexName)
             latest
           }
         })
@@ -229,6 +223,7 @@ class FlintSpark(
           .finalLog(latest => latest.copy(state = DELETED))
           .commit(_ => {
             // TODO: share same transaction for now
+            flintIndexMonitor.stopMonitor(indexName)
             stopRefreshingJob(indexName)
             flintClient.deleteIndex(indexName)
             true
@@ -261,7 +256,7 @@ class FlintSpark(
           .transientLog(latest =>
             latest.copy(state = RECOVERING, createTime = System.currentTimeMillis()))
           .finalLog(latest => {
-            scheduleIndexStateUpdate(indexName)
+            flintIndexMonitor.startMonitor(indexName)
             latest.copy(state = REFRESHING)
           })
           .commit(_ => doRefreshIndex(index.get, indexName, INCREMENTAL))
@@ -293,40 +288,6 @@ class FlintSpark(
 
   private def isIncrementalRefreshing(indexName: String): Boolean =
     spark.streams.active.exists(_.name == indexName)
-
-  private def scheduleIndexStateUpdate(indexName: String): Unit = {
-    var task: ScheduledFuture[_] = null // avoid forward reference compile error at task.cancel()
-    task = FlintSpark.executor.scheduleAtFixedRate(
-      () => {
-        logInfo(s"Scheduler triggers index log entry update for $indexName")
-        try {
-          if (isIncrementalRefreshing(indexName)) {
-            logInfo("Streaming job is still active")
-            flintClient
-              .startTransaction(indexName, dataSourceName)
-              .initialLog(latest => latest.state == REFRESHING)
-              .finalLog(latest => latest) // timestamp will update automatically
-              .commit(_ => {})
-          } else {
-            logError("Streaming job is not active. Cancelling update task")
-            flintClient
-              .startTransaction(indexName, dataSourceName)
-              .initialLog(_ => true)
-              .finalLog(latest => latest.copy(state = FAILED))
-              .commit(_ => {})
-            task.cancel(true)
-            logInfo("Update task is cancelled")
-          }
-        } catch {
-          case e: Exception =>
-            logError("Failed to update index log entry", e)
-            throw new IllegalStateException("Failed to update index log entry")
-        }
-      },
-      15, // Delay to ensure final logging is complete first, otherwise version conflicts
-      60, // TODO: make interval configurable
-      TimeUnit.SECONDS)
-  }
 
   // TODO: move to separate class
   private def doRefreshIndex(
@@ -436,25 +397,7 @@ class FlintSpark(
   }
 }
 
-object FlintSpark extends Logging {
-
-  /**
-   * Thread-safe ExecutorService globally shared by all FlintSpark instance and will be shutdown
-   * in Spark application upon exit.
-   */
-  val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
-
-  /*
-   * Register shutdown hook to SparkContext with default priority (higher than SparkContext.close itself)
-   */
-  addShutdownHook(() => {
-    logInfo("Shutdown scheduled executor service")
-    try {
-      executor.shutdownNow()
-    } catch {
-      case e: Exception => logWarning("Failed to shutdown scheduled executor service", e)
-    }
-  })
+object FlintSpark {
 
   /**
    * Index refresh mode: FULL: refresh on current source data in batch style at one shot

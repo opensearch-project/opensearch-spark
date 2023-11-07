@@ -6,7 +6,6 @@
 package org.opensearch.flint
 
 import java.util.Collections
-import java.util.concurrent.ScheduledExecutorService
 
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 
@@ -20,8 +19,7 @@ import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
 import org.opensearch.flint.core.storage.FlintOpenSearchClient._
-import org.opensearch.flint.spark.FlintSparkSuite
-import org.scalatestplus.mockito.MockitoSugar.mock
+import org.opensearch.flint.spark.{FlintSparkIndexMonitor, FlintSparkSuite}
 
 /**
  * Transaction test base suite that creates the metadata log index which enables transaction
@@ -35,9 +33,6 @@ trait OpenSearchTransactionSuite extends FlintSparkSuite {
   override def beforeAll(): Unit = {
     super.beforeAll()
     spark.conf.set("spark.flint.datasource.name", testDataSourceName)
-
-    // Replace executor to avoid impact on IT
-    flint.executor = mock[ScheduledExecutorService]
   }
 
   override def beforeEach(): Unit = {
@@ -51,6 +46,11 @@ trait OpenSearchTransactionSuite extends FlintSparkSuite {
     openSearchClient
       .indices()
       .delete(new DeleteIndexRequest(testMetaLogIndex), RequestOptions.DEFAULT)
+
+    // Cancel and clear all pending tasks
+    val tracker = FlintSparkIndexMonitor.indexMonitorTracker
+    tracker.values.foreach(_.cancel(true))
+    tracker.clear()
     super.afterEach()
   }
 
