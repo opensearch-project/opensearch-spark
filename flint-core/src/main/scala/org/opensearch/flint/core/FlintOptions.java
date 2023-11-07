@@ -58,7 +58,7 @@ public class FlintOptions implements Serializable {
    *
    * WAIT_UNTIL("wait_for")
    */
-  public static final String DEFAULT_REFRESH_POLICY = "false";
+  public static final String DEFAULT_REFRESH_POLICY = "wait_for";
 
   public FlintOptions(Map<String, String> options) {
     this.options = options;
