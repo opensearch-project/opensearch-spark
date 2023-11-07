@@ -19,7 +19,7 @@ import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
 import org.opensearch.flint.core.storage.FlintOpenSearchClient._
-import org.opensearch.flint.spark.{FlintSparkIndexMonitor, FlintSparkSuite}
+import org.opensearch.flint.spark.FlintSparkSuite
 
 /**
  * Transaction test base suite that creates the metadata log index which enables transaction
@@ -46,11 +46,6 @@ trait OpenSearchTransactionSuite extends FlintSparkSuite {
     openSearchClient
       .indices()
       .delete(new DeleteIndexRequest(testMetaLogIndex), RequestOptions.DEFAULT)
-
-    // Cancel and clear all pending tasks
-    val tracker = FlintSparkIndexMonitor.indexMonitorTracker
-    tracker.values.foreach(_.cancel(true))
-    tracker.clear()
     super.afterEach()
   }
 

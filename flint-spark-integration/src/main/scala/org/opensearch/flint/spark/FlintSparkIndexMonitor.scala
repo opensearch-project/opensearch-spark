@@ -39,7 +39,7 @@ class FlintSparkIndexMonitor(
    *   Flint index name
    */
   def startMonitor(indexName: String): Unit = {
-    val task = FlintSparkIndexMonitor.executor.scheduleAtFixedRate(
+    val task = FlintSparkIndexMonitor.executor.scheduleWithFixedDelay(
       () => {
         logInfo(s"Scheduler trigger index monitor task for $indexName")
         try {
