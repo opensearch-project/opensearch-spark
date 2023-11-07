@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.core.storage;
 
+import org.opensearch.OpenSearchStatusException;
 import org.opensearch.action.search.ClearScrollRequest;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
@@ -54,10 +55,14 @@ public class OpenSearchScrollReader extends OpenSearchReader {
    * clean the scroll context.
    */
   void clean() throws IOException {
-    if (!Strings.isNullOrEmpty(scrollId)) {
-      ClearScrollRequest clearScrollRequest = new ClearScrollRequest();
-      clearScrollRequest.addScrollId(scrollId);
-      client.clearScroll(clearScrollRequest, RequestOptions.DEFAULT);
+    try {
+      if (!Strings.isNullOrEmpty(scrollId)) {
+        ClearScrollRequest clearScrollRequest = new ClearScrollRequest();
+        clearScrollRequest.addScrollId(scrollId);
+        client.clearScroll(clearScrollRequest, RequestOptions.DEFAULT);
+      }
+    } catch (OpenSearchStatusException e) {
+      // OpenSearch throw exception if scroll already closed. https://github.com/opensearch-project/OpenSearch/issues/11121
     }
   }
 }
