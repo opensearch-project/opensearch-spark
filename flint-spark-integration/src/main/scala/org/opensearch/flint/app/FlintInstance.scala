@@ -9,7 +9,6 @@ import org.json4s.{Formats, NoTypeHints}
 import org.json4s.JsonAST.JString
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
-import org.opensearch.index.seqno.SequenceNumbers
 
 // lastUpdateTime is added to FlintInstance to track the last update time of the instance. Its unit is millisecond.
 class FlintInstance(
@@ -19,6 +18,8 @@ class FlintInstance(
     val sessionId: String,
     val state: String,
     val lastUpdateTime: Long,
+    // We need jobStartTime to check if HMAC token is expired or not
+    val jobStartTime: Long,
     val error: Option[String] = None) {}
 
 object FlintInstance {
@@ -32,15 +33,23 @@ object FlintInstance {
     val jobId = (meta \ "jobId").extract[String]
     val sessionId = (meta \ "sessionId").extract[String]
     val lastUpdateTime = (meta \ "lastUpdateTime").extract[Long]
+    val jobStartTime = (meta \ "jobStartTime").extract[Long]
     val maybeError: Option[String] = (meta \ "error") match {
       case JString(str) => Some(str)
       case _ => None
     }
 
-    new FlintInstance(applicationId, jobId, sessionId, state, lastUpdateTime, maybeError)
+    new FlintInstance(
+      applicationId,
+      jobId,
+      sessionId,
+      state,
+      lastUpdateTime,
+      jobStartTime,
+      maybeError)
   }
 
-  def serialize(job: FlintInstance): String = {
+  def serialize(job: FlintInstance, currentTime: Long): String = {
     // jobId is only readable by spark, thus we don't override jobId
     Serialization.write(
       Map(
@@ -50,6 +59,7 @@ object FlintInstance {
         "applicationId" -> job.applicationId,
         "state" -> job.state,
         // update last update time
-        "lastUpdateTime" -> System.currentTimeMillis()))
+        "lastUpdateTime" -> currentTime,
+        "jobStartTime" -> job.jobStartTime))
   }
 }

@@ -87,8 +87,29 @@ object FlintREPL extends Logging with FlintJobExecutor {
       spark.streams.awaitAnyTermination()
     } else {
       val flintSessionIndexUpdater = osClient.createUpdater(sessionIndex.get)
+      createShutdownHook(flintSessionIndexUpdater, osClient, sessionIndex.get, sessionId.get)
+      // 1 thread for updating heart beat
+      val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor("flint-repl-heartbeat", 1)
+      val jobStartTime = currentTimeProvider.currentEpochMillis()
+
       try {
-        createShutdownHook(flintSessionIndexUpdater, osClient, sessionIndex.get, sessionId.get)
+        // update heart beat every 30 seconds
+        // OpenSearch triggers recovery after 1 minute outdated heart beat
+        createHeartBeatUpdater(
+          HEARTBEAT_INTERVAL_MILLIS,
+          flintSessionIndexUpdater,
+          sessionId.get,
+          threadPool,
+          osClient,
+          sessionIndex.get)
+
+        setupFlintJob(
+          applicationId,
+          jobId,
+          sessionId.get,
+          flintSessionIndexUpdater,
+          sessionIndex.get,
+          jobStartTime)
 
         exponentialBackoffRetry(maxRetries = 5, initialDelay = 2.seconds) {
           queryLoop(
@@ -99,14 +120,22 @@ object FlintREPL extends Logging with FlintJobExecutor {
             spark,
             osClient,
             jobId,
-            applicationId,
             flintSessionIndexUpdater)
         }
       } catch {
         case e: Exception =>
-          handleSessionError(e, applicationId, jobId, sessionId.get, flintSessionIndexUpdater)
+          handleSessionError(
+            e,
+            applicationId,
+            jobId,
+            sessionId.get,
+            jobStartTime,
+            flintSessionIndexUpdater)
       } finally {
         spark.stop()
+        if (threadPool != null) {
+          threadPool.shutdown()
+        }
       }
     }
   }
@@ -119,27 +148,14 @@ object FlintREPL extends Logging with FlintJobExecutor {
       spark: SparkSession,
       osClient: OSClient,
       jobId: String,
-      applicationId: String,
       flintSessionIndexUpdater: OpenSearchUpdater): Unit = {
     // 1 thread for updating heart beat
-    val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor("flint-repl", 1)
+    val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor("flint-repl-query", 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
     try {
       val futureMappingCheck = Future {
         checkAndCreateIndex(osClient, resultIndex)
       }
-
-      setupFlintJob(applicationId, jobId, sessionId, flintSessionIndexUpdater, sessionIndex)
-
-      // update heart beat every 30 seconds
-      // OpenSearch triggers recovery after 1 minute outdated heart beat
-      createHeartBeatUpdater(
-        HEARTBEAT_INTERVAL_MILLIS,
-        flintSessionIndexUpdater,
-        sessionId: String,
-        threadPool,
-        osClient,
-        sessionIndex)
 
       var lastActivityTime = Instant.now().toEpochMilli()
       var verificationResult: VerificationResult = NotVerified
@@ -196,10 +212,19 @@ object FlintREPL extends Logging with FlintJobExecutor {
       jobId: String,
       sessionId: String,
       flintSessionIndexUpdater: OpenSearchUpdater,
-      sessionIndex: String): Unit = {
+      sessionIndex: String,
+      jobStartTime: Long): Unit = {
     val flintJob =
-      new FlintInstance(applicationId, jobId, sessionId, "running", System.currentTimeMillis())
-    flintSessionIndexUpdater.upsert(sessionId, FlintInstance.serialize(flintJob))
+      new FlintInstance(
+        applicationId,
+        jobId,
+        sessionId,
+        "running",
+        currentTimeProvider.currentEpochMillis(),
+        jobStartTime)
+    flintSessionIndexUpdater.upsert(
+      sessionId,
+      FlintInstance.serialize(flintJob, currentTimeProvider.currentEpochMillis()))
     logDebug(
       s"""Updated job: {"jobid": ${flintJob.jobId}, "sessionId": ${flintJob.sessionId}} from $sessionIndex""")
   }
@@ -209,6 +234,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       applicationId: String,
       jobId: String,
       sessionId: String,
+      jobStartTime: Long,
       flintSessionIndexUpdater: OpenSearchUpdater): Unit = {
     val error = s"Session error: ${e.getMessage}"
     logError(error, e)
@@ -217,9 +243,12 @@ object FlintREPL extends Logging with FlintJobExecutor {
       jobId,
       sessionId,
       "fail",
-      System.currentTimeMillis(),
+      currentTimeProvider.currentEpochMillis(),
+      jobStartTime,
       Some(error))
-    flintSessionIndexUpdater.upsert(sessionId, FlintInstance.serialize(flintJob))
+    flintSessionIndexUpdater.upsert(
+      sessionId,
+      FlintInstance.serialize(flintJob, currentTimeProvider.currentEpochMillis()))
   }
 
   /**
@@ -435,7 +464,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       executionContext: ExecutionContextExecutor,
       futureMappingCheck: Future[Either[String, Unit]],
       resultIndex: String): (Option[DataFrame], VerificationResult) = {
-    val startTime: Long = System.currentTimeMillis()
+    val startTime: Long = currentTimeProvider.currentEpochMillis()
     var verificationResult = recordedVerificationResult
     var dataToWrite: Option[DataFrame] = None
 
@@ -512,7 +541,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       executionContext: ExecutionContextExecutor,
       startTime: Long,
       queryExecutionTimeOut: Duration): DataFrame = {
-    if (Instant.now().toEpochMilli() - flintCommand.submitTime > QUERY_WAIT_TIMEOUT_MILLIS) {
+    if (currentTimeProvider
+        .currentEpochMillis() - flintCommand.submitTime > QUERY_WAIT_TIMEOUT_MILLIS) {
       handleCommandFailureAndGetFailedData(
         spark,
         dataSource,
@@ -629,11 +659,12 @@ object FlintREPL extends Logging with FlintJobExecutor {
       source.get("sessionId").asInstanceOf[String],
       "dead",
       source.get("lastUpdateTime").asInstanceOf[Long],
+      source.get("jobStartTime").asInstanceOf[Long],
       Option(source.get("error").asInstanceOf[String]))
 
     flintSessionIndexUpdater.updateIf(
       sessionId,
-      FlintInstance.serialize(flintInstant),
+      FlintInstance.serialize(flintInstant, currentTimeProvider.currentEpochMillis()),
       getResponse.getSeqNo,
       getResponse.getPrimaryTerm)
   }
@@ -672,10 +703,11 @@ object FlintREPL extends Logging with FlintJobExecutor {
                 source.get("sessionId").asInstanceOf[String],
                 "running",
                 source.get("lastUpdateTime").asInstanceOf[Long],
+                source.get("jobStartTime").asInstanceOf[Long],
                 Option(source.get("error").asInstanceOf[String]))
               flintSessionUpdater.updateIf(
                 sessionId,
-                FlintInstance.serialize(flintInstant),
+                FlintInstance.serialize(flintInstant, currentTimeProvider.currentEpochMillis()),
                 getResponse.getSeqNo,
                 getResponse.getPrimaryTerm)
             }

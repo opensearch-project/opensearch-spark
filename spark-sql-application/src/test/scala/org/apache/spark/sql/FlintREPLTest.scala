@@ -258,9 +258,6 @@ class FlintREPLTest
     when(getResponse.isExists()).thenReturn(true)
     when(getResponse.getSourceAsMap).thenReturn(null) // Simulate the source being null
 
-    // Capture the logs if your logger allows it or redirect System.out for System.log calls
-    // Assuming `logError` is the method you would call when the source is null
-
     // Execute the method under test
     val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
 
@@ -287,11 +284,6 @@ class FlintREPLTest
 
     when(getResponse.getSourceAsMap).thenReturn(sourceMap)
 
-    // Assuming logInfo is used for logging unexpected types and that it is a method on FlintREPL
-    // You would have a mock or a way to verify that logInfo was called with the expected message
-    // If you're using a logging framework that supports appending log messages to a list for tests,
-    // like logback-test.xml configuration with a ListAppender, set it up here.
-
     val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
 
     assert(result) // The function should return true
@@ -307,9 +299,6 @@ class FlintREPLTest
     val getResponse = mock[GetResponse]
     when(osClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
     when(getResponse.isExists()).thenReturn(false) // Simulate the document does not exist
-
-    // Redirect or mock the logger as appropriate for your setup
-    // If you're using a framework that allows capturing log messages in tests, prepare it here
 
     // Execute the function under test
     val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
@@ -327,9 +316,6 @@ class FlintREPLTest
     // Set up the mock OSClient to throw an exception
     when(osClient.getDoc(sessionIndex, sessionId))
       .thenThrow(new RuntimeException("OpenSearch cluster unresponsive"))
-
-    // Mock or redirect the logger if necessary
-    // For some logging frameworks, you might be able to use a TestAppender or similar mechanism
 
     // Execute the method under test and expect true, since the method is designed to return true even in case of an exception
     val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
@@ -457,7 +443,6 @@ class FlintREPLTest
             spark,
             osClient,
             jobId,
-            applicationId,
             flintSessionIndexUpdater)
         }
       } // (block)
