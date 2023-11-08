@@ -5,6 +5,8 @@ import os
 import logging
 from datetime import datetime
 import argparse
+import re
+
 
 url = os.environ.get('OPENSEARCH_URL', "http://opensearch:9200")  # Modify this line
 table_name = 'http_logs'
@@ -260,6 +262,13 @@ def main(use_date, run_tables, run_queries):    # Default to current date if no 
     pass
 
     print_sanity_report()
+
+def remove_field_identifiers(plan):
+    # Regular expression to find field identifiers (e.g., "day#8")
+    pattern = re.compile(r'\b(\w+)#\d+\b')
+    # Replace field identifiers with just the field name
+    modified_plan = pattern.sub(r'\1', plan)
+    return modified_plan
 
 if __name__ == '__main__':
     # Initialize the argument parser
