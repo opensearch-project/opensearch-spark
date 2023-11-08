@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.core.metadata.log;
 
+import static java.util.logging.Level.SEVERE;
+import static java.util.logging.Level.WARNING;
 import static org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState$;
 import static org.opensearch.index.seqno.SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
 import static org.opensearch.index.seqno.SequenceNumbers.UNASSIGNED_SEQ_NO;
@@ -76,23 +78,46 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
         metadataLog.getLatest().orElseGet(() -> metadataLog.add(emptyLogEntry()));
 
     // Perform initial log check
-    if (initialCondition.test(latest)) {
+    if (!initialCondition.test(latest)) {
+      LOG.warning("Initial log entry doesn't satisfy precondition " + latest);
+      throw new IllegalStateException(
+          "Transaction failed due to initial log precondition not satisfied");
+    }
 
-      // Append optional transient log
-      if (transientAction != null) {
-        latest = metadataLog.add(transientAction.apply(latest));
-      }
+    // Append optional transient log
+    FlintMetadataLogEntry initialLog = latest;
+    if (transientAction != null) {
+      latest = metadataLog.add(transientAction.apply(latest));
 
-      // Perform operation
+      // Copy latest seqNo and primaryTerm to initialLog for potential rollback use
+      initialLog = initialLog.copy(
+          initialLog.id(),
+          latest.seqNo(),
+          latest.primaryTerm(),
+          initialLog.createTime(),
+          initialLog.state(),
+          initialLog.dataSource(),
+          initialLog.error());
+    }
+
+    // Perform operation
+    try {
       T result = operation.apply(latest);
 
       // Append final log
       metadataLog.add(finalAction.apply(latest));
       return result;
-    } else {
-      LOG.warning("Initial log entry doesn't satisfy precondition " + latest);
-      throw new IllegalStateException(
-          "Transaction failed due to initial log precondition not satisfied");
+    } catch (Exception e) {
+      LOG.log(SEVERE, "Rolling back transient log due to transaction operation failure", e);
+      try {
+        // Roll back transient log if any
+        if (transientAction != null) {
+          metadataLog.add(initialLog);
+        }
+      } catch (Exception ex) {
+        LOG.log(WARNING, "Failed to rollback transient log", ex);
+      }
+      throw new IllegalStateException("Failed to commit transaction operation");
     }
   }
 
@@ -101,6 +126,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
         "",
         UNASSIGNED_SEQ_NO,
         UNASSIGNED_PRIMARY_TERM,
+        0L,
         IndexState$.MODULE$.EMPTY(),
         dataSourceName,
         "");

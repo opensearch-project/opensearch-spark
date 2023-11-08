@@ -29,8 +29,13 @@ case class FlintMetadataLogEntry(
     id: String,
     seqNo: Long,
     primaryTerm: Long,
+    /**
+     * This is currently used as streaming job start time. In future, this should represent the
+     * create timestamp of the log entry
+     */
+    createTime: Long,
     state: IndexState,
-    dataSource: String, // TODO: get from Spark conf
+    dataSource: String,
     error: String) {
 
   def this(id: String, seqNo: Long, primaryTerm: Long, map: java.util.Map[String, AnyRef]) {
@@ -38,6 +43,8 @@ case class FlintMetadataLogEntry(
       id,
       seqNo,
       primaryTerm,
+      /* getSourceAsMap() may use Integer or Long even though it's always long in index mapping */
+      map.get("jobStartTime").asInstanceOf[Number].longValue(),
       IndexState.from(map.get("state").asInstanceOf[String]),
       map.get("dataSourceName").asInstanceOf[String],
       map.get("error").asInstanceOf[String])
@@ -48,12 +55,14 @@ case class FlintMetadataLogEntry(
     s"""
        |{
        |  "version": "1.0",
+       |  "latestId": "$id",
        |  "type": "flintindexstate",
        |  "state": "$state",
        |  "applicationId": "${sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown")}",
        |  "jobId": "${sys.env.getOrElse("SERVERLESS_EMR_JOB_ID", "unknown")}",
        |  "dataSourceName": "$dataSource",
-       |  "lastUpdateTime": "${System.currentTimeMillis()}",
+       |  "jobStartTime": $createTime,
+       |  "lastUpdateTime": ${System.currentTimeMillis()},
        |  "error": "$error"
        |}
        |""".stripMargin
@@ -74,6 +83,7 @@ object FlintMetadataLogEntry {
     val DELETING: IndexState.Value = Value("deleting")
     val DELETED: IndexState.Value = Value("deleted")
     val FAILED: IndexState.Value = Value("failed")
+    val RECOVERING: IndexState.Value = Value("recovering")
     val UNKNOWN: IndexState.Value = Value("unknown")
 
     def from(s: String): IndexState.Value = {

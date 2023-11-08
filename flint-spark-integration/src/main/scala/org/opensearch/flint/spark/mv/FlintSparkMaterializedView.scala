@@ -12,7 +12,7 @@ import scala.collection.convert.ImplicitConversions.`map AsScala`
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
-import org.opensearch.flint.spark.FlintSparkIndex.{generateSchemaJSON, metadataBuilder, StreamingRefresh}
+import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder, StreamingRefresh}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getFlintIndexName, MV_INDEX_TYPE}
@@ -158,7 +158,7 @@ object FlintSparkMaterializedView {
       mvName.split("\\.").length >= 3,
       "Qualified materialized view name catalog.database.mv is required")
 
-    s"flint_${mvName.replace(".", "_")}"
+    flintIndexNamePrefix(mvName)
   }
 
   /** Builder class for MV build */

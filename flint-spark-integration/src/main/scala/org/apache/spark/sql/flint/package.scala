@@ -7,11 +7,24 @@ package org.apache.spark.sql
 
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog._
+import org.apache.spark.util.ShutdownHookManager
 
 /**
  * Flint utility methods that rely on access to private code in Spark SQL package.
  */
 package object flint {
+
+  /**
+   * Add shutdown hook to SparkContext with default priority.
+   *
+   * @param hook
+   *   hook with the code to run during shutdown
+   * @return
+   *   a handle that can be used to unregister the shutdown hook.
+   */
+  def addShutdownHook(hook: () => Unit): AnyRef = {
+    ShutdownHookManager.addShutdownHook(hook)
+  }
 
   /**
    * Convert the given logical plan to Spark data frame.

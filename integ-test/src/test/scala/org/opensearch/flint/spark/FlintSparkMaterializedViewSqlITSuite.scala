@@ -184,13 +184,13 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     flint.materializedView().name("spark_catalog.default.mv1").query(testQuery).create()
     checkAnswer(
       sql(s"SHOW MATERIALIZED VIEW IN spark_catalog"),
-      Seq(Row("spark_catalog.default.mv1")))
+      Seq(Row("mv1")))
 
     // Show in catalog.database
     flint.materializedView().name("spark_catalog.default.mv2").query(testQuery).create()
     checkAnswer(
       sql(s"SHOW MATERIALIZED VIEW IN spark_catalog.default"),
-      Seq(Row("spark_catalog.default.mv1"), Row("spark_catalog.default.mv2")))
+      Seq(Row("mv1"), Row("mv2")))
 
     checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN spark_catalog.other"), Seq.empty)
   }
