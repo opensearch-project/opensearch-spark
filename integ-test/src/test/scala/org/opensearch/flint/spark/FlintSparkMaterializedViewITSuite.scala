@@ -183,21 +183,36 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          | WHERE age <= 30
          |""".stripMargin
 
-    withIncrementalMaterializedView(nonAggQuery) { indexData =>
+    withIncrementalMaterializedView(nonAggQuery, Map("id_expression" -> "name")) { indexData =>
       checkAnswer(indexData.select("name", "age"), Seq(Row("A", 30), Row("B", 20), Row("E", 15)))
+    }
+  }
+
+  test("incremental refresh with non-aggregate query should fail if no ID column") {
+    val nonAggQuery =
+      s"""
+         | SELECT name, age
+         | FROM $testTable
+         | WHERE age <= 30
+         |""".stripMargin
+
+    assertThrows[IllegalStateException] {
+      withIncrementalMaterializedView(nonAggQuery) { _ => }
     }
   }
 
   private def timestamp(ts: String): Timestamp = Timestamp.valueOf(ts)
 
-  private def withIncrementalMaterializedView(query: String)(
-      codeBlock: DataFrame => Unit): Unit = {
+  private def withIncrementalMaterializedView(
+      query: String,
+      extraOptions: Map[String, String] = Map.empty)(codeBlock: DataFrame => Unit): Unit = {
     withTempDir { checkpointDir =>
       val indexOptions = FlintSparkIndexOptions(
         Map(
           "auto_refresh" -> "true",
           "checkpoint_location" -> checkpointDir.getAbsolutePath,
-          "watermark_delay" -> "1 Minute")) // This must be small to ensure window closed soon
+          "watermark_delay" -> "1 Minute" // This must be small to ensure window closed soon
+        ) ++ extraOptions)
 
       flint
         .materializedView()

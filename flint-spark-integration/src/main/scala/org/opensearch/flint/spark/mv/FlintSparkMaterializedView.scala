@@ -12,7 +12,7 @@ import scala.collection.convert.ImplicitConversions.`map AsScala`
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
-import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder, StreamingRefresh}
+import org.opensearch.flint.spark.FlintSparkIndex._
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getFlintIndexName, MV_INDEX_TYPE}
@@ -86,7 +86,14 @@ case class FlintSparkMaterializedView(
       case relation: UnresolvedRelation if !relation.isStreaming =>
         relation.copy(isStreaming = true, options = optionsWithExtra(spark, relation))
     }
-    logicalPlanToDataFrame(spark, streamingPlan)
+    val streamDf = logicalPlanToDataFrame(spark, streamingPlan)
+
+    // Add ID column
+    val idColumn = generateIdColumn(streamDf, options.idExpression(), options.autoRefresh())
+    if (idColumn.isDefined) {
+      streamDf.withColumn(ID_COLUMN, idColumn.get)
+    }
+    streamDf
   }
 
   private def watermark(timeCol: Attribute, child: LogicalPlan) = {

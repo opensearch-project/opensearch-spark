@@ -11,6 +11,7 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.flint.config.FlintSparkConf.OPTIMIZER_RULE_ENABLED
 import org.apache.spark.sql.functions._
 
 class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
@@ -51,46 +52,18 @@ class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
           "name_idx",
           testTable,
           Map("name" -> "string"),
-          options = FlintSparkIndexOptions(Map("id_expression" -> "now()")))
+          options = FlintSparkIndexOptions(Map("id_expression" -> "timestamp")))
 
       assertDataFrameEquals(
         index.build(spark, None),
         spark
           .table(testTable)
-          .withColumn(ID_COLUMN, expr("now()"))
+          .withColumn(ID_COLUMN, expr("timestamp"))
           .select(col("name"), col(ID_COLUMN)))
     }
   }
 
-  test("should generate id column based on timestamp column if found") {
-    withTable(testTable) {
-      sql(s"CREATE TABLE $testTable (timestamp TIMESTAMP, name STRING) USING JSON")
-      val index = FlintSparkCoveringIndex("name_idx", testTable, Map("name" -> "string"))
-
-      assertDataFrameEquals(
-        index.build(spark, None),
-        spark
-          .table(testTable)
-          .withColumn(ID_COLUMN, sha1(concat(input_file_name(), col("timestamp"))))
-          .select(col("name"), col(ID_COLUMN)))
-    }
-  }
-
-  test("should generate id column based on @timestamp column if found") {
-    withTable(testTable) {
-      sql(s"CREATE TABLE $testTable (`@timestamp` TIMESTAMP, name STRING) USING JSON")
-      val index = FlintSparkCoveringIndex("name_idx", testTable, Map("name" -> "string"))
-
-      assertDataFrameEquals(
-        index.build(spark, None),
-        spark
-          .table(testTable)
-          .withColumn(ID_COLUMN, sha1(concat(input_file_name(), col("@timestamp"))))
-          .select(col("name"), col(ID_COLUMN)))
-    }
-  }
-
-  test("should not generate id column if no ID expression or timestamp column") {
+  test("should build without ID column if not auto refreshed") {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
       val index = FlintSparkCoveringIndex("name_idx", testTable, Map("name" -> "string"))
@@ -103,27 +76,35 @@ class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     }
   }
 
-  test("should generate id column if micro batch has timestamp column") {
+  test("should build failed if auto refresh but no ID expression provided") {
     withTable(testTable) {
-      sql(s"CREATE TABLE $testTable (timestamp TIMESTAMP, name STRING) USING JSON")
-      val index = FlintSparkCoveringIndex("name_idx", testTable, Map("name" -> "string"))
-      val batch = spark.read.table(testTable).select("timestamp", "name")
+      sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
+      val index = FlintSparkCoveringIndex(
+        "name_idx",
+        testTable,
+        Map("name" -> "string"),
+        options = FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
 
-      assertDataFrameEquals(
-        index.build(spark, Some(batch)),
-        batch
-          .withColumn(ID_COLUMN, sha1(concat(input_file_name(), col("timestamp"))))
-          .select(col("name"), col(ID_COLUMN)))
+      assertThrows[IllegalStateException] {
+        index.build(spark, None)
+      }
     }
   }
 
-  test("should not generate id column if micro batch doesn't have timestamp column") {
+  test(
+    "should build failed if auto refresh but micro batch doesn't have ID expression provided") {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (timestamp TIMESTAMP, name STRING) USING JSON")
-      val index = FlintSparkCoveringIndex("name_idx", testTable, Map("name" -> "string"))
+      val index = FlintSparkCoveringIndex(
+        "name_idx",
+        testTable,
+        Map("name" -> "string"),
+        options = FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
       val batch = spark.read.table(testTable).select("name")
 
-      assertDataFrameEquals(index.build(spark, Some(batch)), batch.select(col("name")))
+      assertThrows[IllegalStateException] {
+        index.build(spark, Some(batch))
+      }
     }
   }
 
@@ -136,13 +117,18 @@ class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
         Map("name" -> "string"),
         Some("name = 'test'"))
 
-      assertDataFrameEquals(
-        index.build(spark, None),
-        spark
-          .table(testTable)
-          .withColumn(ID_COLUMN, sha1(concat(input_file_name(), col("timestamp"))))
-          .where("name = 'test'")
-          .select(col("name"), col(ID_COLUMN)))
+      // Avoid optimizer rule to check Flint index exists
+      spark.conf.set(OPTIMIZER_RULE_ENABLED.key, "false")
+      try {
+        assertDataFrameEquals(
+          index.build(spark, None),
+          spark
+            .table(testTable)
+            .where("name = 'test'")
+            .select(col("name")))
+      } finally {
+        spark.conf.set(OPTIMIZER_RULE_ENABLED.key, "true")
+      }
     }
   }
 

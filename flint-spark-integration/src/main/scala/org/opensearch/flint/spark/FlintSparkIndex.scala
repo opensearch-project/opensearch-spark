@@ -11,6 +11,7 @@ import org.opensearch.flint.core.metadata.FlintMetadata
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{Column, DataFrame, SparkSession}
+import org.apache.spark.sql.catalyst.plans.logical.Aggregate
 import org.apache.spark.sql.flint.datatype.FlintDataType
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
@@ -57,7 +58,7 @@ trait FlintSparkIndex extends Logging {
   def build(spark: SparkSession, df: Option[DataFrame]): DataFrame
 }
 
-object FlintSparkIndex {
+object FlintSparkIndex extends Logging {
 
   /**
    * Interface indicates a Flint index has custom streaming refresh capability other than foreach
@@ -93,18 +94,30 @@ object FlintSparkIndex {
    * @return
    *   optional ID column expression
    */
-  def generateIdColumn(df: DataFrame, idExpr: Option[String]): Option[Column] = {
-    def timestampColumn: Option[String] = {
-      df.columns.toSet.intersect(Set("timestamp", "@timestamp")).headOption
+  def generateIdColumn(
+      df: DataFrame,
+      idExpr: Option[String],
+      isAutoRefresh: Boolean): Option[Column] = {
+    def isAggregated: Boolean = {
+      df.queryExecution.logical.exists(_.isInstanceOf[Aggregate])
     }
 
-    if (idExpr.isDefined) {
-      Some(expr(idExpr.get))
-    } else if (timestampColumn.isDefined) {
-      Some(sha1(concat(input_file_name(), col(timestampColumn.get))))
-    } else {
-      None
-    }
+    val idColumn =
+      if (idExpr.isDefined) {
+        Some(expr(idExpr.get))
+      } else if (isAggregated) {
+        Some(concat(df.columns.map(col): _*))
+      } else {
+        if (isAutoRefresh) {
+          throw new IllegalStateException(
+            "ID expression is required to avoid duplicate data when index refresh job restart")
+        } else {
+          None
+        }
+      }
+
+    logInfo(s"Generate ID column based on expression $idColumn")
+    idColumn
   }
 
   /**

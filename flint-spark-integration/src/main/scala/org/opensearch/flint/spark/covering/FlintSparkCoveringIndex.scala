@@ -63,14 +63,11 @@ case class FlintSparkCoveringIndex(
     var colNames = indexedColumns.keys.toSeq
     var job = df.getOrElse(spark.read.table(tableName))
 
-    // Add optional ID column
-    val idColumn = generateIdColumn(job, options.idExpression())
+    // Add ID column
+    val idColumn = generateIdColumn(job, options.idExpression(), options.autoRefresh())
     if (idColumn.isDefined) {
-      logInfo(s"Generate ID column based on expression $idColumn")
       colNames = colNames :+ ID_COLUMN
       job = job.withColumn(ID_COLUMN, idColumn.get)
-    } else {
-      logWarning("Cannot generate ID column which may cause duplicate data when restart")
     }
 
     // Add optional filtering condition
