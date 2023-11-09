@@ -78,7 +78,16 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
       .withSourceTable(testTable, testSchema)
       .withFilter(EqualTo(nameCol, Literal("hello")))
       .withSkippingIndex(testIndex, "name")
-      .shouldPushDownAfterRewrite(col("name") === "hello")
+      .shouldPushDownAfterRewrite(col("name") === "hello", isHybridScanExpected = false)
+  }
+
+  test("should rewrite query with partial skipping index") {
+    assertFlintQueryRewriter()
+      .withSourceTable(testTable, testSchema)
+      .withFilter(EqualTo(nameCol, Literal("hello")))
+      .withSkippingIndex(testIndex, "name")
+      .withSkippingIndexFilter("age > 30")
+      .shouldPushDownAfterRewrite(col("name") === "hello", isHybridScanExpected = true)
   }
 
   test("should only push down filter condition with indexed column") {
@@ -86,7 +95,7 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
       .withSourceTable(testTable, testSchema)
       .withFilter(And(EqualTo(nameCol, Literal("hello")), EqualTo(ageCol, Literal(30))))
       .withSkippingIndex(testIndex, "name")
-      .shouldPushDownAfterRewrite(col("name") === "hello")
+      .shouldPushDownAfterRewrite(col("name") === "hello", isHybridScanExpected = false)
   }
 
   test("should push down all filter conditions with indexed column") {
@@ -94,7 +103,9 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
       .withSourceTable(testTable, testSchema)
       .withFilter(And(EqualTo(nameCol, Literal("hello")), EqualTo(ageCol, Literal(30))))
       .withSkippingIndex(testIndex, "name", "age")
-      .shouldPushDownAfterRewrite(col("name") === "hello" && col("age") === 30)
+      .shouldPushDownAfterRewrite(
+        col("name") === "hello" && col("age") === 30,
+        isHybridScanExpected = false)
 
     assertFlintQueryRewriter()
       .withSourceTable(testTable, testSchema)
@@ -104,7 +115,8 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
           And(EqualTo(ageCol, Literal(30)), EqualTo(addressCol, Literal("Seattle")))))
       .withSkippingIndex(testIndex, "name", "age", "address")
       .shouldPushDownAfterRewrite(
-        col("name") === "hello" && col("age") === 30 && col("address") === "Seattle")
+        col("name") === "hello" && col("age") === 30 && col("address") === "Seattle",
+        isHybridScanExpected = false)
   }
 
   private def assertFlintQueryRewriter(): AssertionHelper = {
@@ -118,6 +130,7 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
         .thenReturn("spark_catalog")
       mockFlint
     }
+    private val skippingIndex = mock[FlintSparkSkippingIndex]
     private val rule = new ApplyFlintSparkSkippingIndex(flint)
     private var relation: LogicalRelation = _
     private var plan: LogicalPlan = _
@@ -140,7 +153,6 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
     }
 
     def withSkippingIndex(indexName: String, indexCols: String*): AssertionHelper = {
-      val skippingIndex = mock[FlintSparkSkippingIndex]
       when(skippingIndex.kind).thenReturn(SKIPPING_INDEX_TYPE)
       when(skippingIndex.name()).thenReturn(indexName)
       when(skippingIndex.indexedColumns).thenReturn(indexCols.map(FakeSkippingStrategy))
@@ -150,13 +162,18 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
       this
     }
 
+    def withSkippingIndexFilter(filterCondition: String): AssertionHelper = {
+      when(skippingIndex.filterCondition).thenReturn(Some(filterCondition))
+      this
+    }
+
     def withNoSkippingIndex(): AssertionHelper = {
       when(flint.describeIndex(any())).thenReturn(None)
       this
     }
 
-    def shouldPushDownAfterRewrite(expected: Column): Unit = {
-      rule.apply(plan) should pushDownFilterToIndexScan(expected)
+    def shouldPushDownAfterRewrite(expectCol: Column, isHybridScanExpected: Boolean): Unit = {
+      rule.apply(plan) should pushDownFilterToIndexScan(expectCol, isHybridScanExpected)
     }
 
     def shouldNotRewrite(): Unit = {
@@ -181,14 +198,18 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
     baseRelation
   }
 
-  private def pushDownFilterToIndexScan(expect: Column): Matcher[LogicalPlan] = {
+  private def pushDownFilterToIndexScan(
+      expectCol: Column,
+      isHybridScanExpected: Boolean): Matcher[LogicalPlan] = {
     Matcher { (plan: LogicalPlan) =>
       val useFlintSparkSkippingFileIndex = plan.exists {
         case LogicalRelation(
               HadoopFsRelation(fileIndex: FlintSparkSkippingFileIndex, _, _, _, _, _),
               _,
               _,
-              _) if fileIndex.indexFilter.semanticEquals(expect.expr) =>
+              _)
+            if (fileIndex.indexFilter.semanticEquals(
+              expectCol.expr)) && (fileIndex.isHybridScanMode == isHybridScanExpected) =>
           true
         case _ => false
       }
