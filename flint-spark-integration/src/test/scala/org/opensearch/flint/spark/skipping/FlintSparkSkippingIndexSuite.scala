@@ -30,6 +30,12 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     index.name() shouldBe "flint_spark_catalog_default_test_skipping_index"
   }
 
+  test("get skipping index name on table name with dots") {
+    val testTableDots = "spark_catalog.default.test.2023.10"
+    val index = new FlintSparkSkippingIndex(testTableDots, Seq(mock[FlintSparkSkippingStrategy]))
+    index.name() shouldBe "flint_spark_catalog_default_test.2023.10_skipping_index"
+  }
+
   test("get index metadata") {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)

@@ -125,7 +125,7 @@ object FlintSparkSkippingIndex {
       tableName.split("\\.").length >= 3,
       "Qualified table name catalog.database.table is required")
 
-    flintIndexNamePrefix(tableName) + SKIPPING_INDEX_SUFFIX
+    flintIndexNamePrefix(tableName) + "_" + SKIPPING_INDEX_SUFFIX
   }
 
   /** Builder class for skipping index build */

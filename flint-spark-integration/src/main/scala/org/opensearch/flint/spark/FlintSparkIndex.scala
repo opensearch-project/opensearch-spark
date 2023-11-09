@@ -87,8 +87,29 @@ object FlintSparkIndex {
    * @return
    *   Flint index name
    */
-  def flintIndexNamePrefix(fullTableName: String): String =
-    s"flint_${fullTableName.replace(".", "_")}_"
+  def flintIndexNamePrefix(fullTableName: String): String = {
+    require(fullTableName.split('.').length >= 3, s"Table name $fullTableName is not qualified")
+
+    // Keep all parts since the third as it is
+    val parts = fullTableName.split('.')
+    s"flint_${parts(0)}_${parts(1)}_${parts.drop(2).mkString(".")}"
+  }
+
+  /**
+   * Populate environment variables to persist in Flint metadata.
+   *
+   * @return
+   *   env key value mapping to populate
+   */
+  def populateEnvToMetadata: Map[String, String] = {
+    // TODO: avoid hardcoding env name below by providing another config
+    val envNames = Seq("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "SERVERLESS_EMR_JOB_ID")
+    envNames
+      .flatMap(key =>
+        Option(System.getenv(key))
+          .map(value => key -> value))
+      .toMap
+  }
 
   /**
    * Create Flint metadata builder with common fields.
@@ -103,6 +124,12 @@ object FlintSparkIndex {
     // Common fields
     builder.kind(index.kind)
     builder.options(index.options.optionsWithDefault.mapValues(_.asInstanceOf[AnyRef]).asJava)
+
+    // Index properties
+    val envs = populateEnvToMetadata
+    if (envs.nonEmpty) {
+      builder.addProperty("env", envs.asJava)
+    }
 
     // Optional index settings
     val settings = index.options.indexSettings()
