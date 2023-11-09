@@ -67,9 +67,10 @@ class FlintSparkIndexJobSqlITSuite extends FlintSparkSuite with Matchers {
       assertion
         .run { checkpointDir =>
           s""" CREATE INDEX $testIndex ON $testTable
-             | (time, name)
+             | (timestamp, name)
              | WITH (
              |   auto_refresh = true,
+             |   id_expression = 'timestamp',
              |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
              | )
              |""".stripMargin
@@ -94,6 +95,7 @@ class FlintSparkIndexJobSqlITSuite extends FlintSparkSuite with Matchers {
              | $testMvQuery
              | WITH (
              |   auto_refresh = true,
+             |   id_expression = 'name',
              |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
              | )
              |""".stripMargin
