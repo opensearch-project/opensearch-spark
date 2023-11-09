@@ -144,6 +144,7 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
       when(skippingIndex.kind).thenReturn(SKIPPING_INDEX_TYPE)
       when(skippingIndex.name()).thenReturn(indexName)
       when(skippingIndex.indexedColumns).thenReturn(indexCols.map(FakeSkippingStrategy))
+      when(skippingIndex.filterCondition).thenReturn(None)
 
       when(flint.describeIndex(any())).thenReturn(Some(skippingIndex))
       this

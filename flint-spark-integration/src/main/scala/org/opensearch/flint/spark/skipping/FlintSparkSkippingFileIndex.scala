@@ -26,7 +26,8 @@ import org.apache.spark.sql.types.StructType
 case class FlintSparkSkippingFileIndex(
     baseFileIndex: FileIndex,
     indexScan: DataFrame,
-    indexFilter: Expression)
+    indexFilter: Expression,
+    isHybridScanMode: Boolean = FlintSparkConf().isHybridScanEnabled)
     extends FileIndex {
 
   override def listFiles(
@@ -36,7 +37,7 @@ case class FlintSparkSkippingFileIndex(
     // TODO: make this listFile call only in hybrid scan mode
     val partitions = baseFileIndex.listFiles(partitionFilters, dataFilters)
     val selectedFiles =
-      if (FlintSparkConf().isHybridScanEnabled) {
+      if (isHybridScanMode) {
         selectFilesFromIndexAndSource(partitions)
       } else {
         selectFilesFromIndexOnly()

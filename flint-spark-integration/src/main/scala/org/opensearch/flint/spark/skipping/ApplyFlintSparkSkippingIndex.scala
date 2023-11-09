@@ -14,6 +14,7 @@ import org.apache.spark.sql.catalyst.expressions.{And, Expression, Predicate}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.qualifyTableName
 
 /**
@@ -48,8 +49,14 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
          *        |- FileIndex <== replaced with FlintSkippingFileIndex
          */
         if (indexFilter.isDefined) {
+          // Enforce hybrid scan if skipping index is partial
+          val isHybridScan =
+            if (skippingIndex.filterCondition.isDefined) true
+            else FlintSparkConf().isHybridScanEnabled
+
           val indexScan = flint.queryIndex(skippingIndex.name())
-          val fileIndex = FlintSparkSkippingFileIndex(location, indexScan, indexFilter.get)
+          val fileIndex =
+            FlintSparkSkippingFileIndex(location, indexScan, indexFilter.get, isHybridScan)
           val indexRelation = baseRelation.copy(location = fileIndex)(baseRelation.sparkSession)
           filter.copy(child = relation.copy(relation = indexRelation))
         } else {
