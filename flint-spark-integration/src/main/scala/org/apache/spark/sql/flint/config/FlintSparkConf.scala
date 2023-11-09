@@ -99,7 +99,7 @@ object FlintSparkConf {
   val REFRESH_POLICY = FlintConfig("spark.datasource.flint.write.refresh_policy")
     .datasourceOption()
     .doc("refresh_policy, possible value are NONE(false), IMMEDIATE(true), WAIT_UNTIL(wait_for)")
-    .createWithDefault("false")
+    .createWithDefault(FlintOptions.DEFAULT_REFRESH_POLICY)
 
   val SCROLL_SIZE = FlintConfig("spark.datasource.flint.read.scroll_size")
     .datasourceOption()

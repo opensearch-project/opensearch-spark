@@ -21,7 +21,7 @@ class FlintSparkConfSuite extends FlintSuite {
 
       // default value
       assert(flintOptions.getPort == 9200)
-      assert(flintOptions.getRefreshPolicy == "false")
+      assert(flintOptions.getRefreshPolicy == "wait_for")
     }
   }
 
