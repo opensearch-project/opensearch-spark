@@ -19,7 +19,7 @@ import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.dsl.expressions.DslExpression
-import org.apache.spark.sql.functions.{col, expr, input_file_name, sha1}
+import org.apache.spark.sql.functions.{col, input_file_name, sha1}
 
 /**
  * Flint skipping index in Spark.
@@ -87,11 +87,7 @@ case class FlintSparkSkippingIndex(
 
     // Add optional filtering condition
     if (filterCondition.isDefined) {
-      if (isConjunction(expr(filterCondition.get).expr)) { // TODO: do the same for covering and add UT/IT
-        job = job.where(filterCondition.get)
-      } else {
-        throw new IllegalStateException("Filtering condition is not conjunction")
-      }
+      job = job.where(filterCondition.get)
     }
 
     job
