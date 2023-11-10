@@ -105,7 +105,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
              | """.stripMargin)
       sql(s"REFRESH SKIPPING INDEX ON $testTimeSeriesTable")
 
-      // Only 2 rows indexed
+      // Only 1 rows indexed
       flint.describeIndex(testFlintTimeSeriesTable) shouldBe defined
       val indexData = flint.queryIndex(testFlintTimeSeriesTable)
       indexData.count() shouldBe 1

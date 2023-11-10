@@ -9,6 +9,7 @@ import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSparkIndexUtils.isConjunction
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, SKIPPING_INDEX_TYPE}
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.catalyst.expressions.{And, Expression, Predicate}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan}
@@ -25,7 +26,7 @@ import org.apache.spark.sql.flint.qualifyTableName
  * @param flint
  *   Flint Spark API
  */
-class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] {
+class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] with Logging {
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
     case filter @ Filter( // TODO: abstract pattern match logic for different table support
@@ -36,8 +37,11 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
             Some(table),
             false))
         if isConjunction(condition) && !location.isInstanceOf[FlintSparkSkippingFileIndex] =>
+      logInfo(s"Applying skipping index rewrite rule on filter condition $filter")
       val index = flint.describeIndex(getIndexName(table))
+
       if (index.exists(_.kind == SKIPPING_INDEX_TYPE)) {
+        logInfo(s"Found skipping index $index")
         val skippingIndex = index.get.asInstanceOf[FlintSparkSkippingIndex]
         val indexFilter = rewriteToIndexFilter(skippingIndex, condition)
 
@@ -49,6 +53,7 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
          *        |- FileIndex <== replaced with FlintSkippingFileIndex
          */
         if (indexFilter.isDefined) {
+          logInfo(s"Found filter condition can be pushed down to skipping index: $indexFilter")
           // Enforce hybrid scan if skipping index is partial
           val isHybridScan =
             if (skippingIndex.filterCondition.isDefined) true
@@ -60,9 +65,11 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
           val indexRelation = baseRelation.copy(location = fileIndex)(baseRelation.sparkSession)
           filter.copy(child = relation.copy(relation = indexRelation))
         } else {
+          logInfo("No filter condition can be pushed down to skipping index")
           filter
         }
       } else {
+        logInfo("No skipping index found for query rewrite")
         filter
       }
   }
