@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Abstract OpenSearch Reader.
@@ -38,8 +39,12 @@ public abstract class OpenSearchReader implements FlintReader {
   @Override public boolean hasNext() {
     try {
       if (iterator == null || !iterator.hasNext()) {
-        SearchResponse response = search(searchRequest);
-        List<SearchHit> searchHits = Arrays.asList(response.getHits().getHits());
+        Optional<SearchResponse> response = search(searchRequest);
+        if (response.isEmpty()) {
+          iterator = null;
+          return false;
+        }
+        List<SearchHit> searchHits = Arrays.asList(response.get().getHits().getHits());
         iterator = searchHits.iterator();
       }
       return iterator.hasNext();
@@ -72,7 +77,7 @@ public abstract class OpenSearchReader implements FlintReader {
   /**
    * search.
    */
-  abstract SearchResponse search(SearchRequest request) throws IOException;
+  abstract Optional<SearchResponse> search(SearchRequest request) throws IOException;
 
   /**
    * clean.
