@@ -230,18 +230,32 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("name", "age")
   }
 
-  test("create covering index on time series time with ID expression") {
+  test("create covering index with auto refresh and ID expression") {
     sql(s"""
-             | CREATE INDEX $testIndex ON $testTimeSeriesTable
-             | (time, age)
-             | WITH (
-             |   auto_refresh = true,
-             |   id_expression = 'address'
-             | )
-             |""".stripMargin)
+           | CREATE INDEX $testIndex ON $testTimeSeriesTable
+           | (time, age)
+           | WITH (
+           |   auto_refresh = true,
+           |   id_expression = 'address'
+           | )
+           |""".stripMargin)
 
     val job = spark.streams.active.find(_.name == testFlintTimeSeriesIndex)
     awaitStreamingComplete(job.get.id.toString)
+
+    val indexData = flint.queryIndex(testFlintTimeSeriesIndex)
+    indexData.count() shouldBe 3 // only 3 rows left due to same ID
+  }
+
+  test("create covering index with manual refresh and ID expression") {
+    sql(s"""
+           | CREATE INDEX $testIndex ON $testTimeSeriesTable
+           | (time, age)
+           | WITH (
+           |   id_expression = 'address'
+           | )
+           |""".stripMargin)
+    sql(s"REFRESH INDEX $testIndex ON $testTimeSeriesTable")
 
     val indexData = flint.queryIndex(testFlintTimeSeriesIndex)
     indexData.count() shouldBe 3 // only 3 rows left due to same ID

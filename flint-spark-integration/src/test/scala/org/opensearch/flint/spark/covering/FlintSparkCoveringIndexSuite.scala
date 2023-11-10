@@ -44,7 +44,7 @@ class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     }
   }
 
-  test("should generate id column based on ID expression in index options") {
+  test("should build batch with ID expression given in index options") {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (timestamp TIMESTAMP, name STRING) USING JSON")
       val index =
@@ -63,7 +63,7 @@ class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     }
   }
 
-  test("should build without ID column if not auto refreshed") {
+  test("should build batch without ID column") {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
       val index = FlintSparkCoveringIndex("name_idx", testTable, Map("name" -> "string"))
@@ -76,7 +76,7 @@ class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     }
   }
 
-  test("should build without ID column if not auto refreshed but no checkpoint location") {
+  test("should build batch without ID column if no checkpoint location") {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
       val index = FlintSparkCoveringIndex(

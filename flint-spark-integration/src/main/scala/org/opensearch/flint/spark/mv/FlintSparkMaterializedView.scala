@@ -68,7 +68,15 @@ case class FlintSparkMaterializedView(
   override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
     require(df.isEmpty, "materialized view doesn't support reading from other data frame")
 
-    spark.sql(query)
+    val job = spark.sql(query)
+
+    // Add ID column
+    val idColumn = generateIdColumn(job, options)
+    if (idColumn.isDefined) {
+      job.withColumn(ID_COLUMN, idColumn.get)
+    } else {
+      job
+    }
   }
 
   override def buildStream(spark: SparkSession): DataFrame = {

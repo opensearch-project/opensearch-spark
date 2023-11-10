@@ -7,6 +7,7 @@ package org.opensearch.flint.spark.mv
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
+import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedViewSuite.{streamingRelation, StreamingDslLogicalPlan}
@@ -21,6 +22,7 @@ import org.apache.spark.sql.catalyst.dsl.plans.DslLogicalPlan
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{EventTimeWatermark, LogicalPlan}
 import org.apache.spark.sql.catalyst.util.IntervalUtils
+import org.apache.spark.sql.functions.{col, concat, expr, sha1}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -86,6 +88,58 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
   test("build batch data frame") {
     val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
     mv.build(spark, None).collect() shouldBe Array(Row(1))
+  }
+
+  test("should build batch with ID expression given in index options") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
+      val mv = FlintSparkMaterializedView(
+        testMvName,
+        s"SELECT time, name FROM $testTable",
+        Map.empty,
+        FlintSparkIndexOptions(Map("id_expression" -> "time")))
+
+      assertDataFrameEquals(
+        mv.build(spark, None),
+        spark
+          .table(testTable)
+          .select(col("time"), col("name"))
+          .withColumn(ID_COLUMN, expr("time")))
+    }
+  }
+
+  ignore("should build batch without ID column if non-aggregated") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
+      val mv =
+        FlintSparkMaterializedView(testMvName, s"SELECT time, name FROM $testTable", Map.empty)
+
+      assertDataFrameEquals(
+        mv.build(spark, None),
+        spark
+          .table(testTable)
+          .select(col("time"), col("name")))
+    }
+  }
+
+  test("should build batch with ID column if aggregated") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
+      val mv = FlintSparkMaterializedView(
+        testMvName,
+        s""" SELECT time, name, AVG(age)
+           | FROM $testTable
+           | GROUP BY time, name""".stripMargin,
+        Map.empty)
+
+      assertDataFrameEquals(
+        mv.build(spark, None),
+        spark
+          .table(testTable)
+          .groupBy("time", "name")
+          .avg("age")
+          .withColumn(ID_COLUMN, sha1(concat(col("time"), col("name"), col("avg(age)")))))
+    }
   }
 
   test("should fail if build given other source data frame") {
@@ -195,6 +249,11 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
       val actualPlan = mv.buildStream(spark).queryExecution.logical
       codeBlock(actualPlan)
     }
+  }
+
+  /* Assert unresolved logical plan in DataFrame equals without semantic analysis */
+  private def assertDataFrameEquals(df1: DataFrame, df2: DataFrame): Unit = {
+    comparePlans(df1.queryExecution.logical, df2.queryExecution.logical, checkAnalysis = false)
   }
 }
 
