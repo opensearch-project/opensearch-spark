@@ -76,6 +76,23 @@ class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     }
   }
 
+  test("should build without ID column if not auto refreshed but no checkpoint location") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
+      val index = FlintSparkCoveringIndex(
+        "name_idx",
+        testTable,
+        Map("name" -> "string"),
+        options = FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+
+      assertDataFrameEquals(
+        index.build(spark, None),
+        spark
+          .table(testTable)
+          .select(col("name")))
+    }
+  }
+
   test(
     "should build failed if auto refresh and checkpoint location provided but no ID generated") {
     withTable(testTable) {
