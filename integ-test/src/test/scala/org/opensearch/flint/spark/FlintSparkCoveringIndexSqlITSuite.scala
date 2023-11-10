@@ -49,10 +49,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     sql(s"""
          | CREATE INDEX $testIndex ON $testTable
          | (name, age)
-         | WITH (
-         |   auto_refresh = true,
-         |   id_expression = 'name'
-         | )
+         | WITH (auto_refresh = true)
          |""".stripMargin)
 
     // Wait for streaming job complete current micro batch
@@ -237,7 +234,10 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     sql(s"""
              | CREATE INDEX $testIndex ON $testTimeSeriesTable
              | (time, age)
-             | WITH (auto_refresh = true)
+             | WITH (
+             |   auto_refresh = true,
+             |   id_expression = 'address'
+             | )
              |""".stripMargin)
 
     val job = spark.streams.active.find(_.name == testFlintTimeSeriesIndex)
