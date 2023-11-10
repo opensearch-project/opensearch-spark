@@ -17,12 +17,12 @@ import org.opensearch.client.transport.rest_client.RestClientTransport
 import org.opensearch.flint.OpenSearchSuite
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NoOptimisticTransaction
-import org.opensearch.flint.core.storage.FlintOpenSearchClient
+import org.opensearch.flint.core.storage.{FlintOpenSearchClient, OpenSearchScrollReader}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
 
-import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
+import org.apache.spark.sql.flint.config.FlintSparkConf.{REFRESH_POLICY, SCROLL_DURATION, SCROLL_SIZE, SCROLL_TIMEOUT}
 
 class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with Matchers {
 
@@ -176,6 +176,30 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
       reader.hasNext shouldBe false
       reader.close()
 
+      reader.asInstanceOf[OpenSearchScrollReader].getScrollId shouldBe null
+      scrollShouldClosed()
+    }
+  }
+
+  it should "no item return after scroll timeout" in {
+    val indexName = "t0001"
+    withIndexName(indexName) {
+      multipleDocIndex(indexName, 2)
+
+      val options =
+        openSearchOptions + (s"${SCROLL_DURATION.optionKey}" -> "1", s"${SCROLL_SIZE.optionKey}" -> "1")
+      val flintClient = new FlintOpenSearchClient(new FlintOptions(options.asJava))
+      val match_all = null
+      val reader = flintClient.createReader(indexName, match_all)
+
+      reader.hasNext shouldBe true
+      reader.next
+      // scroll context expired after 1 minutes
+      Thread.sleep(60 * 1000 * 2)
+      reader.hasNext shouldBe false
+      reader.close()
+
+      reader.asInstanceOf[OpenSearchScrollReader].getScrollId shouldBe null
       scrollShouldClosed()
     }
   }
