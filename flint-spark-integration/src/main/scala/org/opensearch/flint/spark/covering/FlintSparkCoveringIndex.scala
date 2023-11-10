@@ -35,7 +35,9 @@ case class FlintSparkCoveringIndex(
     extends FlintSparkIndex {
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")
-  require(filterCondition.forall(isConjunction), "filtering condition must be conjunction")
+  require(
+    filterCondition.forall(isConjunction),
+    s"filtering condition $filterCondition must be conjunction")
 
   override val kind: String = COVERING_INDEX_TYPE
 

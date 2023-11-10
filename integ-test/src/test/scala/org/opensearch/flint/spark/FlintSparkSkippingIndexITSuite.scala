@@ -48,7 +48,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .addPartitions("year", "month")
       .addValueSet("address")
       .addMinMax("age")
-      .filterBy("age > 30")
+      .filterBy("year = 2023")
       .create()
 
     val index = flint.describeIndex(testIndex)
@@ -82,7 +82,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |     "source": "spark_catalog.default.test",
         |     "options": { "auto_refresh": "false" },
         |     "properties": {
-        |       "filterCondition": "age > 30"
+        |       "filterCondition": "year = 2023"
         |     }
         |   },
         |   "properties": {

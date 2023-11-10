@@ -38,7 +38,9 @@ case class FlintSparkSkippingIndex(
     extends FlintSparkIndex {
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")
-  require(filterCondition.forall(isConjunction), "filtering condition must be conjunction")
+  require(
+    filterCondition.forall(isConjunction),
+    s"filtering condition $filterCondition must be conjunction")
 
   /** Skipping index type */
   override val kind: String = SKIPPING_INDEX_TYPE
