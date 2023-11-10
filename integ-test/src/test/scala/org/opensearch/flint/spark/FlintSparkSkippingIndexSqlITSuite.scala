@@ -61,10 +61,10 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     val testFlintTimeSeriesTable = getSkippingIndexName(testTimeSeriesTable)
 
     withTable(testTimeSeriesTable) {
-      createTimeSeriesTable(testTimeSeriesTable)
+      createPartitionedTimeSeriesTable(testTimeSeriesTable)
       sql(s""" CREATE SKIPPING INDEX ON $testTimeSeriesTable
              | ( address VALUE_SET )
-             |  WHERE time >= '2023-10-01 01:00:00'
+             |  WHERE hour >= 1
              |  WITH (auto_refresh = true)""".stripMargin)
       flint.describeIndex(testFlintTimeSeriesTable) shouldBe defined
 
@@ -98,10 +98,10 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     val testFlintTimeSeriesTable = getSkippingIndexName(testTimeSeriesTable)
 
     withTable(testTimeSeriesTable) {
-      createTimeSeriesTable(testTimeSeriesTable)
+      createPartitionedTimeSeriesTable(testTimeSeriesTable)
       sql(s""" CREATE SKIPPING INDEX ON $testTimeSeriesTable
              | ( address VALUE_SET )
-             | WHERE time >= '2023-10-01 01:00:00' AND age = 15
+             | WHERE hour >= 3
              | """.stripMargin)
       sql(s"REFRESH SKIPPING INDEX ON $testTimeSeriesTable")
 
@@ -119,8 +119,9 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
       checkAnswer(query, Seq(Row("C"), Row("D")))
 
       // Generate new data
-      sql(s""" INSERT INTO $testTimeSeriesTable VALUES
-             | (TIMESTAMP '2023-10-01 04:00:00', 'F', 30, 'Vancouver')""".stripMargin)
+      sql(s""" INSERT INTO $testTimeSeriesTable
+             | PARTITION (year=2023, month=10, day=1, hour=4)
+             | VALUES (TIMESTAMP '2023-10-01 04:00:00', 'F', 30, 'Vancouver')""".stripMargin)
 
       // Latest file should be included too without refresh
       sql(s"SELECT * FROM $testTimeSeriesTable").count shouldBe 6
@@ -131,6 +132,21 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
       checkAnswer(query, Seq(Row("E"), Row("F")))
 
       flint.deleteIndex(testFlintTimeSeriesTable)
+    }
+  }
+
+  test(
+    "should fail if create skipping index with filtering condition on non-partitioned column") {
+    val testTimeSeriesTable = "spark_catalog.default.partial_skipping_sql_test"
+    withTable(testTimeSeriesTable) {
+      createPartitionedTimeSeriesTable(testTimeSeriesTable)
+
+      assertThrows[IllegalArgumentException] {
+        sql(s""" CREATE SKIPPING INDEX ON $testTimeSeriesTable
+             | ( address VALUE_SET )
+             |  WHERE time >= '2023-10-01 01:00:00'
+             |  WITH (auto_refresh = true)""".stripMargin)
+      }
     }
   }
 

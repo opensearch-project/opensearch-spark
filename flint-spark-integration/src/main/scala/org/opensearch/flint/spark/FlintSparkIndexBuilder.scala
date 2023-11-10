@@ -35,7 +35,8 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
       throw new IllegalStateException(s"Table $qualifiedTableName is not found"))
 
     val allFields = table.schema().fields
-    allFields.map { field => field.name -> convertFieldToColumn(field) }.toMap
+    val partitionFields = table.partitioning().map(_.arguments().mkString(",")).toSet
+    allFields.map { field => field.name -> convertFieldToColumn(field, partitionFields) }.toMap
   }
 
   /**
@@ -87,7 +88,7 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
       colName,
       throw new IllegalArgumentException(s"Column $colName does not exist"))
 
-  private def convertFieldToColumn(field: StructField): Column = {
+  private def convertFieldToColumn(field: StructField, partitionFields: Set[String]): Column = {
     // Ref to CatalogImpl.listColumns(): Varchar/Char is StringType with real type name in metadata
     new Column(
       name = field.name,
@@ -95,7 +96,7 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
       dataType =
         CharVarcharUtils.getRawType(field.metadata).getOrElse(field.dataType).catalogString,
       nullable = field.nullable,
-      isPartition = false, // useless for now so just set to false
+      isPartition = partitionFields.contains(field.name),
       isBucket = false)
   }
 }

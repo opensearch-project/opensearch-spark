@@ -18,8 +18,9 @@ import org.opensearch.flint.spark.skipping.partition.PartitionSkippingStrategy
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
 import org.apache.spark.sql._
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.dsl.expressions.DslExpression
-import org.apache.spark.sql.functions.{col, input_file_name, sha1}
+import org.apache.spark.sql.functions.{col, expr, input_file_name, sha1}
 
 /**
  * Flint skipping index in Spark.
@@ -204,6 +205,14 @@ object FlintSparkSkippingIndex {
      *   index builder
      */
     def filterBy(condition: String): Builder = {
+      expr(condition).expr.foreach {
+        case colName: UnresolvedAttribute =>
+          require(
+            findColumn(colName.name).isPartition,
+            s"${colName.name} is not partitioned column and cannot be used in index filtering condition")
+        case _ =>
+      }
+
       filterCondition = Some(condition)
       this
     }

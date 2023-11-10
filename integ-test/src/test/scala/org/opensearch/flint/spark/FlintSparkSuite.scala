@@ -120,4 +120,48 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 01:00:00', 'D', 40, 'Portland')")
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 03:00:00', 'E', 15, 'Vancouver')")
   }
+
+  protected def createPartitionedTimeSeriesTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   time TIMESTAMP,
+           |   name STRING,
+           |   age INT,
+           |   address STRING
+           | )
+           | USING CSV
+           | OPTIONS (
+           |  header 'false',
+           |  delimiter '\t'
+           | )
+           | PARTITIONED BY (
+           |    year INT,
+           |    month INT,
+           |    day INT,
+           |    hour INT
+           | )
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable PARTITION (year=2023, month=10, day=1, hour=0)
+           | VALUES (TIMESTAMP '2023-10-01 00:01:00', 'A', 30, 'Seattle')
+           | """.stripMargin)
+    sql(s"""
+           | INSERT INTO $testTable PARTITION (year=2023, month=10, day=1, hour=0)
+           | VALUES (TIMESTAMP '2023-10-01 00:10:00', 'B', 20, 'Seattle')
+           | """.stripMargin)
+    sql(s"""
+           | INSERT INTO $testTable PARTITION (year=2023, month=10, day=1, hour=0)
+           | VALUES (TIMESTAMP '2023-10-01 00:15:00', 'C', 35, 'Portland')
+           | """.stripMargin)
+    sql(s"""
+           | INSERT INTO $testTable PARTITION (year=2023, month=10, day=1, hour=1)
+           | VALUES (TIMESTAMP '2023-10-01 01:00:00', 'D', 40, 'Portland')
+           | """.stripMargin)
+    sql(s"""
+           | INSERT INTO $testTable PARTITION (year=2023, month=10, day=1, hour=3)
+           | VALUES (TIMESTAMP '2023-10-01 03:00:00', 'E', 15, 'Vancouver')
+           | """.stripMargin)
+  }
 }
