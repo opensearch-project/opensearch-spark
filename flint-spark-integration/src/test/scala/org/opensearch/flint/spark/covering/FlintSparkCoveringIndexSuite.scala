@@ -44,7 +44,7 @@ class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     }
   }
 
-  test("should build batch with ID expression given in index options") {
+  test("build batch with ID expression given in index options") {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (timestamp TIMESTAMP, name STRING) USING JSON")
       val index =
@@ -63,7 +63,7 @@ class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     }
   }
 
-  test("should build batch without ID column") {
+  test("build batch without ID column") {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
       val index = FlintSparkCoveringIndex("name_idx", testTable, Map("name" -> "string"))
@@ -76,7 +76,26 @@ class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     }
   }
 
-  test("should build batch without ID column if no checkpoint location") {
+  test("build stream with ID expression given in index options") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
+      val index = FlintSparkCoveringIndex(
+        "name_idx",
+        testTable,
+        Map("name" -> "string"),
+        options =
+          FlintSparkIndexOptions(Map("auto_refresh" -> "true", "id_expression" -> "name")))
+
+      assertDataFrameEquals(
+        index.build(spark, Some(spark.table(testTable))),
+        spark
+          .table(testTable)
+          .withColumn(ID_COLUMN, col("name"))
+          .select("name", ID_COLUMN))
+    }
+  }
+
+  test("build stream without ID column if no checkpoint location") {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
       val index = FlintSparkCoveringIndex(
@@ -86,15 +105,14 @@ class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
         options = FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
 
       assertDataFrameEquals(
-        index.build(spark, None),
+        index.build(spark, Some(spark.table(testTable))),
         spark
           .table(testTable)
           .select(col("name")))
     }
   }
 
-  test(
-    "should build failed if auto refresh and checkpoint location provided but no ID generated") {
+  test("build stream fail if checkpoint location provided but no ID expression") {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
       val index = FlintSparkCoveringIndex(
@@ -105,30 +123,12 @@ class FlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
           Map("auto_refresh" -> "true", "checkpoint_location" -> "s3://test/")))
 
       assertThrows[IllegalStateException] {
-        index.build(spark, None)
+        index.build(spark, Some(spark.table(testTable)))
       }
     }
   }
 
-  test(
-    "should build failed if auto refresh and checkpoint location provided but micro batch doesn't have ID generated") {
-    withTable(testTable) {
-      sql(s"CREATE TABLE $testTable (timestamp TIMESTAMP, name STRING) USING JSON")
-      val index = FlintSparkCoveringIndex(
-        "name_idx",
-        testTable,
-        Map("name" -> "string"),
-        options = FlintSparkIndexOptions(
-          Map("auto_refresh" -> "true", "checkpoint_location" -> "s3://test/")))
-      val batch = spark.read.table(testTable).select("name")
-
-      assertThrows[IllegalStateException] {
-        index.build(spark, Some(batch))
-      }
-    }
-  }
-
-  test("should build with filtering condition") {
+  test("build with filtering condition") {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (timestamp TIMESTAMP, name STRING) USING JSON")
       val index = FlintSparkCoveringIndex(

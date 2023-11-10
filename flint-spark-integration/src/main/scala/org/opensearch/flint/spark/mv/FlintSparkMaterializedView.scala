@@ -68,15 +68,7 @@ case class FlintSparkMaterializedView(
   override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
     require(df.isEmpty, "materialized view doesn't support reading from other data frame")
 
-    val job = spark.sql(query)
-
-    // Add ID column
-    val idColumn = generateIdColumn(job, options)
-    if (idColumn.isDefined) {
-      job.withColumn(ID_COLUMN, idColumn.get)
-    } else {
-      job
-    }
+    addIdColumn(spark.sql(query))
   }
 
   override def buildStream(spark: SparkSession): DataFrame = {
@@ -96,12 +88,16 @@ case class FlintSparkMaterializedView(
     }
     val streamDf = logicalPlanToDataFrame(spark, streamingPlan)
 
-    // Add ID column
-    val idColumn = generateIdColumn(streamDf, options)
+    addIdColumn(streamDf)
+  }
+
+  private def addIdColumn(df: DataFrame): DataFrame = {
+    val idColumn = generateIdColumn(df, options)
     if (idColumn.isDefined) {
-      streamDf.withColumn(ID_COLUMN, idColumn.get)
+      df.withColumn(ID_COLUMN, idColumn.get)
+    } else {
+      df
     }
-    streamDf
   }
 
   private def watermark(timeCol: Attribute, child: LogicalPlan) = {

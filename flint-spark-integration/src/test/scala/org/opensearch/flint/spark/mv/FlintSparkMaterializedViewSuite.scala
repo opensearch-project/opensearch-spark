@@ -16,11 +16,11 @@ import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{DataFrame, Row}
-import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation}
 import org.apache.spark.sql.catalyst.dsl.expressions.{intToLiteral, stringToLiteral, DslAttr, DslExpression, StringToAttributeConversionHelper}
 import org.apache.spark.sql.catalyst.dsl.plans.DslLogicalPlan
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.plans.logical.{EventTimeWatermark, LogicalPlan}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Concat, Sha1}
+import org.apache.spark.sql.catalyst.plans.logical.{EventTimeWatermark, LogicalPlan, Project}
 import org.apache.spark.sql.catalyst.util.IntervalUtils
 import org.apache.spark.sql.functions.{col, concat, expr, sha1}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -90,39 +90,35 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     mv.build(spark, None).collect() shouldBe Array(Row(1))
   }
 
-  test("should build batch with ID expression given in index options") {
+  test("build batch with ID expression given in index options") {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
+      val testMvQuery = s"SELECT time, name FROM $testTable"
       val mv = FlintSparkMaterializedView(
         testMvName,
-        s"SELECT time, name FROM $testTable",
+        testMvQuery,
         Map.empty,
         FlintSparkIndexOptions(Map("id_expression" -> "time")))
 
       assertDataFrameEquals(
         mv.build(spark, None),
         spark
-          .table(testTable)
-          .select(col("time"), col("name"))
+          .sql(testMvQuery)
           .withColumn(ID_COLUMN, expr("time")))
     }
   }
 
-  ignore("should build batch without ID column if non-aggregated") {
+  test("build batch without ID column if non-aggregated") {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
-      val mv =
-        FlintSparkMaterializedView(testMvName, s"SELECT time, name FROM $testTable", Map.empty)
+      val testMvQuery = s"SELECT time, name FROM $testTable"
+      val mv = FlintSparkMaterializedView(testMvName, testMvQuery, Map.empty)
 
-      assertDataFrameEquals(
-        mv.build(spark, None),
-        spark
-          .table(testTable)
-          .select(col("time"), col("name")))
+      assertDataFrameEquals(mv.build(spark, None), spark.sql(testMvQuery))
     }
   }
 
-  test("should build batch with ID column if aggregated") {
+  test("build batch with ID column if aggregated") {
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
       val mv = FlintSparkMaterializedView(
@@ -139,6 +135,94 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
           .groupBy("time", "name")
           .avg("age")
           .withColumn(ID_COLUMN, sha1(concat(col("time"), col("name"), col("avg(age)")))))
+    }
+  }
+
+  test("build stream with ID expression given in index options") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
+      val mv = FlintSparkMaterializedView(
+        testMvName,
+        s"SELECT time, name FROM $testTable",
+        Map.empty,
+        FlintSparkIndexOptions(Map("auto_refresh" -> "true", "id_expression" -> "name")))
+
+      mv.buildStream(spark).queryExecution.logical.exists {
+        case Project(projectList, _) =>
+          projectList.exists {
+            case Alias(UnresolvedAttribute(Seq("name")), ID_COLUMN) => true
+            case _ => false
+          }
+        case _ => false
+      } shouldBe true
+    }
+  }
+
+  test("build stream without ID column if non-aggregated but no checkpoint location") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
+      val mv = FlintSparkMaterializedView(
+        testMvName,
+        s"SELECT time, name FROM $testTable",
+        Map.empty,
+        FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+
+      mv.buildStream(spark).queryExecution.logical.exists {
+        case Project(projectList, _) =>
+          projectList.forall(_.name != ID_COLUMN)
+        case _ => false
+      } shouldBe true
+    }
+  }
+
+  test("build stream fail if non-aggregated and checkpoint location provided") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
+      val mv = FlintSparkMaterializedView(
+        testMvName,
+        s"SELECT time, name FROM $testTable",
+        Map.empty,
+        FlintSparkIndexOptions(
+          Map("auto_refresh" -> "true", "checkpoint_location" -> "s3://test/")))
+
+      assertThrows[IllegalStateException] {
+        mv.buildStream(spark)
+      }
+    }
+  }
+
+  test("build stream with ID column if aggregated") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
+      val testMvQuery =
+        s"""
+           | SELECT
+           |   window.start AS startTime,
+           |   COUNT(*) AS count
+           | FROM $testTable
+           | GROUP BY TUMBLE(time, '1 Minute')
+           |""".stripMargin
+      val mv = FlintSparkMaterializedView(
+        testMvName,
+        testMvQuery,
+        Map.empty,
+        FlintSparkIndexOptions(Map("auto_refresh" -> "true", "watermark_delay" -> "10 Seconds")))
+
+      mv.buildStream(spark).queryExecution.logical.exists {
+        case Project(projectList, _) =>
+          projectList.exists {
+            case Alias(
+                  Sha1(
+                    Concat(
+                      Seq(
+                        UnresolvedAttribute(Seq("startTime")),
+                        UnresolvedAttribute(Seq("count"))))),
+                  ID_COLUMN) =>
+              true
+            case _ => false
+          }
+        case _ => false
+      } shouldBe true
     }
   }
 
@@ -165,7 +249,10 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
           .watermark($"time", "30 Seconds")
           .groupBy($"TUMBLE".function($"time", "1 Minute"))(
             $"window.start" as "startTime",
-            $"COUNT".function(1) as "count"),
+            $"COUNT".function(1) as "count")
+          .withColumn(ID_COLUMN, sha1(concat(col("startTime"), col("count"))))
+          .queryExecution
+          .logical,
         checkAnalysis = false
       ) // don't analyze due to full test table name
     }
@@ -191,7 +278,10 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
           .watermark($"time", "30 Seconds")
           .groupBy($"TUMBLE".function($"time", "1 Minute"))(
             $"window.start" as "startTime",
-            $"COUNT".function(1) as "count"),
+            $"COUNT".function(1) as "count")
+          .withColumn(ID_COLUMN, sha1(concat(col("startTime"), col("count"))))
+          .queryExecution
+          .logical,
         checkAnalysis = false)
     }
   }
