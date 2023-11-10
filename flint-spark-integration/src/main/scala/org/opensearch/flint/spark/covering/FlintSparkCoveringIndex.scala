@@ -64,7 +64,7 @@ case class FlintSparkCoveringIndex(
     var job = df.getOrElse(spark.read.table(tableName))
 
     // Add ID column
-    val idColumn = generateIdColumn(job, options.idExpression(), options.autoRefresh())
+    val idColumn = generateIdColumn(job, options)
     if (idColumn.isDefined) {
       colNames = colNames :+ ID_COLUMN
       job = job.withColumn(ID_COLUMN, idColumn.get)

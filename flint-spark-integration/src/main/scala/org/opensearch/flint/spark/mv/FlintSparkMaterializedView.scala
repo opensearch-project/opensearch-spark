@@ -89,7 +89,7 @@ case class FlintSparkMaterializedView(
     val streamDf = logicalPlanToDataFrame(spark, streamingPlan)
 
     // Add ID column
-    val idColumn = generateIdColumn(streamDf, options.idExpression(), options.autoRefresh())
+    val idColumn = generateIdColumn(streamDf, options)
     if (idColumn.isDefined) {
       streamDf.withColumn(ID_COLUMN, idColumn.get)
     }

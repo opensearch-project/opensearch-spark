@@ -83,40 +83,35 @@ object FlintSparkIndex extends Logging {
   val ID_COLUMN: String = "__id__"
 
   /**
-   * Generate an ID column in the precedence below: (1) Use ID expression directly if provided in
-   * index option; (2) SHA-1 based on all aggregated columns if found; (3) SHA-1 based on source
-   * file path and timestamp column; 4) No ID column generated
+   * Generate an ID column in the precedence below: 1) Use ID expression provided in the index
+   * option; 2) SHA-1 based on all columns if aggregated; 3) Throw exception if auto refresh and
+   * checkpoint location provided 4) Otherwise, no ID column generated.
    *
    * @param df
    *   data frame to generate ID column for
-   * @param idExpr
-   *   ID expression option
+   * @param options
+   *   Flint index options
    * @return
    *   optional ID column expression
    */
-  def generateIdColumn(
-      df: DataFrame,
-      idExpr: Option[String],
-      isAutoRefresh: Boolean): Option[Column] = {
+  def generateIdColumn(df: DataFrame, options: FlintSparkIndexOptions): Option[Column] = {
     def isAggregated: Boolean = {
       df.queryExecution.logical.exists(_.isInstanceOf[Aggregate])
     }
 
     val idColumn =
-      if (idExpr.isDefined) {
-        Some(expr(idExpr.get))
+      if (options.idExpression().isDefined) {
+        Some(expr(options.idExpression().get))
       } else if (isAggregated) {
         Some(concat(df.columns.map(col): _*))
+      } else if (options.autoRefresh() && options.checkpointLocation().isDefined) {
+        throw new IllegalStateException(
+          "ID expression is required to avoid duplicate data when index refresh job restart")
       } else {
-        if (isAutoRefresh) {
-          throw new IllegalStateException(
-            "ID expression is required to avoid duplicate data when index refresh job restart")
-        } else {
-          None
-        }
+        None
       }
 
-    logInfo(s"Generate ID column based on expression $idColumn")
+    logInfo(s"Generated ID column based on expression $idColumn")
     idColumn
   }
 
