@@ -99,12 +99,17 @@ object FlintSparkConf {
   val REFRESH_POLICY = FlintConfig("spark.datasource.flint.write.refresh_policy")
     .datasourceOption()
     .doc("refresh_policy, possible value are NONE(false), IMMEDIATE(true), WAIT_UNTIL(wait_for)")
-    .createWithDefault("false")
+    .createWithDefault(FlintOptions.DEFAULT_REFRESH_POLICY)
 
   val SCROLL_SIZE = FlintConfig("spark.datasource.flint.read.scroll_size")
     .datasourceOption()
     .doc("scroll read size")
     .createWithDefault("100")
+
+  val SCROLL_DURATION = FlintConfig(s"spark.datasource.flint.${FlintOptions.SCROLL_DURATION}")
+    .datasourceOption()
+    .doc("scroll duration in minutes")
+    .createWithDefault(String.valueOf(FlintOptions.DEFAULT_SCROLL_DURATION))
 
   val OPTIMIZER_RULE_ENABLED = FlintConfig("spark.flint.optimizer.enabled")
     .doc("Enable Flint optimizer rule for query rewrite with Flint index")
@@ -158,6 +163,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
         HOST_PORT,
         REFRESH_POLICY,
         SCROLL_SIZE,
+        SCROLL_DURATION,
         SCHEME,
         AUTH,
         REGION,
