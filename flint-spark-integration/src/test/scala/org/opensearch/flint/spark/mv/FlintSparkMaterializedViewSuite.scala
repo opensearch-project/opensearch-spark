@@ -19,10 +19,11 @@ import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation}
 import org.apache.spark.sql.catalyst.dsl.expressions.{intToLiteral, stringToLiteral, DslAttr, DslExpression, StringToAttributeConversionHelper}
 import org.apache.spark.sql.catalyst.dsl.plans.DslLogicalPlan
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Concat, Sha1}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, ConcatWs, Literal, Sha1}
 import org.apache.spark.sql.catalyst.plans.logical.{EventTimeWatermark, LogicalPlan, Project}
 import org.apache.spark.sql.catalyst.util.IntervalUtils
-import org.apache.spark.sql.functions.{col, concat, expr, sha1}
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -134,7 +135,9 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
           .table(testTable)
           .groupBy("time", "name")
           .avg("age")
-          .withColumn(ID_COLUMN, sha1(concat(col("time"), col("name"), col("avg(age)")))))
+          .withColumn(
+            ID_COLUMN,
+            sha1(concat_ws("\0", col("time"), col("name"), col("avg(age)")))))
     }
   }
 
@@ -210,11 +213,13 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
 
       mv.buildStream(spark).queryExecution.logical.exists {
         case Project(projectList, _) =>
+          val asciiNull = UTF8String.fromString("\0")
           projectList.exists {
             case Alias(
                   Sha1(
-                    Concat(
+                    ConcatWs(
                       Seq(
+                        Literal(`asciiNull`, StringType),
                         UnresolvedAttribute(Seq("startTime")),
                         UnresolvedAttribute(Seq("count"))))),
                   ID_COLUMN) =>
@@ -250,7 +255,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
           .groupBy($"TUMBLE".function($"time", "1 Minute"))(
             $"window.start" as "startTime",
             $"COUNT".function(1) as "count")
-          .withColumn(ID_COLUMN, sha1(concat(col("startTime"), col("count"))))
+          .withColumn(ID_COLUMN, sha1(concat_ws("\0", col("startTime"), col("count"))))
           .queryExecution
           .logical,
         checkAnalysis = false
@@ -279,7 +284,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
           .groupBy($"TUMBLE".function($"time", "1 Minute"))(
             $"window.start" as "startTime",
             $"COUNT".function(1) as "count")
-          .withColumn(ID_COLUMN, sha1(concat(col("startTime"), col("count"))))
+          .withColumn(ID_COLUMN, sha1(concat_ws("\0", col("startTime"), col("count"))))
           .queryExecution
           .logical,
         checkAnalysis = false)

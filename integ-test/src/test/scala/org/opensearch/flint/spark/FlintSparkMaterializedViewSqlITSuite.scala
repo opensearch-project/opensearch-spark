@@ -179,12 +179,52 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("start.time", "count")
   }
 
+  test("create materialized view with auto refresh and ID expression") {
+    withTempDir { checkpointDir =>
+      sql(s"""
+             | CREATE MATERIALIZED VIEW $testMvName
+             | AS $testQuery
+             | WITH (
+             |   auto_refresh = true,
+             |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+             |   watermark_delay = '1 Second',
+             |   id_expression = 'count'
+             | )
+             |""".stripMargin)
+
+      // Wait for streaming job complete current micro batch
+      val job = spark.streams.active.find(_.name == testFlintIndex)
+      job shouldBe defined
+      failAfter(streamingTimeout) {
+        job.get.processAllAvailable()
+      }
+
+      // 1 row missing due to ID conflict intentionally
+      flint.queryIndex(testFlintIndex).count() shouldBe 2
+    }
+  }
+
+  test("create materialized view with ID expression") {
+    sql(s"""
+           | CREATE MATERIALIZED VIEW $testMvName
+           | AS $testQuery
+           | WITH (
+           |   auto_refresh = false,
+           |   id_expression = 'count'
+           | )
+           |""".stripMargin)
+
+    sql(s"REFRESH MATERIALIZED VIEW $testMvName")
+
+    // 2 rows missing due to ID conflict intentionally
+    val indexData = spark.read.format(FLINT_DATASOURCE).load(testFlintIndex)
+    indexData.count() shouldBe 2
+  }
+
   test("show all materialized views in catalog and database") {
     // Show in catalog
     flint.materializedView().name("spark_catalog.default.mv1").query(testQuery).create()
-    checkAnswer(
-      sql(s"SHOW MATERIALIZED VIEW IN spark_catalog"),
-      Seq(Row("mv1")))
+    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN spark_catalog"), Seq(Row("mv1")))
 
     // Show in catalog.database
     flint.materializedView().name("spark_catalog.default.mv2").query(testQuery).create()

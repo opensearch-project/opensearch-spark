@@ -103,7 +103,7 @@ object FlintSparkIndex extends Logging {
       if (options.idExpression().isDefined) {
         Some(expr(options.idExpression().get))
       } else if (isAggregated) {
-        Some(sha1(concat(df.columns.map(col): _*)))
+        Some(sha1(concat_ws("\0", df.columns.map(col): _*)))
       } else if (options.autoRefresh() && options.checkpointLocation().isDefined) {
         throw new IllegalStateException(
           "ID expression is required to avoid duplicate data when index refresh job restart")

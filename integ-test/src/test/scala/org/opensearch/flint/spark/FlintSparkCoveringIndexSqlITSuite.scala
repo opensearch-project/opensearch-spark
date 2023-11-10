@@ -261,6 +261,25 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     indexData.count() shouldBe 3 // only 3 rows left due to same ID
   }
 
+  test("should fail create covering index with auto refresh and checkpoint location") {
+    withTempDir { checkpointDir =>
+      assertThrows[Exception] {
+        sql(s"""
+           | CREATE INDEX $testIndex ON $testTimeSeriesTable
+           | (time, age)
+           | WITH (
+           |   auto_refresh = true,
+           |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+           | )
+           |""".stripMargin)
+
+        // Wait for exception thrown in streaming
+        val job = spark.streams.active.find(_.name == testFlintTimeSeriesIndex)
+        awaitStreamingComplete(job.get.id.toString)
+      }
+    }
+  }
+
   test("show all covering index on the source table") {
     flint
       .coveringIndex()
