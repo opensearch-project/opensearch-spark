@@ -251,6 +251,20 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     }
   }
 
+  test("should not rewrite original query if no where clause") {
+    val query =
+      s"""
+         | SELECT name
+         | FROM $testTable
+         |""".stripMargin
+
+    val actual = sql(query).queryExecution.optimizedPlan
+    withFlintOptimizerDisabled {
+      val expect = sql(query).queryExecution.optimizedPlan
+      actual shouldBe expect
+    }
+  }
+
   test("can build partition skipping index and rewrite applicable query") {
     flint
       .skippingIndex()
@@ -394,7 +408,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     }
   }
 
-  test("should rewrite applicable query to scan latest source files if partial index") {
+  test("should rewrite applicable query to scan unknown source files if partial index") {
     flint
       .skippingIndex()
       .onTable(testTable)

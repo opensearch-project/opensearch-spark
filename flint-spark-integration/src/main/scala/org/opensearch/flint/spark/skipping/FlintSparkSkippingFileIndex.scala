@@ -12,7 +12,7 @@ import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
 import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.apache.spark.sql.functions.isnull
+import org.apache.spark.sql.functions.not
 import org.apache.spark.sql.types.StructType
 
 /**
@@ -76,8 +76,7 @@ case class FlintSparkSkippingFileIndex(
     partitions
       .flatMap(_.files.map(f => f.getPath.toUri.toString))
       .toDF(FILE_PATH_COLUMN)
-      .join(indexScan, Seq(FILE_PATH_COLUMN), "left")
-      .filter(isnull(indexScan(FILE_PATH_COLUMN)) || new Column(indexFilter))
+      .join(indexScan.filter(not(new Column(indexFilter))), Seq(FILE_PATH_COLUMN), "left_anti")
       .select(FILE_PATH_COLUMN)
       .collect()
       .map(_.getString(0))
