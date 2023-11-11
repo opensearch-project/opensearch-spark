@@ -1,0 +1,3 @@
+## Data Preparation
+This document will explain the data setup for an S3 bucket to perform the sanity test with.
+...

@@ -1,0 +1,171 @@
+{
+  "data": {
+    "ok": true,
+    "resp": {
+      "status": "SUCCESS",
+      "schema": [
+        {
+          "name": "col_name",
+          "type": "string"
+        },
+        {
+          "name": "data_type",
+          "type": "string"
+        },
+        {
+          "name": "comment",
+          "type": "string"
+        }
+      ],
+      "datarows": [
+        [
+          "@timestamp",
+          "timestamp",
+          ""
+        ],
+        [
+          "clientip",
+          "string",
+          ""
+        ],
+        [
+          "request",
+          "string",
+          ""
+        ],
+        [
+          "status",
+          "int",
+          ""
+        ],
+        [
+          "size",
+          "int",
+          ""
+        ],
+        [
+          "year",
+          "int",
+          ""
+        ],
+        [
+          "month",
+          "int",
+          ""
+        ],
+        [
+          "day",
+          "int",
+          ""
+        ],
+        [
+          "# Partition Information",
+          "",
+          ""
+        ],
+        [
+          "# col_name",
+          "data_type",
+          "comment"
+        ],
+        [
+          "year",
+          "int",
+          ""
+        ],
+        [
+          "month",
+          "int",
+          ""
+        ],
+        [
+          "day",
+          "int",
+          ""
+        ],
+        [
+          "",
+          "",
+          ""
+        ],
+        [
+          "# Detailed Table Information",
+          "",
+          ""
+        ],
+        [
+          "Database",
+          "default",
+          ""
+        ],
+        [
+          "Table",
+          "http_logs_20231102",
+          ""
+        ],
+        [
+          "Owner",
+          "hadoop",
+          ""
+        ],
+        [
+          "Created Time",
+          "Thu Nov 02 20:05:27 UTC 2023",
+          ""
+        ],
+        [
+          "Last Access",
+          "UNKNOWN",
+          ""
+        ],
+        [
+          "Created By",
+          "Spark 3.3.2-amzn-0",
+          ""
+        ],
+        [
+          "Type",
+          "EXTERNAL",
+          ""
+        ],
+        [
+          "Provider",
+          "json",
+          ""
+        ],
+        [
+          "Location",
+          "s3://flint-data-dp-eu-west-1-beta/data/http_log/http_logs_partitioned_json_bz2",
+          ""
+        ],
+        [
+          "Serde Library",
+          "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+          ""
+        ],
+        [
+          "InputFormat",
+          "org.apache.hadoop.mapred.SequenceFileInputFormat",
+          ""
+        ],
+        [
+          "OutputFormat",
+          "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat",
+          ""
+        ],
+        [
+          "Storage Properties",
+          "[compression=bzip2]",
+          ""
+        ],
+        [
+          "Partition Provider",
+          "Catalog",
+          ""
+        ]
+      ],
+      "total": 29,
+      "size": 29
+    }
+  }
+}

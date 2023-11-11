@@ -1,0 +1,1 @@
+source = mys3.default.http_logs_plain | sort @timestamp | head 5;

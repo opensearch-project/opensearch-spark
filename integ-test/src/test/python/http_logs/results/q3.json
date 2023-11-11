@@ -1,0 +1,41 @@
+{
+  "data": {
+    "ok": true,
+    "resp": {
+      "status": "SUCCESS",
+      "schema": [
+        {
+          "name": "day",
+          "type": "integer"
+        },
+        {
+          "name": "status",
+          "type": "integer"
+        },
+        {
+          "name": "status_count_by_day",
+          "type": "long"
+        }
+      ],
+      "datarows": [
+        [
+          30,
+          200,
+          844
+        ],
+        [
+          30,
+          206,
+          4
+        ],
+        [
+          30,
+          304,
+          152
+        ]
+      ],
+      "total": 3,
+      "size": 3
+    }
+  }
+}
