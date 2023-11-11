@@ -140,4 +140,16 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
     case e: IOException =>
       throw new RuntimeException(e)
   }
+
+  def doesIndexExist(indexName: String): Boolean = {
+    using(flintClient.createClient()) { client =>
+      try {
+        val request = new GetIndexRequest(indexName)
+        client.indices().exists(request, RequestOptions.DEFAULT)
+      } catch {
+        case e: Exception =>
+          throw new IllegalStateException(s"Failed to check if index $indexName exists", e)
+      }
+    }
+  }
 }

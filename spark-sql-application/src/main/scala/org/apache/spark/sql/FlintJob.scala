@@ -55,10 +55,10 @@ object FlintJob extends Logging with FlintJobExecutor {
 
     var dataToWrite: Option[DataFrame] = None
     val startTime = System.currentTimeMillis()
+    // osClient needs spark session to be created first to get FlintOptions initialized.
+    // Otherwise, we will have connection exception from EMR-S to OS.
+    val osClient = new OSClient(FlintSparkConf().flintOptions())
     try {
-      // osClient needs spark session to be created first to get FlintOptions initialized.
-      // Otherwise, we will have connection exception from EMR-S to OS.
-      val osClient = new OSClient(FlintSparkConf().flintOptions())
       val futureMappingCheck = Future {
         checkAndCreateIndex(osClient, resultIndex)
       }
@@ -81,7 +81,7 @@ object FlintJob extends Logging with FlintJobExecutor {
         dataToWrite = Some(
           getFailedData(spark, dataSource, error, "", query, "", startTime, currentTimeProvider))
     } finally {
-      dataToWrite.foreach(df => writeData(df, resultIndex))
+      dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
       // Stop SparkSession if it is not streaming job
       if (wait.equalsIgnoreCase("streaming")) {
         spark.streams.awaitAnyTermination()
