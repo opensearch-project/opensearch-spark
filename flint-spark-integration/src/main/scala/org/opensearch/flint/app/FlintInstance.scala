@@ -5,8 +5,13 @@
 
 package org.opensearch.flint.app
 
+import java.util.{Map => JavaMap}
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+
 import org.json4s.{Formats, NoTypeHints}
-import org.json4s.JsonAST.JString
+import org.json4s.JsonAST.{JArray, JString}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 
@@ -16,10 +21,11 @@ class FlintInstance(
     val jobId: String,
     // sessionId is the session type doc id
     val sessionId: String,
-    val state: String,
+    var state: String,
     val lastUpdateTime: Long,
     // We need jobStartTime to check if HMAC token is expired or not
     val jobStartTime: Long,
+    val excludedJobIds: Seq[String] = Seq.empty[String],
     val error: Option[String] = None) {}
 
 object FlintInstance {
@@ -34,6 +40,16 @@ object FlintInstance {
     val sessionId = (meta \ "sessionId").extract[String]
     val lastUpdateTime = (meta \ "lastUpdateTime").extract[Long]
     val jobStartTime = (meta \ "jobStartTime").extract[Long]
+    // To handle the possibility of excludeJobIds not being present,
+    // we use extractOpt which gives us an Option[Seq[String]].
+    // If it is not present, it will return None, which we can then
+    // convert to an empty Seq[String] using getOrElse.
+    // Replace extractOpt with jsonOption and map
+    val excludeJobIds: Seq[String] = meta \ "excludeJobIds" match {
+      case JArray(lst) => lst.map(_.extract[String])
+      case _ => Seq.empty[String]
+    }
+
     val maybeError: Option[String] = (meta \ "error") match {
       case JString(str) => Some(str)
       case _ => None
@@ -46,6 +62,42 @@ object FlintInstance {
       state,
       lastUpdateTime,
       jobStartTime,
+      excludeJobIds,
+      maybeError)
+  }
+
+  def deserializeFromMap(source: JavaMap[String, AnyRef]): FlintInstance = {
+    // Since we are dealing with JavaMap, we convert it to a Scala mutable Map for ease of use.
+    val scalaSource = source.asScala
+
+    val applicationId = scalaSource("applicationId").asInstanceOf[String]
+    val state = scalaSource("state").asInstanceOf[String]
+    val jobId = scalaSource("jobId").asInstanceOf[String]
+    val sessionId = scalaSource("sessionId").asInstanceOf[String]
+    val lastUpdateTime = scalaSource("lastUpdateTime").asInstanceOf[Long]
+    val jobStartTime = scalaSource("jobStartTime").asInstanceOf[Long]
+
+    // We safely handle the possibility of excludeJobIds being absent or not a list.
+    val excludeJobIds: Seq[String] = scalaSource.get("excludeJobIds") match {
+      case Some(lst: java.util.List[_]) => lst.asScala.toList.map(_.asInstanceOf[String])
+      case _ => Seq.empty[String]
+    }
+
+    // Handle error similarly, ensuring we get an Option[String].
+    val maybeError: Option[String] = scalaSource.get("error") match {
+      case Some(str: String) => Some(str)
+      case _ => None
+    }
+
+    // Construct a new FlintInstance with the extracted values.
+    new FlintInstance(
+      applicationId,
+      jobId,
+      sessionId,
+      state,
+      lastUpdateTime,
+      jobStartTime,
+      excludeJobIds,
       maybeError)
   }
 
@@ -60,6 +112,7 @@ object FlintInstance {
         "state" -> job.state,
         // update last update time
         "lastUpdateTime" -> currentTime,
+        "excludeJobIds" -> job.excludedJobIds,
         "jobStartTime" -> job.jobStartTime))
   }
 }

@@ -14,16 +14,64 @@ import play.api.libs.json.{JsArray, JsBoolean, JsObject, Json, JsString, JsValue
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.FlintJob.{getFormattedData, handleIndexNotFoundException, isSuperset, logError, logInfo}
+import org.apache.spark.sql.FlintJob.{createIndex, getFormattedData, isSuperset, logError, logInfo}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.types.{ArrayType, LongType, StringType, StructField, StructType}
-import org.apache.spark.sql.util.{RealTimeProvider, TimeProvider}
+import org.apache.spark.sql.util.{DefaultThreadPoolFactory, RealTimeProvider, ThreadPoolFactory, TimeProvider}
 
 trait FlintJobExecutor {
   this: Logging =>
 
   var currentTimeProvider: TimeProvider = new RealTimeProvider()
+  var threadPoolFactory: ThreadPoolFactory = new DefaultThreadPoolFactory()
+
+  // The enabled setting, which can be applied only to the top-level mapping definition and to object fields,
+  val resultIndexMapping =
+    """{
+      "dynamic": false,
+      "properties": {
+        "result": {
+          "type": "object",
+          "enabled": false
+        },
+        "schema": {
+          "type": "object",
+          "enabled": false
+        },
+        "jobRunId": {
+          "type": "keyword"
+        },
+        "applicationId": {
+          "type": "keyword"
+        },
+        "dataSourceName": {
+          "type": "keyword"
+        },
+        "status": {
+          "type": "keyword"
+        },
+        "queryId": {
+           "type": "keyword"
+        },
+        "queryText": {
+           "type": "text"
+        },
+        "sessionId": {
+           "type": "keyword"
+        },
+        "updateTime": {
+           "type": "date",
+           "format": "strict_date_time||epoch_millis"
+        },
+        "error": {
+          "type": "text"
+        },
+        "queryRunTime" : {
+          "type" : "long"
+        }
+      }
+    }""".stripMargin
 
   def createSparkConf(): SparkConf = {
     new SparkConf()
@@ -37,11 +85,33 @@ trait FlintJobExecutor {
     SparkSession.builder().config(conf).enableHiveSupport().getOrCreate()
   }
 
-  def writeData(resultData: DataFrame, resultIndex: String): Unit = {
+  private def writeData(resultData: DataFrame, resultIndex: String): Unit = {
     resultData.write
       .format("flint")
       .mode("append")
       .save(resultIndex)
+  }
+
+  /**
+   * writes the DataFrame to the specified Elasticsearch index, and createIndex creates an index
+   * with the given mapping if it does not exist.
+   * @param resultData
+   *   data to write
+   * @param resultIndex
+   *   result index
+   * @param osClient
+   *   OpenSearch client
+   */
+  def writeDataFrameToOpensearch(
+      resultData: DataFrame,
+      resultIndex: String,
+      osClient: OSClient): Unit = {
+    if (osClient.doesIndexExist(resultIndex)) {
+      writeData(resultData, resultIndex)
+    } else {
+      createIndex(osClient, resultIndex, resultIndexMapping)
+      writeData(resultData, resultIndex)
+    }
   }
 
   /**
@@ -226,56 +296,9 @@ trait FlintJobExecutor {
   }
 
   def checkAndCreateIndex(osClient: OSClient, resultIndex: String): Either[String, Unit] = {
-    // The enabled setting, which can be applied only to the top-level mapping definition and to object fields,
-    val mapping =
-      """{
-        "dynamic": false,
-        "properties": {
-          "result": {
-            "type": "object",
-            "enabled": false
-          },
-          "schema": {
-            "type": "object",
-            "enabled": false
-          },
-          "jobRunId": {
-            "type": "keyword"
-          },
-          "applicationId": {
-            "type": "keyword"
-          },
-          "dataSourceName": {
-            "type": "keyword"
-          },
-          "status": {
-            "type": "keyword"
-          },
-          "queryId": {
-             "type": "keyword"
-          },
-          "queryText": {
-             "type": "text"
-          },
-          "sessionId": {
-             "type": "keyword"
-          },
-          "updateTime": {
-             "type": "date",
-             "format": "strict_date_time||epoch_millis"
-          },
-          "error": {
-            "type": "text"
-          },
-          "queryRunTime" : {
-            "type" : "long"
-          }
-        }
-      }""".stripMargin
-
     try {
       val existingSchema = osClient.getIndexMetadata(resultIndex)
-      if (!isSuperset(existingSchema, mapping)) {
+      if (!isSuperset(existingSchema, resultIndexMapping)) {
         Left(s"The mapping of $resultIndex is incorrect.")
       } else {
         Right(())
@@ -283,7 +306,7 @@ trait FlintJobExecutor {
     } catch {
       case e: IllegalStateException
           if e.getCause().getMessage().contains("index_not_found_exception") =>
-        handleIndexNotFoundException(osClient, resultIndex, mapping)
+        createIndex(osClient, resultIndex, resultIndexMapping)
       case e: Exception =>
         val error = s"Failed to verify existing mapping: ${e.getMessage}"
         logError(error, e)
@@ -291,7 +314,7 @@ trait FlintJobExecutor {
     }
   }
 
-  def handleIndexNotFoundException(
+  def createIndex(
       osClient: OSClient,
       resultIndex: String,
       mapping: String): Either[String, Unit] = {
