@@ -224,7 +224,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         val excludeJobIds = confExcludeJobs.split(",").toList // Convert Array to Lis
 
         if (excludeJobIds.contains(jobId)) {
-          // Edge case, current job is excluded, exit the application
+          logInfo(s"current job is excluded, exit the application.")
           return true
         }
 
@@ -234,7 +234,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           if (source != null) {
             val existingExcludedJobIds = parseExcludedJobIds(source)
             if (excludeJobIds.sorted == existingExcludedJobIds.sorted) {
-              // Edge case, duplicate job running, exit the application
+              logInfo("duplicate job running, exit the application.")
               return true
             }
           }

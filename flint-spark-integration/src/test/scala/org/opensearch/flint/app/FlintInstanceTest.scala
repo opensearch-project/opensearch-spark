@@ -116,4 +116,41 @@ class FlintInstanceTest extends SparkFunSuite with Matchers {
     }
   }
 
+  test("deserializeFromMap should handle missing jobStartTime") {
+    val sourceMap = new JavaHashMap[String, AnyRef]()
+    sourceMap.put("applicationId", "app1")
+    sourceMap.put("jobId", "job1")
+    sourceMap.put("sessionId", "session1")
+    sourceMap.put("state", "running")
+    sourceMap.put("lastUpdateTime", java.lang.Long.valueOf(1234567890L))
+    // jobStartTime is not added, simulating its absence
+    sourceMap.put("excludeJobIds", java.util.Arrays.asList("job2", "job3"))
+    sourceMap.put("error", "An error occurred")
+
+    val result = FlintInstance.deserializeFromMap(sourceMap)
+
+    assert(result.applicationId == "app1")
+    assert(result.jobId == "job1")
+    assert(result.sessionId == "session1")
+    assert(result.state == "running")
+    assert(result.lastUpdateTime == 1234567890L)
+    assert(result.jobStartTime == 0L) // Default value for missing jobStartTime
+    assert(result.excludedJobIds == Seq("job2", "job3"))
+    assert(result.error.contains("An error occurred"))
+  }
+
+  test("deserialize should correctly parse a FlintInstance without jobStartTime from JSON") {
+    val json =
+      """{"applicationId":"app-123","jobId":"job-456","sessionId":"session-789","state":"RUNNING","lastUpdateTime":1620000000000,"excludeJobIds":["job-101","job-202"]}"""
+    val instance = FlintInstance.deserialize(json)
+
+    instance.applicationId shouldBe "app-123"
+    instance.jobId shouldBe "job-456"
+    instance.sessionId shouldBe "session-789"
+    instance.state shouldBe "RUNNING"
+    instance.lastUpdateTime shouldBe 1620000000000L
+    instance.jobStartTime shouldBe 0L // Default or expected value for missing jobStartTime
+    instance.excludedJobIds should contain allOf ("job-101", "job-202")
+    instance.error shouldBe None
+  }
 }
