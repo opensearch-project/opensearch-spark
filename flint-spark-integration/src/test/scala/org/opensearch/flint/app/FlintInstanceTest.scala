@@ -46,7 +46,9 @@ class FlintInstanceTest extends SparkFunSuite with Matchers {
     json should include(""""sessionId":"session-789"""")
     json should include(""""state":"RUNNING"""")
     json should include(s""""lastUpdateTime":$currentTime""")
-    json should include(""""excludeJobIds":["job-101","job-202"]""")
+    json should include(
+      """"excludeJobIds":"job-101,job-202""""
+    ) // Check for comma-separated string
     json should include(""""jobStartTime":1620000001000""")
     json should include(""""error":""""")
   }
