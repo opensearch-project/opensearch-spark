@@ -23,7 +23,6 @@ class FlintInstance(
     val sessionId: String,
     var state: String,
     val lastUpdateTime: Long,
-    // We need jobStartTime to check if HMAC token is expired or not
     val jobStartTime: Long = 0,
     val excludedJobIds: Seq[String] = Seq.empty[String],
     val error: Option[String] = None) {}
@@ -78,7 +77,7 @@ object FlintInstance {
     val jobId = scalaSource("jobId").asInstanceOf[String]
     val sessionId = scalaSource("sessionId").asInstanceOf[String]
     val lastUpdateTime = scalaSource("lastUpdateTime").asInstanceOf[Long]
-    // Safely extract 'jobStartTime' considering potential null or absence
+
     // Safely extract 'jobStartTime' considering potential null or absence
     val jobStartTime: Long = scalaSource.get("jobStartTime") match {
       case Some(value: java.lang.Long) =>
