@@ -120,7 +120,12 @@ object FlintInstance {
         "state" -> job.state,
         // update last update time
         "lastUpdateTime" -> currentTime,
-        "excludeJobIds" -> job.excludedJobIds,
+        // Convert a Seq[String] into a comma-separated string, such as "id1,id2".
+        // This approach is chosen over serializing to an array format (e.g., ["id1", "id2"])
+        // because it simplifies client-side processing. With a comma-separated string,
+        // clients can easily ignore this field if it's not in use, avoiding the need
+        // for array parsing logic. This makes the serialized data more straightforward to handle.
+        "excludeJobIds" -> job.excludedJobIds.mkString(","),
         "jobStartTime" -> job.jobStartTime))
   }
 }
