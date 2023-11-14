@@ -141,7 +141,7 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
     },
     assembly / assemblyExcludedJars := {
       val cp = (assembly / fullClasspath).value
-      cp filter { file => file.data.getName.contains("AWSLogsDALConnectorSpark")}
+      cp filter { file => file.data.getName.contains("LogsConnectorSpark")}
     },
     assembly / test := (Test / test).value)
 
