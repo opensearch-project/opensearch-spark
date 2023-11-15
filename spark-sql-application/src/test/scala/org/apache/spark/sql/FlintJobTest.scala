@@ -7,6 +7,7 @@ package org.apache.spark.sql
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.util.MockTimeProvider
 
 class FlintJobTest extends SparkFunSuite with JobMatchers {
 

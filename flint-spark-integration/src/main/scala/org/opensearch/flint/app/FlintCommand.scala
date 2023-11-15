@@ -41,6 +41,14 @@ class FlintCommand(
   def isFailed(): Boolean = {
     state == "failed"
   }
+
+  def isWaiting(): Boolean = {
+    state == "waiting"
+  }
+
+  override def toString: String = {
+    s"FlintCommand(state=$state, query=$query, statementId=$statementId, queryId=$queryId, submitTime=$submitTime, error=$error)"
+  }
 }
 
 object FlintCommand {
