@@ -5,14 +5,19 @@
 
 package org.opensearch.flint.spark.skipping
 
+import com.amazon.awslogsdataaccesslayer.connectors.spark.LogsTable
 import org.opensearch.flint.spark.FlintSpark
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, SKIPPING_INDEX_TYPE}
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
 
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.catalyst.expressions.{And, Expression, Or, Predicate}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.connector.catalog.{CatalogPlugin, Identifier}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.qualifyTableName
 
 /**
@@ -57,6 +62,46 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
       } else {
         filter
       }
+    case filter @ Filter(
+          condition: Predicate,
+          relation @ DataSourceV2Relation(table, _, Some(catalog), Some(identifier), _))
+        if hasNoDisjunction(condition) &&
+          // Check if query plan already rewritten
+          table.isInstanceOf[LogsTable] && !table.asInstanceOf[LogsTable].hasFileIndexScan() =>
+      val index = flint.describeIndex(getIndexName(catalog, identifier))
+      if (index.exists(_.kind == SKIPPING_INDEX_TYPE)) {
+        val skippingIndex = index.get.asInstanceOf[FlintSparkSkippingIndex]
+        val indexFilter = rewriteToIndexFilter(skippingIndex, condition)
+        /*
+         * Replace original LogsTable with a new one with file index scan:
+         *  Filter(a=b)
+         *  |- DataSourceV2Relation(A)
+         *     |- LogsTable <== replaced with a new LogsTable with file index scan
+         */
+        if (indexFilter.isDefined) {
+          val indexScan = flint.queryIndex(skippingIndex.name())
+          val selectFileIndexScan =
+            // Non hybrid scan
+            // TODO: refactor common logic with file-based skipping index
+            indexScan
+              .filter(new Column(indexFilter.get))
+              .select(FILE_PATH_COLUMN)
+
+          // Construct LogsTable with file index scan
+          // It will build scan operator using log file ids collected from file index scan
+          val logsTable = table.asInstanceOf[LogsTable]
+          val newTable = new LogsTable(
+            logsTable.schema(),
+            logsTable.options(),
+            selectFileIndexScan,
+            logsTable.processedFields())
+          filter.copy(child = relation.copy(table = newTable))
+        } else {
+          filter
+        }
+      } else {
+        filter
+      }
   }
 
   private def getIndexName(table: CatalogTable): String = {
@@ -64,6 +109,11 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
     // the limitation here is qualifyTableName always use current catalog.
     val tableName = table.qualifiedName
     val qualifiedTableName = qualifyTableName(flint.spark, tableName)
+    getSkippingIndexName(qualifiedTableName)
+  }
+
+  private def getIndexName(catalog: CatalogPlugin, identifier: Identifier): String = {
+    val qualifiedTableName = s"${catalog.name}.${identifier}"
     getSkippingIndexName(qualifiedTableName)
   }
 
