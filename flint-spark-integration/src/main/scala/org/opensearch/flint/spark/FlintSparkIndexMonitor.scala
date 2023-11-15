@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import scala.collection.concurrent.{Map, TrieMap}
 import scala.sys.addShutdownHook
@@ -15,6 +15,7 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.{
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.flint.newDaemonThreadPoolScheduledExecutor
 
 /**
  * Flint Spark index state monitor.
@@ -62,9 +63,8 @@ class FlintSparkIndexMonitor(
             logInfo("Index monitor task is cancelled")
           }
         } catch {
-          case e: Exception =>
+          case e: Throwable =>
             logError("Failed to update index log entry", e)
-            throw new IllegalStateException("Failed to update index log entry")
         }
       },
       15, // Delay to ensure final logging is complete first, otherwise version conflicts
@@ -100,7 +100,8 @@ object FlintSparkIndexMonitor extends Logging {
    * Thread-safe ExecutorService globally shared by all FlintSpark instance and will be shutdown
    * in Spark application upon exit. Non-final variable for test convenience.
    */
-  var executor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
+  var executor: ScheduledExecutorService =
+    newDaemonThreadPoolScheduledExecutor("flint-index-heartbeat", 1)
 
   /**
    * Tracker that stores task future handle which is required to cancel the task in future.

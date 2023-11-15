@@ -5,14 +5,32 @@
 
 package org.apache.spark.sql
 
+import java.util.concurrent.ScheduledExecutorService
+
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog._
-import org.apache.spark.util.ShutdownHookManager
+import org.apache.spark.util.{ShutdownHookManager, ThreadUtils}
 
 /**
  * Flint utility methods that rely on access to private code in Spark SQL package.
  */
 package object flint {
+
+  /**
+   * Create daemon thread pool with the given thread group name and size.
+   *
+   * @param threadNamePrefix
+   *   thread group name
+   * @param numThreads
+   *   thread pool size
+   * @return
+   *   thread pool executor
+   */
+  def newDaemonThreadPoolScheduledExecutor(
+      threadNamePrefix: String,
+      numThreads: Int): ScheduledExecutorService = {
+    ThreadUtils.newDaemonThreadPoolScheduledExecutor(threadNamePrefix, numThreads)
+  }
 
   /**
    * Add shutdown hook to SparkContext with default priority.
