@@ -63,6 +63,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
     val conf: SparkConf = createSparkConf()
     val dataSource = conf.get("spark.flint.datasource.name", "unknown")
     // https://github.com/opensearch-project/opensearch-spark/issues/138
+    /*
+     * To execute queries such as `CREATE SKIPPING INDEX ON my_glue1.default.http_logs_plain (`@timestamp` VALUE_SET) WITH (auto_refresh = true)`,
+     * it's necessary to set `spark.sql.defaultCatalog=my_glue1`. This is because AWS Glue uses a single database (default) and table (http_logs_plain),
+     * and we need to configure Spark to recognize `my_glue1` as a reference to AWS Glue's database and table.
+     * By doing this, we effectively map `my_glue1` to AWS Glue, allowing Spark to resolve the database and table names correctly.
+     * Without this setup, Spark would not recognize names in the format `my_glue1.default`.
+     */
     conf.set("spark.sql.defaultCatalog", dataSource)
     val wait = conf.get("spark.flint.job.type", "continue")
     // we don't allow default value for sessionIndex and sessionId. Throw exception if key not found.
@@ -99,7 +106,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         conf.getLong("spark.flint.job.queryWaitTimeoutMillis", DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS)
 
       val flintSessionIndexUpdater = osClient.createUpdater(sessionIndex.get)
-      createShutdownHook(flintSessionIndexUpdater, osClient, sessionIndex.get, sessionId.get)
+      addShutdownHook(flintSessionIndexUpdater, osClient, sessionIndex.get, sessionId.get)
       // 1 thread for updating heart beat
       val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor("flint-repl-heartbeat", 1)
       val jobStartTime = currentTimeProvider.currentEpochMillis()
@@ -767,7 +774,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     flintReader
   }
 
-  def createShutdownHook(
+  def addShutdownHook(
       flintSessionIndexUpdater: OpenSearchUpdater,
       osClient: OSClient,
       sessionIndex: String,

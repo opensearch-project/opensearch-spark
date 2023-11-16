@@ -117,7 +117,7 @@ class FlintREPLTest
     }
 
     // Here, we're injecting our mockShutdownHookManager into the method
-    FlintREPL.createShutdownHook(
+    FlintREPL.addShutdownHook(
       flintSessionIndexUpdater,
       osClient,
       sessionIndex,

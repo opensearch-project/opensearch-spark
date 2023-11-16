@@ -6,6 +6,10 @@
 package org.apache.spark.sql
 
 import java.util.Locale
+import java.util.concurrent.ThreadPoolExecutor
+
+import scala.concurrent.{ExecutionContext, Future, TimeoutException}
+import scala.concurrent.duration.{Duration, MINUTES}
 
 import com.amazonaws.services.s3.model.AmazonS3Exception
 import org.opensearch.flint.core.FlintClient
@@ -14,11 +18,13 @@ import play.api.libs.json.{JsArray, JsBoolean, JsObject, Json, JsString, JsValue
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.FlintJob.{createIndex, getFormattedData, isSuperset, logError, logInfo}
+import org.apache.spark.sql.FlintJob.{checkAndCreateIndex, createIndex, currentTimeProvider, executeQuery, getFailedData, getFormattedData, isSuperset, logError, logInfo, processQueryException, writeDataFrameToOpensearch}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.execution.datasources.DataSource
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types.{ArrayType, LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.util.{DefaultThreadPoolFactory, RealTimeProvider, ThreadPoolFactory, TimeProvider}
+import org.apache.spark.util.ThreadUtils
 
 trait FlintJobExecutor {
   this: Logging =>
