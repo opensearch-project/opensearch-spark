@@ -12,6 +12,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{doAnswer, spy}
+import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
 import org.opensearch.action.admin.indices.settings.put.UpdateSettingsRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.flint.OpenSearchTransactionSuite
@@ -31,10 +32,6 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
   override def beforeAll(): Unit = {
     super.beforeAll()
     createPartitionedTable(testTable)
-  }
-
-  override def beforeEach(): Unit = {
-    super.beforeEach()
 
     // Replace mock executor with real one and change its delay
     val realExecutor = newDaemonThreadPoolScheduledExecutor("flint-index-heartbeat", 1)
@@ -44,8 +41,10 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
       realExecutor.scheduleWithFixedDelay(invocation.getArgument(0), 5, 1, TimeUnit.SECONDS)
     }).when(FlintSparkIndexMonitor.executor)
       .scheduleWithFixedDelay(any[Runnable], any[Long], any[Long], any[TimeUnit])
+  }
 
-    // Create an auto refreshed index for test
+  override def beforeEach(): Unit = {
+    super.beforeEach()
     flint
       .skippingIndex()
       .onTable(testTable)
@@ -54,19 +53,31 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
       .create()
     flint.refreshIndex(testFlintIndex, INCREMENTAL)
 
-    // Wait for refresh complete and monitor thread start
+    // Wait for refresh complete and another 5 seconds to make sure monitor thread start
     val jobId = spark.streams.active.find(_.name == testFlintIndex).get.id.toString
     awaitStreamingComplete(jobId)
     Thread.sleep(5000L)
   }
 
   override def afterEach(): Unit = {
-    flint.deleteIndex(testFlintIndex)
-    FlintSparkIndexMonitor.executor.shutdownNow()
-    super.afterEach()
+    // Cancel task to avoid conflict with delete operation since it runs frequently
+    FlintSparkIndexMonitor.indexMonitorTracker.values.foreach(_.cancel(true))
+    FlintSparkIndexMonitor.indexMonitorTracker.clear()
+
+    try {
+      flint.deleteIndex(testFlintIndex)
+    } catch {
+      // Index maybe end up with failed state in some test
+      case _: IllegalStateException =>
+        openSearchClient
+          .indices()
+          .delete(new DeleteIndexRequest(testFlintIndex), RequestOptions.DEFAULT)
+    } finally {
+      super.afterEach()
+    }
   }
 
-  test("job start time should not change and last update time keep updated") {
+  test("job start time should not change and last update time should keep updated") {
     var (prevJobStartTime, prevLastUpdateTime) = getLatestTimestamp
     3 times { (jobStartTime, lastUpdateTime) =>
       jobStartTime shouldBe prevJobStartTime
@@ -75,10 +86,22 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     }
   }
 
+  test("monitor task should terminate if streaming job inactive") {
+    val task = FlintSparkIndexMonitor.indexMonitorTracker(testFlintIndex)
+
+    // Stop streaming job intentionally
+    spark.streams.active.find(_.name == testFlintIndex).get.stop()
+    waitForMonitorTaskRun()
+
+    // Index state transit to failed and task is cancelled
+    latestLogEntry(testLatestId) should contain("state" -> "failed")
+    task.isCancelled shouldBe true
+  }
+
   test("monitor task should not terminate if any exception") {
     // Block write on metadata log index
     setWriteBlockOnMetadataLogIndex(true)
-    Thread.sleep(2000)
+    waitForMonitorTaskRun()
 
     // Monitor task should stop working after blocking writes
     var (_, prevLastUpdateTime) = getLatestTimestamp
@@ -88,7 +111,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
 
     // Unblock write and wait for monitor task attempt to update again
     setWriteBlockOnMetadataLogIndex(false)
-    Thread.sleep(2000)
+    waitForMonitorTaskRun()
 
     // Monitor task continue working after unblocking write
     3 times { (_, lastUpdateTime) =>
@@ -106,14 +129,18 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     def times(f: (Long, Long) => Unit): Unit = {
       1 to n foreach { _ =>
         {
-          // Sleep longer than monitor interval 1 second
-          Thread.sleep(3000)
+          waitForMonitorTaskRun()
 
           val (jobStartTime, lastUpdateTime) = getLatestTimestamp
           f(jobStartTime, lastUpdateTime)
         }
       }
     }
+  }
+
+  private def waitForMonitorTaskRun(): Unit = {
+    // Interval longer than monitor schedule to make sure it has finished another run
+    Thread.sleep(3000L)
   }
 
   private def setWriteBlockOnMetadataLogIndex(isBlock: Boolean): Unit = {
