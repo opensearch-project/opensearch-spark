@@ -44,7 +44,7 @@ import org.apache.spark.util.ThreadUtils
 object FlintREPL extends Logging with FlintJobExecutor {
 
   private val HEARTBEAT_INTERVAL_MILLIS = 60000L
-  private val DEFAULT_INACTIVITY_LIMIT_MILLIS = 30 * 60 * 1000
+  private val DEFAULT_INACTIVITY_LIMIT_MILLIS = 10 * 60 * 1000
   private val MAPPING_CHECK_TIMEOUT = Duration(1, MINUTES)
   private val DEFAULT_QUERY_EXECUTION_TIMEOUT = Duration(10, MINUTES)
   private val DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS = 10 * 60 * 1000

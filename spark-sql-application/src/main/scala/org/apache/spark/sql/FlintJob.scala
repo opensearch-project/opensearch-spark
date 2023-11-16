@@ -7,6 +7,7 @@
 package org.apache.spark.sql
 
 import java.util.Locale
+import java.util.concurrent.ThreadPoolExecutor
 
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.concurrent.duration.{Duration, MINUTES}
@@ -83,7 +84,31 @@ object FlintJob extends Logging with FlintJobExecutor {
         dataToWrite = Some(
           getFailedData(spark, dataSource, error, "", query, "", startTime, currentTimeProvider))
     } finally {
+      cleanUpResources(
+        spark,
+        exceptionThrown,
+        wait,
+        threadPool,
+        dataToWrite,
+        resultIndex,
+        osClient)
+    }
+  }
+
+  def cleanUpResources(
+      spark: SparkSession,
+      exceptionThrown: Boolean,
+      wait: String,
+      threadPool: ThreadPoolExecutor,
+      dataToWrite: Option[DataFrame],
+      resultIndex: String,
+      osClient: OSClient): Unit = {
+    try {
       dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
+    } catch {
+      case e: Exception => logError("fail to write to result index", e)
+    }
+    try {
       // Stop SparkSession if streaming job succeeds
       if (!exceptionThrown && wait.equalsIgnoreCase("streaming")) {
         // wait if any child thread to finish before the main thread terminates
@@ -91,7 +116,9 @@ object FlintJob extends Logging with FlintJobExecutor {
       } else {
         spark.stop()
       }
-
+    } catch {
+      case e: Exception => logError("fail to close spark session", e)
+    } finally {
       threadPool.shutdown()
     }
   }
