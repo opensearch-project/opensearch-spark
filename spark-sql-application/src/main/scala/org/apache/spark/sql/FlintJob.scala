@@ -8,9 +8,6 @@ package org.apache.spark.sql
 
 import java.util.Locale
 
-import scala.concurrent.{ExecutionContext, Future, TimeoutException}
-import scala.concurrent.duration.{Duration, MINUTES}
-
 import org.opensearch.client.{RequestOptions, RestHighLevelClient}
 import org.opensearch.cluster.metadata.MappingMetadata
 import org.opensearch.common.settings.Settings
@@ -22,9 +19,7 @@ import play.api.libs.json._
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.parser.ParseException
-import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types.{StructField, _}
-import org.apache.spark.util.ThreadUtils
 
 /**
  * Spark SQL Application entrypoint
@@ -48,51 +43,18 @@ object FlintJob extends Logging with FlintJobExecutor {
     val conf = createSparkConf()
     val wait = conf.get("spark.flint.job.type", "continue")
     val dataSource = conf.get("spark.flint.datasource.name", "")
-    val spark = createSparkSession(conf)
+    // https://github.com/opensearch-project/opensearch-spark/issues/138
+    /*
+     * To execute queries such as `CREATE SKIPPING INDEX ON my_glue1.default.http_logs_plain (`@timestamp` VALUE_SET) WITH (auto_refresh = true)`,
+     * it's necessary to set `spark.sql.defaultCatalog=my_glue1`. This is because AWS Glue uses a single database (default) and table (http_logs_plain),
+     * and we need to configure Spark to recognize `my_glue1` as a reference to AWS Glue's database and table.
+     * By doing this, we effectively map `my_glue1` to AWS Glue, allowing Spark to resolve the database and table names correctly.
+     * Without this setup, Spark would not recognize names in the format `my_glue1.default`.
+     */
+    conf.set("spark.sql.defaultCatalog", dataSource)
 
-    val threadPool = ThreadUtils.newDaemonFixedThreadPool(1, "check-create-index")
-    implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
-
-    var dataToWrite: Option[DataFrame] = None
-    val startTime = System.currentTimeMillis()
-    // osClient needs spark session to be created first to get FlintOptions initialized.
-    // Otherwise, we will have connection exception from EMR-S to OS.
-    val osClient = new OSClient(FlintSparkConf().flintOptions())
-    var exceptionThrown = true
-    try {
-      val futureMappingCheck = Future {
-        checkAndCreateIndex(osClient, resultIndex)
-      }
-      val data = executeQuery(spark, query, dataSource, "", "")
-
-      val mappingCheckResult = ThreadUtils.awaitResult(futureMappingCheck, Duration(1, MINUTES))
-      dataToWrite = Some(mappingCheckResult match {
-        case Right(_) => data
-        case Left(error) =>
-          getFailedData(spark, dataSource, error, "", query, "", startTime, currentTimeProvider)
-      })
-      exceptionThrown = false
-    } catch {
-      case e: TimeoutException =>
-        val error = s"Getting the mapping of index $resultIndex timed out"
-        logError(error, e)
-        dataToWrite = Some(
-          getFailedData(spark, dataSource, error, "", query, "", startTime, currentTimeProvider))
-      case e: Exception =>
-        val error = processQueryException(e, spark, dataSource, query, "", "")
-        dataToWrite = Some(
-          getFailedData(spark, dataSource, error, "", query, "", startTime, currentTimeProvider))
-    } finally {
-      dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
-      // Stop SparkSession if streaming job succeeds
-      if (!exceptionThrown && wait.equalsIgnoreCase("streaming")) {
-        // wait if any child thread to finish before the main thread terminates
-        spark.streams.awaitAnyTermination()
-      } else {
-        spark.stop()
-      }
-
-      threadPool.shutdown()
-    }
+    val jobOperator =
+      JobOperator(conf, query, dataSource, resultIndex, wait.equalsIgnoreCase("streaming"))
+    jobOperator.start()
   }
 }
