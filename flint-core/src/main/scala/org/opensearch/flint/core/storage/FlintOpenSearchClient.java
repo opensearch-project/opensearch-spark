@@ -25,6 +25,7 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestClient;
@@ -42,6 +43,7 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.auth.AWSRequestSigningApacheInterceptor;
+import org.opensearch.flint.core.http.FlintHttpClient;
 import org.opensearch.flint.core.metadata.FlintMetadata;
 import org.opensearch.flint.core.metadata.log.DefaultOptimisticTransaction;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
@@ -233,16 +235,24 @@ public class FlintOpenSearchClient implements FlintClient {
           throw new RuntimeException(e);
         }
       }
-      restClientBuilder.setHttpClientConfigCallback(cb ->
-          cb.addInterceptorLast(new AWSRequestSigningApacheInterceptor(signer.getServiceName(),
-              signer, awsCredentialsProvider.get())));
+      restClientBuilder.setHttpClientConfigCallback(cb -> {
+            cb.addInterceptorLast(
+                new AWSRequestSigningApacheInterceptor(signer.getServiceName(), signer, awsCredentialsProvider.get()));
+            return new FlintHttpClient.Builder(cb);
+          }
+      );
     } else if (options.getAuth().equals(FlintOptions.BASIC_AUTH)) {
       CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
       credentialsProvider.setCredentials(
           AuthScope.ANY,
           new UsernamePasswordCredentials(options.getUsername(), options.getPassword()));
       restClientBuilder.setHttpClientConfigCallback(
-          httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
+          httpClientBuilder -> {
+            HttpAsyncClientBuilder builder = httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+            return new FlintHttpClient.Builder(builder);
+          });
+    } else {
+      restClientBuilder.setHttpClientConfigCallback(FlintHttpClient.Builder::new);
     }
     return new RestHighLevelClient(restClientBuilder);
   }
