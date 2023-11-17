@@ -39,7 +39,7 @@ class FlintInstanceTest extends SparkFunSuite with Matchers {
       1620000001000L,
       excludedJobIds)
     val currentTime = System.currentTimeMillis()
-    val json = FlintInstance.serialize(instance, currentTime)
+    val json = FlintInstance.serializeWithoutJobId(instance, currentTime)
 
     json should include(""""applicationId":"app-123"""")
     json should not include (""""jobId":"job-456"""")
@@ -80,7 +80,7 @@ class FlintInstanceTest extends SparkFunSuite with Matchers {
       Seq.empty[String],
       Some("Some error occurred"))
     val currentTime = System.currentTimeMillis()
-    val json = FlintInstance.serialize(instance, currentTime)
+    val json = FlintInstance.serializeWithoutJobId(instance, currentTime)
 
     json should include(""""error":"Some error occurred"""")
   }

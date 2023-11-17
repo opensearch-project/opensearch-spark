@@ -81,7 +81,8 @@ class FlintREPLTest
       "session1",
       threadPool,
       osClient,
-      "sessionIndex")
+      "sessionIndex",
+      0)
 
     // Verifications
     verify(osClient, atLeastOnce()).getDoc("sessionIndex", "session1")
