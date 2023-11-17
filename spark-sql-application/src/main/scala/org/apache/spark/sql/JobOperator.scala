@@ -95,6 +95,7 @@ case class JobOperator(
 
     try {
       threadPool.shutdown()
+      logInfo("shut down thread threadpool")
     } catch {
       case e: Exception => logError("Fail to close threadpool", e)
     }
@@ -103,9 +104,10 @@ case class JobOperator(
   def stop(): Unit = {
     Try {
       spark.stop()
+      logInfo("stopped spark session")
     } match {
       case Success(_) =>
-      case Failure(e) => logError("unexpected error while shutdown", e)
+      case Failure(e) => logError("unexpected error while stopping spark session", e)
     }
   }
 }

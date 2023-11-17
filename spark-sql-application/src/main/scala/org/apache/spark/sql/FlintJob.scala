@@ -52,7 +52,6 @@ object FlintJob extends Logging with FlintJobExecutor {
      * Without this setup, Spark would not recognize names in the format `my_glue1.default`.
      */
     conf.set("spark.sql.defaultCatalog", dataSource)
-    val spark = createSparkSession(conf)
 
     val jobOperator =
       JobOperator(conf, query, dataSource, resultIndex, wait.equalsIgnoreCase("streaming"))

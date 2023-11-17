@@ -72,28 +72,29 @@ object FlintREPL extends Logging with FlintJobExecutor {
      */
     conf.set("spark.sql.defaultCatalog", dataSource)
     val wait = conf.get("spark.flint.job.type", "continue")
-    // we don't allow default value for sessionIndex and sessionId. Throw exception if key not found.
-    val sessionIndex: Option[String] = Option(conf.get("spark.flint.job.requestIndex", null))
-    val sessionId: Option[String] = Option(conf.get("spark.flint.job.sessionId", null))
-
-    if (sessionIndex.isEmpty) {
-      throw new IllegalArgumentException("spark.flint.job.requestIndex is not set")
-    }
-    if (sessionId.isEmpty) {
-      throw new IllegalArgumentException("spark.flint.job.sessionId is not set")
-    }
-
-    val spark = createSparkSession(conf)
-    val osClient = new OSClient(FlintSparkConf().flintOptions())
-    val jobId = sys.env.getOrElse("SERVERLESS_EMR_JOB_ID", "unknown")
-    val applicationId = sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown")
 
     if (wait.equalsIgnoreCase("streaming")) {
       logInfo(s"""streaming query ${query}""")
-      val result = executeQuery(spark, query, dataSource, "", "")
-      writeDataFrameToOpensearch(result, resultIndex, osClient)
-      spark.streams.awaitAnyTermination()
+      val jobOperator =
+        JobOperator(conf, query, dataSource, resultIndex, true)
+      jobOperator.start()
     } else {
+      // we don't allow default value for sessionIndex and sessionId. Throw exception if key not found.
+      val sessionIndex: Option[String] = Option(conf.get("spark.flint.job.requestIndex", null))
+      val sessionId: Option[String] = Option(conf.get("spark.flint.job.sessionId", null))
+
+      if (sessionIndex.isEmpty) {
+        throw new IllegalArgumentException("spark.flint.job.requestIndex is not set")
+      }
+      if (sessionId.isEmpty) {
+        throw new IllegalArgumentException("spark.flint.job.sessionId is not set")
+      }
+
+      val spark = createSparkSession(conf)
+      val osClient = new OSClient(FlintSparkConf().flintOptions())
+      val jobId = sys.env.getOrElse("SERVERLESS_EMR_JOB_ID", "unknown")
+      val applicationId = sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown")
+
       // Read the values from the Spark configuration or fall back to the default values
       val inactivityLimitMillis: Long =
         conf.getLong("spark.flint.job.inactivityLimitMillis", DEFAULT_INACTIVITY_LIMIT_MILLIS)
