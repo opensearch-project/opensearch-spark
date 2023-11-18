@@ -317,27 +317,26 @@ object FlintREPL extends Logging with FlintJobExecutor {
   }
 
   private def setupFlintJob(
-      applicationId: String,
-      jobId: String,
-      sessionId: String,
-      flintSessionIndexUpdater: OpenSearchUpdater,
-      sessionIndex: String,
-      jobStartTime: Long,
-      excludeJobIds: Seq[String] = Seq.empty[String]): Unit = {
-    val flintJob =
-      new FlintInstance(
-        applicationId,
-        jobId,
-        sessionId,
-        "running",
-        currentTimeProvider.currentEpochMillis(),
-        jobStartTime,
-        excludeJobIds)
-    flintSessionIndexUpdater.upsert(
-      sessionId,
-      FlintInstance.serialize(flintJob, currentTimeProvider.currentEpochMillis(), true))
-    logDebug(
-      s"""Updated job: {"jobid": ${flintJob.jobId}, "sessionId": ${flintJob.sessionId}} from $sessionIndex""")
+                             applicationId: String,
+                             jobId: String,
+                             sessionId: String,
+                             flintSessionIndexUpdater: OpenSearchUpdater,
+                             sessionIndex: String,
+                             jobStartTime: Long,
+                             excludeJobIds: Seq[String] = Seq.empty[String]): Unit = {
+    val includeJobId = !excludeJobIds.isEmpty && !excludeJobIds.contains(jobId)
+    val currentTime = currentTimeProvider.currentEpochMillis()
+    val flintJob = new FlintInstance(applicationId, jobId, sessionId, "running", currentTime, jobStartTime, excludeJobIds)
+
+    val serializedFlintInstance = if (includeJobId) {
+      FlintInstance.serialize(flintJob, currentTime, true)
+    } else {
+      FlintInstance.serializeWithoutJobId(flintJob, currentTime)
+    }
+
+    flintSessionIndexUpdater.upsert(sessionId, serializedFlintInstance)
+
+    logDebug(s"""Updated job: {"jobid": ${flintJob.jobId}, "sessionId": ${flintJob.sessionId}} from $sessionIndex""")
   }
 
   def handleSessionError(
