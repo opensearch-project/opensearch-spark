@@ -48,6 +48,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
   private val MAPPING_CHECK_TIMEOUT = Duration(1, MINUTES)
   private val DEFAULT_QUERY_EXECUTION_TIMEOUT = Duration(10, MINUTES)
   private val DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS = 10 * 60 * 1000
+  val INITIAL_DELAY_MILLIS = 3000L
 
   def update(flintCommand: FlintCommand, updater: OpenSearchUpdater): Unit = {
     updater.update(flintCommand.statementId, FlintCommand.serialize(flintCommand))
@@ -121,7 +122,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
           sessionId.get,
           threadPool,
           osClient,
-          sessionIndex.get)
+          sessionIndex.get,
+          INITIAL_DELAY_MILLIS)
 
         if (setupFlintJobWithExclusionCheck(
             conf,
@@ -322,18 +324,25 @@ object FlintREPL extends Logging with FlintJobExecutor {
       sessionIndex: String,
       jobStartTime: Long,
       excludeJobIds: Seq[String] = Seq.empty[String]): Unit = {
-    val flintJob =
-      new FlintInstance(
-        applicationId,
-        jobId,
-        sessionId,
-        "running",
-        currentTimeProvider.currentEpochMillis(),
-        jobStartTime,
-        excludeJobIds)
-    flintSessionIndexUpdater.upsert(
+    val includeJobId = !excludeJobIds.isEmpty && !excludeJobIds.contains(jobId)
+    val currentTime = currentTimeProvider.currentEpochMillis()
+    val flintJob = new FlintInstance(
+      applicationId,
+      jobId,
       sessionId,
-      FlintInstance.serialize(flintJob, currentTimeProvider.currentEpochMillis()))
+      "running",
+      currentTime,
+      jobStartTime,
+      excludeJobIds)
+
+    val serializedFlintInstance = if (includeJobId) {
+      FlintInstance.serialize(flintJob, currentTime, true)
+    } else {
+      FlintInstance.serializeWithoutJobId(flintJob, currentTime)
+    }
+
+    flintSessionIndexUpdater.upsert(sessionId, serializedFlintInstance)
+
     logDebug(
       s"""Updated job: {"jobid": ${flintJob.jobId}, "sessionId": ${flintJob.sessionId}} from $sessionIndex""")
   }
@@ -391,7 +400,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     val currentTime = currentTimeProvider.currentEpochMillis()
     flintSessionIndexUpdater.upsert(
       sessionId,
-      FlintInstance.serialize(flintInstance, currentTime))
+      FlintInstance.serializeWithoutJobId(flintInstance, currentTime))
   }
 
   /**
@@ -816,7 +825,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
     flintSessionIndexUpdater.updateIf(
       sessionId,
-      FlintInstance.serialize(flintInstance, currentTimeProvider.currentEpochMillis()),
+      FlintInstance.serializeWithoutJobId(
+        flintInstance,
+        currentTimeProvider.currentEpochMillis()),
       getResponse.getSeqNo,
       getResponse.getPrimaryTerm)
   }
@@ -833,6 +844,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
    *   the thread pool.
    * @param osClient
    *   the OpenSearch client.
+   * @param initialDelayMillis
+   *   the intial delay to start heartbeat
    */
   def createHeartBeatUpdater(
       currentInterval: Long,
@@ -840,7 +853,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       sessionId: String,
       threadPool: ScheduledExecutorService,
       osClient: OSClient,
-      sessionIndex: String): Unit = {
+      sessionIndex: String,
+      initialDelayMillis: Long): Unit = {
 
     threadPool.scheduleAtFixedRate(
       new Runnable {
@@ -853,7 +867,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
               flintInstance.state = "running"
               flintSessionUpdater.updateIf(
                 sessionId,
-                FlintInstance.serialize(flintInstance, currentTimeProvider.currentEpochMillis()),
+                FlintInstance.serializeWithoutJobId(
+                  flintInstance,
+                  currentTimeProvider.currentEpochMillis()),
                 getResponse.getSeqNo,
                 getResponse.getPrimaryTerm)
             }
@@ -867,7 +883,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           }
         }
       },
-      0L,
+      initialDelayMillis,
       currentInterval,
       java.util.concurrent.TimeUnit.MILLISECONDS)
   }
