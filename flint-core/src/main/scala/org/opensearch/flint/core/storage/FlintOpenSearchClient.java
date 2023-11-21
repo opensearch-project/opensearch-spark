@@ -43,7 +43,7 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.auth.AWSRequestSigningApacheInterceptor;
-import org.opensearch.flint.core.http.FlintHttpClient;
+import org.opensearch.flint.core.http.RetryableHttpAsyncClient;
 import org.opensearch.flint.core.metadata.FlintMetadata;
 import org.opensearch.flint.core.metadata.log.DefaultOptimisticTransaction;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
@@ -235,10 +235,12 @@ public class FlintOpenSearchClient implements FlintClient {
           throw new RuntimeException(e);
         }
       }
-      restClientBuilder.setHttpClientConfigCallback(cb -> {
-            cb.addInterceptorLast(
-                new AWSRequestSigningApacheInterceptor(signer.getServiceName(), signer, awsCredentialsProvider.get()));
-            return new FlintHttpClient.Builder(cb);
+      restClientBuilder.setHttpClientConfigCallback(builder -> {
+            HttpAsyncClientBuilder delegate =
+                builder.addInterceptorLast(
+                    new AWSRequestSigningApacheInterceptor(
+                        signer.getServiceName(), signer, awsCredentialsProvider.get()));
+            return RetryableHttpAsyncClient.builder(delegate, options);
           }
       );
     } else if (options.getAuth().equals(FlintOptions.BASIC_AUTH)) {
@@ -246,13 +248,13 @@ public class FlintOpenSearchClient implements FlintClient {
       credentialsProvider.setCredentials(
           AuthScope.ANY,
           new UsernamePasswordCredentials(options.getUsername(), options.getPassword()));
-      restClientBuilder.setHttpClientConfigCallback(
-          httpClientBuilder -> {
-            HttpAsyncClientBuilder builder = httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
-            return new FlintHttpClient.Builder(builder);
-          });
+      restClientBuilder.setHttpClientConfigCallback(builder -> {
+        HttpAsyncClientBuilder delegate = builder.setDefaultCredentialsProvider(credentialsProvider);
+        return RetryableHttpAsyncClient.builder(delegate, options);
+      });
     } else {
-      restClientBuilder.setHttpClientConfigCallback(FlintHttpClient.Builder::new);
+      restClientBuilder.setHttpClientConfigCallback(delegate ->
+          RetryableHttpAsyncClient.builder(delegate, options));
     }
     return new RestHighLevelClient(restClientBuilder);
   }

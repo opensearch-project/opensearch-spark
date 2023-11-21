@@ -16,7 +16,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.sql.flint.config.FlintSparkConf.{HOST_ENDPOINT, HOST_PORT}
 
-class FlintHttpClientITSuite extends AnyFlatSpec with OpenSearchSuite {
+class RetryableHttpAsyncClientITSuite extends AnyFlatSpec with OpenSearchSuite {
 
   lazy val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
 
