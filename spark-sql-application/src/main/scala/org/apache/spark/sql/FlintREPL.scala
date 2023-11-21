@@ -6,7 +6,9 @@
 package org.apache.spark.sql
 
 import java.net.ConnectException
-import java.util.concurrent.ScheduledExecutorService
+import java.time.Instant
+import java.util.Map
+import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture}
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, TimeoutException}
 import scala.concurrent.duration.{Duration, MINUTES, _}
@@ -105,14 +107,17 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
       val flintSessionIndexUpdater = osClient.createUpdater(sessionIndex.get)
       addShutdownHook(flintSessionIndexUpdater, osClient, sessionIndex.get, sessionId.get)
-      // 1 thread for updating heart beat
-      val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor("flint-repl-heartbeat", 1)
-      val jobStartTime = currentTimeProvider.currentEpochMillis()
 
+      // 1 thread for updating heart beat
+      val threadPool =
+        threadPoolFactory.newDaemonThreadPoolScheduledExecutor("flint-repl-heartbeat", 1)
+
+      val jobStartTime = currentTimeProvider.currentEpochMillis()
+      // update heart beat every 30 seconds
+      // OpenSearch triggers recovery after 1 minute outdated heart beat
+      var heartBeatFuture: ScheduledFuture[_] = null
       try {
-        // update heart beat every 30 seconds
-        // OpenSearch triggers recovery after 1 minute outdated heart beat
-        createHeartBeatUpdater(
+        heartBeatFuture = createHeartBeatUpdater(
           HEARTBEAT_INTERVAL_MILLIS,
           flintSessionIndexUpdater,
           sessionId.get,
@@ -161,9 +166,23 @@ object FlintREPL extends Logging with FlintJobExecutor {
             osClient,
             sessionIndex.get)
       } finally {
-        spark.stop()
         if (threadPool != null) {
-          threadPool.shutdown()
+          heartBeatFuture.cancel(true) // Pass `true` to interrupt if running
+          threadPoolFactory.shutdownThreadPool(threadPool)
+        }
+
+        spark.stop()
+
+        // Check for non-daemon threads that may prevent the driver from shutting down.
+        // Non-daemon threads other than the main thread indicate that the driver is still processing tasks,
+        // which may be due to unresolved bugs in dependencies or threads not being properly shut down.
+        if (threadPoolFactory.hasNonDaemonThreadsOtherThanMain) {
+          logInfo("A non-daemon thread in the driver is seen.")
+          // Exit the JVM to prevent resource leaks and potential emr-s job hung.
+          // A zero status code is used for a graceful shutdown without indicating an error.
+          // If exiting with non-zero status, emr-s job will fail.
+          // This is a part of the fault tolerance mechanism to handle such scenarios gracefully.
+          System.exit(0)
         }
       }
     }
@@ -263,8 +282,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
     // 1 thread for updating heart beat
     val threadPool = threadPoolFactory.newDaemonThreadPoolScheduledExecutor("flint-repl-query", 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
+
+    var futureMappingCheck: Future[Either[String, Unit]] = null
     try {
-      val futureMappingCheck = Future {
+      futureMappingCheck = Future {
         checkAndCreateIndex(commandContext.osClient, commandContext.resultIndex)
       }
 
@@ -307,7 +328,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       }
     } finally {
       if (threadPool != null) {
-        threadPool.shutdown()
+        threadPoolFactory.shutdownThreadPool(threadPool)
       }
     }
   }
@@ -475,7 +496,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
       } else if (!flintReader.hasNext) {
         canProceed = false
       } else {
-        lastActivityTime = currentTimeProvider.currentEpochMillis()
         val flintCommand = processCommandInitiation(flintReader, flintSessionIndexUpdater)
 
         val (dataToWrite, returnedVerificationResult) = processStatementOnVerification(
@@ -497,6 +517,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
           resultIndex,
           flintSessionIndexUpdater,
           osClient)
+        // last query finish time is last activity time
+        lastActivityTime = currentTimeProvider.currentEpochMillis()
       }
     }
 
@@ -850,12 +872,18 @@ object FlintREPL extends Logging with FlintJobExecutor {
       threadPool: ScheduledExecutorService,
       osClient: OSClient,
       sessionIndex: String,
-      initialDelayMillis: Long): Unit = {
+      initialDelayMillis: Long): ScheduledFuture[_] = {
 
     threadPool.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = {
           try {
+            // Check the thread's interrupt status at the beginning of the run method
+            if (Thread.interrupted()) {
+              logWarning("HeartBeatUpdater has been interrupted. Terminating.")
+              return // Exit the run method if the thread is interrupted
+            }
+
             val getResponse = osClient.getDoc(sessionIndex, sessionId)
             if (getResponse.isExists()) {
               val source = getResponse.getSourceAsMap
@@ -871,6 +899,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
             }
             // do nothing if the session doc does not exist
           } catch {
+            case ie: InterruptedException =>
+              // Preserve the interrupt status
+              Thread.currentThread().interrupt()
+              logError("HeartBeatUpdater task was interrupted", ie)
             // maybe due to invalid sequence number or primary term
             case e: Exception =>
               logWarning(
