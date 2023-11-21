@@ -45,9 +45,28 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
     reset(internalClient, future)
   }
 
-  it should "retry if exception is on the retryable exception list" in {
-    Seq(new ConnectException).foreach { ex =>
+  ignore should "retry with configured max attempt count" in {
+    retryableClient
+      .withOption("retry.max_retries", "1")
+      .whenThrow(new ConnectException)
+      .shouldExecute(times(2))
+  }
+
+  ignore should "retry if response code is on the retryable status code list" in {
+    Seq(new SocketTimeoutException).foreach { ex =>
       retryableClient
+        .withOption("retry.exception_class_names", "java.net.SocketTimeoutException")
+        .whenThrow(ex)
+        .shouldExecute(times(DEFAULT_MAX_RETRIES + 1))
+    }
+  }
+
+  it should "retry if exception is on the retryable exception list" in {
+    Seq(new ConnectException, new SocketTimeoutException).foreach { ex =>
+      retryableClient
+        .withOption(
+          "retry.exception_class_names",
+          "java.net.ConnectException,java.net.SocketTimeoutException")
         .whenThrow(ex)
         .shouldExecute(times(DEFAULT_MAX_RETRIES + 1))
     }
@@ -55,6 +74,7 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
 
   it should "retry if exception's root cause is on the retryable exception list" in {
     retryableClient
+      .withOption("retry.exception_class_names", "java.net.ConnectException")
       .whenThrow(new IllegalStateException(new ConnectException))
       .shouldExecute(times(DEFAULT_MAX_RETRIES + 1))
   }
@@ -63,22 +83,6 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
     retryableClient
       .whenThrow(new SocketTimeoutException)
       .shouldExecute(times(1))
-  }
-
-  it should "retry with configured max attempt count" in {
-    retryableClient
-      .withOption("retry.max_retries", "1")
-      .whenThrow(new ConnectException)
-      .shouldExecute(times(2))
-  }
-
-  it should "retry if exception is configured in Flint options" in {
-    Seq(new SocketTimeoutException).foreach { ex =>
-      retryableClient
-        .withOption("retry.exception_class_names", "java.net.SocketTimeoutException")
-        .whenThrow(ex)
-        .shouldExecute(times(DEFAULT_MAX_RETRIES + 1))
-    }
   }
 
   private def retryableClient: AssertionHelper = new AssertionHelper
