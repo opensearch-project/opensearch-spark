@@ -15,9 +15,9 @@ import org.apache.http.impl.nio.client.CloseableHttpAsyncClient
 import org.apache.http.nio.protocol.{HttpAsyncRequestProducer, HttpAsyncResponseConsumer}
 import org.apache.http.protocol.HttpContext
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.{reset, times, verify, when}
+import org.mockito.Mockito._
 import org.opensearch.flint.core.FlintOptions
-import org.opensearch.flint.core.http.FlintRetryOptions.DEFAULT_MAX_ATTEMPT
+import org.opensearch.flint.core.http.FlintRetryOptions.DEFAULT_MAX_RETRIES
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -57,12 +57,15 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
       assertThrows[ExecutionException] {
         client.execute(null, null, null, null).get()
       }
-      verify(internalClient, times(DEFAULT_MAX_ATTEMPT + 1))
+      verify(internalClient, times(DEFAULT_MAX_RETRIES + 1))
         .execute(
           any[HttpAsyncRequestProducer],
           any[HttpAsyncResponseConsumer[HttpResponse]],
           any[HttpContext],
           any[FutureCallback[HttpResponse]])
+
+      reset(future)
+      clearInvocations(internalClient)
     }
   }
 
@@ -75,7 +78,7 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
     assertThrows[ExecutionException] {
       client.execute(null, null, null, null).get()
     }
-    verify(internalClient, times(DEFAULT_MAX_ATTEMPT + 1))
+    verify(internalClient, times(DEFAULT_MAX_RETRIES + 1))
       .execute(
         any[HttpAsyncRequestProducer],
         any[HttpAsyncResponseConsumer[HttpResponse]],
@@ -97,5 +100,49 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
         any[HttpAsyncResponseConsumer[HttpResponse]],
         any[HttpContext],
         any[FutureCallback[HttpResponse]])
+  }
+
+  it should "retry with configured max attempt count" in {
+    val client =
+      new RetryableHttpAsyncClient(
+        internalClient,
+        new FlintOptions(java.util.Map.of("retry.max_retries", "1")))
+    when(future.get()).thenThrow(new ExecutionException(new ConnectException))
+
+    assertThrows[ExecutionException] {
+      client.execute(null, null, null, null).get()
+    }
+    verify(internalClient, times(2)) // twice only
+      .execute(
+        any[HttpAsyncRequestProducer],
+        any[HttpAsyncResponseConsumer[HttpResponse]],
+        any[HttpContext],
+        any[FutureCallback[HttpResponse]])
+  }
+
+  it should "retry if exception is configured in Flint options" in {
+    val client =
+      new RetryableHttpAsyncClient(
+        internalClient,
+        new FlintOptions(
+          java.util.Map.of("retry.exception_class_names", "java.net.SocketTimeoutException")))
+
+    // Should not impact built-in exception class name list
+    Seq(new ConnectException, new SocketTimeoutException).foreach { ex =>
+      when(future.get()).thenThrow(new ExecutionException(ex))
+
+      assertThrows[ExecutionException] {
+        client.execute(null, null, null, null).get()
+      }
+      verify(internalClient, times(DEFAULT_MAX_RETRIES + 1))
+        .execute(
+          any[HttpAsyncRequestProducer],
+          any[HttpAsyncResponseConsumer[HttpResponse]],
+          any[HttpContext],
+          any[FutureCallback[HttpResponse]])
+
+      reset(future)
+      clearInvocations(internalClient)
+    }
   }
 }

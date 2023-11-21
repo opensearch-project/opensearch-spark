@@ -34,8 +34,8 @@ public class FlintRetryOptions {
   /**
    * Maximum retry attempt
    */
-  public static final int DEFAULT_MAX_ATTEMPT = 4; // TODO: change to max retry
-  public static final String MAX_ATTEMPT = "retry.max_attempt";
+  public static final int DEFAULT_MAX_RETRIES = 3;
+  public static final String MAX_RETRIES = "retry.max_retries";
 
   /**
    * Retryable exception class name
@@ -49,24 +49,23 @@ public class FlintRetryOptions {
   public <T> RetryPolicy<T> getRetryPolicy() {
     RetryPolicy<T> policy =
         RetryPolicy.<T>builder()
-            .withMaxAttempts(getMaxAttempt())
+            .withMaxRetries(getMaxRetries())
             .withBackoff(1, 30, SECONDS)
             .withJitter(Duration.ofMillis(100))
             .handleIf(isRetryableException())
             .onFailedAttempt(
-                ex -> LOG.log(SEVERE, "Attempt failed", ex.getLastException()))
+                ex -> LOG.log(SEVERE, "Attempt to execute request failed", ex.getLastException()))
             .onRetry(
-                ex -> LOG.warning("Failure #{}. Retrying at " + ex.getAttemptCount()))
+                ex -> LOG.warning("Retrying failed request at #" + ex.getAttemptCount()))
             .build();
 
-    LOG.info("Built HTTP request retry policy with max attempt: "
-        + policy.getConfig().getMaxRetries());
+    LOG.info("Built HTTP request retry policy with max attempt: " + policy.getConfig().getMaxRetries());
     return policy;
   }
 
-  private int getMaxAttempt() {
+  private int getMaxRetries() {
     return Integer.parseInt(
-        options.getOrDefault(MAX_ATTEMPT, String.valueOf(DEFAULT_MAX_ATTEMPT)));
+        options.getOrDefault(MAX_RETRIES, String.valueOf(DEFAULT_MAX_RETRIES)));
   }
 
   private CheckedPredicate<? extends Throwable> isRetryableException() {

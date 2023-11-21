@@ -5,8 +5,6 @@
 
 package org.opensearch.flint.core.http;
 
-import static java.util.logging.Level.SEVERE;
-
 import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeException;
 import java.io.IOException;
@@ -86,33 +84,29 @@ public class RetryableHttpAsyncClient extends CloseableHttpAsyncClient {
 
       @Override
       public T get() throws InterruptedException, ExecutionException {
-        return doGetWithRetry(
-            () ->
-                internalClient
-                    .execute(requestProducer, responseConsumer, context, callback));
+        return doGetWithRetry(() -> delegate.get());
       }
 
       @Override
       public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException {
-        return doGetWithRetry(
-            () ->
-                internalClient
-                    .execute(requestProducer, responseConsumer, context, callback));
+        return doGetWithRetry(() -> delegate.get(timeout, unit));
       }
 
-      private T doGetWithRetry(Callable<Future<T>> retryRun) throws InterruptedException, ExecutionException {
+      private T doGetWithRetry(Callable<T> futureGet) throws InterruptedException, ExecutionException {
         try {
-          // Retry by creating new Future object and get its result again
+          // Retry by creating a new Future object (as delegate) and get its result again
           return Failsafe
               .with(options.getRetryPolicy())
               .get(() -> {
-                this.delegate = retryRun.call();
-                return delegate.get();
+                this.delegate =
+                    internalClient.execute(requestProducer, responseConsumer, context, callback);
+                return futureGet.call();
               });
         } catch (FailsafeException ex) {
           LOG.severe("Request failed permanently. Re-throwing original exception.");
 
-          // Unwrap failsafe exception and rethrow it
+          // Failsafe will wrap checked exception, such as ExecutionException
+          // So here we have to unwrap failsafe exception and rethrow it
           Throwable cause = ex.getCause();
           if (cause instanceof InterruptedException) {
             throw (InterruptedException) cause;
@@ -124,75 +118,6 @@ public class RetryableHttpAsyncClient extends CloseableHttpAsyncClient {
         }
       }
     };
-
-
-    /*
-    // Wrap original future with retryable future
-    Future<T> delegate = internalClient.execute(requestProducer, responseConsumer, context, callback);
-    return new Future<>() {
-      @Override
-      public boolean cancel(boolean mayInterruptIfRunning) {
-        return delegate.cancel(mayInterruptIfRunning);
-      }
-
-      @Override
-      public boolean isCancelled() {
-        return delegate.isCancelled();
-      }
-
-      @Override
-      public boolean isDone() {
-        return delegate.isDone();
-      }
-
-      @Override
-      public T get() throws InterruptedException, ExecutionException {
-        return doGetWithRetry(
-            delegate::get,
-            () ->
-                internalClient
-                    .execute(requestProducer, responseConsumer, context, callback)
-                    .get());
-      }
-
-      @Override
-      public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException {
-        return doGetWithRetry(
-            () -> delegate.get(timeout, unit),
-            () ->
-                internalClient
-                    .execute(requestProducer, responseConsumer, context, callback)
-                    .get(timeout, unit));
-      }
-
-      private T doGetWithRetry(Callable<T> firstRun, Callable<T> retryRun) throws InterruptedException, ExecutionException {
-        try {
-          // Run first time with the initial Future object
-          return firstRun.call();
-        } catch (Exception e) {
-          LOG.log(SEVERE, "Retrying failed request", e);
-          try {
-            // Retry by creating new Future object and get its result again
-            return Failsafe
-                .with(options.getRetryPolicy())
-                .get(retryRun::call);
-          } catch (FailsafeException ex) {
-            LOG.severe("Request failed permanently. Re-throwing original exception.");
-
-            // Unwrap failsafe exception and rethrow it
-            Throwable cause = ex.getCause();
-            if (cause instanceof InterruptedException) {
-              throw (InterruptedException) cause;
-            } else if (cause instanceof ExecutionException) {
-              throw (ExecutionException) cause;
-            } else {
-              throw ex;
-            }
-          }
-        }
-      }
-    }
-    */
   }
 
   public static HttpAsyncClientBuilder builder(HttpAsyncClientBuilder delegate, FlintOptions options) {
