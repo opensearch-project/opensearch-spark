@@ -116,6 +116,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
             new IndexRequest()
                 .index(metaLogIndexName)
                 .id(logEntryWithId.id())
+                .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
                 .source(logEntryWithId.toJson(), XContentType.JSON),
             RequestOptions.DEFAULT));
   }
