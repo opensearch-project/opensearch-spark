@@ -65,6 +65,7 @@ public class RetryableHttpAsyncClient extends CloseableHttpAsyncClient {
                                HttpContext context,
                                FutureCallback<T> callback) {
     return new Future<>() {
+      /** Delegate future object created per execution */
       private Future<T> delegate;
 
       @Override

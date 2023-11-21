@@ -6,18 +6,17 @@
 package org.opensearch.flint.core.http;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
+import static java.util.Collections.newSetFromMap;
 import static java.util.logging.Level.SEVERE;
 
 import dev.failsafe.RetryPolicy;
 import dev.failsafe.function.CheckedPredicate;
-import java.net.ConnectException;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /**
  * Flint options related to HTTP request retry.
@@ -40,6 +39,8 @@ public class FlintRetryOptions {
   /**
    * Retryable exception class name
    */
+  public static final String DEFAULT_RETRYABLE_EXCEPTION_CLASS_NAMES =
+      "java.net.ConnectException";
   public static final String RETRYABLE_EXCEPTION_CLASS_NAMES = "retry.exception_class_names";
 
   public FlintRetryOptions(Map<String, String> options) {
@@ -68,32 +69,42 @@ public class FlintRetryOptions {
         options.getOrDefault(MAX_RETRIES, String.valueOf(DEFAULT_MAX_RETRIES)));
   }
 
-  private CheckedPredicate<? extends Throwable> isRetryableException() {
-    // Populate configured exception class name from options
-    Set<String> retryableClassNames;
-    if (options.containsKey(RETRYABLE_EXCEPTION_CLASS_NAMES)) {
-      retryableClassNames =
-          Arrays.stream(options.get(RETRYABLE_EXCEPTION_CLASS_NAMES).split(","))
-              .map(String::trim)
-              .collect(Collectors.toSet());
-    } else {
-      retryableClassNames = new HashSet<>();
-    }
+  private String getRetryableExceptionClassNames() {
+    return options.getOrDefault(
+        RETRYABLE_EXCEPTION_CLASS_NAMES,
+        DEFAULT_RETRYABLE_EXCEPTION_CLASS_NAMES);
+  }
 
-    // Add default retryable exception class names
-    retryableClassNames.add(ConnectException.class.getName());
+  private CheckedPredicate<? extends Throwable> isRetryableException() {
+    // Use weak collection avoids blocking class unloading
+    Set<Class<? extends Throwable>> retryableExceptions = newSetFromMap(new WeakHashMap<>());
+    String[] optClassNames = getRetryableExceptionClassNames().split(",");
+    for (String className : optClassNames) {
+      retryableExceptions.add(loadClass(className.trim()));
+    }
 
     // Consider retryable if found anywhere on error stacktrace
     return throwable -> {
       // Handle nested exception to avoid dead loop
       Set<Throwable> seen = new HashSet<>();
       while (throwable != null && seen.add(throwable)) {
-        if (retryableClassNames.contains(throwable.getClass().getName())) {
-          return true;
+        for (Class<? extends Throwable> retryable : retryableExceptions) {
+          if (retryable.isInstance(throwable)) {
+            return true;
+          }
         }
         throwable = throwable.getCause();
       }
       return false;
     };
+  }
+
+  private Class<? extends Throwable> loadClass(String className) {
+    try {
+      //noinspection unchecked
+      return (Class<? extends Throwable>) Class.forName(className);
+    } catch (ClassNotFoundException e) {
+      throw new IllegalStateException("Failed to load class " + className, e);
+    }
   }
 }

@@ -30,9 +30,6 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
   val internalClient: CloseableHttpAsyncClient = mock[CloseableHttpAsyncClient]
   val future: Future[HttpResponse] = mock[Future[HttpResponse]]
 
-  /** Retryable client being tested */
-  // var retryableClient: CloseableHttpAsyncClient = _
-
   behavior of "Retryable HTTP async client"
 
   before {
@@ -76,8 +73,7 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
   }
 
   it should "retry if exception is configured in Flint options" in {
-    // Should not impact built-in exception class name list
-    Seq(new ConnectException, new SocketTimeoutException).foreach { ex =>
+    Seq(new SocketTimeoutException).foreach { ex =>
       retryableClient
         .withOption("retry.exception_class_names", "java.net.SocketTimeoutException")
         .whenThrow(ex)
