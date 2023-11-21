@@ -10,9 +10,7 @@ import static java.util.Collections.newSetFromMap;
 import static java.util.logging.Level.SEVERE;
 
 import dev.failsafe.RetryPolicy;
-import dev.failsafe.RetryPolicyBuilder;
 import dev.failsafe.function.CheckedPredicate;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -20,6 +18,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import org.apache.http.HttpResponse;
 
 /**
  * Flint options related to HTTP request retry.
@@ -39,6 +39,9 @@ public class FlintRetryOptions {
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final String MAX_RETRIES = "retry.max_retries";
 
+  public static final String DEFAULT_RETRYABLE_HTTP_STATUS_CODES = "429,502";
+  public static final String RETRYABLE_HTTP_STATUS_CODES = "retry.http_status_codes";
+
   /**
    * Retryable exception class name
    */
@@ -56,25 +59,16 @@ public class FlintRetryOptions {
    */
   public <T> RetryPolicy<T> getRetryPolicy() {
     LOG.info("Building HTTP request retry policy with retry options: " + this);
-    RetryPolicyBuilder<T> builder =
-        RetryPolicy.<T>builder()
-            .withMaxRetries(getMaxRetries())
-            .withBackoff(1, 30, SECONDS)
-            .withJitter(Duration.ofMillis(100))
-            // .handleResultIf(resp -> ((HttpResponse<T>) resp).statusCode() == 200)
-            .onFailedAttempt(ex ->
-                LOG.log(SEVERE, "Attempt to execute request failed", ex.getLastException()))
-            .onRetry(ex ->
-                LOG.warning("Retrying failed request at #" + ex.getAttemptCount()));
-
-    // Add optional retryable exception handler
-    if (options.containsKey(RETRYABLE_EXCEPTION_CLASS_NAMES)) {
-      builder.handleIf(isRetryableException());
-    } else {
-      // By default, Failsafe handles any Exception
-      builder.handleIf(ex -> false);
-    }
-    return builder.build();
+    return RetryPolicy.<T>builder()
+        .withMaxRetries(getMaxRetries())
+        .withBackoff(1, 30, SECONDS)
+        .withJitter(Duration.ofMillis(100))
+        .handleIf(getRetryableExceptionHandler())
+        .handleResultIf(getRetryableResultHandler())
+        .onFailedAttempt(ex ->
+            LOG.log(SEVERE, "Attempt to execute request failed", ex.getLastException()))
+        .onRetry(ex ->
+            LOG.warning("Retrying failed request at #" + ex.getAttemptCount())).build();
   }
 
   private int getMaxRetries() {
@@ -82,17 +76,37 @@ public class FlintRetryOptions {
         options.getOrDefault(MAX_RETRIES, String.valueOf(DEFAULT_MAX_RETRIES)));
   }
 
-  private CheckedPredicate<? extends Throwable> isRetryableException() {
+  private <T> CheckedPredicate<T> getRetryableResultHandler() {
+    Set<Integer> retryableStatusCodes =
+        Arrays.stream(
+                options.getOrDefault(
+                    RETRYABLE_HTTP_STATUS_CODES,
+                    DEFAULT_RETRYABLE_HTTP_STATUS_CODES).split(","))
+            .map(String::trim)
+            .map(Integer::valueOf)
+            .collect(Collectors.toSet());
+
+    return result -> retryableStatusCodes.contains(
+        ((HttpResponse) result).getStatusLine().getStatusCode());
+  }
+
+  private CheckedPredicate<? extends Throwable> getRetryableExceptionHandler() {
+    // By default, Failsafe handles any Exception
+    String exceptionClassNames = options.get(RETRYABLE_EXCEPTION_CLASS_NAMES);
+    if (exceptionClassNames == null || exceptionClassNames.isEmpty()) {
+      return ex -> false;
+    }
+
     // Use weak collection avoids blocking class unloading
     Set<Class<? extends Throwable>> retryableExceptions = newSetFromMap(new WeakHashMap<>());
-    Arrays.stream(options.get(RETRYABLE_EXCEPTION_CLASS_NAMES).split(","))
+    Arrays.stream(exceptionClassNames.split(","))
         .map(String::trim)
         .map(this::loadClass)
         .forEach(retryableExceptions::add);
 
-    // Consider retryable if found anywhere on error stacktrace
+    // Consider retryable if exception found anywhere on stacktrace.
+    // Meanwhile, handle nested exception to avoid dead loop by seen hash set.
     return throwable -> {
-      // Handle nested exception to avoid dead loop
       Set<Throwable> seen = new HashSet<>();
       while (throwable != null && seen.add(throwable)) {
         for (Class<? extends Throwable> retryable : retryableExceptions) {

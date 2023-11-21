@@ -45,20 +45,18 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
     reset(internalClient, future)
   }
 
-  ignore should "retry with configured max attempt count" in {
-    retryableClient
-      .withOption("retry.max_retries", "1")
-      .whenThrow(new ConnectException)
-      .shouldExecute(times(2))
-  }
-
-  ignore should "retry if response code is on the retryable status code list" in {
-    Seq(new SocketTimeoutException).foreach { ex =>
+  it should "retry if response code is on the retryable status code list" in {
+    Seq(429, 502).foreach { statusCode =>
       retryableClient
-        .withOption("retry.exception_class_names", "java.net.SocketTimeoutException")
-        .whenThrow(ex)
+        .whenStatusCode(statusCode)
         .shouldExecute(times(DEFAULT_MAX_RETRIES + 1))
     }
+  }
+
+  it should "not retry if response code is not on the retryable status code list" in {
+    retryableClient
+      .whenStatusCode(400)
+      .shouldExecute(times(1))
   }
 
   it should "retry if exception is on the retryable exception list" in {
@@ -85,6 +83,13 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
       .shouldExecute(times(1))
   }
 
+  it should "retry with configured max attempt count" in {
+    retryableClient
+      .withOption("retry.max_retries", "1")
+      .whenStatusCode(429)
+      .shouldExecute(times(2))
+  }
+
   private def retryableClient: AssertionHelper = new AssertionHelper
 
   class AssertionHelper {
@@ -100,22 +105,32 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
       this
     }
 
+    def whenStatusCode(statusCode: Int): AssertionHelper = {
+      val response = mock[HttpResponse](RETURNS_DEEP_STUBS)
+      when(response.getStatusLine.getStatusCode).thenReturn(statusCode)
+      when(future.get()).thenReturn(response)
+      this
+    }
+
     def shouldExecute(expectTimes: VerificationMode): Unit = {
       val client =
         new RetryableHttpAsyncClient(internalClient, new FlintOptions(options))
 
-      assertThrows[ExecutionException] {
+      try {
         client.execute(null, null, null, null).get()
-      }
-      verify(internalClient, expectTimes)
-        .execute(
-          any[HttpAsyncRequestProducer],
-          any[HttpAsyncResponseConsumer[HttpResponse]],
-          any[HttpContext],
-          any[FutureCallback[HttpResponse]])
+      } catch {
+        case _: Throwable => // Ignore because we're testing error case
+      } finally {
+        verify(internalClient, expectTimes)
+          .execute(
+            any[HttpAsyncRequestProducer],
+            any[HttpAsyncResponseConsumer[HttpResponse]],
+            any[HttpContext],
+            any[FutureCallback[HttpResponse]])
 
-      reset(future)
-      clearInvocations(internalClient)
+        reset(future)
+        clearInvocations(internalClient)
+      }
     }
   }
 }
