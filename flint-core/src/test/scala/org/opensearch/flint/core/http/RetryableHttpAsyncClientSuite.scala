@@ -145,4 +145,7 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
       clearInvocations(internalClient)
     }
   }
+
+  class AssertionHelper {
+  }
 }
