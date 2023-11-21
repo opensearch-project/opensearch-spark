@@ -52,19 +52,30 @@ public class FlintRetryOptions {
   }
 
   /**
+   * Is auto retry capability enabled.
+   *
+   * @return true if enabled, otherwise false.
+   */
+  public boolean isRetryEnabled() {
+    return getMaxRetries() > 0;
+  }
+
+  /**
    * Build retry policy based on the given Flint options.
    *
    * @param <T> success execution result type
    * @return Failsafe retry policy
    */
   public <T> RetryPolicy<T> getRetryPolicy() {
-    LOG.info("Building HTTP request retry policy with retry options: " + this);
     return RetryPolicy.<T>builder()
-        .withMaxRetries(getMaxRetries())
+        // Backoff strategy config (can be configurable as needed in future)
         .withBackoff(1, 30, SECONDS)
         .withJitter(Duration.ofMillis(100))
+        // Failure handling config configured in Flint options
+        .withMaxRetries(getMaxRetries())
         .handleIf(getRetryableExceptionHandler())
         .handleResultIf(getRetryableResultHandler())
+        // Logging config
         .onFailedAttempt(ex ->
             LOG.log(SEVERE, "Attempt to execute request failed", ex.getLastException()))
         .onRetry(ex ->
@@ -133,6 +144,8 @@ public class FlintRetryOptions {
   public String toString() {
     return "FlintRetryOptions{" +
         "maxRetries=" + getMaxRetries() +
+        ", retryableStatusCodes=" +
+        options.getOrDefault(RETRYABLE_HTTP_STATUS_CODES, DEFAULT_RETRYABLE_HTTP_STATUS_CODES) +
         ", retryableExceptionClassNames=" +
         options.getOrDefault(RETRYABLE_EXCEPTION_CLASS_NAMES, "") +
         '}';

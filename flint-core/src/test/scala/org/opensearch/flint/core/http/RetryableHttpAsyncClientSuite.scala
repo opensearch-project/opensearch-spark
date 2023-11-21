@@ -7,11 +7,14 @@ package org.opensearch.flint.core.http
 
 import java.net.{ConnectException, SocketTimeoutException}
 import java.util
+import java.util.Collections.emptyMap
 import java.util.concurrent.{ExecutionException, Future}
+
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.apache.http.HttpResponse
 import org.apache.http.concurrent.FutureCallback
-import org.apache.http.impl.nio.client.CloseableHttpAsyncClient
+import org.apache.http.impl.nio.client.{CloseableHttpAsyncClient, HttpAsyncClientBuilder}
 import org.apache.http.nio.protocol.{HttpAsyncRequestProducer, HttpAsyncResponseConsumer}
 import org.apache.http.protocol.HttpContext
 import org.mockito.ArgumentMatchers.any
@@ -43,6 +46,31 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
 
   after {
     reset(internalClient, future)
+  }
+
+  it should "return retry client builder by default" in {
+    val builder = mock[HttpAsyncClientBuilder]
+    val finalBuilder = RetryableHttpAsyncClient.builder(builder, new FlintOptions(emptyMap()))
+
+    finalBuilder should not be builder
+  }
+
+  it should "return retry client builder if retry enabled (max_retries > 0)" in {
+    val builder = mock[HttpAsyncClientBuilder]
+    val finalBuilder = RetryableHttpAsyncClient.builder(
+      builder,
+      new FlintOptions(Map("retry.max_retries" -> "5").asJava))
+
+    finalBuilder should not be builder
+  }
+
+  it should "return original client builder if retry disabled (max_retries = 0)" in {
+    val builder = mock[HttpAsyncClientBuilder]
+    val finalBuilder = RetryableHttpAsyncClient.builder(
+      builder,
+      new FlintOptions(Map("retry.max_retries" -> "0").asJava))
+
+    finalBuilder shouldBe builder
   }
 
   it should "retry if response code is on the retryable status code list" in {
@@ -114,19 +142,21 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
 
     def shouldExecute(expectTimes: VerificationMode): Unit = {
       val client =
-        new RetryableHttpAsyncClient(internalClient, new FlintOptions(options))
+        new RetryableHttpAsyncClient(internalClient, new FlintOptions(options).getRetryOptions)
 
       try {
         client.execute(null, null, null, null).get()
       } catch {
         case _: Throwable => // Ignore because we're testing error case
       } finally {
+        // Verify `execute(...).get()` was called with expected times
         verify(internalClient, expectTimes)
           .execute(
             any[HttpAsyncRequestProducer],
             any[HttpAsyncResponseConsumer[HttpResponse]],
             any[HttpContext],
             any[FutureCallback[HttpResponse]])
+        verify(future, expectTimes).get()
 
         reset(future)
         clearInvocations(internalClient)

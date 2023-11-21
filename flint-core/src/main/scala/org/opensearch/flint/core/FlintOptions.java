@@ -96,8 +96,8 @@ public class FlintOptions implements Serializable {
 
   public String getRefreshPolicy() {return options.getOrDefault(REFRESH_POLICY, DEFAULT_REFRESH_POLICY);}
 
-  public <T> RetryPolicy<T> getRetryPolicy() {
-    return retryOptions.getRetryPolicy();
+  public FlintRetryOptions getRetryOptions() {
+    return retryOptions;
   }
 
   public String getRegion() {

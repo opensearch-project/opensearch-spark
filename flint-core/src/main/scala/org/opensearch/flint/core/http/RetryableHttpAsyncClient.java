@@ -36,10 +36,10 @@ public class RetryableHttpAsyncClient extends CloseableHttpAsyncClient {
   /**
    * Flint retry options.
    */
-  private final FlintOptions options;
+  private final FlintRetryOptions options;
 
   public RetryableHttpAsyncClient(CloseableHttpAsyncClient internalClient,
-                                  FlintOptions options) {
+                                  FlintRetryOptions options) {
     this.internalClient = internalClient;
     this.options = options;
   }
@@ -95,12 +95,11 @@ public class RetryableHttpAsyncClient extends CloseableHttpAsyncClient {
 
       private T doGetWithRetry(Callable<T> futureGet) throws InterruptedException, ExecutionException {
         try {
-          // Retry by creating a new Future object (as delegate) and get its result again
+          // Retry by creating a new Future object (as new delegate) and get its result again
           return Failsafe
               .with(options.getRetryPolicy())
               .get(() -> {
-                this.delegate =
-                    internalClient.execute(requestProducer, responseConsumer, context, callback);
+                this.delegate = internalClient.execute(requestProducer, responseConsumer, context, callback);
                 return futureGet.call();
               });
         } catch (FailsafeException ex) {
@@ -122,12 +121,17 @@ public class RetryableHttpAsyncClient extends CloseableHttpAsyncClient {
   }
 
   public static HttpAsyncClientBuilder builder(HttpAsyncClientBuilder delegate, FlintOptions options) {
+    FlintRetryOptions retryOptions = options.getRetryOptions();
+    if (!retryOptions.isRetryEnabled()) {
+      return delegate;
+    }
+
     // Wrap original builder so created client will be wrapped by retryable client too
     return new HttpAsyncClientBuilder() {
       @Override
       public CloseableHttpAsyncClient build() {
-        LOG.info("Building retryable http async client");
-        return new RetryableHttpAsyncClient(delegate.build(), options);
+        LOG.info("Building retryable http async client with options: " + retryOptions);
+        return new RetryableHttpAsyncClient(delegate.build(), retryOptions);
       }
     };
   }
