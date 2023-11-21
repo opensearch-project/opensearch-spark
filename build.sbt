@@ -63,7 +63,15 @@ lazy val flintCore = (project in file("flint-core"))
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
       "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
-      "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test"),
+      "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
+      "org.mockito" % "mockito-core" % "2.23.0" % "test",
+      "org.mockito" % "mockito-junit-jupiter" % "3.12.4" % "test",
+      "org.junit.jupiter" % "junit-jupiter-api" % "5.9.0" % "test",
+      "org.junit.jupiter" % "junit-jupiter-engine" % "5.9.0" % "test",
+      "com.google.truth" % "truth" % "1.1.5" % "test",
+      "net.aichler" % "jupiter-interface" % "0.11.1" % Test
+    ),
+    libraryDependencies ++= deps(sparkVersion),
     publish / skip := true)
 
 lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
