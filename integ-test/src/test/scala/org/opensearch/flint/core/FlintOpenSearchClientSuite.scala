@@ -16,7 +16,6 @@ import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.transport.rest_client.RestClientTransport
 import org.opensearch.flint.OpenSearchSuite
 import org.opensearch.flint.core.metadata.FlintMetadata
-import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NoOptimisticTransaction
 import org.opensearch.flint.core.storage.{FlintOpenSearchClient, OpenSearchScrollReader}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -31,9 +30,10 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
 
   behavior of "Flint OpenSearch client"
 
-  it should "start no optimistic transaction if metadata log index doesn't exists" in {
-    val transaction = flintClient.startTransaction("test", "non-exist-index")
-    transaction shouldBe a[NoOptimisticTransaction[AnyRef]]
+  it should "throw IllegalStateException if metadata log index doesn't exists" in {
+    the[IllegalStateException] thrownBy {
+      flintClient.startTransaction("test", "non-exist-index")
+    }
   }
 
   it should "create index successfully" in {

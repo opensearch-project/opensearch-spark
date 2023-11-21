@@ -9,6 +9,8 @@ import java.util.Base64
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
+import org.json4s.{Formats, NoTypeHints}
+import org.json4s.native.{JsonMethods, Serialization}
 import org.opensearch.flint.OpenSearchTransactionSuite
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
@@ -214,7 +216,8 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     latestLogEntry(testLatestId) should contain("state" -> "active")
   }
 
-  test("should not necessarily rollback if transaction operation failed but no transient action") {
+  test(
+    "should not necessarily rollback if transaction operation failed but no transient action") {
     // Use create index scenario in this test case
     the[IllegalStateException] thrownBy {
       flintClient
@@ -226,5 +229,67 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
     // Should rollback to initial empty log
     latestLogEntry(testLatestId) should contain("state" -> "empty")
+  }
+
+  test("forceInit translog, even index is deleted before startTransaction") {
+    deleteIndex(testMetaLogIndex)
+    flintClient
+      .startTransaction(testFlintIndex, testDataSourceName, true)
+      .initialLog(latest => {
+        latest.id shouldBe testLatestId
+        latest.state shouldBe EMPTY
+        latest.createTime shouldBe 0L
+        latest.dataSource shouldBe testDataSourceName
+        latest.error shouldBe ""
+        true
+      })
+      .finalLog(latest => latest)
+      .commit(_ => {})
+
+    implicit val formats: Formats = Serialization.formats(NoTypeHints)
+    (JsonMethods.parse(indexMapping()) \ "properties" \ "sessionId" \ "type")
+      .extract[String] should equal("keyword")
+  }
+
+  test("should fail if index is deleted before initial operation") {
+    the[IllegalStateException] thrownBy {
+      flintClient
+        .startTransaction(testFlintIndex, testDataSourceName)
+        .initialLog(latest => {
+          deleteIndex(testMetaLogIndex)
+          true
+        })
+        .transientLog(latest => latest.copy(state = CREATING))
+        .finalLog(latest => latest.copy(state = ACTIVE))
+        .commit(_ => {})
+    }
+  }
+
+  test("should fail if index is deleted before transient operation") {
+    the[IllegalStateException] thrownBy {
+      flintClient
+        .startTransaction(testFlintIndex, testDataSourceName)
+        .initialLog(latest => true)
+        .transientLog(latest => {
+          deleteIndex(testMetaLogIndex)
+          latest.copy(state = CREATING)
+        })
+        .finalLog(latest => latest.copy(state = ACTIVE))
+        .commit(_ => {})
+    }
+  }
+
+  test("should fail if index is deleted before final operation") {
+    the[IllegalStateException] thrownBy {
+      flintClient
+        .startTransaction(testFlintIndex, testDataSourceName)
+        .initialLog(latest => true)
+        .transientLog(latest => { latest.copy(state = CREATING) })
+        .finalLog(latest => {
+          deleteIndex(testMetaLogIndex)
+          latest.copy(state = ACTIVE)
+        })
+        .commit(_ => {})
+    }
   }
 }

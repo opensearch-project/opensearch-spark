@@ -44,14 +44,15 @@ import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.auth.AWSRequestSigningApacheInterceptor;
 import org.opensearch.flint.core.metadata.FlintMetadata;
 import org.opensearch.flint.core.metadata.log.DefaultOptimisticTransaction;
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
-import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NoOptimisticTransaction;
 import org.opensearch.index.query.AbstractQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.search.SearchModule;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import scala.Option;
+import scala.Some;
 
 /**
  * Flint client implementation for OpenSearch storage.
@@ -80,34 +81,48 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override
-  public <T> OptimisticTransaction<T> startTransaction(String indexName, String dataSourceName) {
+  public <T> OptimisticTransaction<T> startTransaction(String indexName, String dataSourceName,
+      boolean forceInit) {
     LOG.info("Starting transaction on index " + indexName + " and data source " + dataSourceName);
     String metaLogIndexName = dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX
         : META_LOG_NAME_PREFIX + "_" + dataSourceName;
-
     try (RestHighLevelClient client = createClient()) {
       if (client.indices().exists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
         LOG.info("Found metadata log index " + metaLogIndexName);
-        return new DefaultOptimisticTransaction<>(dataSourceName,
-            new FlintOpenSearchMetadataLog(this, indexName, metaLogIndexName));
       } else {
-        LOG.info("Metadata log index not found " + metaLogIndexName);
-        return new NoOptimisticTransaction<>();
+        if (forceInit) {
+          createIndex(metaLogIndexName, FlintMetadataLogEntry.QUERY_EXECUTION_REQUEST_MAPPING(),
+              Some.apply(FlintMetadataLogEntry.QUERY_EXECUTION_REQUEST_SETTINGS()));
+        } else {
+          String errorMsg = "Metadata log index not found " + metaLogIndexName;
+          LOG.warning(errorMsg);
+          throw new IllegalStateException(errorMsg);
+        }
       }
+      return new DefaultOptimisticTransaction<>(dataSourceName,
+          new FlintOpenSearchMetadataLog(this, indexName, metaLogIndexName));
     } catch (IOException e) {
       throw new IllegalStateException("Failed to check if index metadata log index exists " + metaLogIndexName, e);
     }
   }
 
   @Override
+  public <T> OptimisticTransaction<T> startTransaction(String indexName, String dataSourceName) {
+    return startTransaction(indexName, dataSourceName, false);
+  }
+
+  @Override
   public void createIndex(String indexName, FlintMetadata metadata) {
     LOG.info("Creating Flint index " + indexName + " with metadata " + metadata);
+    createIndex(indexName, metadata.getContent(), metadata.indexSettings());
+  }
+
+  protected void createIndex(String indexName, String mapping, Option<String> settings) {
+    LOG.info("Creating Flint index " + indexName);
     String osIndexName = toLowercase(indexName);
     try (RestHighLevelClient client = createClient()) {
       CreateIndexRequest request = new CreateIndexRequest(osIndexName);
-      request.mapping(metadata.getContent(), XContentType.JSON);
-
-      Option<String> settings = metadata.indexSettings();
+      request.mapping(mapping, XContentType.JSON);
       if (settings.isDefined()) {
         request.settings(settings.get(), XContentType.JSON);
       }

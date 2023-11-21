@@ -104,7 +104,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       val metadata = index.metadata()
       try {
         flintClient
-          .startTransaction(indexName, dataSourceName)
+          .startTransaction(indexName, dataSourceName, true)
           .initialLog(latest => latest.state == EMPTY || latest.state == DELETED)
           .transientLog(latest => latest.copy(state = CREATING))
           .finalLog(latest => latest.copy(state = ACTIVE))

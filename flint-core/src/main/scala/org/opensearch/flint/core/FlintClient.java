@@ -29,6 +29,18 @@ public interface FlintClient {
   <T> OptimisticTransaction<T> startTransaction(String indexName, String dataSourceName);
 
   /**
+   *
+   * Start a new optimistic transaction.
+   *
+   * @param indexName index name
+   * @param dataSourceName TODO: read from elsewhere in future
+   * @param forceInit forceInit create empty translog if not exist.
+   * @return transaction handle
+   */
+  <T> OptimisticTransaction<T> startTransaction(String indexName, String dataSourceName,
+      boolean forceInit);
+
+  /**
    * Create a Flint index with the metadata given.
    *
    * @param indexName index name

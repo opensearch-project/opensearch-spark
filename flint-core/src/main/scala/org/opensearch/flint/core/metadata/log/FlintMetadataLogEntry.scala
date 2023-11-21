@@ -7,6 +7,7 @@ package org.opensearch.flint.core.metadata.log
 
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
+import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
 
 /**
  * Flint metadata log entry. This is temporary and will merge field in FlintMetadata here and move
@@ -92,4 +93,80 @@ object FlintMetadataLogEntry {
         .getOrElse(IndexState.UNKNOWN)
     }
   }
+
+  val QUERY_EXECUTION_REQUEST_MAPPING: String =
+    """{
+      |  "dynamic": false,
+      |  "properties": {
+      |    "version": {
+      |      "type": "keyword"
+      |    },
+      |    "type": {
+      |      "type": "keyword"
+      |    },
+      |    "state": {
+      |      "type": "keyword"
+      |    },
+      |    "statementId": {
+      |      "type": "keyword"
+      |    },
+      |    "applicationId": {
+      |      "type": "keyword"
+      |    },
+      |    "sessionId": {
+      |      "type": "keyword"
+      |    },
+      |    "sessionType": {
+      |      "type": "keyword"
+      |    },
+      |    "error": {
+      |      "type": "text"
+      |    },
+      |    "lang": {
+      |      "type": "keyword"
+      |    },
+      |    "query": {
+      |      "type": "text"
+      |    },
+      |    "dataSourceName": {
+      |      "type": "keyword"
+      |    },
+      |    "submitTime": {
+      |      "type": "date",
+      |      "format": "strict_date_time||epoch_millis"
+      |    },
+      |    "jobId": {
+      |      "type": "keyword"
+      |    },
+      |    "lastUpdateTime": {
+      |      "type": "date",
+      |      "format": "strict_date_time||epoch_millis"
+      |    },
+      |    "queryId": {
+      |      "type": "keyword"
+      |    },
+      |    "excludeJobIds": {
+      |      "type": "keyword"
+      |    }
+      |  }
+      |}""".stripMargin
+
+  val QUERY_EXECUTION_REQUEST_SETTINGS: String =
+    """{
+      |  "index": {
+      |    "number_of_shards": "1",
+      |    "auto_expand_replicas": "0-2",
+      |    "number_of_replicas": "0"
+      |  }
+      |}""".stripMargin
+
+  def failLogEntry(dataSourceName: String, error: String): FlintMetadataLogEntry =
+    FlintMetadataLogEntry(
+      "",
+      UNASSIGNED_SEQ_NO,
+      UNASSIGNED_PRIMARY_TERM,
+      0L,
+      IndexState.FAILED,
+      dataSourceName,
+      error)
 }
