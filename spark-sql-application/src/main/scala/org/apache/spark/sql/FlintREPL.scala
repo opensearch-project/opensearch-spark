@@ -6,14 +6,10 @@
 package org.apache.spark.sql
 
 import java.net.ConnectException
-import java.time.Instant
-import java.util.Map
 import java.util.concurrent.ScheduledExecutorService
 
-import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, TimeoutException}
-import scala.concurrent.duration._
-import scala.concurrent.duration.{Duration, MINUTES}
+import scala.concurrent.duration.{Duration, MINUTES, _}
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
@@ -46,7 +42,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
   private val HEARTBEAT_INTERVAL_MILLIS = 60000L
   private val DEFAULT_INACTIVITY_LIMIT_MILLIS = 10 * 60 * 1000
   private val MAPPING_CHECK_TIMEOUT = Duration(1, MINUTES)
-  private val DEFAULT_QUERY_EXECUTION_TIMEOUT = Duration(10, MINUTES)
+  private val DEFAULT_QUERY_EXECUTION_TIMEOUT = Duration(30, MINUTES)
   private val DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS = 10 * 60 * 1000
   val INITIAL_DELAY_MILLIS = 3000L
 

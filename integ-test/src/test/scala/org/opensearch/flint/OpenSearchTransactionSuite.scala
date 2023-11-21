@@ -14,9 +14,10 @@ import org.opensearch.action.get.GetRequest
 import org.opensearch.action.index.IndexRequest
 import org.opensearch.action.update.UpdateRequest
 import org.opensearch.client.RequestOptions
-import org.opensearch.client.indices.CreateIndexRequest
+import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest}
 import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.{QUERY_EXECUTION_REQUEST_MAPPING, QUERY_EXECUTION_REQUEST_SETTINGS}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
 import org.opensearch.flint.core.storage.FlintOpenSearchClient._
 import org.opensearch.flint.spark.FlintSparkSuite
@@ -39,13 +40,15 @@ trait OpenSearchTransactionSuite extends FlintSparkSuite {
     super.beforeEach()
     openSearchClient
       .indices()
-      .create(new CreateIndexRequest(testMetaLogIndex), RequestOptions.DEFAULT)
+      .create(
+        new CreateIndexRequest(testMetaLogIndex)
+          .mapping(QUERY_EXECUTION_REQUEST_MAPPING, XContentType.JSON)
+          .settings(QUERY_EXECUTION_REQUEST_SETTINGS, XContentType.JSON),
+        RequestOptions.DEFAULT)
   }
 
   override def afterEach(): Unit = {
-    openSearchClient
-      .indices()
-      .delete(new DeleteIndexRequest(testMetaLogIndex), RequestOptions.DEFAULT)
+    deleteIndex(testMetaLogIndex)
     super.afterEach()
   }
 
@@ -70,5 +73,22 @@ trait OpenSearchTransactionSuite extends FlintSparkSuite {
       new UpdateRequest(testMetaLogIndex, latest.id)
         .doc(latest.copy(state = newState).toJson, XContentType.JSON),
       RequestOptions.DEFAULT)
+  }
+
+  def deleteIndex(indexName: String): Unit = {
+    if (openSearchClient
+        .indices()
+        .exists(new GetIndexRequest(indexName), RequestOptions.DEFAULT)) {
+      openSearchClient
+        .indices()
+        .delete(new DeleteIndexRequest(indexName), RequestOptions.DEFAULT)
+    }
+  }
+
+  def indexMapping(): String = {
+    val response =
+      openSearchClient.indices.get(new GetIndexRequest(testMetaLogIndex), RequestOptions.DEFAULT)
+
+    response.getMappings.get(testMetaLogIndex).source().toString
   }
 }

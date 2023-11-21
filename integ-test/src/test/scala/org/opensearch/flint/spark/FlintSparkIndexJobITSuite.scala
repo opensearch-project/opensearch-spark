@@ -29,8 +29,18 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
   }
 
   override def afterEach(): Unit = {
-    super.afterEach() // must clean up metadata log first and then delete
-    flint.deleteIndex(testIndex)
+
+    /**
+     * Todo, if state is not valid, will throw IllegalStateException. Should check flint
+     * .isRefresh before cleanup resource. Current solution, (1) try to delete flint index, (2) if
+     * failed, delete index itself.
+     */
+    try {
+      flint.deleteIndex(testIndex)
+    } catch {
+      case _: IllegalStateException => deleteIndex(testIndex)
+    }
+    super.afterEach()
   }
 
   test("recover should exit if index doesn't exist") {
