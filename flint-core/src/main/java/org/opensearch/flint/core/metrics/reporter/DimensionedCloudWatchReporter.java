@@ -110,6 +110,7 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
     private final StandardUnit durationUnit;
     private final boolean shouldParseDimensionsFromName;
     private final boolean shouldAppendDropwizardTypeDimension;
+    private MetricFilter filter;
 
     private DimensionedCloudWatchReporter(final Builder builder) {
         super(builder.metricRegistry, "coda-hale-metrics-cloud-watch-reporter", builder.metricFilter, builder.rateUnit, builder.durationUnit);
@@ -121,6 +122,7 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
         this.durationUnit = builder.cwDurationUnit;
         this.shouldParseDimensionsFromName = builder.withShouldParseDimensionsFromName;
         this.shouldAppendDropwizardTypeDimension = builder.withShouldAppendDropwizardTypeDimension;
+        this.filter = MetricFilter.ALL;
     }
 
     @Override
@@ -335,31 +337,9 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
                                   final List<MetricDatum> metricData) {
         // Only submit metrics that show some data, so let's save some money
         if (metricConfigured && (builder.withZeroValuesSubmission || metricValue > 0)) {
+            final DimensionedName dimensionedName = DimensionedName.decode(metricName);
             final Set<Dimension> dimensions = new LinkedHashSet<>(builder.globalDimensions);
-            final String name;
-            if (shouldParseDimensionsFromName) {
-                final String[] nameParts = metricName.split(" ");
-                final StringBuilder nameBuilder = new StringBuilder(nameParts[0]);
-                int i = 1;
-                for (; i < nameParts.length; ++i) {
-                    final String[] dimensionParts = nameParts[i].split("=");
-                    if (dimensionParts.length == 2
-                            && !StringUtils.isNullOrEmpty(dimensionParts[0])
-                            && !StringUtils.isNullOrEmpty(dimensionParts[1])) {
-                        final Dimension dimension = new Dimension();
-                        dimension.withName(dimensionParts[0]);
-                        dimension.withValue(dimensionParts[1]);
-                        dimensions.add(dimension);
-                    } else {
-                        nameBuilder.append(" ");
-                        nameBuilder.append(nameParts[i]);
-                    }
-                }
-                name = nameBuilder.toString();
-            } else {
-                name = metricName;
-            }
-
+            dimensions.addAll(dimensionedName.getDimensions());
             if (shouldAppendDropwizardTypeDimension) {
                 dimensions.add(new Dimension().withName(DIMENSION_NAME_TYPE).withValue(dimensionValue));
             }
@@ -367,7 +347,7 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
             metricData.add(new MetricDatum()
                     .withTimestamp(new Date(builder.clock.getTime()))
                     .withValue(cleanMetricValue(metricValue))
-                    .withMetricName(name)
+                    .withMetricName(dimensionedName.getName())
                     .withDimensions(dimensions)
                     .withUnit(standardUnit));
         }
@@ -379,6 +359,7 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
                                                        final StandardUnit standardUnit,
                                                        final List<MetricDatum> metricData) {
         if (metricConfigured) {
+            final DimensionedName dimensionedName = DimensionedName.decode(metricName);
             double scaledSum = convertDuration(LongStream.of(snapshot.getValues()).sum());
             final StatisticSet statisticSet = new StatisticSet()
                     .withSum(scaledSum)
@@ -388,10 +369,11 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
 
             final Set<Dimension> dimensions = new LinkedHashSet<>(builder.globalDimensions);
             dimensions.add(new Dimension().withName(DIMENSION_NAME_TYPE).withValue(DIMENSION_SNAPSHOT_SUMMARY));
+            dimensions.addAll(dimensionedName.getDimensions());
 
             metricData.add(new MetricDatum()
                     .withTimestamp(new Date(builder.clock.getTime()))
-                    .withMetricName(metricName)
+                    .withMetricName(dimensionedName.getName())
                     .withDimensions(dimensions)
                     .withStatisticValues(statisticSet)
                     .withUnit(standardUnit));
@@ -404,6 +386,7 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
                                                  final StandardUnit standardUnit,
                                                  final List<MetricDatum> metricData) {
         if (metricConfigured) {
+            final DimensionedName dimensionedName = DimensionedName.decode(metricName);
             double total = LongStream.of(snapshot.getValues()).sum();
             final StatisticSet statisticSet = new StatisticSet()
                     .withSum(total)
@@ -413,10 +396,11 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
 
             final Set<Dimension> dimensions = new LinkedHashSet<>(builder.globalDimensions);
             dimensions.add(new Dimension().withName(DIMENSION_NAME_TYPE).withValue(DIMENSION_SNAPSHOT_SUMMARY));
+            dimensions.addAll(dimensionedName.getDimensions());
 
             metricData.add(new MetricDatum()
                     .withTimestamp(new Date(builder.clock.getTime()))
-                    .withMetricName(metricName)
+                    .withMetricName(dimensionedName.getName())
                     .withDimensions(dimensions)
                     .withStatisticValues(statisticSet)
                     .withUnit(standardUnit));

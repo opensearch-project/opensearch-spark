@@ -21,8 +21,10 @@ import com.codahale.metrics.ScheduledReporter;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import org.apache.spark.SecurityManager;
 import org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter;
+import org.opensearch.flint.core.metrics.reporter.DimensionedName;
 import org.opensearch.flint.core.metrics.reporter.InvalidMetricsPropertyException;
 
 /**
@@ -185,6 +187,17 @@ public class CloudWatchSink implements Sink {
             shouldAppendDropwizardTypeDimension = PropertyDefaults.SHOULD_PARSE_INLINE_DIMENSIONS;
         }
 
+        final Optional<String> metricFilterRegex = getProperty(
+            properties,
+            PropertyKeys.METRIC_FILTER_REGEX);
+        MetricFilter metricFilter;
+        if (metricFilterRegex.isPresent()) {
+            Pattern pattern = Pattern.compile(metricFilterRegex.get());
+            metricFilter = (name, metric) -> pattern.matcher(DimensionedName.decode(name).getName()).find();
+        } else {
+            metricFilter = MetricFilter.ALL;
+        }
+
         final AmazonCloudWatchAsync cloudWatchClient = AmazonCloudWatchAsyncClient.asyncBuilder()
                 .withCredentials(awsCredentialsProvider)
                 .withRegion(awsRegion)
@@ -193,7 +206,7 @@ public class CloudWatchSink implements Sink {
         this.reporter = DimensionedCloudWatchReporter.forRegistry(metricRegistry, cloudWatchClient, namespaceProperty.get())
                 .convertRatesTo(TimeUnit.SECONDS)
                 .convertDurationsTo(TimeUnit.MILLISECONDS)
-                .filter(MetricFilter.ALL)
+                .filter(metricFilter)
                 .withPercentiles(
                         DimensionedCloudWatchReporter.Percentile.P50,
                         DimensionedCloudWatchReporter.Percentile.P75,
@@ -248,6 +261,7 @@ public class CloudWatchSink implements Sink {
         static final String POLLING_TIME_UNIT = "pollingTimeUnit";
         static final String SHOULD_PARSE_INLINE_DIMENSIONS = "shouldParseInlineDimensions";
         static final String SHOULD_APPEND_DROPWIZARD_TYPE_DIMENSION = "shouldAppendDropwizardTypeDimension";
+        static final String METRIC_FILTER_REGEX = "regex";
     }
 
     /**

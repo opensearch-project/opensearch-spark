@@ -35,6 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter;
+import org.opensearch.flint.core.metrics.reporter.DimensionedName;
 
 import static com.amazonaws.services.cloudwatch.model.StandardUnit.Count;
 import static com.amazonaws.services.cloudwatch.model.StandardUnit.Microseconds;
@@ -115,19 +116,6 @@ public class DimensionedCloudWatchReporterTest {
         final List<Dimension> dimensions = firstMetricDatumDimensionsFromCapturedRequest();
 
         assertThat(dimensions).contains(new Dimension().withName(DIMENSION_NAME_TYPE).withValue(DIMENSION_COUNT));
-    }
-
-    @Test
-    public void reportedCounterShouldContainDimensionEmbeddedInName() throws Exception {
-        final String DIMENSION_NAME = "some_dimension";
-        final String DIMENSION_VALUE = "some_value";
-
-        metricRegistry.counter(ARBITRARY_COUNTER_NAME + " " + DIMENSION_NAME + "=" + DIMENSION_VALUE).inc();
-        reporterBuilder.withShouldParseDimensionsFromName(true).build().report();
-
-        final List<Dimension> dimensions = firstMetricDatumDimensionsFromCapturedRequest();
-
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_NAME).withValue(DIMENSION_VALUE));
     }
 
     @Test
@@ -470,6 +458,21 @@ public class DimensionedCloudWatchReporterTest {
         assertThat(secondMetricData.getStatisticValues().getSum().intValue()).isEqualTo(115);
         assertThat(secondMetricData.getUnit()).isEqualTo(None.toString());
 
+    }
+
+    @Test
+    public void shouldReportExpectedGlobalAndCustomDimensions() throws Exception {
+        metricRegistry.counter(DimensionedName.withName(ARBITRARY_COUNTER_NAME)
+            .withDimension("key1", "value1")
+            .withDimension("key2", "value2")
+            .build().encode()).inc();
+        reporterBuilder.withGlobalDimensions("Region=us-west-2").build().report();
+
+        final List<Dimension> dimensions = firstMetricDatumDimensionsFromCapturedRequest();
+
+        assertThat(dimensions).contains(new Dimension().withName("Region").withValue("us-west-2"));
+        assertThat(dimensions).contains(new Dimension().withName("key1").withValue("value1"));
+        assertThat(dimensions).contains(new Dimension().withName("key2").withValue("value2"));
     }
 
     private MetricDatum metricDatumByDimensionFromCapturedRequest(final String dimensionValue) {

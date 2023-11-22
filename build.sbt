@@ -59,6 +59,8 @@ lazy val flintCore = (project in file("flint-core"))
         exclude ("org.apache.logging.log4j", "log4j-api"),
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
+      "com.amazonaws" % "aws-java-sdk-cloudwatch" % "1.12.593"
+        exclude("com.fasterxml.jackson.core", "jackson-databind"),
       "org.scalactic" %% "scalactic" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
