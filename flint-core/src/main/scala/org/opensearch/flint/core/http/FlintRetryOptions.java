@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.logging.Logger;
@@ -82,17 +83,31 @@ public class FlintRetryOptions {
             LOG.warning("Retrying failed request at #" + ex.getAttemptCount())).build();
   }
 
-  private int getMaxRetries() {
+  /**
+   * @return maximum retry option value
+   */
+  public int getMaxRetries() {
     return Integer.parseInt(
         options.getOrDefault(MAX_RETRIES, String.valueOf(DEFAULT_MAX_RETRIES)));
   }
 
+  /**
+   * @return retryable HTTP status code list
+   */
+  public String getRetryableHttpStatusCodes() {
+    return options.getOrDefault(RETRYABLE_HTTP_STATUS_CODES, DEFAULT_RETRYABLE_HTTP_STATUS_CODES);
+  }
+
+  /**
+   * @return retryable exception class name list
+   */
+  public Optional<String> getRetryableExceptionClassNames() {
+    return Optional.ofNullable(options.get(RETRYABLE_EXCEPTION_CLASS_NAMES));
+  }
+
   private <T> CheckedPredicate<T> getRetryableResultHandler() {
     Set<Integer> retryableStatusCodes =
-        Arrays.stream(
-                options.getOrDefault(
-                    RETRYABLE_HTTP_STATUS_CODES,
-                    DEFAULT_RETRYABLE_HTTP_STATUS_CODES).split(","))
+        Arrays.stream(getRetryableHttpStatusCodes().split(","))
             .map(String::trim)
             .map(Integer::valueOf)
             .collect(Collectors.toSet());
@@ -103,14 +118,14 @@ public class FlintRetryOptions {
 
   private CheckedPredicate<? extends Throwable> getRetryableExceptionHandler() {
     // By default, Failsafe handles any Exception
-    String exceptionClassNames = options.get(RETRYABLE_EXCEPTION_CLASS_NAMES);
-    if (exceptionClassNames == null || exceptionClassNames.isEmpty()) {
+    Optional<String> exceptionClassNames = getRetryableExceptionClassNames();
+    if (exceptionClassNames.isEmpty()) {
       return ex -> false;
     }
 
     // Use weak collection avoids blocking class unloading
     Set<Class<? extends Throwable>> retryableExceptions = newSetFromMap(new WeakHashMap<>());
-    Arrays.stream(exceptionClassNames.split(","))
+    Arrays.stream(exceptionClassNames.get().split(","))
         .map(String::trim)
         .map(this::loadClass)
         .forEach(retryableExceptions::add);

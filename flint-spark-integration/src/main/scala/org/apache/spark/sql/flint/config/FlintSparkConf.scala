@@ -11,6 +11,7 @@ import java.util.{Map => JMap, NoSuchElementException}
 import scala.collection.JavaConverters._
 
 import org.opensearch.flint.core.FlintOptions
+import org.opensearch.flint.core.http.FlintRetryOptions
 
 import org.apache.spark.internal.config.ConfigReader
 import org.apache.spark.sql.flint.config.FlintSparkConf._
@@ -111,6 +112,23 @@ object FlintSparkConf {
     .doc("scroll duration in minutes")
     .createWithDefault(String.valueOf(FlintOptions.DEFAULT_SCROLL_DURATION))
 
+  val MAX_RETRIES = FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.MAX_RETRIES}")
+    .datasourceOption()
+    .doc("max retries on failed HTTP request, 0 means retry is disabled, default is 3")
+    .createWithDefault(String.valueOf(FlintRetryOptions.DEFAULT_MAX_RETRIES))
+
+  val RETRYABLE_HTTP_STATUS_CODES =
+    FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.RETRYABLE_HTTP_STATUS_CODES}")
+      .datasourceOption()
+      .doc("retryable HTTP response status code list")
+      .createWithDefault(FlintRetryOptions.DEFAULT_RETRYABLE_HTTP_STATUS_CODES)
+
+  val RETRYABLE_EXCEPTION_CLASS_NAMES =
+    FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.RETRYABLE_EXCEPTION_CLASS_NAMES}")
+      .datasourceOption()
+      .doc("retryable exception class name list, by default no retry on exception thrown")
+      .createOptional()
+
   val OPTIMIZER_RULE_ENABLED = FlintConfig("spark.flint.optimizer.enabled")
     .doc("Enable Flint optimizer rule for query rewrite with Flint index")
     .createWithDefault("true")
@@ -166,6 +184,8 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
         SCROLL_DURATION,
         SCHEME,
         AUTH,
+        MAX_RETRIES,
+        RETRYABLE_HTTP_STATUS_CODES, // TODO: add optional exception class name option
         REGION,
         CUSTOM_AWS_CREDENTIALS_PROVIDER,
         USERNAME,

@@ -5,7 +5,12 @@
 
 package org.apache.spark.sql.flint.config
 
+import java.util.Optional
+
 import scala.collection.JavaConverters._
+
+import org.opensearch.flint.core.http.FlintRetryOptions._
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
 
@@ -34,6 +39,13 @@ class FlintSparkConfSuite extends FlintSuite {
     // default value
     assert(options.flintOptions().getHost == "localhost")
     assert(options.flintOptions().getPort == 9200)
+  }
+
+  test("test retry options default values") {
+    val retryOptions = FlintSparkConf().flintOptions().getRetryOptions
+    retryOptions.getMaxRetries shouldBe DEFAULT_MAX_RETRIES
+    retryOptions.getRetryableHttpStatusCodes shouldBe DEFAULT_RETRYABLE_HTTP_STATUS_CODES
+    retryOptions.getRetryableExceptionClassNames shouldBe Optional.empty
   }
 
   /**
