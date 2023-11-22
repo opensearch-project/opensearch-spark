@@ -72,11 +72,11 @@ public class FlintRetryOptions {
         // Backoff strategy config (can be configurable as needed in future)
         .withBackoff(1, 30, SECONDS)
         .withJitter(Duration.ofMillis(100))
-        // Failure handling config configured in Flint options
+        // Failure handling config from Flint options
         .withMaxRetries(getMaxRetries())
         .handleIf(getRetryableExceptionHandler())
         .handleResultIf(getRetryableResultHandler())
-        // Logging config
+        // Logging listener
         .onFailedAttempt(ex ->
             LOG.log(SEVERE, "Attempt to execute request failed", ex.getLastException()))
         .onRetry(ex ->
@@ -159,10 +159,8 @@ public class FlintRetryOptions {
   public String toString() {
     return "FlintRetryOptions{" +
         "maxRetries=" + getMaxRetries() +
-        ", retryableStatusCodes=" +
-        options.getOrDefault(RETRYABLE_HTTP_STATUS_CODES, DEFAULT_RETRYABLE_HTTP_STATUS_CODES) +
-        ", retryableExceptionClassNames=" +
-        options.getOrDefault(RETRYABLE_EXCEPTION_CLASS_NAMES, "") +
+        ", retryableStatusCodes=" + getRetryableHttpStatusCodes() +
+        ", retryableExceptionClassNames=" + getRetryableExceptionClassNames() +
         '}';
   }
 }

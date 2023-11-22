@@ -48,6 +48,20 @@ class FlintSparkConfSuite extends FlintSuite {
     retryOptions.getRetryableExceptionClassNames shouldBe Optional.empty
   }
 
+  test("test specified retry options") {
+    val retryOptions = FlintSparkConf(
+      Map(
+        "retry.max_retries" -> "5",
+        "retry.http_status_codes" -> "429,502,503,504",
+        "retry.exception_class_names" -> "java.net.ConnectException").asJava)
+      .flintOptions()
+      .getRetryOptions
+
+    retryOptions.getMaxRetries shouldBe 5
+    retryOptions.getRetryableHttpStatusCodes shouldBe "429,502,503,504"
+    retryOptions.getRetryableExceptionClassNames.get() shouldBe "java.net.ConnectException"
+  }
+
   /**
    * Delete index `indexNames` after calling `f`.
    */
