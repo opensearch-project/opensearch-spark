@@ -6,7 +6,6 @@
 package org.apache.spark.sql
 
 import java.util.Locale
-import java.util.concurrent.ThreadPoolExecutor
 
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.concurrent.duration.{Duration, MINUTES}
@@ -313,6 +312,11 @@ trait FlintJobExecutor {
       case e: IllegalStateException
           if e.getCause().getMessage().contains("index_not_found_exception") =>
         createIndex(osClient, resultIndex, resultIndexMapping)
+      case e: InterruptedException =>
+        val error = s"Interrupted by the main thread: ${e.getMessage}"
+        Thread.currentThread().interrupt() // Preserve the interrupt status
+        logError(error, e)
+        Left(error)
       case e: Exception =>
         val error = s"Failed to verify existing mapping: ${e.getMessage}"
         logError(error, e)
