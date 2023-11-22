@@ -6,14 +6,10 @@
 package org.apache.spark.sql
 
 import java.net.ConnectException
-import java.time.Instant
-import java.util.Map
 import java.util.concurrent.ScheduledExecutorService
 
-import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, TimeoutException}
-import scala.concurrent.duration._
-import scala.concurrent.duration.{Duration, MINUTES}
+import scala.concurrent.duration.{Duration, MINUTES, _}
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
@@ -44,10 +40,11 @@ import org.apache.spark.util.ThreadUtils
 object FlintREPL extends Logging with FlintJobExecutor {
 
   private val HEARTBEAT_INTERVAL_MILLIS = 60000L
-  private val DEFAULT_INACTIVITY_LIMIT_MILLIS = 30 * 60 * 1000
+  private val DEFAULT_INACTIVITY_LIMIT_MILLIS = 10 * 60 * 1000
   private val MAPPING_CHECK_TIMEOUT = Duration(1, MINUTES)
-  private val DEFAULT_QUERY_EXECUTION_TIMEOUT = Duration(10, MINUTES)
+  private val DEFAULT_QUERY_EXECUTION_TIMEOUT = Duration(30, MINUTES)
   private val DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS = 10 * 60 * 1000
+  val INITIAL_DELAY_MILLIS = 3000L
 
   def update(flintCommand: FlintCommand, updater: OpenSearchUpdater): Unit = {
     updater.update(flintCommand.statementId, FlintCommand.serialize(flintCommand))
@@ -63,30 +60,38 @@ object FlintREPL extends Logging with FlintJobExecutor {
     val conf: SparkConf = createSparkConf()
     val dataSource = conf.get("spark.flint.datasource.name", "unknown")
     // https://github.com/opensearch-project/opensearch-spark/issues/138
+    /*
+     * To execute queries such as `CREATE SKIPPING INDEX ON my_glue1.default.http_logs_plain (`@timestamp` VALUE_SET) WITH (auto_refresh = true)`,
+     * it's necessary to set `spark.sql.defaultCatalog=my_glue1`. This is because AWS Glue uses a single database (default) and table (http_logs_plain),
+     * and we need to configure Spark to recognize `my_glue1` as a reference to AWS Glue's database and table.
+     * By doing this, we effectively map `my_glue1` to AWS Glue, allowing Spark to resolve the database and table names correctly.
+     * Without this setup, Spark would not recognize names in the format `my_glue1.default`.
+     */
     conf.set("spark.sql.defaultCatalog", dataSource)
     val wait = conf.get("spark.flint.job.type", "continue")
-    // we don't allow default value for sessionIndex and sessionId. Throw exception if key not found.
-    val sessionIndex: Option[String] = Option(conf.get("spark.flint.job.requestIndex", null))
-    val sessionId: Option[String] = Option(conf.get("spark.flint.job.sessionId", null))
-
-    if (sessionIndex.isEmpty) {
-      throw new IllegalArgumentException("spark.flint.job.requestIndex is not set")
-    }
-    if (sessionId.isEmpty) {
-      throw new IllegalArgumentException("spark.flint.job.sessionId is not set")
-    }
-
-    val spark = createSparkSession(conf)
-    val osClient = new OSClient(FlintSparkConf().flintOptions())
-    val jobId = sys.env.getOrElse("SERVERLESS_EMR_JOB_ID", "unknown")
-    val applicationId = sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown")
 
     if (wait.equalsIgnoreCase("streaming")) {
       logInfo(s"""streaming query ${query}""")
-      val result = executeQuery(spark, query, dataSource, "", "")
-      writeDataFrameToOpensearch(result, resultIndex, osClient)
-      spark.streams.awaitAnyTermination()
+      val jobOperator =
+        JobOperator(conf, query, dataSource, resultIndex, true)
+      jobOperator.start()
     } else {
+      // we don't allow default value for sessionIndex and sessionId. Throw exception if key not found.
+      val sessionIndex: Option[String] = Option(conf.get("spark.flint.job.requestIndex", null))
+      val sessionId: Option[String] = Option(conf.get("spark.flint.job.sessionId", null))
+
+      if (sessionIndex.isEmpty) {
+        throw new IllegalArgumentException("spark.flint.job.requestIndex is not set")
+      }
+      if (sessionId.isEmpty) {
+        throw new IllegalArgumentException("spark.flint.job.sessionId is not set")
+      }
+
+      val spark = createSparkSession(conf)
+      val osClient = new OSClient(FlintSparkConf().flintOptions())
+      val jobId = sys.env.getOrElse("SERVERLESS_EMR_JOB_ID", "unknown")
+      val applicationId = sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown")
+
       // Read the values from the Spark configuration or fall back to the default values
       val inactivityLimitMillis: Long =
         conf.getLong("spark.flint.job.inactivityLimitMillis", DEFAULT_INACTIVITY_LIMIT_MILLIS)
@@ -99,7 +104,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         conf.getLong("spark.flint.job.queryWaitTimeoutMillis", DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS)
 
       val flintSessionIndexUpdater = osClient.createUpdater(sessionIndex.get)
-      createShutdownHook(flintSessionIndexUpdater, osClient, sessionIndex.get, sessionId.get)
+      addShutdownHook(flintSessionIndexUpdater, osClient, sessionIndex.get, sessionId.get)
       // 1 thread for updating heart beat
       val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor("flint-repl-heartbeat", 1)
       val jobStartTime = currentTimeProvider.currentEpochMillis()
@@ -113,7 +118,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
           sessionId.get,
           threadPool,
           osClient,
-          sessionIndex.get)
+          sessionIndex.get,
+          INITIAL_DELAY_MILLIS)
 
         if (setupFlintJobWithExclusionCheck(
             conf,
@@ -267,7 +273,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       var canPickUpNextStatement = true
       while (currentTimeProvider
           .currentEpochMillis() - lastActivityTime <= commandContext.inactivityLimitMillis && canPickUpNextStatement) {
-        logDebug(s"""read from ${commandContext.sessionIndex}""")
+        logInfo(
+          s"""read from ${commandContext.sessionIndex}, sessionId: $commandContext.sessionId""")
         val flintReader: FlintReader =
           createQueryReader(
             commandContext.osClient,
@@ -314,19 +321,26 @@ object FlintREPL extends Logging with FlintJobExecutor {
       sessionIndex: String,
       jobStartTime: Long,
       excludeJobIds: Seq[String] = Seq.empty[String]): Unit = {
-    val flintJob =
-      new FlintInstance(
-        applicationId,
-        jobId,
-        sessionId,
-        "running",
-        currentTimeProvider.currentEpochMillis(),
-        jobStartTime,
-        excludeJobIds)
-    flintSessionIndexUpdater.upsert(
+    val includeJobId = !excludeJobIds.isEmpty && !excludeJobIds.contains(jobId)
+    val currentTime = currentTimeProvider.currentEpochMillis()
+    val flintJob = new FlintInstance(
+      applicationId,
+      jobId,
       sessionId,
-      FlintInstance.serialize(flintJob, currentTimeProvider.currentEpochMillis()))
-    logDebug(
+      "running",
+      currentTime,
+      jobStartTime,
+      excludeJobIds)
+
+    val serializedFlintInstance = if (includeJobId) {
+      FlintInstance.serialize(flintJob, currentTime, true)
+    } else {
+      FlintInstance.serializeWithoutJobId(flintJob, currentTime)
+    }
+
+    flintSessionIndexUpdater.upsert(sessionId, serializedFlintInstance)
+
+    logInfo(
       s"""Updated job: {"jobid": ${flintJob.jobId}, "sessionId": ${flintJob.sessionId}} from $sessionIndex""")
   }
 
@@ -383,7 +397,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     val currentTime = currentTimeProvider.currentEpochMillis()
     flintSessionIndexUpdater.upsert(
       sessionId,
-      FlintInstance.serialize(flintInstance, currentTime))
+      FlintInstance.serializeWithoutJobId(flintInstance, currentTime))
   }
 
   /**
@@ -511,6 +525,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
       osClient: OSClient): Unit = {
     try {
       dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
+      // todo. it is migration plan to handle https://github
+      //  .com/opensearch-project/sql/issues/2436. Remove sleep after issue fixed in plugin.
+      Thread.sleep(2000)
       if (flintCommand.isRunning() || flintCommand.isWaiting()) {
         // we have set failed state in exception handling
         flintCommand.complete()
@@ -678,7 +695,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           queryWaitTimeMillis)
     }
 
-    logDebug(s"command complete: $flintCommand")
+    logInfo(s"command complete: $flintCommand")
     (dataToWrite, verificationResult)
   }
 
@@ -767,7 +784,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     flintReader
   }
 
-  def createShutdownHook(
+  def addShutdownHook(
       flintSessionIndexUpdater: OpenSearchUpdater,
       osClient: OSClient,
       sessionIndex: String,
@@ -808,7 +825,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
     flintSessionIndexUpdater.updateIf(
       sessionId,
-      FlintInstance.serialize(flintInstance, currentTimeProvider.currentEpochMillis()),
+      FlintInstance.serializeWithoutJobId(
+        flintInstance,
+        currentTimeProvider.currentEpochMillis()),
       getResponse.getSeqNo,
       getResponse.getPrimaryTerm)
   }
@@ -825,6 +844,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
    *   the thread pool.
    * @param osClient
    *   the OpenSearch client.
+   * @param initialDelayMillis
+   *   the intial delay to start heartbeat
    */
   def createHeartBeatUpdater(
       currentInterval: Long,
@@ -832,7 +853,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       sessionId: String,
       threadPool: ScheduledExecutorService,
       osClient: OSClient,
-      sessionIndex: String): Unit = {
+      sessionIndex: String,
+      initialDelayMillis: Long): Unit = {
 
     threadPool.scheduleAtFixedRate(
       new Runnable {
@@ -845,7 +867,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
               flintInstance.state = "running"
               flintSessionUpdater.updateIf(
                 sessionId,
-                FlintInstance.serialize(flintInstance, currentTimeProvider.currentEpochMillis()),
+                FlintInstance.serializeWithoutJobId(
+                  flintInstance,
+                  currentTimeProvider.currentEpochMillis()),
                 getResponse.getSeqNo,
                 getResponse.getPrimaryTerm)
             }
@@ -859,7 +883,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           }
         }
       },
-      0L,
+      initialDelayMillis,
       currentInterval,
       java.util.concurrent.TimeUnit.MILLISECONDS)
   }

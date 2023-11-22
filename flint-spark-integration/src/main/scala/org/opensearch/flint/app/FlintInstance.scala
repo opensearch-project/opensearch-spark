@@ -109,23 +109,50 @@ object FlintInstance {
       maybeError)
   }
 
-  def serialize(job: FlintInstance, currentTime: Long): String = {
-    // jobId is only readable by spark, thus we don't override jobId
-    Serialization.write(
-      Map(
-        "type" -> "session",
-        "sessionId" -> job.sessionId,
-        "error" -> job.error.getOrElse(""),
-        "applicationId" -> job.applicationId,
-        "state" -> job.state,
-        // update last update time
-        "lastUpdateTime" -> currentTime,
-        // Convert a Seq[String] into a comma-separated string, such as "id1,id2".
-        // This approach is chosen over serializing to an array format (e.g., ["id1", "id2"])
-        // because it simplifies client-side processing. With a comma-separated string,
-        // clients can easily ignore this field if it's not in use, avoiding the need
-        // for array parsing logic. This makes the serialized data more straightforward to handle.
-        "excludeJobIds" -> job.excludedJobIds.mkString(","),
-        "jobStartTime" -> job.jobStartTime))
+  /**
+   * After the initial setup, the 'jobId' is only readable by Spark, and it should not be
+   * overridden. We use 'jobId' to ensure that only one job can run per session. In the case of a
+   * new job for the same session, it will override the 'jobId' in the session document. The old
+   * job will periodically check the 'jobId.' If the read 'jobId' does not match the current
+   * 'jobId,' the old job will exit early. Therefore, it is crucial that old jobs do not overwrite
+   * the session store's 'jobId' field after the initial setup.
+   *
+   * @param job
+   *   Flint session object
+   * @param currentTime
+   *   current timestamp in milliseconds
+   * @param includeJobId
+   *   flag indicating whether to include the "jobId" field in the serialization
+   * @return
+   *   serialized Flint session
+   */
+  def serialize(job: FlintInstance, currentTime: Long, includeJobId: Boolean = true): String = {
+    val baseMap = Map(
+      "type" -> "session",
+      "sessionId" -> job.sessionId,
+      "error" -> job.error.getOrElse(""),
+      "applicationId" -> job.applicationId,
+      "state" -> job.state,
+      // update last update time
+      "lastUpdateTime" -> currentTime,
+      // Convert a Seq[String] into a comma-separated string, such as "id1,id2".
+      // This approach is chosen over serializing to an array format (e.g., ["id1", "id2"])
+      // because it simplifies client-side processing. With a comma-separated string,
+      // clients can easily ignore this field if it's not in use, avoiding the need
+      // for array parsing logic. This makes the serialized data more straightforward to handle.
+      "excludeJobIds" -> job.excludedJobIds.mkString(","),
+      "jobStartTime" -> job.jobStartTime)
+
+    val resultMap = if (includeJobId) {
+      baseMap + ("jobId" -> job.jobId)
+    } else {
+      baseMap
+    }
+
+    Serialization.write(resultMap)
+  }
+
+  def serializeWithoutJobId(job: FlintInstance, currentTime: Long): String = {
+    serialize(job, currentTime, includeJobId = false)
   }
 }

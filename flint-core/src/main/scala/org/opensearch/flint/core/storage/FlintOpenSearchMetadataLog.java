@@ -5,12 +5,6 @@
 
 package org.opensearch.flint.core.storage;
 
-import static org.opensearch.action.support.WriteRequest.RefreshPolicy;
-
-import java.io.IOException;
-import java.util.Base64;
-import java.util.Optional;
-import java.util.logging.Logger;
 import org.opensearch.OpenSearchException;
 import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.get.GetRequest;
@@ -19,10 +13,19 @@ import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.update.UpdateRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestHighLevelClient;
+import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLog;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
+
+import java.io.IOException;
+import java.util.Base64;
+import java.util.Optional;
+import java.util.logging.Logger;
+
+import static java.util.logging.Level.SEVERE;
+import static org.opensearch.action.support.WriteRequest.RefreshPolicy;
 
 /**
  * Flint metadata log in OpenSearch store. For now use single doc instead of maintaining history
@@ -57,6 +60,11 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   public FlintMetadataLogEntry add(FlintMetadataLogEntry logEntry) {
     // TODO: use single doc for now. this will be always append in future.
     FlintMetadataLogEntry latest;
+    if (!exists()) {
+      String errorMsg = "Flint Metadata Log index not found " + metaLogIndexName;
+      LOG.log(SEVERE, errorMsg);
+      throw new IllegalStateException(errorMsg);
+    }
     if (logEntry.id().isEmpty()) {
       latest = createLogEntry(logEntry);
     } else {
@@ -108,6 +116,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
             new IndexRequest()
                 .index(metaLogIndexName)
                 .id(logEntryWithId.id())
+                .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
                 .source(logEntryWithId.toJson(), XContentType.JSON),
             RequestOptions.DEFAULT));
   }
@@ -145,6 +154,15 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
       return logEntry;
     } catch (OpenSearchException | IOException e) {
       throw new IllegalStateException("Failed to write log entry " + logEntry, e);
+    }
+  }
+
+  private boolean exists() {
+    LOG.info("Checking if Flint index exists " + metaLogIndexName);
+    try (RestHighLevelClient client = flintClient.createClient()) {
+      return client.indices().exists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT);
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to check if Flint index exists " + metaLogIndexName, e);
     }
   }
 
