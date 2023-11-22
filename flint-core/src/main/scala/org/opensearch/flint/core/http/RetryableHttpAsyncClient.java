@@ -65,7 +65,12 @@ public class RetryableHttpAsyncClient extends CloseableHttpAsyncClient {
                                HttpContext context,
                                FutureCallback<T> callback) {
     return new Future<>() {
-      /** Delegate future object created per execution */
+      /**
+       * Delegated future object created per doExecuteAndFutureGetWithRetry() call which creates initial object too.
+       * In this way, we avoid the duplicate logic of first call and subsequent retry calls.
+       * Here the assumption is cancel, isCancelled and isDone never called before get().
+       * (OpenSearch RestClient seems only call get() API)
+       */
       private Future<T> delegate;
 
       @Override
@@ -85,15 +90,15 @@ public class RetryableHttpAsyncClient extends CloseableHttpAsyncClient {
 
       @Override
       public T get() throws InterruptedException, ExecutionException {
-        return doGetWithRetry(() -> delegate.get());
+        return doExecuteAndFutureGetWithRetry(() -> delegate.get());
       }
 
       @Override
       public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException {
-        return doGetWithRetry(() -> delegate.get(timeout, unit));
+        return doExecuteAndFutureGetWithRetry(() -> delegate.get(timeout, unit));
       }
 
-      private T doGetWithRetry(Callable<T> futureGet) throws InterruptedException, ExecutionException {
+      private T doExecuteAndFutureGetWithRetry(Callable<T> futureGet) throws InterruptedException, ExecutionException {
         try {
           // Retry by creating a new Future object (as new delegate) and get its result again
           return Failsafe
