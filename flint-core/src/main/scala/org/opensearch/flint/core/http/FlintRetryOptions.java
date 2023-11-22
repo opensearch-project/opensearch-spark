@@ -6,21 +6,15 @@
 package org.opensearch.flint.core.http;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
-import static java.util.Collections.newSetFromMap;
 import static java.util.logging.Level.SEVERE;
 
 import dev.failsafe.RetryPolicy;
-import dev.failsafe.function.CheckedPredicate;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import org.apache.http.HttpResponse;
+import org.opensearch.flint.core.http.handler.ExceptionClassNameHandler;
+import org.opensearch.flint.core.http.handler.HttpStatusCodeHandler;
 
 /**
  * Flint options related to HTTP request retry.
@@ -74,8 +68,8 @@ public class FlintRetryOptions {
         .withJitter(Duration.ofMillis(100))
         // Failure handling config from Flint options
         .withMaxRetries(getMaxRetries())
-        .handleIf(getRetryableExceptionHandler())
-        .handleResultIf(getRetryableResultHandler())
+        .handleIf(ExceptionClassNameHandler.create(getRetryableExceptionClassNames()))
+        .handleResultIf(new HttpStatusCodeHandler<>(getRetryableHttpStatusCodes()))
         // Logging listener
         .onFailedAttempt(ex ->
             LOG.log(SEVERE, "Attempt to execute request failed", ex.getLastException()))
@@ -103,56 +97,6 @@ public class FlintRetryOptions {
    */
   public Optional<String> getRetryableExceptionClassNames() {
     return Optional.ofNullable(options.get(RETRYABLE_EXCEPTION_CLASS_NAMES));
-  }
-
-  private <T> CheckedPredicate<T> getRetryableResultHandler() {
-    Set<Integer> retryableStatusCodes =
-        Arrays.stream(getRetryableHttpStatusCodes().split(","))
-            .map(String::trim)
-            .map(Integer::valueOf)
-            .collect(Collectors.toSet());
-
-    return result -> retryableStatusCodes.contains(
-        ((HttpResponse) result).getStatusLine().getStatusCode());
-  }
-
-  private CheckedPredicate<? extends Throwable> getRetryableExceptionHandler() {
-    // By default, Failsafe handles any Exception
-    Optional<String> exceptionClassNames = getRetryableExceptionClassNames();
-    if (exceptionClassNames.isEmpty()) {
-      return ex -> false;
-    }
-
-    // Use weak collection avoids blocking class unloading
-    Set<Class<? extends Throwable>> retryableExceptions = newSetFromMap(new WeakHashMap<>());
-    Arrays.stream(exceptionClassNames.get().split(","))
-        .map(String::trim)
-        .map(this::loadClass)
-        .forEach(retryableExceptions::add);
-
-    // Consider retryable if exception found anywhere on stacktrace.
-    // Meanwhile, handle nested exception to avoid dead loop by seen hash set.
-    return throwable -> {
-      Set<Throwable> seen = new HashSet<>();
-      while (throwable != null && seen.add(throwable)) {
-        for (Class<? extends Throwable> retryable : retryableExceptions) {
-          if (retryable.isInstance(throwable)) {
-            return true;
-          }
-        }
-        throwable = throwable.getCause();
-      }
-      return false;
-    };
-  }
-
-  private Class<? extends Throwable> loadClass(String className) {
-    try {
-      //noinspection unchecked
-      return (Class<? extends Throwable>) Class.forName(className);
-    } catch (ClassNotFoundException e) {
-      throw new IllegalStateException("Failed to load class " + className, e);
-    }
   }
 
   @Override
