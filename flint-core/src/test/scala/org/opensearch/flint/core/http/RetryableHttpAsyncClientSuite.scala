@@ -124,6 +124,35 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
       .shouldExecute(times(2))
   }
 
+  it should "return if retry successfully" in {
+    val response = mock[HttpResponse](RETURNS_DEEP_STUBS)
+    when(future.get()).thenReturn(response)
+    when(response.getStatusLine.getStatusCode)
+      .thenReturn(429)
+      .thenReturn(429)
+      .thenReturn(200)
+
+    retryableClient
+      .shouldExecute(times(3))
+  }
+
+  // Exception like AmazonServiceException is thrown from interceptor in execute() directly
+  it should "retry too if exception thrown from execute instead of future get" in {
+    reset(internalClient)
+    when(
+      internalClient.execute(
+        any[HttpAsyncRequestProducer],
+        any[HttpAsyncResponseConsumer[HttpResponse]],
+        any[HttpContext],
+        any[FutureCallback[HttpResponse]])).thenThrow(new IllegalStateException)
+
+    retryableClient
+      .withOption("retry.exception_class_names", "java.lang.IllegalStateException")
+      .shouldExecute(
+        expectExecuteTimes = times(DEFAULT_MAX_RETRIES + 1),
+        expectFutureGetTimes = times(0))
+  }
+
   private def retryableClient: AssertionHelper = new AssertionHelper
 
   class AssertionHelper {
@@ -146,7 +175,13 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
       this
     }
 
-    def shouldExecute(expectTimes: VerificationMode): Unit = {
+    def shouldExecute(expectExecuteTimes: VerificationMode): Unit = {
+      shouldExecute(expectExecuteTimes, expectExecuteTimes)
+    }
+
+    def shouldExecute(
+        expectExecuteTimes: VerificationMode,
+        expectFutureGetTimes: VerificationMode): Unit = {
       val client =
         new RetryableHttpAsyncClient(internalClient, new FlintOptions(options).getRetryOptions)
 
@@ -156,13 +191,13 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
         case _: Throwable => // Ignore because we're testing error case
       } finally {
         // Verify `execute(...).get()` was called with expected times
-        verify(internalClient, expectTimes)
+        verify(internalClient, expectExecuteTimes)
           .execute(
             any[HttpAsyncRequestProducer],
             any[HttpAsyncResponseConsumer[HttpResponse]],
             any[HttpContext],
             any[FutureCallback[HttpResponse]])
-        verify(future, expectTimes).get()
+        verify(future, expectFutureGetTimes).get()
 
         reset(future)
         clearInvocations(internalClient)
