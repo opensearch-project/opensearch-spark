@@ -87,6 +87,12 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
       .shouldExecute(times(1))
   }
 
+  it should "not retry any exception by default" in {
+    retryableClient
+      .whenThrow(new ConnectException)
+      .shouldExecute(times(1))
+  }
+
   it should "retry if exception is on the retryable exception list" in {
     Seq(new ConnectException, new SocketTimeoutException).foreach { ex =>
       retryableClient

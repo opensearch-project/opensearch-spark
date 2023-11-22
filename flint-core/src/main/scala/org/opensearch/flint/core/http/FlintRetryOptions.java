@@ -6,15 +6,14 @@
 package org.opensearch.flint.core.http;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
-import static java.util.logging.Level.SEVERE;
 
 import dev.failsafe.RetryPolicy;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Logger;
-import org.opensearch.flint.core.http.handler.ExceptionClassNameHandler;
-import org.opensearch.flint.core.http.handler.HttpStatusCodeHandler;
+import org.opensearch.flint.core.http.handler.ExceptionClassNameFailurePredicate;
+import org.opensearch.flint.core.http.handler.HttpStatusCodeResultPredicate;
 
 /**
  * Flint options related to HTTP request retry.
@@ -68,13 +67,14 @@ public class FlintRetryOptions {
         .withJitter(Duration.ofMillis(100))
         // Failure handling config from Flint options
         .withMaxRetries(getMaxRetries())
-        .handleIf(ExceptionClassNameHandler.create(getRetryableExceptionClassNames()))
-        .handleResultIf(new HttpStatusCodeHandler<>(getRetryableHttpStatusCodes()))
+        .handleIf(ExceptionClassNameFailurePredicate.create(getRetryableExceptionClassNames()))
+        .handleResultIf(new HttpStatusCodeResultPredicate<>(getRetryableHttpStatusCodes()))
         // Logging listener
-        .onFailedAttempt(ex ->
-            LOG.log(SEVERE, "Attempt to execute request failed", ex.getLastException()))
+        .onFailedAttempt(event ->
+            LOG.severe("Attempt to execute request failed: " + event))
         .onRetry(ex ->
-            LOG.warning("Retrying failed request at #" + ex.getAttemptCount())).build();
+            LOG.warning("Retrying failed request at #" + ex.getAttemptCount()))
+        .build();
   }
 
   /**

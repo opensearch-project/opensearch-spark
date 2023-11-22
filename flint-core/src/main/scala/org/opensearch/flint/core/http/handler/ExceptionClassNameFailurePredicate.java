@@ -6,18 +6,21 @@
 package org.opensearch.flint.core.http.handler;
 
 import static java.util.Collections.newSetFromMap;
+import static java.util.logging.Level.SEVERE;
 
 import dev.failsafe.function.CheckedPredicate;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.logging.Logger;
 
 /**
  * Failure handler based on exception class type check.
  */
-public class ExceptionClassNameHandler implements CheckedPredicate<Throwable> {
+public class ExceptionClassNameFailurePredicate extends ErrorStacktraceFailurePredicate {
+
+  private static final Logger LOG = Logger.getLogger(ErrorStacktraceFailurePredicate.class.getName());
 
   /**
    * Retryable exception class types.
@@ -27,16 +30,15 @@ public class ExceptionClassNameHandler implements CheckedPredicate<Throwable> {
   /**
    * @return exception class handler or empty handler (treat any exception non-retryable)
    */
-  public static CheckedPredicate<? extends Throwable> create(
-      Optional<String> exceptionClassNames) {
-    // By default, Failsafe handles any Exception
+  public static CheckedPredicate<? extends Throwable> create(Optional<String> exceptionClassNames) {
     if (exceptionClassNames.isEmpty()) {
+      // This is required because Failsafe treats any Exception retryable by default
       return ex -> false;
     }
-    return new ExceptionClassNameHandler(exceptionClassNames.get());
+    return new ExceptionClassNameFailurePredicate(exceptionClassNames.get());
   }
 
-  public ExceptionClassNameHandler(String exceptionClassNames) {
+  public ExceptionClassNameFailurePredicate(String exceptionClassNames) {
     // Use weak collection avoids blocking class unloading
     this.retryableExceptions = newSetFromMap(new WeakHashMap<>());
     Arrays.stream(exceptionClassNames.split(","))
@@ -46,17 +48,11 @@ public class ExceptionClassNameHandler implements CheckedPredicate<Throwable> {
   }
 
   @Override
-  public boolean test(Throwable throwable) throws Throwable {
-    // Consider retryable if exception found anywhere on stacktrace.
-    // Meanwhile, handle nested exception to avoid dead loop by seen hash set.
-    Set<Throwable> seen = new HashSet<>();
-    while (throwable != null && seen.add(throwable)) {
-      for (Class<? extends Throwable> retryable : retryableExceptions) {
-        if (retryable.isInstance(throwable)) {
-          return true;
-        }
+  protected boolean isRetryable(Throwable throwable) {
+    for (Class<? extends Throwable> retryable : retryableExceptions) {
+      if (retryable.isInstance(throwable)) {
+        return true;
       }
-      throwable = throwable.getCause();
     }
     return false;
   }
@@ -66,7 +62,9 @@ public class ExceptionClassNameHandler implements CheckedPredicate<Throwable> {
       //noinspection unchecked
       return (Class<? extends Throwable>) Class.forName(className);
     } catch (ClassNotFoundException e) {
-      throw new IllegalStateException("Failed to load class " + className, e);
+      String errorMsg = "Failed to load class " + className;
+      LOG.log(SEVERE, errorMsg, e);
+      throw new IllegalStateException(errorMsg);
     }
   }
 }
