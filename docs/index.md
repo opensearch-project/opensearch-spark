@@ -358,6 +358,9 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
   (false), IMMEDIATE(true), WAIT_UNTIL(wait_for)]
 - `spark.datasource.flint.read.scroll_size`: default value is 100.
 - `spark.datasource.flint.read.scroll_duration`: default value is 5 minutes. scroll context keep alive duration.
+- `spark.datasource.flint.retry.max_retries`: max retries on failed HTTP request. default value is 3. Use 0 to disable retry.
+- `spark.datasource.flint.retry.http_status_codes`: retryable HTTP response status code list. default value is "429,502" (429 Too Many Request and 502 Bad Gateway).
+- `spark.datasource.flint.retry.exception_class_names`: retryable exception class name list. by default no retry on any exception thrown.
 - `spark.flint.optimizer.enabled`: default is true.
 - `spark.flint.index.hybridscan.enabled`: default is false.
 - `spark.flint.index.checkpoint.mandatory`: default is true.

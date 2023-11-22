@@ -5,8 +5,10 @@
 
 package org.opensearch.flint.core;
 
+import dev.failsafe.RetryPolicy;
 import java.io.Serializable;
 import java.util.Map;
+import org.opensearch.flint.core.http.FlintRetryOptions;
 
 /**
  * Flint Options include all the flint related configuration.
@@ -14,6 +16,11 @@ import java.util.Map;
 public class FlintOptions implements Serializable {
 
   private final Map<String, String> options;
+
+  /**
+   * Flint options related to HTTP retry policy.
+   */
+  private final FlintRetryOptions retryOptions;
 
   public static final String HOST = "host";
 
@@ -68,6 +75,7 @@ public class FlintOptions implements Serializable {
 
   public FlintOptions(Map<String, String> options) {
     this.options = options;
+    this.retryOptions = new FlintRetryOptions(options);
   }
 
   public String getHost() {
@@ -87,6 +95,10 @@ public class FlintOptions implements Serializable {
   }
 
   public String getRefreshPolicy() {return options.getOrDefault(REFRESH_POLICY, DEFAULT_REFRESH_POLICY);}
+
+  public FlintRetryOptions getRetryOptions() {
+    return retryOptions;
+  }
 
   public String getRegion() {
     return options.getOrDefault(REGION, DEFAULT_REGION);
