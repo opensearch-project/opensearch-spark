@@ -12,11 +12,11 @@ import org.opensearch.flint.core.FlintOptions;
 /**
  * allows override default socket timeout in RestClientBuilder.DEFAULT_SOCKET_TIMEOUT_MILLIS
  */
-public class TimeoutConfigurator implements RestClientBuilder.RequestConfigCallback {
+public class RequestConfigurator implements RestClientBuilder.RequestConfigCallback {
 
     private final FlintOptions options;
 
-    public TimeoutConfigurator(FlintOptions options) {
+    public RequestConfigurator(FlintOptions options) {
         this.options = options;
     }
 

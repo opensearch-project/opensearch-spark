@@ -272,7 +272,7 @@ public class FlintOpenSearchClient implements FlintClient {
           RetryableHttpAsyncClient.builder(delegate, options));
     }
 
-    final TimeoutConfigurator callback = new TimeoutConfigurator(options);
+    final RequestConfigurator callback = new RequestConfigurator(options);
     restClientBuilder.setRequestConfigCallback(callback);
 
     return new RestHighLevelClient(restClientBuilder);
