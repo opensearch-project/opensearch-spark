@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.core;
 
+import java.security.KeyManagementException;
 import java.util.List;
 
 import org.opensearch.client.RestHighLevelClient;
