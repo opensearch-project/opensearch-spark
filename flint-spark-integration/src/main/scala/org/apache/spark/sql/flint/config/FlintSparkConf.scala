@@ -140,6 +140,13 @@ object FlintSparkConf {
   val CHECKPOINT_MANDATORY = FlintConfig("spark.flint.index.checkpoint.mandatory")
     .doc("Checkpoint location for incremental refresh index will be mandatory if enabled")
     .createWithDefault("true")
+
+  val SOCKET_TIMEOUT_MILLIS =
+    FlintConfig(s"spark.datasource.flint.${FlintOptions.SOCKET_TIMEOUT_MILLIS}")
+      .datasourceOption()
+      .doc("socket duration in milliseconds")
+      .createWithDefault(String.valueOf(FlintOptions.DEFAULT_SOCKET_TIMEOUT_MILLIS))
+
 }
 
 /**
@@ -188,7 +195,8 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       REGION,
       CUSTOM_AWS_CREDENTIALS_PROVIDER,
       USERNAME,
-      PASSWORD)
+      PASSWORD,
+      SOCKET_TIMEOUT_MILLIS)
       .map(conf => (conf.optionKey, conf.readFrom(reader)))
       .toMap
 

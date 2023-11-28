@@ -364,6 +364,7 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.flint.optimizer.enabled`: default is true.
 - `spark.flint.index.hybridscan.enabled`: default is false.
 - `spark.flint.index.checkpoint.mandatory`: default is true.
+- `spark.datasource.flint.socket_timeout_millis`: default value is 60000.
 
 #### Data Type Mapping
 

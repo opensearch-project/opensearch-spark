@@ -73,6 +73,10 @@ public class FlintOptions implements Serializable {
    */
   public static final String DEFAULT_REFRESH_POLICY = "wait_for";
 
+  public static final String SOCKET_TIMEOUT_MILLIS = "socket_timeout_millis";
+
+  public static final int DEFAULT_SOCKET_TIMEOUT_MILLIS = 60000;
+
   public FlintOptions(Map<String, String> options) {
     this.options = options;
     this.retryOptions = new FlintRetryOptions(options);
@@ -122,5 +126,9 @@ public class FlintOptions implements Serializable {
 
   public String getPassword() {
     return options.getOrDefault(PASSWORD, "flint");
+  }
+
+  public int getSocketTimeoutMillis() {
+    return Integer.parseInt(options.getOrDefault(SOCKET_TIMEOUT_MILLIS, String.valueOf(DEFAULT_SOCKET_TIMEOUT_MILLIS)));
   }
 }
