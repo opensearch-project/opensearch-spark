@@ -11,7 +11,7 @@ import org.opensearch.flint.core.metrics.reporter.DimensionedName;
 public class DimensionedNameTest {
     @Test
     public void canDecodeDimensionedString() {
-        final String dimensioned = "test[key1:val1,key2:val2,key3:val3]";
+        final String dimensioned = "test[key1##val1,key2##val2,key3##val3]";
 
         final DimensionedName dimensionedName = DimensionedName.decode(dimensioned);
 
@@ -32,7 +32,7 @@ public class DimensionedNameTest {
                 .withDimension("key3", "val3")
                 .build();
 
-        Assertions.assertEquals("test[key1:val1,key2:val2,key3:val3]", dimensionedName.encode());
+        Assertions.assertEquals("test[key1##val1,key2##val2,key3##val3]", dimensionedName.encode());
     }
 
     @Test
@@ -48,8 +48,8 @@ public class DimensionedNameTest {
                 .withDimension("key3", "new_value")
                 .withDimension("key4", "val4").build();
 
-        Assertions.assertEquals("test[key1:val1,key2:val2,key3:val3]", dimensionedName.encode());
-        Assertions.assertEquals("test[key1:val1,key2:val2,key3:new_value,key4:val4]",
+        Assertions.assertEquals("test[key1##val1,key2##val2,key3##val3]", dimensionedName.encode());
+        Assertions.assertEquals("test[key1##val1,key2##val2,key3##new_value,key4##val4]",
             derivedDimensionedName.encode());
     }
 }
