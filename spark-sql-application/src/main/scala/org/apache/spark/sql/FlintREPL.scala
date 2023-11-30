@@ -6,6 +6,8 @@
 package org.apache.spark.sql
 
 import java.net.ConnectException
+import java.time.Instant
+import java.util.Map
 import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture}
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, TimeoutException}
@@ -13,11 +15,9 @@ import scala.concurrent.duration.{Duration, MINUTES, _}
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
-import org.json4s.native.Serialization
 import org.opensearch.action.get.GetResponse
 import org.opensearch.common.Strings
 import org.opensearch.flint.app.{FlintCommand, FlintInstance}
-import org.opensearch.flint.app.FlintInstance.formats
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
 
 import org.apache.spark.SparkConf
@@ -47,7 +47,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
   private val DEFAULT_QUERY_EXECUTION_TIMEOUT = Duration(30, MINUTES)
   private val DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS = 10 * 60 * 1000
   val INITIAL_DELAY_MILLIS = 3000L
-  val EARLY_TERMIANTION_CHECK_FREQUENCY = 60000L
 
   def update(flintCommand: FlintCommand, updater: OpenSearchUpdater): Unit = {
     updater.update(flintCommand.statementId, FlintCommand.serialize(flintCommand))
@@ -293,11 +292,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
       var lastActivityTime = currentTimeProvider.currentEpochMillis()
       var verificationResult: VerificationResult = NotVerified
       var canPickUpNextStatement = true
-      var lastCanPickCheckTime = 0L
       while (currentTimeProvider
           .currentEpochMillis() - lastActivityTime <= commandContext.inactivityLimitMillis && canPickUpNextStatement) {
         logInfo(
-          s"""read from ${commandContext.sessionIndex}, sessionId: ${commandContext.sessionId}""")
+          s"""read from ${commandContext.sessionIndex}, sessionId: $commandContext.sessionId""")
         val flintReader: FlintReader =
           createQueryReader(
             commandContext.osClient,
@@ -311,21 +309,18 @@ object FlintREPL extends Logging with FlintJobExecutor {
             verificationResult,
             flintReader,
             futureMappingCheck,
-            executionContext,
-            lastCanPickCheckTime)
-          val result: (Long, VerificationResult, Boolean, Long) =
+            executionContext)
+          val result: (Long, VerificationResult, Boolean) =
             processCommands(commandContext, commandState)
 
           val (
             updatedLastActivityTime,
             updatedVerificationResult,
-            updatedCanPickUpNextStatement,
-            updatedLastCanPickCheckTime) = result
+            updatedCanPickUpNextStatement) = result
 
           lastActivityTime = updatedLastActivityTime
           verificationResult = updatedVerificationResult
           canPickUpNextStatement = updatedCanPickUpNextStatement
-          lastCanPickCheckTime = updatedLastCanPickCheckTime
         } finally {
           flintReader.close()
         }
@@ -486,7 +481,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
   private def processCommands(
       context: CommandContext,
-      state: CommandState): (Long, VerificationResult, Boolean, Long) = {
+      state: CommandState): (Long, VerificationResult, Boolean) = {
     import context._
     import state._
 
@@ -494,19 +489,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
     var verificationResult = recordedVerificationResult
     var canProceed = true
     var canPickNextStatementResult = true // Add this line to keep track of canPickNextStatement
-    var lastCanPickCheckTime = recordedLastCanPickCheckTime
 
     while (canProceed) {
-      val currentTime = currentTimeProvider.currentEpochMillis()
-
-      // Only call canPickNextStatement if EARLY_TERMIANTION_CHECK_FREQUENCY milliseconds have passed
-      if (currentTime - lastCanPickCheckTime > EARLY_TERMIANTION_CHECK_FREQUENCY) {
-        canPickNextStatementResult =
-          canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
-        lastCanPickCheckTime = currentTime
-      }
-
-      if (!canPickNextStatementResult) {
+      if (!canPickNextStatement(sessionId, jobId, osClient, sessionIndex)) {
+        canPickNextStatementResult = false
         canProceed = false
       } else if (!flintReader.hasNext) {
         canProceed = false
@@ -538,7 +524,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     }
 
     // return tuple indicating if still active and mapping verification result
-    (lastActivityTime, verificationResult, canPickNextStatementResult, lastCanPickCheckTime)
+    (lastActivityTime, verificationResult, canPickNextStatementResult)
   }
 
   /**
@@ -902,12 +888,20 @@ object FlintREPL extends Logging with FlintJobExecutor {
               return // Exit the run method if the thread is interrupted
             }
 
-            flintSessionUpdater.upsert(
-              sessionId,
-              Serialization.write(
-                Map(
-                  "lastUpdateTime" -> currentTimeProvider.currentEpochMillis(),
-                  "state" -> "running")))
+            val getResponse = osClient.getDoc(sessionIndex, sessionId)
+            if (getResponse.isExists()) {
+              val source = getResponse.getSourceAsMap
+              val flintInstance = FlintInstance.deserializeFromMap(source)
+              flintInstance.state = "running"
+              flintSessionUpdater.updateIf(
+                sessionId,
+                FlintInstance.serializeWithoutJobId(
+                  flintInstance,
+                  currentTimeProvider.currentEpochMillis()),
+                getResponse.getSeqNo,
+                getResponse.getPrimaryTerm)
+            }
+            // do nothing if the session doc does not exist
           } catch {
             case ie: InterruptedException =>
               // Preserve the interrupt status

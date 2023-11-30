@@ -14,5 +14,4 @@ case class CommandState(
     recordedVerificationResult: VerificationResult,
     flintReader: FlintReader,
     futureMappingCheck: Future[Either[String, Unit]],
-    executionContext: ExecutionContextExecutor,
-    recordedLastCanPickCheckTime: Long)
+    executionContext: ExecutionContextExecutor)
