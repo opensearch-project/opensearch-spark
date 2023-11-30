@@ -47,6 +47,20 @@ class FlintREPLTest
     val getResponse = mock[GetResponse]
     val scheduledFutureRaw = mock[ScheduledFuture[_]]
 
+    // Mock behaviors
+    when(osClient.getDoc(*, *)).thenReturn(getResponse)
+    when(getResponse.isExists()).thenReturn(true)
+    when(getResponse.getSourceAsMap).thenReturn(
+      Map[String, Object](
+        "applicationId" -> "app1",
+        "jobId" -> "job1",
+        "sessionId" -> "session1",
+        "lastUpdateTime" -> java.lang.Long.valueOf(12345L),
+        "error" -> "someError",
+        "state" -> "running",
+        "jobStartTime" -> java.lang.Long.valueOf(0L)).asJava)
+    when(getResponse.getSeqNo).thenReturn(0L)
+    when(getResponse.getPrimaryTerm).thenReturn(0L)
     // when scheduled task is scheduled, execute the runnable immediately only once and become no-op afterwards.
     when(
       threadPool.scheduleAtFixedRate(
@@ -71,7 +85,8 @@ class FlintREPLTest
       0)
 
     // Verifications
-    verify(flintSessionUpdater, atLeastOnce()).upsert(eqTo("session1"), *)
+    verify(osClient, atLeastOnce()).getDoc("sessionIndex", "session1")
+    verify(flintSessionUpdater, atLeastOnce()).updateIf(eqTo("session1"), *, eqTo(0L), eqTo(0L))
   }
 
   test("createShutdownHook add shutdown hook and update FlintInstance if conditions are met") {
