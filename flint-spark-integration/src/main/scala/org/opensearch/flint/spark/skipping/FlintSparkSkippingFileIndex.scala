@@ -8,11 +8,12 @@ package org.opensearch.flint.spark.skipping
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.FILE_PATH_COLUMN
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
 import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.apache.spark.sql.functions.isnull
+import org.apache.spark.sql.functions.not
 import org.apache.spark.sql.types.StructType
 
 /**
@@ -26,8 +27,10 @@ import org.apache.spark.sql.types.StructType
 case class FlintSparkSkippingFileIndex(
     baseFileIndex: FileIndex,
     indexScan: DataFrame,
-    indexFilter: Expression)
-    extends FileIndex {
+    indexFilter: Expression,
+    isHybridScanMode: Boolean = FlintSparkConf().isHybridScanEnabled)
+    extends FileIndex
+    with Logging {
 
   override def listFiles(
       partitionFilters: Seq[Expression],
@@ -36,11 +39,12 @@ case class FlintSparkSkippingFileIndex(
     // TODO: make this listFile call only in hybrid scan mode
     val partitions = baseFileIndex.listFiles(partitionFilters, dataFilters)
     val selectedFiles =
-      if (FlintSparkConf().isHybridScanEnabled) {
+      if (isHybridScanMode) {
         selectFilesFromIndexAndSource(partitions)
       } else {
         selectFilesFromIndexOnly()
       }
+    logInfo(s"${selectedFiles.size} source files to scan after skipping")
 
     // Keep partition files present in selected file list above
     partitions
@@ -61,22 +65,23 @@ case class FlintSparkSkippingFileIndex(
   /*
    * Left join source partitions and index data to keep unknown source files:
    * Express the logic in SQL:
-   *   SELECT left.file_path
-   *   FROM partitions AS left
-   *   LEFT JOIN indexScan AS right
-   *     ON left.file_path = right.file_path
-   *   WHERE right.file_path IS NULL
-   *     OR [indexFilter]
+   *   SELECT file_path
+   *   FROM partitions
+   *   WHERE file_path NOT IN (
+   *     SELECT file_path
+   *     FROM indexScan
+   *     WHERE NOT [indexFilter]
+   *   )
    */
   private def selectFilesFromIndexAndSource(partitions: Seq[PartitionDirectory]): Set[String] = {
     val sparkSession = indexScan.sparkSession
     import sparkSession.implicits._
 
+    logInfo("Selecting files from both skipping index and source in hybrid scan mode")
     partitions
       .flatMap(_.files.map(f => f.getPath.toUri.toString))
       .toDF(FILE_PATH_COLUMN)
-      .join(indexScan, Seq(FILE_PATH_COLUMN), "left")
-      .filter(isnull(indexScan(FILE_PATH_COLUMN)) || new Column(indexFilter))
+      .join(indexScan.filter(not(new Column(indexFilter))), Seq(FILE_PATH_COLUMN), "anti")
       .select(FILE_PATH_COLUMN)
       .collect()
       .map(_.getString(0))
@@ -88,6 +93,7 @@ case class FlintSparkSkippingFileIndex(
    * to index store.
    */
   private def selectFilesFromIndexOnly(): Set[String] = {
+    logInfo("Selecting files from skipping index only")
     indexScan
       .filter(new Column(indexFilter))
       .select(FILE_PATH_COLUMN)

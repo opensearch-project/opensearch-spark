@@ -11,14 +11,16 @@ import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark._
 import org.opensearch.flint.spark.FlintSparkIndex._
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
+import org.opensearch.flint.spark.FlintSparkIndexUtils.isConjunction
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
 import org.opensearch.flint.spark.skipping.partition.PartitionSkippingStrategy
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
 import org.apache.spark.sql._
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.dsl.expressions.DslExpression
-import org.apache.spark.sql.functions.{col, input_file_name, sha1}
+import org.apache.spark.sql.functions.{col, expr, input_file_name, sha1}
 
 /**
  * Flint skipping index in Spark.
@@ -31,10 +33,14 @@ import org.apache.spark.sql.functions.{col, input_file_name, sha1}
 case class FlintSparkSkippingIndex(
     tableName: String,
     indexedColumns: Seq[FlintSparkSkippingStrategy],
+    filterCondition: Option[String] = None,
     override val options: FlintSparkIndexOptions = empty)
     extends FlintSparkIndex {
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")
+  require(
+    filterCondition.forall(isConjunction),
+    s"filtering condition $filterCondition must be conjunction")
 
   /** Skipping index type */
   override val kind: String = SKIPPING_INDEX_TYPE
@@ -59,12 +65,15 @@ case class FlintSparkSkippingIndex(
         .toMap + (FILE_PATH_COLUMN -> "string")
     val schemaJson = generateSchemaJSON(fieldTypes)
 
-    metadataBuilder(this)
-      .name(name())
+    val builder = metadataBuilder(this)
+      .name("") // skipping index is unique per table without name
       .source(tableName)
       .indexedColumns(indexColumnMaps)
       .schema(schemaJson)
-      .build()
+
+    // Add optional index properties
+    filterCondition.map(builder.addProperty("filterCondition", _))
+    builder.build()
   }
 
   override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
@@ -77,7 +86,14 @@ case class FlintSparkSkippingIndex(
         new Column(aggFunc.toAggregateExpression().as(name))
       }
 
-    df.getOrElse(spark.read.table(tableName))
+    var job = df.getOrElse(spark.read.table(tableName))
+
+    // Add optional filtering condition
+    if (filterCondition.isDefined) {
+      job = job.where(filterCondition.get)
+    }
+
+    job
       .groupBy(input_file_name().as(FILE_PATH_COLUMN))
       .agg(namedAggFuncs.head, namedAggFuncs.tail: _*)
       .withColumn(ID_COLUMN, sha1(col(FILE_PATH_COLUMN)))
@@ -118,6 +134,7 @@ object FlintSparkSkippingIndex {
   /** Builder class for skipping index build */
   class Builder(flint: FlintSpark) extends FlintSparkIndexBuilder(flint) {
     private var indexedColumns: Seq[FlintSparkSkippingStrategy] = Seq()
+    private var filterCondition: Option[String] = None
 
     /**
      * Configure which source table the index is based on.
@@ -181,8 +198,29 @@ object FlintSparkSkippingIndex {
       this
     }
 
+    /**
+     * Add filtering condition.
+     *
+     * @param condition
+     *   filter condition
+     * @return
+     *   index builder
+     */
+    def filterBy(condition: String): Builder = {
+      expr(condition).expr.foreach {
+        case colName: UnresolvedAttribute =>
+          require(
+            findColumn(colName.name).isPartition,
+            s"${colName.name} is not partitioned column and cannot be used in index filtering condition")
+        case _ =>
+      }
+
+      filterCondition = Some(condition)
+      this
+    }
+
     override def buildIndex(): FlintSparkIndex =
-      new FlintSparkSkippingIndex(tableName, indexedColumns, indexOptions)
+      new FlintSparkSkippingIndex(tableName, indexedColumns, filterCondition, indexOptions)
 
     private def addIndexedColumn(indexedCol: FlintSparkSkippingStrategy): Unit = {
       require(

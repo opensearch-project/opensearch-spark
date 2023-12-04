@@ -13,10 +13,13 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
 import org.opensearch.flint.OpenSearchSuite
+import org.scalatest.matchers.must.Matchers.defined
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.FlintSuite
-import org.apache.spark.sql.QueryTest
+import org.apache.spark.sql.{DataFrame, QueryTest}
+import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -44,6 +47,16 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     when(mockExecutor.scheduleWithFixedDelay(any[Runnable], any[Long], any[Long], any[TimeUnit]))
       .thenAnswer((_: InvocationOnMock) => mock[ScheduledFuture[_]])
     FlintSparkIndexMonitor.executor = mockExecutor
+  }
+
+  protected def awaitStreamingDataComplete(flintIndexName: String): DataFrame = {
+    val job = spark.streams.active.find(_.name == flintIndexName)
+    job shouldBe defined
+
+    failAfter(streamingTimeout) {
+      job.get.processAllAvailable()
+    }
+    spark.read.format(FLINT_DATASOURCE).load(flintIndexName)
   }
 
   protected def awaitStreamingComplete(jobId: String): Unit = {
@@ -106,5 +119,49 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:15:00', 'C', 35, 'Portland')")
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 01:00:00', 'D', 40, 'Portland')")
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 03:00:00', 'E', 15, 'Vancouver')")
+  }
+
+  protected def createPartitionedTimeSeriesTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   time TIMESTAMP,
+           |   name STRING,
+           |   age INT,
+           |   address STRING
+           | )
+           | USING CSV
+           | OPTIONS (
+           |  header 'false',
+           |  delimiter '\t'
+           | )
+           | PARTITIONED BY (
+           |    year INT,
+           |    month INT,
+           |    day INT,
+           |    hour INT
+           | )
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable PARTITION (year=2023, month=10, day=1, hour=0)
+           | VALUES (TIMESTAMP '2023-10-01 00:01:00', 'A', 30, 'Seattle')
+           | """.stripMargin)
+    sql(s"""
+           | INSERT INTO $testTable PARTITION (year=2023, month=10, day=1, hour=0)
+           | VALUES (TIMESTAMP '2023-10-01 00:10:00', 'B', 20, 'Seattle')
+           | """.stripMargin)
+    sql(s"""
+           | INSERT INTO $testTable PARTITION (year=2023, month=10, day=1, hour=0)
+           | VALUES (TIMESTAMP '2023-10-01 00:15:00', 'C', 35, 'Portland')
+           | """.stripMargin)
+    sql(s"""
+           | INSERT INTO $testTable PARTITION (year=2023, month=10, day=1, hour=1)
+           | VALUES (TIMESTAMP '2023-10-01 01:00:00', 'D', 40, 'Portland')
+           | """.stripMargin)
+    sql(s"""
+           | INSERT INTO $testTable PARTITION (year=2023, month=10, day=1, hour=3)
+           | VALUES (TIMESTAMP '2023-10-01 03:00:00', 'E', 15, 'Vancouver')
+           | """.stripMargin)
   }
 }

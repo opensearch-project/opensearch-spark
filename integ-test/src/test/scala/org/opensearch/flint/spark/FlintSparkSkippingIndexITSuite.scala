@@ -48,13 +48,14 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .addPartitions("year", "month")
       .addValueSet("address")
       .addMinMax("age")
+      .filterBy("year = 2023")
       .create()
 
     val index = flint.describeIndex(testIndex)
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
         |   "_meta": {
-        |     "name": "flint_spark_catalog_default_test_skipping_index",
+        |     "name": "",
         |     "version": "${current()}",
         |     "kind": "skipping",
         |     "indexedColumns": [
@@ -80,7 +81,9 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |     }],
         |     "source": "spark_catalog.default.test",
         |     "options": { "auto_refresh": "false" },
-        |     "properties": {}
+        |     "properties": {
+        |       "filterCondition": "year = 2023"
+        |     }
         |   },
         |   "properties": {
         |     "year": {
@@ -248,6 +251,20 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     }
   }
 
+  test("should not rewrite original query if no where clause") {
+    val query =
+      s"""
+         | SELECT name
+         | FROM $testTable
+         |""".stripMargin
+
+    val actual = sql(query).queryExecution.optimizedPlan
+    withFlintOptimizerDisabled {
+      val expect = sql(query).queryExecution.optimizedPlan
+      actual shouldBe expect
+    }
+  }
+
   test("can build partition skipping index and rewrite applicable query") {
     flint
       .skippingIndex()
@@ -264,7 +281,9 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     checkAnswer(query, Row("Hello"))
     query.queryExecution.executedPlan should
-      useFlintSparkSkippingFileIndex(hasIndexFilter(col("year") === 2023 && col("month") === 4))
+      useFlintSparkSkippingFileIndex(
+        hasIndexFilter(col("year") === 2023 && col("month") === 4)
+          and hasScanMode(isHybridScanExpected = false))
   }
 
   test("can build value set skipping index and rewrite applicable query") {
@@ -283,7 +302,9 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     checkAnswer(query, Row("World"))
     query.queryExecution.executedPlan should
-      useFlintSparkSkippingFileIndex(hasIndexFilter(col("address") === "Portland"))
+      useFlintSparkSkippingFileIndex(
+        hasIndexFilter(col("address") === "Portland")
+          and hasScanMode(isHybridScanExpected = false))
   }
 
   test("can build min max skipping index and rewrite applicable query") {
@@ -303,7 +324,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     checkAnswer(query, Row("World"))
     query.queryExecution.executedPlan should
       useFlintSparkSkippingFileIndex(
-        hasIndexFilter(col("MinMax_age_0") <= 25 && col("MinMax_age_1") >= 25))
+        hasIndexFilter(col("MinMax_age_0") <= 25 && col("MinMax_age_1") >= 25)
+          and hasScanMode(isHybridScanExpected = false))
   }
 
   test("should rewrite applicable query with table name without database specified") {
@@ -322,7 +344,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     query.queryExecution.executedPlan should
       useFlintSparkSkippingFileIndex(
-        hasIndexFilter(col("year") === 2023))
+        hasIndexFilter(col("year") === 2023)
+          and hasScanMode(isHybridScanExpected = false))
   }
 
   test("should not rewrite original query if filtering condition has disjunction") {
@@ -376,8 +399,34 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
                          | WHERE month = 4
                          |""".stripMargin)
 
+      query.queryExecution.executedPlan should
+        useFlintSparkSkippingFileIndex(
+          hasIndexFilter(col("month") === 4)
+            and hasScanMode(isHybridScanExpected = true))
+
       checkAnswer(query, Seq(Row("Seattle"), Row("Vancouver")))
     }
+  }
+
+  test("should rewrite applicable query to scan unknown source files if partial index") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("month")
+      .filterBy("month > 4")
+      .create()
+    flint.refreshIndex(testIndex, FULL)
+
+    val query = sql(s"""
+                       | SELECT address
+                       | FROM $testTable
+                       | WHERE month = 4
+                       |""".stripMargin)
+
+    query.queryExecution.executedPlan should
+      useFlintSparkSkippingFileIndex(
+        hasIndexFilter(col("month") === 4)
+          and hasScanMode(isHybridScanExpected = true))
   }
 
   test("should return empty if describe index not exist") {
@@ -452,7 +501,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     index.get.metadata().getContent should matchJson(
       s"""{
          |   "_meta": {
-         |     "name": "flint_spark_catalog_default_data_type_table_skipping_index",
+         |     "name": "",
          |     "version": "${current()}",
          |     "kind": "skipping",
          |     "indexedColumns": [
@@ -664,6 +713,17 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         hasExpectedFilter,
         "FlintSparkSkippingFileIndex does not have expected filter",
         "FlintSparkSkippingFileIndex has expected filter")
+    }
+  }
+
+  def hasScanMode(isHybridScanExpected: Boolean): Matcher[FlintSparkSkippingFileIndex] = {
+    Matcher { (fileIndex: FlintSparkSkippingFileIndex) =>
+      val hasExpectedScanMode = fileIndex.isHybridScanMode == isHybridScanExpected
+
+      MatchResult(
+        hasExpectedScanMode,
+        "FlintSparkSkippingFileIndex does not have expected scan mode",
+        "FlintSparkSkippingFileIndex has expected scan mode")
     }
   }
 

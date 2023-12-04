@@ -118,6 +118,8 @@ High level API is dependent on query engine implementation. Please see Query Eng
 
 #### Skipping Index
 
+Note that the filtering condition must be conjunction with only partitioned column involved.
+
 ```sql
 CREATE SKIPPING INDEX [IF NOT EXISTS]
 ON <object>
@@ -157,6 +159,8 @@ DROP SKIPPING INDEX ON alb_logs
 ```
 
 #### Covering Index
+
+Note that the filtering condition must be conjunction.
 
 ```sql
 CREATE INDEX [IF NOT EXISTS] name ON <object>

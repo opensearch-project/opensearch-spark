@@ -46,13 +46,29 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
 
     val metadata = index.metadata()
     metadata.kind shouldBe SKIPPING_INDEX_TYPE
-    metadata.name shouldBe index.name()
+    metadata.name shouldBe ""
     metadata.source shouldBe testTable
     metadata.indexedColumns shouldBe Array(
       Map(
         "kind" -> SkippingKind.PARTITION.toString,
         "columnName" -> "test_field",
         "columnType" -> "integer").asJava)
+  }
+
+  test("should succeed if filtering condition is conjunction") {
+    new FlintSparkSkippingIndex(
+      testTable,
+      Seq(mock[FlintSparkSkippingStrategy]),
+      Some("test_field1 = 1 AND test_field2 = 2"))
+  }
+
+  test("should fail if filtering condition is not conjunction") {
+    assertThrows[IllegalArgumentException] {
+      new FlintSparkSkippingIndex(
+        testTable,
+        Seq(mock[FlintSparkSkippingStrategy]),
+        Some("test_field1 = 1 OR test_field2 = 2"))
+    }
   }
 
   test("can build index building job with unique ID column") {

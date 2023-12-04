@@ -14,10 +14,11 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.{defined, have}
+import org.scalatest.matchers.must.Matchers.{defined, include}
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.execution.SimpleMode
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
 
@@ -50,16 +51,103 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
            | WITH (auto_refresh = true)
            | """.stripMargin)
 
-    // Wait for streaming job complete current micro batch
-    val job = spark.streams.active.find(_.name == testIndex)
-    job shouldBe defined
-    failAfter(streamingTimeout) {
-      job.get.processAllAvailable()
-    }
-
-    val indexData = spark.read.format(FLINT_DATASOURCE).load(testIndex)
+    val indexData = awaitStreamingDataComplete(testIndex)
     flint.describeIndex(testIndex) shouldBe defined
     indexData.count() shouldBe 2
+  }
+
+  test("create skipping index with auto refresh and filtering condition") {
+    val testTimeSeriesTable = "spark_catalog.default.partial_skipping_sql_test"
+    val testFlintTimeSeriesTable = getSkippingIndexName(testTimeSeriesTable)
+
+    withTable(testTimeSeriesTable) {
+      createPartitionedTimeSeriesTable(testTimeSeriesTable)
+      sql(s""" CREATE SKIPPING INDEX ON $testTimeSeriesTable
+             | ( address VALUE_SET )
+             |  WHERE hour >= 1
+             |  WITH (auto_refresh = true)""".stripMargin)
+      flint.describeIndex(testFlintTimeSeriesTable) shouldBe defined
+
+      // Only 2 rows indexed
+      val indexData = awaitStreamingDataComplete(testFlintTimeSeriesTable)
+      indexData.count() shouldBe 2
+
+      // Query without filter condition
+      sql(s"SELECT * FROM $testTimeSeriesTable").count shouldBe 5
+
+      // File indexed should be included
+      var query = sql(s""" SELECT name FROM $testTimeSeriesTable
+                         | WHERE time > '2023-10-01 00:05:00'
+                         |   AND address = 'Portland' """.stripMargin)
+      query.queryExecution.explainString(SimpleMode) should include("FlintSparkSkippingFileIndex")
+      checkAnswer(query, Seq(Row("C"), Row("D")))
+
+      // File not indexed should be included too
+      query = sql(s""" SELECT name FROM $testTimeSeriesTable
+                     | WHERE time > '2023-10-01 00:05:00'
+                     |   AND address = 'Seattle' """.stripMargin)
+      query.queryExecution.explainString(SimpleMode) should include("FlintSparkSkippingFileIndex")
+      checkAnswer(query, Seq(Row("B")))
+
+      flint.deleteIndex(testFlintTimeSeriesTable)
+    }
+  }
+
+  test("create skipping index with manual refresh and filtering condition") {
+    val testTimeSeriesTable = "spark_catalog.default.partial_skipping_sql_test"
+    val testFlintTimeSeriesTable = getSkippingIndexName(testTimeSeriesTable)
+
+    withTable(testTimeSeriesTable) {
+      createPartitionedTimeSeriesTable(testTimeSeriesTable)
+      sql(s""" CREATE SKIPPING INDEX ON $testTimeSeriesTable
+             | ( address VALUE_SET )
+             | WHERE hour >= 3
+             | """.stripMargin)
+      sql(s"REFRESH SKIPPING INDEX ON $testTimeSeriesTable")
+
+      // Only 1 rows indexed
+      flint.describeIndex(testFlintTimeSeriesTable) shouldBe defined
+      val indexData = flint.queryIndex(testFlintTimeSeriesTable)
+      indexData.count() shouldBe 1
+
+      // File not indexed should be included too
+      sql(s"SELECT * FROM $testTimeSeriesTable").count shouldBe 5
+      var query = sql(s""" SELECT name FROM $testTimeSeriesTable
+                         | WHERE time > '2023-10-01 00:05:00'
+                         |   AND address = 'Portland' """.stripMargin)
+      query.queryExecution.explainString(SimpleMode) should include("FlintSparkSkippingFileIndex")
+      checkAnswer(query, Seq(Row("C"), Row("D")))
+
+      // Generate new data
+      sql(s""" INSERT INTO $testTimeSeriesTable
+             | PARTITION (year=2023, month=10, day=1, hour=4)
+             | VALUES (TIMESTAMP '2023-10-01 04:00:00', 'F', 30, 'Vancouver')""".stripMargin)
+
+      // Latest file should be included too without refresh
+      sql(s"SELECT * FROM $testTimeSeriesTable").count shouldBe 6
+      query = sql(s""" SELECT name FROM $testTimeSeriesTable
+                     | WHERE time > '2023-10-01 00:05:00'
+                     |   AND address = 'Vancouver' """.stripMargin)
+      query.queryExecution.explainString(SimpleMode) should include("FlintSparkSkippingFileIndex")
+      checkAnswer(query, Seq(Row("E"), Row("F")))
+
+      flint.deleteIndex(testFlintTimeSeriesTable)
+    }
+  }
+
+  test(
+    "should fail if create skipping index with filtering condition on non-partitioned column") {
+    val testTimeSeriesTable = "spark_catalog.default.partial_skipping_sql_test"
+    withTable(testTimeSeriesTable) {
+      createPartitionedTimeSeriesTable(testTimeSeriesTable)
+
+      assertThrows[IllegalArgumentException] {
+        sql(s""" CREATE SKIPPING INDEX ON $testTimeSeriesTable
+             | ( address VALUE_SET )
+             |  WHERE time >= '2023-10-01 01:00:00'
+             |  WITH (auto_refresh = true)""".stripMargin)
+      }
+    }
   }
 
   test("create skipping index with streaming job options") {
