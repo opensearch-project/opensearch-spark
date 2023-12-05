@@ -11,6 +11,7 @@ import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
+import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL, RefreshMode}
 import org.opensearch.flint.spark.FlintSparkIndex.{ID_COLUMN, StreamingRefresh}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
@@ -253,7 +254,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         flintClient
           .startTransaction(indexName, dataSourceName)
           .initialLog(latest => latest.state == DELETED)
-          .finalLog(latest => latest.copy(state = DELETED)) // TODO: vacuum metadata log too?
+          .finalLog(_ => NO_LOG_ENTRY)
           .commit(_ => {
             flintClient.deleteIndex(indexName)
             true

@@ -10,6 +10,7 @@ import java.util.Base64
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
+import org.opensearch.action.get.GetRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.OpenSearchTransactionSuite
@@ -117,13 +118,14 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
     flint.deleteIndex(testFlintIndex)
     latestLogEntry(testLatestId) should contain("state" -> "deleted")
 
-    // Vacuum and recreate index
+    // Vacuum index data and metadata log
     flint.vacuumIndex(testFlintIndex)
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .create()
+    openSearchClient
+      .indices()
+      .exists(new GetIndexRequest(testFlintIndex), RequestOptions.DEFAULT) shouldBe false
+    openSearchClient.exists(
+      new GetRequest(testMetaLogIndex, testLatestId),
+      RequestOptions.DEFAULT) shouldBe false
   }
 
   test("should not recreate index if index data still exists") {
