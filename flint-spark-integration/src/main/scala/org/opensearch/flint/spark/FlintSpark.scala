@@ -254,6 +254,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         flintClient
           .startTransaction(indexName, dataSourceName)
           .initialLog(latest => latest.state == DELETED)
+          .transientLog(latest => latest.copy(state = VACUUMING))
           .finalLog(_ => NO_LOG_ENTRY)
           .commit(_ => {
             flintClient.deleteIndex(indexName)
