@@ -37,6 +37,7 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
      */
     try {
       flint.deleteIndex(testIndex)
+      flint.vacuumIndex(testIndex)
     } catch {
       case _: IllegalStateException => deleteIndex(testIndex)
     }

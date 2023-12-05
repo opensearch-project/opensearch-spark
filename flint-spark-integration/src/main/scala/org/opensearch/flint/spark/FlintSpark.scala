@@ -225,7 +225,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
             // TODO: share same transaction for now
             flintIndexMonitor.stopMonitor(indexName)
             stopRefreshingJob(indexName)
-            flintClient.deleteIndex(indexName)
             true
           })
       } catch {
@@ -235,6 +234,37 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       }
     } else {
       logInfo("Flint index to be deleted doesn't exist")
+      false
+    }
+  }
+
+  /**
+   * Delete a Flint index physically.
+   *
+   * @param indexName
+   *   index name
+   * @return
+   *   true if exist and deleted, otherwise false
+   */
+  def vacuumIndex(indexName: String): Boolean = {
+    logInfo(s"Vacuuming Flint index $indexName")
+    if (flintClient.exists(indexName)) {
+      try {
+        flintClient
+          .startTransaction(indexName, dataSourceName)
+          .initialLog(latest => latest.state == DELETED)
+          .finalLog(latest => latest.copy(state = DELETED)) // TODO: vacuum metadata log too?
+          .commit(_ => {
+            flintClient.deleteIndex(indexName)
+            true
+          })
+      } catch {
+        case e: Exception =>
+          logError("Failed to vacuum Flint index", e)
+          throw new IllegalStateException("Failed to vacuum Flint index")
+      }
+    } else {
+      logInfo("Flint index to vacuum doesn't exist")
       false
     }
   }

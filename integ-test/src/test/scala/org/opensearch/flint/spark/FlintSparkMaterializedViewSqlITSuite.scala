@@ -45,6 +45,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
   override def afterEach(): Unit = {
     super.afterEach()
     flint.deleteIndex(testFlintIndex)
+    flint.vacuumIndex(testFlintIndex)
   }
 
   test("create materialized view with auto refresh") {

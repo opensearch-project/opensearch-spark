@@ -37,6 +37,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     super.afterEach()
 
     flint.deleteIndex(testIndex)
+    flint.vacuumIndex(testIndex)
   }
 
   test("create skipping index with auto refresh") {

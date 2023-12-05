@@ -66,6 +66,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
 
     try {
       flint.deleteIndex(testFlintIndex)
+      flint.vacuumIndex(testFlintIndex)
     } catch {
       // Index maybe end up with failed state in some test
       case _: IllegalStateException =>

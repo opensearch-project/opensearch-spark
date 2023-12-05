@@ -118,6 +118,7 @@ class FlintSparkIndexJobSqlITSuite extends FlintSparkSuite with Matchers {
           test(new AssertionHelper(flintIndexName, checkpointDir))
         } finally {
           flint.deleteIndex(flintIndexName)
+          flint.vacuumIndex(flintIndexName)
         }
       }
     }

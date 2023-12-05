@@ -39,6 +39,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     // Delete all test indices
     flint.deleteIndex(testFlintIndex)
+    flint.vacuumIndex(testFlintIndex)
   }
 
   test("create covering index with auto refresh") {
@@ -253,7 +254,9 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     checkAnswer(result, Seq(Row(testIndex), Row("idx_address")))
 
     flint.deleteIndex(getFlintIndexName("idx_address", testTable))
+    flint.vacuumIndex(getFlintIndexName("idx_address", testTable))
     flint.deleteIndex(getSkippingIndexName(testTable))
+    flint.vacuumIndex(getSkippingIndexName(testTable))
   }
 
   test("describe covering index") {
