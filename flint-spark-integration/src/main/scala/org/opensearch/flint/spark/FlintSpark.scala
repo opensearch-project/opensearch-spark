@@ -11,6 +11,7 @@ import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
+import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL, RefreshMode}
 import org.opensearch.flint.spark.FlintSparkIndex.{ID_COLUMN, StreamingRefresh}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
@@ -235,6 +236,37 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       }
     } else {
       logInfo("Flint index to be deleted doesn't exist")
+      false
+    }
+  }
+
+  /**
+   * Delete a Flint index physically.
+   *
+   * @param indexName
+   *   index name
+   * @return
+   *   true if exist and deleted, otherwise false
+   */
+  def vacuumIndex(indexName: String): Boolean = {
+    logInfo(s"Vacuuming Flint index $indexName")
+    if (flintClient.exists(indexName)) {
+      try {
+        flintClient
+          .startTransaction(indexName, dataSourceName)
+          .initialLog(latest => latest.state == DELETED)
+          .finalLog(_ => NO_LOG_ENTRY)
+          .commit(_ => {
+            flintClient.deleteIndex(indexName)
+            true
+          })
+      } catch {
+        case e: Exception =>
+          logError("Failed to vacuum Flint index", e)
+          throw new IllegalStateException("Failed to vacuum Flint index")
+      }
+    } else {
+      logInfo("Flint index to vacuum doesn't exist")
       false
     }
   }
