@@ -33,7 +33,7 @@ Currently, Flint metadata is only static configuration without version control a
 
 ```json
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "name": "...",
   "kind": "skipping",
   "source": "...",
@@ -507,7 +507,7 @@ Manual refreshing a table which already has skipping index being auto-refreshed,
 ### AWS EMR Spark Integration - Using execution role
 Flint use [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html). When running in EMR Spark, Flint use executionRole credentials
 ```
---conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.1.0-SNAPSHOT \
+--conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.2.0-SNAPSHOT \
 --conf spark.jars.repositories=https://aws.oss.sonatype.org/content/repositories/snapshots \
 --conf spark.emr-serverless.driverEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
 --conf spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
@@ -549,7 +549,7 @@ Flint use [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJa
 ```
 3. Set the spark.datasource.flint.customAWSCredentialsProvider property with value as com.amazonaws.emr.AssumeRoleAWSCredentialsProvider. Set the environment variable ASSUME_ROLE_CREDENTIALS_ROLE_ARN with the ARN value of CrossAccountRoleB.
 ```
---conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.1.0-SNAPSHOT \
+--conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.2.0-SNAPSHOT \
 --conf spark.jars.repositories=https://aws.oss.sonatype.org/content/repositories/snapshots \
 --conf spark.emr-serverless.driverEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
 --conf spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
