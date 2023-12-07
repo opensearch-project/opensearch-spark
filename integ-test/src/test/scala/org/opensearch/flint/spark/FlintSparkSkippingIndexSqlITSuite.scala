@@ -260,4 +260,16 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
     flint.describeIndex(testIndex) shouldBe empty
   }
+
+  test("vacuum skipping index") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year")
+      .create()
+
+    sql(s"VACUUM SKIPPING INDEX ON $testTable")
+
+    flint.describeIndex(testIndex) shouldBe empty
+  }
 }
