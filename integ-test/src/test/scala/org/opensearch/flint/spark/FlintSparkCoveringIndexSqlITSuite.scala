@@ -15,7 +15,7 @@ import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.{defined, have}
+import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
@@ -38,7 +38,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     super.afterEach()
 
     // Delete all test indices
-    flint.deleteIndex(testFlintIndex)
+    deleteTestIndex(testFlintIndex)
   }
 
   test("create covering index with auto refresh") {
@@ -252,8 +252,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     val result = sql(s"SHOW INDEX ON $testTable")
     checkAnswer(result, Seq(Row(testIndex), Row("idx_address")))
 
-    flint.deleteIndex(getFlintIndexName("idx_address", testTable))
-    flint.deleteIndex(getSkippingIndexName(testTable))
+    deleteTestIndex(getFlintIndexName("idx_address", testTable), getSkippingIndexName(testTable))
   }
 
   test("describe covering index") {
