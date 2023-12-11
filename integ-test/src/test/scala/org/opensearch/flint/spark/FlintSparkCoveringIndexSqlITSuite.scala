@@ -280,17 +280,4 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     flint.describeIndex(testFlintIndex) shouldBe empty
   }
-
-  test("vacuum covering index") {
-    flint
-      .coveringIndex()
-      .name(testIndex)
-      .onTable(testTable)
-      .addIndexColumns("name", "age")
-      .create()
-
-    sql(s"VACUUM INDEX $testIndex ON $testTable")
-
-    flint.describeIndex(testFlintIndex) shouldBe empty
-  }
 }

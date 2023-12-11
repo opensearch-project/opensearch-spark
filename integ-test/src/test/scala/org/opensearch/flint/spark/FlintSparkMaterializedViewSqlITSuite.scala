@@ -225,17 +225,5 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     flint.describeIndex(testFlintIndex) shouldBe empty
   }
 
-  test("vacuum materialized view") {
-    flint
-      .materializedView()
-      .name(testMvName)
-      .query(testQuery)
-      .create()
-
-    sql(s"VACUUM MATERIALIZED VIEW $testMvName")
-
-    flint.describeIndex(testFlintIndex) shouldBe empty
-  }
-
   private def timestamp(ts: String): Timestamp = Timestamp.valueOf(ts)
 }
