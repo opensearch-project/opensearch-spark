@@ -36,7 +36,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
   protected override def afterEach(): Unit = {
     super.afterEach()
 
-    flint.deleteIndex(testIndex)
+    deleteTestIndex(testIndex)
   }
 
   test("create skipping index with auto refresh") {

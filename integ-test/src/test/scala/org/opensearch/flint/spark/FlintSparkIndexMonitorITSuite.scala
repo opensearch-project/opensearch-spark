@@ -65,13 +65,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     FlintSparkIndexMonitor.indexMonitorTracker.clear()
 
     try {
-      flint.deleteIndex(testFlintIndex)
-    } catch {
-      // Index maybe end up with failed state in some test
-      case _: IllegalStateException =>
-        openSearchClient
-          .indices()
-          .delete(new DeleteIndexRequest(testFlintIndex), RequestOptions.DEFAULT)
+      deleteTestIndex(testFlintIndex)
     } finally {
       super.afterEach()
     }
