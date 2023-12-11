@@ -109,7 +109,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
 
       LOG.info("Purged log entry with result " + response.getResult());
     } catch (Exception e) {
-      throw new IllegalStateException("Failed to purge metadata log entry", e);
+      throw new IllegalStateException("Failed to purge log entry", e);
     }
   }
 

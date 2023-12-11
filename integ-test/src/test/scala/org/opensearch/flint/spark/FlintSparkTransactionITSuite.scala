@@ -128,6 +128,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
     deleteLogically(testLatestId)
     flint.vacuumIndex(testFlintIndex)
 
+    // Both index data and metadata log should be vacuumed
     openSearchClient
       .indices()
       .exists(new GetIndexRequest(testFlintIndex), RequestOptions.DEFAULT) shouldBe false
