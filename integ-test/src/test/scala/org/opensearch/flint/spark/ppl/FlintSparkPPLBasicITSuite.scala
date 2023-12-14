@@ -11,7 +11,7 @@ import org.apache.spark.sql.catalyst.expressions.{Ascending, Literal, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
 
-class FlintSparkPPLITSuite
+class FlintSparkPPLBasicITSuite
     extends QueryTest
     with LogicalPlanTestUtils
     with FlintPPLSuite

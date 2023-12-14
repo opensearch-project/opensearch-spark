@@ -62,6 +62,16 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                     .put("isnotnull", IS_NOT_NULL.getName().getFunctionName())
                     .build();
 
+    @Override
+    public UnresolvedExpression visitMappingCompareExpr(OpenSearchPPLParser.MappingCompareExprContext ctx) {
+        return new Compare(ctx.comparisonOperator().getText(), visit(ctx.left), visit(ctx.right));
+    }
+
+    @Override
+    public UnresolvedExpression visitMappingList(OpenSearchPPLParser.MappingListContext ctx) {
+        return super.visitMappingList(ctx);
+    }
+
     /**
      * Eval clause.
      */

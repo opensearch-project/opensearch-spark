@@ -33,6 +33,7 @@ pplCommands
 
 commands
    : whereCommand
+   | correlateCommand
    | fieldsCommand
    | renameCommand
    | statsCommand
@@ -61,12 +62,34 @@ describeCommand
    ;
 
 showDataSourcesCommand
-   : SHOW DATASOURCES
-   ;
+    : SHOW DATASOURCES
+    ;
 
 whereCommand
-   : WHERE logicalExpression
-   ;
+    : WHERE logicalExpression
+    ;
+
+correlateCommand
+    : CORRELATE correlationType FIELDS LT_PRTHS fieldList RT_PRTHS (scopeClause)? mappingList
+    ;
+
+correlationType
+    : SELF
+    | EXACT
+    | APPROXIMATE
+    ;
+
+scopeClause
+    : SCOPE LT_PRTHS fieldExpression COMMA value = literalValue (unit = timespanUnit)? RT_PRTHS
+    ;
+
+mappingList
+    : MAPPING LT_PRTHS ( mappingClause (COMMA mappingClause)* ) RT_PRTHS
+    ;
+
+mappingClause
+    : left = qualifiedName comparisonOperator right = qualifiedName # mappingCompareExpr
+    ;
 
 fieldsCommand
    : FIELDS (PLUS | MINUS)? fieldList
@@ -820,6 +843,7 @@ keywordsCanBeId
    | SHOW
    | FROM
    | WHERE
+   | CORRELATE
    | FIELDS
    | RENAME
    | STATS
