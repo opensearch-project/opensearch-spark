@@ -38,7 +38,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
   override def afterEach(): Unit = {
     super.afterEach()
-    flint.deleteIndex(testFlintIndex)
+    deleteTestIndex(testFlintIndex)
   }
 
   test("create materialized view with metadata successfully") {

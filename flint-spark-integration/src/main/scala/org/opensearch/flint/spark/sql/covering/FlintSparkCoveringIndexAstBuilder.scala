@@ -112,6 +112,15 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
     }
   }
 
+  override def visitVacuumCoveringIndexStatement(
+      ctx: VacuumCoveringIndexStatementContext): Command = {
+    FlintSparkSqlCommand() { flint =>
+      val flintIndexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
+      flint.vacuumIndex(flintIndexName)
+      Seq.empty
+    }
+  }
+
   private def getFlintIndexName(
       flint: FlintSpark,
       indexNameCtx: RuleNode,

@@ -108,6 +108,14 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
     }
   }
 
+  override def visitVacuumMaterializedViewStatement(
+      ctx: VacuumMaterializedViewStatementContext): Command = {
+    FlintSparkSqlCommand() { flint =>
+      flint.vacuumIndex(getFlintIndexName(flint, ctx.mvName))
+      Seq.empty
+    }
+  }
+
   private def getFlintIndexName(flint: FlintSpark, mvNameCtx: RuleNode): String = {
     val fullMvName = getFullTableName(flint, mvNameCtx)
     FlintSparkMaterializedView.getFlintIndexName(fullMvName)

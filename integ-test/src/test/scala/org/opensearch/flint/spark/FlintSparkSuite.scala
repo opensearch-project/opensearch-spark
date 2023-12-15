@@ -12,6 +12,9 @@ import scala.concurrent.duration.TimeUnit
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
+import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
+import org.opensearch.client.RequestOptions
+import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.OpenSearchSuite
 import org.scalatestplus.mockito.MockitoSugar.mock
 
@@ -44,6 +47,29 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     when(mockExecutor.scheduleWithFixedDelay(any[Runnable], any[Long], any[Long], any[TimeUnit]))
       .thenAnswer((_: InvocationOnMock) => mock[ScheduledFuture[_]])
     FlintSparkIndexMonitor.executor = mockExecutor
+  }
+
+  protected def deleteTestIndex(testIndexNames: String*): Unit = {
+    testIndexNames.foreach(testIndex => {
+      /**
+       * Todo, if state is not valid, will throw IllegalStateException. Should check flint
+       * .isRefresh before cleanup resource. Current solution, (1) try to delete flint index, (2)
+       * if failed, delete index itself.
+       */
+      try {
+        flint.deleteIndex(testIndex)
+        flint.vacuumIndex(testIndex)
+      } catch {
+        case _: IllegalStateException =>
+          if (openSearchClient
+              .indices()
+              .exists(new GetIndexRequest(testIndex), RequestOptions.DEFAULT)) {
+            openSearchClient
+              .indices()
+              .delete(new DeleteIndexRequest(testIndex), RequestOptions.DEFAULT)
+          }
+      }
+    })
   }
 
   protected def awaitStreamingComplete(jobId: String): Unit = {

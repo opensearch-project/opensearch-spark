@@ -26,4 +26,9 @@ public interface FlintMetadataLog<T> {
    * @return latest log entry
    */
   Optional<T> getLatest();
+
+  /**
+   * Remove all log entries.
+   */
+  void purge();
 }
