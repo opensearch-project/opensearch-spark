@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.spark.skipping.valueset
 
+import org.opensearch.flint.spark.function.CollectSetLimit
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{SkippingKind, VALUE_SET}
 
@@ -18,14 +19,21 @@ import org.apache.spark.sql.functions.col
 case class ValueSetSkippingStrategy(
     override val kind: SkippingKind = VALUE_SET,
     override val columnName: String,
-    override val columnType: String)
+    override val columnType: String,
+    limit: Int = 100)
     extends FlintSparkSkippingStrategy {
 
   override def outputSchema(): Map[String, String] =
     Map(columnName -> columnType)
 
-  override def getAggregators: Seq[AggregateFunction] =
-    Seq(CollectSet(col(columnName).expr))
+  override def getAggregators: Seq[AggregateFunction] = {
+    val expr = col(columnName).expr
+    if (limit == 0) {
+      Seq(CollectSet(expr))
+    } else {
+      Seq(CollectSetLimit(expr, limit))
+    }
+  }
 
   override def rewritePredicate(predicate: Expression): Option[Expression] =
     /*

@@ -37,7 +37,7 @@ import org.apache.spark.sql.types.DataType
   since = "2.0.0")
 case class CollectSetLimit(
     child: Expression,
-    limit: Int = 100,
+    limit: Int,
     mutableAggBufferOffset: Int = 0,
     inputAggBufferOffset: Int = 0)
     extends Collect[mutable.HashSet[Any]] {

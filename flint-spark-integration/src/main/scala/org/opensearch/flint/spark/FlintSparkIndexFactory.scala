@@ -50,7 +50,10 @@ object FlintSparkIndexFactory {
             case PARTITION =>
               PartitionSkippingStrategy(columnName = columnName, columnType = columnType)
             case VALUE_SET =>
-              ValueSetSkippingStrategy(columnName = columnName, columnType = columnType)
+              ValueSetSkippingStrategy(
+                columnName = columnName,
+                columnType = columnType,
+                limit = colInfo.get("limit").asInstanceOf[Int])
             case MIN_MAX =>
               MinMaxSkippingStrategy(columnName = columnName, columnType = columnType)
             case other =>

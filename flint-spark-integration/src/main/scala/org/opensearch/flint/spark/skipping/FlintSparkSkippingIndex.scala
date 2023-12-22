@@ -167,6 +167,23 @@ object FlintSparkSkippingIndex {
     }
 
     /**
+     * Add value set skipping indexed column.
+     *
+     * @param colName
+     *   indexed column name
+     * @return
+     *   index builder
+     */
+    def addValueSet(colName: String, limit: Int): Builder = {
+      require(tableName.nonEmpty, "table name cannot be empty")
+
+      val col = findColumn(colName)
+      addIndexedColumn(
+        ValueSetSkippingStrategy(columnName = col.name, columnType = col.dataType, limit = limit))
+      this
+    }
+
+    /**
      * Add min max skipping indexed column.
      *
      * @param colName
