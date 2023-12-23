@@ -14,7 +14,7 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.{defined, have}
+import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
@@ -141,6 +141,24 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     indexData.count() shouldBe 0
 
     sql(s"REFRESH SKIPPING INDEX ON $testTable")
+    indexData.count() shouldBe 2
+  }
+
+  test("create skipping index with value set limit") {
+    sql(s"""
+         | CREATE SKIPPING INDEX ON $testTable
+         | (
+         |   name VALUE_SET(10)
+         | )
+         | WITH (auto_refresh = true)
+         | """.stripMargin)
+
+    // Wait for streaming job complete current micro batch
+    val job = spark.streams.active.find(_.name == testIndex)
+    awaitStreamingComplete(job.get.id.toString)
+
+    val indexData = spark.read.format(FLINT_DATASOURCE).load(testIndex)
+    flint.describeIndex(testIndex) shouldBe defined
     indexData.count() shouldBe 2
   }
 

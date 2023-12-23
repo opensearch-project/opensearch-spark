@@ -10,7 +10,7 @@ import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION}
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
@@ -42,11 +42,18 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
 
       ctx.indexColTypeList().indexColType().forEach { colTypeCtx =>
         val colName = colTypeCtx.identifier().getText
-        val skipType = SkippingKind.withName(colTypeCtx.skipType.getText)
-        skipType match {
-          case PARTITION => indexBuilder.addPartitions(colName)
-          case VALUE_SET => indexBuilder.addValueSet(colName)
-          case MIN_MAX => indexBuilder.addMinMax(colName)
+        if (colTypeCtx.skipType == null) {
+          if (colTypeCtx.valueSetType().limit == null) {
+            indexBuilder.addValueSet(colName)
+          } else {
+            indexBuilder.addValueSet(colName, colTypeCtx.valueSetType().limit.getText.toInt)
+          }
+        } else {
+          val skipType = SkippingKind.withName(colTypeCtx.skipType.getText)
+          skipType match {
+            case PARTITION => indexBuilder.addPartitions(colName)
+            case MIN_MAX => indexBuilder.addMinMax(colName)
+          }
         }
       }
 

@@ -139,7 +139,12 @@ indexColTypeList
     ;
 
 indexColType
-    : identifier skipType=(PARTITION | VALUE_SET | MIN_MAX)
+    : identifier skipType=(PARTITION | MIN_MAX)
+    | identifier valueSetType
+    ;
+
+valueSetType
+    : VALUE_SET (LEFT_PAREN limit=INTEGER_VALUE RIGHT_PAREN)?
     ;
 
 indexName
