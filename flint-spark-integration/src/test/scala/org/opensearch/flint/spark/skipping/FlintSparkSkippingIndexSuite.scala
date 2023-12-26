@@ -58,7 +58,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
   test("can build index building job with unique ID column") {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.outputSchema()).thenReturn(Map("name" -> "string"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("name").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("name").expr).toAggregateExpression()))
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
 
     val df = spark.createDataFrame(Seq(("hello", 20))).toDF("name", "age")
@@ -70,7 +71,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("boolean_col" -> "boolean"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("boolean_col").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("boolean_col").expr).toAggregateExpression()))
 
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
@@ -90,7 +92,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("string_col" -> "string"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("string_col").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("string_col").expr).toAggregateExpression()))
 
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
@@ -112,7 +115,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("varchar_col" -> "varchar(20)"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("varchar_col").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("varchar_col").expr).toAggregateExpression()))
 
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
@@ -132,7 +136,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("char_col" -> "char(20)"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("char_col").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("char_col").expr).toAggregateExpression()))
 
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
@@ -152,7 +157,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("long_col" -> "bigint"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("long_col").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("long_col").expr).toAggregateExpression()))
 
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
@@ -172,7 +178,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("int_col" -> "int"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("int_col").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("int_col").expr).toAggregateExpression()))
 
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
@@ -192,7 +199,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("short_col" -> "smallint"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("short_col").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("short_col").expr).toAggregateExpression()))
 
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
@@ -212,7 +220,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("byte_col" -> "tinyint"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("byte_col").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("byte_col").expr).toAggregateExpression()))
 
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
@@ -232,7 +241,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("double_col" -> "double"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("double_col").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("double_col").expr).toAggregateExpression()))
 
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
@@ -252,7 +262,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("float_col" -> "float"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("float_col").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("float_col").expr).toAggregateExpression()))
 
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
@@ -272,7 +283,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("timestamp_col" -> "timestamp"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("timestamp_col").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("timestamp_col").expr).toAggregateExpression()))
 
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
@@ -293,7 +305,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema()).thenReturn(Map("date_col" -> "date"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("date_col").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("date_col").expr).toAggregateExpression()))
 
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
@@ -315,7 +328,8 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
     when(indexCol.outputSchema())
       .thenReturn(Map("struct_col" -> "struct<subfield1:string,subfield2:int>"))
-    when(indexCol.getAggregators).thenReturn(Seq(CollectSet(col("struct_col").expr)))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("struct_col").expr).toAggregateExpression()))
 
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
     schemaShouldMatch(
