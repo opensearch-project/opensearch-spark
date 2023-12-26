@@ -9,7 +9,7 @@ import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{PARTITION, SkippingKind}
 
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, EqualTo, Expression, Literal}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, First}
+import org.apache.spark.sql.catalyst.expressions.aggregate.First
 import org.apache.spark.sql.functions.col
 
 /**
@@ -25,8 +25,8 @@ case class PartitionSkippingStrategy(
     Map(columnName -> columnType)
   }
 
-  override def getAggregators: Seq[AggregateFunction] = {
-    Seq(First(col(columnName).expr, ignoreNulls = true))
+  override def getAggregators: Seq[Expression] = {
+    Seq(First(col(columnName).expr, ignoreNulls = true).toAggregateExpression())
   }
 
   override def rewritePredicate(predicate: Expression): Option[Expression] =

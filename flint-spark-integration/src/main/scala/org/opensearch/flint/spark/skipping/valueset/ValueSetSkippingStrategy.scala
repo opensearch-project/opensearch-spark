@@ -5,13 +5,12 @@
 
 package org.opensearch.flint.spark.skipping.valueset
 
-import org.opensearch.flint.spark.function.CollectSetLimit
+import org.opensearch.flint.spark.function.CollectSetLimit.collect_set_limit
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{SkippingKind, VALUE_SET}
 
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, EqualTo, Expression, Literal}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, CollectSet}
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions._
 
 /**
  * Skipping strategy based on unique column value set.
@@ -26,13 +25,16 @@ case class ValueSetSkippingStrategy(
   override def outputSchema(): Map[String, String] =
     Map(columnName -> columnType)
 
-  override def getAggregators: Seq[AggregateFunction] = {
-    val expr = col(columnName).expr
-    if (limit == 0) {
-      Seq(CollectSet(expr))
-    } else {
-      Seq(CollectSetLimit(expr, limit))
-    }
+  override def getAggregators: Seq[Expression] = {
+    val aggregator =
+      if (limit == 0) {
+        collect_set(columnName)
+      } else {
+        val collectSetLimit = collect_set_limit(columnName, limit + 1)
+        when(size(collectSetLimit) === limit + 1, lit(null))
+          .otherwise(collectSetLimit)
+      }
+    Seq(aggregator.expr)
   }
 
   override def rewritePredicate(predicate: Expression): Option[Expression] =

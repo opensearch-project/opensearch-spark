@@ -35,24 +35,15 @@ class CollectSetLimitSuite extends FlintSuite with Matchers {
 
     Seq(InternalRow(1), InternalRow(1)).foreach(row =>
       buffer = collectSetLimit.update(buffer, row))
-    assert(buffer.size == 1) // Check if only one element are collected
+    assert(buffer.size == 1)
   }
 
   test("should collect unique elements up to the limit") {
     val collectSetLimit = CollectSetLimit(expression, limit = 2)
     var buffer = collectSetLimit.createAggregationBuffer()
 
-    Seq(InternalRow(1), InternalRow(2), InternalRow(1)).foreach(row =>
+    Seq(InternalRow(1), InternalRow(2), InternalRow(3)).foreach(row =>
       buffer = collectSetLimit.update(buffer, row))
-    assert(buffer.size == 2) // Check if only two elements are collected
-  }
-
-  test("should return empty set when limit is reached") {
-    val collectSetLimit = CollectSetLimit(expression, limit = 1) // Limit set to 0
-    var buffer = collectSetLimit.createAggregationBuffer()
-
-    Seq(InternalRow(1), InternalRow(2)).foreach(row =>
-      buffer = collectSetLimit.update(buffer, row))
-    assert(buffer.isEmpty)
+    assert(buffer.size == 2)
   }
 }

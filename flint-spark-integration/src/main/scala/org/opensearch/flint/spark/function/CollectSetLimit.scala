@@ -7,12 +7,9 @@ package org.opensearch.flint.spark.function
 
 import scala.collection.mutable
 
-import org.opensearch.flint.spark.function.CollectSetLimit.FUNCTION_NAME
-
-import org.apache.spark.sql.catalyst.{FunctionIdentifier, InternalRow}
-import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
-import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
-import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionDescription, ExpressionInfo}
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionDescription}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Collect, CollectSet, ImperativeAggregate}
 import org.apache.spark.sql.types.DataType
 
@@ -24,7 +21,7 @@ import org.apache.spark.sql.types.DataType
     "_FUNC_(expr, limit) - Collects and returns a set of unique elements up to maximum limit.",
   examples = """
     Examples:
-      > SELECT _FUNC_(col) FROM VALUES (1), (2), (1) AS tab(col);
+      > SELECT _FUNC_(col, 2) FROM VALUES (1), (2), (1) AS tab(col);
        [1,2]
       > SELECT _FUNC_(col, 1) FROM VALUES (1), (2), (1) AS tab(col);
        [1]
@@ -42,29 +39,14 @@ case class CollectSetLimit(
     inputAggBufferOffset: Int = 0)
     extends Collect[mutable.HashSet[Any]] {
 
-  /** Avoid re-creating empty set after limit reached */
-  private val emptySetAfterLimitReached = mutable.HashSet.empty[Any]
-
-  /** Is limit reached already (buffer will be empty so cannot rely on its size) */
-  private var limitReached = false
-
   /** Delegate to collect set (because Scala prohibit case-to-case inheritance) */
   private val collectSet = CollectSet(child, mutableAggBufferOffset, inputAggBufferOffset)
 
   override def update(buffer: mutable.HashSet[Any], input: InternalRow): mutable.HashSet[Any] = {
-    if (limitReached) {
-      // Keep returning empty set with no-op after limit reached
-      emptySetAfterLimitReached
+    if (buffer.size < limit) {
+      super.update(buffer, input)
     } else {
-      // Update first and then check limit because only unique element added
-      val newBuffer = super.update(buffer, input)
-      if (newBuffer.size <= limit) {
-        newBuffer
-      } else {
-        // Mark limit reached
-        limitReached = true
-        emptySetAfterLimitReached
-      }
+      buffer
     }
   }
 
@@ -88,16 +70,14 @@ case class CollectSetLimit(
   override def withNewInputAggBufferOffset(newInputAggBufferOffset: Int): ImperativeAggregate =
     copy(inputAggBufferOffset = newInputAggBufferOffset)
 
-  override def prettyName: String = FUNCTION_NAME
+  override def prettyName: String = "collect_set_limit"
 }
 
 object CollectSetLimit {
 
-  val FUNCTION_NAME = "collect_set_limit"
-
-  def description: (FunctionIdentifier, ExpressionInfo, FunctionBuilder) = {
-    val (expressionInfo, funcBuilder) =
-      FunctionRegistryBase.build[CollectSetLimit](FUNCTION_NAME, None)
-    (FunctionIdentifier(FUNCTION_NAME), expressionInfo, funcBuilder)
-  }
+  /** Function DSL */
+  def collect_set_limit(columnName: String, limit: Int): Column =
+    new Column(
+      CollectSetLimit(new Column(columnName).expr, limit)
+        .toAggregateExpression())
 }

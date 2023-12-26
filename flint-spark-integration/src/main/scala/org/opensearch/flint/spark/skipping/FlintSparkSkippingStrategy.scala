@@ -42,7 +42,7 @@ trait FlintSparkSkippingStrategy {
    * @return
    *   aggregators that generate skipping data structure
    */
-  def getAggregators: Seq[AggregateFunction]
+  def getAggregators: Seq[Expression]
 
   /**
    * Rewrite a filtering condition on source table into a new predicate on index data based on

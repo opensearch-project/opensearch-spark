@@ -9,7 +9,7 @@ import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, SkippingKind}
 
 import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, EqualTo, Expression, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, Max, Min}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{Max, Min}
 import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.functions.col
 
@@ -29,8 +29,10 @@ case class MinMaxSkippingStrategy(
   override def outputSchema(): Map[String, String] =
     Map(minColName -> columnType, maxColName -> columnType)
 
-  override def getAggregators: Seq[AggregateFunction] =
-    Seq(Min(col(columnName).expr), Max(col(columnName).expr))
+  override def getAggregators: Seq[Expression] =
+    Seq(
+      Min(col(columnName).expr).toAggregateExpression(),
+      Max(col(columnName).expr).toAggregateExpression())
 
   override def rewritePredicate(predicate: Expression): Option[Expression] =
     predicate match {
