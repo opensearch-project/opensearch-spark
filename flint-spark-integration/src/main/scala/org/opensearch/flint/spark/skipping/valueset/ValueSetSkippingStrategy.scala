@@ -27,8 +27,6 @@ case class ValueSetSkippingStrategy(
   override def getAggregators: Seq[Expression] = {
     val limit = DEFAULT_VALUE_SET_SIZE_LIMIT
     val collectSetLimit = collect_set(columnName)
-
-    // IF(ARRAY_SIZE(COLLECT_SET(col)) > default_limit, null, COLLECT_SET(col)
     val aggregator =
       when(size(collectSetLimit) > limit, lit(null))
         .otherwise(collectSetLimit)
@@ -50,5 +48,5 @@ case class ValueSetSkippingStrategy(
 object ValueSetSkippingStrategy {
 
   /** Default limit for value set size collected */
-  val DEFAULT_VALUE_SET_SIZE_LIMIT = 100
+  val DEFAULT_VALUE_SET_SIZE_LIMIT = 2
 }

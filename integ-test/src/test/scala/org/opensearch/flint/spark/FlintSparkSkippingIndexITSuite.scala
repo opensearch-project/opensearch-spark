@@ -12,15 +12,15 @@ import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.{Matcher, MatchResult}
+import org.scalatest.matchers.{MatchResult, Matcher}
 import org.scalatest.matchers.must.Matchers._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-
 import org.apache.spark.sql.{Column, Row}
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.flint.config.FlintSparkConf._
 import org.apache.spark.sql.functions.col
+import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
 class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
@@ -283,6 +283,40 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     checkAnswer(query, Row("World"))
     query.queryExecution.executedPlan should
       useFlintSparkSkippingFileIndex(hasIndexFilter(col("address") === "Portland"))
+  }
+
+  test("can build value set skipping index up to default limit") {
+    // Use hint to insert all rows in a single csv file
+    sql(s"""
+         | INSERT OVERWRITE $testTable
+         | PARTITION (year=2023, month=4)
+         | SELECT /*+ COALESCE(1) */ *
+         | FROM VALUES
+         |   ('Hello', 30, 'Seattle'),
+         |   ('World', 40, 'Portland')
+         |""".stripMargin)
+
+    sql(s"""
+           | INSERT OVERWRITE $testTable
+           | PARTITION (year=2023, month=5)
+           | SELECT /*+ COALESCE(1) */ *
+           | FROM VALUES
+           |   ('Hello', 30, 'Seattle'),
+           |   ('World', 40, 'Portland'),
+           |   ('Test', 50, 'Vancouver')
+           |""".stripMargin)
+
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addValueSet("address")
+      .create()
+    flint.refreshIndex(testIndex, FULL)
+
+    checkAnswer(
+      flint.queryIndex(testIndex).select("address"),
+      Seq(Row("""["Seattle","Portland"]"""), Row(null))
+    )
   }
 
   test("can build min max skipping index and rewrite applicable query") {
