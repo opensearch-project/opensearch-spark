@@ -46,7 +46,8 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
           if (colTypeCtx.valueSetType().limit == null) {
             indexBuilder.addValueSet(colName)
           } else {
-            indexBuilder.addValueSet(colName, colTypeCtx.valueSetType().limit.getText.toInt)
+            indexBuilder
+              .addValueSet(colName, Map("limit" -> colTypeCtx.valueSetType().limit.getText))
           }
         } else {
           val skipType = SkippingKind.withName(colTypeCtx.skipType.getText)

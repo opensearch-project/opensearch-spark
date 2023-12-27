@@ -33,6 +33,11 @@ trait FlintSparkSkippingStrategy {
   val columnType: String
 
   /**
+   * Skipping algorithm properties.
+   */
+  val properties: Map[String, String] = Map.empty
+
+  /**
    * @return
    *   output schema mapping from Flint field name to Flint field type
    */

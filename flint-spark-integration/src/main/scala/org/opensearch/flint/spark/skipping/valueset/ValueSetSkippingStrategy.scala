@@ -8,6 +8,7 @@ package org.opensearch.flint.spark.skipping.valueset
 import org.opensearch.flint.spark.function.CollectSetLimit.collect_set_limit
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{SkippingKind, VALUE_SET}
+import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.DEFAULT_VALUE_SET_SIZE_LIMIT
 
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, EqualTo, Expression, Literal}
 import org.apache.spark.sql.functions._
@@ -19,19 +20,21 @@ case class ValueSetSkippingStrategy(
     override val kind: SkippingKind = VALUE_SET,
     override val columnName: String,
     override val columnType: String,
-    limit: Int = 100)
+    override val properties: Map[String, String] = Map.empty)
     extends FlintSparkSkippingStrategy {
 
   override def outputSchema(): Map[String, String] =
     Map(columnName -> columnType)
 
   override def getAggregators: Seq[Expression] = {
+    val limit = getValueSetSizeLimit()
     val aggregator =
       if (limit == 0) {
         collect_set(columnName)
       } else {
-        val collectSetLimit = collect_set_limit(columnName, limit + 1)
-        when(size(collectSetLimit) === limit + 1, lit(null))
+        // val limitPlusOne = limit + 1
+        val collectSetLimit = collect_set(columnName) // collect_set_limit(columnName, limitPlusOne)
+        when(size(collectSetLimit) > limit, lit(null))
           .otherwise(collectSetLimit)
       }
     Seq(aggregator.expr)
@@ -47,4 +50,13 @@ case class ValueSetSkippingStrategy(
         Some((col(columnName) === value).expr)
       case _ => None
     }
+
+  private def getValueSetSizeLimit(): Int =
+    properties.get("limit").map(_.toInt).getOrElse(DEFAULT_VALUE_SET_SIZE_LIMIT)
+}
+
+object ValueSetSkippingStrategy {
+
+  /** Default limit for value set size collected */
+  val DEFAULT_VALUE_SET_SIZE_LIMIT = 100
 }

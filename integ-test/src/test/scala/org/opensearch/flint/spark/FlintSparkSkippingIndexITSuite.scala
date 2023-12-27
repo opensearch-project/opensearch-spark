@@ -285,6 +285,24 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       useFlintSparkSkippingFileIndex(hasIndexFilter(col("address") === "Portland"))
   }
 
+  test("can build value set skipping index with limit") {
+    // Add one more row for Seattle
+    sql(s"""
+         | INSERT INTO $testTable
+         | PARTITION (year=2023, month=4)
+         | VALUES ('Hello', 30, 'Seattle')
+         | """.stripMargin)
+
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addValueSet("address", Map("limit" -> "1"))
+      .create()
+    flint.refreshIndex(testIndex, FULL)
+
+    checkAnswer(flint.queryIndex(testIndex).select("address"), Seq(Row(Seq("Portland")), Row()))
+  }
+
   test("can build min max skipping index and rewrite applicable query") {
     flint
       .skippingIndex()

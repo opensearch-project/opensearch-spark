@@ -50,7 +50,8 @@ case class FlintSparkSkippingIndex(
           Map[String, AnyRef](
             "kind" -> col.kind.toString,
             "columnName" -> col.columnName,
-            "columnType" -> col.columnType).asJava)
+            "columnType" -> col.columnType,
+            "properties" -> col.properties.asJava).asJava)
         .toArray
 
     val fieldTypes =
@@ -155,31 +156,20 @@ object FlintSparkSkippingIndex {
      *
      * @param colName
      *   indexed column name
+     * @param properties
+     *   value set skipping properties
      * @return
      *   index builder
      */
-    def addValueSet(colName: String): Builder = {
-      require(tableName.nonEmpty, "table name cannot be empty")
-
-      val col = findColumn(colName)
-      addIndexedColumn(ValueSetSkippingStrategy(columnName = col.name, columnType = col.dataType))
-      this
-    }
-
-    /**
-     * Add value set skipping indexed column.
-     *
-     * @param colName
-     *   indexed column name
-     * @return
-     *   index builder
-     */
-    def addValueSet(colName: String, limit: Int): Builder = {
+    def addValueSet(colName: String, properties: Map[String, String] = Map.empty): Builder = {
       require(tableName.nonEmpty, "table name cannot be empty")
 
       val col = findColumn(colName)
       addIndexedColumn(
-        ValueSetSkippingStrategy(columnName = col.name, columnType = col.dataType, limit = limit))
+        ValueSetSkippingStrategy(
+          columnName = col.name,
+          columnType = col.dataType,
+          properties = properties))
       this
     }
 

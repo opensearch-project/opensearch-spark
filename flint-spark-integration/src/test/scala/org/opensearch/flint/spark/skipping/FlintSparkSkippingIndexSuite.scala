@@ -67,289 +67,170 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     indexDf.schema.fieldNames should contain only ("name", FILE_PATH_COLUMN, ID_COLUMN)
   }
 
-  test("can build index for boolean column") {
-    val indexCol = mock[FlintSparkSkippingStrategy]
-    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
-    when(indexCol.outputSchema()).thenReturn(Map("boolean_col" -> "boolean"))
-    when(indexCol.getAggregators).thenReturn(
-      Seq(CollectSet(col("boolean_col").expr).toAggregateExpression()))
+  // Test index build for different column type
+  Seq(
+    (
+      "boolean_col",
+      "boolean",
+      """{
+        |  "boolean_col": {
+        |    "type": "boolean"
+        |  },
+        |  "file_path": {
+        |    "type": "keyword"
+        |  }
+        |}"""),
+    (
+      "string_col",
+      "string",
+      """{
+        |  "string_col": {
+        |    "type": "keyword"
+        |  },
+        |  "file_path": {
+        |    "type": "keyword"
+        |  }
+        |}"""),
+    (
+      "varchar_col",
+      "varchar(20)",
+      """{
+        |  "varchar_col": {
+        |    "type": "keyword"
+        |  },
+        |  "file_path": {
+        |    "type": "keyword"
+        |  }
+        |}"""),
+    (
+      "char_col",
+      "char(20)",
+      """{
+        |  "char_col": {
+        |    "type": "keyword"
+        |  },
+        |  "file_path": {
+        |    "type": "keyword"
+        |  }
+        |}"""),
+    (
+      "long_col",
+      "bigint",
+      """{
+        |  "long_col": {
+        |    "type": "long"
+        |  },
+        |  "file_path": {
+        |    "type": "keyword"
+        |  }
+        |}"""),
+    (
+      "int_col",
+      "int",
+      """{
+        |  "int_col": {
+        |    "type": "integer"
+        |  },
+        |  "file_path": {
+        |    "type": "keyword"
+        |  }
+        |}"""),
+    (
+      "short_col",
+      "smallint",
+      """{
+        |  "short_col": {
+        |    "type": "short"
+        |  },
+        |  "file_path": {
+        |    "type": "keyword"
+        |  }
+        |}"""),
+    (
+      "byte_col",
+      "tinyint",
+      """{
+        |  "byte_col": {
+        |    "type": "byte"
+        |  },
+        |  "file_path": {
+        |    "type": "keyword"
+        |  }
+        |}"""),
+    (
+      "double_col",
+      "double",
+      """{
+        |  "double_col": {
+        |    "type": "double"
+        |  },
+        |  "file_path": {
+        |    "type": "keyword"
+        |  }
+        |}"""),
+    (
+      "float_col",
+      "float",
+      """{
+        |  "float_col": {
+        |    "type": "float"
+        |  },
+        |  "file_path": {
+        |    "type": "keyword"
+        |  }
+        |}"""),
+    (
+      "timestamp_col",
+      "timestamp",
+      """{
+        |  "timestamp_col": {
+        |    "type": "date",
+        |    "format": "strict_date_optional_time_nanos"
+        |  },
+        |  "file_path": {
+        |    "type": "keyword"
+        |  }
+        |}"""),
+    (
+      "date_col",
+      "date",
+      """{
+        |  "date_col": {
+        |    "type": "date",
+        |    "format": "strict_date"
+        |  },
+        |  "file_path": {
+        |    "type": "keyword"
+        |  }
+        |}"""),
+    (
+      "struct_col",
+      "struct<subfield1:string,subfield2:int>",
+      """{
+        |  "struct_col": {
+        |    "properties": {
+        |      "subfield1": {
+        |        "type": "keyword"
+        |      },
+        |      "subfield2": {
+        |        "type": "integer"
+        |      }
+        |    }
+        |  },
+        |  "file_path": {
+        |    "type": "keyword"
+        |  }
+        |}""")).foreach { case (columnName, columnType, expectedSchema) =>
+    test(s"can build index for $columnType column") {
+      val indexCol = mock[FlintSparkSkippingStrategy]
+      when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
+      when(indexCol.outputSchema()).thenReturn(Map(columnName -> columnType))
+      when(indexCol.getAggregators).thenReturn(
+        Seq(CollectSet(col(columnName).expr).toAggregateExpression()))
 
-    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
-    schemaShouldMatch(
-      index.metadata(),
-      s"""{
-         |  "boolean_col": {
-         |    "type": "boolean"
-         |  },
-         |  "file_path": {
-         |     "type": "keyword"
-         |  }
-         |}
-         |""".stripMargin)
-  }
-
-  test("can build index for string column") {
-    val indexCol = mock[FlintSparkSkippingStrategy]
-    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
-    when(indexCol.outputSchema()).thenReturn(Map("string_col" -> "string"))
-    when(indexCol.getAggregators).thenReturn(
-      Seq(CollectSet(col("string_col").expr).toAggregateExpression()))
-
-    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
-    schemaShouldMatch(
-      index.metadata(),
-      s"""{
-         |  "string_col": {
-         |    "type": "keyword"
-         |  },
-         |  "file_path": {
-         |    "type": "keyword"
-         |  }
-         |}
-         |""".stripMargin)
-  }
-
-  // TODO: test for osType "text"
-
-  test("can build index for varchar column") {
-    val indexCol = mock[FlintSparkSkippingStrategy]
-    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
-    when(indexCol.outputSchema()).thenReturn(Map("varchar_col" -> "varchar(20)"))
-    when(indexCol.getAggregators).thenReturn(
-      Seq(CollectSet(col("varchar_col").expr).toAggregateExpression()))
-
-    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
-    schemaShouldMatch(
-      index.metadata(),
-      s"""{
-         |  "varchar_col": {
-         |    "type": "keyword"
-         |  },
-         |  "file_path": {
-         |    "type": "keyword"
-         |  }
-         |}
-         |""".stripMargin)
-  }
-
-  test("can build index for char column") {
-    val indexCol = mock[FlintSparkSkippingStrategy]
-    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
-    when(indexCol.outputSchema()).thenReturn(Map("char_col" -> "char(20)"))
-    when(indexCol.getAggregators).thenReturn(
-      Seq(CollectSet(col("char_col").expr).toAggregateExpression()))
-
-    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
-    schemaShouldMatch(
-      index.metadata(),
-      s"""{
-         |  "char_col": {
-         |    "type": "keyword"
-         |  },
-         |  "file_path": {
-         |    "type": "keyword"
-         |  }
-         |}
-         |""".stripMargin)
-  }
-
-  test("can build index for long column") {
-    val indexCol = mock[FlintSparkSkippingStrategy]
-    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
-    when(indexCol.outputSchema()).thenReturn(Map("long_col" -> "bigint"))
-    when(indexCol.getAggregators).thenReturn(
-      Seq(CollectSet(col("long_col").expr).toAggregateExpression()))
-
-    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
-    schemaShouldMatch(
-      index.metadata(),
-      s"""{
-         |  "long_col": {
-         |    "type": "long"
-         |  },
-         |  "file_path": {
-         |    "type": "keyword"
-         |  }
-         |}
-         |""".stripMargin)
-  }
-
-  test("can build index for int column") {
-    val indexCol = mock[FlintSparkSkippingStrategy]
-    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
-    when(indexCol.outputSchema()).thenReturn(Map("int_col" -> "int"))
-    when(indexCol.getAggregators).thenReturn(
-      Seq(CollectSet(col("int_col").expr).toAggregateExpression()))
-
-    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
-    schemaShouldMatch(
-      index.metadata(),
-      s"""{
-         |  "int_col": {
-         |    "type": "integer"
-         |  },
-         |  "file_path": {
-         |    "type": "keyword"
-         |  }
-         |}
-         |""".stripMargin)
-  }
-
-  test("can build index for short column") {
-    val indexCol = mock[FlintSparkSkippingStrategy]
-    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
-    when(indexCol.outputSchema()).thenReturn(Map("short_col" -> "smallint"))
-    when(indexCol.getAggregators).thenReturn(
-      Seq(CollectSet(col("short_col").expr).toAggregateExpression()))
-
-    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
-    schemaShouldMatch(
-      index.metadata(),
-      s"""{
-         |  "short_col": {
-         |    "type": "short"
-         |  },
-         |  "file_path": {
-         |    "type": "keyword"
-         |  }
-         |}
-         |""".stripMargin)
-  }
-
-  test("can build index for byte column") {
-    val indexCol = mock[FlintSparkSkippingStrategy]
-    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
-    when(indexCol.outputSchema()).thenReturn(Map("byte_col" -> "tinyint"))
-    when(indexCol.getAggregators).thenReturn(
-      Seq(CollectSet(col("byte_col").expr).toAggregateExpression()))
-
-    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
-    schemaShouldMatch(
-      index.metadata(),
-      s"""{
-         |  "byte_col": {
-         |    "type": "byte"
-         |  },
-         |  "file_path": {
-         |    "type": "keyword"
-         |  }
-         |}
-         |""".stripMargin)
-  }
-
-  test("can build index for double column") {
-    val indexCol = mock[FlintSparkSkippingStrategy]
-    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
-    when(indexCol.outputSchema()).thenReturn(Map("double_col" -> "double"))
-    when(indexCol.getAggregators).thenReturn(
-      Seq(CollectSet(col("double_col").expr).toAggregateExpression()))
-
-    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
-    schemaShouldMatch(
-      index.metadata(),
-      s"""{
-         |  "double_col": {
-         |    "type": "double"
-         |  },
-         |  "file_path": {
-         |    "type": "keyword"
-         |  }
-         |}
-         |""".stripMargin)
-  }
-
-  test("can build index for float column") {
-    val indexCol = mock[FlintSparkSkippingStrategy]
-    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
-    when(indexCol.outputSchema()).thenReturn(Map("float_col" -> "float"))
-    when(indexCol.getAggregators).thenReturn(
-      Seq(CollectSet(col("float_col").expr).toAggregateExpression()))
-
-    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
-    schemaShouldMatch(
-      index.metadata(),
-      s"""{
-         |  "float_col": {
-         |    "type": "float"
-         |  },
-         |  "file_path": {
-         |    "type": "keyword"
-         |  }
-         |}
-         |""".stripMargin)
-  }
-
-  test("can build index for timestamp column") {
-    val indexCol = mock[FlintSparkSkippingStrategy]
-    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
-    when(indexCol.outputSchema()).thenReturn(Map("timestamp_col" -> "timestamp"))
-    when(indexCol.getAggregators).thenReturn(
-      Seq(CollectSet(col("timestamp_col").expr).toAggregateExpression()))
-
-    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
-    schemaShouldMatch(
-      index.metadata(),
-      s"""{
-         |  "timestamp_col": {
-         |    "type": "date",
-         |    "format": "strict_date_optional_time_nanos"
-         |  },
-         |  "file_path": {
-         |    "type": "keyword"
-         |  }
-         |}
-         |""".stripMargin)
-  }
-
-  test("can build index for date column") {
-    val indexCol = mock[FlintSparkSkippingStrategy]
-    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
-    when(indexCol.outputSchema()).thenReturn(Map("date_col" -> "date"))
-    when(indexCol.getAggregators).thenReturn(
-      Seq(CollectSet(col("date_col").expr).toAggregateExpression()))
-
-    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
-    schemaShouldMatch(
-      index.metadata(),
-      s"""{
-         |  "date_col": {
-         |    "type": "date",
-         |    "format": "strict_date"
-         |  },
-         |  "file_path": {
-         |    "type": "keyword"
-         |  }
-         |}
-         |""".stripMargin)
-  }
-
-  test("can build index for struct column") {
-    val indexCol = mock[FlintSparkSkippingStrategy]
-    when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
-    when(indexCol.outputSchema())
-      .thenReturn(Map("struct_col" -> "struct<subfield1:string,subfield2:int>"))
-    when(indexCol.getAggregators).thenReturn(
-      Seq(CollectSet(col("struct_col").expr).toAggregateExpression()))
-
-    val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
-    schemaShouldMatch(
-      index.metadata(),
-      s"""{
-         |  "struct_col": {
-         |    "properties": {
-         |      "subfield1": {
-         |        "type": "keyword"
-         |      },
-         |      "subfield2": {
-         |        "type": "integer"
-         |      }
-         |    }
-         |  },
-         |  "file_path": {
-         |    "type": "keyword"
-         |  }
-         |}
-         |""".stripMargin)
+      val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
+      schemaShouldMatch(index.metadata(), expectedSchema.stripMargin)
+    }
   }
 
   test("should fail if get index name without full table name") {

@@ -53,7 +53,7 @@ object FlintSparkIndexFactory {
               ValueSetSkippingStrategy(
                 columnName = columnName,
                 columnType = columnType,
-                limit = colInfo.get("limit").asInstanceOf[Int])
+                properties = getSkippingProperties(colInfo))
             case MIN_MAX =>
               MinMaxSkippingStrategy(columnName = columnName, columnType = columnType)
             case other =>
@@ -92,5 +92,14 @@ object FlintSparkIndexFactory {
     } else {
       Some(value.asInstanceOf[String])
     }
+  }
+
+  private def getSkippingProperties(
+      colInfo: java.util.Map[String, AnyRef]): Map[String, String] = {
+    colInfo
+      .get("properties")
+      .asInstanceOf[java.util.Map[String, String]]
+      .asScala
+      .toMap
   }
 }
