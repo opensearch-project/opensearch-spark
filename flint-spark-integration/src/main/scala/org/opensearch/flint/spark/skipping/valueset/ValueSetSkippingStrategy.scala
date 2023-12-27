@@ -40,7 +40,8 @@ case class ValueSetSkippingStrategy(
      */
     predicate match {
       case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        Some((col(columnName) === value).expr)
+        // Value set maybe null due to maximum size limit restriction
+        Some((col(columnName) === value || isnull(col(columnName))).expr)
       case _ => None
     }
 }
