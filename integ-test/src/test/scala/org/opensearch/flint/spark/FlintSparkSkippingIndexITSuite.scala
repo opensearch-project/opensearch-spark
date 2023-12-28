@@ -12,6 +12,7 @@ import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
+import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 import org.scalatest.matchers.{Matcher, MatchResult}
 import org.scalatest.matchers.must.Matchers._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -289,7 +290,9 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   test("can build value set skipping index up to default limit") {
     val testTable2 = "spark_catalog.default.value_set_test"
     val testIndex2 = getSkippingIndexName(testTable2)
-    withTable(testTable2) {
+    val defaultLimit = ValueSetSkippingStrategy.DEFAULT_VALUE_SET_SIZE_LIMIT
+    try {
+      ValueSetSkippingStrategy.DEFAULT_VALUE_SET_SIZE_LIMIT = 2
       createPartitionedTable(testTable2)
 
       // Use hint to insert all rows in a single csv file
@@ -321,8 +324,10 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       checkAnswer(
         flint.queryIndex(testIndex2).select("address"),
         Seq(Row("""["Seattle","Portland"]"""), Row(null)))
-
+    } finally {
+      ValueSetSkippingStrategy.DEFAULT_VALUE_SET_SIZE_LIMIT = defaultLimit
       flint.deleteIndex(testIndex2)
+      sql(s"DROP TABLE $testTable2")
     }
   }
 

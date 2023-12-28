@@ -24,8 +24,8 @@ class ValueSetSkippingStrategySuite
   private val name = AttributeReference("name", StringType, nullable = false)()
 
   test("should rewrite EqualTo(<indexCol>, <value>)") {
-    EqualTo(name, Literal("hello")) shouldRewriteTo (col("name") === "hello" || isnull(
-      col("name")))
+    EqualTo(name, Literal("hello")) shouldRewriteTo
+      (col("name") === "hello" || isnull(col("name")))
   }
 
   test("should not rewrite predicate with other column") {

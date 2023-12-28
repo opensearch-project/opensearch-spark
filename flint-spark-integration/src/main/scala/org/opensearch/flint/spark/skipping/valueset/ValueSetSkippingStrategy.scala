@@ -48,6 +48,8 @@ case class ValueSetSkippingStrategy(
 
 object ValueSetSkippingStrategy {
 
-  /** Default limit for value set size collected */
-  val DEFAULT_VALUE_SET_SIZE_LIMIT = 2
+  /**
+   * Default limit for value set size collected. TODO: make this val once it's configurable
+   */
+  var DEFAULT_VALUE_SET_SIZE_LIMIT = 100
 }
