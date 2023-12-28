@@ -49,6 +49,7 @@ case class FlintSparkSkippingIndex(
         .map(col =>
           Map[String, AnyRef](
             "kind" -> col.kind.toString,
+            "parameters" -> col.parameters.asJava,
             "columnName" -> col.columnName,
             "columnType" -> col.columnType).asJava)
         .toArray
@@ -158,11 +159,15 @@ object FlintSparkSkippingIndex {
      * @return
      *   index builder
      */
-    def addValueSet(colName: String): Builder = {
+    def addValueSet(colName: String, params: Map[String, String] = Map.empty): Builder = {
       require(tableName.nonEmpty, "table name cannot be empty")
 
       val col = findColumn(colName)
-      addIndexedColumn(ValueSetSkippingStrategy(columnName = col.name, columnType = col.dataType))
+      addIndexedColumn(
+        ValueSetSkippingStrategy(
+          columnName = col.name,
+          columnType = col.dataType,
+          params = params))
       this
     }
 

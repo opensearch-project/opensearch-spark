@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark.sql.skipping
 
+import scala.collection.JavaConverters.collectionAsScalaIterableConverter
+
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSpark.RefreshMode
@@ -43,9 +45,11 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       ctx.indexColTypeList().indexColType().forEach { colTypeCtx =>
         val colName = colTypeCtx.identifier().getText
         val skipType = SkippingKind.withName(colTypeCtx.skipType.getText)
+        val paramValues = visitPropertyValues(colTypeCtx.propertyValues())
         skipType match {
           case PARTITION => indexBuilder.addPartitions(colName)
-          case VALUE_SET => indexBuilder.addValueSet(colName)
+          case VALUE_SET =>
+            indexBuilder.addValueSet(colName, (Seq("limit") zip paramValues).toMap)
           case MIN_MAX => indexBuilder.addMinMax(colName)
         }
       }
@@ -104,6 +108,16 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       val indexName = getSkippingIndexName(flint, ctx.tableName)
       flint.vacuumIndex(indexName)
       Seq.empty
+    }
+  }
+
+  override def visitPropertyValues(ctx: PropertyValuesContext): Seq[String] = {
+    if (ctx == null) {
+      Seq.empty
+    } else {
+      ctx.propertyValue.asScala
+        .map(p => visitPropertyValue(p))
+        .toSeq
     }
   }
 
