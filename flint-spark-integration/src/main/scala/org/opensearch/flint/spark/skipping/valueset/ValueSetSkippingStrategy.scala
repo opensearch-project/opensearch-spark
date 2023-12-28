@@ -26,10 +26,10 @@ case class ValueSetSkippingStrategy(
 
   override def getAggregators: Seq[Expression] = {
     val limit = DEFAULT_VALUE_SET_SIZE_LIMIT
-    val collectSetLimit = collect_set(columnName)
+    val collectSet = collect_set(columnName)
     val aggregator =
-      when(size(collectSetLimit) > limit, lit(null))
-        .otherwise(collectSetLimit)
+      when(size(collectSet) > limit, lit(null))
+        .otherwise(collectSet)
     Seq(aggregator.expr)
   }
 
@@ -41,7 +41,7 @@ case class ValueSetSkippingStrategy(
     predicate match {
       case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
         // Value set maybe null due to maximum size limit restriction
-        Some((col(columnName) === value || isnull(col(columnName))).expr)
+        Some((isnull(col(columnName)) || col(columnName) === value).expr)
       case _ => None
     }
 }

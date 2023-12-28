@@ -25,7 +25,7 @@ class ValueSetSkippingStrategySuite
 
   test("should rewrite EqualTo(<indexCol>, <value>)") {
     EqualTo(name, Literal("hello")) shouldRewriteTo
-      (col("name") === "hello" || isnull(col("name")))
+      (isnull(col("name")) || col("name") === "hello")
   }
 
   test("should not rewrite predicate with other column") {
