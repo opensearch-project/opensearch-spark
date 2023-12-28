@@ -13,6 +13,7 @@ import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
+import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.VALUE_SET_MAX_SIZE_KEY
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
@@ -49,7 +50,7 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
         skipType match {
           case PARTITION => indexBuilder.addPartitions(colName)
           case VALUE_SET =>
-            indexBuilder.addValueSet(colName, (Seq("limit") zip paramValues).toMap)
+            indexBuilder.addValueSet(colName, (Seq(VALUE_SET_MAX_SIZE_KEY) zip paramValues).toMap)
           case MIN_MAX => indexBuilder.addMinMax(colName)
         }
       }

@@ -154,7 +154,7 @@ indexColTypeList
 
 indexColType
     : identifier skipType=(PARTITION | VALUE_SET | MIN_MAX)
-        (WITH LEFT_PAREN propertyValues RIGHT_PAREN)?
+        (LEFT_PAREN propertyValues RIGHT_PAREN)?
     ;
 
 propertyValues
