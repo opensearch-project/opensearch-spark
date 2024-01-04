@@ -149,8 +149,8 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            |                        named_struct(
            |                            'attributes',
            |                            array(
-           |                                named_struct('key', 'total_time_microseconds', 
-           |                                'value', named_struct('stringValue', null, 'intValue', 
+           |                                named_struct('key', 'total_time_microseconds',
+           |                                'value', named_struct('stringValue', null, 'intValue',
            |                                '31286')),
            |                                named_struct('key', 'source', 'value', named_struct
            |                                ('stringValue', 'featureflags', 'intValue', null))

@@ -185,9 +185,9 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
            |    LATERAL VIEW
            |    EXPLODE(ss.spans) as span
            |    LATERAL VIEW
-           |    EXPLODE(span.attributes) as span_attr 
+           |    EXPLODE(span.attributes) as span_attr
            |WITH (
-           |  auto_refresh = false 
+           |  auto_refresh = false
            |)
            """.stripMargin)
 
