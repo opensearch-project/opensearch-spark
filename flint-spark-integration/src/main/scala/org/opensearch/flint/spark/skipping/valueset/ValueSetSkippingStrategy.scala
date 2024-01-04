@@ -8,7 +8,7 @@ package org.opensearch.flint.spark.skipping.valueset
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{SkippingKind, VALUE_SET}
 
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, EqualTo, Expression, Literal}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, EqualTo, Expression, GetStructField, Literal}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, CollectSet}
 import org.apache.spark.sql.functions.col
 
@@ -34,6 +34,10 @@ case class ValueSetSkippingStrategy(
      */
     predicate match {
       case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
+        Some((col(columnName) === value).expr)
+      case EqualTo(
+            GetStructField(AttributeReference(`columnName`, _, _, _), _, _),
+            value: Literal) =>
         Some((col(columnName) === value).expr)
       case _ => None
     }

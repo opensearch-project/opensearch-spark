@@ -622,6 +622,47 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     flint.deleteIndex(testIndex)
   }
 
+  test("build skipping index for nested field and rewrite applicable query") {
+    val testTable = "spark_catalog.default.nested_field_table"
+    val testIndex = getSkippingIndexName(testTable)
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   boolean_col BOOLEAN,
+           |   struct_col STRUCT<field1: STRUCT<subfield:STRING>, field2: INT>
+           | )
+           | USING JSON
+           |""".stripMargin)
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES (
+           |   TRUE,
+           |   STRUCT(STRUCT("subfieldValue1"),123)
+           | )
+           |""".stripMargin)
+
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addValueSet("struct_col.field1.subfield")
+      .create()
+    flint.refreshIndex(testIndex, FULL)
+
+    /*
+    val query = sql(s"""
+                       | SELECT struct_col
+                       | FROM $testTable
+                       | WHERE struct_col.field1.subfield = "subfieldValue1"
+                       |""".stripMargin)
+
+    query.queryExecution.executedPlan should
+      useFlintSparkSkippingFileIndex(
+        hasIndexFilter(col("struct_col.subfield1") === "subfieldValue1"))
+     */
+
+    flint.deleteIndex(testIndex)
+  }
+
   // Custom matcher to check if a SparkPlan uses FlintSparkSkippingFileIndex
   def useFlintSparkSkippingFileIndex(
       subMatcher: Matcher[FlintSparkSkippingFileIndex]): Matcher[SparkPlan] = {
