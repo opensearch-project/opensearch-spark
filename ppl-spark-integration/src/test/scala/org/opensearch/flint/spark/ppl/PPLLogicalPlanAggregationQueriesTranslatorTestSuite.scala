@@ -12,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Divide, EqualTo, Floor, Literal, Multiply, SortOrder, TimeWindow}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Divide, EqualTo, Floor, GreaterThanOrEqual, Literal, Multiply, SortOrder, TimeWindow}
 import org.apache.spark.sql.catalyst.plans.logical._
 
 class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
@@ -295,6 +295,78 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
       global = true,
       aggregatePlan)
     val expectedPlan = Project(star, sortedPlan)
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logPlan))
+  }
+  test("create ppl query count status amount by day window and group by status test") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats sum(status) by span(@timestamp, 1d) as status_count_by_day, status | head 100",
+        false),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val status = Alias(UnresolvedAttribute("status"), "status")()
+    val statusAmount = UnresolvedAttribute("status")
+    val table = UnresolvedRelation(Seq("table"))
+
+    val windowExpression = Alias(
+      TimeWindow(
+        UnresolvedAttribute("`@timestamp`"),
+        TimeWindow.parseExpression(Literal("1 day")),
+        TimeWindow.parseExpression(Literal("1 day")),
+        0),
+      "status_count_by_day")()
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(statusAmount), isDistinct = false),
+        "sum(status)")()
+    val aggregatePlan = Aggregate(
+      Seq(status, windowExpression),
+      Seq(aggregateExpressions, status, windowExpression),
+      table)
+    val planWithLimit = GlobalLimit(Literal(100), LocalLimit(Literal(100), aggregatePlan))
+    val expectedPlan = Project(star, planWithLimit)
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logPlan))
+  }
+  test(
+    "create ppl query count only error (status >= 400) status amount by day window and group by status test") {
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(
+      plan(
+        pplParser,
+        "source = table | where status >= 400 | stats sum(status) by span(@timestamp, 1d) as status_count_by_day, status | head 100",
+        false),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val statusAlias = Alias(UnresolvedAttribute("status"), "status")()
+    val statusField = UnresolvedAttribute("status")
+    val table = UnresolvedRelation(Seq("table"))
+
+    val filterExpr = GreaterThanOrEqual(statusField, Literal(400))
+    val filterPlan = Filter(filterExpr, table)
+
+    val windowExpression = Alias(
+      TimeWindow(
+        UnresolvedAttribute("`@timestamp`"),
+        TimeWindow.parseExpression(Literal("1 day")),
+        TimeWindow.parseExpression(Literal("1 day")),
+        0),
+      "status_count_by_day")()
+
+    val aggregateExpressions =
+      Alias(UnresolvedFunction(Seq("SUM"), Seq(statusField), isDistinct = false), "sum(status)")()
+    val aggregatePlan = Aggregate(
+      Seq(statusAlias, windowExpression),
+      Seq(aggregateExpressions, statusAlias, windowExpression),
+      filterPlan)
+    val planWithLimit = GlobalLimit(Literal(100), LocalLimit(Literal(100), aggregatePlan))
+    val expectedPlan = Project(star, planWithLimit)
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
