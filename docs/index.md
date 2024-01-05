@@ -124,6 +124,8 @@ High level API is dependent on query engine implementation. Please see Query Eng
 
 #### Skipping Index
 
+The default maximum size for the value set is 100. In cases where a file contains columns with high cardinality values, the value set will become null. This is the trade-off that prevents excessive memory consumption at the cost of not skipping the file.
+
 ```sql
 CREATE SKIPPING INDEX [IF NOT EXISTS]
 ON <object>

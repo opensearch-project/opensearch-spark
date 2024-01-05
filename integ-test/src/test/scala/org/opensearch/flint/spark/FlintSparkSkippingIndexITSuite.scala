@@ -12,6 +12,7 @@ import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
+import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 import org.scalatest.matchers.{Matcher, MatchResult}
 import org.scalatest.matchers.must.Matchers._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -20,7 +21,7 @@ import org.apache.spark.sql.{Column, Row}
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.flint.config.FlintSparkConf._
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.{col, isnull}
 
 class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
@@ -31,7 +32,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    createPartitionedTable(testTable)
+    createPartitionedMultiRowTable(testTable)
   }
 
   override def afterEach(): Unit = {
@@ -255,34 +256,57 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .create()
     flint.refreshIndex(testIndex, FULL)
 
+    // Assert index data
+    checkAnswer(
+      flint.queryIndex(testIndex).select("year", "month"),
+      Seq(Row(2023, 4), Row(2023, 5)))
+
+    // Assert query rewrite
     val query = sql(s"""
                        | SELECT name
                        | FROM $testTable
                        | WHERE year = 2023 AND month = 4
                        |""".stripMargin)
 
-    checkAnswer(query, Row("Hello"))
+    checkAnswer(query, Seq(Row("Hello"), Row("World")))
     query.queryExecution.executedPlan should
       useFlintSparkSkippingFileIndex(hasIndexFilter(col("year") === 2023 && col("month") === 4))
   }
 
   test("can build value set skipping index and rewrite applicable query") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addValueSet("address")
-      .create()
-    flint.refreshIndex(testIndex, FULL)
+    val defaultLimit = ValueSetSkippingStrategy.DEFAULT_VALUE_SET_SIZE_LIMIT
+    try {
+      ValueSetSkippingStrategy.DEFAULT_VALUE_SET_SIZE_LIMIT = 2
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addValueSet("address")
+        .create()
+      flint.refreshIndex(testIndex, FULL)
 
-    val query = sql(s"""
-                       | SELECT name
+      // Assert index data
+      checkAnswer(
+        flint.queryIndex(testIndex).select("address"),
+        Seq(
+          Row("""["Seattle","Portland"]"""),
+          Row(null) // Value set exceeded limit size is expected to be null
+        ))
+
+      // Assert query rewrite that works with value set maybe null
+      val query = sql(s"""
+                       | SELECT age
                        | FROM $testTable
                        | WHERE address = 'Portland'
                        |""".stripMargin)
 
-    checkAnswer(query, Row("World"))
-    query.queryExecution.executedPlan should
-      useFlintSparkSkippingFileIndex(hasIndexFilter(col("address") === "Portland"))
+      query.queryExecution.executedPlan should
+        useFlintSparkSkippingFileIndex(
+          hasIndexFilter(isnull(col("address")) || col("address") === "Portland"))
+      checkAnswer(query, Seq(Row(30), Row(50)))
+
+    } finally {
+      ValueSetSkippingStrategy.DEFAULT_VALUE_SET_SIZE_LIMIT = defaultLimit
+    }
   }
 
   test("can build min max skipping index and rewrite applicable query") {
@@ -293,16 +317,22 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .create()
     flint.refreshIndex(testIndex, FULL)
 
+    // Assert index data
+    checkAnswer(
+      flint.queryIndex(testIndex).select("MinMax_age_0", "MinMax_age_1"),
+      Seq(Row(20, 30), Row(40, 60)))
+
+    // Assert query rewrite
     val query = sql(s"""
                        | SELECT name
                        | FROM $testTable
-                       | WHERE age = 25
+                       | WHERE age = 30
                        |""".stripMargin)
 
     checkAnswer(query, Row("World"))
     query.queryExecution.executedPlan should
       useFlintSparkSkippingFileIndex(
-        hasIndexFilter(col("MinMax_age_0") <= 25 && col("MinMax_age_1") >= 25))
+        hasIndexFilter(col("MinMax_age_0") <= 30 && col("MinMax_age_1") >= 30))
   }
 
   test("should rewrite applicable query with table name without database specified") {
@@ -374,7 +404,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
                          | WHERE month = 4
                          |""".stripMargin)
 
-      checkAnswer(query, Seq(Row("Seattle"), Row("Vancouver")))
+      checkAnswer(query, Seq(Row("Seattle"), Row("Portland"), Row("Vancouver")))
     }
   }
 
@@ -617,7 +647,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     checkAnswer(query, Row("sample varchar", paddedChar))
     query.queryExecution.executedPlan should
       useFlintSparkSkippingFileIndex(
-        hasIndexFilter(col("varchar_col") === "sample varchar" && col("char_col") === paddedChar))
+        hasIndexFilter((isnull(col("varchar_col")) || col("varchar_col") === "sample varchar") &&
+          (isnull(col("char_col")) || col("char_col") === paddedChar)))
 
     flint.deleteIndex(testIndex)
   }

@@ -74,7 +74,7 @@ case class FlintSparkSkippingIndex(
     // Wrap aggregate function with output column name
     val namedAggFuncs =
       (outputNames, aggFuncs).zipped.map { case (name, aggFunc) =>
-        new Column(aggFunc.toAggregateExpression().as(name))
+        new Column(aggFunc.as(name))
       }
 
     df.getOrElse(spark.read.table(tableName))

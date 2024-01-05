@@ -10,7 +10,6 @@ import org.json4s.JsonAST.JString
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.SkippingKind
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 
 /**
  * Skipping index strategy that defines skipping data structure building and reading logic.
@@ -42,7 +41,7 @@ trait FlintSparkSkippingStrategy {
    * @return
    *   aggregators that generate skipping data structure
    */
-  def getAggregators: Seq[AggregateFunction]
+  def getAggregators: Seq[Expression]
 
   /**
    * Rewrite a filtering condition on source table into a new predicate on index data based on
