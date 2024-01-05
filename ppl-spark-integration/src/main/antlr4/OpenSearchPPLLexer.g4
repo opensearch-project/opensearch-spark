@@ -36,6 +36,14 @@ KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
 
+//CORRELATION KEYWORDS
+CORRELATE:                          'CORRELATE';
+SELF:                               'SELF';
+EXACT:                              'EXACT';
+APPROXIMATE:                        'APPROXIMATE';
+SCOPE:                              'SCOPE';
+MAPPING:                            'MAPPING';
+
 // COMMAND ASSIST KEYWORDS
 AS:                                 'AS';
 BY:                                 'BY';
@@ -262,6 +270,7 @@ DAYOFWEEK:                          'DAYOFWEEK';
 DAYOFYEAR:                          'DAYOFYEAR';
 DAY_OF_MONTH:                       'DAY_OF_MONTH';
 DAY_OF_WEEK:                        'DAY_OF_WEEK';
+DURATION:                           'DURATION';
 EXTRACT:                            'EXTRACT';
 FROM_DAYS:                          'FROM_DAYS';
 FROM_UNIXTIME:                      'FROM_UNIXTIME';

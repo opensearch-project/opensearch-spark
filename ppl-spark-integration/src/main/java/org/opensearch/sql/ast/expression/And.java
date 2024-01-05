@@ -11,28 +11,12 @@ import java.util.Arrays;
 import java.util.List;
 
 /** Expression node of logic AND. */
-public class And extends UnresolvedExpression {
-  private UnresolvedExpression left;
-  private UnresolvedExpression right;
+public class And extends BinaryExpression {
 
   public And(UnresolvedExpression left, UnresolvedExpression right) {
-    this.left = left;
-    this.right = right;
+    super(left,right);
   }
-
-  @Override
-  public List<UnresolvedExpression> getChild() {
-    return Arrays.asList(left, right);
-  }
-
-  public UnresolvedExpression getLeft() {
-    return left;
-  }
-
-  public UnresolvedExpression getRight() {
-    return right;
-  }
-
+  
   @Override
   public <R, C> R accept(AbstractNodeVisitor<R, C> nodeVisitor, C context) {
     return nodeVisitor.visitAnd(this, context);

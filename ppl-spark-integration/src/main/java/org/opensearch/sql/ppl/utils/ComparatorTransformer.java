@@ -54,5 +54,4 @@ public interface ComparatorTransformer {
         }
         throw new IllegalStateException("Not Supported value: " + expression.getOperator());
     }
-
 }

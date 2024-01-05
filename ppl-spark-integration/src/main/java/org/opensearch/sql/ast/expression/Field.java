@@ -8,6 +8,7 @@ package org.opensearch.sql.ast.expression;
 import com.google.common.collect.ImmutableList;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 public class Field extends UnresolvedExpression {
