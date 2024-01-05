@@ -5,7 +5,6 @@
 
 package org.opensearch.flint.spark
 
-import org.scalatest.matchers.must.Matchers.contain
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
@@ -17,7 +16,11 @@ class FlintSparkIndexBuilderSuite extends FlintSuite {
 
     sql("""
         | CREATE TABLE spark_catalog.default.test
-        | ( name STRING, age INT )
+        | (
+        |   name STRING,
+        |   age INT,
+        |   address STRUCT<first: STRING, second: STRUCT<city: STRING, street: STRING>>
+        | )
         | USING JSON
       """.stripMargin)
   }
@@ -28,21 +31,31 @@ class FlintSparkIndexBuilderSuite extends FlintSuite {
     super.afterAll()
   }
 
+  test("find column type") {
+    builder()
+      .onTable("test")
+      .expectTableName("spark_catalog.default.test")
+      .expectColumn("name", "string")
+      .expectColumn("age", "int")
+      .expectColumn("address", "struct<first:string,second:struct<city:string,street:string>>")
+      .expectColumn("address.first", "string")
+      .expectColumn("address.second", "struct<city:string,street:string>")
+      .expectColumn("address.second.city", "string")
+      .expectColumn("address.second.street", "string")
+  }
+
   test("should qualify table name in default database") {
     builder()
       .onTable("test")
       .expectTableName("spark_catalog.default.test")
-      .expectAllColumns("name", "age")
 
     builder()
       .onTable("default.test")
       .expectTableName("spark_catalog.default.test")
-      .expectAllColumns("name", "age")
 
     builder()
       .onTable("spark_catalog.default.test")
       .expectTableName("spark_catalog.default.test")
-      .expectAllColumns("name", "age")
   }
 
   test("should qualify table name and get columns in other database") {
@@ -54,23 +67,19 @@ class FlintSparkIndexBuilderSuite extends FlintSuite {
       builder()
         .onTable("test2")
         .expectTableName("spark_catalog.mydb.test2")
-        .expectAllColumns("address")
 
       builder()
         .onTable("mydb.test2")
         .expectTableName("spark_catalog.mydb.test2")
-        .expectAllColumns("address")
 
       builder()
         .onTable("spark_catalog.mydb.test2")
         .expectTableName("spark_catalog.mydb.test2")
-        .expectAllColumns("address")
 
       // Can parse any specified table name
       builder()
         .onTable("spark_catalog.default.test")
         .expectTableName("spark_catalog.default.test")
-        .expectAllColumns("name", "age")
     } finally {
       sql("DROP DATABASE mydb CASCADE")
       sql("USE default")
@@ -96,8 +105,10 @@ class FlintSparkIndexBuilderSuite extends FlintSuite {
       this
     }
 
-    def expectAllColumns(expected: String*): FakeFlintSparkIndexBuilder = {
-      allColumns.keys should contain theSameElementsAs expected
+    def expectColumn(expectName: String, expectType: String): FakeFlintSparkIndexBuilder = {
+      val column = findColumn(expectName)
+      column.name shouldBe expectName
+      column.dataType shouldBe expectType
       this
     }
 
