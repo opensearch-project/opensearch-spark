@@ -21,6 +21,11 @@ import java.util.function.Predicate;
 public interface OptimisticTransaction<T> {
 
   /**
+   * Constant that indicate log entry should be purged.
+   */
+  FlintMetadataLogEntry NO_LOG_ENTRY = null;
+
+  /**
    * @param initialCondition initial precondition that the subsequent transition and action can proceed
    * @return this transaction
    */
@@ -33,7 +38,7 @@ public interface OptimisticTransaction<T> {
   OptimisticTransaction<T> transientLog(Function<FlintMetadataLogEntry, FlintMetadataLogEntry> action);
 
   /**
-   * @param action action to generate final log entry
+   * @param action action to generate final log entry (will delete entire metadata log if NO_LOG_ENTRY)
    * @return this transaction
    */
   OptimisticTransaction<T> finalLog(Function<FlintMetadataLogEntry, FlintMetadataLogEntry> action);
@@ -45,29 +50,4 @@ public interface OptimisticTransaction<T> {
    * @return result
    */
   T commit(Function<FlintMetadataLogEntry, T> operation);
-
-  /**
-   * No optimistic transaction.
-   */
-  class NoOptimisticTransaction<T> implements OptimisticTransaction<T> {
-    @Override
-    public OptimisticTransaction<T> initialLog(Predicate<FlintMetadataLogEntry> initialCondition) {
-      return this;
-    }
-
-    @Override
-    public OptimisticTransaction<T> transientLog(Function<FlintMetadataLogEntry, FlintMetadataLogEntry> action) {
-      return this;
-    }
-
-    @Override
-    public OptimisticTransaction<T> finalLog(Function<FlintMetadataLogEntry, FlintMetadataLogEntry> action) {
-      return this;
-    }
-
-    @Override
-    public T commit(Function<FlintMetadataLogEntry, T> operation) {
-      return operation.apply(null);
-    }
-  };
 }

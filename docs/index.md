@@ -110,6 +110,12 @@ writer.close()
 
 ```
 
+### Index State Transition
+
+Flint index state transition:
+
+![FlintCoreIndexState](./img/flint-core-index-state-transition.png)
+
 ### API
 
 High level API is dependent on query engine implementation. Please see Query Engine Integration section for details.
@@ -435,7 +441,16 @@ flint.materializedView()
     .create()
 
 flint.refreshIndex("flint_spark_catalog_default_alb_logs_metrics")
+
+flint.deleteIndex("flint_spark_catalog_default_alb_logs_skipping_index")
+flint.vacuumIndex("flint_spark_catalog_default_alb_logs_skipping_index")
 ```
+
+#### Index State Transition
+
+Flint Spark index state transition:
+
+![FlintSparkIndexState](./img/flint-spark-index-state-transition.png)
 
 #### Skipping Index Provider SPI
 
