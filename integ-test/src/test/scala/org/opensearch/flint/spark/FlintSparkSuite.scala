@@ -85,6 +85,46 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          | """.stripMargin)
   }
 
+  protected def createPartitionedMultiRowTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   name STRING,
+           |   age INT,
+           |   address STRING
+           | )
+           | USING CSV
+           | OPTIONS (
+           |  header 'false',
+           |  delimiter '\t'
+           | )
+           | PARTITIONED BY (
+           |    year INT,
+           |    month INT
+           | )
+           |""".stripMargin)
+
+    // Use hint to insert all rows in a single csv file
+    sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=4)
+           | SELECT /*+ COALESCE(1) */ *
+           | FROM VALUES
+           |   ('Hello', 20, 'Seattle'),
+           |   ('World', 30, 'Portland')
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=5)
+           | SELECT /*+ COALESCE(1) */ *
+           | FROM VALUES
+           |   ('Scala', 40, 'Seattle'),
+           |   ('Java', 50, 'Portland'),
+           |   ('Test', 60, 'Vancouver')
+           |""".stripMargin)
+  }
+
   protected def createTimeSeriesTable(testTable: String): Unit = {
     sql(s"""
          | CREATE TABLE $testTable

@@ -10,7 +10,7 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.expressions.{Abs, AttributeReference, EqualTo, Literal}
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.{col, isnull}
 import org.apache.spark.sql.types.StringType
 
 class ValueSetSkippingStrategySuite
@@ -24,7 +24,8 @@ class ValueSetSkippingStrategySuite
   private val name = AttributeReference("name", StringType, nullable = false)()
 
   test("should rewrite EqualTo(<indexCol>, <value>)") {
-    EqualTo(name, Literal("hello")) shouldRewriteTo (col("name") === "hello")
+    EqualTo(name, Literal("hello")) shouldRewriteTo
+      (isnull(col("name")) || col("name") === "hello")
   }
 
   test("should not rewrite predicate with other column") {

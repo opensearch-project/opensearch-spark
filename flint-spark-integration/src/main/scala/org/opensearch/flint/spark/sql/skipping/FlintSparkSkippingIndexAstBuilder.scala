@@ -98,6 +98,15 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       Seq.empty
     }
 
+  override def visitVacuumSkippingIndexStatement(
+      ctx: VacuumSkippingIndexStatementContext): Command = {
+    FlintSparkSqlCommand() { flint =>
+      val indexName = getSkippingIndexName(flint, ctx.tableName)
+      flint.vacuumIndex(indexName)
+      Seq.empty
+    }
+  }
+
   private def getSkippingIndexName(flint: FlintSpark, tableNameCtx: RuleNode): String =
     FlintSparkSkippingIndex.getSkippingIndexName(getFullTableName(flint, tableNameCtx))
 }
