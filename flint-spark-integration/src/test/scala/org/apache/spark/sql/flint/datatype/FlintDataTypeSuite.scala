@@ -42,6 +42,9 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
                           |    },
                           |    "textField": {
                           |      "type": "text"
+                          |    },
+                          |    "binaryField": {
+                          |      "type": "binary"
                           |    }
                           |  }
                           |}""".stripMargin
@@ -59,6 +62,7 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
           StringType,
           true,
           new MetadataBuilder().putString("osType", "text").build()) ::
+        StructField("binaryField", BinaryType, true) ::
         Nil)
 
     FlintDataType.serialize(sparkStructType) shouldBe compactJson(flintDataType)
@@ -190,6 +194,40 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
         Nil)
     FlintDataType.deserialize(flintDataType) should contain theSameElementsAs sparkStructType
     FlintDataType.serialize(sparkStructType) shouldBe compactJson(flintDataType)
+  }
+
+  test("spark array type map to should map to array element type in OpenSearch") {
+    val flintDataType = """{
+                          |  "properties": {
+                          |    "varcharField": {
+                          |      "type": "keyword"
+                          |    },
+                          |    "charField": {
+                          |      "type": "keyword"
+                          |    }
+                          |  }
+                          |}""".stripMargin
+    val sparkStructType =
+      StructType(
+        StructField("arrayIntField", ArrayType(IntegerType), true) ::
+          StructField(
+            "arrayObjectField",
+            StructType(StructField("booleanField", BooleanType, true) :: Nil),
+            true) :: Nil)
+    FlintDataType.serialize(sparkStructType) shouldBe compactJson(s"""{
+         |  "properties": {
+         |    "arrayIntField": {
+         |      "type": "integer"
+         |    },
+         |    "arrayObjectField": {
+         |      "properties": {
+         |        "booleanField":{
+         |          "type": "boolean"
+         |        }
+         |      }
+         |    }
+         |  }
+         |}""".stripMargin)
   }
 
   def compactJson(json: String): String = {
