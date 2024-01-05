@@ -26,6 +26,7 @@ skippingIndexStatement
     | refreshSkippingIndexStatement
     | describeSkippingIndexStatement
     | dropSkippingIndexStatement
+    | vacuumSkippingIndexStatement
     ;
 
 createSkippingIndexStatement
@@ -48,12 +49,17 @@ dropSkippingIndexStatement
     : DROP SKIPPING INDEX ON tableName
     ;
 
+vacuumSkippingIndexStatement
+    : VACUUM SKIPPING INDEX ON tableName
+    ;
+
 coveringIndexStatement
     : createCoveringIndexStatement
     | refreshCoveringIndexStatement
     | showCoveringIndexStatement
     | describeCoveringIndexStatement
     | dropCoveringIndexStatement
+    | vacuumCoveringIndexStatement
     ;
 
 createCoveringIndexStatement
@@ -78,6 +84,10 @@ describeCoveringIndexStatement
 
 dropCoveringIndexStatement
     : DROP INDEX indexName ON tableName
+    ;
+
+vacuumCoveringIndexStatement
+    : VACUUM INDEX indexName ON tableName
     ;
 
 materializedViewStatement
@@ -108,6 +118,10 @@ describeMaterializedViewStatement
 
 dropMaterializedViewStatement
     : DROP MATERIALIZED VIEW mvName=multipartIdentifier
+    ;
+
+vacuumMaterializedViewStatement
+    : VACUUM MATERIALIZED VIEW mvName=multipartIdentifier
     ;
 
 indexJobManagementStatement

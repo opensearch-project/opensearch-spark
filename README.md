@@ -18,6 +18,7 @@ Version compatibility:
 | Flint version | JDK version | Spark version | Scala version | OpenSearch |
 |---------------|-------------|---------------|---------------|------------|
 | 0.1.0         | 11+         | 3.3.1         | 2.12.14       | 2.6+       |
+| 0.2.0         | 11+         | 3.3.1         | 2.12.14       | 2.6+       |
 
 ## Flint Extension Usage 
 
@@ -49,7 +50,7 @@ sbt clean standaloneCosmetic/publishM2
 ```
 then add org.opensearch:opensearch-spark_2.12 when run spark application, for example,
 ```
-bin/spark-shell --packages "org.opensearch:opensearch-spark_2.12:0.1.0-SNAPSHOT"
+bin/spark-shell --packages "org.opensearch:opensearch-spark_2.12:0.2.0-SNAPSHOT"
 ```
 
 ### PPL Build & Run 
@@ -61,7 +62,7 @@ sbt clean sparkPPLCosmetic/publishM2
 ```
 then add org.opensearch:opensearch-spark_2.12 when run spark application, for example,
 ```
-bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.1.0-SNAPSHOT"
+bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.2.0-SNAPSHOT"
 ```
 
 ## Code of Conduct

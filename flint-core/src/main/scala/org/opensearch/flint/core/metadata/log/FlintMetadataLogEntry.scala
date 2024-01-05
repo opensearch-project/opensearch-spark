@@ -85,6 +85,7 @@ object FlintMetadataLogEntry {
     val DELETED: IndexState.Value = Value("deleted")
     val FAILED: IndexState.Value = Value("failed")
     val RECOVERING: IndexState.Value = Value("recovering")
+    val VACUUMING: IndexState.Value = Value("vacuuming")
     val UNKNOWN: IndexState.Value = Value("unknown")
 
     def from(s: String): IndexState.Value = {

@@ -119,6 +119,24 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
     latestLogEntry(testLatestId) should contain("state" -> "deleted")
   }
 
+  test("vacuum index") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+    deleteLogically(testLatestId)
+    flint.vacuumIndex(testFlintIndex)
+
+    // Both index data and metadata log should be vacuumed
+    openSearchClient
+      .indices()
+      .exists(new GetIndexRequest(testFlintIndex), RequestOptions.DEFAULT) shouldBe false
+    openSearchClient.exists(
+      new GetRequest(testMetaLogIndex, testLatestId),
+      RequestOptions.DEFAULT) shouldBe false
+  }
+
   test("should recreate index if logical deleted") {
     flint
       .skippingIndex()
