@@ -248,7 +248,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
     checkAnswer(
       sql(s"DESC MATERIALIZED VIEW $testMvName"),
-      Seq(Row("startTime", "timestamp"), Row("count", "long")))
+      Seq(Row("startTime", "timestamp"), Row("count", "bigint")))
   }
 
   test("should return empty when describe nonexistent materialized view") {
