@@ -154,6 +154,11 @@ indexColTypeList
 
 indexColType
     : identifier skipType=(PARTITION | VALUE_SET | MIN_MAX)
+        (LEFT_PAREN propertyValues RIGHT_PAREN)?
+    ;
+
+propertyValues
+    : propertyValue (COMMA propertyValue)*
     ;
 
 indexName

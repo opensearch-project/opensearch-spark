@@ -12,7 +12,6 @@ import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 import org.scalatest.matchers.{Matcher, MatchResult}
 import org.scalatest.matchers.must.Matchers._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -61,21 +60,25 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |     "indexedColumns": [
         |     {
         |        "kind": "PARTITION",
+        |        "parameters": {},
         |        "columnName": "year",
         |        "columnType": "int"
         |     },
         |     {
         |        "kind": "PARTITION",
+        |        "parameters": {},
         |        "columnName": "month",
         |        "columnType": "int"
         |     },
         |     {
         |        "kind": "VALUE_SET",
+        |        "parameters": { "max_size": "100" },
         |        "columnName": "address",
         |        "columnType": "string"
         |     },
         |     {
         |        "kind": "MIN_MAX",
+        |        "parameters": {},
         |        "columnName": "age",
         |        "columnType": "int"
         |     }],
@@ -274,39 +277,32 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("can build value set skipping index and rewrite applicable query") {
-    val defaultLimit = ValueSetSkippingStrategy.DEFAULT_VALUE_SET_SIZE_LIMIT
-    try {
-      ValueSetSkippingStrategy.DEFAULT_VALUE_SET_SIZE_LIMIT = 2
-      flint
-        .skippingIndex()
-        .onTable(testTable)
-        .addValueSet("address")
-        .create()
-      flint.refreshIndex(testIndex, FULL)
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addValueSet("address", Map("max_size" -> "2"))
+      .create()
+    flint.refreshIndex(testIndex, FULL)
 
-      // Assert index data
-      checkAnswer(
-        flint.queryIndex(testIndex).select("address"),
-        Seq(
-          Row("""["Seattle","Portland"]"""),
-          Row(null) // Value set exceeded limit size is expected to be null
-        ))
+    // Assert index data
+    checkAnswer(
+      flint.queryIndex(testIndex).select("address"),
+      Seq(
+        Row("""["Seattle","Portland"]"""),
+        Row(null) // Value set exceeded limit size is expected to be null
+      ))
 
-      // Assert query rewrite that works with value set maybe null
-      val query = sql(s"""
+    // Assert query rewrite that works with value set maybe null
+    val query = sql(s"""
                        | SELECT age
                        | FROM $testTable
                        | WHERE address = 'Portland'
                        |""".stripMargin)
 
-      query.queryExecution.executedPlan should
-        useFlintSparkSkippingFileIndex(
-          hasIndexFilter(isnull(col("address")) || col("address") === "Portland"))
-      checkAnswer(query, Seq(Row(30), Row(50)))
-
-    } finally {
-      ValueSetSkippingStrategy.DEFAULT_VALUE_SET_SIZE_LIMIT = defaultLimit
-    }
+    query.queryExecution.executedPlan should
+      useFlintSparkSkippingFileIndex(
+        hasIndexFilter(isnull(col("address")) || col("address") === "Portland"))
+    checkAnswer(query, Seq(Row(30), Row(50)))
   }
 
   test("can build min max skipping index and rewrite applicable query") {
@@ -483,66 +479,79 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
          |     "indexedColumns": [
          |     {
          |        "kind": "VALUE_SET",
+         |        "parameters": { "max_size": "100" },
          |        "columnName": "boolean_col",
          |        "columnType": "boolean"
          |     },
          |     {
          |        "kind": "VALUE_SET",
+         |        "parameters": { "max_size": "100" },
          |        "columnName": "string_col",
          |        "columnType": "string"
          |     },
          |     {
          |        "kind": "VALUE_SET",
+         |        "parameters": { "max_size": "100" },
          |        "columnName": "varchar_col",
          |        "columnType": "varchar(20)"
          |     },
          |     {
          |        "kind": "VALUE_SET",
+         |        "parameters": { "max_size": "100" },
          |        "columnName": "char_col",
          |        "columnType": "char(20)"
          |     },
          |     {
          |        "kind": "VALUE_SET",
+         |        "parameters": { "max_size": "100" },
          |        "columnName": "long_col",
          |        "columnType": "bigint"
          |     },
          |     {
          |        "kind": "VALUE_SET",
+         |        "parameters": { "max_size": "100" },
          |        "columnName": "int_col",
          |        "columnType": "int"
          |     },
          |     {
          |        "kind": "VALUE_SET",
+         |        "parameters": { "max_size": "100" },
          |        "columnName": "short_col",
          |        "columnType": "smallint"
          |     },
          |     {
          |        "kind": "VALUE_SET",
+         |        "parameters": { "max_size": "100" },
          |        "columnName": "byte_col",
          |        "columnType": "tinyint"
          |     },
          |     {
          |        "kind": "VALUE_SET",
+         |        "parameters": { "max_size": "100" },
          |        "columnName": "double_col",
          |        "columnType": "double"
          |     },
          |     {
          |        "kind": "VALUE_SET",
+         |        "parameters": { "max_size": "100" },
          |        "columnName": "float_col",
          |        "columnType": "float"
          |     },
          |     {
          |        "kind": "VALUE_SET",
+         |        "parameters": { "max_size": "100" },
          |        "columnName": "timestamp_col",
          |        "columnType": "timestamp"
          |     },
          |     {
          |        "kind": "VALUE_SET",
+         |        "parameters": { "max_size": "100" },
          |        "columnName": "date_col",
          |        "columnType": "date"
          |     },
          |     {
          |        "kind": "VALUE_SET",
+         |        "parameters": { "max_size": "100" },
          |        "columnName": "struct_col",
          |        "columnType": "struct<subfield1:string,subfield2:int>"
          |     }],

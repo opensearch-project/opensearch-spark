@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.skipping.valueset
 
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{SkippingKind, VALUE_SET}
-import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.DEFAULT_VALUE_SET_SIZE_LIMIT
+import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.{DEFAULT_VALUE_SET_MAX_SIZE, VALUE_SET_MAX_SIZE_KEY}
 
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, EqualTo, Expression, Literal}
 import org.apache.spark.sql.functions._
@@ -18,14 +18,25 @@ import org.apache.spark.sql.functions._
 case class ValueSetSkippingStrategy(
     override val kind: SkippingKind = VALUE_SET,
     override val columnName: String,
-    override val columnType: String)
+    override val columnType: String,
+    params: Map[String, String] = Map.empty)
     extends FlintSparkSkippingStrategy {
+
+  override val parameters: Map[String, String] = {
+    val map = Map.newBuilder[String, String]
+    map ++= params
+
+    if (!params.contains(VALUE_SET_MAX_SIZE_KEY)) {
+      map += (VALUE_SET_MAX_SIZE_KEY -> DEFAULT_VALUE_SET_MAX_SIZE.toString)
+    }
+    map.result()
+  }
 
   override def outputSchema(): Map[String, String] =
     Map(columnName -> columnType)
 
   override def getAggregators: Seq[Expression] = {
-    val limit = DEFAULT_VALUE_SET_SIZE_LIMIT
+    val limit = parameters(VALUE_SET_MAX_SIZE_KEY).toInt
     val collectSet = collect_set(columnName)
     val aggregator =
       when(size(collectSet) > limit, lit(null))
@@ -48,8 +59,7 @@ case class ValueSetSkippingStrategy(
 
 object ValueSetSkippingStrategy {
 
-  /**
-   * Default limit for value set size collected. TODO: make this val once it's configurable
-   */
-  var DEFAULT_VALUE_SET_SIZE_LIMIT = 100
+  /** Value set max size param key and default value */
+  var VALUE_SET_MAX_SIZE_KEY = "max_size"
+  var DEFAULT_VALUE_SET_MAX_SIZE = 100
 }

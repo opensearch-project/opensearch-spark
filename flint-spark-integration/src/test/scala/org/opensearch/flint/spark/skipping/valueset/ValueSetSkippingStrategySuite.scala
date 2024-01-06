@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark.skipping.valueset
 
 import org.opensearch.flint.spark.skipping.{FlintSparkSkippingStrategy, FlintSparkSkippingStrategySuite}
+import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.{DEFAULT_VALUE_SET_MAX_SIZE, VALUE_SET_MAX_SIZE_KEY}
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
@@ -22,6 +23,11 @@ class ValueSetSkippingStrategySuite
     ValueSetSkippingStrategy(columnName = "name", columnType = "string")
 
   private val name = AttributeReference("name", StringType, nullable = false)()
+
+  test("should return properties with default value") {
+    strategy.parameters shouldBe Map(
+      VALUE_SET_MAX_SIZE_KEY -> DEFAULT_VALUE_SET_MAX_SIZE.toString)
+  }
 
   test("should rewrite EqualTo(<indexCol>, <value>)") {
     EqualTo(name, Literal("hello")) shouldRewriteTo
