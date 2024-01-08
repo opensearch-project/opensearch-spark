@@ -32,7 +32,7 @@ trait FlintSparkSkippingStrategy {
   val columnType: String
 
   /**
-   * Skipping algorithm parameters.
+   * Skipping algorithm named parameters.
    */
   val parameters: Map[String, String] = Map.empty
 

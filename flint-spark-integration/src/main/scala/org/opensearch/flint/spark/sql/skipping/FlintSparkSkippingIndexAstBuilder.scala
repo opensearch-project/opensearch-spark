@@ -46,11 +46,12 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       ctx.indexColTypeList().indexColType().forEach { colTypeCtx =>
         val colName = colTypeCtx.identifier().getText
         val skipType = SkippingKind.withName(colTypeCtx.skipType.getText)
-        val paramValues = visitPropertyValues(colTypeCtx.propertyValues())
+        val skipParams = visitSkipParams(colTypeCtx.skipParams())
         skipType match {
           case PARTITION => indexBuilder.addPartitions(colName)
           case VALUE_SET =>
-            indexBuilder.addValueSet(colName, (Seq(VALUE_SET_MAX_SIZE_KEY) zip paramValues).toMap)
+            val valueSetParams = (Seq(VALUE_SET_MAX_SIZE_KEY) zip skipParams).toMap
+            indexBuilder.addValueSet(colName, valueSetParams)
           case MIN_MAX => indexBuilder.addMinMax(colName)
         }
       }
@@ -112,7 +113,7 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
     }
   }
 
-  override def visitPropertyValues(ctx: PropertyValuesContext): Seq[String] = {
+  override def visitSkipParams(ctx: SkipParamsContext): Seq[String] = {
     if (ctx == null) {
       Seq.empty
     } else {
