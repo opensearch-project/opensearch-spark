@@ -13,7 +13,6 @@ import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 import com.amazonaws.services.cloudwatch.model.PutMetricDataResult;
 import com.amazonaws.services.cloudwatch.model.StandardUnit;
 import com.amazonaws.services.cloudwatch.model.StatisticSet;
-import com.amazonaws.util.StringUtils;
 import com.codahale.metrics.Clock;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Counting;
@@ -36,6 +35,7 @@ import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +47,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +85,16 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
 
     // Visible for testing
     public static final String DIMENSION_SNAPSHOT_STD_DEV = "snapshot-std-dev";
+
+    public static final String DIMENSION_JOB_ID = "jobId";
+
+    public static final String DIMENSION_APPLICATION_ID = "applicationId";
+
+    public static final String DIMENSION_DOMAIN_ID = "domainId";
+
+    public static final String DIMENSION_INSTANCE_TYPE = "instance";
+
+    public static final String UNKNOWN = "unknown";
 
     /**
      * Amazon CloudWatch rejects values that are either too small or too large.
@@ -135,7 +148,6 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
         if (builder.withDryRun) {
             LOGGER.warn("** Reporter is running in 'DRY RUN' mode **");
         }
-
         try {
             final List<MetricDatum> metricData = new ArrayList<>(
                     gauges.size() + counters.size() + 10 * histograms.size() + 10 * timers.size());
@@ -339,6 +351,8 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
         if (metricConfigured && (builder.withZeroValuesSubmission || metricValue > 0)) {
             final DimensionedName dimensionedName = DimensionedName.decode(metricName);
             final Set<Dimension> dimensions = new LinkedHashSet<>(builder.globalDimensions);
+            Pair<String, Set<Dimension>> finalNameAndDefaultDimensions = getFinalMetricNameAndDefaultDimensions(dimensionedName);
+            dimensions.addAll(finalNameAndDefaultDimensions.getRight());
             dimensions.addAll(dimensionedName.getDimensions());
             if (shouldAppendDropwizardTypeDimension) {
                 dimensions.add(new Dimension().withName(DIMENSION_NAME_TYPE).withValue(dimensionValue));
@@ -347,10 +361,45 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
             metricData.add(new MetricDatum()
                     .withTimestamp(new Date(builder.clock.getTime()))
                     .withValue(cleanMetricValue(metricValue))
-                    .withMetricName(dimensionedName.getName())
+                    .withMetricName(finalNameAndDefaultDimensions.getLeft())
                     .withDimensions(dimensions)
                     .withUnit(standardUnit));
         }
+    }
+
+    @NotNull
+    private Pair<String, Set<Dimension>> getFinalMetricNameAndDefaultDimensions(DimensionedName dimensionedName) {
+        final String jobId = System.getenv().getOrDefault("SERVERLESS_EMR_JOB_ID", UNKNOWN);
+        final String applicationId = System.getenv().getOrDefault("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", UNKNOWN);
+        final String domainId = System.getenv().getOrDefault("FLINT_CLUSTER_NAME", UNKNOWN);
+        final Dimension jobDimension = new Dimension().withName(DIMENSION_JOB_ID).withValue(jobId);
+        final Dimension applicationDimension = new Dimension().withName(DIMENSION_APPLICATION_ID).withValue(applicationId);
+        final Dimension domainIdDimension = new Dimension().withName(DIMENSION_DOMAIN_ID).withValue(domainId);
+        Dimension instanceDimension = new Dimension().withName(DIMENSION_INSTANCE_TYPE).withValue(UNKNOWN);
+        String name = dimensionedName.getName();
+        String finalMetricName = name;
+        String[] parts = name.split("\\.");
+        if (doesNameConsistsOfMetricNameSpace(parts, jobId)) {
+            finalMetricName = Stream.of(parts).skip(2).collect(Collectors.joining("."));
+            //For executors only id is added to the metric name, thats why the numeric check.
+            //If it is not numeric then the instance is driver.
+            if (StringUtils.isNumeric(parts[1])) {
+                instanceDimension = new Dimension().withName(DIMENSION_INSTANCE_TYPE).withValue("executor" + parts[1]);
+            }
+            else {
+                instanceDimension = new Dimension().withName(DIMENSION_INSTANCE_TYPE).withValue(parts[1]);
+            }
+        }
+        Set<Dimension> dimensions = new HashSet<>();
+        dimensions.add(jobDimension);
+        dimensions.add(applicationDimension);
+        dimensions.add(instanceDimension);
+        dimensions.add(domainIdDimension);
+        return Pair.of(finalMetricName, dimensions);
+    }
+
+    private boolean doesNameConsistsOfMetricNameSpace(String[] metricNameParts, String jobId) {
+        return metricNameParts[0].equals(jobId);
     }
 
     private void stageMetricDatumWithConvertedSnapshot(final boolean metricConfigured,
