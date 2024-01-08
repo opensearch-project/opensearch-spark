@@ -156,6 +156,8 @@ object FlintSparkSkippingIndex {
      *
      * @param colName
      *   indexed column name
+     * @param params
+     *   value set parameters
      * @return
      *   index builder
      */

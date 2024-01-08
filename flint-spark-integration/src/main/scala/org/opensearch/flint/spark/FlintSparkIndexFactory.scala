@@ -47,7 +47,7 @@ object FlintSparkIndexFactory {
           val skippingKind = SkippingKind.withName(getString(colInfo, "kind"))
           val columnName = getString(colInfo, "columnName")
           val columnType = getString(colInfo, "columnType")
-          val properties = getSkippingParameters(colInfo)
+          val parameters = getSkipParams(colInfo)
 
           skippingKind match {
             case PARTITION =>
@@ -56,7 +56,7 @@ object FlintSparkIndexFactory {
               ValueSetSkippingStrategy(
                 columnName = columnName,
                 columnType = columnType,
-                params = properties)
+                params = parameters)
             case MIN_MAX =>
               MinMaxSkippingStrategy(columnName = columnName, columnType = columnType)
             case other =>
@@ -84,8 +84,7 @@ object FlintSparkIndexFactory {
     }
   }
 
-  private def getSkippingParameters(
-      colInfo: java.util.Map[String, AnyRef]): Map[String, String] = {
+  private def getSkipParams(colInfo: java.util.Map[String, AnyRef]): Map[String, String] = {
     colInfo
       .getOrDefault("parameters", Collections.emptyMap())
       .asInstanceOf[java.util.Map[String, String]]
