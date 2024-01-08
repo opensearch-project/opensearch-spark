@@ -255,7 +255,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     checkAnswer(sql("DESC MATERIALIZED VIEW nonexistent_mv"), Seq())
   }
 
-  test("drop materialized view") {
+  test("drop and vacuum materialized view") {
     flint
       .materializedView()
       .name(testMvName)
@@ -263,7 +263,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       .create()
 
     sql(s"DROP MATERIALIZED VIEW $testMvName")
-
+    sql(s"VACUUM MATERIALIZED VIEW $testMvName")
     flint.describeIndex(testFlintIndex) shouldBe empty
   }
 

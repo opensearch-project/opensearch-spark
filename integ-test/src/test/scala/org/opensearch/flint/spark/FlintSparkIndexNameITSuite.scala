@@ -56,6 +56,7 @@ class FlintSparkIndexNameITSuite extends FlintSparkSuite {
     indexData should have size 1
 
     sql(s"DROP SKIPPING INDEX ON $testTable")
+    sql(s"VACUUM SKIPPING INDEX ON $testTable")
     flint.describeIndex(flintIndexName) shouldBe empty
   }
 
@@ -76,6 +77,7 @@ class FlintSparkIndexNameITSuite extends FlintSparkSuite {
     indexData should have size 1
 
     sql(s"DROP INDEX $testIndex ON $testTable")
+    sql(s"VACUUM INDEX $testIndex ON $testTable")
     flint.describeIndex(flintIndexName) shouldBe empty
   }
 }

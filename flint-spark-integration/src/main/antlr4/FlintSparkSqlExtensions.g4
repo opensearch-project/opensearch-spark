@@ -96,6 +96,7 @@ materializedViewStatement
     | showMaterializedViewStatement
     | describeMaterializedViewStatement
     | dropMaterializedViewStatement
+    | vacuumMaterializedViewStatement
     ;
 
 createMaterializedViewStatement

@@ -249,7 +249,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     checkAnswer(result, Seq.empty)
   }
 
-  test("drop skipping index") {
+  test("drop and vacuum skipping index") {
     flint
       .skippingIndex()
       .onTable(testTable)
@@ -257,7 +257,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
       .create()
 
     sql(s"DROP SKIPPING INDEX ON $testTable")
-
+    sql(s"VACUUM SKIPPING INDEX ON $testTable")
     flint.describeIndex(testIndex) shouldBe empty
   }
 }

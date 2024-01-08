@@ -267,7 +267,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     checkAnswer(result, Seq(Row("name", "string", "indexed"), Row("age", "int", "indexed")))
   }
 
-  test("drop covering index") {
+  test("drop and vacuum covering index") {
     flint
       .coveringIndex()
       .name(testIndex)
@@ -276,7 +276,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
       .create()
 
     sql(s"DROP INDEX $testIndex ON $testTable")
-
+    sql(s"VACUUM INDEX $testIndex ON $testTable")
     flint.describeIndex(testFlintIndex) shouldBe empty
   }
 }
