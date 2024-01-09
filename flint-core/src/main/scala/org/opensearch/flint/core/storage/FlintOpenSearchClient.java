@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -72,6 +73,13 @@ public class FlintOpenSearchClient implements FlintClient {
           new ArrayList<>()).getNamedXContents());
 
   /**
+   * Invalid index name characters to percent-encode,
+   * excluding '*' because it's reserved for pattern matching.
+   */
+  private final static Set<Character> INVALID_INDEX_NAME_CHARS =
+      Set.of(' ', ',', ':', '"', '+', '/', '\\', '|', '?', '#', '>', '<');
+
+  /**
    * Metadata log index name prefix
    */
   public final static String META_LOG_NAME_PREFIX = ".query_execution_request";
@@ -121,7 +129,7 @@ public class FlintOpenSearchClient implements FlintClient {
 
   protected void createIndex(String indexName, String mapping, Option<String> settings) {
     LOG.info("Creating Flint index " + indexName);
-    String osIndexName = toLowercase(indexName);
+    String osIndexName = sanitizeIndexName(indexName);
     try (RestHighLevelClient client = createClient()) {
       CreateIndexRequest request = new CreateIndexRequest(osIndexName);
       request.mapping(mapping, XContentType.JSON);
@@ -137,7 +145,7 @@ public class FlintOpenSearchClient implements FlintClient {
   @Override
   public boolean exists(String indexName) {
     LOG.info("Checking if Flint index exists " + indexName);
-    String osIndexName = toLowercase(indexName);
+    String osIndexName = sanitizeIndexName(indexName);
     try (RestHighLevelClient client = createClient()) {
       return client.indices().exists(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT);
     } catch (IOException e) {
@@ -148,7 +156,7 @@ public class FlintOpenSearchClient implements FlintClient {
   @Override
   public List<FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
     LOG.info("Fetching all Flint index metadata for pattern " + indexNamePattern);
-    String osIndexNamePattern = toLowercase(indexNamePattern);
+    String osIndexNamePattern = sanitizeIndexName(indexNamePattern);
     try (RestHighLevelClient client = createClient()) {
       GetIndexRequest request = new GetIndexRequest(osIndexNamePattern);
       GetIndexResponse response = client.indices().get(request, RequestOptions.DEFAULT);
@@ -166,7 +174,7 @@ public class FlintOpenSearchClient implements FlintClient {
   @Override
   public FlintMetadata getIndexMetadata(String indexName) {
     LOG.info("Fetching Flint index metadata for " + indexName);
-    String osIndexName = toLowercase(indexName);
+    String osIndexName = sanitizeIndexName(indexName);
     try (RestHighLevelClient client = createClient()) {
       GetIndexRequest request = new GetIndexRequest(osIndexName);
       GetIndexResponse response = client.indices().get(request, RequestOptions.DEFAULT);
@@ -182,7 +190,7 @@ public class FlintOpenSearchClient implements FlintClient {
   @Override
   public void deleteIndex(String indexName) {
     LOG.info("Deleting Flint index " + indexName);
-    String osIndexName = toLowercase(indexName);
+    String osIndexName = sanitizeIndexName(indexName);
     try (RestHighLevelClient client = createClient()) {
       DeleteIndexRequest request = new DeleteIndexRequest(osIndexName);
 
@@ -211,7 +219,7 @@ public class FlintOpenSearchClient implements FlintClient {
         queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
       }
       return new OpenSearchScrollReader(createClient(),
-          toLowercase(indexName),
+          sanitizeIndexName(indexName),
           new SearchSourceBuilder().query(queryBuilder),
           options);
     } catch (IOException e) {
@@ -221,7 +229,7 @@ public class FlintOpenSearchClient implements FlintClient {
 
   public FlintWriter createWriter(String indexName) {
     LOG.info("Creating Flint index writer for " + indexName);
-    return new OpenSearchWriter(createClient(), toLowercase(indexName), options.getRefreshPolicy());
+    return new OpenSearchWriter(createClient(), sanitizeIndexName(indexName), options.getRefreshPolicy());
   }
 
   @Override
@@ -286,5 +294,32 @@ public class FlintOpenSearchClient implements FlintClient {
     Objects.requireNonNull(indexName);
 
     return indexName.toLowerCase(Locale.ROOT);
+  }
+
+  /*
+   * Percent-encode invalid OpenSearch index name characters.
+   */
+  private String percentEncode(String indexName) {
+    Objects.requireNonNull(indexName);
+
+    StringBuilder builder = new StringBuilder(indexName.length());
+    for (char ch : indexName.toCharArray()) {
+      if (INVALID_INDEX_NAME_CHARS.contains(ch)) {
+        builder.append(String.format("%%%02X", (int) ch));
+      } else {
+        builder.append(ch);
+      }
+    }
+    return builder.toString();
+  }
+
+  /*
+   * Sanitize index name to comply with OpenSearch index name restrictions.
+   */
+  private String sanitizeIndexName(String indexName) {
+    Objects.requireNonNull(indexName);
+
+    String encoded = percentEncode(indexName);
+    return toLowercase(encoded);
   }
 }
