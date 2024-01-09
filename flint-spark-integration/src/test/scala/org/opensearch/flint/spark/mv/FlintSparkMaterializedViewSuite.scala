@@ -47,12 +47,6 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     mv.name() shouldBe "flint_spark_catalog_default_mv.2023.10"
   }
 
-  test("get encoded mv name with special characters") {
-    val testMvNameSpecial = "spark_catalog.default.mv ,:\"*+/\\|?#><"
-    val mv = FlintSparkMaterializedView(testMvNameSpecial, testQuery, Map.empty)
-    mv.name() shouldBe "flint_spark_catalog_default_mv%20%2c%3a%22%2a%2b%2f%5c%7c%3f%23%3e%3c"
-  }
-
   test("should fail if get name with unqualified MV name") {
     the[IllegalArgumentException] thrownBy
       FlintSparkMaterializedView("mv", testQuery, Map.empty).name()

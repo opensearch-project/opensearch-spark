@@ -80,30 +80,6 @@ object FlintSparkIndex {
   val ID_COLUMN: String = "__id__"
 
   /**
-   * invalid index name characters.
-   */
-  val INVALID_INDEX_NAME_CHARS: Set[Char] =
-    Set(' ', ',', ':', '"', '*', '+', '/', '\\', '|', '?', '#', '>', '<')
-
-  /**
-   * Percent-encode invalid OpenSearch index name characters.
-   *
-   * @param indexName
-   *   raw Flint index name
-   * @return
-   *   percent-encoded index name
-   */
-  def percentEncode(indexName: String): String = {
-    indexName
-      .flatMap(ch =>
-        if (INVALID_INDEX_NAME_CHARS.contains(ch)) {
-          s"%${ch.toInt.toHexString}"
-        } else {
-          ch.toString
-        })
-  }
-
-  /**
    * Common prefix of Flint index name which is "flint_database_table_"
    *
    * @param fullTableName
@@ -116,9 +92,7 @@ object FlintSparkIndex {
 
     // Keep all parts since the third as it is
     val parts = fullTableName.split('.')
-    val raw = s"flint_${parts(0)}_${parts(1)}_${parts.drop(2).mkString(".")}"
-
-    percentEncode(raw)
+    s"flint_${parts(0)}_${parts(1)}_${parts.drop(2).mkString(".")}"
   }
 
   /**
