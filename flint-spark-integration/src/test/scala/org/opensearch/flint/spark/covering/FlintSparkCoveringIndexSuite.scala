@@ -23,6 +23,12 @@ class FlintSparkCoveringIndexSuite extends FlintSuite {
     index.name() shouldBe "flint_spark_catalog_default_test.2023.10_ci.01_index"
   }
 
+  test("get encoded covering index name on table name with special characters") {
+    val testTableSpecial = "spark_catalog.default.test ,:\"*+/\\|?#><"
+    val index = new FlintSparkCoveringIndex("ci", testTableSpecial, Map("name" -> "string"))
+    index.name() shouldBe "flint_spark_catalog_default_test%20%2c%3a%22%2a%2b%2f%5c%7c%3f%23%3e%3c_ci_index"
+  }
+
   test("should fail if get index name without full table name") {
     val index = new FlintSparkCoveringIndex("ci", "test", Map("name" -> "string"))
     assertThrows[IllegalArgumentException] {
