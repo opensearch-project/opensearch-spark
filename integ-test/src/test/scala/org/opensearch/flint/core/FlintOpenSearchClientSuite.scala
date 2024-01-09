@@ -114,6 +114,30 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     flintClient.exists(indexName) shouldBe false
   }
 
+  it should "percent-encode invalid index name characters" in {
+    val indexName = "test ,:\"+/\\|?#><"
+    flintClient.createIndex(
+      indexName,
+      FlintMetadata("""{"properties": {"test": { "type": "integer" } } }"""))
+
+    flintClient.exists(indexName) shouldBe true
+    flintClient.getIndexMetadata(indexName) should not be null
+    flintClient.getAllIndexMetadata("test *") should not be empty
+
+    // Read write test
+    val writer = flintClient.createWriter(indexName)
+    writer.write("""{"create":{}}""")
+    writer.write("\n")
+    writer.write("""{"test":1}""")
+    writer.write("\n")
+    writer.flush()
+    writer.close()
+    flintClient.createReader(indexName, "").hasNext shouldBe true
+
+    flintClient.deleteIndex(indexName)
+    flintClient.exists(indexName) shouldBe false
+  }
+
   it should "return false if index not exist" in {
     flintClient.exists("non-exist-index") shouldBe false
   }
