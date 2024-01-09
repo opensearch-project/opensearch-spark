@@ -82,7 +82,8 @@ object FlintSparkIndex {
   /**
    * invalid index name characters.
    */
-  val INVALID_INDEX_NAME_CHARS: Set[Char] = Set(' ', ',', ':', '"', '*', '+', '/', '\\', '|', '?', '#', '>', '<')
+  val INVALID_INDEX_NAME_CHARS: Set[Char] =
+    Set(' ', ',', ':', '"', '*', '+', '/', '\\', '|', '?', '#', '>', '<')
 
   /**
    * Percent-encode invalid OpenSearch index name characters.
