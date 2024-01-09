@@ -299,14 +299,13 @@ public class FlintOpenSearchClient implements FlintClient {
   /*
    * Percent-encode invalid OpenSearch index name characters.
    */
-  private String percentEncode(String indexName, Set<Character> charsToEncode) {
+  private String percentEncode(String indexName) {
     Objects.requireNonNull(indexName);
-    Objects.requireNonNull(charsToEncode);
 
     StringBuilder builder = new StringBuilder(indexName.length());
     for (char ch : indexName.toCharArray()) {
-      if (charsToEncode.contains(ch)) {
-        builder.append("%").append(String.format("%02X", (int) ch));
+      if (INVALID_INDEX_NAME_CHARS.contains(ch)) {
+        builder.append(String.format("%%%02X", (int) ch));
       } else {
         builder.append(ch);
       }
@@ -320,7 +319,7 @@ public class FlintOpenSearchClient implements FlintClient {
   private String sanitizeIndexName(String indexName) {
     Objects.requireNonNull(indexName);
 
-    String encoded = percentEncode(indexName, INVALID_INDEX_NAME_CHARS);
+    String encoded = percentEncode(indexName);
     return toLowercase(encoded);
   }
 }
