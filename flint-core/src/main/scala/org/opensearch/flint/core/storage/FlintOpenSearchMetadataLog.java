@@ -27,6 +27,8 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLog;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
+import org.opensearch.flint.core.metrics.aop.MetricConstants;
+import org.opensearch.flint.core.metrics.aop.PublishMetrics;
 
 /**
  * Flint metadata log in OpenSearch store. For now use single doc instead of maintaining history
@@ -75,6 +77,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   }
 
   @Override
+  @PublishMetrics(metricNamePrefix=MetricConstants.OS_READ_METRIC_PREFIX)
   public Optional<FlintMetadataLogEntry> getLatest() {
     LOG.info("Fetching latest log entry with id " + latestId);
     try (RestHighLevelClient client = flintClient.createClient()) {
@@ -100,6 +103,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   }
 
   @Override
+  @PublishMetrics(metricNamePrefix=MetricConstants.OS_WRITE_METRIC_PREFIX)
   public void purge() {
     LOG.info("Purging log entry with id " + latestId);
     try (RestHighLevelClient client = flintClient.createClient()) {
@@ -113,6 +117,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     }
   }
 
+  @PublishMetrics(metricNamePrefix=MetricConstants.OS_WRITE_METRIC_PREFIX)
   private FlintMetadataLogEntry createLogEntry(FlintMetadataLogEntry logEntry) {
     LOG.info("Creating log entry " + logEntry);
     // Assign doc ID here
@@ -136,6 +141,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
             RequestOptions.DEFAULT));
   }
 
+  @PublishMetrics(metricNamePrefix=MetricConstants.OS_WRITE_METRIC_PREFIX)
   private FlintMetadataLogEntry updateLogEntry(FlintMetadataLogEntry logEntry) {
     LOG.info("Updating log entry " + logEntry);
     return writeLogEntry(logEntry,
@@ -172,6 +178,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     }
   }
 
+  @PublishMetrics(metricNamePrefix=MetricConstants.OS_READ_METRIC_PREFIX)
   private boolean exists() {
     LOG.info("Checking if Flint index exists " + metaLogIndexName);
     try (RestHighLevelClient client = flintClient.createClient()) {

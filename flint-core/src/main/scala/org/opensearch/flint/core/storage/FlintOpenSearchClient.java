@@ -49,6 +49,8 @@ import org.opensearch.flint.core.metadata.FlintMetadata;
 import org.opensearch.flint.core.metadata.log.DefaultOptimisticTransaction;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
+import org.opensearch.flint.core.metrics.aop.MetricConstants;
+import org.opensearch.flint.core.metrics.aop.PublishMetrics;
 import org.opensearch.index.query.AbstractQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
@@ -127,6 +129,7 @@ public class FlintOpenSearchClient implements FlintClient {
     createIndex(indexName, metadata.getContent(), metadata.indexSettings());
   }
 
+  @PublishMetrics(metricNamePrefix=MetricConstants.OS_WRITE_METRIC_PREFIX)
   protected void createIndex(String indexName, String mapping, Option<String> settings) {
     LOG.info("Creating Flint index " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
@@ -143,6 +146,7 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override
+  @PublishMetrics(metricNamePrefix=MetricConstants.OS_READ_METRIC_PREFIX)
   public boolean exists(String indexName) {
     LOG.info("Checking if Flint index exists " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
@@ -154,6 +158,7 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override
+  @PublishMetrics(metricNamePrefix=MetricConstants.OS_READ_METRIC_PREFIX)
   public List<FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
     LOG.info("Fetching all Flint index metadata for pattern " + indexNamePattern);
     String osIndexNamePattern = sanitizeIndexName(indexNamePattern);
@@ -172,6 +177,7 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override
+  @PublishMetrics(metricNamePrefix=MetricConstants.OS_READ_METRIC_PREFIX)
   public FlintMetadata getIndexMetadata(String indexName) {
     LOG.info("Fetching Flint index metadata for " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
@@ -188,6 +194,7 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override
+  @PublishMetrics(metricNamePrefix=MetricConstants.OS_WRITE_METRIC_PREFIX)
   public void deleteIndex(String indexName) {
     LOG.info("Deleting Flint index " + indexName);
     String osIndexName = sanitizeIndexName(indexName);

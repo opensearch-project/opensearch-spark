@@ -15,6 +15,8 @@ import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.common.Strings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.flint.core.FlintOptions;
+import org.opensearch.flint.core.metrics.aop.MetricConstants;
+import org.opensearch.flint.core.metrics.aop.PublishMetrics;
 import org.opensearch.search.builder.SearchSourceBuilder;
 
 import java.io.IOException;
@@ -44,6 +46,7 @@ public class OpenSearchScrollReader extends OpenSearchReader {
   /**
    * search.
    */
+  @PublishMetrics(metricNamePrefix=MetricConstants.OS_READ_METRIC_PREFIX)
   Optional<SearchResponse> search(SearchRequest request) throws IOException {
     if (Strings.isNullOrEmpty(scrollId)) {
       request.scroll(scrollDuration);
@@ -66,6 +69,7 @@ public class OpenSearchScrollReader extends OpenSearchReader {
   /**
    * clean the scroll context.
    */
+  @PublishMetrics(metricNamePrefix=MetricConstants.OS_READ_METRIC_PREFIX)
   void clean() throws IOException {
     try {
       if (!Strings.isNullOrEmpty(scrollId)) {

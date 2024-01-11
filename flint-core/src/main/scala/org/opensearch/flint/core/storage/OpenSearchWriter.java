@@ -9,18 +9,14 @@ import org.opensearch.action.DocWriteRequest;
 import org.opensearch.action.bulk.BulkItemResponse;
 import org.opensearch.action.bulk.BulkRequest;
 import org.opensearch.action.bulk.BulkResponse;
-import org.opensearch.action.support.WriteRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.flint.core.metrics.aop.MetricConstants;
+import org.opensearch.flint.core.metrics.aop.PublishMetrics;
 import org.opensearch.rest.RestStatus;
 
-import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.StringWriter;
-import java.io.Writer;
 import java.util.Arrays;
 
 /**
@@ -52,6 +48,7 @@ public class OpenSearchWriter extends FlintWriter {
    * Flush the data in buffer.
    * Todo. StringWriter is not efficient. it will copy the cbuf when create bytes.
    */
+  @PublishMetrics(metricNamePrefix=MetricConstants.OS_WRITE_METRIC_PREFIX)
   @Override public void flush() {
     try {
       if (sb.length() > 0) {
