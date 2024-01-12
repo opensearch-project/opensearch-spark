@@ -96,6 +96,22 @@ object FlintSparkIndex {
   }
 
   /**
+   * Add backticks to table name for special character handling
+   *
+   * @param fullTableName
+   *   source full table name
+   * @return
+   *   quoted table name
+   */
+  def quotedTableName(fullTableName: String): String = {
+    // TODO: add UT
+    require(fullTableName.split('.').length >= 3, s"Table name $fullTableName is not qualified")
+
+    val parts = fullTableName.split('.')
+    s"${parts(0)}.${parts(1)}.`${parts.drop(2).mkString(".")}`"
+  }
+
+  /**
    * Populate environment variables to persist in Flint metadata.
    *
    * @return
