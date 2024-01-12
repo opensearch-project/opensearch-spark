@@ -37,7 +37,7 @@ class FlintSparkCoveringIndexSuite extends FlintSuite {
 
     val df = spark.createDataFrame(Seq(("hello", 20))).toDF("name", "age")
     val indexDf = index.build(spark, Some(df))
-    indexDf.schema.fieldNames should contain only("name")
+    indexDf.schema.fieldNames should contain only ("name")
   }
 
   test("can build index on table name with special characters") {
@@ -46,7 +46,7 @@ class FlintSparkCoveringIndexSuite extends FlintSuite {
 
     val df = spark.createDataFrame(Seq(("hello", 20))).toDF("name", "age")
     val indexDf = index.build(spark, Some(df))
-    indexDf.schema.fieldNames should contain only("name")
+    indexDf.schema.fieldNames should contain only ("name")
   }
 
   test("should fail if no indexed column given") {
