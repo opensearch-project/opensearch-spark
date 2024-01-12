@@ -9,7 +9,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark._
-import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder}
+import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder, quotedTableName}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{getFlintIndexName, COVERING_INDEX_TYPE}
 
@@ -60,7 +60,7 @@ case class FlintSparkCoveringIndex(
 
   override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
     val colNames = indexedColumns.keys.toSeq
-    val job = df.getOrElse(spark.read.table(tableName))
+    val job = df.getOrElse(spark.read.table(quotedTableName(tableName)))
 
     // Add optional filtering condition
     filterCondition
