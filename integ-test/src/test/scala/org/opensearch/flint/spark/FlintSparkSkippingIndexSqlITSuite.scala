@@ -14,7 +14,7 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.{defined, have}
+import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
@@ -142,6 +142,18 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
     sql(s"REFRESH SKIPPING INDEX ON $testTable")
     indexData.count() shouldBe 2
+  }
+
+  test("should fail if refresh an auto refresh skipping index") {
+    sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | ( year PARTITION )
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
+
+    assertThrows[IllegalStateException] {
+      sql(s"REFRESH SKIPPING INDEX ON $testTable")
+    }
   }
 
   test("create skipping index if not exists") {

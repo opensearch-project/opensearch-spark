@@ -425,7 +425,7 @@ flint.skippingIndex()
     .addMinMax("request_processing_time")
     .create()
 
-flint.refreshIndex("flint_spark_catalog_default_alb_logs_skipping_index", FULL)
+flint.refreshIndex("flint_spark_catalog_default_alb_logs_skipping_index")
 
 // Covering index
 flint.coveringIndex()
