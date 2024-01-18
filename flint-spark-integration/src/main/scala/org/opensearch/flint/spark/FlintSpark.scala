@@ -12,20 +12,19 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
-import org.opensearch.flint.spark.FlintSpark.RefreshMode.{AUTO, MANUAL, RefreshMode}
-import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, ID_COLUMN, StreamingRefresh}
+import org.opensearch.flint.spark.FlintSpark.RefreshMode.{AUTO, MANUAL}
+import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresher
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import org.apache.spark.sql.SaveMode._
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
-import org.apache.spark.sql.streaming.{DataStreamWriter, Trigger}
+import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
 
 /**
  * Flint Spark integration API entrypoint.
@@ -159,7 +158,10 @@ class FlintSpark(val spark: SparkSession) extends Logging {
             latest
           }
         })
-        .commit(_ => doRefreshIndex(index, indexName, mode))
+        .commit(_ =>
+          FlintSparkIndexRefresher
+            .create(indexName, index)
+            .start(spark, flintSparkConf))
     } catch {
       case e: Exception =>
         logError("Failed to refresh Flint index", e)
@@ -292,7 +294,10 @@ class FlintSpark(val spark: SparkSession) extends Logging {
             flintIndexMonitor.startMonitor(indexName)
             latest.copy(state = REFRESHING)
           })
-          .commit(_ => doRefreshIndex(index.get, indexName, AUTO))
+          .commit(_ =>
+            FlintSparkIndexRefresher
+              .create(indexName, index.get)
+              .start(spark, flintSparkConf))
 
         logInfo("Recovery complete")
         true
@@ -319,67 +324,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     spark.read.format(FLINT_DATASOURCE).load(indexName)
   }
 
-  // TODO: move to separate class
-  private def doRefreshIndex(
-      index: FlintSparkIndex,
-      indexName: String,
-      mode: RefreshMode): Option[String] = {
-    logInfo(s"Refreshing index $indexName in $mode mode")
-    val options = index.options
-    val tableName = index.metadata().source
-
-    // Batch refresh Flint index from the given source data frame
-    def batchRefresh(df: Option[DataFrame] = None): Unit = {
-      index
-        .build(spark, df)
-        .write
-        .format(FLINT_DATASOURCE)
-        .options(flintSparkConf.properties)
-        .mode(Overwrite)
-        .save(indexName)
-    }
-
-    val jobId = mode match {
-      case MANUAL =>
-        logInfo("Start refreshing index in batch style")
-        batchRefresh()
-        None
-
-      // Flint index has specialized logic and capability for incremental refresh
-      case AUTO if index.isInstanceOf[StreamingRefresh] =>
-        logInfo("Start refreshing index in streaming style")
-        val job =
-          index
-            .asInstanceOf[StreamingRefresh]
-            .buildStream(spark)
-            .writeStream
-            .queryName(indexName)
-            .format(FLINT_DATASOURCE)
-            .options(flintSparkConf.properties)
-            .addSinkOptions(options)
-            .start(indexName)
-        Some(job.id.toString)
-
-      // Otherwise, fall back to foreachBatch + batch refresh
-      case AUTO =>
-        logInfo("Start refreshing index in foreach streaming style")
-        val job = spark.readStream
-          .options(options.extraSourceOptions(tableName))
-          .table(quotedTableName(tableName))
-          .writeStream
-          .queryName(indexName)
-          .addSinkOptions(options)
-          .foreachBatch { (batchDF: DataFrame, _: Long) =>
-            batchRefresh(Some(batchDF))
-          }
-          .start()
-        Some(job.id.toString)
-    }
-
-    logInfo("Refresh index complete")
-    jobId
-  }
-
   private def stopRefreshingJob(indexName: String): Unit = {
     logInfo(s"Terminating refreshing job $indexName")
     val job = spark.streams.active.find(_.name == indexName)
@@ -387,38 +331,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       job.get.stop()
     } else {
       logWarning("Refreshing job not found")
-    }
-  }
-
-  // Using Scala implicit class to avoid breaking method chaining of Spark data frame fluent API
-  private implicit class FlintDataStreamWriter(val dataStream: DataStreamWriter[Row]) {
-
-    def addSinkOptions(options: FlintSparkIndexOptions): DataStreamWriter[Row] = {
-      dataStream
-        .addCheckpointLocation(options.checkpointLocation())
-        .addRefreshInterval(options.refreshInterval())
-        .addOutputMode(options.outputMode())
-        .options(options.extraSinkOptions())
-    }
-
-    def addCheckpointLocation(checkpointLocation: Option[String]): DataStreamWriter[Row] = {
-      checkpointLocation match {
-        case Some(location) => dataStream.option("checkpointLocation", location)
-        case None if flintSparkConf.isCheckpointMandatory =>
-          throw new IllegalStateException(
-            s"Checkpoint location is mandatory for incremental refresh if ${CHECKPOINT_MANDATORY.key} enabled")
-        case _ => dataStream
-      }
-    }
-
-    def addRefreshInterval(refreshInterval: Option[String]): DataStreamWriter[Row] = {
-      refreshInterval
-        .map(interval => dataStream.trigger(Trigger.ProcessingTime(interval)))
-        .getOrElse(dataStream)
-    }
-
-    def addOutputMode(outputMode: Option[String]): DataStreamWriter[Row] = {
-      outputMode.map(dataStream.outputMode).getOrElse(dataStream)
     }
   }
 }
