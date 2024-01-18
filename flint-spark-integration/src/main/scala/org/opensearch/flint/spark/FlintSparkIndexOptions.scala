@@ -8,7 +8,7 @@ package org.opensearch.flint.spark
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
-import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, WATERMARK_DELAY}
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, INCREMENTAL, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, WATERMARK_DELAY}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
 
 /**
@@ -38,6 +38,14 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
    *   refresh interval expression
    */
   def refreshInterval(): Option[String] = getOptionValue(REFRESH_INTERVAL)
+
+  /**
+   * Is manual refresh incremental or full.
+   *
+   * @return
+   *   incremental option value
+   */
+  def incremental(): Boolean = getOptionValue(INCREMENTAL).getOrElse("false").toBoolean
 
   /**
    * The checkpoint location which maybe required by Flint index's refresh.
@@ -103,6 +111,9 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
     if (!options.contains(AUTO_REFRESH.toString)) {
       map += (AUTO_REFRESH.toString -> autoRefresh().toString)
     }
+    if (!options.contains(INCREMENTAL.toString)) {
+      map += (INCREMENTAL.toString -> incremental().toString)
+    }
     map.result()
   }
 
@@ -131,6 +142,7 @@ object FlintSparkIndexOptions {
     type OptionName = Value
     val AUTO_REFRESH: OptionName.Value = Value("auto_refresh")
     val REFRESH_INTERVAL: OptionName.Value = Value("refresh_interval")
+    val INCREMENTAL: OptionName.Value = Value("incremental")
     val CHECKPOINT_LOCATION: OptionName.Value = Value("checkpoint_location")
     val WATERMARK_DELAY: OptionName.Value = Value("watermark_delay")
     val OUTPUT_MODE: OptionName.Value = Value("output_mode")
