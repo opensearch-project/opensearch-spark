@@ -15,7 +15,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
   test("should return lowercase name as option name") {
     AUTO_REFRESH.toString shouldBe "auto_refresh"
     REFRESH_INTERVAL.toString shouldBe "refresh_interval"
-    INCREMENTAL.toString shouldBe "incremental"
+    INCREMENTAL_REFRESH.toString shouldBe "incremental_refresh"
     CHECKPOINT_LOCATION.toString shouldBe "checkpoint_location"
     WATERMARK_DELAY.toString shouldBe "watermark_delay"
     OUTPUT_MODE.toString shouldBe "output_mode"
@@ -28,7 +28,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
       Map(
         "auto_refresh" -> "true",
         "refresh_interval" -> "1 Minute",
-        "incremental" -> "true",
+        "incremental_refresh" -> "true",
         "checkpoint_location" -> "s3://test/",
         "watermark_delay" -> "30 Seconds",
         "output_mode" -> "complete",
@@ -46,7 +46,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
 
     options.autoRefresh() shouldBe true
     options.refreshInterval() shouldBe Some("1 Minute")
-    options.incremental() shouldBe true
+    options.incrementalRefresh() shouldBe true
     options.checkpointLocation() shouldBe Some("s3://test/")
     options.watermarkDelay() shouldBe Some("30 Seconds")
     options.outputMode() shouldBe Some("complete")
@@ -88,7 +88,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
 
     options.optionsWithDefault shouldBe Map(
       "auto_refresh" -> "false",
-      "incremental" -> "false",
+      "incremental_refresh" -> "false",
       "refresh_interval" -> "1 Minute")
   }
 

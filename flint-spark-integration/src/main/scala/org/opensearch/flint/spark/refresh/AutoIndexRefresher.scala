@@ -70,6 +70,7 @@ class AutoIndexRefresher(indexName: String, index: FlintSparkIndex)
       dataStream
         .addCheckpointLocation(options.checkpointLocation(), flintSparkConf.isCheckpointMandatory)
         .addRefreshInterval(options.refreshInterval())
+        .addAvailableNowTrigger(options.incrementalRefresh())
         .addOutputMode(options.outputMode())
         .options(options.extraSinkOptions())
     }
@@ -90,6 +91,14 @@ class AutoIndexRefresher(indexName: String, index: FlintSparkIndex)
       refreshInterval
         .map(interval => dataStream.trigger(Trigger.ProcessingTime(interval)))
         .getOrElse(dataStream)
+    }
+
+    def addAvailableNowTrigger(incremental: Boolean): DataStreamWriter[Row] = {
+      if (incremental) {
+        dataStream.trigger(Trigger.AvailableNow())
+      } else {
+        dataStream
+      }
     }
 
     def addOutputMode(outputMode: Option[String]): DataStreamWriter[Row] = {

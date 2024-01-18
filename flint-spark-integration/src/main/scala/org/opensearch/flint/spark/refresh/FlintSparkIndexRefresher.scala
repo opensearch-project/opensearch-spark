@@ -32,8 +32,11 @@ trait FlintSparkIndexRefresher extends Logging {
 object FlintSparkIndexRefresher {
 
   def create(indexName: String, index: FlintSparkIndex): FlintSparkIndexRefresher = {
-    if (index.options.autoRefresh()) {
+    val options = index.options
+    if (options.autoRefresh()) {
       new AutoIndexRefresher(indexName, index)
+    } else if (options.incrementalRefresh()) {
+      new IncrementalManualIndexRefresher(indexName, index)
     } else {
       new FullManualIndexRefresher(indexName, index)
     }
