@@ -320,9 +320,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     spark.read.format(FLINT_DATASOURCE).load(indexName)
   }
 
-  private def isIncrementalRefreshing(indexName: String): Boolean =
-    spark.streams.active.exists(_.name == indexName)
-
   // TODO: move to separate class
   private def doRefreshIndex(
       index: FlintSparkIndex,
@@ -344,10 +341,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     }
 
     val jobId = mode match {
-      case MANUAL if isIncrementalRefreshing(indexName) =>
-        throw new IllegalStateException(
-          s"Index $indexName is incremental refreshing and cannot be manual refreshed")
-
       case MANUAL =>
         logInfo("Start refreshing index in batch style")
         batchRefresh()

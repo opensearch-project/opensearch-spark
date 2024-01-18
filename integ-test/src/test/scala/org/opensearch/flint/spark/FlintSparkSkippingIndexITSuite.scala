@@ -173,6 +173,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .skippingIndex()
       .onTable(testTable)
       .addPartitions("year", "month")
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
       .create()
 
     val jobId = flint.refreshIndex(testIndex)
@@ -185,24 +186,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     val indexData = flint.queryIndex(testIndex).collect().toSet
     indexData should have size 2
-  }
-
-  test("should fail to manual refresh an incremental refreshing index") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .create()
-
-    val jobId = flint.refreshIndex(testIndex)
-    val job = spark.streams.get(jobId.get)
-    failAfter(streamingTimeout) {
-      job.processAllAvailable()
-    }
-
-    assertThrows[IllegalStateException] {
-      flint.refreshIndex(testIndex)
-    }
   }
 
   test("can have only 1 skipping index on a table") {
