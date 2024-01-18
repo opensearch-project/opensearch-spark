@@ -16,7 +16,6 @@ import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
 import org.opensearch.action.admin.indices.settings.put.UpdateSettingsRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.flint.OpenSearchTransactionSuite
-import org.opensearch.flint.spark.FlintSpark.RefreshMode._
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.should.Matchers
 
@@ -51,7 +50,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
       .addValueSet("name")
       .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
       .create()
-    flint.refreshIndex(testFlintIndex, INCREMENTAL)
+    flint.refreshIndex(testFlintIndex)
 
     // Wait for refresh complete and another 5 seconds to make sure monitor thread start
     val jobId = spark.streams.active.find(_.name == testFlintIndex).get.id.toString

@@ -135,10 +135,11 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    * @return
    *   refreshing job ID (empty if batch job for now)
    */
-  def refreshIndex(indexName: String, mode: RefreshMode): Option[String] = {
-    logInfo(s"Refreshing Flint index $indexName with mode $mode")
+  def refreshIndex(indexName: String): Option[String] = {
+    logInfo(s"Refreshing Flint index $indexName")
     val index = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+    val mode = if (index.options.autoRefresh()) INCREMENTAL else FULL
 
     try {
       flintClient

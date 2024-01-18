@@ -16,7 +16,6 @@ import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.OpenSearchTransactionSuite
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.DELETED
-import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.should.Matchers
 
@@ -77,7 +76,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .onTable(testTable)
       .addPartitions("year", "month")
       .create()
-    flint.refreshIndex(testFlintIndex, FULL)
+    flint.refreshIndex(testFlintIndex)
 
     val latest = latestLogEntry(testLatestId)
     latest should contain("state" -> "active")
@@ -91,7 +90,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .addPartitions("year", "month")
       .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
       .create()
-    flint.refreshIndex(testFlintIndex, INCREMENTAL)
+    flint.refreshIndex(testFlintIndex)
 
     // Job start time should be assigned
     var latest = latestLogEntry(testLatestId)

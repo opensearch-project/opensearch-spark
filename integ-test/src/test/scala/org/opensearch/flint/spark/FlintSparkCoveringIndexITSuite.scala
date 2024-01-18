@@ -7,7 +7,6 @@ package org.opensearch.flint.spark
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.opensearch.flint.core.FlintVersion.current
-import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -85,7 +84,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
       .addIndexColumns("name", "age")
       .create()
 
-    flint.refreshIndex(testFlintIndex, FULL)
+    flint.refreshIndex(testFlintIndex)
 
     val indexData = flint.queryIndex(testFlintIndex)
     checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
@@ -99,7 +98,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
       .addIndexColumns("name", "age")
       .create()
 
-    val jobId = flint.refreshIndex(testFlintIndex, INCREMENTAL)
+    val jobId = flint.refreshIndex(testFlintIndex)
     jobId shouldBe defined
 
     val job = spark.streams.get(jobId.get)

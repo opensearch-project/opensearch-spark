@@ -59,7 +59,7 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       // Trigger auto refresh if enabled
       if (indexOptions.autoRefresh()) {
         val indexName = getSkippingIndexName(flint, ctx.tableName)
-        flint.refreshIndex(indexName, RefreshMode.INCREMENTAL)
+        flint.refreshIndex(indexName)
       }
       Seq.empty
     }
@@ -68,7 +68,7 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       ctx: RefreshSkippingIndexStatementContext): Command =
     FlintSparkSqlCommand() { flint =>
       val indexName = getSkippingIndexName(flint, ctx.tableName)
-      flint.refreshIndex(indexName, RefreshMode.FULL)
+      flint.refreshIndex(indexName)
       Seq.empty
     }
 
