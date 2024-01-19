@@ -30,7 +30,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
     super.afterEach()
 
     // Delete all test indices
-    flint.deleteIndex(testFlintIndex)
+    deleteTestIndex(testFlintIndex)
   }
 
   test("create covering index with metadata successfully") {
@@ -126,6 +126,6 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
       .onTable(testTable)
       .addIndexColumns("address")
       .create()
-    flint.deleteIndex(getFlintIndexName(newIndex, testTable))
+    deleteTestIndex(getFlintIndexName(newIndex, testTable))
   }
 }

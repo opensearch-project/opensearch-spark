@@ -29,17 +29,7 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
   }
 
   override def afterEach(): Unit = {
-
-    /**
-     * Todo, if state is not valid, will throw IllegalStateException. Should check flint
-     * .isRefresh before cleanup resource. Current solution, (1) try to delete flint index, (2) if
-     * failed, delete index itself.
-     */
-    try {
-      flint.deleteIndex(testIndex)
-    } catch {
-      case _: IllegalStateException => deleteIndex(testIndex)
-    }
+    deleteTestIndex(testIndex)
     super.afterEach()
   }
 

@@ -227,7 +227,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
             // TODO: share same transaction for now
             flintIndexMonitor.stopMonitor(indexName)
             stopRefreshingJob(indexName)
-            flintClient.deleteIndex(indexName)
             true
           })
       } catch {

@@ -5,12 +5,15 @@
 
 package org.opensearch.flint.spark.sql.skipping
 
+import scala.collection.JavaConverters.collectionAsScalaIterableConverter
+
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
+import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.VALUE_SET_MAX_SIZE_KEY
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
@@ -43,9 +46,12 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       ctx.indexColTypeList().indexColType().forEach { colTypeCtx =>
         val colName = colTypeCtx.identifier().getText
         val skipType = SkippingKind.withName(colTypeCtx.skipType.getText)
+        val skipParams = visitSkipParams(colTypeCtx.skipParams())
         skipType match {
           case PARTITION => indexBuilder.addPartitions(colName)
-          case VALUE_SET => indexBuilder.addValueSet(colName)
+          case VALUE_SET =>
+            val valueSetParams = (Seq(VALUE_SET_MAX_SIZE_KEY) zip skipParams).toMap
+            indexBuilder.addValueSet(colName, valueSetParams)
           case MIN_MAX => indexBuilder.addMinMax(colName)
         }
       }
@@ -104,6 +110,16 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       val indexName = getSkippingIndexName(flint, ctx.tableName)
       flint.vacuumIndex(indexName)
       Seq.empty
+    }
+  }
+
+  override def visitSkipParams(ctx: SkipParamsContext): Seq[String] = {
+    if (ctx == null) {
+      Seq.empty
+    } else {
+      ctx.propertyValue.asScala
+        .map(p => visitPropertyValue(p))
+        .toSeq
     }
   }
 

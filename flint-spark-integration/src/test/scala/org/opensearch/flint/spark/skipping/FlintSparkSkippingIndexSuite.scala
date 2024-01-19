@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark.skipping
 
+import java.util.Collections
+
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.json4s.native.JsonMethods.parse
@@ -39,6 +41,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
   test("get index metadata") {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
+    when(indexCol.parameters).thenReturn(Map.empty[String, String])
     when(indexCol.columnName).thenReturn("test_field")
     when(indexCol.columnType).thenReturn("integer")
     when(indexCol.outputSchema()).thenReturn(Map("test_field" -> "integer"))
@@ -51,6 +54,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     metadata.indexedColumns shouldBe Array(
       Map(
         "kind" -> SkippingKind.PARTITION.toString,
+        "parameters" -> Collections.emptyMap(),
         "columnName" -> "test_field",
         "columnType" -> "integer").asJava)
   }

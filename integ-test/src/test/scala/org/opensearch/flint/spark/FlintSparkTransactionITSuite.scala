@@ -14,8 +14,6 @@ import org.opensearch.action.get.GetRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.OpenSearchTransactionSuite
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.DELETED
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.should.Matchers
 
@@ -38,11 +36,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
      * .isRefresh before cleanup resource. Current solution, (1) try to delete flint index, (2) if
      * failed, delete index itself.
      */
-    try {
-      flint.deleteIndex(testFlintIndex)
-    } catch {
-      case _: IllegalStateException => deleteIndex(testFlintIndex)
-    }
+    deleteTestIndex(testFlintIndex)
     super.afterEach()
   }
 
@@ -107,52 +101,25 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
     latest("jobStartTime").asInstanceOf[Number].longValue() should be > prevStartTime
   }
 
-  test("delete index") {
+  test("delete and vacuum index") {
     flint
       .skippingIndex()
       .onTable(testTable)
       .addPartitions("year", "month")
       .create()
+
+    // Logical delete index
     flint.deleteIndex(testFlintIndex)
-
     latestLogEntry(testLatestId) should contain("state" -> "deleted")
-  }
-
-  test("vacuum index") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .create()
-    deleteLogically(testLatestId)
-    flint.vacuumIndex(testFlintIndex)
 
     // Both index data and metadata log should be vacuumed
+    flint.vacuumIndex(testFlintIndex)
     openSearchClient
       .indices()
       .exists(new GetIndexRequest(testFlintIndex), RequestOptions.DEFAULT) shouldBe false
     openSearchClient.exists(
       new GetRequest(testMetaLogIndex, testLatestId),
       RequestOptions.DEFAULT) shouldBe false
-  }
-
-  test("should recreate index if logical deleted") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .create()
-
-    // Simulate that user deletes index data manually
-    flint.deleteIndex(testFlintIndex)
-    latestLogEntry(testLatestId) should contain("state" -> "deleted")
-
-    // Simulate that user recreate the index
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addValueSet("name")
-      .create()
   }
 
   test("should not recreate index if index data still exists") {
@@ -163,7 +130,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .create()
 
     // Simulate that PPL plugin leaves index data as logical deleted
-    deleteLogically(testLatestId)
+    flint.deleteIndex(testFlintIndex)
     latestLogEntry(testLatestId) should contain("state" -> "deleted")
 
     // Simulate that user recreate the index but forgot to cleanup index data
@@ -174,17 +141,5 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
         .addValueSet("name")
         .create()
     } should have message s"Flint index $testFlintIndex already exists"
-  }
-
-  private def deleteLogically(latestId: String): Unit = {
-    val response = openSearchClient
-      .get(new GetRequest(testMetaLogIndex, latestId), RequestOptions.DEFAULT)
-
-    val latest = new FlintMetadataLogEntry(
-      latestId,
-      response.getSeqNo,
-      response.getPrimaryTerm,
-      response.getSourceAsMap)
-    updateLatestLogEntry(latest, DELETED)
   }
 }
