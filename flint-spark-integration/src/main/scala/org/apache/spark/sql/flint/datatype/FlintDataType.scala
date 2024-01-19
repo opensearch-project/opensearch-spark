@@ -5,8 +5,6 @@
 
 package org.apache.spark.sql.flint.datatype
 
-import java.time.format.DateTimeFormatterBuilder
-
 import org.json4s.{Formats, JField, JValue, NoTypeHints}
 import org.json4s.JsonAST.{JNothing, JObject, JString}
 import org.json4s.jackson.JsonMethods
@@ -78,8 +76,11 @@ object FlintDataType {
       // object types
       case JString("object") | JNothing => deserializeJValue(fieldProperties)
 
+      // binary types
+      case JString("binary") => BinaryType
+
       // not supported
-      case _ => throw new IllegalStateException(s"unsupported data type")
+      case unknown => throw new IllegalStateException(s"unsupported data type: $unknown")
     }
     DataTypes.createStructField(fieldName, dataType, true, metadataBuilder.build())
   }
@@ -112,13 +113,16 @@ object FlintDataType {
     JsonMethods.compact(JsonMethods.render(jValue))
   }
 
-  def serializeJValue(structType: StructType): JValue = {
-    JObject("properties" -> JObject(structType.fields.map(field => serializeField(field)).toList))
+  private def serializeJValue(structType: StructType): JValue = {
+    JObject(
+      "properties" -> JObject(
+        structType.fields
+          .map(field => JField(field.name, serializeField(field.dataType, field.metadata)))
+          .toList))
   }
 
-  def serializeField(structField: StructField): JField = {
-    val metadata = structField.metadata
-    val dataType = structField.dataType match {
+  def serializeField(dataType: DataType, metadata: Metadata): JValue = {
+    dataType match {
       // boolean
       case BooleanType => JObject("type" -> JString("boolean"))
 
@@ -147,8 +151,14 @@ object FlintDataType {
 
       // objects
       case st: StructType => serializeJValue(st)
-      case _ => throw new IllegalStateException(s"unsupported data type")
+
+      // array
+      case ArrayType(elementType, _) => serializeField(elementType, Metadata.empty)
+
+      // binary
+      case BinaryType => JObject("type" -> JString("binary"))
+
+      case unknown => throw new IllegalStateException(s"unsupported data type: ${unknown.sql}")
     }
-    JField(structField.name, dataType)
   }
 }

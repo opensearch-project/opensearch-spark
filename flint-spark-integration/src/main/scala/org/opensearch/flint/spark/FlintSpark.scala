@@ -13,7 +13,7 @@ import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL, RefreshMode}
-import org.opensearch.flint.spark.FlintSparkIndex.{ID_COLUMN, StreamingRefresh}
+import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, ID_COLUMN, StreamingRefresh}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
@@ -372,7 +372,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         logInfo("Start refreshing index in foreach streaming style")
         val job = spark.readStream
           .options(options.extraSourceOptions(tableName))
-          .table(tableName)
+          .table(quotedTableName(tableName))
           .writeStream
           .queryName(indexName)
           .addSinkOptions(options)

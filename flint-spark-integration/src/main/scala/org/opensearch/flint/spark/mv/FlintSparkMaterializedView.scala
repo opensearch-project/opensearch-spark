@@ -198,7 +198,7 @@ object FlintSparkMaterializedView {
         .sql(query)
         .schema
         .map { field =>
-          field.name -> field.dataType.typeName
+          field.name -> field.dataType.simpleString
         }
         .toMap
       FlintSparkMaterializedView(mvName, query, outputSchema, indexOptions)
