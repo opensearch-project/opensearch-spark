@@ -136,7 +136,7 @@ The default maximum size for the value set is 100. In cases where a file contain
 ```sql
 CREATE SKIPPING INDEX [IF NOT EXISTS]
 ON <object>
-( column <index_type> [, ...] )
+( column <skip_type> <skip_params> [, ...] )
 WHERE <filter_predicate>
 WITH ( options )
 
@@ -151,10 +151,12 @@ VACUUM SKIPPING INDEX ON <object>
 <object> ::= [db_name].[schema_name].table_name
 ```
 
-Skipping index type:
+Skipping index type consists of skip type name and optional parameters
 
 ```sql
-<index_type> ::= { PARTITION, VALUE_SET, MIN_MAX }
+<skip_type> ::= { PARTITION, VALUE_SET, MIN_MAX }
+
+<skip_params> := ( param1, param2, ... )
 ```
 
 Example:
@@ -162,7 +164,10 @@ Example:
 ```sql
 CREATE SKIPPING INDEX ON alb_logs
 (
-  elb_status_code VALUE_SET
+  time PARTITION,
+  elb_status_code VALUE_SET,
+  client_ip VALUE_SET(20),
+  request_processing_time MIN_MAX
 )
 WHERE time > '2023-04-01 00:00:00'
 
