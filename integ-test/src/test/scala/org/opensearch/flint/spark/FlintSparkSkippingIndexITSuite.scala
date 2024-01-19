@@ -38,7 +38,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     super.afterEach()
 
     // Delete all test indices
-    flint.deleteIndex(testIndex)
+    deleteTestIndex(testIndex)
   }
 
   test("create skipping index with metadata successfully") {
@@ -615,7 +615,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
          | }
          |""".stripMargin)
 
-    flint.deleteIndex(testIndex)
+    deleteTestIndex(testIndex)
   }
 
   test("can build skipping index for varchar and char and rewrite applicable query") {
@@ -659,7 +659,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         hasIndexFilter((isnull(col("varchar_col")) || col("varchar_col") === "sample varchar") &&
           (isnull(col("char_col")) || col("char_col") === paddedChar)))
 
-    flint.deleteIndex(testIndex)
+    deleteTestIndex(testIndex)
   }
 
   // Custom matcher to check if a SparkPlan uses FlintSparkSkippingFileIndex
