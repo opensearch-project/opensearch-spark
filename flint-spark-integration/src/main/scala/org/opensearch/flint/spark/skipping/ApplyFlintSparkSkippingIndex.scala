@@ -17,7 +17,6 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.{CatalogPlugin, Identifier}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
-import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.qualifyTableName
 
 /**
@@ -42,7 +41,7 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
       val index = flint.describeIndex(getIndexName(table))
       if (index.exists(_.kind == SKIPPING_INDEX_TYPE)) {
         val skippingIndex = index.get.asInstanceOf[FlintSparkSkippingIndex]
-        val indexFilter = rewriteToIndexFilter(skippingIndex, condition)
+        val indexFilter = rewriteToIndexFilter(skippingIndex, filter)
 
         /*
          * Replace original file index with Flint skipping file index:
@@ -71,7 +70,7 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
       val index = flint.describeIndex(getIndexName(catalog, identifier))
       if (index.exists(_.kind == SKIPPING_INDEX_TYPE)) {
         val skippingIndex = index.get.asInstanceOf[FlintSparkSkippingIndex]
-        val indexFilter = rewriteToIndexFilter(skippingIndex, condition)
+        val indexFilter = rewriteToIndexFilter(skippingIndex, filter)
         /*
          * Replace original LogsTable with a new one with file index scan:
          *  Filter(a=b)
@@ -125,16 +124,10 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
 
   private def rewriteToIndexFilter(
       index: FlintSparkSkippingIndex,
-      condition: Expression): Option[Expression] = {
+      filter: Filter): Option[Expression] = {
 
-    def tryEachStrategy(expr: Expression): Option[Expression] =
-      index.indexedColumns.flatMap(_.rewritePredicate(expr)).headOption
-
-    condition match {
-      case and: And =>
-        // Rewrite left and right expression recursively
-        and.children.flatMap(child => rewriteToIndexFilter(index, child)).reduceOption(And)
-      case expr => tryEachStrategy(expr)
-    }
+    index.indexedColumns
+      .flatMap(col => col.rewritePredicate(filter))
+      .reduceOption(And)
   }
 }

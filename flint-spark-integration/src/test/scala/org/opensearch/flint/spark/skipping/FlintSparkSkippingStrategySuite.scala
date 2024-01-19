@@ -20,13 +20,17 @@ trait FlintSparkSkippingStrategySuite {
   implicit class EqualityAssertion(left: Expression) {
 
     def shouldRewriteTo(right: Column): Unit = {
-      val actual = strategy.rewritePredicate(left)
+      val queryExpr = left
+      val indexExpr = left.children.head // Ensure left side matches
+      val actual = strategy.doRewritePredicate(queryExpr, indexExpr)
       assert(actual.isDefined, s"Expected: ${right.expr}. Actual is None")
       assert(actual.get == right.expr, s"Expected: ${right.expr}. Actual: ${actual.get}")
     }
 
     def shouldNotRewrite(): Unit = {
-      val actual = strategy.rewritePredicate(left)
+      val queryExpr = left
+      val indexExpr = left.children.head
+      val actual = strategy.doRewritePredicate(queryExpr, indexExpr)
       assert(actual.isEmpty, s"Expected is None. Actual is ${actual.get}")
     }
   }

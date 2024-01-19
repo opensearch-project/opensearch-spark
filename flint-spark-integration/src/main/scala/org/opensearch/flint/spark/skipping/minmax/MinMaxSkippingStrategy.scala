@@ -35,7 +35,9 @@ case class MinMaxSkippingStrategy(
       Max(col(columnName).expr).toAggregateExpression())
   }
 
-  override def rewritePredicate(predicate: Expression): Option[Expression] =
+  override def doRewritePredicate(
+      predicate: Expression,
+      indexExpr: Expression): Option[Expression] =
     predicate match {
       case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
         Some((col(minColName) <= value && col(maxColName) >= value).expr)
@@ -58,8 +60,8 @@ case class MinMaxSkippingStrategy(
         val maxVal = values.max(ordering)
         Some(
           And(
-            rewritePredicate(GreaterThanOrEqual(column, Literal(minVal))).get,
-            rewritePredicate(LessThanOrEqual(column, Literal(maxVal))).get))
+            doRewritePredicate(GreaterThanOrEqual(column, Literal(minVal)), indexExpr).get,
+            doRewritePredicate(LessThanOrEqual(column, Literal(maxVal)), indexExpr).get))
       case _ => None
     }
 

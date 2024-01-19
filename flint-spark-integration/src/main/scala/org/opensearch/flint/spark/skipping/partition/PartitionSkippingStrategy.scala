@@ -29,7 +29,9 @@ case class PartitionSkippingStrategy(
     Seq(First(col(columnName).expr, ignoreNulls = true).toAggregateExpression())
   }
 
-  override def rewritePredicate(predicate: Expression): Option[Expression] =
+  override def doRewritePredicate(
+      predicate: Expression,
+      indexExpr: Expression): Option[Expression] =
     predicate match {
       // Column has same name in index data, so just rewrite to the same equation
       case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>

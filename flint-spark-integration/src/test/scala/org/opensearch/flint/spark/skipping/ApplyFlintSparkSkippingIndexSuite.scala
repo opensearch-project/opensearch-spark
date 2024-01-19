@@ -211,7 +211,9 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
 
     override def getAggregators: Seq[AggregateFunction] = Seq.empty
 
-    override def rewritePredicate(predicate: Expression): Option[Expression] =
+    override def doRewritePredicate(
+        predicate: Expression,
+        indexExpr: Expression): Option[Expression] =
       predicate match {
         case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
           Some((col(columnName) === value).expr)
