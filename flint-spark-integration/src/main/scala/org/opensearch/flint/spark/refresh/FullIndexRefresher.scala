@@ -22,7 +22,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
  * @param source
  *   refresh from this data frame representing a micro batch or from the beginning
  */
-class FullManualIndexRefresher(
+class FullIndexRefresher(
     indexName: String,
     index: FlintSparkIndex,
     source: Option[DataFrame] = None)

@@ -36,9 +36,9 @@ object FlintSparkIndexRefresher {
     if (options.autoRefresh()) {
       new AutoIndexRefresher(indexName, index)
     } else if (options.incrementalRefresh()) {
-      new IncrementalManualIndexRefresher(indexName, index)
+      new IncrementalIndexRefresher(indexName, index)
     } else {
-      new FullManualIndexRefresher(indexName, index)
+      new FullIndexRefresher(indexName, index)
     }
   }
 }

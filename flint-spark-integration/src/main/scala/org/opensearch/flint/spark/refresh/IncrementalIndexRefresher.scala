@@ -18,7 +18,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
  * @param index
  *   Flint index
  */
-class IncrementalManualIndexRefresher(indexName: String, index: FlintSparkIndex)
+class IncrementalIndexRefresher(indexName: String, index: FlintSparkIndex)
     extends FlintSparkIndexRefresher {
 
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {

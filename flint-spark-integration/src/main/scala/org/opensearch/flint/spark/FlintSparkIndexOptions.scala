@@ -45,7 +45,8 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
    * @return
    *   incremental option value
    */
-  def incrementalRefresh(): Boolean = getOptionValue(INCREMENTAL_REFRESH).getOrElse("false").toBoolean
+  def incrementalRefresh(): Boolean =
+    getOptionValue(INCREMENTAL_REFRESH).getOrElse("false").toBoolean
 
   /**
    * The checkpoint location which maybe required by Flint index's refresh.

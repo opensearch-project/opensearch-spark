@@ -52,7 +52,7 @@ class AutoIndexRefresher(indexName: String, index: FlintSparkIndex)
           .queryName(indexName)
           .addSinkOptions(options, flintSparkConf)
           .foreachBatch { (batchDF: DataFrame, _: Long) =>
-            new FullManualIndexRefresher(indexName, index, Some(batchDF))
+            new FullIndexRefresher(indexName, index, Some(batchDF))
               .start(spark, flintSparkConf)
             () // discard return value above and return unit to use right overridden method
           }
