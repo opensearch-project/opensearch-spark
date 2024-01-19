@@ -78,6 +78,11 @@ lazy val flintCore = (project in file("flint-core"))
       "net.aichler" % "jupiter-interface" % "0.11.1" % Test
     ),
     libraryDependencies ++= deps(sparkVersion),
+    aspectjVersion in Aspectj := "1.9.19",
+    javaOptions in Aspectj ++= Seq("-verbose", "-showWeaveInfo"),
+    aspectjBinaries in Aspectj ++= update.value.matching(
+      moduleFilter(organization = "org.opensearch.client", name = "opensearch-rest-high-level-client*")
+    ),
     publish / skip := true
   )
 
@@ -119,7 +124,7 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
 
 lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
   .dependsOn(flintCore)
-  .enablePlugins(AssemblyPlugin, Antlr4Plugin)
+  .enablePlugins(AssemblyPlugin, Antlr4Plugin, SbtAspectj)
   .settings(
     commonSettings,
     name := "flint-spark-integration",
