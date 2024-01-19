@@ -3,10 +3,10 @@ package org.opensearch.flint.core.storage;
 import org.opensearch.action.support.WriteRequest;
 import org.opensearch.action.update.UpdateRequest;
 import org.opensearch.client.RequestOptions;
-import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
+import org.opensearch.flint.core.RestHighLevelClientWrapper;
 
 import java.io.IOException;
 import java.util.logging.Level;
@@ -30,7 +30,7 @@ public class OpenSearchUpdater {
         // credentials may expire.
         // also, failure to close the client causes the job to be stuck in the running state as the client resource
         // is not released.
-        try (RestHighLevelClient client = flintClient.createClient()) {
+        try (RestHighLevelClientWrapper client = flintClient.createClient()) {
             assertIndexExist(client, indexName);
             UpdateRequest
                     updateRequest =
@@ -47,7 +47,7 @@ public class OpenSearchUpdater {
     }
 
     public void update(String id, String doc) {
-        try (RestHighLevelClient client = flintClient.createClient()) {
+        try (RestHighLevelClientWrapper client = flintClient.createClient()) {
             assertIndexExist(client, indexName);
             UpdateRequest
                     updateRequest =
@@ -63,7 +63,7 @@ public class OpenSearchUpdater {
     }
 
     public void updateIf(String id, String doc, long seqNo, long primaryTerm) {
-        try (RestHighLevelClient client = flintClient.createClient()) {
+        try (RestHighLevelClientWrapper client = flintClient.createClient()) {
             assertIndexExist(client, indexName);
             UpdateRequest
                     updateRequest =
@@ -80,9 +80,9 @@ public class OpenSearchUpdater {
         }
     }
 
-    private void assertIndexExist(RestHighLevelClient client, String indexName) throws IOException {
+    private void assertIndexExist(RestHighLevelClientWrapper client, String indexName) throws IOException {
         LOG.info("Checking if index exists " + indexName);
-        if (!client.indices().exists(new GetIndexRequest(indexName), RequestOptions.DEFAULT)) {
+        if (!client.isIndexExists(new GetIndexRequest(indexName), RequestOptions.DEFAULT)) {
             String errorMsg = "Index not found " + indexName;
             LOG.log(Level.SEVERE, errorMsg);
             throw new IllegalStateException(errorMsg);

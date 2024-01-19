@@ -49,6 +49,7 @@ import org.opensearch.flint.core.metadata.FlintMetadata;
 import org.opensearch.flint.core.metadata.log.DefaultOptimisticTransaction;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
+import org.opensearch.flint.core.RestHighLevelClientWrapper;
 import org.opensearch.index.query.AbstractQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
@@ -96,8 +97,8 @@ public class FlintOpenSearchClient implements FlintClient {
     LOG.info("Starting transaction on index " + indexName + " and data source " + dataSourceName);
     String metaLogIndexName = dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX
         : META_LOG_NAME_PREFIX + "_" + dataSourceName;
-    try (RestHighLevelClient client = createClient()) {
-      if (client.indices().exists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
+    try (RestHighLevelClientWrapper client = createClient()) {
+      if (client.isIndexExists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
         LOG.info("Found metadata log index " + metaLogIndexName);
       } else {
         if (forceInit) {
@@ -130,13 +131,13 @@ public class FlintOpenSearchClient implements FlintClient {
   protected void createIndex(String indexName, String mapping, Option<String> settings) {
     LOG.info("Creating Flint index " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
-    try (RestHighLevelClient client = createClient()) {
+    try (RestHighLevelClientWrapper client = createClient()) {
       CreateIndexRequest request = new CreateIndexRequest(osIndexName);
       request.mapping(mapping, XContentType.JSON);
       if (settings.isDefined()) {
         request.settings(settings.get(), XContentType.JSON);
       }
-      client.indices().create(request, RequestOptions.DEFAULT);
+      client.createIndex(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to create Flint index " + osIndexName, e);
     }
@@ -146,8 +147,8 @@ public class FlintOpenSearchClient implements FlintClient {
   public boolean exists(String indexName) {
     LOG.info("Checking if Flint index exists " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
-    try (RestHighLevelClient client = createClient()) {
-      return client.indices().exists(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT);
+    try (RestHighLevelClientWrapper client = createClient()) {
+      return client.isIndexExists(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to check if Flint index exists " + osIndexName, e);
     }
@@ -157,9 +158,9 @@ public class FlintOpenSearchClient implements FlintClient {
   public List<FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
     LOG.info("Fetching all Flint index metadata for pattern " + indexNamePattern);
     String osIndexNamePattern = sanitizeIndexName(indexNamePattern);
-    try (RestHighLevelClient client = createClient()) {
+    try (RestHighLevelClientWrapper client = createClient()) {
       GetIndexRequest request = new GetIndexRequest(osIndexNamePattern);
-      GetIndexResponse response = client.indices().get(request, RequestOptions.DEFAULT);
+      GetIndexResponse response = client.getIndex(request, RequestOptions.DEFAULT);
 
       return Arrays.stream(response.getIndices())
           .map(index -> FlintMetadata.apply(
@@ -175,9 +176,9 @@ public class FlintOpenSearchClient implements FlintClient {
   public FlintMetadata getIndexMetadata(String indexName) {
     LOG.info("Fetching Flint index metadata for " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
-    try (RestHighLevelClient client = createClient()) {
+    try (RestHighLevelClientWrapper client = createClient()) {
       GetIndexRequest request = new GetIndexRequest(osIndexName);
-      GetIndexResponse response = client.indices().get(request, RequestOptions.DEFAULT);
+      GetIndexResponse response = client.getIndex(request, RequestOptions.DEFAULT);
 
       MappingMetadata mapping = response.getMappings().get(osIndexName);
       Settings settings = response.getSettings().get(osIndexName);
@@ -191,10 +192,9 @@ public class FlintOpenSearchClient implements FlintClient {
   public void deleteIndex(String indexName) {
     LOG.info("Deleting Flint index " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
-    try (RestHighLevelClient client = createClient()) {
+    try (RestHighLevelClientWrapper client = createClient()) {
       DeleteIndexRequest request = new DeleteIndexRequest(osIndexName);
-
-      client.indices().delete(request, RequestOptions.DEFAULT);
+      client.deleteIndex(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to delete Flint index " + osIndexName, e);
     }
@@ -233,7 +233,7 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override
-  public RestHighLevelClient createClient() {
+  public RestHighLevelClientWrapper createClient() {
     RestClientBuilder
         restClientBuilder =
         RestClient.builder(new HttpHost(options.getHost(), options.getPort(), options.getScheme()));
@@ -283,7 +283,7 @@ public class FlintOpenSearchClient implements FlintClient {
     final RequestConfigurator callback = new RequestConfigurator(options);
     restClientBuilder.setRequestConfigCallback(callback);
 
-    return new RestHighLevelClient(restClientBuilder);
+    return new RestHighLevelClientWrapper(new RestHighLevelClient(restClientBuilder));
   }
 
   /*

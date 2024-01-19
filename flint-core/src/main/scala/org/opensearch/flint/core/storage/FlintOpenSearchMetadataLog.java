@@ -21,12 +21,12 @@ import org.opensearch.action.get.GetResponse;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.update.UpdateRequest;
 import org.opensearch.client.RequestOptions;
-import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLog;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
+import org.opensearch.flint.core.RestHighLevelClientWrapper;
 
 /**
  * Flint metadata log in OpenSearch store. For now use single doc instead of maintaining history
@@ -77,7 +77,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   @Override
   public Optional<FlintMetadataLogEntry> getLatest() {
     LOG.info("Fetching latest log entry with id " + latestId);
-    try (RestHighLevelClient client = flintClient.createClient()) {
+    try (RestHighLevelClientWrapper client = flintClient.createClient()) {
       GetResponse response =
           client.get(new GetRequest(metaLogIndexName, latestId), RequestOptions.DEFAULT);
 
@@ -102,7 +102,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   @Override
   public void purge() {
     LOG.info("Purging log entry with id " + latestId);
-    try (RestHighLevelClient client = flintClient.createClient()) {
+    try (RestHighLevelClientWrapper client = flintClient.createClient()) {
       DeleteResponse response =
           client.delete(
               new DeleteRequest(metaLogIndexName, latestId), RequestOptions.DEFAULT);
@@ -150,8 +150,8 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
 
   private FlintMetadataLogEntry writeLogEntry(
       FlintMetadataLogEntry logEntry,
-      CheckedFunction<RestHighLevelClient, DocWriteResponse> write) {
-    try (RestHighLevelClient client = flintClient.createClient()) {
+      CheckedFunction<RestHighLevelClientWrapper, DocWriteResponse> write) {
+    try (RestHighLevelClientWrapper client = flintClient.createClient()) {
       // Write (create or update) the doc
       DocWriteResponse response = write.apply(client);
 
@@ -174,8 +174,8 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
 
   private boolean exists() {
     LOG.info("Checking if Flint index exists " + metaLogIndexName);
-    try (RestHighLevelClient client = flintClient.createClient()) {
-      return client.indices().exists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT);
+    try (RestHighLevelClientWrapper client = flintClient.createClient()) {
+      return client.isIndexExists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to check if Flint index exists " + metaLogIndexName, e);
     }

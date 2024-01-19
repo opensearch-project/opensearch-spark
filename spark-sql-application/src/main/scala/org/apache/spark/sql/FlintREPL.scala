@@ -9,7 +9,7 @@ import java.net.ConnectException
 import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture}
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, TimeoutException}
-import scala.concurrent.duration.{Duration, MINUTES, _}
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
@@ -49,7 +49,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
   val INITIAL_DELAY_MILLIS = 3000L
   val EARLY_TERMIANTION_CHECK_FREQUENCY = 60000L
 
-  def update(flintCommand: FlintCommand, updater: OpenSearchUpdater): Unit = {
+  def updateSessionIndex(flintCommand: FlintCommand, updater: OpenSearchUpdater): Unit = {
     updater.update(flintCommand.statementId, FlintCommand.serialize(flintCommand))
   }
 
@@ -363,9 +363,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     } else {
       FlintInstance.serializeWithoutJobId(flintJob, currentTime)
     }
-
     flintSessionIndexUpdater.upsert(sessionId, serializedFlintInstance)
-
     logInfo(
       s"""Updated job: {"jobid": ${flintJob.jobId}, "sessionId": ${flintJob.sessionId}} from $sessionIndex""")
   }
@@ -568,7 +566,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         // we have set failed state in exception handling
         flintCommand.complete()
       }
-      update(flintCommand, flintSessionIndexUpdater)
+      updateSessionIndex(flintCommand, flintSessionIndexUpdater)
     } catch {
       // e.g., maybe due to authentication service connection issue
       // or invalid catalog (e.g., we are operating on data not defined in provided data source)
@@ -576,7 +574,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         val error = s"""Fail to write result of ${flintCommand}, cause: ${e.getMessage}"""
         logError(error, e)
         flintCommand.fail()
-        update(flintCommand, flintSessionIndexUpdater)
+        updateSessionIndex(flintCommand, flintSessionIndexUpdater)
     }
   }
 
@@ -771,7 +769,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     logDebug(s"command: $flintCommand")
     flintCommand.running()
     logDebug(s"command running: $flintCommand")
-    update(flintCommand, flintSessionIndexUpdater)
+    updateSessionIndex(flintCommand, flintSessionIndexUpdater)
     flintCommand
   }
 
@@ -829,7 +827,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
     shutdownHookManager.addShutdownHook(() => {
       logInfo("Shutting down REPL")
-
       val getResponse = osClient.getDoc(sessionIndex, sessionId)
       if (!getResponse.isExists()) {
         return
@@ -858,7 +855,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
       sessionId: String): Unit = {
     val flintInstance = FlintInstance.deserializeFromMap(source)
     flintInstance.state = "dead"
-
     flintSessionIndexUpdater.updateIf(
       sessionId,
       FlintInstance.serializeWithoutJobId(

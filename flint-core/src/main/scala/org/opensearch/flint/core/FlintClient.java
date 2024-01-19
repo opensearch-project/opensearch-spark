@@ -7,7 +7,6 @@ package org.opensearch.flint.core;
 
 import java.util.List;
 
-import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.flint.core.metadata.FlintMetadata;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
 import org.opensearch.flint.core.storage.FlintReader;
@@ -96,8 +95,8 @@ public interface FlintClient {
    */
   FlintWriter createWriter(String indexName);
   /**
-   * Create {@link RestHighLevelClient}.
-   * @return {@link RestHighLevelClient}
+   * Create {@link RestHighLevelClientWrapper}.
+   * @return {@link RestHighLevelClientWrapper}
    */
-  public RestHighLevelClient createClient();
+  public RestHighLevelClientWrapper createClient();
 }
