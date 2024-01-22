@@ -51,6 +51,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
 
   protected def deleteTestIndex(testIndexNames: String*): Unit = {
     testIndexNames.foreach(testIndex => {
+
       /**
        * Todo, if state is not valid, will throw IllegalStateException. Should check flint
        * .isRefresh before cleanup resource. Current solution, (1) try to delete flint index, (2)

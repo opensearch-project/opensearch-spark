@@ -25,7 +25,14 @@ class FlintInstance(
     val lastUpdateTime: Long,
     val jobStartTime: Long = 0,
     val excludedJobIds: Seq[String] = Seq.empty[String],
-    val error: Option[String] = None) {}
+    val error: Option[String] = None) {
+  override def toString: String = {
+    val excludedJobIdsStr = excludedJobIds.mkString("[", ", ", "]")
+    val errorStr = error.getOrElse("None")
+    s"FlintInstance(applicationId=$applicationId, jobId=$jobId, sessionId=$sessionId, state=$state, " +
+      s"lastUpdateTime=$lastUpdateTime, jobStartTime=$jobStartTime, excludedJobIds=$excludedJobIdsStr, error=$errorStr)"
+  }
+}
 
 object FlintInstance {
 

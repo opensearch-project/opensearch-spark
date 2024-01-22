@@ -331,6 +331,7 @@ class FlintSparkPPLFiltersITSuite
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
+
   /**
    * | age_span | country | average_age |
    * |:---------|:--------|:------------|

@@ -15,6 +15,7 @@ import scala.concurrent.duration._
 import scala.concurrent.duration.{Duration, MINUTES}
 import scala.reflect.runtime.universe.TypeTag
 
+import org.mockito.ArgumentMatchers.{eq => eqTo, _}
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
@@ -22,12 +23,13 @@ import org.mockito.stubbing.Answer
 import org.opensearch.action.get.GetResponse
 import org.opensearch.flint.app.FlintCommand
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchReader, OpenSearchUpdater}
+import org.opensearch.search.sort.SortOrder
 import org.scalatestplus.mockito.MockitoSugar
 
 import org.apache.spark.{SparkConf, SparkContext, SparkFunSuite}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.trees.Origin
-import org.apache.spark.sql.types.{ArrayType, LongType, NullType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{LongType, NullType, StringType, StructField, StructType}
 import org.apache.spark.sql.util.{DefaultThreadPoolFactory, MockThreadPoolFactory, MockTimeProvider, RealTimeProvider, ShutdownHookManagerTrait}
 import org.apache.spark.util.ThreadUtils
 
@@ -411,7 +413,8 @@ class FlintREPLTest
       new ConnectException(
         "Timeout connecting to [search-foo-1-bar.eu-west-1.es.amazonaws.com:443]"))
     val osClient = mock[OSClient]
-    when(osClient.createReader(any[String], any[String], any[String])).thenReturn(mockReader)
+    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+      .thenReturn(mockReader)
     when(mockReader.hasNext).thenThrow(exception)
 
     val maxRetries = 1
@@ -686,7 +689,8 @@ class FlintREPLTest
   test("queryLoop continue until inactivity limit is reached") {
     val mockReader = mock[FlintReader]
     val osClient = mock[OSClient]
-    when(osClient.createReader(any[String], any[String], any[String])).thenReturn(mockReader)
+    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+      .thenReturn(mockReader)
     when(mockReader.hasNext).thenReturn(false)
 
     val resultIndex = "testResultIndex"
@@ -736,7 +740,8 @@ class FlintREPLTest
   test("queryLoop should stop when canPickUpNextStatement is false") {
     val mockReader = mock[FlintReader]
     val osClient = mock[OSClient]
-    when(osClient.createReader(any[String], any[String], any[String])).thenReturn(mockReader)
+    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+      .thenReturn(mockReader)
     when(mockReader.hasNext).thenReturn(true)
 
     val resultIndex = "testResultIndex"
@@ -790,7 +795,8 @@ class FlintREPLTest
   test("queryLoop should properly shut down the thread pool after execution") {
     val mockReader = mock[FlintReader]
     val osClient = mock[OSClient]
-    when(osClient.createReader(any[String], any[String], any[String])).thenReturn(mockReader)
+    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+      .thenReturn(mockReader)
     when(mockReader.hasNext).thenReturn(false)
 
     val resultIndex = "testResultIndex"
@@ -838,7 +844,8 @@ class FlintREPLTest
   test("queryLoop handle exceptions within the loop gracefully") {
     val mockReader = mock[FlintReader]
     val osClient = mock[OSClient]
-    when(osClient.createReader(any[String], any[String], any[String])).thenReturn(mockReader)
+    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+      .thenReturn(mockReader)
     // Simulate an exception thrown when hasNext is called
     when(mockReader.hasNext).thenThrow(new RuntimeException("Test exception"))
 
@@ -889,7 +896,8 @@ class FlintREPLTest
   test("queryLoop should correctly update loop control variables") {
     val mockReader = mock[FlintReader]
     val osClient = mock[OSClient]
-    when(osClient.createReader(any[String], any[String], any[String])).thenReturn(mockReader)
+    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+      .thenReturn(mockReader)
     val getResponse = mock[GetResponse]
     when(osClient.getDoc(*, *)).thenReturn(getResponse)
     when(getResponse.isExists()).thenReturn(false)
@@ -958,7 +966,8 @@ class FlintREPLTest
   test("queryLoop should execute loop without processing any commands") {
     val mockReader = mock[FlintReader]
     val osClient = mock[OSClient]
-    when(osClient.createReader(any[String], any[String], any[String])).thenReturn(mockReader)
+    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+      .thenReturn(mockReader)
     val getResponse = mock[GetResponse]
     when(osClient.getDoc(*, *)).thenReturn(getResponse)
     when(getResponse.isExists()).thenReturn(false)

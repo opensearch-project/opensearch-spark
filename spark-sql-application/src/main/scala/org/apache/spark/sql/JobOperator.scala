@@ -21,14 +21,13 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.util.ThreadUtils
 
 case class JobOperator(
-    sparkConf: SparkConf,
+    spark: SparkSession,
     query: String,
     dataSource: String,
     resultIndex: String,
     streaming: Boolean)
     extends Logging
     with FlintJobExecutor {
-  private val spark = createSparkSession(sparkConf)
 
   // jvm shutdown hook
   sys.addShutdownHook(stop())
