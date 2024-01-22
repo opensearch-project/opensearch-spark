@@ -13,7 +13,6 @@ import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 import com.amazonaws.services.cloudwatch.model.PutMetricDataResult;
 import com.amazonaws.services.cloudwatch.model.StandardUnit;
 import com.amazonaws.services.cloudwatch.model.StatisticSet;
-import com.amazonaws.util.StringUtils;
 import com.codahale.metrics.Clock;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Counting;
@@ -36,6 +35,7 @@ import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +47,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +84,16 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
 
     // Visible for testing
     public static final String DIMENSION_SNAPSHOT_STD_DEV = "snapshot-std-dev";
+
+    public static final String DIMENSION_JOB_ID = "jobId";
+
+    public static final String DIMENSION_APPLICATION_ID = "applicationId";
+
+    public static final String DIMENSION_DOMAIN_ID = "domainId";
+
+    public static final String DIMENSION_INSTANCE_ROLE = "instanceRole";
+
+    public static final String UNKNOWN = "unknown";
 
     /**
      * Amazon CloudWatch rejects values that are either too small or too large.
@@ -339,7 +351,8 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
         if (metricConfigured && (builder.withZeroValuesSubmission || metricValue > 0)) {
             final DimensionedName dimensionedName = DimensionedName.decode(metricName);
             final Set<Dimension> dimensions = new LinkedHashSet<>(builder.globalDimensions);
-            dimensions.addAll(dimensionedName.getDimensions());
+            MetricInfo metricInfo = getMetricInfo(dimensionedName);
+            dimensions.addAll(metricInfo.getDimensions());
             if (shouldAppendDropwizardTypeDimension) {
                 dimensions.add(new Dimension().withName(DIMENSION_NAME_TYPE).withValue(dimensionValue));
             }
@@ -347,10 +360,47 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
             metricData.add(new MetricDatum()
                     .withTimestamp(new Date(builder.clock.getTime()))
                     .withValue(cleanMetricValue(metricValue))
-                    .withMetricName(dimensionedName.getName())
+                    .withMetricName(metricInfo.getMetricName())
                     .withDimensions(dimensions)
                     .withUnit(standardUnit));
         }
+    }
+
+    private MetricInfo getMetricInfo(DimensionedName dimensionedName) {
+        final String jobId = System.getenv().getOrDefault("SERVERLESS_EMR_JOB_ID", UNKNOWN);
+        final String applicationId = System.getenv().getOrDefault("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", UNKNOWN);
+        final String domainId = System.getenv().getOrDefault("FLINT_CLUSTER_NAME", UNKNOWN);
+        final Dimension jobDimension = new Dimension().withName(DIMENSION_JOB_ID).withValue(jobId);
+        final Dimension applicationDimension = new Dimension().withName(DIMENSION_APPLICATION_ID).withValue(applicationId);
+        final Dimension domainIdDimension = new Dimension().withName(DIMENSION_DOMAIN_ID).withValue(domainId);
+        Dimension instanceRoleDimension = new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue(UNKNOWN);
+        String metricName = dimensionedName.getName();
+        String[] parts = metricName.split("\\.");
+        if (doesNameConsistsOfMetricNameSpace(parts)) {
+            metricName = Stream.of(parts).skip(2).collect(Collectors.joining("."));
+            //For executors only id is added to the metric name, that's why the numeric check.
+            //If it is not numeric then the instance is driver.
+            if (StringUtils.isNumeric(parts[1])) {
+                instanceRoleDimension = new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue("executor" + parts[1]);
+            }
+            else {
+                instanceRoleDimension = new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue(parts[1]);
+            }
+        }
+        Set<Dimension> dimensions = new HashSet<>();
+        dimensions.add(jobDimension);
+        dimensions.add(applicationDimension);
+        dimensions.add(instanceRoleDimension);
+        dimensions.add(domainIdDimension);
+        dimensions.addAll(dimensionedName.getDimensions());
+        return new MetricInfo(metricName, dimensions);
+    }
+
+    // This tries to replicate the logic here: https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala#L137
+    // Since we don't have access to Spark Configuration here: we are relying on the presence of executorId as part of the metricName.
+    private boolean doesNameConsistsOfMetricNameSpace(String[] metricNameParts) {
+        return metricNameParts.length >= 3
+            && (metricNameParts[1].equals("driver") || StringUtils.isNumeric(metricNameParts[1]));
     }
 
     private void stageMetricDatumWithConvertedSnapshot(final boolean metricConfigured,
@@ -477,6 +527,25 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
             return desc;
         }
     }
+
+    public static class MetricInfo {
+        private String metricName;
+        private Set<Dimension> dimensions;
+
+        public MetricInfo(String metricName, Set<Dimension> dimensions) {
+            this.metricName = metricName;
+            this.dimensions = dimensions;
+        }
+
+        public String getMetricName() {
+            return metricName;
+        }
+
+        public Set<Dimension> getDimensions() {
+            return dimensions;
+        }
+    }
+
 
     public static class Builder {
 
