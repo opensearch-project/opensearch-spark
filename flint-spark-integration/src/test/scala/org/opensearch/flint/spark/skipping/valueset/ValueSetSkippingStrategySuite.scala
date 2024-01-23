@@ -10,16 +10,16 @@ import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.{DE
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.expressions.{Abs, AttributeReference, EqualTo, Literal}
+import org.apache.spark.sql.catalyst.expressions.{Abs, AttributeReference, EqualTo, Expression, Literal}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StringType
 
-class ValueSetSkippingStrategySuite extends SparkFunSuite with FlintSparkSkippingStrategySuite {
+class ValueSetSkippingStrategySuite extends FlintSparkSkippingStrategySuite {
 
   override val strategy: FlintSparkSkippingStrategy =
     ValueSetSkippingStrategy(columnName = "name", columnType = "string")
 
-  private val name = AttributeReference("name", StringType, nullable = false)()
+  override val indexExpr: Expression = AttributeReference("name", StringType, nullable = false)()
 
   test("should return parameters with default value") {
     strategy.parameters shouldBe Map(
@@ -48,7 +48,7 @@ class ValueSetSkippingStrategySuite extends SparkFunSuite with FlintSparkSkippin
   }
 
   test("should rewrite EqualTo(<indexCol>, <value>)") {
-    EqualTo(name, Literal("hello")) shouldRewriteTo
+    EqualTo(indexExpr, Literal("hello")) shouldRewriteTo
       (isnull(col("name")) || col("name") === "hello")
   }
 
@@ -60,6 +60,6 @@ class ValueSetSkippingStrategySuite extends SparkFunSuite with FlintSparkSkippin
   }
 
   test("should not rewrite inapplicable predicate") {
-    EqualTo(name, Abs(Literal("hello"))) shouldNotRewrite ()
+    EqualTo(indexExpr, Abs(Literal("hello"))) shouldNotRewrite ()
   }
 }

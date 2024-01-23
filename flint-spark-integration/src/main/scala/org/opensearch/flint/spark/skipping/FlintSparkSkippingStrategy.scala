@@ -142,11 +142,13 @@ object FlintSparkSkippingStrategy {
    * @param indexExpr
    *   index expression in a skipping indexed column
    */
-  case class IndexColumnExtractor(indexExpr: Expression) {
+  case class IndexColumnExtractor(indexExprStr: String, indexExpr: Expression) {
 
     def unapply(expr: Expression): Option[Column] = {
       if (expr.semanticEquals(indexExpr)) {
-        Some(new Column(expr.canonicalized))
+        val sessionState = SparkSession.active.sessionState
+        val unresolvedExpr = sessionState.sqlParser.parseExpression(indexExprStr)
+        Some(new Column(unresolvedExpr))
       } else {
         None
       }

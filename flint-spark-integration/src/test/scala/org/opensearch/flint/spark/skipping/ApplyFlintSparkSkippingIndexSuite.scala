@@ -15,7 +15,7 @@ import org.scalatest.matchers.{Matcher, MatchResult}
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
 
-import org.apache.spark.SparkFunSuite
+import org.apache.spark.FlintSuite
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.catalog.{CatalogStorageFormat, CatalogTable, CatalogTableType}
@@ -27,7 +27,7 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 
-class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
+class ApplyFlintSparkSkippingIndexSuite extends FlintSuite with Matchers {
 
   /** Test table and index */
   private val testTable = "spark_catalog.default.apply_skipping_index_test"
