@@ -9,7 +9,6 @@ import java.sql.Timestamp
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.opensearch.flint.core.FlintVersion.current
-import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -99,7 +98,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
       .query(testQuery)
       .create()
 
-    flint.refreshIndex(testFlintIndex, FULL)
+    flint.refreshIndex(testFlintIndex)
 
     val indexData = flint.queryIndex(testFlintIndex)
     checkAnswer(
@@ -209,7 +208,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
         .create()
 
       flint
-        .refreshIndex(testFlintIndex, INCREMENTAL)
+        .refreshIndex(testFlintIndex)
         .map(awaitStreamingComplete)
         .orElse(throw new RuntimeException)
 

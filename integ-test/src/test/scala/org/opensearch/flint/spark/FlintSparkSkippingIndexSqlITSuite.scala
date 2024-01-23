@@ -161,6 +161,18 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     indexData.count() shouldBe 2
   }
 
+  test("should fail if refresh an auto refresh skipping index") {
+    sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | ( year PARTITION )
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
+
+    assertThrows[IllegalStateException] {
+      sql(s"REFRESH SKIPPING INDEX ON $testTable")
+    }
+  }
+
   test("create skipping index if not exists") {
     sql(s"""
            | CREATE SKIPPING INDEX

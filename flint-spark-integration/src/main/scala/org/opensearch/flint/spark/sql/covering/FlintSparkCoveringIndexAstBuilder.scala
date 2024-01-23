@@ -53,7 +53,7 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       // Trigger auto refresh if enabled
       if (indexOptions.autoRefresh()) {
         val flintIndexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
-        flint.refreshIndex(flintIndexName, RefreshMode.INCREMENTAL)
+        flint.refreshIndex(flintIndexName)
       }
       Seq.empty
     }
@@ -63,7 +63,7 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       ctx: RefreshCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
       val flintIndexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
-      flint.refreshIndex(flintIndexName, RefreshMode.FULL)
+      flint.refreshIndex(flintIndexName)
       Seq.empty
     }
   }
