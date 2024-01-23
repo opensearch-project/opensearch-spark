@@ -7,13 +7,11 @@ package org.opensearch.flint.spark.skipping
 
 import org.json4s.CustomSerializer
 import org.json4s.JsonAST.JString
-import org.opensearch.flint.spark.FlintSparkOptimizer.withFlintOptimizerDisabled
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.SkippingKind
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.resolveExprString
+import org.opensearch.flint.spark.utils.ExpressionUtils.resolveExprString
 
-import org.apache.spark.sql.{Column, SparkSession}
-import org.apache.spark.sql.catalyst.expressions.{And, Expression, Predicate, UnaryExpression, Unevaluable}
-import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan}
+import org.apache.spark.sql.catalyst.expressions.{And, Expression}
+import org.apache.spark.sql.catalyst.plans.logical.Filter
 
 /**
  * Skipping index strategy that defines skipping data structure building and reading logic.
@@ -26,7 +24,7 @@ trait FlintSparkSkippingStrategy {
   val kind: SkippingKind
 
   /**
-   * Indexed column name.
+   * Indexed column name (can be a simple name or expression).
    */
   val columnName: String
 
@@ -62,7 +60,9 @@ trait FlintSparkSkippingStrategy {
    *   new filtering condition on index data or empty if index not applicable
    */
   def rewritePredicate(filter: Filter): Option[Expression] = {
-    // Traverse all expression in the predicate and try to rewrite it
+    /*
+     * Traverse all expressions in the predicate and try to rewrite it
+     */
     def rewriteExpressionRecursively(
         condition: Expression,
         indexExpr: Expression): Option[Expression] = condition match {
@@ -104,37 +104,6 @@ object FlintSparkSkippingStrategy {
             JString(kind.toString)
           }))
 
-  def resolveExprString(exprStr: String, relation: LogicalPlan): Expression = {
-    val sessionState = SparkSession.active.sessionState
-
-    // Wrap unresolved expr with Filter and Relation operator
-    val expr = sessionState.sqlParser.parseExpression(exprStr)
-    val filter = Filter(PredicateWrapper(expr), relation)
-
-    // Analyze with Flint rule disabled to avoid stackoverflow
-    withFlintOptimizerDisabled {
-      val analyzed = sessionState.analyzer.execute(filter)
-      val optimized = sessionState.optimizer.execute(analyzed)
-
-      // Unwrap to get resolved expr
-      optimized
-        .asInstanceOf[Filter]
-        .condition
-        .asInstanceOf[PredicateWrapper]
-        .child
-    }
-  }
-
-  // Used to preserve sketch expressions during optimization
-  case class PredicateWrapper(override val child: Expression)
-      extends UnaryExpression
-      with Unevaluable
-      with Predicate {
-
-    override protected def withNewChildInternal(newChild: Expression): Expression =
-      copy(child = newChild)
-  }
-
   /**
    * Extractor that extracts the given expression if it matches the index expression in skipping
    * index.
@@ -142,13 +111,11 @@ object FlintSparkSkippingStrategy {
    * @param indexExpr
    *   index expression in a skipping indexed column
    */
-  case class IndexColumnExtractor(indexExprStr: String, indexExpr: Expression) {
+  case class IndexExpressionMatcher(indexExpr: Expression) {
 
-    def unapply(expr: Expression): Option[Column] = {
+    def unapply(expr: Expression): Option[Expression] = {
       if (expr.semanticEquals(indexExpr)) {
-        val sessionState = SparkSession.active.sessionState
-        val unresolvedExpr = sessionState.sqlParser.parseExpression(indexExprStr)
-        Some(new Column(unresolvedExpr))
+        Some(expr)
       } else {
         None
       }

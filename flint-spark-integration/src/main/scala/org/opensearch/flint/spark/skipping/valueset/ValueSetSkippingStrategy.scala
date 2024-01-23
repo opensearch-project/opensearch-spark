@@ -6,10 +6,12 @@
 package org.opensearch.flint.spark.skipping.valueset
 
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.IndexColumnExtractor
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.IndexExpressionMatcher
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{SkippingKind, VALUE_SET}
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.{DEFAULT_VALUE_SET_MAX_SIZE, VALUE_SET_MAX_SIZE_KEY}
+import org.opensearch.flint.spark.utils.ExpressionUtils.parseExprString
 
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression, Literal}
 import org.apache.spark.sql.functions._
 
@@ -48,16 +50,18 @@ case class ValueSetSkippingStrategy(
   override def doRewritePredicate(
       predicate: Expression,
       indexExpr: Expression): Option[Expression] = {
-    val extractor = IndexColumnExtractor(columnName, indexExpr)
+    // Return unresolved expr, otherwise Spark treats rewritten plan as corrupted
+    val indexCol = new Column(parseExprString(columnName))
+    val IndexExpression = IndexExpressionMatcher(indexExpr)
 
     /*
      * This is supposed to be rewritten to ARRAY_CONTAINS(columName, value).
      * However, due to push down limitation in Spark, we keep the equation.
      */
     predicate match {
-      case EqualTo(extractor(col), value: Literal) =>
+      case EqualTo(IndexExpression(_), value: Literal) =>
         // Value set maybe null due to maximum size limit restriction
-        Some((isnull(col) || col === value).expr)
+        Some((isnull(indexCol) || indexCol === value).expr)
       case _ => None
     }
   }
