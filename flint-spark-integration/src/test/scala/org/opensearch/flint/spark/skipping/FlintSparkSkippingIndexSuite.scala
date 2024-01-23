@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark.skipping
 
+import java.util.Collections
+
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.json4s.native.JsonMethods.parse
@@ -39,6 +41,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
   test("get index metadata") {
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.kind).thenReturn(SkippingKind.PARTITION)
+    when(indexCol.parameters).thenReturn(Map.empty[String, String])
     when(indexCol.columnName).thenReturn("test_field")
     when(indexCol.columnType).thenReturn("integer")
     when(indexCol.outputSchema()).thenReturn(Map("test_field" -> "integer"))
@@ -51,6 +54,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     metadata.indexedColumns shouldBe Array(
       Map(
         "kind" -> SkippingKind.PARTITION.toString,
+        "parameters" -> Collections.emptyMap(),
         "columnName" -> "test_field",
         "columnType" -> "integer").asJava)
   }
@@ -61,6 +65,19 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     when(indexCol.getAggregators).thenReturn(
       Seq(CollectSet(col("name").expr).toAggregateExpression()))
     val index = new FlintSparkSkippingIndex(testTable, Seq(indexCol))
+
+    val df = spark.createDataFrame(Seq(("hello", 20))).toDF("name", "age")
+    val indexDf = index.build(spark, Some(df))
+    indexDf.schema.fieldNames should contain only ("name", FILE_PATH_COLUMN, ID_COLUMN)
+  }
+
+  test("can build index on table name with special characters") {
+    val testTableSpecial = "spark_catalog.default.test/2023/10"
+    val indexCol = mock[FlintSparkSkippingStrategy]
+    when(indexCol.outputSchema()).thenReturn(Map("name" -> "string"))
+    when(indexCol.getAggregators).thenReturn(
+      Seq(CollectSet(col("name").expr).toAggregateExpression()))
+    val index = new FlintSparkSkippingIndex(testTableSpecial, Seq(indexCol))
 
     val df = spark.createDataFrame(Seq(("hello", 20))).toDF("name", "age")
     val indexDf = index.build(spark, Some(df))

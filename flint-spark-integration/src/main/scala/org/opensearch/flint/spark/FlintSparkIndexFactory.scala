@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark
 
+import java.util.Collections
+
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
@@ -45,12 +47,16 @@ object FlintSparkIndexFactory {
           val skippingKind = SkippingKind.withName(getString(colInfo, "kind"))
           val columnName = getString(colInfo, "columnName")
           val columnType = getString(colInfo, "columnType")
+          val parameters = getSkipParams(colInfo)
 
           skippingKind match {
             case PARTITION =>
               PartitionSkippingStrategy(columnName = columnName, columnType = columnType)
             case VALUE_SET =>
-              ValueSetSkippingStrategy(columnName = columnName, columnType = columnType)
+              ValueSetSkippingStrategy(
+                columnName = columnName,
+                columnType = columnType,
+                params = parameters)
             case MIN_MAX =>
               MinMaxSkippingStrategy(columnName = columnName, columnType = columnType)
             case other =>
@@ -76,6 +82,14 @@ object FlintSparkIndexFactory {
           }.toMap,
           indexOptions)
     }
+  }
+
+  private def getSkipParams(colInfo: java.util.Map[String, AnyRef]): Map[String, String] = {
+    colInfo
+      .getOrDefault("parameters", Collections.emptyMap())
+      .asInstanceOf[java.util.Map[String, String]]
+      .asScala
+      .toMap
   }
 
   private def getString(map: java.util.Map[String, AnyRef], key: String): String = {

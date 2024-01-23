@@ -122,6 +122,13 @@ High level API is dependent on query engine implementation. Please see Query Eng
 
 ### SQL
 
+- **CREATE:** Create a Flint index with the specified indexing logic. If the auto-refresh option is enabled, a background job will continually update the index with the latest data from the source.
+- **REFRESH:** Manually refresh a Flint index. This command is applicable only to indexes with the auto-refresh option disabled.
+- **SHOW:** Display all Flint indexes in the specified catalog or source table.
+- **DESCRIBE:** Retrieve detailed information about a Flint index.
+- **DROP:** Delete a Flint index logically. This action stops the refreshing process and rules it out in query rewrite.
+- **VACUUM:** Physically remove all data associated with a Flint index, including index metadata and data. This operation effectively cleans up and frees resources.
+
 #### Skipping Index
 
 The default maximum size for the value set is 100. In cases where a file contains columns with high cardinality values, the value set will become null. This is the trade-off that prevents excessive memory consumption at the cost of not skipping the file.
@@ -129,7 +136,7 @@ The default maximum size for the value set is 100. In cases where a file contain
 ```sql
 CREATE SKIPPING INDEX [IF NOT EXISTS]
 ON <object>
-( column <index_type> [, ...] )
+( column <skip_type> <skip_params> [, ...] )
 WHERE <filter_predicate>
 WITH ( options )
 
@@ -139,13 +146,17 @@ REFRESH SKIPPING INDEX ON <object>
 
 DROP SKIPPING INDEX ON <object>
 
+VACUUM SKIPPING INDEX ON <object>
+
 <object> ::= [db_name].[schema_name].table_name
 ```
 
-Skipping index type:
+Skipping index type consists of skip type name and optional parameters
 
 ```sql
-<index_type> ::= { PARTITION, VALUE_SET, MIN_MAX }
+<skip_type> ::= { PARTITION, VALUE_SET, MIN_MAX }
+
+<skip_params> := ( param1, param2, ... )
 ```
 
 Example:
@@ -153,7 +164,10 @@ Example:
 ```sql
 CREATE SKIPPING INDEX ON alb_logs
 (
-  elb_status_code VALUE_SET
+  time PARTITION,
+  elb_status_code VALUE_SET,
+  client_ip VALUE_SET(20),
+  request_processing_time MIN_MAX
 )
 WHERE time > '2023-04-01 00:00:00'
 
@@ -162,6 +176,8 @@ REFRESH SKIPPING INDEX ON alb_logs
 DESCRIBE SKIPPING INDEX ON alb_logs
 
 DROP SKIPPING INDEX ON alb_logs
+
+VACUUM SKIPPING INDEX ON alb_logs
 ```
 
 #### Covering Index
@@ -179,6 +195,8 @@ SHOW [INDEX|INDEXES] ON <object>
 [DESC|DESCRIBE] INDEX name ON <object>
 
 DROP INDEX name ON <object>
+
+VACUUM INDEX name ON <object>
 ```
 
 Example:
@@ -194,6 +212,8 @@ SHOW INDEX ON alb_logs
 DESCRIBE INDEX elb_and_requestUri ON alb_logs
 
 DROP INDEX elb_and_requestUri ON alb_logs
+
+VACUUM INDEX elb_and_requestUri ON alb_logs
 ```
 
 #### Materialized View
@@ -210,6 +230,8 @@ SHOW MATERIALIZED [VIEW|VIEWS] IN catalog[.database]
 [DESC|DESCRIBE] MATERIALIZED VIEW name
 
 DROP MATERIALIZED VIEW name
+
+VACUUM MATERIALIZED VIEW name
 ```
 
 Example:
@@ -230,6 +252,8 @@ SHOW MATERIALIZED VIEWS IN spark_catalog.default
 DESC MATERIALIZED VIEW alb_logs_metrics
 
 DROP MATERIALIZED VIEW alb_logs_metrics
+
+VACUUM MATERIALIZED VIEW alb_logs_metrics
 ```
 
 #### Create Index Options

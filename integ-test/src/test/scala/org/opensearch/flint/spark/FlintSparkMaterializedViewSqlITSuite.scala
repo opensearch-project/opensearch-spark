@@ -44,7 +44,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
   override def afterEach(): Unit = {
     super.afterEach()
-    flint.deleteIndex(testFlintIndex)
+    deleteTestIndex(testFlintIndex)
   }
 
   test("create materialized view with auto refresh") {
@@ -157,6 +157,48 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     sql(s"CREATE MATERIALIZED VIEW IF NOT EXISTS $testMvName AS $testQuery")
   }
 
+  test("issue 112, https://github.com/opensearch-project/opensearch-spark/issues/112") {
+    val tableName = "spark_catalog.default.issue112"
+    createTableIssue112(tableName)
+    sql(s"""
+           |CREATE MATERIALIZED VIEW $testMvName AS
+           |    SELECT
+           |    rs.resource.attributes.key as resource_key,
+           |    rs.resource.attributes.value.stringValue as resource_value,
+           |    ss.scope.name as scope_name,
+           |    ss.scope.version as scope_version,
+           |    span.attributes.key as span_key,
+           |    span.attributes.value.intValue as span_int_value,
+           |    span.attributes.value.stringValue as span_string_value,
+           |    span.endTimeUnixNano,
+           |    span.kind,
+           |    span.name as span_name,
+           |    span.parentSpanId,
+           |    span.spanId,
+           |    span.startTimeUnixNano,
+           |    span.traceId
+           |    FROM $tableName
+           |    LATERAL VIEW
+           |    EXPLODE(resourceSpans) as rs
+           |    LATERAL VIEW
+           |    EXPLODE(rs.scopeSpans) as ss
+           |    LATERAL VIEW
+           |    EXPLODE(ss.spans) as span
+           |    LATERAL VIEW
+           |    EXPLODE(span.attributes) as span_attr
+           |WITH (
+           |  auto_refresh = false
+           |)
+           """.stripMargin)
+
+    val indexData = spark.read.format(FLINT_DATASOURCE).load(testFlintIndex)
+    flint.describeIndex(testFlintIndex) shouldBe defined
+    indexData.count() shouldBe 0
+
+    sql(s"REFRESH MATERIALIZED VIEW $testMvName")
+    indexData.count() shouldBe 2
+  }
+
   test("create materialized view with quoted name and column name") {
     val testQuotedQuery =
       """ SELECT
@@ -182,9 +224,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
   test("show all materialized views in catalog and database") {
     // Show in catalog
     flint.materializedView().name("spark_catalog.default.mv1").query(testQuery).create()
-    checkAnswer(
-      sql(s"SHOW MATERIALIZED VIEW IN spark_catalog"),
-      Seq(Row("mv1")))
+    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN spark_catalog"), Seq(Row("mv1")))
 
     // Show in catalog.database
     flint.materializedView().name("spark_catalog.default.mv2").query(testQuery).create()
@@ -208,14 +248,14 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
     checkAnswer(
       sql(s"DESC MATERIALIZED VIEW $testMvName"),
-      Seq(Row("startTime", "timestamp"), Row("count", "long")))
+      Seq(Row("startTime", "timestamp"), Row("count", "bigint")))
   }
 
   test("should return empty when describe nonexistent materialized view") {
     checkAnswer(sql("DESC MATERIALIZED VIEW nonexistent_mv"), Seq())
   }
 
-  test("drop materialized view") {
+  test("drop and vacuum materialized view") {
     flint
       .materializedView()
       .name(testMvName)
@@ -223,7 +263,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       .create()
 
     sql(s"DROP MATERIALIZED VIEW $testMvName")
-
+    sql(s"VACUUM MATERIALIZED VIEW $testMvName")
     flint.describeIndex(testFlintIndex) shouldBe empty
   }
 

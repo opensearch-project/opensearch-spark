@@ -14,7 +14,7 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.{defined, have}
+import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
@@ -30,13 +30,13 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    createPartitionedTable(testTable)
+    createPartitionedMultiRowTable(testTable)
   }
 
   protected override def afterEach(): Unit = {
     super.afterEach()
 
-    flint.deleteIndex(testIndex)
+    deleteTestIndex(testIndex)
   }
 
   test("create skipping index with auto refresh") {
@@ -52,14 +52,31 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
     // Wait for streaming job complete current micro batch
     val job = spark.streams.active.find(_.name == testIndex)
-    job shouldBe defined
-    failAfter(streamingTimeout) {
-      job.get.processAllAvailable()
-    }
+    awaitStreamingComplete(job.get.id.toString)
 
     val indexData = spark.read.format(FLINT_DATASOURCE).load(testIndex)
     flint.describeIndex(testIndex) shouldBe defined
     indexData.count() shouldBe 2
+  }
+
+  test("create skipping index with max size value set") {
+    sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | (
+           |   address VALUE_SET(2)
+           | )
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
+
+    val job = spark.streams.active.find(_.name == testIndex)
+    awaitStreamingComplete(job.get.id.toString)
+
+    checkAnswer(
+      flint.queryIndex(testIndex).select("address"),
+      Seq(
+        Row("""["Seattle","Portland"]"""),
+        Row(null) // Value set exceeded limit size is expected to be null
+      ))
   }
 
   test("create skipping index with streaming job options") {
@@ -249,7 +266,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     checkAnswer(result, Seq.empty)
   }
 
-  test("drop skipping index") {
+  test("drop and vacuum skipping index") {
     flint
       .skippingIndex()
       .onTable(testTable)
@@ -257,7 +274,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
       .create()
 
     sql(s"DROP SKIPPING INDEX ON $testTable")
-
+    sql(s"VACUUM SKIPPING INDEX ON $testTable")
     flint.describeIndex(testIndex) shouldBe empty
   }
 }

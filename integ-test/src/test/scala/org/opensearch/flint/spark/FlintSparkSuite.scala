@@ -12,6 +12,9 @@ import scala.concurrent.duration.TimeUnit
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
+import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
+import org.opensearch.client.RequestOptions
+import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.OpenSearchSuite
 import org.scalatestplus.mockito.MockitoSugar.mock
 
@@ -44,6 +47,29 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     when(mockExecutor.scheduleWithFixedDelay(any[Runnable], any[Long], any[Long], any[TimeUnit]))
       .thenAnswer((_: InvocationOnMock) => mock[ScheduledFuture[_]])
     FlintSparkIndexMonitor.executor = mockExecutor
+  }
+
+  protected def deleteTestIndex(testIndexNames: String*): Unit = {
+    testIndexNames.foreach(testIndex => {
+      /**
+       * Todo, if state is not valid, will throw IllegalStateException. Should check flint
+       * .isRefresh before cleanup resource. Current solution, (1) try to delete flint index, (2)
+       * if failed, delete index itself.
+       */
+      try {
+        flint.deleteIndex(testIndex)
+        flint.vacuumIndex(testIndex)
+      } catch {
+        case _: IllegalStateException =>
+          if (openSearchClient
+              .indices()
+              .exists(new GetIndexRequest(testIndex), RequestOptions.DEFAULT)) {
+            openSearchClient
+              .indices()
+              .delete(new DeleteIndexRequest(testIndex), RequestOptions.DEFAULT)
+          }
+      }
+    })
   }
 
   protected def awaitStreamingComplete(jobId: String): Unit = {
@@ -146,5 +172,68 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:15:00', 'C', 35, 'Portland')")
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 01:00:00', 'D', 40, 'Portland')")
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 03:00:00', 'E', 15, 'Vancouver')")
+  }
+
+  protected def createTableIssue112(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable (
+           |  resourceSpans ARRAY<STRUCT<
+           |      resource: STRUCT<
+           |        attributes: ARRAY<STRUCT<key: STRING, value: STRUCT<stringValue: STRING>>>>,
+           |  scopeSpans: ARRAY<STRUCT<
+           |    scope: STRUCT<name: STRING, version: STRING>,
+           |    spans: ARRAY<STRUCT<
+           |      attributes: ARRAY<STRUCT<key: STRING, value: STRUCT<intValue: STRING, stringValue: STRING>>>,
+           |      endTimeUnixNano: STRING,
+           |      kind: BIGINT,
+           |      name: STRING,
+           |      parentSpanId: STRING,
+           |      spanId: STRING,
+           |      startTimeUnixNano: STRING,
+           |      traceId: STRING>>>>>>)
+           |  USING json
+           |""".stripMargin)
+    sql(s"""INSERT INTO $testTable
+           |VALUES (
+           |    array(
+           |        named_struct(
+           |            'resource',
+           |            named_struct(
+           |                'attributes',
+           |                array(
+           |                    named_struct('key','telemetry.sdk.version', 'value', named_struct('stringValue', '1.3.0')),
+           |                    named_struct('key','telemetry.sdk.name', 'value', named_struct('stringValue', 'opentelemetry'))
+           |                )
+           |            ),
+           |            'scopeSpans',
+           |            array(
+           |                named_struct(
+           |                    'scope',
+           |                    named_struct('name', 'opentelemetry_ecto', 'version', '1.1.1'),
+           |                    'spans',
+           |                    array(
+           |                        named_struct(
+           |                            'attributes',
+           |                            array(
+           |                                named_struct('key', 'total_time_microseconds',
+           |                                'value', named_struct('stringValue', null, 'intValue',
+           |                                '31286')),
+           |                                named_struct('key', 'source', 'value', named_struct
+           |                                ('stringValue', 'featureflags', 'intValue', null))
+           |                            ),
+           |                            'endTimeUnixNano', '1698098982202276205',
+           |                            'kind', 3,
+           |                            'name', 'featureflagservice.repo.query:featureflags',
+           |                            'parentSpanId', '9b355ca40dd98f5e',
+           |                            'spanId', '87acd6659b425f80',
+           |                            'startTimeUnixNano', '1698098982170068232',
+           |                            'traceId', 'bc342fb3fbfa54c2188595b89b0b1cd8'
+           |                        )
+           |                    )
+           |                )
+           |            )
+           |        )
+           |    )
+           |)""".stripMargin)
   }
 }

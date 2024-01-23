@@ -38,7 +38,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
   override def afterEach(): Unit = {
     super.afterEach()
-    flint.deleteIndex(testFlintIndex)
+    deleteTestIndex(testFlintIndex)
   }
 
   test("create materialized view with metadata successfully") {
@@ -70,7 +70,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |      "columnType": "timestamp"
          |    },{
          |      "columnName": "count",
-         |      "columnType": "long"
+         |      "columnType": "bigint"
          |    }],
          |    "options": {
          |      "auto_refresh": "true",
@@ -197,7 +197,9 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
         Map(
           "auto_refresh" -> "true",
           "checkpoint_location" -> checkpointDir.getAbsolutePath,
-          "watermark_delay" -> "1 Minute")) // This must be small to ensure window closed soon
+          "watermark_delay" -> "1 Minute"
+        )
+      ) // This must be small to ensure window closed soon
 
       flint
         .materializedView()
