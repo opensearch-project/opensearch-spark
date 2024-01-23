@@ -28,7 +28,8 @@ public class DimensionedName {
         if (matcher.find() && matcher.groupCount() == 2) {
             final DimensionedNameBuilder builder = new DimensionedNameBuilder(matcher.group(1).trim());
             for (String t : matcher.group(2).split(",")) {
-                final String[] keyAndValue = t.split(":");
+                //## acts as a distinct separator.
+                final String[] keyAndValue = t.split("##");
                 builder.withDimension(keyAndValue[0].trim(), keyAndValue[1].trim());
             }
             return builder.build();
@@ -59,7 +60,7 @@ public class DimensionedName {
                 final StringBuilder sb = new StringBuilder(this.name);
                 sb.append('[');
                 sb.append(this.dimensions.values().stream()
-                        .map(dimension -> dimension.getName() + ":" + dimension.getValue())
+                        .map(dimension -> dimension.getName() + "##" + dimension.getValue())
                         .collect(Collectors.joining(",")));
                 sb.append(']');
 

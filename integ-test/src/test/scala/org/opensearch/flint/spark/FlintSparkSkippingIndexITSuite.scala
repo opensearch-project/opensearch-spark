@@ -8,7 +8,6 @@ package org.opensearch.flint.spark
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.native.JsonMethods._
 import org.opensearch.flint.core.FlintVersion.current
-import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
@@ -150,7 +149,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .onTable(testTable)
       .addPartitions("year")
       .create()
-    flint.refreshIndex(testIndex, FULL)
+    flint.refreshIndex(testIndex)
 
     val indexData = flint.queryIndex(testIndex)
     indexData.columns should not contain ID_COLUMN
@@ -164,7 +163,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .addPartitions("year", "month")
       .create()
 
-    val jobId = flint.refreshIndex(testIndex, FULL)
+    val jobId = flint.refreshIndex(testIndex)
     jobId shouldBe empty
 
     val indexData = flint.queryIndex(testIndex).collect().toSet
@@ -177,9 +176,10 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .skippingIndex()
       .onTable(testTable)
       .addPartitions("year", "month")
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
       .create()
 
-    val jobId = flint.refreshIndex(testIndex, INCREMENTAL)
+    val jobId = flint.refreshIndex(testIndex)
     jobId shouldBe defined
 
     val job = spark.streams.get(jobId.get)
@@ -189,24 +189,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     val indexData = flint.queryIndex(testIndex).collect().toSet
     indexData should have size 2
-  }
-
-  test("should fail to manual refresh an incremental refreshing index") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .create()
-
-    val jobId = flint.refreshIndex(testIndex, INCREMENTAL)
-    val job = spark.streams.get(jobId.get)
-    failAfter(streamingTimeout) {
-      job.processAllAvailable()
-    }
-
-    assertThrows[IllegalStateException] {
-      flint.refreshIndex(testIndex, FULL)
-    }
   }
 
   test("can have only 1 skipping index on a table") {
@@ -257,7 +239,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .onTable(testTable)
       .addPartitions("year", "month")
       .create()
-    flint.refreshIndex(testIndex, FULL)
+    flint.refreshIndex(testIndex)
 
     // Assert index data
     checkAnswer(
@@ -282,7 +264,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .onTable(testTable)
       .addValueSet("address", Map("max_size" -> "2"))
       .create()
-    flint.refreshIndex(testIndex, FULL)
+    flint.refreshIndex(testIndex)
 
     // Assert index data
     checkAnswer(
@@ -311,7 +293,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .onTable(testTable)
       .addMinMax("age")
       .create()
-    flint.refreshIndex(testIndex, FULL)
+    flint.refreshIndex(testIndex)
 
     // Assert index data
     checkAnswer(
@@ -384,7 +366,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .onTable(testTable)
       .addPartitions("month")
       .create()
-    flint.refreshIndex(testIndex, FULL)
+    flint.refreshIndex(testIndex)
 
     // Generate a new source file which is not in index data
     sql(s"""
@@ -643,7 +625,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .addValueSet("varchar_col")
       .addValueSet("char_col")
       .create()
-    flint.refreshIndex(testIndex, FULL)
+    flint.refreshIndex(testIndex)
 
     val query = sql(s"""
          | SELECT varchar_col, char_col

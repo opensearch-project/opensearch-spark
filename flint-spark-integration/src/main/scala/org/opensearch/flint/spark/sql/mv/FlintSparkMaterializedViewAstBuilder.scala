@@ -46,7 +46,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
       // Trigger auto refresh if enabled
       if (indexOptions.autoRefresh()) {
         val flintIndexName = getFlintIndexName(flint, ctx.mvName)
-        flint.refreshIndex(flintIndexName, RefreshMode.INCREMENTAL)
+        flint.refreshIndex(flintIndexName)
       }
       Seq.empty
     }
@@ -56,7 +56,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
       ctx: RefreshMaterializedViewStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
       val flintIndexName = getFlintIndexName(flint, ctx.mvName)
-      flint.refreshIndex(flintIndexName, RefreshMode.FULL)
+      flint.refreshIndex(flintIndexName)
       Seq.empty
     }
   }
