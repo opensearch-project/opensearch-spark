@@ -44,7 +44,7 @@ object ExpressionUtils {
     // Wrap unresolved expr with Filter and Relation operator
     val filter = Filter(PredicateWrapper(parseExprString(exprStr)), relation)
 
-    // Disable Flint rule to avoid stackoverflow during analysis and optimization
+    // Disable Flint rule to avoid stackoverflow during analysis
     withFlintOptimizerDisabled {
       val analyzed = sessionState.analyzer.execute(filter)
 
@@ -57,7 +57,7 @@ object ExpressionUtils {
     }
   }
 
-  /* Predicate wrapper to preserve the expression during optimization */
+  /* Predicate wrapper to preserve the expression during analysis */
   case class PredicateWrapper(override val child: Expression)
       extends UnaryExpression
       with Unevaluable

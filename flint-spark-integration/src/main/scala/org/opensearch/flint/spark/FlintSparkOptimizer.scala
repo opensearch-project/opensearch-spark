@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import org.opensearch.flint.spark.FlintSparkOptimizer.isDisabled
+import org.opensearch.flint.spark.FlintSparkOptimizer.internalDisabled
 import org.opensearch.flint.spark.skipping.ApplyFlintSparkSkippingIndex
 
 import org.apache.spark.sql.SparkSession
@@ -27,7 +27,7 @@ class FlintSparkOptimizer(spark: SparkSession) extends Rule[LogicalPlan] {
   private val rule = new ApplyFlintSparkSkippingIndex(flint)
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
-    if (isOptimizerEnabled && !isDisabled.get()) {
+    if (isOptimizerEnabled && !internalDisabled.get()) {
       rule.apply(plan)
     } else {
       plan
@@ -41,14 +41,18 @@ class FlintSparkOptimizer(spark: SparkSession) extends Rule[LogicalPlan] {
 
 object FlintSparkOptimizer {
 
-  val isDisabled = new ThreadLocal[Boolean]
+  /** Is optimizer disabled internally */
+  val internalDisabled: ThreadLocal[Boolean] = ThreadLocal.withInitial(() => false)
 
+  /**
+   * Perform an operator with Flint optimizer disabled internally.
+   */
   def withFlintOptimizerDisabled[T](f: => T): T = {
     try {
-      isDisabled.set(true)
+      internalDisabled.set(true)
       f
     } finally {
-      isDisabled.set(false)
+      internalDisabled.set(false)
     }
   }
 }

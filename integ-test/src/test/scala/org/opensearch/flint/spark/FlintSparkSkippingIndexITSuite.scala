@@ -10,6 +10,7 @@ import org.json4s.native.JsonMethods._
 import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
+import org.opensearch.flint.spark.FlintSparkOptimizer.withFlintOptimizerDisabled
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.{Matcher, MatchResult}
@@ -19,7 +20,6 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.apache.spark.sql.{Column, Row}
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
-import org.apache.spark.sql.flint.config.FlintSparkConf._
 import org.apache.spark.sql.functions.{col, isnull}
 
 class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
@@ -696,15 +696,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         hasExpectedFilter,
         "FlintSparkSkippingFileIndex does not have expected filter",
         "FlintSparkSkippingFileIndex has expected filter")
-    }
-  }
-
-  private def withFlintOptimizerDisabled(block: => Unit): Unit = {
-    spark.conf.set(OPTIMIZER_RULE_ENABLED.key, "false")
-    try {
-      block
-    } finally {
-      spark.conf.set(OPTIMIZER_RULE_ENABLED.key, "true")
     }
   }
 }

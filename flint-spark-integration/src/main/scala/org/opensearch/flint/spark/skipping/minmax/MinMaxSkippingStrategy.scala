@@ -41,7 +41,7 @@ case class MinMaxSkippingStrategy(
   override def doRewritePredicate(
       predicate: Expression,
       indexExpr: Expression): Option[Expression] = {
-    // Return unresolved expr, otherwise Spark treats rewritten plan as corrupted
+    // Use unresolved expr, otherwise Spark treats rewritten plan as corrupted
     val minCol = new Column(parseExprString(minColName))
     val maxCol = new Column(parseExprString(maxColName))
     val IndexExpression = IndexExpressionMatcher(indexExpr)

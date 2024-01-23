@@ -50,7 +50,7 @@ case class ValueSetSkippingStrategy(
   override def doRewritePredicate(
       predicate: Expression,
       indexExpr: Expression): Option[Expression] = {
-    // Return unresolved expr, otherwise Spark treats rewritten plan as corrupted
+    // Use unresolved expr, otherwise Spark treats rewritten plan as corrupted
     val indexCol = new Column(parseExprString(columnName))
     val IndexExpression = IndexExpressionMatcher(indexExpr)
 

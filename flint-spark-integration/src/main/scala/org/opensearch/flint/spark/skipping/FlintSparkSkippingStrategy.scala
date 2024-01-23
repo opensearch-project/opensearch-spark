@@ -60,21 +60,19 @@ trait FlintSparkSkippingStrategy {
    *   new filtering condition on index data or empty if index not applicable
    */
   def rewritePredicate(filter: Filter): Option[Expression] = {
-    /*
-     * Traverse all expressions in the predicate and try to rewrite it
-     */
-    def rewriteExpressionRecursively(
+    // Traverse all expressions in the predicate and try to rewrite it
+    def rewriteExpression(
         condition: Expression,
         indexExpr: Expression): Option[Expression] = condition match {
       case and: And =>
         and.children
-          .flatMap(child => rewriteExpressionRecursively(child, indexExpr))
+          .flatMap(child => rewriteExpression(child, indexExpr))
           .reduceOption(And)
       case expr => doRewritePredicate(expr, indexExpr)
     }
 
     val indexExpr = resolveExprString(columnName, filter.child)
-    rewriteExpressionRecursively(filter.condition, indexExpr)
+    rewriteExpression(filter.condition, indexExpr)
   }
 
   // Visible for UT
