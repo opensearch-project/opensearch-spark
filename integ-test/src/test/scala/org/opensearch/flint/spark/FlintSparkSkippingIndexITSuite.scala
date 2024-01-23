@@ -673,7 +673,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .addMinMax("struct_col.field2")
       .addValueSet("struct_col.field1.subfield")
       .create()
-    flint.refreshIndex(testIndex, FULL)
+    flint.refreshIndex(testIndex)
 
     // FIXME: add assertion once https://github.com/opensearch-project/opensearch-spark/issues/233 fixed
     deleteTestIndex(testIndex)
