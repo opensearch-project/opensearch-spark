@@ -668,39 +668,33 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     sql(s"""
            | CREATE TABLE $testTable
            | (
-           |   boolean_col BOOLEAN,
+           |   int_col INT,
            |   struct_col STRUCT<field1: STRUCT<subfield:STRING>, field2: INT>
            | )
            | USING JSON
            |""".stripMargin)
     sql(s"""
            | INSERT INTO $testTable
-           | VALUES (
-           |   TRUE,
-           |   STRUCT(STRUCT("subfieldValue1"),123)
-           | )
+           | SELECT /*+ COALESCE(1) */ *
+           | FROM VALUES
+           | ( 30, STRUCT(STRUCT("subfieldValue1"),123) ),
+           | ( 40, STRUCT(STRUCT("subfieldValue2"),456) )
+           |""".stripMargin)
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES ( 50, STRUCT(STRUCT("subfieldValue3"),789) )
            |""".stripMargin)
 
     flint
       .skippingIndex()
       .onTable(testTable)
+      .addMinMax("struct_col.field2")
       .addValueSet("struct_col.field1.subfield")
       .create()
     flint.refreshIndex(testIndex, FULL)
 
-    /*
-    val query = sql(s"""
-                       | SELECT struct_col
-                       | FROM $testTable
-                       | WHERE struct_col.field1.subfield = "subfieldValue1"
-                       |""".stripMargin)
-
-    query.queryExecution.executedPlan should
-      useFlintSparkSkippingFileIndex(
-        hasIndexFilter(col("struct_col.subfield1") === "subfieldValue1"))
-     */
-
-    flint.deleteIndex(testIndex)
+    // FIXME: add assertion once https://github.com/opensearch-project/opensearch-spark/issues/233 fixed
+    deleteTestIndex(testIndex)
   }
 
   // Custom matcher to check if a SparkPlan uses FlintSparkSkippingFileIndex
