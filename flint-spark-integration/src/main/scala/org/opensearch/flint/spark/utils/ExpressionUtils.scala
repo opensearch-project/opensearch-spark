@@ -47,10 +47,9 @@ object ExpressionUtils {
     // Disable Flint rule to avoid stackoverflow during analysis and optimization
     withFlintOptimizerDisabled {
       val analyzed = sessionState.analyzer.execute(filter)
-      val optimized = sessionState.optimizer.execute(analyzed)
 
       // Unwrap to get resolved expr
-      optimized
+      analyzed
         .asInstanceOf[Filter]
         .condition
         .asInstanceOf[PredicateWrapper]
