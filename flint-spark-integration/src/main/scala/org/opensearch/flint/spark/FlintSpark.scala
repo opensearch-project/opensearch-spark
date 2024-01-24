@@ -136,7 +136,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     logInfo(s"Refreshing Flint index $indexName")
     val index = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
-    val refresher = FlintSparkIndexRefresh.create(indexName, index)
+    val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
 
     try {
       flintClient
@@ -146,7 +146,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           latest.copy(state = REFRESHING, createTime = System.currentTimeMillis()))
         .finalLog(latest => {
           // Change state to active if full, otherwise update index state regularly
-          if (refresher.refreshMode == AUTO) {
+          if (indexRefresh.refreshMode == AUTO) {
             logInfo("Scheduling index state monitor")
             flintIndexMonitor.startMonitor(indexName)
             latest
@@ -155,7 +155,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
             latest.copy(state = ACTIVE)
           }
         })
-        .commit(_ => refresher.start(spark, flintSparkConf))
+        .commit(_ => indexRefresh.start(spark, flintSparkConf))
     } catch {
       case e: Exception =>
         logError("Failed to refresh Flint index", e)

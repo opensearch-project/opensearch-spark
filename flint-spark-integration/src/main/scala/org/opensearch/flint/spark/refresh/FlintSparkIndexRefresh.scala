@@ -49,14 +49,14 @@ object FlintSparkIndexRefresh {
   }
 
   /**
-   * Create concrete index refresher for the given index.
+   * Create concrete index refresh for the given index.
    *
    * @param indexName
    *   Flint index name
    * @param index
    *   Flint index
    * @return
-   *   index refresher
+   *   index refresh
    */
   def create(indexName: String, index: FlintSparkIndex): FlintSparkIndexRefresh = {
     val options = index.options
