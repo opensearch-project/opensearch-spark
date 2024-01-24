@@ -39,17 +39,14 @@ trait FlintSparkIndexRefresh extends Logging {
 
 object FlintSparkIndexRefresh {
 
-  /**
-   * Index refresh mode: FULL: refresh on current source data in batch style at one shot
-   * INCREMENTAL: auto refresh on new data in continuous streaming style
-   */
+  /** Index refresh mode */
   object RefreshMode extends Enumeration {
     type RefreshMode = Value
     val AUTO, FULL, INCREMENTAL = Value
   }
 
   /**
-   * Create concrete index refresh for the given index.
+   * Create concrete index refresh implementation for the given index.
    *
    * @param indexName
    *   Flint index name

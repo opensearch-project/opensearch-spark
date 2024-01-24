@@ -32,7 +32,7 @@ class FlintSparkIndexRefreshSuite extends FlintSuite with Matchers {
     refresh.refreshMode shouldBe AUTO
   }
 
-  test("should full refresh if both auto and incremental refresh option enabled") {
+  test("should full refresh if both auto and incremental refresh option disabled") {
     when(index.options.autoRefresh()).thenReturn(false)
     when(index.options.incrementalRefresh()).thenReturn(false)
 
@@ -41,7 +41,7 @@ class FlintSparkIndexRefreshSuite extends FlintSuite with Matchers {
   }
 
   test(
-    "should full refresh if both auto refresh option disabled and incremental refresh option enabled") {
+    "should incremental refresh if auto refresh disabled but incremental refresh option enabled") {
     when(index.options.autoRefresh()).thenReturn(false)
     when(index.options.incrementalRefresh()).thenReturn(true)
 
