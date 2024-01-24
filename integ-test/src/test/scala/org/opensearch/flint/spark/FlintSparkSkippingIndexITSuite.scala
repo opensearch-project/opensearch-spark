@@ -163,7 +163,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     indexData.columns should not contain ID_COLUMN
   }
 
-  test("full manual refresh skipping index successfully") {
+  test("full refresh skipping index successfully") {
     // Create Flint index and wait for complete
     flint
       .skippingIndex()
@@ -178,7 +178,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     indexData should have size 2
   }
 
-  test("incremental manual refresh skipping index successfully") {
+  test("incremental refresh skipping index successfully") {
     // Incremental refresh requires checkpoint
     withTempDir { checkpointDir =>
       flint

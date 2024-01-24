@@ -15,8 +15,8 @@ import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresher
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresher.RefreshMode.AUTO
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.AUTO
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 
@@ -136,7 +136,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     logInfo(s"Refreshing Flint index $indexName")
     val index = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
-    val refresher = FlintSparkIndexRefresher.create(indexName, index)
+    val refresher = FlintSparkIndexRefresh.create(indexName, index)
 
     try {
       flintClient
@@ -289,7 +289,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
             latest.copy(state = REFRESHING)
           })
           .commit(_ =>
-            FlintSparkIndexRefresher
+            FlintSparkIndexRefresh
               .create(indexName, index.get)
               .start(spark, flintSparkConf))
 

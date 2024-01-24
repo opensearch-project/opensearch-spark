@@ -6,32 +6,35 @@
 package org.opensearch.flint.spark.refresh
 
 import org.opensearch.flint.spark.FlintSparkIndex
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresher.RefreshMode.{INCREMENTAL, RefreshMode}
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{INCREMENTAL, RefreshMode}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.flint.config.FlintSparkConf
 
 /**
- * Index refresher that manually and incrementally refreshes the index from last checkpoint.
+ * Index refresh that incrementally refreshes the index from the last checkpoint.
  *
  * @param indexName
  *   Flint index name
  * @param index
  *   Flint index
  */
-class IncrementalIndexRefresher(indexName: String, index: FlintSparkIndex)
-    extends FlintSparkIndexRefresher {
+class IncrementalIndexRefresh(indexName: String, index: FlintSparkIndex)
+    extends FlintSparkIndexRefresh {
 
   override def refreshMode: RefreshMode = INCREMENTAL
 
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {
     logInfo(s"Start refreshing index $indexName in incremental mode")
+
+    // Reuse auto refresh which uses AvailableNow trigger and will stop once complete
     val jobId =
-      new AutoIndexRefresher(indexName, index)
+      new AutoIndexRefresh(indexName, index)
         .start(spark, flintSparkConf)
 
-    // Streaming job will stop because AvailableNow trigger is in use if incremental
-    spark.streams.get(jobId.get).awaitTermination()
+    spark.streams
+      .get(jobId.get)
+      .awaitTermination()
     None
   }
 }

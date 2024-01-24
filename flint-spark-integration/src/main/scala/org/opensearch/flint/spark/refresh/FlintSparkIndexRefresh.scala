@@ -6,16 +6,17 @@
 package org.opensearch.flint.spark.refresh
 
 import org.opensearch.flint.spark.FlintSparkIndex
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresher.RefreshMode.RefreshMode
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.RefreshMode
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.flint.config.FlintSparkConf
 
 /**
- * Flint Spark index refresher that validates and starts the index refresh.
+ * Flint Spark index refresh that sync index data with source in style defined by concrete
+ * implementation class.
  */
-trait FlintSparkIndexRefresher extends Logging {
+trait FlintSparkIndexRefresh extends Logging {
 
   /**
    * @return
@@ -36,7 +37,7 @@ trait FlintSparkIndexRefresher extends Logging {
   def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String]
 }
 
-object FlintSparkIndexRefresher {
+object FlintSparkIndexRefresh {
 
   /**
    * Index refresh mode: FULL: refresh on current source data in batch style at one shot
@@ -57,14 +58,14 @@ object FlintSparkIndexRefresher {
    * @return
    *   index refresher
    */
-  def create(indexName: String, index: FlintSparkIndex): FlintSparkIndexRefresher = {
+  def create(indexName: String, index: FlintSparkIndex): FlintSparkIndexRefresh = {
     val options = index.options
     if (options.autoRefresh()) {
-      new AutoIndexRefresher(indexName, index)
+      new AutoIndexRefresh(indexName, index)
     } else if (options.incrementalRefresh()) {
-      new IncrementalIndexRefresher(indexName, index)
+      new IncrementalIndexRefresh(indexName, index)
     } else {
-      new FullIndexRefresher(indexName, index)
+      new FullIndexRefresh(indexName, index)
     }
   }
 }

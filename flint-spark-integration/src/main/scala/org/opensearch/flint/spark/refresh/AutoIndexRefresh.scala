@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.refresh
 
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkIndexOptions}
 import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, StreamingRefresh}
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresher.RefreshMode.{AUTO, RefreshMode}
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{AUTO, RefreshMode}
 
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
@@ -16,15 +16,14 @@ import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
 import org.apache.spark.sql.streaming.{DataStreamWriter, Trigger}
 
 /**
- * Index refresher that auto refreshes the index.
+ * Index refresh that auto refreshes the index by index options provided.
  *
  * @param indexName
  *   Flint index name
  * @param index
  *   Flint index
  */
-class AutoIndexRefresher(indexName: String, index: FlintSparkIndex)
-    extends FlintSparkIndexRefresher {
+class AutoIndexRefresh(indexName: String, index: FlintSparkIndex) extends FlintSparkIndexRefresh {
 
   override def refreshMode: RefreshMode = AUTO
 
@@ -56,7 +55,7 @@ class AutoIndexRefresher(indexName: String, index: FlintSparkIndex)
           .queryName(indexName)
           .addSinkOptions(options, flintSparkConf)
           .foreachBatch { (batchDF: DataFrame, _: Long) =>
-            new FullIndexRefresher(indexName, index, Some(batchDF))
+            new FullIndexRefresh(indexName, index, Some(batchDF))
               .start(spark, flintSparkConf)
             () // discard return value above and return unit to use right overridden method
           }

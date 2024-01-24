@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark.refresh
 
 import org.opensearch.flint.spark.FlintSparkIndex
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresher.RefreshMode.{FULL, RefreshMode}
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{FULL, RefreshMode}
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.SaveMode.Overwrite
@@ -14,7 +14,7 @@ import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 
 /**
- * Index refresher that manually and fully refreshes the index from the given source.
+ * Index refresh that fully refreshes the index from the given source data frame.
  *
  * @param indexName
  *   Flint index name
@@ -23,11 +23,11 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
  * @param source
  *   refresh from this data frame representing a micro batch or from the beginning
  */
-class FullIndexRefresher(
+class FullIndexRefresh(
     indexName: String,
     index: FlintSparkIndex,
     source: Option[DataFrame] = None)
-    extends FlintSparkIndexRefresher {
+    extends FlintSparkIndexRefresh {
 
   override def refreshMode: RefreshMode = FULL
 
