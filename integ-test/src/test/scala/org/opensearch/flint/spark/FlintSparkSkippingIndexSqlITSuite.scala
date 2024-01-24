@@ -27,7 +27,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
   private val testTable = "spark_catalog.default.skipping_sql_test"
   private val testIndex = getSkippingIndexName(testTable)
 
-  override def beforeAll(): Unit = {
+  override def beforeEach(): Unit = {
     super.beforeAll()
 
     createPartitionedMultiRowTable(testTable)
@@ -37,6 +37,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     super.afterEach()
 
     deleteTestIndex(testIndex)
+    sql(s"DROP TABLE $testTable")
   }
 
   test("create skipping index with auto refresh") {
@@ -142,7 +143,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     }
   }
 
-  test("create skipping index with manual refresh") {
+  test("create skipping index with full refresh") {
     sql(s"""
          | CREATE SKIPPING INDEX ON $testTable
          | (
@@ -159,6 +160,34 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
     sql(s"REFRESH SKIPPING INDEX ON $testTable")
     indexData.count() shouldBe 2
+  }
+
+  test("create skipping index with incremental refresh") {
+    withTempDir { checkpointDir =>
+      sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | ( year PARTITION )
+           | WITH (
+           |   incremental_refresh = true,
+           |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+           | )
+           | """.stripMargin)
+
+      // Refresh all present source data as of now
+      sql(s"REFRESH SKIPPING INDEX ON $testTable")
+      flint.queryIndex(testIndex).count() shouldBe 2
+
+      // New data won't be refreshed until refresh statement triggered
+      sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=5)
+           | VALUES ('Hello', 50, 'Vancouver')
+           |""".stripMargin)
+      flint.queryIndex(testIndex).count() shouldBe 2
+
+      sql(s"REFRESH SKIPPING INDEX ON $testTable")
+      flint.queryIndex(testIndex).count() shouldBe 3
+    }
   }
 
   test("should fail if refresh an auto refresh skipping index") {

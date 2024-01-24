@@ -64,7 +64,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
     (parse(mapping) \ "_meta" \ "latestId").extract[String] shouldBe testLatestId
   }
 
-  test("manual refresh index") {
+  test("full refresh index") {
     flint
       .skippingIndex()
       .onTable(testTable)
@@ -78,6 +78,20 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
   }
 
   test("incremental refresh index") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .options(FlintSparkIndexOptions(Map("incremental_refresh" -> "true")))
+      .create()
+    flint.refreshIndex(testFlintIndex)
+
+    val latest = latestLogEntry(testLatestId)
+    latest should contain("state" -> "active")
+    latest("jobStartTime").asInstanceOf[Number].longValue() should be > 0L
+  }
+
+  test("auto refresh index") {
     flint
       .skippingIndex()
       .onTable(testTable)
