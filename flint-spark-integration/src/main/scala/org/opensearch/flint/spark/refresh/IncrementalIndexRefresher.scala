@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark.refresh
 
 import org.opensearch.flint.spark.FlintSparkIndex
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresher.RefreshMode.{INCREMENTAL, RefreshMode}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -21,8 +22,10 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
 class IncrementalIndexRefresher(indexName: String, index: FlintSparkIndex)
     extends FlintSparkIndexRefresher {
 
+  override def refreshMode: RefreshMode = INCREMENTAL
+
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {
-    logInfo(s"Start refreshing index $indexName in incremental-manual mode")
+    logInfo(s"Start refreshing index $indexName in incremental mode")
     val jobId =
       new AutoIndexRefresher(indexName, index)
         .start(spark, flintSparkConf)

@@ -9,7 +9,6 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
-import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}

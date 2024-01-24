@@ -7,7 +7,6 @@ package org.opensearch.flint.spark.sql.covering
 
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
-import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}

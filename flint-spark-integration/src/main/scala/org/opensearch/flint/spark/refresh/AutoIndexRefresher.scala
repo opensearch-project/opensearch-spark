@@ -7,6 +7,7 @@ package org.opensearch.flint.spark.refresh
 
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkIndexOptions}
 import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, StreamingRefresh}
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresher.RefreshMode.{AUTO, RefreshMode}
 
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
@@ -25,6 +26,8 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, Trigger}
 class AutoIndexRefresher(indexName: String, index: FlintSparkIndex)
     extends FlintSparkIndexRefresher {
 
+  override def refreshMode: RefreshMode = AUTO
+
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {
     val options = index.options
     val tableName = index.metadata().source
@@ -42,8 +45,9 @@ class AutoIndexRefresher(indexName: String, index: FlintSparkIndex)
             .addSinkOptions(options, flintSparkConf)
             .start(indexName)
         Some(job.id.toString)
+
+      // Otherwise, fall back to foreachBatch + batch refresh
       case _ =>
-        // Otherwise, fall back to foreachBatch + batch refresh
         logInfo("Start refreshing index in foreach streaming style")
         val job = spark.readStream
           .options(options.extraSourceOptions(tableName))
@@ -93,8 +97,8 @@ class AutoIndexRefresher(indexName: String, index: FlintSparkIndex)
         .getOrElse(dataStream)
     }
 
-    def addAvailableNowTrigger(incremental: Boolean): DataStreamWriter[Row] = {
-      if (incremental) {
+    def addAvailableNowTrigger(incrementalRefresh: Boolean): DataStreamWriter[Row] = {
+      if (incrementalRefresh) {
         dataStream.trigger(Trigger.AvailableNow())
       } else {
         dataStream

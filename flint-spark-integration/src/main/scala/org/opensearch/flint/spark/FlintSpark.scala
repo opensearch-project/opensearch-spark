@@ -12,11 +12,11 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
-import org.opensearch.flint.spark.FlintSpark.RefreshMode.{AUTO, MANUAL}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresher
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresher.RefreshMode.AUTO
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 
@@ -129,8 +129,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    *
    * @param indexName
    *   index name
-   * @param mode
-   *   refresh mode
    * @return
    *   refreshing job ID (empty if batch job for now)
    */
@@ -138,7 +136,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     logInfo(s"Refreshing Flint index $indexName")
     val index = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
-    val mode = if (index.options.autoRefresh()) AUTO else MANUAL
+    val refresher = FlintSparkIndexRefresher.create(indexName, index)
 
     try {
       flintClient
@@ -148,20 +146,16 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           latest.copy(state = REFRESHING, createTime = System.currentTimeMillis()))
         .finalLog(latest => {
           // Change state to active if full, otherwise update index state regularly
-          if (mode == MANUAL) {
-            logInfo("Updating index state to active")
-            latest.copy(state = ACTIVE)
-          } else {
-            // Schedule regular update and return log entry as refreshing state
+          if (refresher.refreshMode == AUTO) {
             logInfo("Scheduling index state monitor")
             flintIndexMonitor.startMonitor(indexName)
             latest
+          } else {
+            logInfo("Updating index state to active")
+            latest.copy(state = ACTIVE)
           }
         })
-        .commit(_ =>
-          FlintSparkIndexRefresher
-            .create(indexName, index)
-            .start(spark, flintSparkConf))
+        .commit(_ => refresher.start(spark, flintSparkConf))
     } catch {
       case e: Exception =>
         logError("Failed to refresh Flint index", e)
@@ -332,17 +326,5 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     } else {
       logWarning("Refreshing job not found")
     }
-  }
-}
-
-object FlintSpark {
-
-  /**
-   * Index refresh mode: FULL: refresh on current source data in batch style at one shot
-   * INCREMENTAL: auto refresh on new data in continuous streaming style
-   */
-  object RefreshMode extends Enumeration {
-    type RefreshMode = Value
-    val MANUAL, AUTO = Value
   }
 }

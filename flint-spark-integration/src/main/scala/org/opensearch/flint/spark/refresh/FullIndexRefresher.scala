@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark.refresh
 
 import org.opensearch.flint.spark.FlintSparkIndex
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresher.RefreshMode.{FULL, RefreshMode}
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.SaveMode.Overwrite
@@ -28,8 +29,10 @@ class FullIndexRefresher(
     source: Option[DataFrame] = None)
     extends FlintSparkIndexRefresher {
 
+  override def refreshMode: RefreshMode = FULL
+
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {
-    logInfo(s"Start refreshing index $indexName in full-manual mode")
+    logInfo(s"Start refreshing index $indexName in full mode")
     index
       .build(spark, source)
       .write
