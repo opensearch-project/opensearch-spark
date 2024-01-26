@@ -7,7 +7,7 @@ package org.opensearch.flint.core.storage;
 
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.flint.core.RestHighLevelClientWrapper;
+import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.search.SearchHit;
 
 import java.io.IOException;
@@ -24,14 +24,14 @@ public abstract class OpenSearchReader implements FlintReader {
   /** Search request source builder. */
   private final SearchRequest searchRequest;
 
-  protected final RestHighLevelClientWrapper client;
+  protected final IRestHighLevelClient client;
 
   /**
    * iterator of one-shot search result.
    */
   private Iterator<SearchHit> iterator = null;
 
-  public OpenSearchReader(RestHighLevelClientWrapper client, SearchRequest searchRequest) {
+  public OpenSearchReader(IRestHighLevelClient client, SearchRequest searchRequest) {
     this.client = client;
     this.searchRequest = searchRequest;
   }

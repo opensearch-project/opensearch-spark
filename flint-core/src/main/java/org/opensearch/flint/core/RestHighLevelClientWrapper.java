@@ -39,7 +39,7 @@ import static org.opensearch.flint.core.metrics.MetricConstants.*;
  * A wrapper class for RestHighLevelClient to facilitate OpenSearch operations
  * with integrated metrics tracking.
  */
-public class RestHighLevelClientWrapper implements IRestHighLevelClient, Closeable {
+public class RestHighLevelClientWrapper implements IRestHighLevelClient {
     private final RestHighLevelClient client;
 
     /**

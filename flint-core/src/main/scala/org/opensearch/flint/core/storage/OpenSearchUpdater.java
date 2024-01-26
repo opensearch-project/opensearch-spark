@@ -6,7 +6,7 @@ import org.opensearch.client.RequestOptions;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
-import org.opensearch.flint.core.RestHighLevelClientWrapper;
+import org.opensearch.flint.core.IRestHighLevelClient;
 
 import java.io.IOException;
 import java.util.logging.Level;
@@ -30,7 +30,7 @@ public class OpenSearchUpdater {
         // credentials may expire.
         // also, failure to close the client causes the job to be stuck in the running state as the client resource
         // is not released.
-        try (RestHighLevelClientWrapper client = flintClient.createClient()) {
+        try (IRestHighLevelClient client = flintClient.createClient()) {
             assertIndexExist(client, indexName);
             UpdateRequest
                     updateRequest =
@@ -47,7 +47,7 @@ public class OpenSearchUpdater {
     }
 
     public void update(String id, String doc) {
-        try (RestHighLevelClientWrapper client = flintClient.createClient()) {
+        try (IRestHighLevelClient client = flintClient.createClient()) {
             assertIndexExist(client, indexName);
             UpdateRequest
                     updateRequest =
@@ -63,7 +63,7 @@ public class OpenSearchUpdater {
     }
 
     public void updateIf(String id, String doc, long seqNo, long primaryTerm) {
-        try (RestHighLevelClientWrapper client = flintClient.createClient()) {
+        try (IRestHighLevelClient client = flintClient.createClient()) {
             assertIndexExist(client, indexName);
             UpdateRequest
                     updateRequest =
@@ -80,7 +80,7 @@ public class OpenSearchUpdater {
         }
     }
 
-    private void assertIndexExist(RestHighLevelClientWrapper client, String indexName) throws IOException {
+    private void assertIndexExist(IRestHighLevelClient client, String indexName) throws IOException {
         LOG.info("Checking if index exists " + indexName);
         if (!client.isIndexExists(new GetIndexRequest(indexName), RequestOptions.DEFAULT)) {
             String errorMsg = "Index not found " + indexName;

@@ -27,13 +27,14 @@ import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
 
+import java.io.Closeable;
 import java.io.IOException;
 
 /**
  * Interface for wrapping the OpenSearch High Level REST Client with additional functionality,
  * such as metrics tracking.
  */
-public interface IRestHighLevelClient {
+public interface IRestHighLevelClient extends Closeable {
 
     BulkResponse bulk(BulkRequest bulkRequest, RequestOptions options) throws IOException;
 

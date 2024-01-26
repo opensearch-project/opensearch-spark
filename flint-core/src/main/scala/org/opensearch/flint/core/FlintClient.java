@@ -95,8 +95,8 @@ public interface FlintClient {
    */
   FlintWriter createWriter(String indexName);
   /**
-   * Create {@link RestHighLevelClientWrapper}.
-   * @return {@link RestHighLevelClientWrapper}
+   * Create {@link IRestHighLevelClient}.
+   * @return {@link IRestHighLevelClient}
    */
-  public RestHighLevelClientWrapper createClient();
+  public IRestHighLevelClient createClient();
 }

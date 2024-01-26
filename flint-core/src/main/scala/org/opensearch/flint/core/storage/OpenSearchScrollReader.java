@@ -14,7 +14,7 @@ import org.opensearch.client.RequestOptions;
 import org.opensearch.common.Strings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.flint.core.FlintOptions;
-import org.opensearch.flint.core.RestHighLevelClientWrapper;
+import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.search.builder.SearchSourceBuilder;
 
 import java.io.IOException;
@@ -35,7 +35,7 @@ public class OpenSearchScrollReader extends OpenSearchReader {
 
   private String scrollId = null;
 
-  public OpenSearchScrollReader(RestHighLevelClientWrapper client, String indexName, SearchSourceBuilder searchSourceBuilder, FlintOptions options) {
+  public OpenSearchScrollReader(IRestHighLevelClient client, String indexName, SearchSourceBuilder searchSourceBuilder, FlintOptions options) {
     super(client, new SearchRequest().indices(indexName).source(searchSourceBuilder.size(options.getScrollSize())));
     this.options = options;
     this.scrollDuration = TimeValue.timeValueMinutes(options.getScrollDuration());

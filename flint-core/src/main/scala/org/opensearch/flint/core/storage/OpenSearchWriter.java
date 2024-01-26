@@ -11,7 +11,7 @@ import org.opensearch.action.bulk.BulkRequest;
 import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.flint.core.RestHighLevelClientWrapper;
+import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.rest.RestStatus;
 
 import java.io.IOException;
@@ -29,9 +29,9 @@ public class OpenSearchWriter extends FlintWriter {
 
   private StringBuilder sb;
 
-  private RestHighLevelClientWrapper client;
+  private IRestHighLevelClient client;
 
-  public OpenSearchWriter(RestHighLevelClientWrapper client, String indexName, String refreshPolicy) {
+  public OpenSearchWriter(IRestHighLevelClient client, String indexName, String refreshPolicy) {
     this.client = client;
     this.indexName = indexName;
     this.sb = new StringBuilder();

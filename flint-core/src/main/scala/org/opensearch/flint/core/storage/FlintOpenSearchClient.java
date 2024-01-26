@@ -43,6 +43,7 @@ import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
+import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.flint.core.auth.AWSRequestSigningApacheInterceptor;
 import org.opensearch.flint.core.http.RetryableHttpAsyncClient;
 import org.opensearch.flint.core.metadata.FlintMetadata;
@@ -97,7 +98,7 @@ public class FlintOpenSearchClient implements FlintClient {
     LOG.info("Starting transaction on index " + indexName + " and data source " + dataSourceName);
     String metaLogIndexName = dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX
         : META_LOG_NAME_PREFIX + "_" + dataSourceName;
-    try (RestHighLevelClientWrapper client = createClient()) {
+    try (IRestHighLevelClient client = createClient()) {
       if (client.isIndexExists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
         LOG.info("Found metadata log index " + metaLogIndexName);
       } else {
@@ -131,7 +132,7 @@ public class FlintOpenSearchClient implements FlintClient {
   protected void createIndex(String indexName, String mapping, Option<String> settings) {
     LOG.info("Creating Flint index " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
-    try (RestHighLevelClientWrapper client = createClient()) {
+    try (IRestHighLevelClient client = createClient()) {
       CreateIndexRequest request = new CreateIndexRequest(osIndexName);
       request.mapping(mapping, XContentType.JSON);
       if (settings.isDefined()) {
@@ -147,7 +148,7 @@ public class FlintOpenSearchClient implements FlintClient {
   public boolean exists(String indexName) {
     LOG.info("Checking if Flint index exists " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
-    try (RestHighLevelClientWrapper client = createClient()) {
+    try (IRestHighLevelClient client = createClient()) {
       return client.isIndexExists(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to check if Flint index exists " + osIndexName, e);
@@ -158,7 +159,7 @@ public class FlintOpenSearchClient implements FlintClient {
   public List<FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
     LOG.info("Fetching all Flint index metadata for pattern " + indexNamePattern);
     String osIndexNamePattern = sanitizeIndexName(indexNamePattern);
-    try (RestHighLevelClientWrapper client = createClient()) {
+    try (IRestHighLevelClient client = createClient()) {
       GetIndexRequest request = new GetIndexRequest(osIndexNamePattern);
       GetIndexResponse response = client.getIndex(request, RequestOptions.DEFAULT);
 
@@ -176,7 +177,7 @@ public class FlintOpenSearchClient implements FlintClient {
   public FlintMetadata getIndexMetadata(String indexName) {
     LOG.info("Fetching Flint index metadata for " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
-    try (RestHighLevelClientWrapper client = createClient()) {
+    try (IRestHighLevelClient client = createClient()) {
       GetIndexRequest request = new GetIndexRequest(osIndexName);
       GetIndexResponse response = client.getIndex(request, RequestOptions.DEFAULT);
 
@@ -192,7 +193,7 @@ public class FlintOpenSearchClient implements FlintClient {
   public void deleteIndex(String indexName) {
     LOG.info("Deleting Flint index " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
-    try (RestHighLevelClientWrapper client = createClient()) {
+    try (IRestHighLevelClient client = createClient()) {
       DeleteIndexRequest request = new DeleteIndexRequest(osIndexName);
       client.deleteIndex(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
@@ -233,7 +234,7 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override
-  public RestHighLevelClientWrapper createClient() {
+  public IRestHighLevelClient createClient() {
     RestClientBuilder
         restClientBuilder =
         RestClient.builder(new HttpHost(options.getHost(), options.getPort(), options.getScheme()));
