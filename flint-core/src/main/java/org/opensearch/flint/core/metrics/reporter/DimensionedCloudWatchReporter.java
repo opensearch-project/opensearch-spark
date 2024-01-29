@@ -371,9 +371,7 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
 
         Set<Dimension> dimensions = new HashSet<>();
         if (doesNameConsistsOfMetricNameSpace(parts)) {
-            // Trim custom metric source name
-            int skip = (parts[2].equals("Flint")) ? 3 : 2;
-            metricName = Stream.of(parts).skip(skip).collect(Collectors.joining("."));
+            metricName = constructMetricName(parts);
             addInstanceRoleDimension(dimensions, parts);
         }
         addDefaultDimensionsForSparkJobMetrics(dimensions);
@@ -381,7 +379,22 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
         return new MetricInfo(metricName, dimensions);
     }
 
+    /**
+     * Constructs a metric name by removing the default prefix added by Spark.
+     * This method also removes the metric source name if the metric is emitted from {@link org.apache.spark.metrics.source.FlintMetricSource}.
+     * Assumes that the metric name parts include the source name as the third element.
+     *
+     * @param metricNameParts an array of strings representing parts of the metric name
+     * @return a metric name constructed by omitting the default prefix added by Spark
+     */
+    private String constructMetricName(String[] metricNameParts) {
+        // Determines the number of initial parts to skip based on the source name
+        int partsToSkip = metricNameParts[2].equals("Flint") ? 3 : 2;
+        return Stream.of(metricNameParts).skip(partsToSkip).collect(Collectors.joining("."));
+    }
+
     // These dimensions are for all metrics
+    // TODO: Remove EMR-S specific env vars https://github.com/opensearch-project/opensearch-spark/issues/231
     private static void addDefaultDimensionsForSparkJobMetrics(Set<Dimension> dimensions) {
         final String jobId = System.getenv().getOrDefault("SERVERLESS_EMR_JOB_ID", UNKNOWN);
         final String applicationId = System.getenv().getOrDefault("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", UNKNOWN);

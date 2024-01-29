@@ -30,7 +30,7 @@ public class MetricsUtilTest {
                     .thenReturn(flintMetricSource);
 
             // Test the method
-            MetricsUtil.publishOpenSearchMetric("testPrefix", 200);
+            MetricsUtil.incrementCounter("testPrefix.2xx.count");
 
             // Verify interactions
             verify(sparkEnv.metricsSystem(), times(0)).registerSource(any());

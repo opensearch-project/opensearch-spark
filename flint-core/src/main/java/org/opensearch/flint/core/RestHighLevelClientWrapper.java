@@ -30,7 +30,6 @@ import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.flint.core.metrics.MetricsUtil;
 
-import java.io.Closeable;
 import java.io.IOException;
 
 import static org.opensearch.flint.core.metrics.MetricConstants.*;
@@ -110,6 +109,7 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
     public UpdateResponse update(UpdateRequest updateRequest, RequestOptions options) throws IOException {
         return execute(OS_WRITE_OP_METRIC_PREFIX, () -> client.update(updateRequest, options));
     }
+
     /**
      * Executes a given operation, tracks metrics, and handles exceptions.
      *
@@ -122,14 +122,46 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
     private <T> T execute(String metricNamePrefix, IOCallable<T> operation) throws IOException {
         try {
             T result = operation.call();
-            MetricsUtil.publishOpenSearchMetric(metricNamePrefix, 200);
+            recordOperationSuccess(metricNamePrefix);
             return result;
         } catch (Exception e) {
-            OpenSearchException openSearchException = extractOpenSearchException(e);
-            int statusCode = openSearchException != null ? openSearchException.status().getStatus() : 500;
-            MetricsUtil.publishOpenSearchMetric(metricNamePrefix, statusCode);
+            recordOperationFailure(metricNamePrefix, e);
             throw e;
         }
+    }
+
+    /**
+     * Records the success of an OpenSearch operation by incrementing the corresponding metric counter.
+     * This method constructs the metric name by appending ".200.count" to the provided metric name prefix.
+     * The metric name is then used to increment the counter, indicating a successful operation.
+     *
+     * @param metricNamePrefix the prefix for the metric name which is used to construct the full metric name for success
+     */
+    private void recordOperationSuccess(String metricNamePrefix) {
+        String successMetricName = metricNamePrefix + ".200.count";
+        MetricsUtil.incrementCounter(successMetricName);
+    }
+
+    /**
+     * Records the failure of an OpenSearch operation by incrementing the corresponding metric counter.
+     * If the exception is an OpenSearchException with a specific status code (e.g., 403),
+     * it increments a metric specifically for that status code.
+     * Otherwise, it increments a general failure metric counter based on the status code category (e.g., 4xx, 5xx).
+     *
+     * @param metricNamePrefix the prefix for the metric name which is used to construct the full metric name for failure
+     * @param e                the exception encountered during the operation, used to determine the type of failure
+     */
+    private void recordOperationFailure(String metricNamePrefix, Exception e) {
+        OpenSearchException openSearchException = extractOpenSearchException(e);
+        int statusCode = openSearchException != null ? openSearchException.status().getStatus() : 500;
+
+        if (statusCode == 403) {
+            String forbiddenErrorMetricName = metricNamePrefix + ".403.count";
+            MetricsUtil.incrementCounter(forbiddenErrorMetricName);
+        }
+
+        String failureMetricName = metricNamePrefix + "." + (statusCode / 100) + "xx.count";
+        MetricsUtil.incrementCounter(failureMetricName);
     }
 
     /**
