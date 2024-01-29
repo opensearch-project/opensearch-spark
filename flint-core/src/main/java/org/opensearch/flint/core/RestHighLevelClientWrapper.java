@@ -138,7 +138,7 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
      * @param metricNamePrefix the prefix for the metric name which is used to construct the full metric name for success
      */
     private void recordOperationSuccess(String metricNamePrefix) {
-        String successMetricName = metricNamePrefix + ".200.count";
+        String successMetricName = metricNamePrefix + ".2xx.count";
         MetricsUtil.incrementCounter(successMetricName);
     }
 

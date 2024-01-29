@@ -24,6 +24,13 @@ public final class MetricsUtil {
     private MetricsUtil() {
     }
 
+    /**
+     * Increments the Counter metric associated with the given metric name.
+     * If the counter does not exist, it is created before being incremented.
+     *
+     * @param metricName The name of the metric for which the counter is incremented.
+     *                   This name is used to retrieve or create the counter.
+     */
     public static void incrementCounter(String metricName) {
         Counter counter = getOrCreateCounter(metricName);
         if (counter != null) {
