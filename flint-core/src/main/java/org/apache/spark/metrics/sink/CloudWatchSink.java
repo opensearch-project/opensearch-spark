@@ -18,6 +18,10 @@ import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsyncClient;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +30,8 @@ import org.apache.spark.SecurityManager;
 import org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter;
 import org.opensearch.flint.core.metrics.reporter.DimensionedName;
 import org.opensearch.flint.core.metrics.reporter.InvalidMetricsPropertyException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 
 /**
  * Implementation of the Spark metrics {@link Sink} interface
@@ -198,6 +204,21 @@ public class CloudWatchSink implements Sink {
             metricFilter = MetricFilter.ALL;
         }
 
+        final Optional<String> dimensionGroupsProperty = getProperty(properties, PropertyKeys.DIMENSION_GROUPS);
+        DimensionNameGroups dimensionNameGroups = null;
+        if (dimensionGroupsProperty.isPresent()) {
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                dimensionNameGroups = objectMapper.readValue(dimensionGroupsProperty.get(), DimensionNameGroups.class);
+            } catch (IOException e) {
+                final String message = String.format(
+                        "Unable to parse value (%s) for the \"%s\" CloudWatchSink metrics property.",
+                        dimensionGroupsProperty.get(),
+                        PropertyKeys.DIMENSION_GROUPS);
+                throw new InvalidMetricsPropertyException(message, e);
+            }
+        }
+
         final AmazonCloudWatchAsync cloudWatchClient = AmazonCloudWatchAsyncClient.asyncBuilder()
                 .withCredentials(awsCredentialsProvider)
                 .withRegion(awsRegion)
@@ -221,6 +242,7 @@ public class CloudWatchSink implements Sink {
                 .withGlobalDimensions()
                 .withShouldParseDimensionsFromName(shouldParseInlineDimensions)
                 .withShouldAppendDropwizardTypeDimension(shouldAppendDropwizardTypeDimension)
+                .withDimensionGroups(dimensionNameGroups)
                 .build();
     }
 
@@ -262,6 +284,7 @@ public class CloudWatchSink implements Sink {
         static final String SHOULD_PARSE_INLINE_DIMENSIONS = "shouldParseInlineDimensions";
         static final String SHOULD_APPEND_DROPWIZARD_TYPE_DIMENSION = "shouldAppendDropwizardTypeDimension";
         static final String METRIC_FILTER_REGEX = "regex";
+        static final String DIMENSION_GROUPS = "dimensionGroups";
     }
 
     /**
@@ -271,5 +294,40 @@ public class CloudWatchSink implements Sink {
         static final long POLLING_PERIOD = 1;
         static final TimeUnit POLLING_PERIOD_TIME_UNIT = TimeUnit.MINUTES;
         static final boolean SHOULD_PARSE_INLINE_DIMENSIONS = false;
+    }
+
+    /**
+     * Represents a container for grouping dimension names used in metrics reporting.
+     * This class allows for the organization and storage of dimension names into logical groups,
+     * facilitating the dynamic construction and retrieval of dimension information for metrics.
+     */
+    public static class DimensionNameGroups {
+        // Holds the grouping of dimension names categorized under different keys.
+        private Map<String, List<List<String>>> dimensionGroups;
+
+        /**
+         * Sets the mapping of dimension groups. Each key in the map represents a category or a type
+         * of dimension, and the value is a list of dimension name groups, where each group is itself
+         * a list of dimension names that are logically grouped together.
+         *
+         * @param dimensionGroups A map of dimension groups categorized by keys, where each key maps
+         *                        to a list of dimension name groups.
+         */
+        public void setDimensionGroups(Map<String, List<List<String>>> dimensionGroups) {
+            this.dimensionGroups = dimensionGroups;
+        }
+
+        /**
+         * Retrieves the current mapping of dimension groups. The structure of the returned map is such
+         * that each key represents a specific category or type of dimension, and the corresponding value
+         * is a list of dimension name groups. Each group is a list of dimension names that are logically
+         * grouped together.
+         *
+         * @return A map representing the groups of dimension names categorized by keys. Each key maps
+         *         to a list of lists, where each inner list is a group of related dimension names.
+         */
+        public Map<String, List<List<String>>> getDimensionGroups() {
+            return dimensionGroups;
+        }
     }
 }

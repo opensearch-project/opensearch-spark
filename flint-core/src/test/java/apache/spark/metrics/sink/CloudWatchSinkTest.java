@@ -16,7 +16,10 @@ import org.mockito.Mockito;
 import java.util.Properties;
 import org.opensearch.flint.core.metrics.reporter.InvalidMetricsPropertyException;
 
-class CloudWatchSinkTests {
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+
+class CloudWatchSinkTest {
     private final MetricRegistry metricRegistry = Mockito.mock(MetricRegistry.class);
     private final SecurityManager securityManager = Mockito.mock(SecurityManager.class);
 
@@ -69,6 +72,39 @@ class CloudWatchSinkTests {
             final CloudWatchSink cloudWatchSink = new CloudWatchSink(properties, metricRegistry, securityManager);
         };
         Assertions.assertThrows(InvalidMetricsPropertyException.class, executable);
+    }
+
+    @Test
+    void should_throwException_when_DimensionGroupsPropertyIsInvalid() {
+        final Properties properties = getDefaultValidProperties();
+        String jsonString = "{\"dimensionGroups\":[{\"MetricSource1\":{}}, [\"Dimension1\",\"Dimension2\",\"Dimension3\"]]}]}";
+        properties.setProperty("dimensionGroups", jsonString);
+        final Executable executable = () -> {
+            final CloudWatchSink cloudWatchSink = new CloudWatchSink(properties, metricRegistry, securityManager);
+        };
+        Assertions.assertThrows(InvalidMetricsPropertyException.class, executable);
+    }
+
+    @Test
+    public void should_CreateCloudWatchSink_When_dimensionGroupsPropertyIsValid() {
+        final Properties properties = getDefaultValidProperties();
+        String jsonString = "{"
+                + "\"dimensionGroups\": {"
+                + "\"MetricSource1\": [[\"DimensionA1\", \"DimensionA2\"], [\"DimensionA1\"]],"
+                + "\"MetricSource2\": [[\"DimensionB1\"], [\"DimensionB2\", \"DimensionB3\", \"DimensionB4\"]],"
+                + "\"MetricSource3\": [[\"DimensionC1\", \"DimensionC2\", \"DimensionC3\"], [\"DimensionC4\"], [\"DimensionC5\", \"DimensionC6\"]]"
+                + "}"
+                + "}";
+        properties.setProperty("dimensionGroups", jsonString);
+
+        CloudWatchSink cloudWatchSink = null;
+        try {
+            cloudWatchSink = new CloudWatchSink(properties, metricRegistry, securityManager);
+        } catch (Exception e) {
+            fail("Should not have thrown any exception, but threw: " + e.getMessage());
+        }
+
+        assertNotNull("CloudWatchSink should be created", cloudWatchSink);
     }
 
     private Properties getDefaultValidProperties() {

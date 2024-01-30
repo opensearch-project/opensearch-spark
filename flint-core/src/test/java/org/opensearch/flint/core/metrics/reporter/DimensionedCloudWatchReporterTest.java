@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package opensearch.flint.core.metrics.reporter;
+package org.opensearch.flint.core.metrics.reporter;
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsyncClient;
 import com.amazonaws.services.cloudwatch.model.Dimension;
@@ -16,8 +16,15 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SlidingWindowReservoir;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+
+import org.apache.spark.metrics.sink.CloudWatchSink;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,8 +43,6 @@ import java.util.concurrent.TimeUnit;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter;
-import org.opensearch.flint.core.metrics.reporter.DimensionedName;
 
 import static com.amazonaws.services.cloudwatch.model.StandardUnit.Count;
 import static com.amazonaws.services.cloudwatch.model.StandardUnit.Microseconds;
@@ -49,16 +54,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_APPLICATION_ID;
 import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_COUNT;
 import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_GAUGE;
-import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_INSTANCE_ROLE;
-import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_JOB_ID;
 import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_NAME_TYPE;
 import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_SNAPSHOT_MEAN;
 import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_SNAPSHOT_STD_DEV;
 import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_SNAPSHOT_SUMMARY;
-import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.UNKNOWN;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -110,9 +111,8 @@ public class DimensionedCloudWatchReporterTest {
 
         final List<Dimension> dimensions = firstMetricDatumDimensionsFromCapturedRequest();
 
-        assertThat(dimensions).hasSize(3);
+        assertThat(dimensions).hasSize(1);
         assertThat(dimensions).contains(new Dimension().withName(DIMENSION_NAME_TYPE).withValue(DIMENSION_COUNT));
-        assertDefaultDimensionsWithUnknownValue(dimensions);
     }
 
 
@@ -124,7 +124,6 @@ public class DimensionedCloudWatchReporterTest {
         final List<Dimension> dimensions = firstMetricDatumDimensionsFromCapturedRequest();
 
         assertThat(dimensions).contains(new Dimension().withName(DIMENSION_NAME_TYPE).withValue(DIMENSION_COUNT));
-        assertDefaultDimensionsWithUnknownValue(dimensions);
     }
 
     @Test
@@ -135,7 +134,6 @@ public class DimensionedCloudWatchReporterTest {
         final List<Dimension> dimensions = firstMetricDatumDimensionsFromCapturedRequest();
 
         assertThat(dimensions).contains(new Dimension().withName(DIMENSION_NAME_TYPE).withValue(DIMENSION_GAUGE));
-        assertDefaultDimensionsWithUnknownValue(dimensions);
     }
 
     @Test
@@ -483,7 +481,6 @@ public class DimensionedCloudWatchReporterTest {
         assertThat(dimensions).contains(new Dimension().withName("Region").withValue("us-west-2"));
         assertThat(dimensions).contains(new Dimension().withName("key1").withValue("value1"));
         assertThat(dimensions).contains(new Dimension().withName("key2").withValue("value2"));
-        assertDefaultDimensionsWithUnknownValue(dimensions);
     }
 
     @Test
@@ -495,16 +492,14 @@ public class DimensionedCloudWatchReporterTest {
             .build().encode()).inc();
         reporterBuilder.withGlobalDimensions("Region=us-west-2").build().report();
         final DimensionedCloudWatchReporter.MetricInfo metricInfo = firstMetricDatumInfoFromCapturedRequest();
-        Set<Dimension> dimensions = metricInfo.getDimensions();
+        List<Set<Dimension>> dimensionSets = metricInfo.getDimensionSets();
+        Set<Dimension> dimensions = dimensionSets.get(0);
         assertThat(dimensions).contains(new Dimension().withName("Region").withValue("us-west-2"));
         assertThat(dimensions).contains(new Dimension().withName("key1").withValue("value1"));
         assertThat(dimensions).contains(new Dimension().withName("key2").withValue("value2"));
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_JOB_ID).withValue(UNKNOWN));
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_APPLICATION_ID).withValue(UNKNOWN));
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue("driver"));
         assertThat(metricInfo.getMetricName()).isEqualTo("LiveListenerBus.listenerProcessingTime.org.apache.spark.HeartbeatReceiver");
     }
-     @Test
+    @Test
     public void shouldParseDimensionedNamePrefixedWithMetricNameSpaceExecutorMetric() throws Exception {
         //setting jobId as unknown to invoke name parsing.
         metricRegistry.counter(DimensionedName.withName("unknown.1.NettyBlockTransfer.shuffle-client.usedDirectMemory")
@@ -514,23 +509,44 @@ public class DimensionedCloudWatchReporterTest {
         reporterBuilder.withGlobalDimensions("Region=us-west-2").build().report();
 
         final DimensionedCloudWatchReporter.MetricInfo metricInfo = firstMetricDatumInfoFromCapturedRequest();
-        Set<Dimension> dimensions = metricInfo.getDimensions();
+        Set<Dimension> dimensions = metricInfo.getDimensionSets().get(0);
         assertThat(dimensions).contains(new Dimension().withName("Region").withValue("us-west-2"));
         assertThat(dimensions).contains(new Dimension().withName("key1").withValue("value1"));
         assertThat(dimensions).contains(new Dimension().withName("key2").withValue("value2"));
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue( "executor"));
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_JOB_ID).withValue(UNKNOWN));
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_APPLICATION_ID).withValue(UNKNOWN));
         assertThat(metricInfo.getMetricName()).isEqualTo("NettyBlockTransfer.shuffle-client.usedDirectMemory");
     }
 
+    @Test
+    public void shouldConsumeMultipleMetricDatumWithDimensionGroups() throws Exception {
+        // Setup
+        String metricSourceName = "TestSource";
+        Map<String, List<List<String>>> dimensionGroups = new HashMap<>();
+        dimensionGroups.put(metricSourceName, Arrays.asList(
+                Arrays.asList("appName", "instanceRole"),
+                Arrays.asList("appName")
+        ));
 
+        metricRegistry.counter(DimensionedName.withName("unknown.1.TestSource.shuffle-client.usedDirectMemory")
+                .build().encode()).inc();
 
-    private void assertDefaultDimensionsWithUnknownValue(List<Dimension> dimensions) {
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_JOB_ID).withValue(UNKNOWN));
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_APPLICATION_ID).withValue(UNKNOWN));
+        CloudWatchSink.DimensionNameGroups dimensionNameGroups = new CloudWatchSink.DimensionNameGroups();
+        dimensionNameGroups.setDimensionGroups(dimensionGroups);
+        reporterBuilder.withDimensionGroups(dimensionNameGroups).build().report();
+
+        final PutMetricDataRequest putMetricDataRequest = metricDataRequestCaptor.getValue();
+        final List<MetricDatum> metricDatums = putMetricDataRequest.getMetricData();
+        assertThat(metricDatums).hasSize(2);
+
+        MetricDatum metricDatum1 = metricDatums.get(0);
+        Set<Dimension> dimensions1 = new HashSet(metricDatum1.getDimensions());
+        assertThat(dimensions1).contains(new Dimension().withName("appName").withValue("UNKNOWN"));
+        assertThat(dimensions1).contains(new Dimension().withName("instanceRole").withValue("executor"));
+
+        MetricDatum metricDatum2 = metricDatums.get(1);
+        Set<Dimension> dimensions2 = new HashSet(metricDatum2.getDimensions());
+        assertThat(dimensions2).contains(new Dimension().withName("appName").withValue("UNKNOWN"));
+        assertThat(dimensions2).doesNotContain(new Dimension().withName("instanceRole").withValue("executor"));
     }
-
 
     private MetricDatum metricDatumByDimensionFromCapturedRequest(final String dimensionValue) {
         final PutMetricDataRequest putMetricDataRequest = metricDataRequestCaptor.getValue();
@@ -564,7 +580,10 @@ public class DimensionedCloudWatchReporterTest {
     private DimensionedCloudWatchReporter.MetricInfo firstMetricDatumInfoFromCapturedRequest() {
         final PutMetricDataRequest putMetricDataRequest = metricDataRequestCaptor.getValue();
         final MetricDatum metricDatum = putMetricDataRequest.getMetricData().get(0);
-        return new DimensionedCloudWatchReporter.MetricInfo(metricDatum.getMetricName(), new HashSet<>(metricDatum.getDimensions()));
+        Set<Dimension> dimensions = new HashSet(metricDatum.getDimensions());
+        List<Set<Dimension>> dimensionSet = new ArrayList<>();
+        dimensionSet.add(dimensions);
+        return new DimensionedCloudWatchReporter.MetricInfo(metricDatum.getMetricName(), dimensionSet);
     }
 
     private List<Dimension> allDimensionsFromCapturedRequest() {
