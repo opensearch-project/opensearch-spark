@@ -48,7 +48,6 @@ import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -366,36 +365,52 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
         }
     }
 
-    private MetricInfo getMetricInfo(DimensionedName dimensionedName) {
-        final String jobId = System.getenv().getOrDefault("SERVERLESS_EMR_JOB_ID", UNKNOWN);
-        final String applicationId = System.getenv().getOrDefault("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", UNKNOWN);
-        final String domainId = System.getenv().getOrDefault("FLINT_CLUSTER_NAME", UNKNOWN);
-        final Dimension jobDimension = new Dimension().withName(DIMENSION_JOB_ID).withValue(jobId);
-        final Dimension applicationDimension = new Dimension().withName(DIMENSION_APPLICATION_ID).withValue(applicationId);
-        final Dimension domainIdDimension = new Dimension().withName(DIMENSION_DOMAIN_ID).withValue(domainId);
-        Dimension instanceRoleDimension = new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue(UNKNOWN);
+    public MetricInfo getMetricInfo(DimensionedName dimensionedName) {
         String metricName = dimensionedName.getName();
         String[] parts = metricName.split("\\.");
-        if (doesNameConsistsOfMetricNameSpace(parts)) {
-            metricName = Stream.of(parts).skip(2).collect(Collectors.joining("."));
-            //For executors only id is added to the metric name, that's why the numeric check.
-            //If it is not numeric then the instance is driver.
-            if (StringUtils.isNumeric(parts[1])) {
-                instanceRoleDimension = new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue("executor" + parts[1]);
-            }
-            else {
-                instanceRoleDimension = new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue(parts[1]);
-            }
-        }
+
         Set<Dimension> dimensions = new HashSet<>();
-        dimensions.add(jobDimension);
-        dimensions.add(applicationDimension);
-        dimensions.add(instanceRoleDimension);
-        dimensions.add(domainIdDimension);
+        if (doesNameConsistsOfMetricNameSpace(parts)) {
+            metricName = constructMetricName(parts);
+            addInstanceRoleDimension(dimensions, parts);
+        }
+        addDefaultDimensionsForSparkJobMetrics(dimensions);
         dimensions.addAll(dimensionedName.getDimensions());
         return new MetricInfo(metricName, dimensions);
     }
 
+    /**
+     * Constructs a metric name by removing the default prefix added by Spark.
+     * This method also removes the metric source name if the metric is emitted from {@link org.apache.spark.metrics.source.FlintMetricSource}.
+     * Assumes that the metric name parts include the source name as the third element.
+     *
+     * @param metricNameParts an array of strings representing parts of the metric name
+     * @return a metric name constructed by omitting the default prefix added by Spark
+     */
+    private String constructMetricName(String[] metricNameParts) {
+        // Determines the number of initial parts to skip based on the source name
+        int partsToSkip = metricNameParts[2].equals("Flint") ? 3 : 2;
+        return Stream.of(metricNameParts).skip(partsToSkip).collect(Collectors.joining("."));
+    }
+
+    // These dimensions are for all metrics
+    // TODO: Remove EMR-S specific env vars https://github.com/opensearch-project/opensearch-spark/issues/231
+    private static void addDefaultDimensionsForSparkJobMetrics(Set<Dimension> dimensions) {
+        final String jobId = System.getenv().getOrDefault("SERVERLESS_EMR_JOB_ID", UNKNOWN);
+        final String applicationId = System.getenv().getOrDefault("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", UNKNOWN);
+        dimensions.add(new Dimension().withName(DIMENSION_JOB_ID).withValue(jobId));
+        dimensions.add(new Dimension().withName(DIMENSION_APPLICATION_ID).withValue(applicationId));
+    }
+
+    private static void addInstanceRoleDimension(Set<Dimension> dimensions, String[] parts) {
+        Dimension instanceRoleDimension;
+        if (StringUtils.isNumeric(parts[1])) {
+            instanceRoleDimension = new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue("executor");
+        } else {
+            instanceRoleDimension = new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue(parts[1]);
+        }
+        dimensions.add(instanceRoleDimension);
+    }
     // This tries to replicate the logic here: https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala#L137
     // Since we don't have access to Spark Configuration here: we are relying on the presence of executorId as part of the metricName.
     private boolean doesNameConsistsOfMetricNameSpace(String[] metricNameParts) {
