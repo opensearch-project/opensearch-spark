@@ -47,6 +47,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .addPartitions("year", "month")
       .addValueSet("address")
       .addMinMax("age")
+      .addBloomFilter("name")
       .create()
 
     val index = flint.describeIndex(testIndex)
@@ -80,6 +81,16 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |        "parameters": {},
         |        "columnName": "age",
         |        "columnType": "int"
+        |     },
+        |     {
+        |        "kind": "BLOOM_FILTER",
+        |        "parameters": {
+        |          "algorithm": "CLASSIC",
+        |          "num_items": "10000",
+        |          "fpp": "0.01"
+        |        },
+        |        "columnName": "age",
+        |        "columnType": "binary"
         |     }],
         |     "source": "spark_catalog.default.test",
         |     "options": { "auto_refresh": "false" },
@@ -100,6 +111,9 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |     },
         |     "MinMax_age_1" : {
         |       "type": "integer"
+        |     },
+        |     "name" : {
+        |       "type": "binary"
         |     },
         |     "file_path": {
         |       "type": "keyword"
@@ -311,6 +325,36 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     query.queryExecution.executedPlan should
       useFlintSparkSkippingFileIndex(
         hasIndexFilter(col("MinMax_age_0") <= 30 && col("MinMax_age_1") >= 30))
+  }
+
+  test("can build bloom filter skipping index and rewrite applicable query") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addBloomFilter("age")
+      .create()
+    flint.refreshIndex(testIndex)
+
+    // Assert index data
+    /*
+    checkAnswer(
+      flint.queryIndex(testIndex).select("age"),
+      Seq(Row(20, 30), Row(40, 60)))
+     */
+
+    // Assert query rewrite
+    /*
+    val query = sql(s"""
+                       | SELECT name
+                       | FROM $testTable
+                       | WHERE age = 30
+                       |""".stripMargin)
+
+    checkAnswer(query, Row("World"))
+    query.queryExecution.executedPlan should
+      useFlintSparkSkippingFileIndex(
+        hasIndexFilter(col("MinMax_age_0") <= 30 && col("MinMax_age_1") >= 30))
+     */
   }
 
   test("should rewrite applicable query with table name without database specified") {
