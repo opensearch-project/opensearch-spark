@@ -89,8 +89,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |          "num_items": "10000",
         |          "fpp": "0.01"
         |        },
-        |        "columnName": "age",
-        |        "columnType": "binary"
+        |        "columnName": "name",
+        |        "columnType": "string"
         |     }],
         |     "source": "spark_catalog.default.test",
         |     "options": { "auto_refresh": "false" },
