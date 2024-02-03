@@ -298,6 +298,8 @@ WITH (
 
 Currently Flint index job ID is same as internal Flint index name in [OpenSearch](./index.md#OpenSearch) section below.
 
+- **Recover Job**: Initiates a restart of the index refresh job and transition the Flint index to the 'refreshing' state. Additionally, it includes functionality to clean up the metadata log entry in the event that the Flint data index is no longer present in OpenSearch.
+
 ```sql
 RECOVER INDEX JOB <id>
 ```
