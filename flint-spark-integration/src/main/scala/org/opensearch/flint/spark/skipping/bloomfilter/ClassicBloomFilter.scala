@@ -4,6 +4,7 @@
  */
 
 package org.opensearch.flint.spark.skipping.bloomfilter
+
 import java.io.{InputStream, OutputStream}
 
 import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilter.Algorithm.{Algorithm, CLASSIC}
