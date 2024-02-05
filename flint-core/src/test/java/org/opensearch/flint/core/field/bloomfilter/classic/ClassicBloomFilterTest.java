@@ -5,9 +5,15 @@
 
 package org.opensearch.flint.core.field.bloomfilter.classic;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import org.junit.Test;
+import org.opensearch.flint.core.field.bloomfilter.BloomFilter;
 
 public class ClassicBloomFilterTest {
 
@@ -46,5 +52,18 @@ public class ClassicBloomFilterTest {
     double actualFalsePositiveRate = (double) falsePositiveCount / numElements;
     assertTrue(actualFalsePositiveRate <= ACCEPTABLE_FALSE_POSITIVE_RATE,
         "Actual false positive rate is higher than expected");
+  }
+
+  @Test
+  public void shouldBeTheSameAfterWriteToAndReadFrom() throws IOException {
+    bloomFilter.put(123L);
+    bloomFilter.put(456L);
+    bloomFilter.put(789L);
+
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    bloomFilter.writeTo(out);
+    InputStream in = new ByteArrayInputStream(out.toByteArray());
+    BloomFilter newBloomFilter = ClassicBloomFilter.readFrom(in);
+    assertEquals(bloomFilter, newBloomFilter);
   }
 }

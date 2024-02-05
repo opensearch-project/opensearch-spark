@@ -16,16 +16,17 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{ImperativeAggregate,
 import org.apache.spark.sql.types.{BinaryType, DataType}
 
 /**
- * Aggregate function that build bloom filter and serialize to binary as result. Copy from Spark
- * built-in BloomFilterAggregate because it: 1) it accepts number of bits as argument instead of
- * FPP 2) it calls static method BloomFilter.create and thus cannot change to other implementation
- * 3) it is a Scala case class that cannot be extend and overridden
+ * An aggregate function that builds a bloom filter and serializes it to binary as the result.
+ * This implementation is a customized version inspired by Spark's built-in BloomFilterAggregate.
+ * Spark's implementation only accepts number of bits, uses BloomFilterImpl and cannot be extended
+ * due to Scala case class restriction.
  *
  * @param child
- *   child expression of
- * @param bloomFilter
- * @param mutableAggBufferOffset
- * @param inputAggBufferOffset
+ *   child expression that generate Long values for creating a bloom filter
+ * @param expectedNumItems
+ *   expected maximum unique number of items
+ * @param fpp
+ *   false positive probability
  */
 case class BloomFilterAgg(
     child: Expression,
@@ -45,13 +46,13 @@ case class BloomFilterAgg(
 
   override def children: Seq[Expression] = Seq(child)
 
-  override def createAggregationBuffer(): BloomFilter =
+  override def createAggregationBuffer(): BloomFilter = {
     new ClassicBloomFilter(expectedNumItems, fpp)
+  }
 
   override def update(buffer: BloomFilter, inputRow: InternalRow): BloomFilter = {
     val value = child.eval(inputRow)
-    // Ignore null values.
-    if (value == null) {
+    if (value == null) { // Ignore null values
       return buffer
     }
     buffer.put(value.asInstanceOf[Long])

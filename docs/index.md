@@ -14,6 +14,7 @@ A Flint index is ...
   - Partition: skip data scan by maintaining and filtering partitioned column value per file.
   - MinMax: skip data scan by maintaining lower and upper bound of the indexed column per file.
   - ValueSet: skip data scan by building a unique value set of the indexed column per file.
+  - BloomFilter: skip data scan by building a bloom filter of the indexed column per file.
 - Covering Index: create index for selected columns within the source dataset to improve query performance
 - Materialized View: enhance query performance by storing precomputed and aggregated data from the source dataset
 
@@ -54,6 +55,7 @@ For now, Flint Index doesn't define its own data type and uses OpenSearch field 
 | **FlintDataType** |
 |-------------------|
 | boolean           |
+| binary            |
 | long              |
 | integer           |
 | short             |
@@ -447,6 +449,7 @@ flint.skippingIndex()
     .addPartitions("year", "month", "day")
     .addValueSet("elb_status_code")
     .addMinMax("request_processing_time")
+    .addBloomFilter("client_ip")
     .create()
 
 flint.refreshIndex("flint_spark_catalog_default_alb_logs_skipping_index")

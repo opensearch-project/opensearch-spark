@@ -34,7 +34,7 @@ case class BloomFilterSkippingStrategy(
     Seq(
       new BloomFilterAgg(xxhash64(col(columnName)).expr, expectedNumItems, fpp)
         .toAggregateExpression()
-    ) // TODO: always xxhash64 ?
+    ) // TODO: use xxhash64() for now
   }
 
   override def rewritePredicate(predicate: Expression): Option[Expression] = None
