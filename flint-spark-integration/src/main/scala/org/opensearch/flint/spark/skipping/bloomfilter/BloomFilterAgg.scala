@@ -7,7 +7,8 @@ package org.opensearch.flint.spark.skipping.bloomfilter
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
-import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilter.BloomFilterFactory
+import org.opensearch.flint.core.field.bloomfilter.BloomFilter
+import org.opensearch.flint.core.field.bloomfilter.classic.ClassicBloomFilter
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -28,13 +29,14 @@ import org.apache.spark.sql.types.{BinaryType, DataType}
  */
 case class BloomFilterAgg(
     child: Expression,
-    bloomFilterFactory: BloomFilterFactory,
+    expectedNumItems: Int,
+    fpp: Double,
     override val mutableAggBufferOffset: Int,
     override val inputAggBufferOffset: Int)
     extends TypedImperativeAggregate[BloomFilter] {
 
-  def this(child: Expression, bloomFilterFactory: BloomFilterFactory) = {
-    this(child, bloomFilterFactory, 0, 0)
+  def this(child: Expression, expectedNumItems: Int, fpp: Double) = {
+    this(child, expectedNumItems, fpp, 0, 0)
   }
 
   override def nullable: Boolean = true
@@ -43,7 +45,8 @@ case class BloomFilterAgg(
 
   override def children: Seq[Expression] = Seq(child)
 
-  override def createAggregationBuffer(): BloomFilter = bloomFilterFactory.create()
+  override def createAggregationBuffer(): BloomFilter =
+    new ClassicBloomFilter(expectedNumItems, fpp)
 
   override def update(buffer: BloomFilter, inputRow: InternalRow): BloomFilter = {
     val value = child.eval(inputRow)
@@ -81,7 +84,7 @@ case class BloomFilterAgg(
 
   override def deserialize(bytes: Array[Byte]): BloomFilter = {
     val in = new ByteArrayInputStream(bytes)
-    val bloomFilter = bloomFilterFactory.deserialize(in)
+    val bloomFilter = ClassicBloomFilter.readFrom(in)
     in.close()
     bloomFilter
   }

@@ -5,13 +5,31 @@
 
 package org.opensearch.flint.core.field.bloomfilter;
 
+import java.io.IOException;
 import java.io.OutputStream;
 
 /**
  * Bloom filter interface inspired by [[org.apache.spark.util.sketch.BloomFilter]] but adapts to
- * Flint skipping index use and remove unnecessary API for now.
+ * Flint index use and remove unnecessary API.
  */
 public interface BloomFilter {
+
+  /**
+   * Bloom filter binary format version.
+   */
+  enum Version {
+    V1(1);
+
+    private final int versionNumber;
+
+    Version(int versionNumber) {
+      this.versionNumber = versionNumber;
+    }
+
+    public int getVersionNumber() {
+      return versionNumber;
+    }
+  }
 
   /**
    * @return the number of bits in the underlying bit array.
@@ -46,5 +64,5 @@ public interface BloomFilter {
    *
    * @param out output stream to write
    */
-  void writeTo(OutputStream out);
+  void writeTo(OutputStream out) throws IOException;
 }

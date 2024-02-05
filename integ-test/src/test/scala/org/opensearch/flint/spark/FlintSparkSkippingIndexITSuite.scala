@@ -85,7 +85,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |     {
         |        "kind": "BLOOM_FILTER",
         |        "parameters": {
-        |          "algorithm": "CLASSIC",
         |          "num_items": "10000",
         |          "fpp": "0.01"
         |        },

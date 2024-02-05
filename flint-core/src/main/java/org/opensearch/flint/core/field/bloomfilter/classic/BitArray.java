@@ -5,6 +5,10 @@
 
 package org.opensearch.flint.core.field.bloomfilter.classic;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 class BitArray {
   private final long[] data;
   private long bitCount;
@@ -47,6 +51,22 @@ class BitArray {
       bitCount += Long.bitCount(data[i]);
     }
     this.bitCount = bitCount;
+  }
+
+  void writeTo(DataOutputStream out) throws IOException {
+    out.writeInt(data.length);
+    for (long datum : data) {
+      out.writeLong(datum);
+    }
+  }
+
+  static BitArray readFrom(DataInputStream in) throws IOException {
+    int numWords = in.readInt();
+    long[] data = new long[numWords];
+    for (int i = 0; i < numWords; i++) {
+      data[i] = in.readLong();
+    }
+    return new BitArray(data);
   }
 
   private static int numWords(long numBits) {

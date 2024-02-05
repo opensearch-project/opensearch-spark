@@ -5,6 +5,10 @@
 
 package org.opensearch.flint.core.field.bloomfilter.classic;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import org.opensearch.flint.core.field.bloomfilter.BloomFilter;
 
@@ -21,6 +25,11 @@ public class ClassicBloomFilter implements BloomFilter {
     long numBits = optimalNumOfBits(expectedNumItems, fpp);
     this.bits = new BitArray(numBits);
     this.numHashFunctions = optimalNumOfHashFunctions(expectedNumItems, numBits);
+  }
+
+  ClassicBloomFilter(BitArray bits, int numHashFunctions) {
+    this.bits = bits;
+    this.numHashFunctions = numHashFunctions;
   }
 
   @Override
@@ -76,7 +85,25 @@ public class ClassicBloomFilter implements BloomFilter {
   }
 
   @Override
-  public void writeTo(OutputStream out) {
+  public void writeTo(OutputStream out) throws IOException {
+    DataOutputStream dos = new DataOutputStream(out);
+
+    dos.writeInt(Version.V1.getVersionNumber());
+    dos.writeInt(numHashFunctions);
+    bits.writeTo(dos);
+  }
+
+  public static BloomFilter readFrom(InputStream in) throws IOException {
+    DataInputStream dis = new DataInputStream(in);
+
+    int version = dis.readInt();
+    if (version != Version.V1.getVersionNumber()) {
+      throw new IOException("Unexpected Bloom filter version number (" + version + ")");
+    }
+
+    int numHashFunctions = dis.readInt();
+    BitArray bits = BitArray.readFrom(dis);
+    return new ClassicBloomFilter(bits, numHashFunctions);
   }
 
   private static int optimalNumOfHashFunctions(long n, long m) {
