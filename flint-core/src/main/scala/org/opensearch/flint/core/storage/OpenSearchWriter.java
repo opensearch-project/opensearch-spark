@@ -9,18 +9,12 @@ import org.opensearch.action.DocWriteRequest;
 import org.opensearch.action.bulk.BulkItemResponse;
 import org.opensearch.action.bulk.BulkRequest;
 import org.opensearch.action.bulk.BulkResponse;
-import org.opensearch.action.support.WriteRequest;
 import org.opensearch.client.RequestOptions;
-import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.rest.RestStatus;
 
-import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.StringWriter;
-import java.io.Writer;
 import java.util.Arrays;
 
 /**
@@ -35,9 +29,9 @@ public class OpenSearchWriter extends FlintWriter {
 
   private StringBuilder sb;
 
-  private RestHighLevelClient client;
+  private IRestHighLevelClient client;
 
-  public OpenSearchWriter(RestHighLevelClient client, String indexName, String refreshPolicy) {
+  public OpenSearchWriter(IRestHighLevelClient client, String indexName, String refreshPolicy) {
     this.client = client;
     this.indexName = indexName;
     this.sb = new StringBuilder();

@@ -51,7 +51,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_APPLICATION_ID;
 import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_COUNT;
-import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_DOMAIN_ID;
 import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_GAUGE;
 import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_INSTANCE_ROLE;
 import static org.opensearch.flint.core.metrics.reporter.DimensionedCloudWatchReporter.DIMENSION_JOB_ID;
@@ -111,7 +110,7 @@ public class DimensionedCloudWatchReporterTest {
 
         final List<Dimension> dimensions = firstMetricDatumDimensionsFromCapturedRequest();
 
-        assertThat(dimensions).hasSize(5);
+        assertThat(dimensions).hasSize(3);
         assertThat(dimensions).contains(new Dimension().withName(DIMENSION_NAME_TYPE).withValue(DIMENSION_COUNT));
         assertDefaultDimensionsWithUnknownValue(dimensions);
     }
@@ -501,7 +500,6 @@ public class DimensionedCloudWatchReporterTest {
         assertThat(dimensions).contains(new Dimension().withName("key1").withValue("value1"));
         assertThat(dimensions).contains(new Dimension().withName("key2").withValue("value2"));
         assertThat(dimensions).contains(new Dimension().withName(DIMENSION_JOB_ID).withValue(UNKNOWN));
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_DOMAIN_ID).withValue(UNKNOWN));
         assertThat(dimensions).contains(new Dimension().withName(DIMENSION_APPLICATION_ID).withValue(UNKNOWN));
         assertThat(dimensions).contains(new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue("driver"));
         assertThat(metricInfo.getMetricName()).isEqualTo("LiveListenerBus.listenerProcessingTime.org.apache.spark.HeartbeatReceiver");
@@ -520,10 +518,9 @@ public class DimensionedCloudWatchReporterTest {
         assertThat(dimensions).contains(new Dimension().withName("Region").withValue("us-west-2"));
         assertThat(dimensions).contains(new Dimension().withName("key1").withValue("value1"));
         assertThat(dimensions).contains(new Dimension().withName("key2").withValue("value2"));
+        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue( "executor"));
         assertThat(dimensions).contains(new Dimension().withName(DIMENSION_JOB_ID).withValue(UNKNOWN));
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_DOMAIN_ID).withValue(UNKNOWN));
         assertThat(dimensions).contains(new Dimension().withName(DIMENSION_APPLICATION_ID).withValue(UNKNOWN));
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue( "executor1"));
         assertThat(metricInfo.getMetricName()).isEqualTo("NettyBlockTransfer.shuffle-client.usedDirectMemory");
     }
 
@@ -531,8 +528,6 @@ public class DimensionedCloudWatchReporterTest {
 
     private void assertDefaultDimensionsWithUnknownValue(List<Dimension> dimensions) {
         assertThat(dimensions).contains(new Dimension().withName(DIMENSION_JOB_ID).withValue(UNKNOWN));
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue(UNKNOWN));
-        assertThat(dimensions).contains(new Dimension().withName(DIMENSION_DOMAIN_ID).withValue(UNKNOWN));
         assertThat(dimensions).contains(new Dimension().withName(DIMENSION_APPLICATION_ID).withValue(UNKNOWN));
     }
 
@@ -611,5 +606,4 @@ public class DimensionedCloudWatchReporterTest {
         modifiers.setInt(field, field.getModifiers() & ~Modifier.FINAL);
         field.set(null, value);
     }
-
 }
