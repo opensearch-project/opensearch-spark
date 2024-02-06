@@ -335,25 +335,9 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     flint.refreshIndex(testIndex)
 
     // Assert index data
-    /*
-    checkAnswer(
-      flint.queryIndex(testIndex).select("age"),
-      Seq(Row(20, 30), Row(40, 60)))
-     */
+    flint.queryIndex(testIndex).collect() should have size 2
 
-    // Assert query rewrite
-    /*
-    val query = sql(s"""
-                       | SELECT name
-                       | FROM $testTable
-                       | WHERE age = 30
-                       |""".stripMargin)
-
-    checkAnswer(query, Row("World"))
-    query.queryExecution.executedPlan should
-      useFlintSparkSkippingFileIndex(
-        hasIndexFilter(col("MinMax_age_0") <= 30 && col("MinMax_age_1") >= 30))
-     */
+    // TODO: Assert query rewrite result
   }
 
   test("should rewrite applicable query with table name without database specified") {

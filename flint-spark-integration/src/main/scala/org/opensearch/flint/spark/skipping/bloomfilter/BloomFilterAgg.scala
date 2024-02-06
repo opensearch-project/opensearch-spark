@@ -17,9 +17,12 @@ import org.apache.spark.sql.types.{BinaryType, DataType}
 
 /**
  * An aggregate function that builds a bloom filter and serializes it to binary as the result.
- * This implementation is a customized version inspired by Spark's built-in BloomFilterAggregate.
- * Spark's implementation only accepts number of bits, uses BloomFilterImpl and cannot be extended
- * due to Scala case class restriction.
+ * This implementation is a customized version inspired by Spark's built-in
+ * [[org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate]].
+ *
+ * The reason of not reusing Spark's implementation include it only accepts expected number of
+ * bits, it couples with its own BloomFilterImpl and most importantly it cannot be extended due to
+ * Scala case class restriction.
  *
  * @param child
  *   child expression that generate Long values for creating a bloom filter
@@ -73,8 +76,8 @@ case class BloomFilterAgg(
   }
 
   override def serialize(buffer: BloomFilter): Array[Byte] = {
-    // BloomFilterImpl.writeTo() writes 2 integers (version number and num hash functions), hence
-    // the +8
+    // Preallocate space. BloomFilter.writeTo() writes 2 integers (version number and
+    // num hash functions) first, hence +8
     val size = (buffer.bitSize() / 8) + 8
     require(size <= Integer.MAX_VALUE, s"actual number of bits is too large $size")
     val out = new ByteArrayOutputStream(size.intValue())

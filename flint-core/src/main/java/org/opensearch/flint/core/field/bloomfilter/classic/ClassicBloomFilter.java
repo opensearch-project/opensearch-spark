@@ -44,8 +44,14 @@ import org.opensearch.flint.core.field.bloomfilter.BloomFilter;
  */
 public class ClassicBloomFilter implements BloomFilter {
 
+  /**
+   * Bit array
+   */
   private final BitArray bits;
 
+  /**
+   * Number of hash function
+   */
   private final int numHashFunctions;
 
   public ClassicBloomFilter(int expectedNumItems, double fpp) {
@@ -120,6 +126,12 @@ public class ClassicBloomFilter implements BloomFilter {
     bits.writeTo(dos);
   }
 
+  /**
+   * Deserialize and read bloom filter from an input stream.
+   *
+   * @param in input stream
+   * @return bloom filter
+   */
   public static BloomFilter readFrom(InputStream in) throws IOException {
     DataInputStream dis = new DataInputStream(in);
 
