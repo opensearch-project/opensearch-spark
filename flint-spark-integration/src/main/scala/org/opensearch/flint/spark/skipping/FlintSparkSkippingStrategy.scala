@@ -9,7 +9,7 @@ import org.json4s.CustomSerializer
 import org.json4s.JsonAST.JString
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.SkippingKind
 
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, GetStructField}
 
 /**
  * Skipping index strategy that defines skipping data structure building and reading logic.
@@ -82,4 +82,39 @@ object FlintSparkSkippingStrategy {
           { case kind: SkippingKind =>
             JString(kind.toString)
           }))
+
+  /**
+   * Extractor that match the given expression with the index expression in skipping index.
+   *
+   * @param indexColName
+   *   indexed column name
+   */
+  case class IndexExpressionMatcher(indexColName: String) {
+
+    def unapply(expr: Expression): Option[String] = {
+      val colName = extractColumnName(expr).mkString(".")
+      if (colName == indexColName) {
+        Some(indexColName)
+      } else {
+        None
+      }
+    }
+
+    /*
+     * In Spark, after analysis, nested field "a.b.c" becomes:
+     *  GetStructField(name="a",
+     *     child=GetStructField(name="b",
+     *             child=AttributeReference(name="c")))
+     * TODO: To support any index expression, analyze index expression string
+     */
+    private def extractColumnName(expr: Expression): Seq[String] = {
+      expr match {
+        case attr: Attribute =>
+          Seq(attr.name)
+        case GetStructField(child, _, Some(name)) =>
+          extractColumnName(child) :+ name
+        case _ => Seq.empty
+      }
+    }
+  }
 }
