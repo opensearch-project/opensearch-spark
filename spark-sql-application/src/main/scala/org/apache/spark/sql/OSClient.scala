@@ -41,7 +41,7 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
     using(flintClient.createClient()) { client =>
       val request = new GetIndexRequest(osIndexName)
       try {
-        val response = client.indices.get(request, RequestOptions.DEFAULT)
+        val response = client.getIndex(request, RequestOptions.DEFAULT)
         response.getMappings.get(osIndexName).source.string
       } catch {
         case e: Exception =>
@@ -71,7 +71,7 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
       request.mapping(mapping, XContentType.JSON)
 
       try {
-        client.indices.create(request, RequestOptions.DEFAULT)
+        client.createIndex(request, RequestOptions.DEFAULT)
         logInfo(s"create $osIndexName successfully")
       } catch {
         case e: Exception =>
@@ -145,7 +145,7 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
     using(flintClient.createClient()) { client =>
       try {
         val request = new GetIndexRequest(indexName)
-        client.indices().exists(request, RequestOptions.DEFAULT)
+        client.isIndexExists(request, RequestOptions.DEFAULT)
       } catch {
         case e: Exception =>
           throw new IllegalStateException(s"Failed to check if index $indexName exists", e)
