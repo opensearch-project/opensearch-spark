@@ -6,9 +6,11 @@
 package org.opensearch.flint.spark.skipping.minmax
 
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.IndexColumnExtractor
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, SkippingKind}
 
-import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, EqualTo, Expression, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal}
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.catalyst.expressions.{And, EqualTo, Expression, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Max, Min}
 import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.functions.col
@@ -35,19 +37,20 @@ case class MinMaxSkippingStrategy(
       Max(col(columnName).expr).toAggregateExpression())
   }
 
-  override def rewritePredicate(predicate: Expression): Option[Expression] =
+  override def rewritePredicate(predicate: Expression): Option[Expression] = {
+    val IndexColumn = MinMaxIndexColumnExtractor(IndexColumnExtractor(columnName))
     predicate match {
-      case EqualTo(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        Some((col(minColName) <= value && col(maxColName) >= value).expr)
-      case LessThan(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        Some((col(minColName) < value).expr)
-      case LessThanOrEqual(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        Some((col(minColName) <= value).expr)
-      case GreaterThan(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        Some((col(maxColName) > value).expr)
-      case GreaterThanOrEqual(AttributeReference(`columnName`, _, _, _), value: Literal) =>
-        Some((col(maxColName) >= value).expr)
-      case In(column @ AttributeReference(`columnName`, _, _, _), AllLiterals(literals)) =>
+      case EqualTo(IndexColumn(minIndexCol, maxIndexCol), value: Literal) =>
+        Some((minIndexCol <= value && maxIndexCol >= value).expr)
+      case LessThan(IndexColumn(minIndexCol, _), value: Literal) =>
+        Some((minIndexCol < value).expr)
+      case LessThanOrEqual(IndexColumn(minIndexCol, _), value: Literal) =>
+        Some((minIndexCol <= value).expr)
+      case GreaterThan(IndexColumn(_, maxIndexCol), value: Literal) =>
+        Some((maxIndexCol > value).expr)
+      case GreaterThanOrEqual(IndexColumn(_, maxIndexCol), value: Literal) =>
+        Some((maxIndexCol >= value).expr)
+      case In(column @ IndexColumn(_), AllLiterals(literals)) =>
         /*
          * First, convert IN to approximate range check: min(in_list) <= col <= max(in_list)
          * to avoid long and maybe unnecessary comparison expressions.
@@ -62,9 +65,21 @@ case class MinMaxSkippingStrategy(
             rewritePredicate(LessThanOrEqual(column, Literal(maxVal))).get))
       case _ => None
     }
+  }
+
+  /** Extractor that returns MinMax index column if the given expression matched */
+  private case class MinMaxIndexColumnExtractor(IndexColumn: IndexColumnExtractor) {
+
+    def unapply(expr: Expression): Option[(Column, Column)] = {
+      expr match {
+        case IndexColumn(_) => Some((col(minColName), col(maxColName)))
+        case _ => None
+      }
+    }
+  }
 
   /** Need this because Scala pattern match doesn't work for generic type like Seq[Literal] */
-  object AllLiterals {
+  private object AllLiterals {
     def unapply(values: Seq[Expression]): Option[Seq[Literal]] = {
       if (values.forall(_.isInstanceOf[Literal])) {
         Some(values.asInstanceOf[Seq[Literal]])
