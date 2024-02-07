@@ -27,6 +27,11 @@ class IncrementalIndexRefresh(indexName: String, index: FlintSparkIndex)
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {
     logInfo(s"Start refreshing index $indexName in incremental mode")
 
+    // TODO: move this to validation method together in future
+    if (index.options.checkpointLocation().isEmpty) {
+      throw new IllegalStateException("Checkpoint location is required by incremental refresh")
+    }
+
     // Reuse auto refresh which uses AvailableNow trigger and will stop once complete
     val jobId =
       new AutoIndexRefresh(indexName, index)

@@ -179,7 +179,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("incremental refresh skipping index successfully") {
-    // Incremental refresh requires checkpoint
     withTempDir { checkpointDir =>
       flint
         .skippingIndex()
@@ -208,6 +207,19 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       // Expect to only refresh the new file
       flint.refreshIndex(testIndex) shouldBe empty
       flint.queryIndex(testIndex).collect().toSet should have size 1
+    }
+  }
+
+  test("should fail if incremental refresh without checkpoint location") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .options(FlintSparkIndexOptions(Map("incremental_refresh" -> "true")))
+      .create()
+
+    assertThrows[IllegalStateException] {
+      flint.refreshIndex(testIndex)
     }
   }
 
