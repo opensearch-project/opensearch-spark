@@ -78,17 +78,23 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
   }
 
   test("incremental refresh index") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .options(FlintSparkIndexOptions(Map("incremental_refresh" -> "true")))
-      .create()
-    flint.refreshIndex(testFlintIndex)
+    withTempDir { checkpointDir =>
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "incremental_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+        .create()
+      flint.refreshIndex(testFlintIndex)
 
-    val latest = latestLogEntry(testLatestId)
-    latest should contain("state" -> "active")
-    latest("jobStartTime").asInstanceOf[Number].longValue() should be > 0L
+      val latest = latestLogEntry(testLatestId)
+      latest should contain("state" -> "active")
+      latest("jobStartTime").asInstanceOf[Number].longValue() should be > 0L
+    }
   }
 
   test("auto refresh index") {
