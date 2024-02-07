@@ -732,7 +732,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       MatchResult(
         hasExpectedFilter,
         s"FlintSparkSkippingFileIndex does not have expected filter: ${fileIndex.indexFilter}",
-        "FlintSparkSkippingFileIndex has expected filter")
+        s"FlintSparkSkippingFileIndex has expected filter: ${fileIndex.indexFilter}")
     }
   }
 

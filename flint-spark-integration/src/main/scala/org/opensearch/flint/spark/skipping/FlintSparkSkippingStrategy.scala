@@ -9,7 +9,9 @@ import org.json4s.CustomSerializer
 import org.json4s.JsonAST.JString
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.SkippingKind
 
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, GetStructField}
+import org.apache.spark.sql.functions.col
 
 /**
  * Skipping index strategy that defines skipping data structure building and reading logic.
@@ -89,12 +91,12 @@ object FlintSparkSkippingStrategy {
    * @param indexColName
    *   indexed column name
    */
-  case class IndexExpressionMatcher(indexColName: String) {
+  case class IndexColumnExtractor(indexColName: String) {
 
-    def unapply(expr: Expression): Option[String] = {
+    def unapply(expr: Expression): Option[Column] = {
       val colName = extractColumnName(expr).mkString(".")
       if (colName == indexColName) {
-        Some(indexColName)
+        Some(col(indexColName))
       } else {
         None
       }

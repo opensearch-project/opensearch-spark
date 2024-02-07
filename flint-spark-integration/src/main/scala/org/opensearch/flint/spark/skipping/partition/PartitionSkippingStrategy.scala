@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark.skipping.partition
 
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.IndexExpressionMatcher
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.IndexColumnExtractor
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{PARTITION, SkippingKind}
 
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression, Literal}
@@ -31,11 +31,11 @@ case class PartitionSkippingStrategy(
   }
 
   override def rewritePredicate(predicate: Expression): Option[Expression] = {
-    val IndexExpression = IndexExpressionMatcher(columnName)
+    val IndexColumn = IndexColumnExtractor(columnName)
     predicate match {
       // Column has same name in index data, so just rewrite to the same equation
-      case EqualTo(IndexExpression(_), value: Literal) =>
-        Some((col(columnName) === value).expr)
+      case EqualTo(IndexColumn(indexCol), value: Literal) =>
+        Some((indexCol === value).expr)
       case _ => None
     }
   }

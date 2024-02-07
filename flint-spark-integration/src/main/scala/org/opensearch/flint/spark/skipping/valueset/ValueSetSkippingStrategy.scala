@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark.skipping.valueset
 
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.IndexExpressionMatcher
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.IndexColumnExtractor
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{SkippingKind, VALUE_SET}
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.{DEFAULT_VALUE_SET_MAX_SIZE, VALUE_SET_MAX_SIZE_KEY}
 
@@ -50,11 +50,11 @@ case class ValueSetSkippingStrategy(
      * This is supposed to be rewritten to ARRAY_CONTAINS(columName, value).
      * However, due to push down limitation in Spark, we keep the equation.
      */
-    val IndexExpression = IndexExpressionMatcher(columnName)
+    val IndexColumn = IndexColumnExtractor(columnName)
     predicate match {
-      case EqualTo(IndexExpression(_), value: Literal) =>
+      case EqualTo(IndexColumn(indexCol), value: Literal) =>
         // Value set maybe null due to maximum size limit restriction
-        Some((isnull(col(columnName)) || col(columnName) === value).expr)
+        Some((isnull(indexCol) || indexCol === value).expr)
       case _ => None
     }
   }
