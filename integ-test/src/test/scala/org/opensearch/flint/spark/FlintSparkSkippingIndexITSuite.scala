@@ -644,6 +644,61 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     deleteTestIndex(testIndex)
   }
 
+  test("build skipping index for nested field and rewrite applicable query") {
+    val testTable = "spark_catalog.default.nested_field_table"
+    val testIndex = getSkippingIndexName(testTable)
+    withTable(testTable) {
+      sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   int_col INT,
+           |   struct_col STRUCT<field1: STRUCT<subfield:STRING>, field2: INT>
+           | )
+           | USING JSON
+           |""".stripMargin)
+      sql(s"""
+           | INSERT INTO $testTable
+           | SELECT /*+ COALESCE(1) */ *
+           | FROM VALUES
+           | ( 30, STRUCT(STRUCT("value1"),123) ),
+           | ( 40, STRUCT(STRUCT("value2"),456) )
+           |""".stripMargin)
+      sql(s"""
+           | INSERT INTO $testTable
+           | VALUES ( 50, STRUCT(STRUCT("value3"),789) )
+           |""".stripMargin)
+
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addMinMax("struct_col.field2")
+        .addValueSet("struct_col.field1.subfield")
+        .create()
+      flint.refreshIndex(testIndex)
+
+      // FIXME: add assertion on index data once https://github.com/opensearch-project/opensearch-spark/issues/233 fixed
+      // Query rewrite nested field
+      val query1 =
+        sql(s"SELECT int_col FROM $testTable WHERE struct_col.field2 = 456".stripMargin)
+      checkAnswer(query1, Row(40))
+      query1.queryExecution.executedPlan should
+        useFlintSparkSkippingFileIndex(
+          hasIndexFilter(
+            col("MinMax_struct_col.field2_0") <= 456 && col("MinMax_struct_col.field2_1") >= 456))
+
+      // Query rewrite deep nested field
+      val query2 = sql(
+        s"SELECT int_col FROM $testTable WHERE struct_col.field1.subfield = 'value3'".stripMargin)
+      checkAnswer(query2, Row(50))
+      query2.queryExecution.executedPlan should
+        useFlintSparkSkippingFileIndex(
+          hasIndexFilter(isnull(col("struct_col.field1.subfield")) ||
+            col("struct_col.field1.subfield") === "value3"))
+
+      deleteTestIndex(testIndex)
+    }
+  }
+
   // Custom matcher to check if a SparkPlan uses FlintSparkSkippingFileIndex
   def useFlintSparkSkippingFileIndex(
       subMatcher: Matcher[FlintSparkSkippingFileIndex]): Matcher[SparkPlan] = {
@@ -676,8 +731,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
       MatchResult(
         hasExpectedFilter,
-        "FlintSparkSkippingFileIndex does not have expected filter",
-        "FlintSparkSkippingFileIndex has expected filter")
+        s"FlintSparkSkippingFileIndex does not have expected filter: ${fileIndex.indexFilter}",
+        s"FlintSparkSkippingFileIndex has expected filter: ${fileIndex.indexFilter}")
     }
   }
 
