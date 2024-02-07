@@ -383,7 +383,7 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
         String[] parts = metricName.split("\\.");
 
         List<Set<Dimension>> dimensionSets = new ArrayList<>();
-        if (doesNameConsistsOfMetricNameSpace(parts)) {
+        if (DimensionUtils.doesNameConsistsOfMetricNameSpace(parts)) {
             metricName = constructMetricName(parts);
             // Get dimension sets corresponding to a specific metric source
             constructDimensionSets(dimensionSets, parts);
@@ -415,17 +415,14 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
      */
     private void constructDimensionSets(List<Set<Dimension>> dimensionSets, String[] parts) {
         String metricSourceName = parts[2];
-        if (builder.dimensionNameGroups == null || !builder.dimensionNameGroups.getDimensionGroups().containsKey(metricSourceName)) {
+        if (builder.dimensionNameGroups == null || builder.dimensionNameGroups.getDimensionGroups() == null || !builder.dimensionNameGroups.getDimensionGroups().containsKey(metricSourceName)) {
             return;
         }
 
         for (List<String> dimensionNames: builder.dimensionNameGroups.getDimensionGroups().get(metricSourceName)) {
             Set<Dimension> dimensions = new LinkedHashSet<>();
             for (String dimensionName: dimensionNames) {
-                if (!constructedDimensions.containsKey(dimensionName)) {
-                    Dimension dimension = constructDimension(dimensionName, parts);
-                    constructedDimensions.put(dimensionName, dimension);
-                }
+                constructedDimensions.putIfAbsent(dimensionName, constructDimension(dimensionName, parts));
                 dimensions.add(constructedDimensions.get(dimensionName));
             }
             dimensionSets.add(dimensions);
@@ -444,14 +441,6 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
         // Determines the number of initial parts to skip based on the source name
         int partsToSkip = metricNameParts[2].equals("Flint") ? 3 : 2;
         return Stream.of(metricNameParts).skip(partsToSkip).collect(Collectors.joining("."));
-    }
-
-
-    // This tries to replicate the logic here: https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala#L137
-    // Since we don't have access to Spark Configuration here: we are relying on the presence of executorId as part of the metricName.
-    private boolean doesNameConsistsOfMetricNameSpace(String[] metricNameParts) {
-        return metricNameParts.length >= 3
-            && (metricNameParts[1].equals("driver") || StringUtils.isNumeric(metricNameParts[1]));
     }
 
     private void stageMetricDatumWithConvertedSnapshot(final boolean metricConfigured,
@@ -824,7 +813,7 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
             return this;
         }
 
-        public Builder withDimensionGroups(final DimensionNameGroups dimensionNameGroups) {
+        public Builder withDimensionNameGroups(final DimensionNameGroups dimensionNameGroups) {
             this.dimensionNameGroups = dimensionNameGroups;
             return this;
         }

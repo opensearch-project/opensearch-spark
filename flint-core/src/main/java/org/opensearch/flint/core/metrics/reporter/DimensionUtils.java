@@ -42,9 +42,19 @@ public class DimensionUtils {
      * @param parts Additional information that might be required by specific dimension builders.
      * @return A CloudWatch Dimension object.
      */
-    public static Dimension constructDimension(String dimensionName, String[] parts) {
+    public static Dimension constructDimension(String dimensionName, String[] metricNameParts) {
+        if (!doesNameConsistsOfMetricNameSpace(metricNameParts)) {
+            throw new IllegalArgumentException("The provided metric name parts do not consist of a valid metric namespace.");
+        }
         return dimensionBuilders.getOrDefault(dimensionName, ignored -> getDefaultDimension(dimensionName))
-                .apply(parts);
+                .apply(metricNameParts);
+    }
+
+    // This tries to replicate the logic here: https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala#L137
+    // Since we don't have access to Spark Configuration here: we are relying on the presence of executorId as part of the metricName.
+    public static boolean doesNameConsistsOfMetricNameSpace(String[] metricNameParts) {
+        return metricNameParts.length >= 3
+                && (metricNameParts[1].equals("driver") || StringUtils.isNumeric(metricNameParts[1]));
     }
 
     /**

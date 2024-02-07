@@ -531,7 +531,7 @@ public class DimensionedCloudWatchReporterTest {
 
         CloudWatchSink.DimensionNameGroups dimensionNameGroups = new CloudWatchSink.DimensionNameGroups();
         dimensionNameGroups.setDimensionGroups(dimensionGroups);
-        reporterBuilder.withDimensionGroups(dimensionNameGroups).build().report();
+        reporterBuilder.withDimensionNameGroups(dimensionNameGroups).build().report();
 
         final PutMetricDataRequest putMetricDataRequest = metricDataRequestCaptor.getValue();
         final List<MetricDatum> metricDatums = putMetricDataRequest.getMetricData();

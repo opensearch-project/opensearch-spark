@@ -82,7 +82,12 @@ class CloudWatchSinkTest {
         final Executable executable = () -> {
             final CloudWatchSink cloudWatchSink = new CloudWatchSink(properties, metricRegistry, securityManager);
         };
-        Assertions.assertThrows(InvalidMetricsPropertyException.class, executable);
+        InvalidMetricsPropertyException exception = Assertions.assertThrows(InvalidMetricsPropertyException.class, executable);
+        StringBuilder expectedMessageBuilder = new StringBuilder();
+        expectedMessageBuilder.append("Unable to parse value (")
+                .append(jsonString)
+                .append(") for the \"dimensionGroups\" CloudWatchSink metrics property.");
+        Assertions.assertEquals(expectedMessageBuilder.toString(), exception.getMessage());
     }
 
     @Test

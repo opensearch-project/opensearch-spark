@@ -20,6 +20,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,6 +45,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * @author kmccaw
  */
 public class CloudWatchSink implements Sink {
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private final ScheduledReporter reporter;
 
@@ -208,7 +210,6 @@ public class CloudWatchSink implements Sink {
         DimensionNameGroups dimensionNameGroups = null;
         if (dimensionGroupsProperty.isPresent()) {
             try {
-                ObjectMapper objectMapper = new ObjectMapper();
                 dimensionNameGroups = objectMapper.readValue(dimensionGroupsProperty.get(), DimensionNameGroups.class);
             } catch (IOException e) {
                 final String message = String.format(
@@ -224,7 +225,7 @@ public class CloudWatchSink implements Sink {
                 .withRegion(awsRegion)
                 .build();
 
-        this.reporter = DimensionedCloudWatchReporter.forRegistry(metricRegistry, cloudWatchClient, namespaceProperty.get())
+        DimensionedCloudWatchReporter.Builder builder = DimensionedCloudWatchReporter.forRegistry(metricRegistry, cloudWatchClient, namespaceProperty.get())
                 .convertRatesTo(TimeUnit.SECONDS)
                 .convertDurationsTo(TimeUnit.MILLISECONDS)
                 .filter(metricFilter)
@@ -241,9 +242,13 @@ public class CloudWatchSink implements Sink {
                 .withStatisticSet()
                 .withGlobalDimensions()
                 .withShouldParseDimensionsFromName(shouldParseInlineDimensions)
-                .withShouldAppendDropwizardTypeDimension(shouldAppendDropwizardTypeDimension)
-                .withDimensionGroups(dimensionNameGroups)
-                .build();
+                .withShouldAppendDropwizardTypeDimension(shouldAppendDropwizardTypeDimension);
+
+        if (dimensionNameGroups != null && dimensionNameGroups.getDimensionGroups() != null) {
+            builder = builder.withDimensionNameGroups(dimensionNameGroups);
+        }
+
+        this.reporter = builder.withDimensionNameGroups(dimensionNameGroups).build();
     }
 
     @Override
@@ -303,7 +308,7 @@ public class CloudWatchSink implements Sink {
      */
     public static class DimensionNameGroups {
         // Holds the grouping of dimension names categorized under different keys.
-        private Map<String, List<List<String>>> dimensionGroups;
+        private Map<String, List<List<String>>> dimensionGroups = new HashMap<>();
 
         /**
          * Sets the mapping of dimension groups. Each key in the map represents a category or a type
@@ -314,6 +319,12 @@ public class CloudWatchSink implements Sink {
          *                        to a list of dimension name groups.
          */
         public void setDimensionGroups(Map<String, List<List<String>>> dimensionGroups) {
+            if (dimensionGroups == null) {
+                final String message = String.format(
+                        "Undefined value for the \"%s\" CloudWatchSink metrics property.",
+                        PropertyKeys.DIMENSION_GROUPS);
+                throw new InvalidMetricsPropertyException(message);
+            }
             this.dimensionGroups = dimensionGroups;
         }
 
