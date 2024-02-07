@@ -159,6 +159,25 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
     } should have message s"Flint index $testFlintIndex already exists"
   }
 
+  test("should clean up metadata log entry if index data has been deleted") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .create()
+    flint.refreshIndex(testFlintIndex, INCREMENTAL)
+
+    // Simulate the situation that user delete index data directly and then refresh exits
+    spark.streams.active.find(_.name == testFlintIndex).get.stop()
+    deleteIndex(testFlintIndex)
+
+    // Index state is refreshing and expect recover API clean it up
+    latestLogEntry(testLatestId) should contain("state" -> "refreshing")
+    flint.recoverIndex(testFlintIndex)
+    latestLogEntry(testLatestId) shouldBe empty
+  }
+
   private def deleteLogically(latestId: String): Unit = {
     val response = openSearchClient
       .get(new GetRequest(testMetaLogIndex, latestId), RequestOptions.DEFAULT)

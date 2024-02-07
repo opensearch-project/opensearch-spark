@@ -270,6 +270,20 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       }
     } else {
       logInfo("Index to be recovered either doesn't exist or not auto refreshed")
+      if (index.isEmpty) {
+        /*
+         * If execution reaches this point, it indicates that the Flint index is corrupted.
+         * In such cases, clean up the metadata log, as the index data no longer exists.
+         * There is a very small possibility that users may recreate the index in the
+         * interim, but metadata log get deleted by this cleanup process.
+         */
+        logWarning("Cleaning up metadata log as index data has been deleted")
+        flintClient
+          .startTransaction(indexName, dataSourceName)
+          .initialLog(_ => true)
+          .finalLog(_ => NO_LOG_ENTRY)
+          .commit(_ => {})
+      }
       false
     }
   }
