@@ -9,6 +9,7 @@ import java.util.concurrent.ScheduledExecutorService
 
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog._
+import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.util.{ShutdownHookManager, ThreadUtils}
 
 /**
@@ -119,5 +120,18 @@ package object flint {
    */
   def loadTable(catalog: CatalogPlugin, ident: Identifier): Option[Table] = {
     CatalogV2Util.loadTable(catalog, ident)
+  }
+
+  /**
+   * Find field with the given name under root field recursively.
+   *
+   * @param rootField
+   *   root field struct
+   * @param fieldName
+   *   field name to search
+   * @return
+   */
+  def findField(rootField: StructType, fieldName: String): Option[StructField] = {
+    rootField.findNestedField(fieldName.split('.')).map(_._2)
   }
 }

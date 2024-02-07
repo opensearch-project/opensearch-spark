@@ -9,8 +9,8 @@ import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 
 import org.apache.spark.sql.catalog.Column
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
-import org.apache.spark.sql.flint.{loadTable, parseTableName, qualifyTableName}
-import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.flint.{findField, loadTable, parseTableName, qualifyTableName}
+import org.apache.spark.sql.types.{StructField, StructType}
 
 /**
  * Flint Spark index builder base class.
@@ -27,15 +27,14 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
   protected var indexOptions: FlintSparkIndexOptions = empty
 
   /** All columns of the given source table */
-  lazy protected val allColumns: Map[String, Column] = {
+  lazy protected val allColumns: StructType = {
     require(qualifiedTableName.nonEmpty, "Source table name is not provided")
 
     val (catalog, ident) = parseTableName(flint.spark, qualifiedTableName)
     val table = loadTable(catalog, ident).getOrElse(
       throw new IllegalStateException(s"Table $qualifiedTableName is not found"))
 
-    val allFields = table.schema().fields
-    allFields.map { field => field.name -> convertFieldToColumn(field) }.toMap
+    table.schema()
   }
 
   /**
@@ -83,14 +82,14 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
    * Find column with the given name.
    */
   protected def findColumn(colName: String): Column =
-    allColumns.getOrElse(
-      colName,
-      throw new IllegalArgumentException(s"Column $colName does not exist"))
+    findField(allColumns, colName)
+      .map(field => convertFieldToColumn(colName, field))
+      .getOrElse(throw new IllegalArgumentException(s"Column $colName does not exist"))
 
-  private def convertFieldToColumn(field: StructField): Column = {
+  private def convertFieldToColumn(colName: String, field: StructField): Column = {
     // Ref to CatalogImpl.listColumns(): Varchar/Char is StringType with real type name in metadata
     new Column(
-      name = field.name,
+      name = colName,
       description = field.getComment().orNull,
       dataType =
         CharVarcharUtils.getRawType(field.metadata).getOrElse(field.dataType).catalogString,
