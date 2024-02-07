@@ -17,7 +17,8 @@ import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.SKIPPING_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{BLOOM_FILTER, MIN_MAX, PARTITION, VALUE_SET}
+import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilterSkippingStrategy
 import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
 import org.opensearch.flint.spark.skipping.partition.PartitionSkippingStrategy
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
@@ -59,6 +60,11 @@ object FlintSparkIndexFactory {
                 params = parameters)
             case MIN_MAX =>
               MinMaxSkippingStrategy(columnName = columnName, columnType = columnType)
+            case BLOOM_FILTER =>
+              BloomFilterSkippingStrategy(
+                columnName = columnName,
+                columnType = columnType,
+                params = parameters)
             case other =>
               throw new IllegalStateException(s"Unknown skipping strategy: $other")
           }
