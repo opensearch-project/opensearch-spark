@@ -129,7 +129,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
 
-  test("create materialized view with manual refresh") {
+  test("create materialized view with full refresh") {
     sql(s"""
          | CREATE MATERIALIZED VIEW $testMvName
          | AS $testQuery
@@ -144,6 +144,35 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
     sql(s"REFRESH MATERIALIZED VIEW $testMvName")
     indexData.count() shouldBe 4
+  }
+
+  test("create materialized view with incremental refresh") {
+    withTempDir { checkpointDir =>
+      sql(s"""
+             | CREATE MATERIALIZED VIEW $testMvName
+             | AS $testQuery
+             | WITH (
+             |   incremental_refresh = true,
+             |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+             |   watermark_delay = '1 Second'
+             | )
+             | """.stripMargin)
+
+      // Refresh all present source data as of now
+      sql(s"REFRESH MATERIALIZED VIEW $testMvName")
+      flint.queryIndex(testFlintIndex).count() shouldBe 3
+
+      // New data won't be refreshed until refresh statement triggered
+      sql(s"""
+           | INSERT INTO $testTable VALUES
+           | (TIMESTAMP '2023-10-01 04:00:00', 'F', 25, 'Vancouver')
+           | """.stripMargin)
+      flint.queryIndex(testFlintIndex).count() shouldBe 3
+
+      // New data is refreshed incrementally
+      sql(s"REFRESH MATERIALIZED VIEW $testMvName")
+      flint.queryIndex(testFlintIndex).count() shouldBe 4
+    }
   }
 
   test("create materialized view if not exists") {

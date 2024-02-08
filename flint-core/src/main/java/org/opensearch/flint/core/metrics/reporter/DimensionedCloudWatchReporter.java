@@ -35,7 +35,6 @@ import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -48,8 +47,11 @@ import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import org.apache.commons.lang.StringUtils;
+import org.apache.spark.metrics.sink.CloudWatchSink.DimensionNameGroups;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.opensearch.flint.core.metrics.reporter.DimensionUtils.constructDimension;
 
 /**
  * Reports metrics to <a href="http://aws.amazon.com/cloudwatch/">Amazon's CloudWatch</a> periodically.
@@ -84,16 +86,6 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
     // Visible for testing
     public static final String DIMENSION_SNAPSHOT_STD_DEV = "snapshot-std-dev";
 
-    public static final String DIMENSION_JOB_ID = "jobId";
-
-    public static final String DIMENSION_APPLICATION_ID = "applicationId";
-
-    public static final String DIMENSION_DOMAIN_ID = "domainId";
-
-    public static final String DIMENSION_INSTANCE_ROLE = "instanceRole";
-
-    public static final String UNKNOWN = "unknown";
-
     /**
      * Amazon CloudWatch rejects values that are either too small or too large.
      * Values must be in the range of 8.515920e-109 to 1.174271e+108 (Base 10) or 2e-360 to 2e360 (Base 2).
@@ -102,6 +94,8 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
      */
     private static final double SMALLEST_SENDABLE_VALUE = 8.515920e-109;
     private static final double LARGEST_SENDABLE_VALUE = 1.174271e+108;
+
+    private static Map<String, Dimension> constructedDimensions;
 
     /**
      * Each CloudWatch API request may contain at maximum 20 datums
@@ -133,6 +127,7 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
         this.durationUnit = builder.cwDurationUnit;
         this.shouldParseDimensionsFromName = builder.withShouldParseDimensionsFromName;
         this.shouldAppendDropwizardTypeDimension = builder.withShouldAppendDropwizardTypeDimension;
+        this.constructedDimensions = new ConcurrentHashMap<>();
         this.filter = MetricFilter.ALL;
     }
 
@@ -349,34 +344,89 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
         // Only submit metrics that show some data, so let's save some money
         if (metricConfigured && (builder.withZeroValuesSubmission || metricValue > 0)) {
             final DimensionedName dimensionedName = DimensionedName.decode(metricName);
+            // Add global dimensions for all metrics
             final Set<Dimension> dimensions = new LinkedHashSet<>(builder.globalDimensions);
-            MetricInfo metricInfo = getMetricInfo(dimensionedName);
-            dimensions.addAll(metricInfo.getDimensions());
             if (shouldAppendDropwizardTypeDimension) {
                 dimensions.add(new Dimension().withName(DIMENSION_NAME_TYPE).withValue(dimensionValue));
             }
 
-            metricData.add(new MetricDatum()
-                    .withTimestamp(new Date(builder.clock.getTime()))
-                    .withValue(cleanMetricValue(metricValue))
-                    .withMetricName(metricInfo.getMetricName())
-                    .withDimensions(dimensions)
-                    .withUnit(standardUnit));
+            MetricInfo metricInfo = getMetricInfo(dimensionedName, dimensions);
+            for (Set<Dimension> dimensionSet : metricInfo.getDimensionSets()) {
+                MetricDatum datum = new MetricDatum()
+                        .withTimestamp(new Date(builder.clock.getTime()))
+                        .withValue(cleanMetricValue(metricValue))
+                        .withMetricName(metricInfo.getMetricName())
+                        .withDimensions(dimensionSet)
+                        .withUnit(standardUnit);
+                metricData.add(datum);
+            }
         }
     }
 
-    public MetricInfo getMetricInfo(DimensionedName dimensionedName) {
+    /**
+     * Constructs a {@link MetricInfo} object based on the provided {@link DimensionedName} and a set of additional dimensions.
+     * This method processes the metric name contained within {@code dimensionedName} to potentially modify it based on naming conventions
+     * and extracts or generates additional dimension sets for detailed metrics reporting.
+     * <p>
+     * If no specific naming convention is detected, the original set of dimensions is used as is. The method finally encapsulates the metric name
+     * and the collection of dimension sets in a {@link MetricInfo} object and returns it.
+     *
+     * @param dimensionedName An instance of {@link DimensionedName} containing the original metric name and any directly associated dimensions.
+     * @param dimensions A set of {@link Dimension} objects provided externally that should be associated with the metric.
+     * @return A {@link MetricInfo} object containing the processed metric name and a list of dimension sets for metrics reporting.
+     */
+    private MetricInfo getMetricInfo(DimensionedName dimensionedName, Set<Dimension> dimensions) {
+        // Add dimensions from dimensionedName
+        dimensions.addAll(dimensionedName.getDimensions());
+
         String metricName = dimensionedName.getName();
         String[] parts = metricName.split("\\.");
 
-        Set<Dimension> dimensions = new HashSet<>();
-        if (doesNameConsistsOfMetricNameSpace(parts)) {
+        List<Set<Dimension>> dimensionSets = new ArrayList<>();
+        if (DimensionUtils.doesNameConsistsOfMetricNameSpace(parts)) {
             metricName = constructMetricName(parts);
-            addInstanceRoleDimension(dimensions, parts);
+            // Get dimension sets corresponding to a specific metric source
+            constructDimensionSets(dimensionSets, parts);
+            // Add dimensions constructed above into each of the dimensionSets
+            for (Set<Dimension> dimensionSet : dimensionSets) {
+                // Create a copy of each set and add the additional dimensions
+                dimensionSet.addAll(dimensions);
+            }
         }
-        addDefaultDimensionsForSparkJobMetrics(dimensions);
-        dimensions.addAll(dimensionedName.getDimensions());
-        return new MetricInfo(metricName, dimensions);
+
+        if (dimensionSets.isEmpty()) {
+            dimensionSets.add(dimensions);
+        }
+        return new MetricInfo(metricName, dimensionSets);
+    }
+
+    /**
+     * Populates a list of dimension sets based on the metric source name extracted from the metric's parts
+     * and predefined dimension groupings. This method aims to create detailed and structured dimension
+     * sets for metrics, enhancing the granularity and relevance of metric reporting.
+     *
+     * If no predefined dimension groups exist for the metric source, or if the dimension name groups are
+     * not initialized, the method exits without modifying the dimension sets list.
+     *
+     * @param dimensionSets A list to be populated with sets of {@link Dimension} objects, each representing
+     *                      a group of dimensions relevant to the metric's source.
+     * @param parts An array of strings derived from splitting the metric's name, used to extract information
+     *              like the metric source name and to construct dimensions based on naming conventions.
+     */
+    private void constructDimensionSets(List<Set<Dimension>> dimensionSets, String[] parts) {
+        String metricSourceName = parts[2];
+        if (builder.dimensionNameGroups == null || builder.dimensionNameGroups.getDimensionGroups() == null || !builder.dimensionNameGroups.getDimensionGroups().containsKey(metricSourceName)) {
+            return;
+        }
+
+        for (List<String> dimensionNames: builder.dimensionNameGroups.getDimensionGroups().get(metricSourceName)) {
+            Set<Dimension> dimensions = new LinkedHashSet<>();
+            for (String dimensionName: dimensionNames) {
+                constructedDimensions.putIfAbsent(dimensionName, constructDimension(dimensionName, parts));
+                dimensions.add(constructedDimensions.get(dimensionName));
+            }
+            dimensionSets.add(dimensions);
+        }
     }
 
     /**
@@ -391,31 +441,6 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
         // Determines the number of initial parts to skip based on the source name
         int partsToSkip = metricNameParts[2].equals("Flint") ? 3 : 2;
         return Stream.of(metricNameParts).skip(partsToSkip).collect(Collectors.joining("."));
-    }
-
-    // These dimensions are for all metrics
-    // TODO: Remove EMR-S specific env vars https://github.com/opensearch-project/opensearch-spark/issues/231
-    private static void addDefaultDimensionsForSparkJobMetrics(Set<Dimension> dimensions) {
-        final String jobId = System.getenv().getOrDefault("SERVERLESS_EMR_JOB_ID", UNKNOWN);
-        final String applicationId = System.getenv().getOrDefault("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", UNKNOWN);
-        dimensions.add(new Dimension().withName(DIMENSION_JOB_ID).withValue(jobId));
-        dimensions.add(new Dimension().withName(DIMENSION_APPLICATION_ID).withValue(applicationId));
-    }
-
-    private static void addInstanceRoleDimension(Set<Dimension> dimensions, String[] parts) {
-        Dimension instanceRoleDimension;
-        if (StringUtils.isNumeric(parts[1])) {
-            instanceRoleDimension = new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue("executor");
-        } else {
-            instanceRoleDimension = new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue(parts[1]);
-        }
-        dimensions.add(instanceRoleDimension);
-    }
-    // This tries to replicate the logic here: https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala#L137
-    // Since we don't have access to Spark Configuration here: we are relying on the presence of executorId as part of the metricName.
-    private boolean doesNameConsistsOfMetricNameSpace(String[] metricNameParts) {
-        return metricNameParts.length >= 3
-            && (metricNameParts[1].equals("driver") || StringUtils.isNumeric(metricNameParts[1]));
     }
 
     private void stageMetricDatumWithConvertedSnapshot(final boolean metricConfigured,
@@ -545,19 +570,19 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
 
     public static class MetricInfo {
         private String metricName;
-        private Set<Dimension> dimensions;
+        private List<Set<Dimension>> dimensionSets;
 
-        public MetricInfo(String metricName, Set<Dimension> dimensions) {
+        public MetricInfo(String metricName, List<Set<Dimension>> dimensionSets) {
             this.metricName = metricName;
-            this.dimensions = dimensions;
+            this.dimensionSets = dimensionSets;
         }
 
         public String getMetricName() {
             return metricName;
         }
 
-        public Set<Dimension> getDimensions() {
-            return dimensions;
+        public List<Set<Dimension>> getDimensionSets() {
+            return dimensionSets;
         }
     }
 
@@ -587,6 +612,7 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
         private StandardUnit cwRateUnit;
         private StandardUnit cwDurationUnit;
         private Set<Dimension> globalDimensions;
+        private DimensionNameGroups dimensionNameGroups;
         private final Clock clock;
 
         private Builder(
@@ -784,6 +810,11 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
          */
         public Builder withShouldAppendDropwizardTypeDimension(final boolean value) {
             withShouldAppendDropwizardTypeDimension = value;
+            return this;
+        }
+
+        public Builder withDimensionNameGroups(final DimensionNameGroups dimensionNameGroups) {
+            this.dimensionNameGroups = dimensionNameGroups;
             return this;
         }
 

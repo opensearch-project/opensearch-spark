@@ -59,7 +59,10 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
          |        "columnType": "int"
          |     }],
          |     "source": "spark_catalog.default.ci_test",
-         |     "options": { "auto_refresh": "false" },
+         |     "options": {
+         |       "auto_refresh": "false",
+         |       "incremental_refresh": "false"
+         |     },
          |     "properties": {
          |       "filterCondition": "age > 30"
          |     }

@@ -5,12 +5,12 @@
 
 package org.opensearch.flint.spark.mv
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
 
 import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedViewSuite.{streamingRelation, StreamingDslLogicalPlan}
-import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
+import org.scalatest.matchers.should.Matchers.{contain, convertToAnyShouldWrapper, the}
 import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.FlintSuite
@@ -77,9 +77,8 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
       Map("test_col" -> "integer"),
       indexOptions)
 
-    mv.metadata().options shouldBe Map(
-      "auto_refresh" -> "true",
-      "index_settings" -> indexSettings).asJava
+    mv.metadata().options.asScala should contain allOf ("auto_refresh" -> "true",
+    "index_settings" -> indexSettings)
     mv.metadata().indexSettings shouldBe Some(indexSettings)
   }
 

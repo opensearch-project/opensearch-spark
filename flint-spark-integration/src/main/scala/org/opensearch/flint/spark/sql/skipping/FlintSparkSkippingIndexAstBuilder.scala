@@ -9,7 +9,6 @@ import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
-import org.opensearch.flint.spark.FlintSpark.RefreshMode
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}

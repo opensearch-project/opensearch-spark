@@ -73,6 +73,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |    }],
          |    "options": {
          |      "auto_refresh": "true",
+         |      "incremental_refresh": "false",
          |      "checkpoint_location": "s3://test/",
          |      "watermark_delay": "30 Seconds"
          |    },
