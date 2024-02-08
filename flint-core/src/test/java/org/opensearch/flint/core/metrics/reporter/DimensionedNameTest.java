@@ -1,4 +1,4 @@
-package opensearch.flint.core.metrics.reporter;
+package org.opensearch.flint.core.metrics.reporter;
 
 import static org.hamcrest.CoreMatchers.hasItems;
 
