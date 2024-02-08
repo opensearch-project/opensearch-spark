@@ -50,6 +50,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .addPartitions("year", "month")
       .addValueSet("address")
       .addMinMax("age")
+      .addBloomFilter("name")
       .create()
 
     val index = flint.describeIndex(testIndex)
@@ -83,6 +84,15 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |        "parameters": {},
         |        "columnName": "age",
         |        "columnType": "int"
+        |     },
+        |     {
+        |        "kind": "BLOOM_FILTER",
+        |        "parameters": {
+        |          "num_items": "10000",
+        |          "fpp": "0.03"
+        |        },
+        |        "columnName": "name",
+        |        "columnType": "string"
         |     }],
         |     "source": "spark_catalog.default.test",
         |     "options": {
@@ -106,6 +116,9 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |     },
         |     "MinMax_age_1" : {
         |       "type": "integer"
+        |     },
+        |     "name" : {
+        |       "type": "binary"
         |     },
         |     "file_path": {
         |       "type": "keyword"
@@ -364,6 +377,20 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     query.queryExecution.executedPlan should
       useFlintSparkSkippingFileIndex(
         hasIndexFilter(col("MinMax_age_0") <= 30 && col("MinMax_age_1") >= 30))
+  }
+
+  test("can build bloom filter skipping index and rewrite applicable query") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addBloomFilter("age")
+      .create()
+    flint.refreshIndex(testIndex)
+
+    // Assert index data
+    flint.queryIndex(testIndex).collect() should have size 2
+
+    // TODO: Assert query rewrite result
   }
 
   test("should rewrite applicable query with table name without database specified") {
