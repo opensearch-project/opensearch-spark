@@ -7,10 +7,13 @@ package org.opensearch.flint.spark
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.native.JsonMethods._
+import org.opensearch.client.RequestOptions
 import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
+import org.opensearch.index.query.QueryBuilders
+import org.opensearch.index.reindex.DeleteByQueryRequest
 import org.scalatest.matchers.{Matcher, MatchResult}
 import org.scalatest.matchers.must.Matchers._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -27,9 +30,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   private val testTable = "spark_catalog.default.test"
   private val testIndex = getSkippingIndexName(testTable)
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-
+  override def beforeEach(): Unit = {
+    super.beforeEach()
     createPartitionedMultiRowTable(testTable)
   }
 
@@ -38,6 +40,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     // Delete all test indices
     deleteTestIndex(testIndex)
+    sql(s"DROP TABLE $testTable")
   }
 
   test("create skipping index with metadata successfully") {
@@ -92,7 +95,10 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |        "columnType": "string"
         |     }],
         |     "source": "spark_catalog.default.test",
-        |     "options": { "auto_refresh": "false" },
+        |     "options": {
+        |       "auto_refresh": "false",
+        |       "incremental_refresh": "false"
+        |     },
         |     "properties": {}
         |   },
         |   "properties": {
@@ -121,7 +127,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         | }
         |""".stripMargin)
 
-    index.get.options shouldBe FlintSparkIndexOptions(Map("auto_refresh" -> "false"))
+    index.get.options shouldBe FlintSparkIndexOptions(
+      Map("auto_refresh" -> "false", "incremental_refresh" -> "false"))
   }
 
   test("create skipping index with index options successfully") {
@@ -142,6 +149,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     optionJson should matchJson("""
         | {
         |   "auto_refresh": "true",
+        |   "incremental_refresh": "false",
         |   "refresh_interval": "1 Minute",
         |   "checkpoint_location": "s3a://test/",
         |   "index_settings": "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
@@ -184,6 +192,51 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("incremental refresh skipping index successfully") {
+    withTempDir { checkpointDir =>
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "incremental_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+        .create()
+
+      flint.refreshIndex(testIndex) shouldBe empty
+      flint.queryIndex(testIndex).collect().toSet should have size 2
+
+      // Delete all index data intentionally and generate a new source file
+      openSearchClient.deleteByQuery(
+        new DeleteByQueryRequest(testIndex).setQuery(QueryBuilders.matchAllQuery()),
+        RequestOptions.DEFAULT)
+      sql(s"""
+             | INSERT INTO $testTable
+             | PARTITION (year=2023, month=4)
+             | VALUES ('Hello', 35, 'Vancouver')
+             | """.stripMargin)
+
+      // Expect to only refresh the new file
+      flint.refreshIndex(testIndex) shouldBe empty
+      flint.queryIndex(testIndex).collect().toSet should have size 1
+    }
+  }
+
+  test("should fail if incremental refresh without checkpoint location") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .options(FlintSparkIndexOptions(Map("incremental_refresh" -> "true")))
+      .create()
+
+    assertThrows[IllegalStateException] {
+      flint.refreshIndex(testIndex)
+    }
+  }
+
+  test("auto refresh skipping index successfully") {
     // Create Flint index and wait for complete
     flint
       .skippingIndex()
@@ -565,7 +618,10 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
          |        "columnType": "struct<subfield1:string,subfield2:int>"
          |     }],
          |     "source": "$testTable",
-         |     "options": { "auto_refresh": "false" },
+         |     "options": {
+         |       "auto_refresh": "false",
+         |       "incremental_refresh": "false"
+         |     },
          |     "properties": {}
          |   },
          |   "properties": {
