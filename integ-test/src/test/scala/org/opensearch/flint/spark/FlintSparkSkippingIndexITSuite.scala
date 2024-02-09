@@ -20,10 +20,12 @@ import org.scalatest.matchers.must.Matchers._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.sql.{Column, Row}
+import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.flint.config.FlintSparkConf._
 import org.apache.spark.sql.functions.{col, isnull, lit, xxhash64}
+import org.apache.spark.sql.internal.SQLConf
 
 class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
@@ -400,11 +402,13 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
           hasIndexFilter(bloom_filter_might_contain("age", xxhash64(lit(50)))))
     }
 
-    // Test by default whole stage codegen
+    // Test expression with codegen enabled by default
     assertQueryRewrite()
 
-    // Test by evaluation
-    withSQLConf("spark.sql.codegen.wholeStage" -> "false") {
+    // Test expression evaluation with codegen disabled
+    withSQLConf(
+      SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key -> "false",
+      SQLConf.CODEGEN_FACTORY_MODE.key -> CodegenObjectFactoryMode.NO_CODEGEN.toString) {
       assertQueryRewrite()
     }
   }

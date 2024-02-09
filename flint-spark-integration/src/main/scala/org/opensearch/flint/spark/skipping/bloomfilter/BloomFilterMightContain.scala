@@ -54,12 +54,27 @@ case class BloomFilterMightContain(bloomFilterExpression: Expression, valueExpre
     if (value == null) {
       null
     } else {
-      val bytes = bloomFilterExpression.eval().asInstanceOf[Array[Byte]]
+      val bytes = bloomFilterExpression.eval(input).asInstanceOf[Array[Byte]]
       val bloomFilter = ClassicBloomFilter.readFrom(new ByteArrayInputStream(bytes))
       bloomFilter.mightContain(value.asInstanceOf[Long])
     }
   }
 
+  /**
+   * Generate expression code for Spark codegen execution. Sample result code (assume right value
+   * expression is not null):
+   * ```
+   *   boolean filter_isNull_0 = true;
+   *   boolean filter_value_0 = false;
+   *   if (!(false)) {
+   *     filter_isNull_0 = false;
+   *     filter_value_0 =
+   *       org.opensearch.flint.core.field.bloomfilter.classic.ClassicBloomFilter.readFrom(
+   *         new java.io.ByteArrayInputStream(inputadapter_value_1)
+   *       ).mightContain(5193736701160936137L);
+   *   }
+   * ```
+   */
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     val leftGen = left.genCode(ctx)
     val rightGen = right.genCode(ctx)
