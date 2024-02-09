@@ -10,6 +10,7 @@ import java.util.ArrayList
 import java.util.Locale
 
 import org.opensearch.action.get.{GetRequest, GetResponse}
+import org.opensearch.action.search.{SearchRequest, SearchResponse}
 import org.opensearch.client.{RequestOptions, RestHighLevelClient}
 import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest, GetIndexResponse}
 import org.opensearch.client.indices.CreateIndexRequest
@@ -18,7 +19,7 @@ import org.opensearch.common.settings.Settings
 import org.opensearch.common.xcontent.{NamedXContentRegistry, XContentParser, XContentType}
 import org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
-import org.opensearch.flint.core.storage.{FlintReader, OpenSearchScrollReader, OpenSearchUpdater}
+import org.opensearch.flint.core.storage.{FlintReader, OpenSearchQueryReader, OpenSearchScrollReader, OpenSearchUpdater}
 import org.opensearch.index.query.{AbstractQueryBuilder, MatchAllQueryBuilder, QueryBuilder}
 import org.opensearch.plugins.SearchPlugin
 import org.opensearch.search.SearchModule
@@ -117,14 +118,14 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
             String.format(
               Locale.ROOT,
               "Failed to retrieve doc %s from index %s",
-              osIndexName,
-              id),
+              id,
+              osIndexName),
             e)
       }
     }
   }
 
-  def createReader(indexName: String, query: String, sort: String): FlintReader = try {
+  def createScrollReader(indexName: String, query: String, sort: String): FlintReader = try {
     var queryBuilder: QueryBuilder = new MatchAllQueryBuilder
     if (!Strings.isNullOrEmpty(query)) {
       val parser =
@@ -151,5 +152,25 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
           throw new IllegalStateException(s"Failed to check if index $indexName exists", e)
       }
     }
+  }
+
+  def createQueryReader(
+      indexName: String,
+      query: String,
+      sort: String,
+      sortOrder: SortOrder): FlintReader = try {
+    var queryBuilder: QueryBuilder = new MatchAllQueryBuilder
+    if (!Strings.isNullOrEmpty(query)) {
+      val parser =
+        XContentType.JSON.xContent.createParser(xContentRegistry, IGNORE_DEPRECATIONS, query)
+      queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser)
+    }
+    new OpenSearchQueryReader(
+      flintClient.createClient(),
+      indexName,
+      new SearchSourceBuilder().query(queryBuilder).sort(sort, sortOrder))
+  } catch {
+    case e: IOException =>
+      throw new RuntimeException(e)
   }
 }

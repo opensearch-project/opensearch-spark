@@ -197,7 +197,9 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
         Map(
           "auto_refresh" -> "true",
           "checkpoint_location" -> checkpointDir.getAbsolutePath,
-          "watermark_delay" -> "1 Minute")) // This must be small to ensure window closed soon
+          "watermark_delay" -> "1 Minute"
+        )
+      ) // This must be small to ensure window closed soon
 
       flint
         .materializedView()
