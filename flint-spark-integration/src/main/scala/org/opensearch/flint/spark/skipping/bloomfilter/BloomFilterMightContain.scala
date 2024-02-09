@@ -16,7 +16,7 @@ import org.apache.spark.sql.catalyst.expressions.{BinaryComparison, Expression}
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.functions.{col, lit}
-import org.apache.spark.sql.types.{BooleanType, DataType}
+import org.apache.spark.sql.types._
 
 /**
  * Bloom filter function that returns the membership check result for values of `valueExpression`
@@ -42,7 +42,18 @@ case class BloomFilterMightContain(bloomFilterExpression: Expression, valueExpre
 
   override def symbol: String = "BLOOM_FILTER_MIGHT_CONTAIN"
 
-  override def checkInputDataTypes(): TypeCheckResult = TypeCheckResult.TypeCheckSuccess
+  override def checkInputDataTypes(): TypeCheckResult = {
+    (left.dataType, right.dataType) match {
+      case (BinaryType, NullType) | (NullType, LongType) | (NullType, NullType) |
+          (BinaryType, LongType) =>
+        TypeCheckResult.TypeCheckSuccess
+      case _ =>
+        TypeCheckResult.TypeCheckFailure(s"""
+           | Input to function $prettyName should be Binary expression followed by a Long value,
+           | but it's [${left.dataType.catalogString}, ${right.dataType.catalogString}].
+           | """.stripMargin)
+    }
+  }
 
   override protected def withNewChildrenInternal(
       newBloomFilterExpression: Expression,
