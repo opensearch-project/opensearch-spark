@@ -142,7 +142,8 @@ class FlintSparkPPLCorrelationITSuite
     assert(
       thrown.getMessage === "Correlation command was called with `fields` attribute having different elements from the 'mapping' attributes ")
   }
-  test("create failing ppl correlation query with no scope - due to mismatch fields to mappings test") {
+  test(
+    "create failing ppl correlation query with no scope - due to mismatch fields to mappings test") {
     val thrown = intercept[IllegalStateException] {
       val frame = sql(s"""
            | source = $testTable1, $testTable2| correlate exact fields(name, country) mapping($testTable1.name = $testTable2.name)

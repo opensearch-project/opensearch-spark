@@ -18,11 +18,12 @@ import play.api.libs.json.{JsArray, JsBoolean, JsObject, Json, JsString, JsValue
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.FlintJob.{checkAndCreateIndex, createIndex, currentTimeProvider, executeQuery, getFailedData, getFormattedData, isSuperset, logError, logInfo, processQueryException, writeDataFrameToOpensearch}
+import org.apache.spark.sql.FlintREPL.envinromentProvider
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types.{ArrayType, LongType, StringType, StructField, StructType}
-import org.apache.spark.sql.util.{DefaultThreadPoolFactory, RealTimeProvider, ThreadPoolFactory, TimeProvider}
+import org.apache.spark.sql.util.{DefaultThreadPoolFactory, EnvironmentProvider, RealEnvironment, RealTimeProvider, ThreadPoolFactory, TimeProvider}
 import org.apache.spark.util.ThreadUtils
 
 trait FlintJobExecutor {
@@ -30,6 +31,8 @@ trait FlintJobExecutor {
 
   var currentTimeProvider: TimeProvider = new RealTimeProvider()
   var threadPoolFactory: ThreadPoolFactory = new DefaultThreadPoolFactory()
+  var envinromentProvider: EnvironmentProvider = new RealEnvironment()
+  var enableHiveSupport: Boolean = true
 
   // The enabled setting, which can be applied only to the top-level mapping definition and to object fields,
   val resultIndexMapping =
@@ -87,7 +90,11 @@ trait FlintJobExecutor {
   }
 
   def createSparkSession(conf: SparkConf): SparkSession = {
-    SparkSession.builder().config(conf).enableHiveSupport().getOrCreate()
+    val builder = SparkSession.builder().config(conf)
+    if (enableHiveSupport) {
+      builder.enableHiveSupport()
+    }
+    builder.getOrCreate()
   }
 
   private def writeData(resultData: DataFrame, resultIndex: String): Unit = {
@@ -177,8 +184,8 @@ trait FlintJobExecutor {
       (
         resultToSave,
         resultSchemaToSave,
-        sys.env.getOrElse("SERVERLESS_EMR_JOB_ID", "unknown"),
-        sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown"),
+        envinromentProvider.getEnvVar("SERVERLESS_EMR_JOB_ID", "unknown"),
+        envinromentProvider.getEnvVar("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown"),
         dataSource,
         "SUCCESS",
         "",
@@ -226,8 +233,8 @@ trait FlintJobExecutor {
       (
         null,
         null,
-        sys.env.getOrElse("SERVERLESS_EMR_JOB_ID", "unknown"),
-        sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown"),
+        envinromentProvider.getEnvVar("SERVERLESS_EMR_JOB_ID", "unknown"),
+        envinromentProvider.getEnvVar("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown"),
         dataSource,
         "FAILED",
         error,
@@ -310,7 +317,8 @@ trait FlintJobExecutor {
       }
     } catch {
       case e: IllegalStateException
-          if e.getCause().getMessage().contains("index_not_found_exception") =>
+          if e.getCause != null &&
+            e.getCause.getMessage.contains("index_not_found_exception") =>
         createIndex(osClient, resultIndex, resultIndexMapping)
       case e: InterruptedException =>
         val error = s"Interrupted by the main thread: ${e.getMessage}"

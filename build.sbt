@@ -42,8 +42,9 @@ lazy val commonSettings = Seq(
   testScalastyle := (Test / scalastyle).toTask("").value,
   Test / test := ((Test / test) dependsOn testScalastyle).value)
 
+// running `scalafmtAll` includes all subprojects under root
 lazy val root = (project in file("."))
-  .aggregate(flintCore, flintSparkIntegration, pplSparkIntegration, sparkSqlApplication)
+  .aggregate(flintCore, flintSparkIntegration, pplSparkIntegration, sparkSqlApplication, integtest)
   .disablePlugins(AssemblyPlugin)
   .settings(name := "flint", publish / skip := true)
 
@@ -159,7 +160,7 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
 
 // Test assembly package with integration test.
 lazy val integtest = (project in file("integ-test"))
-  .dependsOn(flintSparkIntegration % "test->test", pplSparkIntegration % "test->test" )
+  .dependsOn(flintSparkIntegration % "test->test", pplSparkIntegration % "test->test", sparkSqlApplication % "test->test")
   .settings(
     commonSettings,
     name := "integ-test",
@@ -175,7 +176,9 @@ lazy val integtest = (project in file("integ-test"))
       "org.opensearch.client" % "opensearch-java" % "2.6.0" % "test"
         exclude ("com.fasterxml.jackson.core", "jackson-databind")),
     libraryDependencies ++= deps(sparkVersion),
-    Test / fullClasspath ++= Seq((flintSparkIntegration / assembly).value, (pplSparkIntegration / assembly).value))
+    Test / fullClasspath ++= Seq((flintSparkIntegration / assembly).value, (pplSparkIntegration / assembly).value,
+      (sparkSqlApplication / assembly).value
+    ))
 
 lazy val standaloneCosmetic = project
   .settings(

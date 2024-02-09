@@ -57,13 +57,20 @@ public class DimensionUtilsTest {
         Field field = classOfMap.getDeclaredField("m");
         field.setAccessible(true);
         Map<String, String> writeableEnvironmentVariables = (Map<String, String>)field.get(System.getenv());
-        writeableEnvironmentVariables.put("TEST_VAR", "dummy1");
-        writeableEnvironmentVariables.put("SERVERLESS_EMR_JOB_ID", "dummy2");
-        Dimension result1 = DimensionUtils.constructDimension("TEST_VAR", parts);
-        assertEquals("TEST_VAR", result1.getName());
-        assertEquals("dummy1", result1.getValue());
-        Dimension result2 = DimensionUtils.constructDimension("jobId", parts);
-        assertEquals("jobId", result2.getName());
-        assertEquals("dummy2", result2.getValue());
+        try {
+            writeableEnvironmentVariables.put("TEST_VAR", "dummy1");
+            writeableEnvironmentVariables.put("SERVERLESS_EMR_JOB_ID", "dummy2");
+            Dimension result1 = DimensionUtils.constructDimension("TEST_VAR", parts);
+            assertEquals("TEST_VAR", result1.getName());
+            assertEquals("dummy1", result1.getValue());
+            Dimension result2 = DimensionUtils.constructDimension("jobId", parts);
+            assertEquals("jobId", result2.getName());
+            assertEquals("dummy2", result2.getValue());
+        } finally {
+            // since system environment is shared by other tests. Make sure to remove them before exiting.
+            writeableEnvironmentVariables.remove("SERVERLESS_EMR_JOB_ID");
+            writeableEnvironmentVariables.remove("TEST_VAR");
+        }
+
     }
 }
