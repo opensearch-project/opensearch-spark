@@ -146,7 +146,30 @@ object FlintSparkConf {
       .datasourceOption()
       .doc("socket duration in milliseconds")
       .createWithDefault(String.valueOf(FlintOptions.DEFAULT_SOCKET_TIMEOUT_MILLIS))
-
+  val DATA_SOURCE_NAME =
+    FlintConfig(s"spark.flint.datasource.name")
+      .doc("data source name")
+      .createOptional()
+  val JOB_TYPE =
+    FlintConfig(s"spark.flint.job.type")
+      .doc("Flint job type. Including interactive and streaming")
+      .createWithDefault("interactive")
+  val SESSION_ID =
+    FlintConfig(s"spark.flint.job.sessionId")
+      .doc("Flint session id")
+      .createOptional()
+  val REQUEST_INDEX =
+    FlintConfig(s"spark.flint.job.requestIndex")
+      .doc("Request index")
+      .createOptional()
+  val EXCLUDE_JOB_IDS =
+    FlintConfig(s"spark.flint.deployment.excludeJobs")
+      .doc("Exclude job ids")
+      .createOptional()
+  val REPL_INACTIVITY_TIMEOUT_MILLIS =
+    FlintConfig(s"spark.flint.job.inactivityLimitMillis")
+      .doc("inactivity timeout")
+      .createWithDefault(String.valueOf(FlintOptions.DEFAULT_INACTIVITY_LIMIT_MILLIS))
 }
 
 /**
@@ -196,11 +219,18 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       CUSTOM_AWS_CREDENTIALS_PROVIDER,
       USERNAME,
       PASSWORD,
-      SOCKET_TIMEOUT_MILLIS)
+      SOCKET_TIMEOUT_MILLIS,
+      JOB_TYPE,
+      REPL_INACTIVITY_TIMEOUT_MILLIS)
       .map(conf => (conf.optionKey, conf.readFrom(reader)))
       .toMap
 
-    val optionsWithoutDefault = Seq(RETRYABLE_EXCEPTION_CLASS_NAMES)
+    val optionsWithoutDefault = Seq(
+      RETRYABLE_EXCEPTION_CLASS_NAMES,
+      DATA_SOURCE_NAME,
+      SESSION_ID,
+      REQUEST_INDEX,
+      EXCLUDE_JOB_IDS)
       .map(conf => (conf.optionKey, conf.readFrom(reader)))
       .flatMap {
         case (_, None) => None
