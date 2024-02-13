@@ -15,8 +15,8 @@ import scala.concurrent.duration._
 import scala.concurrent.duration.{Duration, MINUTES}
 import scala.reflect.runtime.universe.TypeTag
 
-import org.mockito.ArgumentMatchers.{eq => eqTo, _}
 import com.codahale.metrics.Timer
+import org.mockito.ArgumentMatchers.{eq => eqTo, _}
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
