@@ -21,6 +21,7 @@ import org.opensearch.common.Strings
 import org.opensearch.flint.app.{FlintCommand, FlintInstance}
 import org.opensearch.flint.app.FlintInstance.formats
 import org.opensearch.flint.core.FlintOptions
+import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.{decrementCounter, getTimerContext, incrementCounter, registerGauge, stopTimer}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
@@ -68,7 +69,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
   private val statementRunningCount = new AtomicInteger(0)
 
   def main(args: Array[String]) {
-    val Array(query, resultIndex) = args
+    CustomLogging.logInfo("Spark Job is Launching...")
+    val Array(resultIndex) = args
     if (Strings.isNullOrEmpty(resultIndex)) {
       throw new IllegalArgumentException("resultIndex is not set")
     }
@@ -91,6 +93,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
     conf.set(FlintSparkConf.JOB_TYPE.key, jobType)
 
     if (jobType.equalsIgnoreCase("streaming")) {
+      val query = conf.get(FlintSparkConf.QUERY.key, "")
+      if (query.isEmpty) {
+        throw new IllegalArgumentException("Query undefined for the streaming job.")
+      }
       logInfo(s"""streaming query ${query}""")
       val streamingRunningCount = new AtomicInteger(0)
       val jobOperator =

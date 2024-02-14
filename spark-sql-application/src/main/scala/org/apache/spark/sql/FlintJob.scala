@@ -14,6 +14,7 @@ import org.opensearch.cluster.metadata.MappingMetadata
 import org.opensearch.common.settings.Settings
 import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
+import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.registerGauge
@@ -37,12 +38,13 @@ import org.apache.spark.sql.types.{StructField, _}
  */
 object FlintJob extends Logging with FlintJobExecutor {
   def main(args: Array[String]): Unit = {
+    CustomLogging.logInfo("Spark Job is Launching...")
     // Validate command line arguments
-    if (args.length != 2) {
-      throw new IllegalArgumentException("Usage: FlintJob <query> <resultIndex>")
+    if (args.length != 1) {
+      throw new IllegalArgumentException("Usage: FlintJob <resultIndex>")
     }
 
-    val Array(query, resultIndex) = args
+    val Array(resultIndex) = args
 
     val conf = createSparkConf()
     val jobType = conf.get("spark.flint.job.type", "batch")
@@ -50,6 +52,10 @@ object FlintJob extends Logging with FlintJobExecutor {
     conf.set(FlintSparkConf.JOB_TYPE.key, jobType)
 
     val dataSource = conf.get("spark.flint.datasource.name", "")
+    val query = conf.get(FlintSparkConf.QUERY.key, "")
+    if (query.isEmpty) {
+      throw new IllegalArgumentException("Query undefined for the batch job.")
+    }
     // https://github.com/opensearch-project/opensearch-spark/issues/138
     /*
      * To execute queries such as `CREATE SKIPPING INDEX ON my_glue1.default.http_logs_plain (`@timestamp` VALUE_SET) WITH (auto_refresh = true)`,
