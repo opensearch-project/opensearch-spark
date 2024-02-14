@@ -83,8 +83,8 @@ case class JobOperator(
     }
 
     try {
-      // Stop SparkSession if streaming job succeeds
-      if (!exceptionThrown && streaming) {
+      // Wait for streaming job complete if no error and there is streaming job running
+      if (!exceptionThrown && streaming && spark.streams.active.nonEmpty) {
         // wait if any child thread to finish before the main thread terminates
         spark.streams.awaitAnyTermination()
       }

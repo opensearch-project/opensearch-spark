@@ -11,6 +11,7 @@ import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
+import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.spark.FlintSpark.RefreshMode.{FULL, INCREMENTAL, RefreshMode}
 import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, ID_COLUMN, StreamingRefresh}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
@@ -270,6 +271,20 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       }
     } else {
       logInfo("Index to be recovered either doesn't exist or not auto refreshed")
+      if (index.isEmpty) {
+        /*
+         * If execution reaches this point, it indicates that the Flint index is corrupted.
+         * In such cases, clean up the metadata log, as the index data no longer exists.
+         * There is a very small possibility that users may recreate the index in the
+         * interim, but metadata log get deleted by this cleanup process.
+         */
+        logWarning("Cleaning up metadata log as index data has been deleted")
+        flintClient
+          .startTransaction(indexName, dataSourceName)
+          .initialLog(_ => true)
+          .finalLog(_ => NO_LOG_ENTRY)
+          .commit(_ => {})
+      }
       false
     }
   }

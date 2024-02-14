@@ -21,6 +21,11 @@ import java.util.function.Predicate;
 public interface OptimisticTransaction<T> {
 
   /**
+   * Constant that indicate log entry should be purged.
+   */
+  FlintMetadataLogEntry NO_LOG_ENTRY = null;
+
+  /**
    * @param initialCondition initial precondition that the subsequent transition and action can proceed
    * @return this transaction
    */

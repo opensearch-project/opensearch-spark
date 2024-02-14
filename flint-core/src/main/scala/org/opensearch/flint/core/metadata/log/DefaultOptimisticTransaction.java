@@ -104,8 +104,13 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
     try {
       T result = operation.apply(latest);
 
-      // Append final log
-      metadataLog.add(finalAction.apply(latest));
+      // Append final log or purge log entries
+      FlintMetadataLogEntry finalLog = finalAction.apply(latest);
+      if (finalLog == NO_LOG_ENTRY) {
+        metadataLog.purge();
+      } else {
+        metadataLog.add(finalLog);
+      }
       return result;
     } catch (Exception e) {
       LOG.log(SEVERE, "Rolling back transient log due to transaction operation failure", e);
