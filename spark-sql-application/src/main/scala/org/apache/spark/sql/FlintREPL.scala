@@ -61,7 +61,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
   }
 
   def main(args: Array[String]) {
-    val Array(query, resultIndex) = args
+    val Array(resultIndex) = args
     if (Strings.isNullOrEmpty(resultIndex)) {
       throw new IllegalArgumentException("resultIndex is not set")
     }
@@ -69,6 +69,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     // init SparkContext
     val conf: SparkConf = createSparkConf()
     val dataSource = conf.get(FlintSparkConf.DATA_SOURCE_NAME.key, "unknown")
+    val query = conf.get(FlintSparkConf.QUERY.key, "")
     // https://github.com/opensearch-project/opensearch-spark/issues/138
     /*
      * To execute queries such as `CREATE SKIPPING INDEX ON my_glue1.default.http_logs_plain (`@timestamp` VALUE_SET) WITH (auto_refresh = true)`,

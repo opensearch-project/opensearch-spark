@@ -19,6 +19,7 @@ import play.api.libs.json._
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.parser.ParseException
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types.{StructField, _}
 
 /**
@@ -34,15 +35,16 @@ import org.apache.spark.sql.types.{StructField, _}
 object FlintJob extends Logging with FlintJobExecutor {
   def main(args: Array[String]): Unit = {
     // Validate command line arguments
-    if (args.length != 2) {
-      throw new IllegalArgumentException("Usage: FlintJob <query> <resultIndex>")
+    if (args.length != 1) {
+      throw new IllegalArgumentException("Usage: FlintJob <resultIndex>")
     }
 
-    val Array(query, resultIndex) = args
+    val Array(resultIndex) = args
 
     val conf = createSparkConf()
     val wait = conf.get("spark.flint.job.type", "continue")
     val dataSource = conf.get("spark.flint.datasource.name", "")
+    val query = conf.get(FlintSparkConf.QUERY.key, "")
     // https://github.com/opensearch-project/opensearch-spark/issues/138
     /*
      * To execute queries such as `CREATE SKIPPING INDEX ON my_glue1.default.http_logs_plain (`@timestamp` VALUE_SET) WITH (auto_refresh = true)`,
