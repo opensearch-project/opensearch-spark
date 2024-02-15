@@ -7,9 +7,13 @@ package org.opensearch.flint.core.metrics.reporter;
 
 import java.util.Map;
 import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.apache.commons.lang.StringUtils;
 
 import com.amazonaws.services.cloudwatch.model.Dimension;
+import org.apache.spark.SparkEnv;
 
 /**
  * Utility class for creating and managing CloudWatch dimensions for metrics reporting in Flint.
@@ -18,7 +22,9 @@ import com.amazonaws.services.cloudwatch.model.Dimension;
  * application ID, and more.
  */
 public class DimensionUtils {
+    private static final Logger LOG = Logger.getLogger(DimensionUtils.class.getName());
     private static final String DIMENSION_JOB_ID = "jobId";
+    private static final String DIMENSION_JOB_TYPE = "jobType";
     private static final String DIMENSION_APPLICATION_ID = "applicationId";
     private static final String DIMENSION_APPLICATION_NAME = "applicationName";
     private static final String DIMENSION_DOMAIN_ID = "domainId";
@@ -29,6 +35,8 @@ public class DimensionUtils {
     private static final Map<String, Function<String[], Dimension>> dimensionBuilders = Map.of(
             DIMENSION_INSTANCE_ROLE, DimensionUtils::getInstanceRoleDimension,
             DIMENSION_JOB_ID, ignored -> getEnvironmentVariableDimension("SERVERLESS_EMR_JOB_ID", DIMENSION_JOB_ID),
+            // TODO: Move FlintSparkConf into the core to prevent circular dependencies
+            DIMENSION_JOB_TYPE, ignored -> constructDimensionFromSparkConf(DIMENSION_JOB_TYPE, "spark.flint.job.type", UNKNOWN),
             DIMENSION_APPLICATION_ID, ignored -> getEnvironmentVariableDimension("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", DIMENSION_APPLICATION_ID),
             DIMENSION_APPLICATION_NAME, ignored -> getEnvironmentVariableDimension("SERVERLESS_EMR_APPLICATION_NAME", DIMENSION_APPLICATION_NAME),
             DIMENSION_DOMAIN_ID, ignored -> getEnvironmentVariableDimension("FLINT_CLUSTER_NAME", DIMENSION_DOMAIN_ID)
@@ -39,7 +47,7 @@ public class DimensionUtils {
      * builder exists for the dimension name, it is used; otherwise, a default dimension is constructed.
      *
      * @param dimensionName The name of the dimension to construct.
-     * @param parts Additional information that might be required by specific dimension builders.
+     * @param metricNameParts Additional information that might be required by specific dimension builders.
      * @return A CloudWatch Dimension object.
      */
     public static Dimension constructDimension(String dimensionName, String[] metricNameParts) {
@@ -48,6 +56,30 @@ public class DimensionUtils {
         }
         return dimensionBuilders.getOrDefault(dimensionName, ignored -> getDefaultDimension(dimensionName))
                 .apply(metricNameParts);
+    }
+
+    /**
+     * Constructs a CloudWatch Dimension object using a specified Spark configuration key.
+     *
+     * @param dimensionName The name of the dimension to construct.
+     * @param sparkConfKey the Spark configuration key used to look up the value for the dimension.
+     * @param defaultValue the default value to use for the dimension if the Spark configuration key is not found or if the Spark environment is not available.
+     * @return A CloudWatch Dimension object.
+     * @throws Exception if an error occurs while accessing the Spark configuration. The exception is logged and then rethrown.
+     */
+    public static Dimension constructDimensionFromSparkConf(String dimensionName, String sparkConfKey, String defaultValue) {
+        String propertyValue = defaultValue;
+        try {
+            if (SparkEnv.get() != null && SparkEnv.get().conf() != null) {
+                propertyValue = SparkEnv.get().conf().get(sparkConfKey, defaultValue);
+            } else {
+                LOG.warning("Spark environment or configuration is not available, defaulting to provided default value.");
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Error accessing Spark configuration with key: " + sparkConfKey + ", defaulting to provided default value.", e);
+            throw e;
+        }
+        return new Dimension().withName(dimensionName).withValue(propertyValue);
     }
 
     // This tries to replicate the logic here: https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala#L137

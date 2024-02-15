@@ -8,7 +8,7 @@ package org.opensearch.flint.core.metrics;
 /**
  * This class defines custom metric constants used for monitoring flint operations.
  */
-public class MetricConstants {
+public final class MetricConstants {
 
     /**
      * The prefix for all read-related metrics in OpenSearch.
@@ -65,5 +65,29 @@ public class MetricConstants {
     /**
      * Metric name for tracking the processing time of statements.
      */
-    public static final String STATEMENT_PROCESSING_TIME_METRIC = "STATEMENT.processingTime";
+    public static final String STATEMENT_PROCESSING_TIME_METRIC = "statement.processingTime";
+
+    /**
+     * Metric for tracking the count of currently running streaming jobs.
+     */
+    public static final String STREAMING_RUNNING_METRIC = "streaming.running.count";
+
+    /**
+     * Metric for tracking the count of streaming jobs that have failed.
+     */
+    public static final String STREAMING_FAILED_METRIC = "streaming.failed.count";
+
+    /**
+     * Metric for tracking the count of streaming jobs that have completed successfully.
+     */
+    public static final String STREAMING_SUCCESS_METRIC = "streaming.success.count";
+
+    /**
+     * Metric for tracking the count of failed heartbeat signals in streaming jobs.
+     */
+    public static final String STREAMING_HEARTBEAT_FAILED_METRIC = "streaming.heartbeat.failed.count";
+
+    private MetricConstants() {
+        // Private constructor to prevent instantiation
+    }
 }
