@@ -13,12 +13,15 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
+import com.codahale.metrics.Timer
 import org.json4s.native.Serialization
 import org.opensearch.action.get.GetResponse
 import org.opensearch.common.Strings
 import org.opensearch.flint.app.{FlintCommand, FlintInstance}
 import org.opensearch.flint.app.FlintInstance.formats
 import org.opensearch.flint.core.FlintOptions
+import org.opensearch.flint.core.metrics.MetricConstants
+import org.opensearch.flint.core.metrics.MetricsUtil.{decrementCounter, getTimerContext, incrementCounter, stopTimer}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
 import org.opensearch.search.sort.SortOrder
 
@@ -117,7 +120,14 @@ object FlintREPL extends Logging with FlintJobExecutor {
         conf.getLong("spark.flint.job.queryWaitTimeoutMillis", DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS)
 
       val flintSessionIndexUpdater = osClient.createUpdater(sessionIndex.get)
-      addShutdownHook(flintSessionIndexUpdater, osClient, sessionIndex.get, sessionId.get)
+      val sessionTimerContext = getTimerContext(MetricConstants.REPL_PROCESSING_TIME_METRIC)
+
+      addShutdownHook(
+        flintSessionIndexUpdater,
+        osClient,
+        sessionIndex.get,
+        sessionId.get,
+        sessionTimerContext)
 
       // 1 thread for updating heart beat
       val threadPool =
@@ -165,6 +175,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         exponentialBackoffRetry(maxRetries = 5, initialDelay = 2.seconds) {
           queryLoop(commandContext)
         }
+        recordSessionSuccess(sessionTimerContext)
       } catch {
         case e: Exception =>
           handleSessionError(
@@ -175,13 +186,14 @@ object FlintREPL extends Logging with FlintJobExecutor {
             jobStartTime,
             flintSessionIndexUpdater,
             osClient,
-            sessionIndex.get)
+            sessionIndex.get,
+            sessionTimerContext)
       } finally {
         if (threadPool != null) {
           heartBeatFuture.cancel(true) // Pass `true` to interrupt if running
           threadPoolFactory.shutdownThreadPool(threadPool)
         }
-
+        stopTimer(sessionTimerContext)
         spark.stop()
 
         // Check for non-daemon threads that may prevent the driver from shutting down.
@@ -374,6 +386,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       FlintInstance.serializeWithoutJobId(flintJob, currentTime)
     }
     flintSessionIndexUpdater.upsert(sessionId, serializedFlintInstance)
+    incrementCounter(MetricConstants.REPL_RUNNING_METRIC)
     logInfo(
       s"""Updated job: {"jobid": ${flintJob.jobId}, "sessionId": ${flintJob.sessionId}} from $sessionIndex""")
   }
@@ -386,7 +399,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       jobStartTime: Long,
       flintSessionIndexUpdater: OpenSearchUpdater,
       osClient: OSClient,
-      sessionIndex: String): Unit = {
+      sessionIndex: String,
+      flintSessionContext: Timer.Context): Unit = {
     val error = s"Session error: ${e.getMessage}"
     logError(error, e)
 
@@ -394,6 +408,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
       .getOrElse(createFailedFlintInstance(applicationId, jobId, sessionId, jobStartTime, error))
 
     updateFlintInstance(flintInstance, flintSessionIndexUpdater, sessionId)
+    if (flintInstance.state.equals("fail")) {
+      recordSessionFailed(flintSessionContext)
+    }
   }
 
   private def getExistingFlintInstance(
@@ -520,6 +537,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       } else if (!flintReader.hasNext) {
         canProceed = false
       } else {
+        val statementTimerContext = getTimerContext(
+          MetricConstants.STATEMENT_PROCESSING_TIME_METRIC)
         val flintCommand = processCommandInitiation(flintReader, flintSessionIndexUpdater)
 
         val (dataToWrite, returnedVerificationResult) = processStatementOnVerification(
@@ -540,7 +559,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
           flintCommand,
           resultIndex,
           flintSessionIndexUpdater,
-          osClient)
+          osClient,
+          statementTimerContext)
         // last query finish time is last activity time
         lastActivityTime = currentTimeProvider.currentEpochMillis()
       }
@@ -567,7 +587,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       flintCommand: FlintCommand,
       resultIndex: String,
       flintSessionIndexUpdater: OpenSearchUpdater,
-      osClient: OSClient): Unit = {
+      osClient: OSClient,
+      statementContext: Timer.Context): Unit = {
     try {
       dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
       if (flintCommand.isRunning() || flintCommand.isWaiting()) {
@@ -575,6 +596,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         flintCommand.complete()
       }
       updateSessionIndex(flintCommand, flintSessionIndexUpdater)
+      recordStatementStateChange(flintCommand, statementContext)
     } catch {
       // e.g., maybe due to authentication service connection issue
       // or invalid catalog (e.g., we are operating on data not defined in provided data source)
@@ -583,6 +605,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         logError(error, e)
         flintCommand.fail()
         updateSessionIndex(flintCommand, flintSessionIndexUpdater)
+        recordStatementStateChange(flintCommand, statementContext)
     }
   }
 
@@ -778,6 +801,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     flintCommand.running()
     logDebug(s"command running: $flintCommand")
     updateSessionIndex(flintCommand, flintSessionIndexUpdater)
+    incrementCounter(MetricConstants.STATEMENT_RUNNING_METRIC)
     flintCommand
   }
 
@@ -831,6 +855,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       osClient: OSClient,
       sessionIndex: String,
       sessionId: String,
+      flintSessionContext: Timer.Context,
       shutdownHookManager: ShutdownHookManagerTrait = DefaultShutdownHookManager): Unit = {
 
     shutdownHookManager.addShutdownHook(() => {
@@ -859,7 +884,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
           source,
           getResponse,
           flintSessionIndexUpdater,
-          sessionId)
+          sessionId,
+          flintSessionContext)
       }
     })
   }
@@ -868,7 +894,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       source: java.util.Map[String, AnyRef],
       getResponse: GetResponse,
       flintSessionIndexUpdater: OpenSearchUpdater,
-      sessionId: String): Unit = {
+      sessionId: String,
+      flintSessionContext: Timer.Context): Unit = {
     val flintInstance = FlintInstance.deserializeFromMap(source)
     flintInstance.state = "dead"
     flintSessionIndexUpdater.updateIf(
@@ -878,6 +905,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         currentTimeProvider.currentEpochMillis()),
       getResponse.getSeqNo,
       getResponse.getPrimaryTerm)
+    recordSessionSuccess(flintSessionContext)
   }
 
   /**
@@ -1038,5 +1066,29 @@ object FlintREPL extends Logging with FlintJobExecutor {
     }
 
     result.getOrElse(throw new RuntimeException("Failed after retries"))
+  }
+
+  private def recordSessionSuccess(sessionContext: Timer.Context): Unit = {
+    stopTimer(sessionContext)
+    decrementCounter(MetricConstants.REPL_RUNNING_METRIC)
+    incrementCounter(MetricConstants.REPL_SUCCESS_METRIC)
+  }
+
+  private def recordSessionFailed(sessionContext: Timer.Context): Unit = {
+    stopTimer(sessionContext)
+    decrementCounter(MetricConstants.REPL_RUNNING_METRIC)
+    incrementCounter(MetricConstants.REPL_FAILED_METRIC)
+  }
+
+  private def recordStatementStateChange(
+      flintCommand: FlintCommand,
+      statementContext: Timer.Context): Unit = {
+    stopTimer(statementContext)
+    decrementCounter(MetricConstants.STATEMENT_RUNNING_METRIC)
+    if (flintCommand.isComplete()) {
+      incrementCounter(MetricConstants.STATEMENT_SUCCESS_METRIC)
+    } else if (flintCommand.isFailed()) {
+      incrementCounter(MetricConstants.STATEMENT_FAILED_METRIC)
+    }
   }
 }

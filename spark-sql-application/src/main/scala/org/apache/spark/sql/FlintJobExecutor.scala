@@ -13,6 +13,8 @@ import scala.concurrent.duration.{Duration, MINUTES}
 import com.amazonaws.services.s3.model.AmazonS3Exception
 import org.opensearch.flint.core.FlintClient
 import org.opensearch.flint.core.metadata.FlintMetadata
+import org.opensearch.flint.core.metrics.MetricConstants
+import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
 import play.api.libs.json.{JsArray, JsBoolean, JsObject, Json, JsString, JsValue}
 
 import org.apache.spark.{SparkConf, SparkException}
@@ -401,6 +403,7 @@ trait FlintJobExecutor {
       case r: ParseException =>
         handleQueryException(r, "Syntax error", spark, dataSource, query, queryId, sessionId)
       case r: AmazonS3Exception =>
+        incrementCounter(MetricConstants.S3_ERR_CNT_METRIC)
         handleQueryException(
           r,
           "Fail to read data from S3. Cause",
