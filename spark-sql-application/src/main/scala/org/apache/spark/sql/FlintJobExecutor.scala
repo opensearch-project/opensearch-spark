@@ -11,7 +11,7 @@ import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.concurrent.duration.{Duration, MINUTES}
 
 import com.amazonaws.services.s3.model.AmazonS3Exception
-import org.opensearch.flint.core.FlintClient
+import org.opensearch.flint.core.{FlintClient, IRestHighLevelClient}
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
@@ -19,7 +19,6 @@ import play.api.libs.json.{JsArray, JsBoolean, JsObject, Json, JsString, JsValue
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.FlintJob.{checkAndCreateIndex, createIndex, currentTimeProvider, executeQuery, getFailedData, getFormattedData, isSuperset, logError, logInfo, processQueryException, writeDataFrameToOpensearch}
 import org.apache.spark.sql.FlintREPL.envinromentProvider
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.execution.datasources.DataSource
@@ -100,10 +99,19 @@ trait FlintJobExecutor {
   }
 
   private def writeData(resultData: DataFrame, resultIndex: String): Unit = {
-    resultData.write
-      .format("flint")
-      .mode("append")
-      .save(resultIndex)
+    try {
+      resultData.write
+        .format("flint")
+        .mode("append")
+        .save(resultIndex)
+      IRestHighLevelClient.recordOperationSuccess(
+        MetricConstants.RESULT_METADATA_WRITE_METRIC_PREFIX)
+    } catch {
+      case e: Exception =>
+        IRestHighLevelClient.recordOperationFailure(
+          MetricConstants.RESULT_METADATA_WRITE_METRIC_PREFIX,
+          e)
+    }
   }
 
   /**
@@ -123,7 +131,7 @@ trait FlintJobExecutor {
     if (osClient.doesIndexExist(resultIndex)) {
       writeData(resultData, resultIndex)
     } else {
-      createIndex(osClient, resultIndex, resultIndexMapping)
+      createResultIndex(osClient, resultIndex, resultIndexMapping)
       writeData(resultData, resultIndex)
     }
   }
@@ -321,7 +329,7 @@ trait FlintJobExecutor {
       case e: IllegalStateException
           if e.getCause != null &&
             e.getCause.getMessage.contains("index_not_found_exception") =>
-        createIndex(osClient, resultIndex, resultIndexMapping)
+        createResultIndex(osClient, resultIndex, resultIndexMapping)
       case e: InterruptedException =>
         val error = s"Interrupted by the main thread: ${e.getMessage}"
         Thread.currentThread().interrupt() // Preserve the interrupt status
@@ -334,7 +342,7 @@ trait FlintJobExecutor {
     }
   }
 
-  def createIndex(
+  def createResultIndex(
       osClient: OSClient,
       resultIndex: String,
       mapping: String): Either[String, Unit] = {

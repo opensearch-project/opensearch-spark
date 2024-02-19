@@ -48,6 +48,26 @@ public final class MetricConstants {
     public static final String REPL_PROCESSING_TIME_METRIC = "session.processingTime";
 
     /**
+     * Prefix for metrics related to the request metadata read operations.
+     */
+    public static final String REQUEST_METADATA_READ_METRIC_PREFIX = "request.metadata.read";
+
+    /**
+     * Prefix for metrics related to the request metadata write operations.
+     */
+    public static final String REQUEST_METADATA_WRITE_METRIC_PREFIX = "request.metadata.write";
+
+    /**
+     * Metric name for counting failed heartbeat operations on request metadata.
+     */
+    public static final String REQUEST_METADATA_HEARTBEAT_FAILED_METRIC = "request.metadata.heartbeat.failed.count";
+
+    /**
+     * Prefix for metrics related to the result metadata write operations.
+     */
+    public static final String RESULT_METADATA_WRITE_METRIC_PREFIX = "result.metadata.write";
+
+    /**
      * Metric name for counting the number of statements currently running.
      */
     public static final String STATEMENT_RUNNING_METRIC = "statement.running.count";

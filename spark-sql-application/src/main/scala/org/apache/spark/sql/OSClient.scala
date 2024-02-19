@@ -9,6 +9,8 @@ import java.io.IOException
 import java.util.ArrayList
 import java.util.Locale
 
+import scala.util.{Failure, Success, Try}
+
 import org.opensearch.action.get.{GetRequest, GetResponse}
 import org.opensearch.action.search.{SearchRequest, SearchResponse}
 import org.opensearch.client.{RequestOptions, RestHighLevelClient}
@@ -18,7 +20,8 @@ import org.opensearch.common.Strings
 import org.opensearch.common.settings.Settings
 import org.opensearch.common.xcontent.{NamedXContentRegistry, XContentParser, XContentType}
 import org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS
-import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
+import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions, IRestHighLevelClient}
+import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchQueryReader, OpenSearchScrollReader, OpenSearchUpdater}
 import org.opensearch.index.query.{AbstractQueryBuilder, MatchAllQueryBuilder, QueryBuilder}
 import org.opensearch.plugins.SearchPlugin
@@ -74,8 +77,13 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
       try {
         client.createIndex(request, RequestOptions.DEFAULT)
         logInfo(s"create $osIndexName successfully")
+        IRestHighLevelClient.recordOperationSuccess(
+          MetricConstants.RESULT_METADATA_WRITE_METRIC_PREFIX)
       } catch {
         case e: Exception =>
+          IRestHighLevelClient.recordOperationFailure(
+            MetricConstants.RESULT_METADATA_WRITE_METRIC_PREFIX,
+            e)
           throw new IllegalStateException(s"Failed to create index $osIndexName", e);
       }
     }
@@ -109,11 +117,17 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
 
   def getDoc(osIndexName: String, id: String): GetResponse = {
     using(flintClient.createClient()) { client =>
-      try {
-        val request = new GetRequest(osIndexName, id)
-        client.get(request, RequestOptions.DEFAULT)
-      } catch {
-        case e: Exception =>
+      val request = new GetRequest(osIndexName, id)
+      val result = Try(client.get(request, RequestOptions.DEFAULT))
+      result match {
+        case Success(response) =>
+          IRestHighLevelClient.recordOperationSuccess(
+            MetricConstants.REQUEST_METADATA_READ_METRIC_PREFIX)
+          response
+        case Failure(e: Exception) =>
+          IRestHighLevelClient.recordOperationFailure(
+            MetricConstants.REQUEST_METADATA_READ_METRIC_PREFIX,
+            e)
           throw new IllegalStateException(
             String.format(
               Locale.ROOT,
@@ -146,7 +160,7 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
     using(flintClient.createClient()) { client =>
       try {
         val request = new GetIndexRequest(indexName)
-        client.isIndexExists(request, RequestOptions.DEFAULT)
+        client.doesIndexExist(request, RequestOptions.DEFAULT)
       } catch {
         case e: Exception =>
           throw new IllegalStateException(s"Failed to check if index $indexName exists", e)

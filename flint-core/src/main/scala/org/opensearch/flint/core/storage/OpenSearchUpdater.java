@@ -12,13 +12,14 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static org.opensearch.flint.core.metrics.MetricConstants.REQUEST_METADATA_READ_METRIC_PREFIX;
+import static org.opensearch.flint.core.metrics.MetricConstants.REQUEST_METADATA_WRITE_METRIC_PREFIX;
+
 public class OpenSearchUpdater {
     private static final Logger LOG = Logger.getLogger(OpenSearchUpdater.class.getName());
 
     private final String indexName;
-
     private final FlintClient flintClient;
-
 
     public OpenSearchUpdater(String indexName, FlintClient flintClient) {
         this.indexName = indexName;
@@ -26,66 +27,64 @@ public class OpenSearchUpdater {
     }
 
     public void upsert(String id, String doc) {
+        updateDocument(id, doc, true, -1, -1);
+    }
+
+    public void update(String id, String doc) {
+        updateDocument(id, doc, false, -1, -1);
+    }
+
+    public void updateIf(String id, String doc, long seqNo, long primaryTerm) {
+        updateDocument(id, doc, false, seqNo, primaryTerm);
+    }
+
+    private void updateDocument(String id, String doc, boolean upsert, long seqNo, long primaryTerm) {
         // we might need to keep the updater for a long time. Reusing the client may not work as the temporary
         // credentials may expire.
         // also, failure to close the client causes the job to be stuck in the running state as the client resource
         // is not released.
         try (IRestHighLevelClient client = flintClient.createClient()) {
             assertIndexExist(client, indexName);
-            UpdateRequest
-                    updateRequest =
-                    new UpdateRequest(indexName, id).doc(doc, XContentType.JSON)
-                            .setRefreshPolicy(WriteRequest.RefreshPolicy.WAIT_UNTIL)
-                            .docAsUpsert(true);
-            client.update(updateRequest, RequestOptions.DEFAULT);
-        } catch (IOException e) {
-            throw new RuntimeException(String.format(
-                    "Failed to execute update request on index: %s, id: %s",
-                    indexName,
-                    id), e);
-        }
-    }
+            UpdateRequest updateRequest = new UpdateRequest(indexName, id)
+                    .doc(doc, XContentType.JSON)
+                    .setRefreshPolicy(WriteRequest.RefreshPolicy.WAIT_UNTIL);
 
-    public void update(String id, String doc) {
-        try (IRestHighLevelClient client = flintClient.createClient()) {
-            assertIndexExist(client, indexName);
-            UpdateRequest
-                    updateRequest =
-                    new UpdateRequest(indexName, id).doc(doc, XContentType.JSON)
-                            .setRefreshPolicy(WriteRequest.RefreshPolicy.WAIT_UNTIL);
-            client.update(updateRequest, RequestOptions.DEFAULT);
-        } catch (IOException e) {
-            throw new RuntimeException(String.format(
-                    "Failed to execute update request on index: %s, id: %s",
-                    indexName,
-                    id), e);
-        }
-    }
+            if (upsert) {
+                updateRequest.docAsUpsert(true);
+            }
+            if (seqNo >= 0 && primaryTerm >= 0) {
+                updateRequest.setIfSeqNo(seqNo).setIfPrimaryTerm(primaryTerm);
+            }
 
-    public void updateIf(String id, String doc, long seqNo, long primaryTerm) {
-        try (IRestHighLevelClient client = flintClient.createClient()) {
-            assertIndexExist(client, indexName);
-            UpdateRequest
-                    updateRequest =
-                    new UpdateRequest(indexName, id).doc(doc, XContentType.JSON)
-                            .setRefreshPolicy(WriteRequest.RefreshPolicy.WAIT_UNTIL)
-                            .setIfSeqNo(seqNo)
-                            .setIfPrimaryTerm(primaryTerm);
-            client.update(updateRequest, RequestOptions.DEFAULT);
+            try {
+                client.update(updateRequest, RequestOptions.DEFAULT);
+                IRestHighLevelClient.recordOperationSuccess(REQUEST_METADATA_WRITE_METRIC_PREFIX);
+            } catch (Exception e) {
+                IRestHighLevelClient.recordOperationFailure(REQUEST_METADATA_WRITE_METRIC_PREFIX, e);
+            }
         } catch (IOException e) {
             throw new RuntimeException(String.format(
                     "Failed to execute update request on index: %s, id: %s",
-                    indexName,
-                    id), e);
+                    indexName, id), e);
         }
     }
 
     private void assertIndexExist(IRestHighLevelClient client, String indexName) throws IOException {
-        LOG.info("Checking if index exists " + indexName);
-        if (!client.isIndexExists(new GetIndexRequest(indexName), RequestOptions.DEFAULT)) {
-            String errorMsg = "Index not found " + indexName;
+        LOG.info("Checking if index exists: " + indexName);
+        boolean exists;
+        try {
+            exists = client.doesIndexExist(new GetIndexRequest(indexName), RequestOptions.DEFAULT);
+            IRestHighLevelClient.recordOperationSuccess(REQUEST_METADATA_READ_METRIC_PREFIX);
+        } catch (Exception e) {
+            IRestHighLevelClient.recordOperationFailure(REQUEST_METADATA_READ_METRIC_PREFIX, e);
+            throw e;
+        }
+
+        if (!exists) {
+            String errorMsg = "Index not found: " + indexName;
             LOG.log(Level.SEVERE, errorMsg);
             throw new IllegalStateException(errorMsg);
         }
     }
 }
+

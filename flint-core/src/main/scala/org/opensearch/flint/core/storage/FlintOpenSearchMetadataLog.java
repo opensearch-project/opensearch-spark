@@ -175,7 +175,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   private boolean exists() {
     LOG.info("Checking if Flint index exists " + metaLogIndexName);
     try (IRestHighLevelClient client = flintClient.createClient()) {
-      return client.isIndexExists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT);
+      return client.doesIndexExist(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to check if Flint index exists " + metaLogIndexName, e);
     }

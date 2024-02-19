@@ -970,11 +970,17 @@ object FlintREPL extends Logging with FlintJobExecutor {
               // Preserve the interrupt status
               Thread.currentThread().interrupt()
               logError("HeartBeatUpdater task was interrupted", ie)
+              incrementCounter(
+                MetricConstants.REQUEST_METADATA_HEARTBEAT_FAILED_METRIC
+              ) // Record heartbeat failure metric
             // maybe due to invalid sequence number or primary term
             case e: Exception =>
               logWarning(
                 s"""Fail to update the last update time of the flint instance ${sessionId}""",
                 e)
+              incrementCounter(
+                MetricConstants.REQUEST_METADATA_HEARTBEAT_FAILED_METRIC
+              ) // Record heartbeat failure metric
           }
         }
       },

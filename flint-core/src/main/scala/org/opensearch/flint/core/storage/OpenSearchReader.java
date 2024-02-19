@@ -17,6 +17,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
+import static org.opensearch.flint.core.metrics.MetricConstants.REQUEST_METADATA_READ_METRIC_PREFIX;
+
 /**
  * Abstract OpenSearch Reader.
  */
@@ -41,6 +43,7 @@ public abstract class OpenSearchReader implements FlintReader {
     try {
       if (iterator == null || !iterator.hasNext()) {
         Optional<SearchResponse> response = search(searchRequest);
+        IRestHighLevelClient.recordOperationSuccess(REQUEST_METADATA_READ_METRIC_PREFIX);
         if (response.isEmpty()) {
           iterator = null;
           return false;
@@ -50,6 +53,7 @@ public abstract class OpenSearchReader implements FlintReader {
       }
       return iterator.hasNext();
     } catch (OpenSearchStatusException e) {
+      IRestHighLevelClient.recordOperationFailure(REQUEST_METADATA_READ_METRIC_PREFIX, e);
       //  e.g., org.opensearch.OpenSearchStatusException: OpenSearch exception [type=index_not_found_exception, reason=no such index [query_results2]]
       if (e.getMessage() != null && (e.getMessage().contains("index_not_found_exception"))) {
         return false;
