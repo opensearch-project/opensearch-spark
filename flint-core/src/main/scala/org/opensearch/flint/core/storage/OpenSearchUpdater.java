@@ -15,6 +15,11 @@ import java.util.logging.Logger;
 import static org.opensearch.flint.core.metrics.MetricConstants.REQUEST_METADATA_READ_METRIC_PREFIX;
 import static org.opensearch.flint.core.metrics.MetricConstants.REQUEST_METADATA_WRITE_METRIC_PREFIX;
 
+/**
+ * Provides functionality for updating and upserting documents in an OpenSearch index.
+ * This class utilizes FlintClient for managing connections to OpenSearch and performs
+ * document updates and upserts with optional optimistic concurrency control.
+ */
 public class OpenSearchUpdater {
     private static final Logger LOG = Logger.getLogger(OpenSearchUpdater.class.getName());
 
@@ -38,6 +43,15 @@ public class OpenSearchUpdater {
         updateDocument(id, doc, false, seqNo, primaryTerm);
     }
 
+    /**
+     * Internal method for updating or upserting a document with optional optimistic concurrency control.
+     *
+     * @param id The document ID.
+     * @param doc The document content in JSON format.
+     * @param upsert Flag indicating whether to upsert the document.
+     * @param seqNo The sequence number for optimistic concurrency control.
+     * @param primaryTerm The primary term for optimistic concurrency control.
+     */
     private void updateDocument(String id, String doc, boolean upsert, long seqNo, long primaryTerm) {
         // we might need to keep the updater for a long time. Reusing the client may not work as the temporary
         // credentials may expire.
