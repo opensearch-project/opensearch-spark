@@ -23,6 +23,8 @@ import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static org.opensearch.flint.core.metrics.MetricConstants.REQUEST_METADATA_READ_METRIC_PREFIX;
+
 /**
  * {@link OpenSearchReader} using search. https://opensearch.org/docs/latest/api-reference/search/
  */
@@ -37,8 +39,15 @@ public class OpenSearchQueryReader extends OpenSearchReader {
   /**
    * search.
    */
-  Optional<SearchResponse> search(SearchRequest request) throws IOException {
-   return Optional.of(client.search(request, RequestOptions.DEFAULT));
+  Optional<SearchResponse> search(SearchRequest request) {
+    Optional<SearchResponse> response = Optional.empty();
+    try {
+      response = Optional.of(client.search(request, RequestOptions.DEFAULT));
+      IRestHighLevelClient.recordOperationSuccess(REQUEST_METADATA_READ_METRIC_PREFIX);
+    } catch (Exception e) {
+      IRestHighLevelClient.recordOperationFailure(REQUEST_METADATA_READ_METRIC_PREFIX, e);
+    }
+    return response;
   }
 
   /**
