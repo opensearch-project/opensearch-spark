@@ -5,6 +5,8 @@
 
 package org.apache.spark.sql
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.{Duration, MINUTES}
@@ -67,10 +69,11 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     val prefix = "flint-job-test"
     val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor(prefix, 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
+    val streamingRunningCount = new AtomicInteger(0)
 
     val futureResult = Future {
       val job =
-        JobOperator(spark, query, dataSourceName, resultIndex, true)
+        JobOperator(spark, query, dataSourceName, resultIndex, true, streamingRunningCount)
       job.envinromentProvider = new MockEnvironment(
         Map("SERVERLESS_EMR_JOB_ID" -> jobRunId, "SERVERLESS_EMR_VIRTUAL_CLUSTER_ID" -> appId))
 

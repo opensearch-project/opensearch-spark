@@ -7,6 +7,7 @@
 package org.apache.spark.sql
 
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 
 import org.opensearch.client.{RequestOptions, RestHighLevelClient}
 import org.opensearch.cluster.metadata.MappingMetadata
@@ -14,11 +15,14 @@ import org.opensearch.common.settings.Settings
 import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
 import org.opensearch.flint.core.metadata.FlintMetadata
+import org.opensearch.flint.core.metrics.MetricConstants
+import org.opensearch.flint.core.metrics.MetricsUtil.registerGauge
 import play.api.libs.json._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.parser.ParseException
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types.{StructField, _}
 
 /**
@@ -41,7 +45,10 @@ object FlintJob extends Logging with FlintJobExecutor {
     val Array(query, resultIndex) = args
 
     val conf = createSparkConf()
-    val wait = conf.get("spark.flint.job.type", "continue")
+    val jobType = conf.get("spark.flint.job.type", "batch")
+    logInfo(s"""Job type is: ${jobType}""")
+    conf.set(FlintSparkConf.JOB_TYPE.key, jobType)
+
     val dataSource = conf.get("spark.flint.datasource.name", "")
     // https://github.com/opensearch-project/opensearch-spark/issues/138
     /*
@@ -52,13 +59,16 @@ object FlintJob extends Logging with FlintJobExecutor {
      * Without this setup, Spark would not recognize names in the format `my_glue1.default`.
      */
     conf.set("spark.sql.defaultCatalog", dataSource)
+    val streamingRunningCount = new AtomicInteger(0)
     val jobOperator =
       JobOperator(
         createSparkSession(conf),
         query,
         dataSource,
         resultIndex,
-        wait.equalsIgnoreCase("streaming"))
+        jobType.equalsIgnoreCase("streaming"),
+        streamingRunningCount)
+    registerGauge(MetricConstants.STREAMING_RUNNING_METRIC, streamingRunningCount)
     jobOperator.start()
   }
 }

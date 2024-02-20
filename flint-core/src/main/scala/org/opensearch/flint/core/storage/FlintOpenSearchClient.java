@@ -99,7 +99,7 @@ public class FlintOpenSearchClient implements FlintClient {
     String metaLogIndexName = dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX
         : META_LOG_NAME_PREFIX + "_" + dataSourceName;
     try (IRestHighLevelClient client = createClient()) {
-      if (client.isIndexExists(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
+      if (client.doesIndexExist(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
         LOG.info("Found metadata log index " + metaLogIndexName);
       } else {
         if (forceInit) {
@@ -149,7 +149,7 @@ public class FlintOpenSearchClient implements FlintClient {
     LOG.info("Checking if Flint index exists " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
     try (IRestHighLevelClient client = createClient()) {
-      return client.isIndexExists(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT);
+      return client.doesIndexExist(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to check if Flint index exists " + osIndexName, e);
     }

@@ -5,12 +5,21 @@
 
 package org.opensearch.flint.core.metrics.reporter;
 
+import org.apache.spark.SparkConf;
+import org.apache.spark.SparkEnv;
+import org.apache.spark.metrics.source.FlintMetricSource;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 import com.amazonaws.services.cloudwatch.model.Dimension;
 import org.junit.jupiter.api.function.Executable;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
 import java.util.Map;
@@ -71,6 +80,23 @@ public class DimensionUtilsTest {
             writeableEnvironmentVariables.remove("SERVERLESS_EMR_JOB_ID");
             writeableEnvironmentVariables.remove("TEST_VAR");
         }
+    }
 
+    @Test
+    public void testConstructDimensionFromSparkConfWithAvailableConfig() {
+        try (MockedStatic<SparkEnv> sparkEnvMock = mockStatic(SparkEnv.class)) {
+            SparkEnv sparkEnv = mock(SparkEnv.class, RETURNS_DEEP_STUBS);
+            sparkEnvMock.when(SparkEnv::get).thenReturn(sparkEnv);
+            SparkConf sparkConf = new SparkConf().set("spark.test.key", "testValue");
+            when(sparkEnv.get().conf()).thenReturn(sparkConf);
+
+            Dimension result = DimensionUtils.constructDimensionFromSparkConf("testDimension", "spark.test.key", "defaultValue");
+            // Assertions
+            assertEquals("testDimension", result.getName());
+            assertEquals("testValue", result.getValue());
+
+            // Reset SparkEnv mock to not affect other tests
+            Mockito.reset(SparkEnv.get());
+        }
     }
 }

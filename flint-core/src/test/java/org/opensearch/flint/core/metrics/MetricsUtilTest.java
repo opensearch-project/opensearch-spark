@@ -1,6 +1,7 @@
 package org.opensearch.flint.core.metrics;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Timer;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.metrics.source.FlintMetricSource;
@@ -10,6 +11,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,7 +44,7 @@ public class MetricsUtilTest {
 
             // Verify interactions
             verify(sparkEnv.metricsSystem(), times(0)).registerSource(any());
-            verify(flintMetricSource, times(4)).metricRegistry();
+            verify(flintMetricSource, times(3)).metricRegistry();
             Counter counter = flintMetricSource.metricRegistry().getCounters().get(testMetric);
             Assertions.assertNotNull(counter);
             Assertions.assertEquals(counter.getCount(), 1);
@@ -69,13 +71,44 @@ public class MetricsUtilTest {
 
             // Verify interactions
             verify(sparkEnv.metricsSystem(), times(0)).registerSource(any());
-            verify(flintMetricSource, times(2)).metricRegistry();
+            verify(flintMetricSource, times(1)).metricRegistry();
             Timer timer = flintMetricSource.metricRegistry().getTimers().get(testMetric);
             Assertions.assertNotNull(timer);
             Assertions.assertEquals(timer.getCount(), 1L);
             assertEquals(1.9, timer.getMeanRate(), 0.1);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    public void testRegisterGaugeWhenMetricRegistryIsAvailable() {
+        try (MockedStatic<SparkEnv> sparkEnvMock = mockStatic(SparkEnv.class)) {
+            // Mock SparkEnv
+            SparkEnv sparkEnv = mock(SparkEnv.class, RETURNS_DEEP_STUBS);
+            sparkEnvMock.when(SparkEnv::get).thenReturn(sparkEnv);
+
+            // Mock FlintMetricSource
+            FlintMetricSource flintMetricSource = Mockito.spy(new FlintMetricSource());
+            when(sparkEnv.metricsSystem().getSourcesByName(FlintMetricSource.FLINT_METRIC_SOURCE_NAME()).head())
+                    .thenReturn(flintMetricSource);
+
+            // Setup gauge
+            AtomicInteger testValue = new AtomicInteger(1);
+            String gaugeName = "test.gauge";
+            MetricsUtil.registerGauge(gaugeName, testValue);
+
+            verify(sparkEnv.metricsSystem(), times(0)).registerSource(any());
+            verify(flintMetricSource, times(1)).metricRegistry();
+
+            Gauge gauge = flintMetricSource.metricRegistry().getGauges().get(gaugeName);
+            Assertions.assertNotNull(gauge);
+            Assertions.assertEquals(gauge.getValue(), 1);
+
+            testValue.incrementAndGet();
+            testValue.incrementAndGet();
+            testValue.decrementAndGet();
+            Assertions.assertEquals(gauge.getValue(), 2);
         }
     }
 }
