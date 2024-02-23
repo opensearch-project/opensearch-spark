@@ -77,11 +77,18 @@ object FlintSparkConf {
       .doc("AWS customAWSCredentialsProvider")
       .createWithDefault(FlintOptions.DEFAULT_CUSTOM_AWS_CREDENTIALS_PROVIDER)
 
-  val CUSTOM_REPL_AWS_CREDENTIALS_PROVIDER =
+  val REPL_AWS_CREDENTIALS_PROVIDER =
     FlintConfig("spark.repl.flint.customAWSCredentialsProvider")
       .datasourceOption()
       .doc("Substitute customAWSCredentialsProvider to optionally use for the session index")
       .createWithDefault(FlintOptions.DEFAULT_CUSTOM_AWS_CREDENTIALS_PROVIDER)
+
+  val REPL_FLINT_ASSUME_SESSION_ROLE_ARN =
+    FlintConfig("spark.repl.flint.ASSUME_ROLE_CREDENTIALS_ROLE_ARN")
+      .datasourceOption()
+      .doc("The role to use for writing state information to the session index. " +
+        "This is used update and read job results or errors, independent of other write permissions for OpenSearch.")
+      .createOptional()
 
   val DOC_ID_COLUMN_NAME = FlintConfig("spark.datasource.flint.write.id_name")
     .datasourceOption()
@@ -223,7 +230,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       RETRYABLE_HTTP_STATUS_CODES,
       REGION,
       CUSTOM_AWS_CREDENTIALS_PROVIDER,
-      CUSTOM_REPL_AWS_CREDENTIALS_PROVIDER,
+      REPL_AWS_CREDENTIALS_PROVIDER,
       USERNAME,
       PASSWORD,
       SOCKET_TIMEOUT_MILLIS,
@@ -237,7 +244,8 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       DATA_SOURCE_NAME,
       SESSION_ID,
       REQUEST_INDEX,
-      EXCLUDE_JOB_IDS)
+      EXCLUDE_JOB_IDS,
+      REPL_FLINT_ASSUME_SESSION_ROLE_ARN)
       .map(conf => (conf.optionKey, conf.readFrom(reader)))
       .flatMap {
         case (_, None) => None
