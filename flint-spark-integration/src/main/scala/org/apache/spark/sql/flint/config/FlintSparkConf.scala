@@ -77,6 +77,12 @@ object FlintSparkConf {
       .doc("AWS customAWSCredentialsProvider")
       .createWithDefault(FlintOptions.DEFAULT_CUSTOM_AWS_CREDENTIALS_PROVIDER)
 
+  val CUSTOM_REPL_AWS_CREDENTIALS_PROVIDER =
+    FlintConfig("spark.repl.flint.customAWSCredentialsProvider")
+      .datasourceOption()
+      .doc("Substitute customAWSCredentialsProvider to optionally use for the session index")
+      .createWithDefault(FlintOptions.DEFAULT_CUSTOM_AWS_CREDENTIALS_PROVIDER)
+
   val DOC_ID_COLUMN_NAME = FlintConfig("spark.datasource.flint.write.id_name")
     .datasourceOption()
     .doc(
@@ -217,6 +223,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       RETRYABLE_HTTP_STATUS_CODES,
       REGION,
       CUSTOM_AWS_CREDENTIALS_PROVIDER,
+      CUSTOM_REPL_AWS_CREDENTIALS_PROVIDER,
       USERNAME,
       PASSWORD,
       SOCKET_TIMEOUT_MILLIS,
