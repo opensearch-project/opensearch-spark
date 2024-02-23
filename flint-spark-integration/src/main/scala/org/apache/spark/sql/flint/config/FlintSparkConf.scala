@@ -202,17 +202,9 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
   def timeZone: String = SQLConf.get.sessionLocalTimeZone
 
   /**
-   * Helper class, create [[FlintOptions]] with a specific context mode that the options will be used in.
+   * Helper class, create {@link FlintOptions}.
    */
-  def flintOptions(mode: FlintOptionsMode.FlintOptionsMode = FlintOptionsMode.Datasource): FlintOptions = {
-    var optionsMap = baseFlintOptionsMap()
-    if (mode == FlintOptionsMode.Repl) {
-      optionsMap = substituteReplConfig(optionsMap)
-    }
-    new FlintOptions(optionsMap.asJava)
-  }
-
-  private def baseFlintOptionsMap(): Map[String, String] = {
+  def flintOptions(): FlintOptions = {
     val optionsWithDefault = Seq(
       HOST_ENDPOINT,
       HOST_PORT,
@@ -246,27 +238,6 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       }
       .toMap
 
-    optionsWithDefault ++ optionsWithoutDefault
-  }
-
-  /**
-   * For every spark.datasource.flint config option, optionally replace it with an equivalent spark.repl.flint option.
-   * This overrides the same spark.datasource.flint fields in the original config: configs from either mode
-   * are cross-compatible.
-   */
-  private def substituteReplConfig(optionsMap: Map[String, String]): Map[String, String] = {
-    val updatedMap = optionsMap map { case (key, value) => if (key.startsWith("spark.datasource.flint")) {
-        val replKey = key.replaceFirst("spark\\.datasource\\.flint", "spark.repl.flint")
-        val replValue = FlintConfig(replKey)
-          .createOptional()
-          .readFrom(reader)
-
-        (key, replValue.getOrElse(value))
-      } else {
-        (key, value)
-      }
-    }
-
-    updatedMap
+    new FlintOptions((optionsWithDefault ++ optionsWithoutDefault).asJava)
   }
 }
