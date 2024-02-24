@@ -7,6 +7,7 @@ package org.opensearch.flint.core.storage;
 
 import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
 
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
@@ -248,7 +249,10 @@ public class FlintOpenSearchClient implements FlintClient {
       // Use DefaultAWSCredentialsProviderChain by default.
       final AtomicReference<AWSCredentialsProvider> awsCredentialsProvider =
           new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
+
       String providerClass = options.getCustomAwsCredentialsProvider();
+      String sessionIndexArn = options.getSessionIndexARN();
+      // If a custom provider class is given, validate sessions with it
       if (!Strings.isNullOrEmpty(providerClass)) {
         try {
           Class<?> awsCredentialsProviderClass = Class.forName(providerClass);
@@ -258,7 +262,14 @@ public class FlintOpenSearchClient implements FlintClient {
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
+      } else if (!Strings.isNullOrEmpty(sessionIndexArn)) { // Otherwise, use a provided ARN if available
+        // Create a new AssumeRoleAWSCredentialsProvider with the provided ARN
+        AWSCredentialsProvider assumeRoleProvider = new STSAssumeRoleSessionCredentialsProvider
+                .Builder(sessionIndexArn, "FlintOpenSearchClient_session")
+                .build();
+        awsCredentialsProvider.set(assumeRoleProvider);
       }
+
       restClientBuilder.setHttpClientConfigCallback(builder -> {
             HttpAsyncClientBuilder delegate =
                 builder.addInterceptorLast(

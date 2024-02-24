@@ -133,4 +133,8 @@ public class FlintOptions implements Serializable {
   public int getSocketTimeoutMillis() {
     return Integer.parseInt(options.getOrDefault(SOCKET_TIMEOUT_MILLIS, String.valueOf(DEFAULT_SOCKET_TIMEOUT_MILLIS)));
   }
+
+  public String getSessionIndexARN() {
+    return options.getOrDefault("spark.repl.flint.ASSUME_ROLE_CREDENTIALS_ROLE_ARN", "");
+  }
 }

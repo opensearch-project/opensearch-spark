@@ -77,12 +77,6 @@ object FlintSparkConf {
       .doc("AWS customAWSCredentialsProvider")
       .createWithDefault(FlintOptions.DEFAULT_CUSTOM_AWS_CREDENTIALS_PROVIDER)
 
-  val REPL_AWS_CREDENTIALS_PROVIDER =
-    FlintConfig("spark.repl.flint.customAWSCredentialsProvider")
-      .datasourceOption()
-      .doc("Substitute customAWSCredentialsProvider to optionally use for the session index")
-      .createWithDefault(FlintOptions.DEFAULT_CUSTOM_AWS_CREDENTIALS_PROVIDER)
-
   val REPL_FLINT_ASSUME_SESSION_ROLE_ARN =
     FlintConfig("spark.repl.flint.ASSUME_ROLE_CREDENTIALS_ROLE_ARN")
       .datasourceOption()
