@@ -19,3 +19,5 @@ logs/
 *.class
 *.log
 *.zip
+
+gen/
