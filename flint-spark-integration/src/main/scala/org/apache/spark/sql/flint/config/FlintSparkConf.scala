@@ -224,7 +224,6 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       RETRYABLE_HTTP_STATUS_CODES,
       REGION,
       CUSTOM_AWS_CREDENTIALS_PROVIDER,
-      REPL_AWS_CREDENTIALS_PROVIDER,
       USERNAME,
       PASSWORD,
       SOCKET_TIMEOUT_MILLIS,
