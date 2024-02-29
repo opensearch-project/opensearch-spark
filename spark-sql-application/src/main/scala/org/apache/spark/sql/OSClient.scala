@@ -9,7 +9,10 @@ import java.io.IOException
 import java.util.ArrayList
 import java.util.Locale
 
+import scala.util.{Failure, Success, Try}
+
 import org.opensearch.action.get.{GetRequest, GetResponse}
+import org.opensearch.action.search.{SearchRequest, SearchResponse}
 import org.opensearch.client.{RequestOptions, RestHighLevelClient}
 import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest, GetIndexResponse}
 import org.opensearch.client.indices.CreateIndexRequest
@@ -17,8 +20,9 @@ import org.opensearch.common.Strings
 import org.opensearch.common.settings.Settings
 import org.opensearch.common.xcontent.{NamedXContentRegistry, XContentParser, XContentType}
 import org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS
-import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
-import org.opensearch.flint.core.storage.{FlintReader, OpenSearchScrollReader, OpenSearchUpdater}
+import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions, IRestHighLevelClient}
+import org.opensearch.flint.core.metrics.MetricConstants
+import org.opensearch.flint.core.storage.{FlintReader, OpenSearchQueryReader, OpenSearchScrollReader, OpenSearchUpdater}
 import org.opensearch.index.query.{AbstractQueryBuilder, MatchAllQueryBuilder, QueryBuilder}
 import org.opensearch.plugins.SearchPlugin
 import org.opensearch.search.SearchModule
@@ -73,8 +77,13 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
       try {
         client.createIndex(request, RequestOptions.DEFAULT)
         logInfo(s"create $osIndexName successfully")
+        IRestHighLevelClient.recordOperationSuccess(
+          MetricConstants.RESULT_METADATA_WRITE_METRIC_PREFIX)
       } catch {
         case e: Exception =>
+          IRestHighLevelClient.recordOperationFailure(
+            MetricConstants.RESULT_METADATA_WRITE_METRIC_PREFIX,
+            e)
           throw new IllegalStateException(s"Failed to create index $osIndexName", e);
       }
     }
@@ -108,23 +117,29 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
 
   def getDoc(osIndexName: String, id: String): GetResponse = {
     using(flintClient.createClient()) { client =>
-      try {
-        val request = new GetRequest(osIndexName, id)
-        client.get(request, RequestOptions.DEFAULT)
-      } catch {
-        case e: Exception =>
+      val request = new GetRequest(osIndexName, id)
+      val result = Try(client.get(request, RequestOptions.DEFAULT))
+      result match {
+        case Success(response) =>
+          IRestHighLevelClient.recordOperationSuccess(
+            MetricConstants.REQUEST_METADATA_READ_METRIC_PREFIX)
+          response
+        case Failure(e: Exception) =>
+          IRestHighLevelClient.recordOperationFailure(
+            MetricConstants.REQUEST_METADATA_READ_METRIC_PREFIX,
+            e)
           throw new IllegalStateException(
             String.format(
               Locale.ROOT,
               "Failed to retrieve doc %s from index %s",
-              osIndexName,
-              id),
+              id,
+              osIndexName),
             e)
       }
     }
   }
 
-  def createReader(indexName: String, query: String, sort: String): FlintReader = try {
+  def createScrollReader(indexName: String, query: String, sort: String): FlintReader = try {
     var queryBuilder: QueryBuilder = new MatchAllQueryBuilder
     if (!Strings.isNullOrEmpty(query)) {
       val parser =
@@ -145,11 +160,31 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
     using(flintClient.createClient()) { client =>
       try {
         val request = new GetIndexRequest(indexName)
-        client.isIndexExists(request, RequestOptions.DEFAULT)
+        client.doesIndexExist(request, RequestOptions.DEFAULT)
       } catch {
         case e: Exception =>
           throw new IllegalStateException(s"Failed to check if index $indexName exists", e)
       }
     }
+  }
+
+  def createQueryReader(
+      indexName: String,
+      query: String,
+      sort: String,
+      sortOrder: SortOrder): FlintReader = try {
+    var queryBuilder: QueryBuilder = new MatchAllQueryBuilder
+    if (!Strings.isNullOrEmpty(query)) {
+      val parser =
+        XContentType.JSON.xContent.createParser(xContentRegistry, IGNORE_DEPRECATIONS, query)
+      queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser)
+    }
+    new OpenSearchQueryReader(
+      flintClient.createClient(),
+      indexName,
+      new SearchSourceBuilder().query(queryBuilder).sort(sort, sortOrder))
+  } catch {
+    case e: IOException =>
+      throw new RuntimeException(e)
   }
 }

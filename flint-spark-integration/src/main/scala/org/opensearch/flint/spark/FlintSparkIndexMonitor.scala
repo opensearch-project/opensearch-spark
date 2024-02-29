@@ -12,6 +12,7 @@ import scala.sys.addShutdownHook
 
 import org.opensearch.flint.core.FlintClient
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.{FAILED, REFRESHING}
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -65,6 +66,7 @@ class FlintSparkIndexMonitor(
         } catch {
           case e: Throwable =>
             logError("Failed to update index log entry", e)
+            MetricsUtil.incrementCounter(MetricConstants.STREAMING_HEARTBEAT_FAILED_METRIC)
         }
       },
       15, // Delay to ensure final logging is complete first, otherwise version conflicts

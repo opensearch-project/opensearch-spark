@@ -6,11 +6,14 @@
 package org.apache.spark.sql
 
 import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.concurrent.duration.{Duration, MINUTES}
 import scala.util.{Failure, Success, Try}
 
+import org.opensearch.flint.core.metrics.MetricConstants
+import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
 import org.opensearch.flint.core.storage.OpenSearchUpdater
 
 import org.apache.spark.SparkConf
@@ -21,16 +24,16 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.util.ThreadUtils
 
 case class JobOperator(
-    sparkConf: SparkConf,
+    spark: SparkSession,
     query: String,
     dataSource: String,
     resultIndex: String,
-    streaming: Boolean)
+    streaming: Boolean,
+    streamingRunningCount: AtomicInteger)
     extends Logging
     with FlintJobExecutor {
-  private val spark = createSparkSession(sparkConf)
 
-  // jvm shutdown hook
+  // JVM shutdown hook
   sys.addShutdownHook(stop())
 
   def start(): Unit = {
@@ -38,7 +41,10 @@ case class JobOperator(
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
 
     var dataToWrite: Option[DataFrame] = None
+
     val startTime = System.currentTimeMillis()
+    streamingRunningCount.incrementAndGet()
+
     // osClient needs spark session to be created first to get FlintOptions initialized.
     // Otherwise, we will have connection exception from EMR-S to OS.
     val osClient = new OSClient(FlintSparkConf().flintOptions())
@@ -99,6 +105,7 @@ case class JobOperator(
     } catch {
       case e: Exception => logError("Fail to close threadpool", e)
     }
+    recordStreamingCompletionStatus(exceptionThrown)
   }
 
   def stop(): Unit = {
@@ -108,6 +115,26 @@ case class JobOperator(
     } match {
       case Success(_) =>
       case Failure(e) => logError("unexpected error while stopping spark session", e)
+    }
+  }
+
+  /**
+   * Records the completion of a streaming job by updating the appropriate metrics. This method
+   * decrements the running metric for streaming jobs and increments either the success or failure
+   * metric based on whether an exception was thrown.
+   *
+   * @param exceptionThrown
+   *   Indicates whether an exception was thrown during the streaming job execution.
+   */
+  private def recordStreamingCompletionStatus(exceptionThrown: Boolean): Unit = {
+    // Decrement the metric for running streaming jobs as the job is now completing.
+    if (streamingRunningCount.get() > 0) {
+      streamingRunningCount.decrementAndGet()
+    }
+
+    exceptionThrown match {
+      case true => incrementCounter(MetricConstants.STREAMING_FAILED_METRIC)
+      case false => incrementCounter(MetricConstants.STREAMING_SUCCESS_METRIC)
     }
   }
 }

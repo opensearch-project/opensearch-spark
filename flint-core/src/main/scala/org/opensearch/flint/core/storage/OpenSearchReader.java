@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.core.storage;
 
+import org.opensearch.OpenSearchStatusException;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.flint.core.IRestHighLevelClient;
@@ -48,6 +49,13 @@ public abstract class OpenSearchReader implements FlintReader {
         iterator = searchHits.iterator();
       }
       return iterator.hasNext();
+    } catch (OpenSearchStatusException e) {
+      //  e.g., org.opensearch.OpenSearchStatusException: OpenSearch exception [type=index_not_found_exception, reason=no such index [query_results2]]
+      if (e.getMessage() != null && (e.getMessage().contains("index_not_found_exception"))) {
+        return false;
+      } else {
+        throw e;
+      }
     } catch (IOException e) {
       // todo. log error.
       throw new RuntimeException(e);
