@@ -18,7 +18,6 @@ import org.apache.http.HttpResponse;
  * @param <T> result type (supposed to be HttpResponse for OS client)
  */
 public class HttpStatusCodeResultPredicate<T> implements CheckedPredicate<T> {
-
   private static final Logger LOG = Logger.getLogger(HttpStatusCodeResultPredicate.class.getName());
 
   /**
