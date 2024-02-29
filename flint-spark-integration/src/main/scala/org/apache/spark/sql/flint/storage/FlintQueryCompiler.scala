@@ -13,6 +13,8 @@ import org.apache.spark.sql.flint.datatype.FlintDataType.STRICT_DATE_OPTIONAL_TI
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
+import scala.io.Source
+
 /**
  * Todo. find the right package.
  */
@@ -112,6 +114,26 @@ case class FlintQueryCompiler(schema: StructType) {
         s"""{"wildcard":{"${compile(p.children()(0))}":{"value":"*${compile(
             p.children()(1),
             false)}"}}}"""
+      case "BLOOM_FILTER_MIGHT_CONTAIN" =>
+        val code = Source.fromResource("bloom_filter_query.txt").getLines().mkString(" ")
+        s"""
+           |{
+           |    "bool": {
+           |      "filter": {
+           |        "script": {
+           |          "script": {
+           |            "lang": "painless",
+           |            "source": "$code",
+           |            "params": {
+           |              "fieldName": "${compile(p.children()(0))}",
+           |              "value": ${compile(p.children()(1))}
+           |            }
+           |          }
+           |        }
+           |      }
+           |    }
+           |}
+           |""".stripMargin
       case _ => ""
     }
   }

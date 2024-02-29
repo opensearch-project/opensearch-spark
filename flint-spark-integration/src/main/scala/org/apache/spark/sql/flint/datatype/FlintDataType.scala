@@ -7,6 +7,7 @@ package org.apache.spark.sql.flint.datatype
 
 import org.json4s.{Formats, JField, JValue, NoTypeHints}
 import org.json4s.JsonAST.{JNothing, JObject, JString}
+import org.json4s.JsonAST.JBool.True
 import org.json4s.jackson.JsonMethods
 import org.json4s.native.Serialization
 
@@ -156,7 +157,11 @@ object FlintDataType {
       case ArrayType(elementType, _) => serializeField(elementType, Metadata.empty)
 
       // binary
-      case BinaryType => JObject("type" -> JString("binary"))
+      case BinaryType =>
+        JObject(
+          "type" -> JString("binary"),
+          "doc_values" -> True // enable doc value required by painless script filtering
+        )
 
       case unknown => throw new IllegalStateException(s"unsupported data type: ${unknown.sql}")
     }
