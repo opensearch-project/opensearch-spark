@@ -18,6 +18,13 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * CustomJsonLayout is a plugin for formatting log events as JSON strings.
+ *
+ * <p>The layout is designed to be used with OpenSearch Flint logging. It extracts environment-specific information,
+ * such as the cluster name, from the environment variable "FLINT_CLUSTER_NAME" and splits it into domain name and client ID.</p>
+ *
+ */
 @Plugin(name = "CustomJsonLayout", category = "Core", elementType = Layout.ELEMENT_TYPE, printObject = true)
 public class CustomJsonLayout extends AbstractStringLayout {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -41,24 +48,33 @@ public class CustomJsonLayout extends AbstractStringLayout {
         super(charset);
     }
 
+    /**
+     * Plugin factory method to create an instance of CustomJsonLayout.
+     *
+     * @param charset The charset for encoding the log event. If not specified, defaults to UTF-8.
+     * @return A new instance of CustomJsonLayout with the specified charset.
+     */
     @PluginFactory
     public static CustomJsonLayout createLayout(@PluginAttribute(value = "charset", defaultString = "UTF-8")  Charset charset) {
         return new CustomJsonLayout(charset);
     }
 
+    /**
+     * Converts the log event to a JSON string.
+     * If the log event's message does not follow the expected format, it returns the formatted message directly.
+     *
+     * @param event the log event to format.
+     * @return A string representation of the log event in JSON format.
+     */
     @Override
     public String toSerializable(LogEvent event) {
-        if (!(event.getMessage() instanceof OperationMessage)) {
-            return event.getMessage().getFormattedMessage() + System.lineSeparator();
-        }
-
         Map<String, Object> logEventMap = new HashMap<>();
         logEventMap.put("timestamp", event.getTimeMillis());
         logEventMap.put("message", event.getMessage().getFormattedMessage());
         logEventMap.put("domainName", DOMAIN_NAME);
         logEventMap.put("clientId", CLIENT_ID);
 
-        if (event.getMessage().getParameters().length == 1) {
+        if (event.getMessage() instanceof OperationMessage && event.getMessage().getParameters().length == 1) {
             logEventMap.put("StatusCode", event.getMessage().getParameters()[0]);
         }
 
