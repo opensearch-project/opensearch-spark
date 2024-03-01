@@ -131,7 +131,7 @@ indexManagementStatement
     ;
 
 showFlintIndexStatement
-    : SHOW FLINT (INDEX | INDEXES)
+    : SHOW FLINT (INDEX | INDEXES) IN catalogDb=multipartIdentifier
     ;
 
 indexJobManagementStatement
