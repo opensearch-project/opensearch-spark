@@ -38,7 +38,7 @@ public class FlintOptions implements Serializable {
 
   public static final String SIGV4_AUTH = "sigv4";
 
-  public static final String BASIC_AUTH = "basic";
+  public static final String BASIC_AUTH = "basicauth";
 
   public static final String USERNAME = "auth.username";
 
