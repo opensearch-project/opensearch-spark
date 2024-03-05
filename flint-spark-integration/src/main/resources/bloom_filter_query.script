@@ -57,25 +57,25 @@ byte[] readBuffer = new byte[8];
 for (int i = 0; i < numWords; i++) {
   int n = 0;
   while (n < 8) {
-    int count2;
+    int readCount;
     int off = n;
     int len = 8 - n;
     if (pos >= count) {
-      count2 = -1;
+      readCount = -1;
     } else {
       int avail = count - pos;
       if (len > avail) {
         len = avail;
       }
       if (len <= 0) {
-        count2 = 0;
+        readCount = 0;
       } else {
         System.arraycopy(buf, pos, readBuffer, off, len);
         pos += len;
-        count2 = len;
+        readCount = len;
       }
     }
-    n += count2;
+    n += readCount;
   }
   data[i] = (((long) readBuffer[0] << 56) +
     ((long) (readBuffer[1] & 255) << 48) +
@@ -101,7 +101,8 @@ for (int i = 1; i <= numHashFunctions; i++) {
   if (combinedHash < 0) {
     combinedHash = ~combinedHash;
   }
-  if ((data[(int) (combinedHash % bitSize >>> 6)] & (1L << combinedHash % bitSize)) == 0) {
+  long index = combinedHash % bitSize;
+  if ((data[(int) (index >>> 6)] & (1L << index)) == 0) {
     return false;
   }
 }
