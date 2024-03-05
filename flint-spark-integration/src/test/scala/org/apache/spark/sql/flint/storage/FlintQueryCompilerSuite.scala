@@ -139,30 +139,30 @@ class FlintQueryCompilerSuite extends FlintSuite {
     assertResult("""{"exists":{"field":"aString"}}""")(query)
   }
 
-  test("compile bloom_filter_might_contain(aInt, 1) successfully") {
+  test("compile BLOOM_FILTER_MIGHT_CONTAIN(aInt, 1) successfully") {
     val query =
       FlintQueryCompiler(schema()).compile(
         new Predicate(
           "BLOOM_FILTER_MIGHT_CONTAIN",
           Array(FieldReference("aInt"), LiteralValue(1, IntegerType))))
 
-    val code = Source.fromResource("bloom_filter_query.txt").getLines().mkString(" ")
+    val code = Source.fromResource("bloom_filter_query.script").getLines().mkString(" ")
     assertResult(s"""
          |{
-         |    "bool": {
-         |      "filter": {
+         |  "bool": {
+         |    "filter": {
+         |      "script": {
          |        "script": {
-         |          "script": {
-         |            "lang": "painless",
-         |            "source": "$code",
-         |            "params": {
-         |              "fieldName": "aInt",
-         |              "value": 1
-         |            }
+         |          "lang": "painless",
+         |          "source": "$code",
+         |          "params": {
+         |            "fieldName": "aInt",
+         |            "value": 1
          |          }
          |        }
          |      }
          |    }
+         |  }
          |}
          |""".stripMargin)(query)
   }
