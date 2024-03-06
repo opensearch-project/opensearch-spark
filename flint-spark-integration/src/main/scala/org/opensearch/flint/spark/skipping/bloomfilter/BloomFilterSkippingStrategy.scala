@@ -26,7 +26,7 @@ case class BloomFilterSkippingStrategy(
     params: Map[String, String] = Map.empty)
     extends FlintSparkSkippingStrategy {
 
-  private val bloomFilterFactory: BloomFilterFactory = BloomFilterFactory.from(params.asJava)
+  private val bloomFilterFactory: BloomFilterFactory = BloomFilterFactory.of(params.asJava)
 
   override val parameters: Map[String, String] = bloomFilterFactory.getParameters.asScala.toMap
 

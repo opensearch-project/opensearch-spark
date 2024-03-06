@@ -40,23 +40,86 @@ public abstract class BloomFilterFactory implements Serializable {
    */
   private final Map<String, String> parameters;
 
-  public static BloomFilterFactory from(Map<String, String> parameters) {
-    if (isAdaptiveEnabled(parameters)) {
-      return new AdaptiveBloomFilterFactory(parameters);
-    } else {
-      return new ClassicBloomFilterFactory(parameters);
-    }
-  }
-
   protected BloomFilterFactory(Map<String, String> parameters) {
     this.parameters = parameters;
   }
 
+  /**
+   * @return all parameters including the default ones.
+   */
   public abstract Map<String, String> getParameters();
 
+  /**
+   * Create specific BloomFilter instance.
+   *
+   * @return BloomFilter instance
+   */
   public abstract BloomFilter create();
 
+  /**
+   * Create specific BloomFilter instance by deserialization.
+   *
+   * @param in input stream
+   * @return BloomFilter instance
+   */
   public abstract BloomFilter deserialize(InputStream in);
+
+  /**
+   * Create specific BloomFilter factory given the parameters.
+   *
+   * @param parameters BloomFilter parameters
+   * @return BloomFilter factory instance
+   */
+  public static BloomFilterFactory of(Map<String, String> parameters) {
+    if (isAdaptiveEnabled(parameters)) {
+      return createAdaptiveBloomFilterFactory(parameters);
+    } else {
+      return createClassicBloomFilterFactory(parameters);
+    }
+  }
+
+  private static BloomFilterFactory createAdaptiveBloomFilterFactory(Map<String, String> parameters) {
+    return new BloomFilterFactory(parameters) {
+      @Override
+      public Map<String, String> getParameters() {
+        return Map.of(
+            BLOOM_FILTER_ADAPTIVE_KEY, "true",
+            CLASSIC_BLOOM_FILTER_FPP_KEY, Double.toString(fpp()));
+      }
+
+      @Override
+      public BloomFilter create() {
+        return new AdaptiveBloomFilter(fpp());
+      }
+
+      @Override
+      public BloomFilter deserialize(InputStream in) {
+        return AdaptiveBloomFilter.readFrom(in);
+      }
+    };
+  }
+
+  private static BloomFilterFactory createClassicBloomFilterFactory(Map<String, String> parameters) {
+    return new BloomFilterFactory(parameters) {
+      @Override
+      public Map<String, String> getParameters() {
+        return Map.of(
+            BLOOM_FILTER_ADAPTIVE_KEY, "false",
+            CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY, Integer.toString(expectedNumItems()),
+            CLASSIC_BLOOM_FILTER_FPP_KEY, Double.toString(fpp()));
+      }
+
+      @Override
+      public BloomFilter create() {
+        return new ClassicBloomFilter(expectedNumItems(), fpp());
+      }
+
+      @Override
+      public BloomFilter deserialize(InputStream in) {
+        return ClassicBloomFilter.readFrom(in);
+      }
+    };
+  }
 
   private static boolean isAdaptiveEnabled(Map<String, String> params) {
     return Optional.ofNullable(params.get(BLOOM_FILTER_ADAPTIVE_KEY))
@@ -74,54 +137,5 @@ public abstract class BloomFilterFactory implements Serializable {
     return Optional.ofNullable(parameters.get(CLASSIC_BLOOM_FILTER_FPP_KEY))
         .map(Double::parseDouble)
         .orElse(DEFAULT_CLASSIC_BLOOM_FILTER_FPP);
-  }
-
-  static class ClassicBloomFilterFactory extends BloomFilterFactory {
-
-    protected ClassicBloomFilterFactory(Map<String, String> parameters) {
-      super(parameters);
-    }
-
-    @Override
-    public Map<String, String> getParameters() {
-      return Map.of(
-          BLOOM_FILTER_ADAPTIVE_KEY, "false",
-          CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY, Integer.toString(expectedNumItems()),
-          CLASSIC_BLOOM_FILTER_FPP_KEY, Double.toString(fpp()));
-    }
-
-    @Override
-    public BloomFilter create() {
-      return new ClassicBloomFilter(expectedNumItems(), fpp());
-    }
-
-    @Override
-    public BloomFilter deserialize(InputStream in) {
-      return ClassicBloomFilter.readFrom(in);
-    }
-  }
-
-  static class AdaptiveBloomFilterFactory extends BloomFilterFactory {
-
-    protected AdaptiveBloomFilterFactory(Map<String, String> parameters) {
-      super(parameters);
-    }
-
-    @Override
-    public Map<String, String> getParameters() {
-      return Map.of(
-          BLOOM_FILTER_ADAPTIVE_KEY, "true",
-          CLASSIC_BLOOM_FILTER_FPP_KEY, Double.toString(fpp()));
-    }
-
-    @Override
-    public BloomFilter create() {
-      return new AdaptiveBloomFilter(fpp());
-    }
-
-    @Override
-    public BloomFilter deserialize(InputStream in) {
-      return AdaptiveBloomFilter.readFrom(in);
-    }
   }
 }
