@@ -101,7 +101,7 @@ public abstract class BloomFilterFactory implements Serializable {
 
       @Override
       public BloomFilter deserialize(InputStream in) {
-        return AdaptiveBloomFilter.readFrom(in, numCandidates());
+        return AdaptiveBloomFilter.readFrom(numCandidates(), in);
       }
     };
   }

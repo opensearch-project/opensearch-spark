@@ -73,7 +73,7 @@ case class BloomFilterAgg(
     // Serialize BloomFilter (best candidate if adaptive) as final result
     buffer match {
       case filter: AdaptiveBloomFilter =>
-        serialize(filter.bestCandidate())
+        serialize(filter.bestCandidate().getBloomFilter)
       case _ =>
         serialize(buffer)
     }
