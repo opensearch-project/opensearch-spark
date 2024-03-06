@@ -13,6 +13,9 @@ import org.apache.spark.benchmark.Benchmark
 
 object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
 
+  private val N = 1000
+  private val numFiles = 100
+
   private val noIndexTableNamePrefix = "spark_catalog.default.no_index_test"
   private val valueSetTableNamePrefix = "spark_catalog.default.value_set_test"
   private val bloomFilterTableNamePrefix = "spark_catalog.default.bloom_filter_test"
@@ -33,20 +36,19 @@ object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
     beforeAll()
 
     runBenchmark("Skipping Index Write") {
-      runWriteBenchmark(1000, 16)
-      runWriteBenchmark(1000, 64)
-      runWriteBenchmark(1000, 512)
+      runWriteBenchmark(16)
+      runWriteBenchmark(64)
+      runWriteBenchmark(512)
     }
 
     runBenchmark("Skipping Index Read") {
-      runReadBenchmark(1000, 16)
-      runReadBenchmark(1000, 64)
-      runReadBenchmark(1000, 512)
+      runReadBenchmark(16)
+      runReadBenchmark(64)
+      runReadBenchmark(512)
     }
   }
 
-  private def runWriteBenchmark(N: Int, cardinality: Int): Unit = {
-    val numFiles = 10
+  private def runWriteBenchmark(cardinality: Int): Unit = {
     val benchmark = new Benchmark(
       s"Write $N rows with cardinality $cardinality in $numFiles files",
       numFiles * N,
@@ -78,8 +80,7 @@ object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
     benchmark.run()
   }
 
-  private def runReadBenchmark(N: Int, cardinality: Int): Unit = {
-    val numFiles = 10
+  private def runReadBenchmark(cardinality: Int): Unit = {
     val benchmark = new Benchmark(
       s"Read $N rows with cardinality $cardinality in $numFiles files",
       numFiles * N,
