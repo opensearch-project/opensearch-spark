@@ -36,6 +36,12 @@ public abstract class BloomFilterFactory implements Serializable {
   public static final double DEFAULT_CLASSIC_BLOOM_FILTER_FPP = 0.03;
 
   /**
+   * Number of candidate key and default value.
+   */
+  public static final String ADAPTIVE_NUMBER_CANDIDATE_KEY = "num_candidates";
+  public static final int DEFAULT_ADAPTIVE_NUMBER_CANDIDATE = 10;
+
+  /**
    * Bloom filter algorithm parameters.
    */
   private final Map<String, String> parameters;
@@ -84,17 +90,18 @@ public abstract class BloomFilterFactory implements Serializable {
       public Map<String, String> getParameters() {
         return Map.of(
             BLOOM_FILTER_ADAPTIVE_KEY, "true",
+            ADAPTIVE_NUMBER_CANDIDATE_KEY, Integer.toString(numCandidates()),
             CLASSIC_BLOOM_FILTER_FPP_KEY, Double.toString(fpp()));
       }
 
       @Override
       public BloomFilter create() {
-        return new AdaptiveBloomFilter(fpp());
+        return new AdaptiveBloomFilter(numCandidates(), fpp());
       }
 
       @Override
       public BloomFilter deserialize(InputStream in) {
-        return AdaptiveBloomFilter.readFrom(in);
+        return AdaptiveBloomFilter.readFrom(in, numCandidates());
       }
     };
   }
@@ -137,5 +144,11 @@ public abstract class BloomFilterFactory implements Serializable {
     return Optional.ofNullable(parameters.get(CLASSIC_BLOOM_FILTER_FPP_KEY))
         .map(Double::parseDouble)
         .orElse(DEFAULT_CLASSIC_BLOOM_FILTER_FPP);
+  }
+
+  protected int numCandidates() {
+    return Optional.ofNullable(parameters.get(ADAPTIVE_NUMBER_CANDIDATE_KEY))
+        .map(Integer::parseInt)
+        .orElse(DEFAULT_ADAPTIVE_NUMBER_CANDIDATE);
   }
 }
