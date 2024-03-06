@@ -72,17 +72,16 @@ case class BloomFilterMightContain(bloomFilterExpression: Expression, valueExpre
   }
 
   /**
-   * Generate expression code for Spark codegen execution. Sample result code (assume right value
-   * expression is not null):
+   * Generate expression code for Spark codegen execution. Sample result code:
    * ```
    *   boolean filter_isNull_0 = true;
    *   boolean filter_value_0 = false;
-   *   if (!(false)) {
+   *   if (!right_isNull) {
    *     filter_isNull_0 = false;
    *     filter_value_0 =
    *       org.opensearch.flint.core.field.bloomfilter.classic.ClassicBloomFilter.readFrom(
-   *         new java.io.ByteArrayInputStream(inputadapter_value_1)
-   *       ).mightContain(5193736701160936137L);
+   *         new java.io.ByteArrayInputStream(left_value)
+   *       ).mightContain(right_value);
    *   }
    * ```
    */
