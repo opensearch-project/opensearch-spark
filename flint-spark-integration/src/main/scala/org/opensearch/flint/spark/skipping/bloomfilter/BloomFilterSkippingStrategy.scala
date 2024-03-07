@@ -6,10 +6,12 @@
 package org.opensearch.flint.spark.skipping.bloomfilter
 
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.IndexColumnExtractor
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{BLOOM_FILTER, SkippingKind}
 import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilterSkippingStrategy.{CLASSIC_BLOOM_FILTER_FPP_KEY, CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY, DEFAULT_CLASSIC_BLOOM_FILTER_FPP, DEFAULT_CLASSIC_BLOOM_FILTER_NUM_ITEMS}
 
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression, Literal}
 import org.apache.spark.sql.functions.{col, xxhash64}
 
 /**
@@ -37,7 +39,14 @@ case class BloomFilterSkippingStrategy(
     ) // TODO: use xxhash64() for now
   }
 
-  override def rewritePredicate(predicate: Expression): Option[Expression] = None
+  override def rewritePredicate(predicate: Expression): Option[Expression] = {
+    val IndexColumn = IndexColumnExtractor(columnName)
+    predicate match {
+      case EqualTo(IndexColumn(indexCol), value: Literal) =>
+        Some(BloomFilterMightContain(indexCol.expr, xxhash64(new Column(value)).expr))
+      case _ => None
+    }
+  }
 
   private def expectedNumItems: Int = {
     params
