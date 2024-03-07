@@ -46,7 +46,8 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
            | (
            |   year PARTITION,
            |   name VALUE_SET,
-           |   age MIN_MAX
+           |   age MIN_MAX,
+           |   address BLOOM_FILTER
            | )
            | WITH (auto_refresh = true)
            | """.stripMargin)
@@ -78,6 +79,24 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
         Row("""["Seattle","Portland"]"""),
         Row(null) // Value set exceeded limit size is expected to be null
       ))
+  }
+
+  test("create skipping index with non-adaptive bloom filter") {
+    sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | (
+           |   address BLOOM_FILTER(false, 1024, 0.01)
+           | )
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
+
+    val job = spark.streams.active.find(_.name == testIndex)
+    awaitStreamingComplete(job.get.id.toString)
+
+    flint.queryIndex(testIndex).count() shouldBe 2
+
+    checkAnswer(sql(s"SELECT name FROM $testTable WHERE address = 'Vancouver'"), Row("Test"))
+    sql(s"SELECT name FROM $testTable WHERE address = 'San Francisco'").count() shouldBe 0
   }
 
   test("create skipping index with streaming job options") {

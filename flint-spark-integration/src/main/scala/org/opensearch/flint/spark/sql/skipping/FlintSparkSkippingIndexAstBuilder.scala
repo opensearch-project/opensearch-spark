@@ -8,10 +8,11 @@ package org.opensearch.flint.spark.sql.skipping
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 import org.antlr.v4.runtime.tree.RuleNode
+import org.opensearch.flint.core.field.bloomfilter.BloomFilterFactory._
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{BLOOM_FILTER, MIN_MAX, PARTITION, VALUE_SET}
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.VALUE_SET_MAX_SIZE_KEY
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
@@ -52,6 +53,18 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
             val valueSetParams = (Seq(VALUE_SET_MAX_SIZE_KEY) zip skipParams).toMap
             indexBuilder.addValueSet(colName, valueSetParams)
           case MIN_MAX => indexBuilder.addMinMax(colName)
+          case BLOOM_FILTER =>
+            val bloomFilterParamKeys =
+              if (skipParams.headOption.contains("false")) {
+                Seq(
+                  BLOOM_FILTER_ADAPTIVE_KEY,
+                  CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY,
+                  CLASSIC_BLOOM_FILTER_FPP_KEY)
+              } else {
+                Seq(ADAPTIVE_NUMBER_CANDIDATE_KEY, CLASSIC_BLOOM_FILTER_FPP_KEY)
+              }
+            val bloomFilterParams = (bloomFilterParamKeys zip skipParams).toMap
+            indexBuilder.addBloomFilter(colName, bloomFilterParams)
         }
       }
 
