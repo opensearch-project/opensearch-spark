@@ -24,26 +24,26 @@ public class AdaptiveBloomFilterTest {
 
   @Test
   public void shouldChooseBestCandidateAdaptively() {
-    // Insert 50 items
-    for (int i = 0; i < 50; i++) {
+    // Insert 500 items
+    for (int i = 0; i < 500; i++) {
       bloomFilter.put(i);
     }
     BloomFilterCandidate candidate1 = bloomFilter.bestCandidate();
-    assertEquals(128, candidate1.expectedNumItems);
+    assertEquals(1024, candidate1.expectedNumItems);
 
-    // Insert 100 (total 150)
-    for (int i = 50; i < 150; i++) {
+    // Insert 1000 (total 1500)
+    for (int i = 500; i < 1500; i++) {
       bloomFilter.put(i);
     }
     BloomFilterCandidate candidate2 = bloomFilter.bestCandidate();
-    assertEquals(256, candidate2.expectedNumItems);
+    assertEquals(2048, candidate2.expectedNumItems);
 
-    // Insert 400 (total 550)
-    for (int i = 150; i < 550; i++) {
+    // Insert 4000 (total 5500)
+    for (int i = 1500; i < 5500; i++) {
       bloomFilter.put(i);
     }
     BloomFilterCandidate candidate3 = bloomFilter.bestCandidate();
-    assertEquals(1024, candidate3.expectedNumItems);
+    assertEquals(8192, candidate3.expectedNumItems);
   }
 
   @Test

@@ -23,6 +23,7 @@ class BloomFilterSkippingStrategySuite
   test("parameters") {
     strategy.parameters shouldBe Map(
       BLOOM_FILTER_ADAPTIVE_KEY -> DEFAULT_BLOOM_FILTER_ADAPTIVE.toString,
+      ADAPTIVE_NUMBER_CANDIDATE_KEY -> DEFAULT_ADAPTIVE_NUMBER_CANDIDATE.toString,
       CLASSIC_BLOOM_FILTER_FPP_KEY -> DEFAULT_CLASSIC_BLOOM_FILTER_FPP.toString)
   }
 }

@@ -34,7 +34,7 @@ public class AdaptiveBloomFilter implements BloomFilter {
   public AdaptiveBloomFilter(int numCandidate, double fpp) {
     this.candidates = new BloomFilterCandidate[numCandidate];
 
-    int expectedNumItems = 128;
+    int expectedNumItems = 1024;
     for (int i = 0; i < candidates.length; i++) {
       candidates[i] =
           new BloomFilterCandidate(
@@ -48,7 +48,7 @@ public class AdaptiveBloomFilter implements BloomFilter {
     this.total = total;
     this.candidates = new BloomFilterCandidate[candidates.length];
 
-    int expectedNumItems = 128;
+    int expectedNumItems = 1024;
     for (int i = 0; i < candidates.length; i++) {
       this.candidates[i] = new BloomFilterCandidate(expectedNumItems, candidates[i]);
       expectedNumItems *= 2;
