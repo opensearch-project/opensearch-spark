@@ -137,7 +137,6 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
                        final SortedMap<String, Histogram> histograms,
                        final SortedMap<String, Meter> meters,
                        final SortedMap<String, Timer> timers) {
-
         if (builder.withDryRun) {
             LOGGER.warn("** Reporter is running in 'DRY RUN' mode **");
         }
