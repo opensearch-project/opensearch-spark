@@ -11,53 +11,90 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Objects;
+import java.util.function.Function;
 import org.opensearch.flint.core.field.bloomfilter.BloomFilter;
 import org.opensearch.flint.core.field.bloomfilter.classic.ClassicBloomFilter;
 
 /**
- * Adaptive bloom filter implementation that generates a series of bloom filter candidate
+ * Adaptive BloomFilter implementation that generates a series of bloom filter candidate
  * with different expected number of item (NDV) and at last choose the best one.
  */
 public class AdaptiveBloomFilter implements BloomFilter {
 
   /**
-   * Total number of distinct items seen so far.
+   * Initial expected number of items for the first candidate.
    */
-  private int total = 0;
+  private static final int INITIAL_EXPECTED_NUM_ITEMS = 1024;
 
   /**
-   * Bloom filter candidates.
+   * Total number of distinct items seen so far.
+   */
+  private int cardinality = 0;
+
+  /**
+   * BloomFilter candidates.
    */
   final BloomFilterCandidate[] candidates;
 
-  public AdaptiveBloomFilter(int numCandidate, double fpp) {
-    this.candidates = new BloomFilterCandidate[numCandidate];
+  /**
+   * Construct adaptive BloomFilter instance with the given algorithm parameters.
+   *
+   * @param numCandidates number of candidate
+   * @param fpp           false positive probability
+   */
+  public AdaptiveBloomFilter(int numCandidates, double fpp) {
+    this.candidates = initializeCandidates(numCandidates, expectedNumItems -> new ClassicBloomFilter(expectedNumItems, fpp));
+  }
 
-    int expectedNumItems = 1024;
-    for (int i = 0; i < candidates.length; i++) {
-      candidates[i] =
-          new BloomFilterCandidate(
-              expectedNumItems,
-              new ClassicBloomFilter(expectedNumItems, fpp));
-      expectedNumItems *= 2;
+  /**
+   * Construct adaptive BloomFilter instance from deserialized content.
+   *
+   * @param cardinality total number of distinct items
+   * @param candidates  BloomFilter candidates
+   */
+  AdaptiveBloomFilter(int cardinality, BloomFilter[] candidates) {
+    this.cardinality = cardinality;
+    Iterator<BloomFilter> it = Arrays.stream(candidates).iterator();
+    this.candidates = initializeCandidates(candidates.length, expectedNumItems -> it.next());
+  }
+
+  /**
+   * Deserialize adaptive BloomFilter instance from input stream.
+   *
+   * @param numCandidates number of candidates
+   * @param in            input stream of serialized adaptive BloomFilter instance
+   * @return adaptive BloomFilter instance
+   */
+  public static BloomFilter readFrom(int numCandidates, InputStream in) {
+    try {
+      // Read total distinct counter
+      int cardinality = new DataInputStream(in).readInt();
+
+      // Read BloomFilter candidate array
+      BloomFilter[] candidates = new BloomFilter[numCandidates];
+      for (int i = 0; i < numCandidates; i++) {
+        candidates[i] = ClassicBloomFilter.readFrom(in);
+      }
+      return new AdaptiveBloomFilter(cardinality, candidates);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to deserialize adaptive BloomFilter", e);
     }
   }
 
-  AdaptiveBloomFilter(int total, BloomFilter[] candidates) {
-    this.total = total;
-    this.candidates = new BloomFilterCandidate[candidates.length];
-
-    int expectedNumItems = 1024;
-    for (int i = 0; i < candidates.length; i++) {
-      this.candidates[i] = new BloomFilterCandidate(expectedNumItems, candidates[i]);
-      expectedNumItems *= 2;
-    }
+  /**
+   * @return best BloomFilter candidate which has expected number of item right above total distinct counter.
+   */
+  public BloomFilterCandidate bestCandidate() {
+    return candidates[bestCandidateIndex()];
   }
 
   @Override
   public long bitSize() {
-    return Arrays.stream(candidates).map(candidate -> candidate.bloomFilter.bitSize()).count();
+    return Arrays.stream(candidates)
+        .mapToLong(c -> c.bloomFilter.bitSize())
+        .sum();
   }
 
   @Override
@@ -68,9 +105,9 @@ public class AdaptiveBloomFilter implements BloomFilter {
       bitChanged = candidates[i].bloomFilter.put(item);
     }
 
-    // Use the last candidate's put result which is most accurate
+    // Use the last candidate's put result which is the most accurate
     if (bitChanged) {
-      total++;
+      cardinality++;
     }
     return bitChanged;
   }
@@ -78,12 +115,12 @@ public class AdaptiveBloomFilter implements BloomFilter {
   @Override
   public BloomFilter merge(BloomFilter other) {
     AdaptiveBloomFilter otherBf = (AdaptiveBloomFilter) other;
-    total += otherBf.total;
+    cardinality += otherBf.cardinality;
 
     for (int i = 0; i < candidates.length; i++) {
       candidates[i].bloomFilter.merge(otherBf.candidates[i].bloomFilter);
     }
-    return null;
+    return this;
   }
 
   @Override
@@ -93,31 +130,29 @@ public class AdaptiveBloomFilter implements BloomFilter {
 
   @Override
   public void writeTo(OutputStream out) throws IOException {
-    new DataOutputStream(out).writeInt(total);
+    // Serialized cardinality counter first
+    new DataOutputStream(out).writeInt(cardinality);
+
+    // Serialize classic BloomFilter array
     for (BloomFilterCandidate candidate : candidates) {
       candidate.bloomFilter.writeTo(out);
     }
   }
 
-  public static BloomFilter readFrom(int numCandidates, InputStream in) {
-    try {
-      int total = new DataInputStream(in).readInt();
-      BloomFilter[] candidates = new BloomFilter[numCandidates];
-      for (int i = 0; i < numCandidates; i++) {
-        candidates[i] = ClassicBloomFilter.readFrom(in);
-      }
-      return new AdaptiveBloomFilter(total, candidates);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
+  private BloomFilterCandidate[] initializeCandidates(int numCandidates,
+                                                      Function<Integer, BloomFilter> initializer) {
+    BloomFilterCandidate[] candidates = new BloomFilterCandidate[numCandidates];
+    int ndv = INITIAL_EXPECTED_NUM_ITEMS;
 
-  public BloomFilterCandidate bestCandidate() {
-    return candidates[bestCandidateIndex()];
+    // Initialize candidate with NDV doubled in each iteration
+    for (int i = 0; i < numCandidates; i++, ndv *= 2) {
+      candidates[i] = new BloomFilterCandidate(ndv, initializer.apply(ndv));
+    }
+    return candidates;
   }
 
   private int bestCandidateIndex() {
-    int index = Arrays.binarySearch(candidates, new BloomFilterCandidate(total, null));
+    int index = Arrays.binarySearch(candidates, new BloomFilterCandidate(cardinality, null));
     if (index < 0) {
       index = -(index + 1);
     }
@@ -125,7 +160,6 @@ public class AdaptiveBloomFilter implements BloomFilter {
   }
 
   public static class BloomFilterCandidate implements Comparable<BloomFilterCandidate> {
-
     int expectedNumItems;
     BloomFilter bloomFilter;
 
@@ -166,12 +200,12 @@ public class AdaptiveBloomFilter implements BloomFilter {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     AdaptiveBloomFilter that = (AdaptiveBloomFilter) o;
-    return total == that.total && Arrays.equals(candidates, that.candidates);
+    return cardinality == that.cardinality && Arrays.equals(candidates, that.candidates);
   }
 
   @Override
   public int hashCode() {
-    int result = Objects.hash(total);
+    int result = Objects.hash(cardinality);
     result = 31 * result + Arrays.hashCode(candidates);
     return result;
   }
