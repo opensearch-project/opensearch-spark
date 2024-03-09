@@ -6,8 +6,10 @@
 package org.opensearch.flint.core;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.opensearch.flint.core.metadata.FlintMetadata;
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
 import org.opensearch.flint.core.storage.FlintReader;
 import org.opensearch.flint.core.storage.FlintWriter;
@@ -70,6 +72,15 @@ public interface FlintClient {
    * @return index metadata
    */
   FlintMetadata getIndexMetadata(String indexName);
+
+  /**
+   * Retrieve metadata latest log entry for a Flint index.
+   *
+   * @param indexName index name
+   * @param dataSourceName TODO: read from elsewhere in the future
+   * @return index metadata latest log entry
+   */
+  Optional<FlintMetadataLogEntry> getIndexMetadataLatestLogEntry(String indexName, String dataSourceName);
 
   /**
    * Delete a Flint index.

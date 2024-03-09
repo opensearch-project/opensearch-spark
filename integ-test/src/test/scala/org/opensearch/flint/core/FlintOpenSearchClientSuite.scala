@@ -34,6 +34,9 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     the[IllegalStateException] thrownBy {
       flintClient.startTransaction("test", "non-exist-index")
     }
+    the[IllegalStateException] thrownBy {
+      flintClient.getIndexMetadataLatestLogEntry("test", "non-exist-index")
+    }
   }
 
   it should "create index successfully" in {

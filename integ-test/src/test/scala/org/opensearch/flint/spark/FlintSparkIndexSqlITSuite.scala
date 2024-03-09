@@ -52,9 +52,9 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
       .create()
 
     checkAnswer(sql(s"SHOW FLINT INDEX IN spark_catalog"), Seq(
-      Row(testMvFlintIndex, "mv", "default", "", testMvIndexShortName, false, "NOT_IMPLEMENTED"),
-      Row(testCoveringFlintIndex, "covering", "default", testTableName, testCoveringIndex, false, "NOT_IMPLEMENTED"),
-      Row(testSkippingFlintIndex, "skipping", "default", testTableName, "", false, "NOT_IMPLEMENTED")))
+      Row(testMvFlintIndex, "mv", "default", "", testMvIndexShortName, false, "active"),
+      Row(testCoveringFlintIndex, "covering", "default", testTableName, testCoveringIndex, false, "active"),
+      Row(testSkippingFlintIndex, "skipping", "default", testTableName, "", false, "active")))
 
     // Show in catalog.database
     flint
@@ -64,10 +64,10 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
       .create()
 
     checkAnswer(sql(s"SHOW FLINT INDEX IN spark_catalog"), Seq(
-      Row(testMvFlintIndex, "mv", "default", "", testMvIndexShortName, false, "NOT_IMPLEMENTED"),
-      Row(testCoveringFlintIndex, "covering", "default", testTableName, testCoveringIndex, false, "NOT_IMPLEMENTED"),
-      Row(testSkippingFlintIndex, "skipping", "default", testTableName, "", false, "NOT_IMPLEMENTED"),
-      Row(FlintSparkMaterializedView.getFlintIndexName("spark_catalog.default.mv2"), "mv", "default", "", "mv2", false, "NOT_IMPLEMENTED")))
+      Row(testMvFlintIndex, "mv", "default", "", testMvIndexShortName, false, "active"),
+      Row(testCoveringFlintIndex, "covering", "default", testTableName, testCoveringIndex, false, "active"),
+      Row(testSkippingFlintIndex, "skipping", "default", testTableName, "", false, "active"),
+      Row(FlintSparkMaterializedView.getFlintIndexName("spark_catalog.default.mv2"), "mv", "default", "", "mv2", false, "active")))
 
     deleteTestIndex(
       testMvFlintIndex,
@@ -88,9 +88,10 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
       .addIndexColumns("name", "age")
       .options(FlintSparkIndexOptions(Map(AUTO_REFRESH.toString -> "true")))
       .create()
+    flint.refreshIndex(testCoveringFlintIndex)
 
     checkAnswer(
       sql(s"SHOW FLINT INDEX IN spark_catalog"),
-      Seq(Row(testCoveringFlintIndex, "covering", "default", testTableName, testCoveringIndex, true, "NOT_IMPLEMENTED")))
+      Seq(Row(testCoveringFlintIndex, "covering", "default", testTableName, testCoveringIndex, true, "refreshing")))
   }
 }

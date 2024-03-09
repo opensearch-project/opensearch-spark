@@ -10,6 +10,7 @@ import scala.collection.JavaConverters._
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
@@ -200,6 +201,11 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     } else {
       Option.empty
     }
+  }
+
+  def fetchIndexMetadataLatestLogEntry(indexName: String): Option[FlintMetadataLogEntry] = {
+    logInfo(s"Fetching metadata log entry for index $indexName")
+    Option(flintClient.getIndexMetadataLatestLogEntry(indexName, dataSourceName).orElse(null))
   }
 
   /**
