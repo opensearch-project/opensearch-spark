@@ -70,7 +70,14 @@ trait FlintSparkIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
             case None => "unavailable"
           }
 
-          Row(index.name, index.kind, databaseName, tableName, indexName, index.options.autoRefresh(), status)
+          Row(
+            index.name,
+            index.kind,
+            databaseName,
+            tableName,
+            indexName,
+            index.options.autoRefresh(),
+            status)
         }
     }
   }

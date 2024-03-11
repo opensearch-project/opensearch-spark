@@ -20,8 +20,10 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
   private val testMvIndexShortName = "mv1"
   private val testMvQuery = s"SELECT name, age FROM $testTableQualifiedName"
 
-  private val testSkippingFlintIndex = FlintSparkSkippingIndex.getSkippingIndexName(testTableQualifiedName)
-  private val testCoveringFlintIndex = FlintSparkCoveringIndex.getFlintIndexName(testCoveringIndex, testTableQualifiedName)
+  private val testSkippingFlintIndex =
+    FlintSparkSkippingIndex.getSkippingIndexName(testTableQualifiedName)
+  private val testCoveringFlintIndex =
+    FlintSparkCoveringIndex.getFlintIndexName(testCoveringIndex, testTableQualifiedName)
   private val testMvIndex = s"spark_catalog.default.$testMvIndexShortName"
   private val testMvFlintIndex = FlintSparkMaterializedView.getFlintIndexName(testMvIndex)
 
@@ -51,10 +53,19 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
       .addValueSet("name")
       .create()
 
-    checkAnswer(sql(s"SHOW FLINT INDEX IN spark_catalog"), Seq(
-      Row(testMvFlintIndex, "mv", "default", null, testMvIndexShortName, false, "active"),
-      Row(testCoveringFlintIndex, "covering", "default", testTableName, testCoveringIndex, false, "active"),
-      Row(testSkippingFlintIndex, "skipping", "default", testTableName, null, false, "active")))
+    checkAnswer(
+      sql(s"SHOW FLINT INDEX IN spark_catalog"),
+      Seq(
+        Row(testMvFlintIndex, "mv", "default", null, testMvIndexShortName, false, "active"),
+        Row(
+          testCoveringFlintIndex,
+          "covering",
+          "default",
+          testTableName,
+          testCoveringIndex,
+          false,
+          "active"),
+        Row(testSkippingFlintIndex, "skipping", "default", testTableName, null, false, "active")))
 
     // Show in catalog.database
     flint
@@ -63,11 +74,27 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
       .query(testMvQuery)
       .create()
 
-    checkAnswer(sql(s"SHOW FLINT INDEX IN spark_catalog"), Seq(
-      Row(testMvFlintIndex, "mv", "default", null, testMvIndexShortName, false, "active"),
-      Row(testCoveringFlintIndex, "covering", "default", testTableName, testCoveringIndex, false, "active"),
-      Row(testSkippingFlintIndex, "skipping", "default", testTableName, null, false, "active"),
-      Row(FlintSparkMaterializedView.getFlintIndexName("spark_catalog.default.mv2"), "mv", "default", null, "mv2", false, "active")))
+    checkAnswer(
+      sql(s"SHOW FLINT INDEX IN spark_catalog"),
+      Seq(
+        Row(testMvFlintIndex, "mv", "default", null, testMvIndexShortName, false, "active"),
+        Row(
+          testCoveringFlintIndex,
+          "covering",
+          "default",
+          testTableName,
+          testCoveringIndex,
+          false,
+          "active"),
+        Row(testSkippingFlintIndex, "skipping", "default", testTableName, null, false, "active"),
+        Row(
+          FlintSparkMaterializedView.getFlintIndexName("spark_catalog.default.mv2"),
+          "mv",
+          "default",
+          null,
+          "mv2",
+          false,
+          "active")))
 
     deleteTestIndex(
       testMvFlintIndex,
@@ -92,6 +119,14 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
 
     checkAnswer(
       sql(s"SHOW FLINT INDEX IN spark_catalog"),
-      Seq(Row(testCoveringFlintIndex, "covering", "default", testTableName, testCoveringIndex, true, "refreshing")))
+      Seq(
+        Row(
+          testCoveringFlintIndex,
+          "covering",
+          "default",
+          testTableName,
+          testCoveringIndex,
+          true,
+          "refreshing")))
   }
 }

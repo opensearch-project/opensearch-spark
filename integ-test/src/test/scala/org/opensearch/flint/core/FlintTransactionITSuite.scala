@@ -56,7 +56,8 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         dataSource = testDataSourceName,
         error = ""))
 
-    val latest = flintClient.getIndexMetadataLatestLogEntry(testFlintIndex, testDataSourceName).get
+    val latest =
+      flintClient.getIndexMetadataLatestLogEntry(testFlintIndex, testDataSourceName).get
     latest.id shouldBe testLatestId
     latest.createTime shouldBe testCreateTime
     latest.dataSource shouldBe testDataSourceName
@@ -64,7 +65,9 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   }
 
   test("should get empty if no metadata log entry for index") {
-    flintClient.getIndexMetadataLatestLogEntry(testFlintIndex, testDataSourceName).isEmpty shouldBe true
+    flintClient
+      .getIndexMetadataLatestLogEntry(testFlintIndex, testDataSourceName)
+      .isEmpty shouldBe true
   }
 
   test("should preserve original values when transition") {
