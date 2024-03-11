@@ -29,8 +29,8 @@ trait FlintSparkIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
       AttributeReference("flint_index_name", StringType, nullable = false)(),
       AttributeReference("kind", StringType, nullable = false)(),
       AttributeReference("database", StringType, nullable = false)(),
-      AttributeReference("table", StringType, nullable = false)(),
-      AttributeReference("index_name", StringType, nullable = false)(),
+      AttributeReference("table", StringType, nullable = true)(),
+      AttributeReference("index_name", StringType, nullable = true)(),
       AttributeReference("auto_refresh", BooleanType, nullable = false)(),
       AttributeReference("status", StringType, nullable = false)())
 
@@ -53,7 +53,7 @@ trait FlintSparkIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
 
           val tableName = index match {
             // MV doesn't belong to a table
-            case _: FlintSparkMaterializedView => ""
+            case _: FlintSparkMaterializedView => null
             // Table name must be qualified when metadata created
             case _ => parts.drop(2).mkString(".")
           }
@@ -62,7 +62,7 @@ trait FlintSparkIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
             // MV name must be qualified when metadata created
             case _: FlintSparkMaterializedView => parts.drop(2).mkString(".")
             // Skipping index doesn't have a user defined name
-            case _: FlintSparkSkippingIndex => ""
+            case _: FlintSparkSkippingIndex => null
           }
 
           val status = flint.fetchIndexMetadataLatestLogEntry(index.name) match {
