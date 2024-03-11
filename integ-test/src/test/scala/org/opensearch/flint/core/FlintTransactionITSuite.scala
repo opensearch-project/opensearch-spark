@@ -66,8 +66,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should get empty if no metadata log entry for index") {
     flintClient
-      .getIndexMetadataLatestLogEntry(testFlintIndex, testDataSourceName)
-      .isEmpty shouldBe true
+      .getIndexMetadataLatestLogEntry(testFlintIndex, testDataSourceName) shouldBe empty
   }
 
   test("should preserve original values when transition") {

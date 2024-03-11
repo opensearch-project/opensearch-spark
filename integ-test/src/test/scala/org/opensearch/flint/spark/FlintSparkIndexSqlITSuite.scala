@@ -67,15 +67,16 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
           "active"),
         Row(testSkippingFlintIndex, "skipping", "default", testTableName, null, false, "active")))
 
-    // Show in catalog.database
+    // Create index in other database
     flint
       .materializedView()
-      .name("spark_catalog.default.mv2")
+      .name("spark_catalog.other.mv2")
       .query(testMvQuery)
       .create()
 
+    // Show in catalog.database shouldn't show index in other database
     checkAnswer(
-      sql(s"SHOW FLINT INDEX IN spark_catalog"),
+      sql(s"SHOW FLINT INDEX IN spark_catalog.default"),
       Seq(
         Row(testMvFlintIndex, "mv", "default", null, testMvIndexShortName, false, "active"),
         Row(
@@ -86,21 +87,13 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
           testCoveringIndex,
           false,
           "active"),
-        Row(testSkippingFlintIndex, "skipping", "default", testTableName, null, false, "active"),
-        Row(
-          FlintSparkMaterializedView.getFlintIndexName("spark_catalog.default.mv2"),
-          "mv",
-          "default",
-          null,
-          "mv2",
-          false,
-          "active")))
+        Row(testSkippingFlintIndex, "skipping", "default", testTableName, null, false, "active")))
 
     deleteTestIndex(
       testMvFlintIndex,
       testCoveringFlintIndex,
       testSkippingFlintIndex,
-      FlintSparkMaterializedView.getFlintIndexName("spark_catalog.default.mv2"))
+      FlintSparkMaterializedView.getFlintIndexName("spark_catalog.other.mv2"))
   }
 
   test("should return empty when show flint index in empty database") {
@@ -128,5 +121,6 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
           testCoveringIndex,
           true,
           "refreshing")))
+    deleteTestIndex(testCoveringFlintIndex)
   }
 }
