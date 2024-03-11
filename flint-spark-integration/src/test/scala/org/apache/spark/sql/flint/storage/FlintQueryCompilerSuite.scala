@@ -5,8 +5,10 @@
 
 package org.apache.spark.sql.flint.storage
 
+import scala.io.Source
+
 import org.apache.spark.FlintSuite
-import org.apache.spark.sql.connector.expressions.{FieldReference, GeneralScalarExpression}
+import org.apache.spark.sql.connector.expressions.{FieldReference, GeneralScalarExpression, LiteralValue}
 import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
@@ -135,6 +137,34 @@ class FlintQueryCompilerSuite extends FlintSuite {
     val query =
       FlintQueryCompiler(schema()).compile(IsNotNull("aString").toV2)
     assertResult("""{"exists":{"field":"aString"}}""")(query)
+  }
+
+  test("compile BLOOM_FILTER_MIGHT_CONTAIN(aInt, 1) successfully") {
+    val query =
+      FlintQueryCompiler(schema()).compile(
+        new Predicate(
+          "BLOOM_FILTER_MIGHT_CONTAIN",
+          Array(FieldReference("aInt"), LiteralValue(1, IntegerType))))
+
+    val code = Source.fromResource("bloom_filter_query.script").getLines().mkString(" ")
+    assertResult(s"""
+         |{
+         |  "bool": {
+         |    "filter": {
+         |      "script": {
+         |        "script": {
+         |          "lang": "painless",
+         |          "source": "$code",
+         |          "params": {
+         |            "fieldName": "aInt",
+         |            "value": 1
+         |          }
+         |        }
+         |      }
+         |    }
+         |  }
+         |}
+         |""".stripMargin)(query)
   }
 
   protected def schema(): StructType = {

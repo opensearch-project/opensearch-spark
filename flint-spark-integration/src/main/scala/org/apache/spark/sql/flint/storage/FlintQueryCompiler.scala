@@ -5,6 +5,8 @@
 
 package org.apache.spark.sql.flint.storage
 
+import scala.io.Source
+
 import org.apache.spark.sql.catalyst.expressions.Literal
 import org.apache.spark.sql.catalyst.util.{DateTimeUtils, TimestampFormatter}
 import org.apache.spark.sql.connector.expressions.{Expression, FieldReference, LiteralValue}
@@ -112,6 +114,26 @@ case class FlintQueryCompiler(schema: StructType) {
         s"""{"wildcard":{"${compile(p.children()(0))}":{"value":"*${compile(
             p.children()(1),
             false)}"}}}"""
+      case "BLOOM_FILTER_MIGHT_CONTAIN" =>
+        val code = Source.fromResource("bloom_filter_query.script").getLines().mkString(" ")
+        s"""
+           |{
+           |  "bool": {
+           |    "filter": {
+           |      "script": {
+           |        "script": {
+           |          "lang": "painless",
+           |          "source": "$code",
+           |          "params": {
+           |            "fieldName": "${compile(p.children()(0))}",
+           |            "value": ${compile(p.children()(1))}
+           |          }
+           |        }
+           |      }
+           |    }
+           |  }
+           |}
+           |""".stripMargin
       case _ => ""
     }
   }
