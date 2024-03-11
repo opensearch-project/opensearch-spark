@@ -122,7 +122,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |       "type": "integer"
         |     },
         |     "name" : {
-        |       "type": "binary"
+        |       "type": "binary",
+        |       "doc_values": true
         |     },
         |     "file_path": {
         |       "type": "keyword"

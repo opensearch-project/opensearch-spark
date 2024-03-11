@@ -44,7 +44,8 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
                           |      "type": "text"
                           |    },
                           |    "binaryField": {
-                          |      "type": "binary"
+                          |      "type": "binary",
+                          |      "doc_values": true
                           |    }
                           |  }
                           |}""".stripMargin
