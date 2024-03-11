@@ -278,6 +278,26 @@ DROP MATERIALIZED VIEW alb_logs_metrics
 VACUUM MATERIALIZED VIEW alb_logs_metrics
 ```
 
+#### All Indexes
+
+- **Show Flint Indexes**: Displays all the flint indexes with their info. It outputs the following columns:
+  - flint_index_name: the full OpenSearch index name 
+  - kind: type of the index (skipping / covering / mv)
+  - database: database name for the index
+  - table: table name for skipping and covering index
+  - index_name: user defined name for covering index and materialized view
+  - auto_refresh: auto refresh option of the index (true / false)
+  - status: status of the index
+
+```sql
+SHOW FLINT [INDEX|INDEXES] IN catalog[.database]
+```
+
+Example:
+```sql
+SHOW FLINT INDEXES IN spark_catalog.default
+```
+
 #### Create Index Options
 
 User can provide the following options in `WITH` clause of create statement:
