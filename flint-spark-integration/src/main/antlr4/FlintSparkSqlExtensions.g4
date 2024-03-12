@@ -135,7 +135,7 @@ describeMaterializedViewStatement
 
 alterMaterializedViewStatement
     : ALTER MATERIALIZED VIEW mvName=multipartIdentifier
-        WITH LEFT_PAREN propertyList RIGHT_PAREN)
+        WITH LEFT_PAREN propertyList RIGHT_PAREN
     ;
 
 dropMaterializedViewStatement
