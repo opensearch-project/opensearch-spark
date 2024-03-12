@@ -28,6 +28,11 @@ skippingIndexStatement
     | describeSkippingIndexStatement
     | dropSkippingIndexStatement
     | vacuumSkippingIndexStatement
+    | analyzeSkippingIndexStatement
+    ;
+
+analyzeSkippingIndexStatement
+    : ANALYZE SKIPPING INDEX ON tableName
     ;
 
 createSkippingIndexStatement
