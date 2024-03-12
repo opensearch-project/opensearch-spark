@@ -26,7 +26,7 @@ public class AdaptiveBloomFilter implements BloomFilter {
   /**
    * Initial expected number of items for the first candidate.
    */
-  private static final int INITIAL_EXPECTED_NUM_ITEMS = 1024;
+  public static final int INITIAL_EXPECTED_NUM_ITEMS = 1024;
 
   /**
    * Total number of distinct items seen so far.
@@ -36,7 +36,7 @@ public class AdaptiveBloomFilter implements BloomFilter {
   /**
    * BloomFilter candidates.
    */
-  final BloomFilterCandidate[] candidates;
+  private final BloomFilterCandidate[] candidates;
 
   /**
    * Construct adaptive BloomFilter instance with the given algorithm parameters.
@@ -45,11 +45,12 @@ public class AdaptiveBloomFilter implements BloomFilter {
    * @param fpp           false positive probability
    */
   public AdaptiveBloomFilter(int numCandidates, double fpp) {
-    this.candidates = initializeCandidates(numCandidates, expectedNumItems -> new ClassicBloomFilter(expectedNumItems, fpp));
+    this.candidates = initializeCandidates(numCandidates,
+        expectedNumItems -> new ClassicBloomFilter(expectedNumItems, fpp));
   }
 
   /**
-   * Construct adaptive BloomFilter instance from deserialized content.
+   * Construct adaptive BloomFilter instance from BloomFilter array deserialized from input stream.
    *
    * @param cardinality total number of distinct items
    * @param candidates  BloomFilter candidates
@@ -117,7 +118,7 @@ public class AdaptiveBloomFilter implements BloomFilter {
     AdaptiveBloomFilter otherBf = (AdaptiveBloomFilter) other;
     cardinality += otherBf.cardinality;
 
-    for (int i = 0; i < candidates.length; i++) {
+    for (int i = bestCandidateIndex(); i < candidates.length; i++) {
       candidates[i].bloomFilter.merge(otherBf.candidates[i].bloomFilter);
     }
     return this;
@@ -125,6 +126,7 @@ public class AdaptiveBloomFilter implements BloomFilter {
 
   @Override
   public boolean mightContain(long item) {
+    // Use the last candidate which is the most accurate
     return candidates[candidates.length - 1].bloomFilter.mightContain(item);
   }
 
@@ -156,12 +158,28 @@ public class AdaptiveBloomFilter implements BloomFilter {
     if (index < 0) {
       index = -(index + 1);
     }
+
+    /*
+     * Now 'index' represents the position where the current cardinality should be inserted,
+     * indicating the best candidate to choose based on its expected number of distinct values.
+     * The last one is chosen if cardinality exceeds each candidate's expected number.
+     */
     return Math.min(index, candidates.length - 1);
   }
 
+  /**
+   * BloomFilter candidate that records expected number of items for each candidate.
+   */
   public static class BloomFilterCandidate implements Comparable<BloomFilterCandidate> {
-    int expectedNumItems;
-    BloomFilter bloomFilter;
+    /**
+     * Expected number of items associated with this candidate.
+     */
+    private final int expectedNumItems;
+
+    /**
+     * BloomFilter instance.
+     */
+    private final BloomFilter bloomFilter;
 
     BloomFilterCandidate(int expectedNumItems, BloomFilter bloomFilter) {
       this.expectedNumItems = expectedNumItems;

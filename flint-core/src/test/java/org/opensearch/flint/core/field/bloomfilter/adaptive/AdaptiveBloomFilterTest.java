@@ -20,7 +20,9 @@ public class AdaptiveBloomFilterTest {
 
   private final int numCandidates = 5;
 
-  private final AdaptiveBloomFilter bloomFilter = new AdaptiveBloomFilter(numCandidates, 0.03);
+  private final double fpp = 0.03;
+
+  private final AdaptiveBloomFilter bloomFilter = new AdaptiveBloomFilter(numCandidates, fpp);
 
   @Test
   public void shouldChooseBestCandidateAdaptively() {
@@ -28,26 +30,38 @@ public class AdaptiveBloomFilterTest {
     for (int i = 0; i < 500; i++) {
       bloomFilter.put(i);
     }
-    assertEquals(1024, bloomFilter.bestCandidate().expectedNumItems);
+    assertEquals(1024, bloomFilter.bestCandidate().getExpectedNumItems());
 
-    // Insert 1000 (total 1500) should choose 2nd candidate
+    // Insert 1000 (total 1500) items should choose 2nd candidate
     for (int i = 500; i < 1500; i++) {
       bloomFilter.put(i);
     }
-    assertEquals(2048, bloomFilter.bestCandidate().expectedNumItems);
+    assertEquals(2048, bloomFilter.bestCandidate().getExpectedNumItems());
 
-    // Insert 4000 (total 5500) should choose 4th candidate
+    // Insert 4000 (total 5500) items should choose 4th candidate
     for (int i = 1500; i < 5500; i++) {
       bloomFilter.put(i);
     }
-    assertEquals(8192, bloomFilter.bestCandidate().expectedNumItems);
+    assertEquals(8192, bloomFilter.bestCandidate().getExpectedNumItems());
+  }
+
+  @Test
+  public void shouldChooseLastCandidateForLargeCardinality() {
+    // Insert items more than last candidate's NDV 16384
+    for (int i = 0; i < 20000; i++) {
+      bloomFilter.put(i);
+    }
+
+    // Ensure that the last candidate is chosen due to the large cardinality
+    assertEquals(16384, bloomFilter.bestCandidate().getExpectedNumItems());
   }
 
   @Test
   public void shouldBeTheSameAfterWriteToAndReadFrom() throws IOException {
-    bloomFilter.put(123L);
-    bloomFilter.put(456L);
-    bloomFilter.put(789L);
+    // Insert some items to verify each candidate below
+    for (int i = 0; i < 10000; i++) {
+      bloomFilter.put(i);
+    }
 
     // Serialize and deserialize and assert the equality
     ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -59,7 +73,7 @@ public class AdaptiveBloomFilterTest {
 
   @Test
   public void shouldMergeTwoFiltersCorrectly() {
-    AdaptiveBloomFilter bloomFilter2 = new AdaptiveBloomFilter(numCandidates, 0.03);
+    AdaptiveBloomFilter bloomFilter2 = new AdaptiveBloomFilter(numCandidates, fpp);
 
     // Insert items into the first filter
     for (int i = 0; i < 1000; i++) {
@@ -78,6 +92,6 @@ public class AdaptiveBloomFilterTest {
     for (int i = 0; i < 2000; i++) {
       assertTrue(bloomFilter.mightContain(i));
     }
-    assertEquals(2048, bloomFilter.bestCandidate().expectedNumItems);
+    assertEquals(2048, bloomFilter.bestCandidate().getExpectedNumItems());
   }
 }
