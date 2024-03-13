@@ -68,18 +68,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
   private val statementRunningCount = new AtomicInteger(0)
 
   def main(args: Array[String]) {
-    val (queryOption, resultIndex) = args.length match {
-      case 1 =>
-        (None, args(0)) // Starting from OS 2.13, resultIndex is the only argument
-      case 2 =>
-        (
-          Some(args(0)),
-          args(1)
-        ) // Before OS 2.13, there are two arguments, the second one is resultIndex
-      case _ =>
-        throw new IllegalArgumentException(
-          "Unsupported number of arguments. Expected 1 or 2 arguments.")
-    }
+    val (queryOption, resultIndex) = parseArgs(args)
 
     if (Strings.isNullOrEmpty(resultIndex)) {
       throw new IllegalArgumentException("resultIndex is not set")
@@ -102,15 +91,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     logInfo(s"""Job type is: ${FlintSparkConf.JOB_TYPE.defaultValue.get}""")
     conf.set(FlintSparkConf.JOB_TYPE.key, jobType)
 
-    val query = queryOption.getOrElse {
-      if (jobType.equalsIgnoreCase("streaming")) {
-        val defaultQuery = conf.get(FlintSparkConf.QUERY.key, "")
-        if (defaultQuery.isEmpty) {
-          throw new IllegalArgumentException("Query undefined for the streaming job.")
-        }
-        defaultQuery
-      } else ""
-    }
+    val query = getQuery(queryOption, jobType, conf)
 
     if (jobType.equalsIgnoreCase("streaming")) {
       logInfo(s"""streaming query ${query}""")
@@ -247,6 +228,33 @@ object FlintREPL extends Logging with FlintJobExecutor {
           System.exit(0)
         }
       }
+    }
+  }
+
+  def parseArgs(args: Array[String]): (Option[String], String) = {
+    args.length match {
+      case 1 =>
+        (None, args(0)) // Starting from OS 2.13, resultIndex is the only argument
+      case 2 =>
+        (
+          Some(args(0)),
+          args(1)
+        ) // Before OS 2.13, there are two arguments, the second one is resultIndex
+      case _ =>
+        throw new IllegalArgumentException(
+          "Unsupported number of arguments. Expected 1 or 2 arguments.")
+    }
+  }
+
+  def getQuery(queryOption: Option[String], jobType: String, conf: SparkConf): String = {
+    queryOption.getOrElse {
+      if (jobType.equalsIgnoreCase("streaming")) {
+        val defaultQuery = conf.get(FlintSparkConf.QUERY.key, "")
+        if (defaultQuery.isEmpty) {
+          throw new IllegalArgumentException("Query undefined for the streaming job.")
+        }
+        defaultQuery
+      } else ""
     }
   }
 

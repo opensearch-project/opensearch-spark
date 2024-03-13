@@ -30,6 +30,7 @@ import org.scalatestplus.mockito.MockitoSugar
 import org.apache.spark.{SparkConf, SparkContext, SparkFunSuite}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.trees.Origin
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types.{LongType, NullType, StringType, StructField, StructType}
 import org.apache.spark.sql.util.{DefaultThreadPoolFactory, MockThreadPoolFactory, MockTimeProvider, RealTimeProvider, ShutdownHookManagerTrait}
 import org.apache.spark.util.ThreadUtils
@@ -41,6 +42,78 @@ class FlintREPLTest
     with JobMatchers {
   // By using a type alias and casting, I can bypass the type checking error.
   type AnyScheduledFuture = ScheduledFuture[_]
+
+  test(
+    "parseArgs with one argument should return None for query and the argument as resultIndex") {
+    val args = Array("resultIndexName")
+    val (queryOption, resultIndex) = FlintREPL.parseArgs(args)
+    queryOption shouldBe None
+    resultIndex shouldBe "resultIndexName"
+  }
+
+  test(
+    "parseArgs with two arguments should return the first argument as query and the second as resultIndex") {
+    val args = Array("SELECT * FROM table", "resultIndexName")
+    val (queryOption, resultIndex) = FlintREPL.parseArgs(args)
+    queryOption shouldBe Some("SELECT * FROM table")
+    resultIndex shouldBe "resultIndexName"
+  }
+
+  test(
+    "parseArgs with no arguments should throw IllegalArgumentException with specific message") {
+    val args = Array.empty[String]
+    val exception = intercept[IllegalArgumentException] {
+      FlintREPL.parseArgs(args)
+    }
+    exception.getMessage shouldBe "Unsupported number of arguments. Expected 1 or 2 arguments."
+  }
+
+  test(
+    "parseArgs with more than two arguments should throw IllegalArgumentException with specific message") {
+    val args = Array("arg1", "arg2", "arg3")
+    val exception = intercept[IllegalArgumentException] {
+      FlintREPL.parseArgs(args)
+    }
+    exception.getMessage shouldBe "Unsupported number of arguments. Expected 1 or 2 arguments."
+  }
+
+  test("getQuery should return query from queryOption if present") {
+    val queryOption = Some("SELECT * FROM table")
+    val jobType = "streaming"
+    val conf = new SparkConf()
+
+    val query = FlintREPL.getQuery(queryOption, jobType, conf)
+    query shouldBe "SELECT * FROM table"
+  }
+
+  test("getQuery should return default query for streaming job if queryOption is None") {
+    val queryOption = None
+    val jobType = "streaming"
+    val conf = new SparkConf().set(FlintSparkConf.QUERY.key, "SELECT * FROM table")
+
+    val query = FlintREPL.getQuery(queryOption, jobType, conf)
+    query shouldBe "SELECT * FROM table"
+  }
+
+  test(
+    "getQuery should throw IllegalArgumentException if queryOption is None and default query is not defined for streaming job") {
+    val queryOption = None
+    val jobType = "streaming"
+    val conf = new SparkConf() // Default query not set
+
+    intercept[IllegalArgumentException] {
+      FlintREPL.getQuery(queryOption, jobType, conf)
+    }.getMessage shouldBe "Query undefined for the streaming job."
+  }
+
+  test("getQuery should return empty string for non-streaming job if queryOption is None") {
+    val queryOption = None
+    val jobType = "interactive"
+    val conf = new SparkConf() // Default query not needed
+
+    val query = FlintREPL.getQuery(queryOption, jobType, conf)
+    query shouldBe ""
+  }
 
   test("createHeartBeatUpdater should update heartbeat correctly") {
     // Mocks
