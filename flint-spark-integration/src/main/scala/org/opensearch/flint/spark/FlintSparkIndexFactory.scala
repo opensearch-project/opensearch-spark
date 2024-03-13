@@ -40,6 +40,7 @@ object FlintSparkIndexFactory {
   def create(metadata: FlintMetadata): FlintSparkIndex = {
     val indexOptions = FlintSparkIndexOptions(
       metadata.options.asScala.mapValues(_.asInstanceOf[String]).toMap)
+    val latestLogEntry = metadata.latestLogEntry
 
     // Convert generic Map[String,AnyRef] in metadata to specific data structure in Flint index
     metadata.kind match {
@@ -69,7 +70,7 @@ object FlintSparkIndexFactory {
               throw new IllegalStateException(s"Unknown skipping strategy: $other")
           }
         }
-        FlintSparkSkippingIndex(metadata.source, strategies, indexOptions)
+        FlintSparkSkippingIndex(metadata.source, strategies, indexOptions, latestLogEntry)
       case COVERING_INDEX_TYPE =>
         FlintSparkCoveringIndex(
           metadata.name,
@@ -78,7 +79,8 @@ object FlintSparkIndexFactory {
             getString(colInfo, "columnName") -> getString(colInfo, "columnType")
           }.toMap,
           getOptString(metadata.properties, "filterCondition"),
-          indexOptions)
+          indexOptions,
+          latestLogEntry)
       case MV_INDEX_TYPE =>
         FlintSparkMaterializedView(
           metadata.name,
@@ -86,7 +88,8 @@ object FlintSparkIndexFactory {
           metadata.indexedColumns.map { colInfo =>
             getString(colInfo, "columnName") -> getString(colInfo, "columnType")
           }.toMap,
-          indexOptions)
+          indexOptions,
+          latestLogEntry)
     }
   }
 

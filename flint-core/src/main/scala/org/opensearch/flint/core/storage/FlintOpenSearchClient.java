@@ -192,13 +192,6 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override
-  public Optional<FlintMetadataLogEntry> getIndexMetadataLatestLogEntry(String indexName, String dataSourceName) {
-    LOG.info("Fetching latest metadata log entry for " + indexName + " and data source " + dataSourceName);
-    FlintOpenSearchMetadataLog metadataLog = getMetadataLog(indexName, dataSourceName, false);
-    return metadataLog.getLatest();
-  }
-
-  @Override
   public void deleteIndex(String indexName) {
     LOG.info("Deleting Flint index " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
@@ -300,7 +293,6 @@ public class FlintOpenSearchClient implements FlintClient {
    * Constructs Flint metadata with latest metadata log entry attached if it's available.
    */
   private FlintMetadata constructFlintMetadata(String indexName, String mapping, String settings) {
-    FlintMetadata flintMetadata = FlintMetadata.apply(mapping, settings);
     String dataSourceName = options.getDataSourceName();
     String metaLogIndexName = dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX
         : META_LOG_NAME_PREFIX + "_" + dataSourceName;
@@ -318,20 +310,9 @@ public class FlintOpenSearchClient implements FlintClient {
     }
 
     if (latest.isEmpty()) {
-      return flintMetadata;
+      return FlintMetadata.apply(mapping, settings);
     } else {
-      return flintMetadata.copy(
-          flintMetadata.version(),
-          flintMetadata.name(),
-          flintMetadata.kind(),
-          flintMetadata.source(),
-          flintMetadata.indexedColumns(),
-          flintMetadata.options(),
-          flintMetadata.properties(),
-          flintMetadata.schema(),
-          Option.apply(latest.get().id()),
-          Option.apply(latest.get()),
-          flintMetadata.indexSettings());
+      return FlintMetadata.apply(mapping, settings, latest.get());
     }
   }
 

@@ -74,15 +74,6 @@ public interface FlintClient {
   FlintMetadata getIndexMetadata(String indexName);
 
   /**
-   * Retrieve metadata latest log entry for a Flint index.
-   *
-   * @param indexName index name
-   * @param dataSourceName TODO: read from elsewhere in the future
-   * @return index metadata latest log entry
-   */
-  Optional<FlintMetadataLogEntry> getIndexMetadataLatestLogEntry(String indexName, String dataSourceName);
-
-  /**
    * Delete a Flint index.
    *
    * @param indexName index name

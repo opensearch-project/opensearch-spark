@@ -44,31 +44,6 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       .commit(_ => {})
   }
 
-  test("should get metadata log entry") {
-    val testCreateTime = 1234567890123L
-    createLatestLogEntry(
-      FlintMetadataLogEntry(
-        id = testLatestId,
-        seqNo = UNASSIGNED_SEQ_NO,
-        primaryTerm = UNASSIGNED_PRIMARY_TERM,
-        createTime = testCreateTime,
-        state = ACTIVE,
-        dataSource = testDataSourceName,
-        error = ""))
-
-    val latest =
-      flintClient.getIndexMetadataLatestLogEntry(testFlintIndex, testDataSourceName).get
-    latest.id shouldBe testLatestId
-    latest.createTime shouldBe testCreateTime
-    latest.dataSource shouldBe testDataSourceName
-    latest.error shouldBe ""
-  }
-
-  test("should get empty if no metadata log entry for index") {
-    flintClient
-      .getIndexMetadataLatestLogEntry(testFlintIndex, testDataSourceName) shouldBe empty
-  }
-
   test("should preserve original values when transition") {
     val testCreateTime = 1234567890123L
     createLatestLogEntry(

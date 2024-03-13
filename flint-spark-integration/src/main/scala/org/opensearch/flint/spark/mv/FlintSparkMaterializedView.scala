@@ -11,6 +11,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.convert.ImplicitConversions.`map AsScala`
 
 import org.opensearch.flint.core.metadata.FlintMetadata
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
 import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder, StreamingRefresh}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
@@ -37,12 +38,15 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
  *   output schema
  * @param options
  *   index options
+ * @param latestLogEntry
+ *   latest metadata log entry for index
  */
 case class FlintSparkMaterializedView(
     mvName: String,
     query: String,
     outputSchema: Map[String, String],
-    override val options: FlintSparkIndexOptions = empty)
+    override val options: FlintSparkIndexOptions = empty,
+    override val latestLogEntry: Option[FlintMetadataLogEntry] = None)
     extends FlintSparkIndex
     with StreamingRefresh {
 

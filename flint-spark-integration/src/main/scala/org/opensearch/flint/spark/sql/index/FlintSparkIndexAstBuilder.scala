@@ -48,7 +48,6 @@ trait FlintSparkIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
             case covering: FlintSparkCoveringIndex => covering.tableName.split('.')
             case skipping: FlintSparkSkippingIndex => skipping.tableName.split('.')
           }
-          val dataSourceName = parts(0)
           val databaseName = parts(1)
 
           val tableName = index match {
@@ -65,7 +64,7 @@ trait FlintSparkIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
             case _: FlintSparkSkippingIndex => null
           }
 
-          val status = flint.describeIndexLog(index.name) match {
+          val status = index.latestLogEntry match {
             case Some(entry) => entry.state.toString
             case None => "unavailable"
           }

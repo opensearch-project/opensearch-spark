@@ -83,6 +83,23 @@ case class FlintMetadata(
 object FlintMetadata {
 
   /**
+   * Construct Flint metadata with JSON content, index settings, and latest log entry.
+   *
+   * @param content
+   * JSON content
+   * @param settings
+   * index settings
+   * @param latestLogEntry
+   * latest metadata log entry
+   * @return
+   * Flint metadata
+   */
+  def apply(content: String, settings: String, latestLogEntry: FlintMetadataLogEntry): FlintMetadata = {
+    val metadata = FlintMetadata(content, settings)
+    metadata.copy(latestLogEntry = Option(latestLogEntry))
+  }
+
+  /**
    * Construct Flint metadata with JSON content and index settings.
    *
    * @param content
@@ -156,6 +173,8 @@ object FlintMetadata {
     private var indexedColumns: Array[util.Map[String, AnyRef]] = Array()
     private var properties: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef]()
     private var schema: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef]()
+    private var latestId: Option[String] = None
+    private var latestLogEntry: Option[FlintMetadataLogEntry] = None
     private var indexSettings: Option[String] = None
 
     def version(version: FlintVersion): this.type = {
@@ -218,6 +237,12 @@ object FlintMetadata {
       this
     }
 
+    def latestLogEntry(entry: FlintMetadataLogEntry): this.type = {
+      this.latestId = Option(entry.id)
+      this.latestLogEntry = Option(entry)
+      this
+    }
+
     def indexSettings(indexSettings: String): this.type = {
       this.indexSettings = Option(indexSettings)
       this
@@ -234,7 +259,9 @@ object FlintMetadata {
         options = options,
         properties = properties,
         schema = schema,
-        indexSettings = indexSettings)
+        indexSettings = indexSettings,
+        latestId = latestId,
+        latestLogEntry = latestLogEntry)
     }
   }
 }
