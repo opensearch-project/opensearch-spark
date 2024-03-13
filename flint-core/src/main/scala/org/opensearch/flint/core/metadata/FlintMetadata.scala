@@ -10,6 +10,7 @@ import java.util
 import org.opensearch.flint.core.FlintVersion
 import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.core.metadata.FlintJsonHelper._
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 
 /**
  * Flint metadata follows Flint index specification and defines metadata for a Flint index
@@ -32,8 +33,10 @@ case class FlintMetadata(
     properties: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef],
     /** Flint index schema */
     schema: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef],
-    /** Optional latest metadata log entry */
+    /** Optional latest metadata log entry id */
     latestId: Option[String] = None,
+    /** Optional latest metadata log entry */
+    latestLogEntry: Option[FlintMetadataLogEntry] = None,
     /** Optional Flint index settings. TODO: move elsewhere? */
     indexSettings: Option[String]) {
 
