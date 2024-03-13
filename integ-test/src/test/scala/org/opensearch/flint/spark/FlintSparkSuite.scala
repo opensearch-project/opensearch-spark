@@ -7,6 +7,7 @@ package org.opensearch.flint.spark
 
 import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture}
 
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.concurrent.duration.TimeUnit
 
 import org.mockito.ArgumentMatchers.any
@@ -47,6 +48,12 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     when(mockExecutor.scheduleWithFixedDelay(any[Runnable], any[Long], any[Long], any[TimeUnit]))
       .thenAnswer((_: InvocationOnMock) => mock[ScheduledFuture[_]])
     FlintSparkIndexMonitor.executor = mockExecutor
+  }
+
+  protected def buildUpdateIndex(index: FlintSparkIndex, updateOptions: Map[String, String]): FlintSparkIndex = {
+    val options = index.options.options ++ updateOptions
+    val metadata = index.metadata().copy(options = options.mapValues(_.asInstanceOf[AnyRef]).asJava)
+    FlintSparkIndexFactory.create(metadata)
   }
 
   protected def deleteTestIndex(testIndexNames: String*): Unit = {

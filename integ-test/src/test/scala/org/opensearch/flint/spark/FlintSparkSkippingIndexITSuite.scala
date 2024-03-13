@@ -168,6 +168,53 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       Some("{\"number_of_shards\": 3,\"number_of_replicas\": 2}")
   }
 
+  test("update skipping index with index options successfully") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addValueSet("address")
+      .options(FlintSparkIndexOptions(Map(
+        "auto_refresh" -> "false",
+        "incremental_refresh" -> "true",
+        "refresh_interval" -> "1 Minute",
+        "checkpoint_location" -> "s3a://test/",
+        "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")))
+      .create()
+
+    val index = flint.describeIndex(testIndex)
+    index shouldBe defined
+
+    val updateOptions = Map(
+      "auto_refresh" -> "true",
+      "incremental_refresh" -> "false",
+      "refresh_interval" -> "5 Minute"
+    )
+
+    flint.updateIndex(buildUpdateIndex(index.get, updateOptions))
+
+    val readNewIndex = flint.describeIndex(testIndex)
+    readNewIndex shouldBe defined
+
+    val optionJson = compact(render(parse(readNewIndex.get.metadata().getContent) \ "_meta" \ "options"))
+    optionJson should matchJson("""
+                                  | {
+                                  |   "auto_refresh": "true",
+                                  |   "incremental_refresh": "false",
+                                  |   "refresh_interval": "5 Minute",
+                                  |   "checkpoint_location": "s3a://test/",
+                                  |   "index_settings": "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
+                                  | }
+                                  |""".stripMargin)
+
+    // Load index options from index mapping (verify OS index setting in SQL IT)
+    readNewIndex.get.options.autoRefresh() shouldBe true
+    readNewIndex.get.options.incrementalRefresh() shouldBe false
+    readNewIndex.get.options.refreshInterval() shouldBe Some("5 Minute")
+    readNewIndex.get.options.checkpointLocation() shouldBe Some("s3a://test/")
+    readNewIndex.get.options.indexSettings() shouldBe
+      Some("{\"number_of_shards\": 3,\"number_of_replicas\": 2}")
+  }
+
   test("should not have ID column in index data") {
     flint
       .skippingIndex()

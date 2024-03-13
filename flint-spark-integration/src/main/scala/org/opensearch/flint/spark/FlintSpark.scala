@@ -203,6 +203,43 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   }
 
   /**
+   * Update the given index with metadata.
+   *
+   * @param index
+   * Flint index to update
+   */
+  def updateIndex(index: FlintSparkIndex): Boolean = {
+    logInfo(s"Update Flint index $index")
+    val indexName = index.name()
+    if (flintClient.exists(indexName)) {
+      val metadata = index.metadata()
+      try {
+        flintClient
+          .startTransaction(indexName, dataSourceName)
+          .initialLog(latest => latest.state == ACTIVE || latest.state == REFRESHING)
+          .transientLog(latest => latest.copy(state = UPDATING))
+          .finalLog(latest => latest.copy(state = ACTIVE))
+          .commit(latest =>
+            if (latest == null) { // in case transaction capability is disabled
+              flintClient.updateIndex(indexName, metadata)
+            } else {
+              logInfo(s"Updating index with metadata log entry ID ${latest.id}")
+              flintClient.updateIndex(indexName, metadata.copy(latestId = Some(latest.id)))
+            })
+        logInfo("Update index complete")
+        true
+      } catch {
+        case e: Exception =>
+          logError("Failed to update Flint index", e)
+          throw new IllegalStateException("Failed to update Flint index")
+      }
+    } else {
+      logInfo("Flint index to be updated doesn't exist")
+      false
+    }
+  }
+
+  /**
    * Delete index and refreshing job associated.
    *
    * @param indexName
