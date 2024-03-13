@@ -21,7 +21,6 @@ import org.opensearch.common.Strings
 import org.opensearch.flint.app.{FlintCommand, FlintInstance}
 import org.opensearch.flint.app.FlintInstance.formats
 import org.opensearch.flint.core.FlintOptions
-import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.{decrementCounter, getTimerContext, incrementCounter, registerGauge, stopTimer}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
@@ -69,8 +68,19 @@ object FlintREPL extends Logging with FlintJobExecutor {
   private val statementRunningCount = new AtomicInteger(0)
 
   def main(args: Array[String]) {
-    CustomLogging.logInfo("Spark Job is Launching...")
-    val Array(resultIndex) = args
+    val (queryOption, resultIndex) = args.length match {
+      case 1 =>
+        (None, args(0)) // Starting from OS 2.13, resultIndex is the only argument
+      case 2 =>
+        (
+          Some(args(0)),
+          args(1)
+        ) // Before OS 2.13, there are two arguments, the second one is resultIndex
+      case _ =>
+        throw new IllegalArgumentException(
+          "Unsupported number of arguments. Expected 1 or 2 arguments.")
+    }
+
     if (Strings.isNullOrEmpty(resultIndex)) {
       throw new IllegalArgumentException("resultIndex is not set")
     }
@@ -92,11 +102,17 @@ object FlintREPL extends Logging with FlintJobExecutor {
     logInfo(s"""Job type is: ${FlintSparkConf.JOB_TYPE.defaultValue.get}""")
     conf.set(FlintSparkConf.JOB_TYPE.key, jobType)
 
+    val query = queryOption.getOrElse {
+      if (jobType.equalsIgnoreCase("streaming")) {
+        val defaultQuery = conf.get(FlintSparkConf.QUERY.key, "")
+        if (defaultQuery.isEmpty) {
+          throw new IllegalArgumentException("Query undefined for the streaming job.")
+        }
+        defaultQuery
+      } else ""
+    }
+
     if (jobType.equalsIgnoreCase("streaming")) {
-      val query = conf.get(FlintSparkConf.QUERY.key, "")
-      if (query.isEmpty) {
-        throw new IllegalArgumentException("Query undefined for the streaming job.")
-      }
       logInfo(s"""streaming query ${query}""")
       val streamingRunningCount = new AtomicInteger(0)
       val jobOperator =

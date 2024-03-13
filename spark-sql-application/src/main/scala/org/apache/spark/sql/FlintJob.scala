@@ -14,7 +14,6 @@ import org.opensearch.cluster.metadata.MappingMetadata
 import org.opensearch.common.settings.Settings
 import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
-import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.registerGauge
@@ -38,13 +37,18 @@ import org.apache.spark.sql.types.{StructField, _}
  */
 object FlintJob extends Logging with FlintJobExecutor {
   def main(args: Array[String]): Unit = {
-    CustomLogging.logInfo("Spark Job is Launching...")
-    // Validate command line arguments
-    if (args.length != 1) {
-      throw new IllegalArgumentException("Usage: FlintJob <resultIndex>")
+    val (queryOption, resultIndex) = args.length match {
+      case 1 =>
+        (None, args(0)) // Starting from OS 2.13, resultIndex is the only argument
+      case 2 =>
+        (
+          Some(args(0)),
+          args(1)
+        ) // Before OS 2.13, there are two arguments, the second one is resultIndex
+      case _ =>
+        throw new IllegalArgumentException(
+          "Unsupported number of arguments. Expected 1 or 2 arguments.")
     }
-
-    val Array(resultIndex) = args
 
     val conf = createSparkConf()
     val jobType = conf.get("spark.flint.job.type", "batch")
@@ -52,9 +56,9 @@ object FlintJob extends Logging with FlintJobExecutor {
     conf.set(FlintSparkConf.JOB_TYPE.key, jobType)
 
     val dataSource = conf.get("spark.flint.datasource.name", "")
-    val query = conf.get(FlintSparkConf.QUERY.key, "")
+    val query = queryOption.getOrElse(conf.get(FlintSparkConf.QUERY.key, ""))
     if (query.isEmpty) {
-      throw new IllegalArgumentException("Query undefined for the batch job.")
+      throw new IllegalArgumentException(s"Query undefined for the ${jobType} job.")
     }
     // https://github.com/opensearch-project/opensearch-spark/issues/138
     /*
