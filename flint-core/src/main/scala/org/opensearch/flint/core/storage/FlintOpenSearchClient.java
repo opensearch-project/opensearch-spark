@@ -291,6 +291,7 @@ public class FlintOpenSearchClient implements FlintClient {
 
   /*
    * Constructs Flint metadata with latest metadata log entry attached if it's available.
+   * It relies on FlintOptions to provide data source name.
    */
   private FlintMetadata constructFlintMetadata(String indexName, String mapping, String settings) {
     String dataSourceName = options.getDataSourceName();

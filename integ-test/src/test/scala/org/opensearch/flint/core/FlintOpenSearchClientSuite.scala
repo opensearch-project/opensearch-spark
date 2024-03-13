@@ -5,8 +5,6 @@
 
 package org.opensearch.flint.core
 
-import java.util.Base64
-
 import scala.collection.JavaConverters._
 
 import org.json4s.{Formats, NoTypeHints}
