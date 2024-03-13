@@ -77,6 +77,50 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
 
+  it should "update index successfully" in {
+    val indexName = "test"
+    val content =
+      """ {
+        |   "_meta": {
+        |     "kind": "test_kind"
+        |   },
+        |   "properties": {
+        |     "age": {
+        |       "type": "integer"
+        |     }
+        |   }
+        | }
+        |""".stripMargin
+
+    val metadata = mock[FlintMetadata]
+    when(metadata.getContent).thenReturn(content)
+    when(metadata.indexSettings).thenReturn(None)
+    flintClient.createIndex(indexName, metadata)
+
+    val newContent =
+      """ {
+        |   "_meta": {
+        |     "kind": "test_kind",
+        |     "name": "test_name"
+        |   },
+        |   "properties": {
+        |     "age": {
+        |       "type": "integer"
+        |     }
+        |   }
+        | }
+        |""".stripMargin
+
+    val newMetadata = mock[FlintMetadata]
+    when(newMetadata.getContent).thenReturn(newContent)
+    when(newMetadata.indexSettings).thenReturn(None)
+    flintClient.updateIndex(indexName, newMetadata)
+
+    flintClient.exists(indexName) shouldBe true
+    flintClient.getIndexMetadata(indexName).kind shouldBe "test_kind"
+    flintClient.getIndexMetadata(indexName).name shouldBe "test_name"
+  }
+
   it should "get all index metadata with the given index name pattern" in {
     val metadata = mock[FlintMetadata]
     when(metadata.getContent).thenReturn("{}")

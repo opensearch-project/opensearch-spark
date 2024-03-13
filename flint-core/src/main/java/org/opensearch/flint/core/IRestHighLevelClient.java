@@ -25,6 +25,7 @@ import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.CreateIndexResponse;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.client.indices.GetIndexResponse;
+import org.opensearch.client.indices.PutMappingRequest;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.flint.core.metrics.MetricsUtil;
@@ -43,6 +44,8 @@ public interface IRestHighLevelClient extends Closeable {
     ClearScrollResponse clearScroll(ClearScrollRequest clearScrollRequest, RequestOptions options) throws IOException;
 
     CreateIndexResponse createIndex(CreateIndexRequest createIndexRequest, RequestOptions options) throws IOException;
+
+    void updateIndex(PutMappingRequest putMappingRequest, RequestOptions options) throws IOException;
 
     void deleteIndex(DeleteIndexRequest deleteIndexRequest, RequestOptions options) throws IOException;
 
