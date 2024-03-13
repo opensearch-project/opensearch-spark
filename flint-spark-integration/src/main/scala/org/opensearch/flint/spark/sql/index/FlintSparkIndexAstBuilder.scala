@@ -65,7 +65,7 @@ trait FlintSparkIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
             case _: FlintSparkSkippingIndex => null
           }
 
-          val status = flint.fetchIndexMetadataLatestLogEntry(index.name) match {
+          val status = flint.describeIndexLog(index.name) match {
             case Some(entry) => entry.state.toString
             case None => "unavailable"
           }

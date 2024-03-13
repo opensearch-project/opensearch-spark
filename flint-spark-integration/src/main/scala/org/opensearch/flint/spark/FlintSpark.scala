@@ -203,7 +203,16 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     }
   }
 
-  def fetchIndexMetadataLatestLogEntry(indexName: String): Option[FlintMetadataLogEntry] = {
+  /**
+   * Describe a Flint index log.
+   * TODO: remove this once FlintMetadataLogEntry is embedded in FlintMetadata and FlintSparkIndex.
+   *
+   * @param indexName
+   * index name
+   * @return
+   * Flint index metadata log entry
+   */
+  def describeIndexLog(indexName: String): Option[FlintMetadataLogEntry] = {
     logInfo(s"Fetching metadata log entry for index $indexName")
     Option(flintClient.getIndexMetadataLatestLogEntry(indexName, dataSourceName).orElse(null))
   }
