@@ -9,6 +9,7 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
+import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
@@ -37,7 +38,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
         .query(query)
 
       val ignoreIfExists = ctx.EXISTS() != null
-      val indexOptions = visitPropertyList(ctx.propertyList())
+      val indexOptions = FlintSparkIndexOptions(visitPropertyList(ctx.propertyList()))
       mvBuilder
         .options(indexOptions)
         .create(ignoreIfExists)

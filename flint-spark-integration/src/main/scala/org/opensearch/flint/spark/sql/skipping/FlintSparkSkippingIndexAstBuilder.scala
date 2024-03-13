@@ -9,6 +9,7 @@ import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
+import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
@@ -56,7 +57,7 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       }
 
       val ignoreIfExists = ctx.EXISTS() != null
-      val indexOptions = visitPropertyList(ctx.propertyList())
+      val indexOptions = FlintSparkIndexOptions(visitPropertyList(ctx.propertyList()))
       indexBuilder
         .options(indexOptions)
         .create(ignoreIfExists)

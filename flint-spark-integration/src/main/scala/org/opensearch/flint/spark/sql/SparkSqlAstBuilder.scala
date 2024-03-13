@@ -9,7 +9,6 @@ import java.util.Locale
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 
-import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.{PropertyKeyContext, PropertyListContext, PropertyValueContext}
 
 import org.apache.spark.sql.catalyst.parser.ParserUtils.string
@@ -20,16 +19,16 @@ import org.apache.spark.sql.catalyst.parser.ParserUtils.string
  */
 trait SparkSqlAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
 
-  override def visitPropertyList(ctx: PropertyListContext): FlintSparkIndexOptions = {
+  override def visitPropertyList(ctx: PropertyListContext): Map[String, String] = {
     if (ctx == null) {
-      FlintSparkIndexOptions.empty
+      Map.empty
     } else {
       val properties = ctx.property.asScala.map { property =>
         val key = visitPropertyKey(property.key)
         val value = visitPropertyValue(property.value)
         key -> value
       }
-      FlintSparkIndexOptions(properties.toMap)
+      properties.toMap
     }
   }
 
