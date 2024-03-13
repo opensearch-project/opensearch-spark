@@ -86,15 +86,18 @@ object FlintMetadata {
    * Construct Flint metadata with JSON content, index settings, and latest log entry.
    *
    * @param content
-   * JSON content
+   *   JSON content
    * @param settings
-   * index settings
+   *   index settings
    * @param latestLogEntry
-   * latest metadata log entry
+   *   latest metadata log entry
    * @return
-   * Flint metadata
+   *   Flint metadata
    */
-  def apply(content: String, settings: String, latestLogEntry: FlintMetadataLogEntry): FlintMetadata = {
+  def apply(
+      content: String,
+      settings: String,
+      latestLogEntry: FlintMetadataLogEntry): FlintMetadata = {
     val metadata = FlintMetadata(content, settings)
     metadata.copy(latestLogEntry = Option(latestLogEntry))
   }
