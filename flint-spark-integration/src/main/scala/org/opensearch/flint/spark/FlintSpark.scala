@@ -216,14 +216,16 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   def updateIndex(indexName: String, updateOptions: Map[String, String]): Boolean = {
     logInfo(s"Update Flint index $indexName")
     if (flintClient.exists(indexName)) {
+      val index = describeIndex(indexName).get
       try {
+        // State remains unchanged throughout options update.
+        // At this point, refresh job is not yet started or cancelled.
         flintClient
           .startTransaction(indexName, dataSourceName)
           .initialLog(latest => latest.state == ACTIVE || latest.state == REFRESHING)
-          .transientLog(latest => latest.copy(state = UPDATING))
-          .finalLog(latest => latest.copy(state = ACTIVE))
+          .transientLog(latest => latest)
+          .finalLog(latest => latest)
           .commit(latest => {
-            val index = describeIndex(indexName).get
             // TODO: validation
             val updateIndex = buildUpdateIndex(index, updateOptions)
             val metadata = updateIndex.metadata()
@@ -244,6 +246,39 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       }
     } else {
       logInfo("Flint index to be updated doesn't exist")
+      false
+    }
+  }
+
+  /**
+   * Cancel refreshing job associated to index
+   *
+   * @param indexName
+   * index name
+   * @return
+   * true if exist and cancelled, otherwise false
+   */
+  def cancelIndex(indexName: String): Boolean = {
+    logInfo(s"Cancelling Flint index $indexName")
+    if (flintClient.exists(indexName)) {
+      try {
+        flintClient
+          .startTransaction(indexName, dataSourceName)
+          .initialLog(latest => latest.state == REFRESHING)
+          .transientLog(latest => latest.copy(state = CANCELLING))
+          .finalLog(latest => latest.copy(state = ACTIVE))
+          .commit(_ => {
+            flintIndexMonitor.stopMonitor(indexName)
+            stopRefreshingJob(indexName)
+            true
+          })
+      } catch {
+        case e: Exception =>
+          logError("Failed to cancel Flint index", e)
+          throw new IllegalStateException("Failed to cancel Flint index")
+      }
+    } else {
+      logInfo("Flint index to be cancelled doesn't exist")
       false
     }
   }
