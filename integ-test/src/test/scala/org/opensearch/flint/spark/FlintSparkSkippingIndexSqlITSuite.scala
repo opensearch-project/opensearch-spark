@@ -318,10 +318,8 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
          | )
          | """.stripMargin)
 
-    val indexData = spark.read.format(FLINT_DATASOURCE).load(testIndex)
-
     flint.describeIndex(testIndex) shouldBe defined
-    indexData.count() shouldBe 0
+    flint.queryIndex(testIndex).count() shouldBe 0
 
     sql(
       s"""
@@ -332,30 +330,111 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     // Wait for streaming job complete current micro batch
     val job = spark.streams.active.find(_.name == testIndex)
     awaitStreamingComplete(job.get.id.toString)
-    indexData.count() shouldBe 2
+    flint.queryIndex(testIndex).count() shouldBe 2
   }
 
-  test("update auto refresh skipping index to full refresh") {
+  test("update incremental refresh skipping index to auto refresh") {
     withTempDir { checkpointDir =>
       sql(
         s"""
            | CREATE SKIPPING INDEX ON $testTable
            | ( year PARTITION )
-           | WITH (auto_refresh = true)
+           | WITH (
+           |   incremental_refresh = true,
+           |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+           | )
+           | """.stripMargin)
+
+      // Refresh all present source data as of now
+      sql(s"REFRESH SKIPPING INDEX ON $testTable")
+      flint.queryIndex(testIndex).count() shouldBe 2
+
+      // New data will be refreshed after updating index to auto refresh
+      sql(
+        s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=5)
+           | VALUES ('Hello', 50, 'Vancouver')
+           |""".stripMargin)
+
+      sql(
+        s"""
+           | ALTER SKIPPING INDEX ON $testTable
+           | WITH (
+           |   auto_refresh = true,
+           |   incremental_refresh = false
+           | )
+           | """.stripMargin)
+
+      // Wait for streaming job complete current micro batch
+      val job = spark.streams.active.find(_.name == testIndex)
+      awaitStreamingComplete(job.get.id.toString)
+      flint.queryIndex(testIndex).count() shouldBe 3
+    }
+  }
+
+  test("update auto refresh skipping index to full refresh") {
+    sql(
+      s"""
+         | CREATE SKIPPING INDEX ON $testTable
+         | ( year PARTITION )
+         | WITH (auto_refresh = true)
+         | """.stripMargin)
+
+    // Wait for streaming job complete current micro batch
+    val job = spark.streams.active.find(_.name == testIndex)
+    awaitStreamingComplete(job.get.id.toString)
+
+    flint.describeIndex(testIndex) shouldBe defined
+    flint.queryIndex(testIndex).count() shouldBe 2
+
+    sql(
+      s"""
+         | ALTER SKIPPING INDEX ON $testTable
+         | WITH (auto_refresh = false)
+         | """.stripMargin)
+
+    spark.streams.active.find(_.name == testIndex) shouldBe empty
+
+    // New data won't be refreshed until refresh statement triggered
+    sql(
+      s"""
+         | INSERT INTO $testTable
+         | PARTITION (year=2023, month=5)
+         | VALUES ('Hello', 50, 'Vancouver')
+         |""".stripMargin)
+    flint.queryIndex(testIndex).count() shouldBe 2
+
+    sql(s"REFRESH SKIPPING INDEX ON $testTable")
+    flint.queryIndex(testIndex).count() shouldBe 3
+  }
+
+  test("update auto refresh skipping index to incremental refresh") {
+    withTempDir { checkpointDir =>
+      sql(
+        s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | ( year PARTITION )
+           | WITH (
+           |   auto_refresh = true,
+           |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+           | )
            | """.stripMargin)
 
       // Wait for streaming job complete current micro batch
       val job = spark.streams.active.find(_.name == testIndex)
       awaitStreamingComplete(job.get.id.toString)
 
-      val indexData = spark.read.format(FLINT_DATASOURCE).load(testIndex)
       flint.describeIndex(testIndex) shouldBe defined
-      indexData.count() shouldBe 2
+      flint.queryIndex(testIndex).count() shouldBe 2
 
       sql(
         s"""
            | ALTER SKIPPING INDEX ON $testTable
-           | WITH (auto_refresh = false)
+           | WITH (
+           |   auto_refresh = false,
+           |   incremental_refresh = true
+           | )
            | """.stripMargin)
 
       spark.streams.active.find(_.name == testIndex) shouldBe empty
@@ -367,10 +446,10 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
            | PARTITION (year=2023, month=5)
            | VALUES ('Hello', 50, 'Vancouver')
            |""".stripMargin)
-      indexData.count() shouldBe 2
+      flint.queryIndex(testIndex).count() shouldBe 2
 
       sql(s"REFRESH SKIPPING INDEX ON $testTable")
-      indexData.count() shouldBe 3
+      flint.queryIndex(testIndex).count() shouldBe 3
     }
   }
 

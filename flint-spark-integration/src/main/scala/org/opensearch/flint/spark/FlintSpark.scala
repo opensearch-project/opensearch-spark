@@ -247,7 +247,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    * @param indexName
    * index name
    */
-  def updateIndexJob(indexName: String): Unit = {
+  def updateIndexJob(indexName: String): Option[String] = {
     logInfo(s"Updating job for Flint index $indexName")
     val index = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
@@ -258,6 +258,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         refreshIndex(indexName)
       } else {
         cancelIndex(indexName)
+        None
       }
     } catch {
       case e: Exception =>

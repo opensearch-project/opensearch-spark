@@ -305,6 +305,168 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     indexData should have size 2
   }
 
+  test("Update full refresh skipping index to auto refresh should start job") {
+    // Create full refresh Flint index
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+    spark.streams.active.find(_.name == testIndex) shouldBe empty
+    flint.queryIndex(testIndex).collect().toSet should have size 0
+
+    // Update Flint index to auto refresh and wait for complete
+    flint.updateIndexOptions(testIndex, Map("auto_refresh" -> "true"))
+    val jobId = flint.updateIndexJob(testIndex)
+    jobId shouldBe defined
+
+    val job = spark.streams.get(jobId.get)
+    failAfter(streamingTimeout) {
+      job.processAllAvailable()
+    }
+
+    flint.queryIndex(testIndex).collect().toSet should have size 2
+  }
+
+  test("Update incremental refresh skipping index to auto refresh should start job") {
+    withTempDir { checkpointDir =>
+      // Create incremental refresh Flint index and wait for complete
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "incremental_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+        .create()
+
+      flint.refreshIndex(testIndex) shouldBe empty
+      spark.streams.active.find(_.name == testIndex) shouldBe empty
+      flint.queryIndex(testIndex).collect().toSet should have size 2
+
+      // Delete all index data intentionally and generate a new source file
+      openSearchClient.deleteByQuery(
+        new DeleteByQueryRequest(testIndex).setQuery(QueryBuilders.matchAllQuery()),
+        RequestOptions.DEFAULT)
+      sql(
+        s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=4)
+           | VALUES ('Hello', 35, 'Vancouver')
+           | """.stripMargin)
+
+      // Update Flint index to auto refresh and wait for complete
+      flint.updateIndexOptions(testIndex, Map(
+        "auto_refresh" -> "true",
+        "incremental_refresh" -> "false"))
+      val jobId = flint.updateIndexJob(testIndex)
+      jobId shouldBe defined
+
+      val job = spark.streams.get(jobId.get)
+      failAfter(streamingTimeout) {
+        job.processAllAvailable()
+      }
+
+      // Expect to only refresh the new file
+      flint.queryIndex(testIndex).collect().toSet should have size 1
+    }
+  }
+
+  test("Update auto refresh skipping index to full refresh should stop job") {
+    // Create auto refresh Flint index and wait for complete
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .create()
+
+    val jobId = flint.refreshIndex(testIndex)
+    val job = spark.streams.get(jobId.get)
+    failAfter(streamingTimeout) {
+      job.processAllAvailable()
+    }
+
+    flint.queryIndex(testIndex).collect().toSet should have size 2
+
+    // Update Flint index to full refresh
+    flint.updateIndexOptions(testIndex, Map("auto_refresh" -> "false"))
+    flint.updateIndexJob(testIndex) shouldBe empty
+
+    // Expect refresh job to be stopped
+    spark.streams.active.find(_.name == testIndex) shouldBe empty
+
+    // Generate a new source file
+    sql(
+      s"""
+         | INSERT INTO $testTable
+         | PARTITION (year=2023, month=4)
+         | VALUES ('Hello', 35, 'Vancouver')
+         | """.stripMargin)
+
+    // Index shouldn't be refreshed
+    flint.queryIndex(testIndex).collect().toSet should have size 2
+
+    // Full refresh after update
+    flint.refreshIndex(testIndex) shouldBe empty
+    flint.queryIndex(testIndex).collect().toSet should have size 3
+  }
+
+  test("Update auto refresh skipping index to incremental refresh should stop job") {
+    withTempDir { checkpointDir =>
+      // Create auto refresh Flint index and wait for complete
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+        .create()
+
+      val jobId = flint.refreshIndex(testIndex)
+      val job = spark.streams.get(jobId.get)
+      failAfter(streamingTimeout) {
+        job.processAllAvailable()
+      }
+
+      flint.queryIndex(testIndex).collect().toSet should have size 2
+
+      // Update Flint index to incremental refresh
+      flint.updateIndexOptions(testIndex, Map(
+        "auto_refresh" -> "false",
+        "incremental_refresh" -> "true"))
+      flint.updateIndexJob(testIndex) shouldBe empty
+
+      // Expect refresh job to be stopped
+      spark.streams.active.find(_.name == testIndex) shouldBe empty
+
+      // Generate a new source file
+      sql(
+        s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=4)
+           | VALUES ('Hello', 35, 'Vancouver')
+           | """.stripMargin)
+
+      // Index shouldn't be refreshed
+      flint.queryIndex(testIndex).collect().toSet should have size 2
+
+      // Delete all index data intentionally
+      openSearchClient.deleteByQuery(
+        new DeleteByQueryRequest(testIndex).setQuery(QueryBuilders.matchAllQuery()),
+        RequestOptions.DEFAULT)
+
+      // Expect to only refresh the new file
+      flint.refreshIndex(testIndex) shouldBe empty
+      flint.queryIndex(testIndex).collect().toSet should have size 1
+    }
+  }
+
   test("can have only 1 skipping index on a table") {
     flint
       .skippingIndex()
