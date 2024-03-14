@@ -210,43 +210,36 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    *   index name
    * @param updateOptions
    *   options to update
-   * @return
-   *   true if exist and updated, otherwise false
    */
-  def updateIndex(indexName: String, updateOptions: Map[String, String]): Boolean = {
+  def updateIndex(indexName: String, updateOptions: Map[String, String]): Unit = {
     logInfo(s"Update Flint index $indexName")
-    if (flintClient.exists(indexName)) {
-      val index = describeIndex(indexName).get
-      try {
-        // State remains unchanged throughout options update.
-        // At this point, refresh job is not yet started or cancelled.
-        flintClient
-          .startTransaction(indexName, dataSourceName)
-          .initialLog(latest => latest.state == ACTIVE || latest.state == REFRESHING)
-          .transientLog(latest => latest)
-          .finalLog(latest => latest)
-          .commit(latest => {
-            // TODO: validation
-            val updateIndex = buildUpdateIndex(index, updateOptions)
-            val metadata = updateIndex.metadata()
-            if (latest == null) { // in case transaction capability is disabled
-              flintClient.updateIndex(indexName, metadata)
-            } else {
-              logInfo(s"Updating index with metadata log entry ID ${latest.id}")
-              flintClient.updateIndex(indexName, metadata.copy(latestId = Some(latest.id)))
-            }
-          })
-        logInfo("Update index complete")
-        true
-      } catch {
-        case e: Exception =>
-          logError("Failed to update Flint index", e)
-          // TODO: more informative
-          throw new IllegalStateException("Failed to update Flint index")
-      }
-    } else {
-      logInfo("Flint index to be updated doesn't exist")
-      false
+    val index = describeIndex(indexName)
+      .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+    try {
+      // State remains unchanged throughout options update.
+      // At this point, refresh job is not yet started or cancelled.
+      flintClient
+        .startTransaction(indexName, dataSourceName)
+        .initialLog(latest => latest.state == ACTIVE || latest.state == REFRESHING)
+        .transientLog(latest => latest)
+        .finalLog(latest => latest)
+        .commit(latest => {
+          // TODO: validation
+          val updateIndex = buildUpdateIndex(index, updateOptions)
+          val metadata = updateIndex.metadata()
+          if (latest == null) { // in case transaction capability is disabled
+            flintClient.updateIndex(indexName, metadata)
+          } else {
+            logInfo(s"Updating index with metadata log entry ID ${latest.id}")
+            flintClient.updateIndex(indexName, metadata.copy(latestId = Some(latest.id)))
+          }
+        })
+      logInfo("Update index complete")
+    } catch {
+      case e: Exception =>
+        logError("Failed to update Flint index", e)
+        // TODO: more informative
+        throw new IllegalStateException("Failed to update Flint index")
     }
   }
 

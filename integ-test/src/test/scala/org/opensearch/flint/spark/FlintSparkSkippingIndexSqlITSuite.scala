@@ -307,6 +307,73 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     checkAnswer(result, Seq.empty)
   }
 
+  test("update full refresh skipping index to auto refresh") {
+    sql(
+      s"""
+         | CREATE SKIPPING INDEX ON $testTable
+         | (
+         |   year PARTITION,
+         |   name VALUE_SET,
+         |   age MIN_MAX
+         | )
+         | """.stripMargin)
+
+    val indexData = spark.read.format(FLINT_DATASOURCE).load(testIndex)
+
+    flint.describeIndex(testIndex) shouldBe defined
+    indexData.count() shouldBe 0
+
+    sql(
+      s"""
+         | ALTER SKIPPING INDEX ON $testTable
+         | WITH (auto_refresh = true)
+         | """.stripMargin)
+
+    // Wait for streaming job complete current micro batch
+    val job = spark.streams.active.find(_.name == testIndex)
+    awaitStreamingComplete(job.get.id.toString)
+    indexData.count() shouldBe 2
+  }
+
+  test("update auto refresh skipping index to full refresh") {
+    withTempDir { checkpointDir =>
+      sql(
+        s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | ( year PARTITION )
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
+
+      // Wait for streaming job complete current micro batch
+      val job = spark.streams.active.find(_.name == testIndex)
+      awaitStreamingComplete(job.get.id.toString)
+
+      val indexData = spark.read.format(FLINT_DATASOURCE).load(testIndex)
+      flint.describeIndex(testIndex) shouldBe defined
+      indexData.count() shouldBe 2
+
+      sql(
+        s"""
+           | ALTER SKIPPING INDEX ON $testTable
+           | WITH (auto_refresh = false)
+           | """.stripMargin)
+
+      spark.streams.active.find(_.name == testIndex) shouldBe empty
+
+      // New data won't be refreshed until refresh statement triggered
+      sql(
+        s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=5)
+           | VALUES ('Hello', 50, 'Vancouver')
+           |""".stripMargin)
+      indexData.count() shouldBe 2
+
+      sql(s"REFRESH SKIPPING INDEX ON $testTable")
+      indexData.count() shouldBe 3
+    }
+  }
+
   test("drop and vacuum skipping index") {
     flint
       .skippingIndex()
