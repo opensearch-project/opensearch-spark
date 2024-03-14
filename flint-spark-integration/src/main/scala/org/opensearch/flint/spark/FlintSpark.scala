@@ -203,34 +203,43 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   }
 
   /**
-   * Update the given index with metadata.
+   * Update index with index options.
+   * TODO: FlintSparkIndex parameter for more flexible update
    *
-   * @param index
-   * Flint index to update
+   * @param indexName
+   *   index name
+   * @param updateOptions
+   *   options to update
+   * @return
+   *   true if exist and updated, otherwise false
    */
-  def updateIndex(index: FlintSparkIndex): Boolean = {
-    logInfo(s"Update Flint index $index")
-    val indexName = index.name()
+  def updateIndex(indexName: String, updateOptions: Map[String, String]): Boolean = {
+    logInfo(s"Update Flint index $indexName")
     if (flintClient.exists(indexName)) {
-      val metadata = index.metadata()
       try {
         flintClient
           .startTransaction(indexName, dataSourceName)
           .initialLog(latest => latest.state == ACTIVE || latest.state == REFRESHING)
           .transientLog(latest => latest.copy(state = UPDATING))
           .finalLog(latest => latest.copy(state = ACTIVE))
-          .commit(latest =>
+          .commit(latest => {
+            val index = describeIndex(indexName).get
+            // TODO: validation
+            val updateIndex = buildUpdateIndex(index, updateOptions)
+            val metadata = updateIndex.metadata()
             if (latest == null) { // in case transaction capability is disabled
               flintClient.updateIndex(indexName, metadata)
             } else {
               logInfo(s"Updating index with metadata log entry ID ${latest.id}")
               flintClient.updateIndex(indexName, metadata.copy(latestId = Some(latest.id)))
-            })
+            }
+          })
         logInfo("Update index complete")
         true
       } catch {
         case e: Exception =>
           logError("Failed to update Flint index", e)
+          // TODO: more informative
           throw new IllegalStateException("Failed to update Flint index")
       }
     } else {
@@ -367,6 +376,12 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    */
   def queryIndex(indexName: String): DataFrame = {
     spark.read.format(FLINT_DATASOURCE).load(indexName)
+  }
+
+  private def buildUpdateIndex(index: FlintSparkIndex, updateOptions: Map[String, String]): FlintSparkIndex = {
+    val options = index.options.options ++ updateOptions
+    val metadata = index.metadata().copy(options = options.mapValues(_.asInstanceOf[AnyRef]).asJava)
+    FlintSparkIndexFactory.create(metadata)
   }
 
   private def stopRefreshingJob(indexName: String): Unit = {

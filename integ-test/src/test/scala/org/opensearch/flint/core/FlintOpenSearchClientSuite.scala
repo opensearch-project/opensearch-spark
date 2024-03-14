@@ -78,7 +78,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
   }
 
   it should "update index successfully" in {
-    val indexName = "test"
+    val indexName = "test_update"
     val content =
       """ {
         |   "_meta": {

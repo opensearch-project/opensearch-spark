@@ -180,17 +180,14 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         "checkpoint_location" -> "s3a://test/",
         "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")))
       .create()
-
-    val index = flint.describeIndex(testIndex)
-    index shouldBe defined
+    flint.describeIndex(testIndex) shouldBe defined
 
     val updateOptions = Map(
       "auto_refresh" -> "true",
       "incremental_refresh" -> "false",
       "refresh_interval" -> "5 Minute"
     )
-
-    flint.updateIndex(buildUpdateIndex(index.get, updateOptions))
+    flint.updateIndex(testIndex, updateOptions)
 
     val readNewIndex = flint.describeIndex(testIndex)
     readNewIndex shouldBe defined
