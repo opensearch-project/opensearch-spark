@@ -168,7 +168,7 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
         Map("SERVERLESS_EMR_JOB_ID" -> jobRunId, "SERVERLESS_EMR_VIRTUAL_CLUSTER_ID" -> appId))
       FlintREPL.enableHiveSupport = false
       FlintREPL.terminateJVM = false
-      FlintREPL.main(Array("select 1", resultIndex))
+      FlintREPL.main(Array(resultIndex))
     }
     futureResult.onComplete {
       case Success(result) => logInfo(s"Success result: $result")

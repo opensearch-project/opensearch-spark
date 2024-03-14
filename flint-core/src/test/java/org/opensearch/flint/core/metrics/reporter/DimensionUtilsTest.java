@@ -7,7 +7,6 @@ package org.opensearch.flint.core.metrics.reporter;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkEnv;
-import org.apache.spark.metrics.source.FlintMetricSource;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

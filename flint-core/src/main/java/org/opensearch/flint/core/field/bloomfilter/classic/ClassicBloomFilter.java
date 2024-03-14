@@ -132,16 +132,23 @@ public class ClassicBloomFilter implements BloomFilter {
    * @param in input stream
    * @return bloom filter
    */
-  public static BloomFilter readFrom(InputStream in) throws IOException {
-    DataInputStream dis = new DataInputStream(in);
+  public static BloomFilter readFrom(InputStream in) {
+    try {
+      DataInputStream dis = new DataInputStream(in);
 
-    int version = dis.readInt();
-    if (version != Version.V1.getVersionNumber()) {
-      throw new IOException("Unexpected Bloom filter version number (" + version + ")");
+      // Check version compatibility
+      int version = dis.readInt();
+      if (version != Version.V1.getVersionNumber()) {
+        throw new IllegalStateException("Unexpected Bloom filter version number (" + version + ")");
+      }
+
+      // Read bloom filter content
+      int numHashFunctions = dis.readInt();
+      BitArray bits = BitArray.readFrom(dis);
+      return new ClassicBloomFilter(bits, numHashFunctions);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
-    int numHashFunctions = dis.readInt();
-    BitArray bits = BitArray.readFrom(dis);
-    return new ClassicBloomFilter(bits, numHashFunctions);
   }
 
   private static int optimalNumOfHashFunctions(long n, long m) {

@@ -5,11 +5,15 @@
 
 package org.opensearch.flint.spark.skipping.bloomfilter
 
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{BLOOM_FILTER, SkippingKind}
-import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilterSkippingStrategy.{CLASSIC_BLOOM_FILTER_FPP_KEY, CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY, DEFAULT_CLASSIC_BLOOM_FILTER_FPP, DEFAULT_CLASSIC_BLOOM_FILTER_NUM_ITEMS}
+import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
 
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.opensearch.flint.core.field.bloomfilter.BloomFilterFactory
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.IndexColumnExtractor
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{BLOOM_FILTER, SkippingKind}
+
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression, Literal}
 import org.apache.spark.sql.functions.{col, xxhash64}
 
 /**
@@ -22,49 +26,25 @@ case class BloomFilterSkippingStrategy(
     params: Map[String, String] = Map.empty)
     extends FlintSparkSkippingStrategy {
 
-  override val parameters: Map[String, String] = {
-    Map(
-      CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY -> expectedNumItems.toString,
-      CLASSIC_BLOOM_FILTER_FPP_KEY -> fpp.toString)
-  }
+  private val bloomFilterFactory: BloomFilterFactory = BloomFilterFactory.of(params.asJava)
+
+  override val parameters: Map[String, String] = bloomFilterFactory.getParameters.asScala.toMap
 
   override def outputSchema(): Map[String, String] = Map(columnName -> "binary")
 
   override def getAggregators: Seq[Expression] = {
     Seq(
-      new BloomFilterAgg(xxhash64(col(columnName)).expr, expectedNumItems, fpp)
+      new BloomFilterAgg(xxhash64(col(columnName)).expr, bloomFilterFactory)
         .toAggregateExpression()
     ) // TODO: use xxhash64() for now
   }
 
-  override def rewritePredicate(predicate: Expression): Option[Expression] = None
-
-  private def expectedNumItems: Int = {
-    params
-      .get(CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY)
-      .map(_.toInt)
-      .getOrElse(DEFAULT_CLASSIC_BLOOM_FILTER_NUM_ITEMS)
+  override def rewritePredicate(predicate: Expression): Option[Expression] = {
+    val IndexColumn = IndexColumnExtractor(columnName)
+    predicate match {
+      case EqualTo(IndexColumn(indexCol), value: Literal) =>
+        Some(BloomFilterMightContain(indexCol.expr, xxhash64(new Column(value)).expr))
+      case _ => None
+    }
   }
-
-  private def fpp: Double = {
-    params
-      .get(CLASSIC_BLOOM_FILTER_FPP_KEY)
-      .map(_.toDouble)
-      .getOrElse(DEFAULT_CLASSIC_BLOOM_FILTER_FPP)
-  }
-}
-
-object BloomFilterSkippingStrategy {
-
-  /**
-   * Expected number of unique items key and default value.
-   */
-  val CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY = "num_items"
-  val DEFAULT_CLASSIC_BLOOM_FILTER_NUM_ITEMS = 10000
-
-  /**
-   * False positive probability (FPP) key and default value.
-   */
-  val CLASSIC_BLOOM_FILTER_FPP_KEY = "fpp"
-  val DEFAULT_CLASSIC_BLOOM_FILTER_FPP = 0.03
 }

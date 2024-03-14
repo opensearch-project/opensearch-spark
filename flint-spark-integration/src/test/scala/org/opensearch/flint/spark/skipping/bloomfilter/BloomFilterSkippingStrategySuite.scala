@@ -5,8 +5,8 @@
 
 package org.opensearch.flint.spark.skipping.bloomfilter
 
+import org.opensearch.flint.core.field.bloomfilter.BloomFilterFactory._
 import org.opensearch.flint.spark.skipping.{FlintSparkSkippingStrategy, FlintSparkSkippingStrategySuite}
-import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilterSkippingStrategy.{CLASSIC_BLOOM_FILTER_FPP_KEY, CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY, DEFAULT_CLASSIC_BLOOM_FILTER_FPP, DEFAULT_CLASSIC_BLOOM_FILTER_NUM_ITEMS}
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.FlintSuite
@@ -22,7 +22,8 @@ class BloomFilterSkippingStrategySuite
 
   test("parameters") {
     strategy.parameters shouldBe Map(
-      CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY -> DEFAULT_CLASSIC_BLOOM_FILTER_NUM_ITEMS.toString,
+      BLOOM_FILTER_ADAPTIVE_KEY -> DEFAULT_BLOOM_FILTER_ADAPTIVE.toString,
+      ADAPTIVE_NUMBER_CANDIDATE_KEY -> DEFAULT_ADAPTIVE_NUMBER_CANDIDATE.toString,
       CLASSIC_BLOOM_FILTER_FPP_KEY -> DEFAULT_CLASSIC_BLOOM_FILTER_FPP.toString)
   }
 }

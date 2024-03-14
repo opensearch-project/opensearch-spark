@@ -7,8 +7,8 @@ package org.opensearch.flint.spark.skipping.bloomfilter
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
-import org.opensearch.flint.core.field.bloomfilter.BloomFilter
-import org.opensearch.flint.core.field.bloomfilter.classic.ClassicBloomFilter
+import org.opensearch.flint.core.field.bloomfilter.{BloomFilter, BloomFilterFactory}
+import org.opensearch.flint.core.field.bloomfilter.adaptive.AdaptiveBloomFilter
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -26,21 +26,18 @@ import org.apache.spark.sql.types.{BinaryType, DataType}
  *
  * @param child
  *   child expression that generate Long values for creating a bloom filter
- * @param expectedNumItems
- *   expected maximum unique number of items
- * @param fpp
- *   false positive probability
+ * @param bloomFilterFactory
+ *   BloomFilter factory
  */
 case class BloomFilterAgg(
     child: Expression,
-    expectedNumItems: Int,
-    fpp: Double,
+    bloomFilterFactory: BloomFilterFactory,
     override val mutableAggBufferOffset: Int,
     override val inputAggBufferOffset: Int)
     extends TypedImperativeAggregate[BloomFilter] {
 
-  def this(child: Expression, expectedNumItems: Int, fpp: Double) = {
-    this(child, expectedNumItems, fpp, 0, 0)
+  def this(child: Expression, bloomFilterFactory: BloomFilterFactory) = {
+    this(child, bloomFilterFactory, 0, 0)
   }
 
   override def nullable: Boolean = true
@@ -50,7 +47,7 @@ case class BloomFilterAgg(
   override def children: Seq[Expression] = Seq(child)
 
   override def createAggregationBuffer(): BloomFilter = {
-    new ClassicBloomFilter(expectedNumItems, fpp)
+    bloomFilterFactory.create()
   }
 
   override def update(buffer: BloomFilter, inputRow: InternalRow): BloomFilter = {
@@ -72,7 +69,14 @@ case class BloomFilterAgg(
       // There's no set bit in the Bloom filter and hence no not-null value is processed.
       return null
     }
-    serialize(buffer)
+
+    // Serialize BloomFilter (best candidate if adaptive) as final result
+    buffer match {
+      case filter: AdaptiveBloomFilter =>
+        serialize(filter.bestCandidate().getBloomFilter)
+      case _ =>
+        serialize(buffer)
+    }
   }
 
   override def serialize(buffer: BloomFilter): Array[Byte] = {
@@ -88,7 +92,7 @@ case class BloomFilterAgg(
 
   override def deserialize(bytes: Array[Byte]): BloomFilter = {
     val in = new ByteArrayInputStream(bytes)
-    val bloomFilter = ClassicBloomFilter.readFrom(in)
+    val bloomFilter = bloomFilterFactory.deserialize(in)
     in.close()
     bloomFilter
   }
