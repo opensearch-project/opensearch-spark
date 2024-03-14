@@ -37,12 +37,18 @@ import org.apache.spark.sql.types.{StructField, _}
  */
 object FlintJob extends Logging with FlintJobExecutor {
   def main(args: Array[String]): Unit = {
-    // Validate command line arguments
-    if (args.length != 2) {
-      throw new IllegalArgumentException("Usage: FlintJob <query> <resultIndex>")
+    val (queryOption, resultIndex) = args.length match {
+      case 1 =>
+        (None, args(0)) // Starting from OS 2.13, resultIndex is the only argument
+      case 2 =>
+        (
+          Some(args(0)),
+          args(1)
+        ) // Before OS 2.13, there are two arguments, the second one is resultIndex
+      case _ =>
+        throw new IllegalArgumentException(
+          "Unsupported number of arguments. Expected 1 or 2 arguments.")
     }
-
-    val Array(query, resultIndex) = args
 
     val conf = createSparkConf()
     val jobType = conf.get("spark.flint.job.type", "batch")
@@ -50,6 +56,10 @@ object FlintJob extends Logging with FlintJobExecutor {
     conf.set(FlintSparkConf.JOB_TYPE.key, jobType)
 
     val dataSource = conf.get("spark.flint.datasource.name", "")
+    val query = queryOption.getOrElse(conf.get(FlintSparkConf.QUERY.key, ""))
+    if (query.isEmpty) {
+      throw new IllegalArgumentException(s"Query undefined for the ${jobType} job.")
+    }
     // https://github.com/opensearch-project/opensearch-spark/issues/138
     /*
      * To execute queries such as `CREATE SKIPPING INDEX ON my_glue1.default.http_logs_plain (`@timestamp` VALUE_SET) WITH (auto_refresh = true)`,
