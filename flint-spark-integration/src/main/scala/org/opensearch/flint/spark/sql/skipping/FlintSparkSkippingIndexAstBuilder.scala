@@ -54,8 +54,9 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
             indexBuilder.addValueSet(colName, valueSetParams)
           case MIN_MAX => indexBuilder.addMinMax(colName)
           case BLOOM_FILTER =>
+            // Determine if the given parameters are for adaptive algorithm by the first parameter
             val bloomFilterParamKeys =
-              if (skipParams.headOption.contains("false")) {
+              if (skipParams.headOption.exists(_.equalsIgnoreCase("false"))) {
                 Seq(
                   BLOOM_FILTER_ADAPTIVE_KEY,
                   CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY,
