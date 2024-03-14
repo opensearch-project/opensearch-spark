@@ -187,7 +187,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       "incremental_refresh" -> "false",
       "refresh_interval" -> "5 Minute"
     )
-    flint.updateIndex(testIndex, updateOptions)
+    flint.updateIndexOptions(testIndex, updateOptions)
 
     val readNewIndex = flint.describeIndex(testIndex)
     readNewIndex shouldBe defined

@@ -204,20 +204,18 @@ class FlintSpark(val spark: SparkSession) extends Logging {
 
   /**
    * Update index with index options.
-   * TODO: FlintSparkIndex parameter for more flexible update
+   * State remains unchanged throughout options update, since refresh job is not affected.
    *
    * @param indexName
    *   index name
    * @param updateOptions
    *   options to update
    */
-  def updateIndex(indexName: String, updateOptions: Map[String, String]): Unit = {
-    logInfo(s"Update Flint index $indexName")
+  def updateIndexOptions(indexName: String, updateOptions: Map[String, String]): Unit = {
+    logInfo(s"Updating options for Flint index $indexName")
     val index = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
     try {
-      // State remains unchanged throughout options update.
-      // At this point, refresh job is not yet started or cancelled.
       flintClient
         .startTransaction(indexName, dataSourceName)
         .initialLog(latest => latest.state == ACTIVE || latest.state == REFRESHING)
@@ -237,9 +235,35 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       logInfo("Update index complete")
     } catch {
       case e: Exception =>
-        logError("Failed to update Flint index", e)
+        logError("Failed to update Flint index options", e)
         // TODO: more informative
-        throw new IllegalStateException("Failed to update Flint index")
+        throw new IllegalStateException("Failed to update Flint index options")
+    }
+  }
+
+  /**
+   * Update job for index.
+   *
+   * @param indexName
+   * index name
+   */
+  def updateIndexJob(indexName: String): Unit = {
+    logInfo(s"Updating job for Flint index $indexName")
+    val index = describeIndex(indexName)
+      .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+    try {
+      // Assumes that auto refresh index must be updated to non auto refresh index, and vice versa.
+      // Options validation should ensure this.
+      if (index.options.autoRefresh()) {
+        refreshIndex(indexName)
+      } else {
+        cancelIndex(indexName)
+      }
+    } catch {
+      case e: Exception =>
+        logError("Failed to update Flint index job", e)
+        // TODO: more informative
+        throw new IllegalStateException("Failed to update Flint index job")
     }
   }
 

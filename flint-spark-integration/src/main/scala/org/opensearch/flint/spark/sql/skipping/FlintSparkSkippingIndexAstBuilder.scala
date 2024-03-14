@@ -97,20 +97,14 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
     }
   }
 
-  // TODO: similar to create index, index update and job update aren't in the same transaction.
+  // TODO: similar to create index, options update and job update aren't in the same transaction.
   override def visitAlterSkippingIndexStatement(
       ctx: AlterSkippingIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
       val indexName = getSkippingIndexName(flint, ctx.tableName)
       val indexOptions = visitPropertyList(ctx.propertyList())
-      flint.updateIndex(indexName, indexOptions)
-      // Assumes that auto refresh index must be updated to non auto refresh index, and vice versa.
-      // Options validation should ensure this.
-      if (flint.describeIndex(indexName).get.options.autoRefresh()) {
-        flint.refreshIndex(indexName)
-      } else {
-        flint.cancelIndex(indexName)
-      }
+      flint.updateIndexOptions(indexName, indexOptions)
+      flint.updateIndexJob(indexName)
       Seq.empty
     }
   }

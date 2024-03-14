@@ -129,7 +129,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .create()
 
     // Update index option, state should remain active
-    flint.updateIndex(testFlintIndex, Map("auto_refresh" -> "true"))
+    flint.updateIndexOptions(testFlintIndex, Map("auto_refresh" -> "true"))
     var latest = latestLogEntry(testLatestId)
     latest should contain("state" -> "active")
 
@@ -150,7 +150,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
     flint.refreshIndex(testFlintIndex)
 
     // Update index option, state should remain refreshing
-    flint.updateIndex(testFlintIndex, Map("auto_refresh" -> "false"))
+    flint.updateIndexOptions(testFlintIndex, Map("auto_refresh" -> "false"))
     var latest = latestLogEntry(testLatestId)
     latest should contain("state" -> "refreshing")
 
