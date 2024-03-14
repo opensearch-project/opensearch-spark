@@ -21,6 +21,8 @@ import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNAS
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
 
+import org.apache.spark.sql.flint.config.FlintSparkConf.DATA_SOURCE_NAME
+
 class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   val testFlintIndex = "flint_test_index"
@@ -29,7 +31,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val options = openSearchOptions + ("spark.flint.datasource.name" -> testDataSourceName)
+    val options = openSearchOptions + (DATA_SOURCE_NAME.key -> testDataSourceName)
     flintClient = new FlintOpenSearchClient(new FlintOptions(options.asJava))
   }
 

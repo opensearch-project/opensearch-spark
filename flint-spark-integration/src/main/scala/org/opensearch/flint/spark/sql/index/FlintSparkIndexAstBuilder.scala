@@ -43,25 +43,16 @@ trait FlintSparkIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
       flint
         .describeIndexes(indexNamePattern)
         .map { index =>
-          val parts = index match {
-            case mv: FlintSparkMaterializedView => mv.mvName.split('.')
-            case covering: FlintSparkCoveringIndex => covering.tableName.split('.')
-            case skipping: FlintSparkSkippingIndex => skipping.tableName.split('.')
-          }
-          val databaseName = parts(1)
-
-          val tableName = index match {
-            // MV doesn't belong to a table
-            case _: FlintSparkMaterializedView => null
-            // Table name must be qualified when metadata created
-            case _ => parts.drop(2).mkString(".")
-          }
-          val indexName = index match {
-            case covering: FlintSparkCoveringIndex => covering.indexName
-            // MV name must be qualified when metadata created
-            case _: FlintSparkMaterializedView => parts.drop(2).mkString(".")
-            // Skipping index doesn't have a user defined name
-            case _: FlintSparkSkippingIndex => null
+          val (databaseName, tableName, indexName) = index match {
+            case skipping: FlintSparkSkippingIndex =>
+              val parts = skipping.tableName.split('.')
+              (parts(1), parts.drop(2).mkString("."), null)
+            case covering: FlintSparkCoveringIndex =>
+              val parts = covering.tableName.split('.')
+              (parts(1), parts.drop(2).mkString("."), covering.indexName)
+            case mv: FlintSparkMaterializedView =>
+              val parts = mv.mvName.split('.')
+              (parts(1), null, parts.drop(2).mkString("."))
           }
 
           val status = index.latestLogEntry match {

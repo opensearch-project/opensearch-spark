@@ -294,8 +294,16 @@ SHOW FLINT [INDEX|INDEXES] IN catalog[.database]
 ```
 
 Example:
-```sql
-SHOW FLINT INDEXES IN spark_catalog.default
+```
+sql> SHOW FLINT INDEXES IN spark_catalog.default;
+fetched rows / total rows = 3/3
++-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+
+| flint_index_name                                            | kind     | database | table     | index_name      | auto_refresh | status     |
+|-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------|
+| flint_spark_catalog_default_http_count_view                 | mv       | default  | NULL      | http_count_view | false        | active     |
+| flint_spark_catalog_default_http_logs_skipping_index        | skipping | default  | http_logs | NULL            | true         | refreshing |
+| flint_spark_catalog_default_http_logs_status_clientip_index | covering | default  | http_logs | status_clientip | false        | active     |
++-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+
 ```
 
 #### Create Index Options
