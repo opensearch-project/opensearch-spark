@@ -155,7 +155,7 @@ High level API is dependent on query engine implementation. Please see Query Eng
 
 Provided below are the explanations for the parameters of the skipping algorithm. You can find the default values in the function signature below:
 
-- **VALUE_SET(limit=100):** If a file contains columns with high cardinality values, the value set will become null. This trade-off prevents excessive memory consumption at the expense of not skipping the file.
+- **VALUE_SET(limit=100):** If the column values of a file has higher cardinality than the limit (optional, default is 100), the value set will become null. This trade-off prevents excessive memory consumption at the expense of not skipping the file.
 
 - **BLOOM_FILTER**
   - **BLOOM_FILTER(num_candidate=10, fpp=0.03):** By default, the adaptive BloomFilter algorithm is used. Users can configure:
