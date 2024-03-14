@@ -153,7 +153,20 @@ High level API is dependent on query engine implementation. Please see Query Eng
 
 #### Skipping Index
 
-The default maximum size for the value set is 100. In cases where a file contains columns with high cardinality values, the value set will become null. This is the trade-off that prevents excessive memory consumption at the cost of not skipping the file.
+Provided below are the explanations for the parameters of the skipping algorithm. You can find the default values in the function signature below:
+
+- **VALUE_SET(limit=100):** If a file contains columns with high cardinality values, the value set will become null. This trade-off prevents excessive memory consumption at the expense of not skipping the file.
+
+- **BLOOM_FILTER**
+  - **BLOOM_FILTER(num_candidate=10, fpp=0.03):** By default, the adaptive BloomFilter algorithm is used. Users can configure:
+    1. The number of candidates (optional), starting with an expected number of distinct items at 1024 and doubling.
+    2. The false positive probability of each candidate (optional).
+    3. Examples: `BLOOM_FILTER`, `BLOOM_FILTER(20), BLOOM_FILTER(20, 0.01)`
+
+  - **BLOOM_FILTER(false, num_items=10000, fpp=0.03):** Setting the first parameter to `false` will revert to the non-adaptive algorithm. Users can configure:
+    1. The expected number of distinct values (optional).
+    2. The false positive probability (optional).
+    3. Examples: `BLOOM_FILTER(false)`, `BLOOM_FILTER(false, 1000000)`, `BLOOM_FILTER(false, 1000000, 0.01)`
 
 ```sql
 CREATE SKIPPING INDEX [IF NOT EXISTS]
