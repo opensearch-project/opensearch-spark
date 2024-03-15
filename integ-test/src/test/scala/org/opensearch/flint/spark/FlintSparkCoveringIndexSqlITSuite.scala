@@ -298,11 +298,12 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
   }
 
   test("update covering index") {
-    sql(
-      s"""
-         | CREATE INDEX $testIndex ON $testTable
-         | (name, age)
-         |""".stripMargin)
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
 
     flint.describeIndex(testFlintIndex) shouldBe defined
     flint.queryIndex(testFlintIndex).count() shouldBe 0
