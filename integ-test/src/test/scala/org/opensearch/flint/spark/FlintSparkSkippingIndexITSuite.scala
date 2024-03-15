@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark
 
+import java.util.Base64
+
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.native.JsonMethods._
 import org.opensearch.client.RequestOptions
@@ -33,6 +35,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   /** Test table and index name */
   private val testTable = "spark_catalog.default.test"
   private val testIndex = getSkippingIndexName(testTable)
+  private val testLatestId = Base64.getEncoder.encodeToString(testIndex.getBytes)
 
   override def beforeEach(): Unit = {
     super.beforeEach()
@@ -92,7 +95,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |     {
         |        "kind": "BLOOM_FILTER",
         |        "parameters": {
-        |          "num_items": "10000",
+        |          "adaptive": "true",
+        |          "num_candidates": "10",
         |          "fpp": "0.03"
         |        },
         |        "columnName": "name",
@@ -103,6 +107,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |       "auto_refresh": "false",
         |       "incremental_refresh": "false"
         |     },
+        |     "latestId": "$testLatestId",
         |     "properties": {}
         |   },
         |   "properties": {
@@ -707,6 +712,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     // Prepare test table
     val testTable = "spark_catalog.default.data_type_table"
     val testIndex = getSkippingIndexName(testTable)
+    val testLatestId = Base64.getEncoder.encodeToString(testIndex.getBytes)
     sql(s"""
          | CREATE TABLE $testTable
          | (
@@ -855,6 +861,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
          |       "auto_refresh": "false",
          |       "incremental_refresh": "false"
          |     },
+         |     "latestId": "$testLatestId",
          |     "properties": {}
          |   },
          |   "properties": {

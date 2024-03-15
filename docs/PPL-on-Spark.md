@@ -42,7 +42,7 @@ bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.3.0-SNAPS
 To use PPL to Spark translation, you can run Spark with PPL extension:
 
 ```
-spark-sql --conf "spark.sql.extensions=org.opensearch.flint.FlintPPLSparkExtensions"
+spark-sql --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintPPLSparkExtensions"
 ```
 
 ### Running With both Flint & PPL Extensions
@@ -51,7 +51,7 @@ classpath.
 
 Next need to configure both extensions :
 ```
-spark-sql --conf "spark.sql.extensions='org.opensearch.flint.FlintPPLSparkExtensions, org.opensearch.flint.FlintSparkExtensions'"
+spark-sql --conf "spark.sql.extensions='org.opensearch.flint.spark.FlintPPLSparkExtensions, org.opensearch.flint.spark.FlintSparkExtensions'"
 ```
 
 Once this is done, spark will allow both extensions to parse the query (SQL / PPL) and allow the correct execution of the query.
