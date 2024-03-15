@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark
 
+import java.util.Base64
+
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
@@ -19,6 +21,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
   private val testTable = "spark_catalog.default.ci_test"
   private val testIndex = "name_and_age"
   private val testFlintIndex = getFlintIndexName(testIndex, testTable)
+  private val testLatestId = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -63,6 +66,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
          |       "auto_refresh": "false",
          |       "incremental_refresh": "false"
          |     },
+         |     "latestId": "$testLatestId",
          |     "properties": {
          |       "filterCondition": "age > 30"
          |     }

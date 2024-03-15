@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark
 
 import java.sql.Timestamp
+import java.util.Base64
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.opensearch.flint.core.FlintVersion.current
@@ -21,6 +22,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
   private val testTable = "spark_catalog.default.mv_test"
   private val testMvName = "spark_catalog.default.mv_test_metrics"
   private val testFlintIndex = getFlintIndexName(testMvName)
+  private val testLatestId = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
   private val testQuery =
     s"""
        | SELECT
@@ -77,6 +79,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
          |      "checkpoint_location": "s3://test/",
          |      "watermark_delay": "30 Seconds"
          |    },
+         |    "latestId": "$testLatestId",
          |    "properties": {}
          |  },
          |  "properties": {

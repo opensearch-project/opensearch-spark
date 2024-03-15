@@ -22,6 +22,8 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.I
 import org.opensearch.flint.core.storage.FlintOpenSearchClient._
 import org.opensearch.flint.spark.FlintSparkSuite
 
+import org.apache.spark.sql.flint.config.FlintSparkConf.DATA_SOURCE_NAME
+
 /**
  * Transaction test base suite that creates the metadata log index which enables transaction
  * support in index operation.
@@ -33,7 +35,7 @@ trait OpenSearchTransactionSuite extends FlintSparkSuite {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    spark.conf.set("spark.flint.datasource.name", testDataSourceName)
+    spark.conf.set(DATA_SOURCE_NAME.key, testDataSourceName)
   }
 
   override def beforeEach(): Unit = {

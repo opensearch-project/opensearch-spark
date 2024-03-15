@@ -78,6 +78,8 @@ public class FlintOptions implements Serializable {
   public static final int DEFAULT_SOCKET_TIMEOUT_MILLIS = 60000;
 
   public static final int DEFAULT_INACTIVITY_LIMIT_MILLIS = 10 * 60 * 1000;
+  
+  public static final String DATA_SOURCE_NAME = "spark.flint.datasource.name";
 
   public FlintOptions(Map<String, String> options) {
     this.options = options;
@@ -132,5 +134,9 @@ public class FlintOptions implements Serializable {
 
   public int getSocketTimeoutMillis() {
     return Integer.parseInt(options.getOrDefault(SOCKET_TIMEOUT_MILLIS, String.valueOf(DEFAULT_SOCKET_TIMEOUT_MILLIS)));
+  }
+
+  public String getDataSourceName() {
+    return options.getOrDefault(DATA_SOURCE_NAME, "");
   }
 }
