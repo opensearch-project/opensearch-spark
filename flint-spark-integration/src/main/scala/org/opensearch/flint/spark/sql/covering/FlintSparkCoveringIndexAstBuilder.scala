@@ -10,7 +10,7 @@ import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
-import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText, updateIndex}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
 import org.apache.spark.sql.Row
@@ -100,6 +100,16 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
           }.toSeq
         }
         .getOrElse(Seq.empty)
+    }
+  }
+
+  override def visitAlterCoveringIndexStatement(
+      ctx: AlterCoveringIndexStatementContext): Command = {
+    FlintSparkSqlCommand() { flint =>
+      val indexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
+      val indexOptions = visitPropertyList(ctx.propertyList())
+      updateIndex(flint, indexName, indexOptions)
+      Seq.empty
     }
   }
 

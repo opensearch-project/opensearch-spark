@@ -8,6 +8,7 @@ package org.opensearch.flint.spark
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.updateIndex
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
@@ -111,6 +112,29 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
     }
 
     val indexData = flint.queryIndex(testFlintIndex)
+    checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
+  }
+
+  test("update covering index successfully") {
+    // Create full refresh Flint index
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
+    val indexData = flint.queryIndex(testFlintIndex)
+    checkAnswer(indexData, Seq())
+
+    // Update Flint index to auto refresh and wait for complete
+    val jobId = updateIndex(flint, testFlintIndex, Map("auto_refresh" -> "true"))
+    jobId shouldBe defined
+
+    val job = spark.streams.get(jobId.get)
+    failAfter(streamingTimeout) {
+      job.processAllAvailable()
+    }
+
     checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
   }
 
