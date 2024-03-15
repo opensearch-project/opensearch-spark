@@ -37,7 +37,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
        | GROUP BY TUMBLE(time, '10 Minutes')
        |""".stripMargin
 
-  override def beforeAll(): Unit = {
+  override def beforeEach(): Unit = {
     super.beforeAll()
     createTimeSeriesTable(testTable)
   }
@@ -45,6 +45,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
   override def afterEach(): Unit = {
     super.afterEach()
     deleteTestIndex(testFlintIndex)
+    sql(s"DROP TABLE $testTable")
   }
 
   test("create materialized view with auto refresh") {
