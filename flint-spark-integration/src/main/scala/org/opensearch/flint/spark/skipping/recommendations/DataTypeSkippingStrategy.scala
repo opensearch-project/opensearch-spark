@@ -29,35 +29,26 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
     table.schema().fields.map {
       field =>
         if (partitionFields.contains(field.name)) {
-          Row(field.name, field.dataType.toString, PARTITION.toString, getRule(PARTITION.toString))
+          Row(field.name, field.dataType.toString, getRecommendation("PARTITION")._1, getRecommendation("PARTITION")._2)
         } else {
-          val reason = getRule(field.dataType.toString)
-          field.dataType.toString match {
-            case "BooleanType" =>
-              Row(field.name, field.dataType.typeName, VALUE_SET.toString, reason)
-            case "IntegerType" | "LongType" | "ShortType" =>
-              Row(field.name, field.dataType.typeName, MIN_MAX.toString, reason)
-            case "DateType" | "TimestampType" | "StringType" | "VarcharType" | "CharType" | "StructType" =>
-              Row(field.name, field.dataType.typeName, BLOOM_FILTER.toString, reason)
-          }
+          Row(field.name, field.dataType.toString, getRecommendation(field.dataType.typeName)._1, getRecommendation(field.dataType.toString)._2)
         }
     }.toSeq
   }
 
-  private def getRule(dataTypeName: String): String = {
+  private def getRecommendation(dataTypeName: String): (String, String) = {
     dataTypeName match {
-      case "PARTITION" => "PARTITION data structure is recommended for partition columns"
-      case "BooleanType" => "VALUE_SET data structure is recommended for BooleanType columns"
-      case "IntegerType" => "MIN_MAX data structure is recommended for IntegerType columns"
-      case "LongType" => "MIN_MAX data structure is recommended for LongType columns"
-      case "ShortType" => "MIN_MAX data structure is recommended for ShortType columns"
-      case "DateType" => "MIN_MAX data structure is recommended for DateType columns"
-      case "TimestampType" => "MIN_MAX data structure is recommended for TimestampType columns"
-      case "StringType" => "MIN_MAX data structure is recommended for StringType columns"
-      case "VarcharType" => "MIN_MAX data structure is recommended for VarcharType columns"
-      case "CharType" => "MIN_MAX data structure is recommended for CharType columns"
-      case "StructType" => "MIN_MAX data structure is recommended for StructType columns"
+      case "PARTITION" => (PARTITION.toString, "PARTITION data structure is recommended for partition columns")
+      case "BooleanType" => (VALUE_SET.toString, "VALUE_SET data structure is recommended for BooleanType columns")
+      case "IntegerType" => (MIN_MAX.toString, "MIN_MAX data structure is recommended for IntegerType columns")
+      case "LongType" => (MIN_MAX.toString, "MIN_MAX data structure is recommended for LongType columns")
+      case "ShortType" => (MIN_MAX.toString, "MIN_MAX data structure is recommended for ShortType columns")
+      case "DateType" => (BLOOM_FILTER.toString, "BLOOM_FILTER data structure is recommended for DateType columns")
+      case "TimestampType" => (BLOOM_FILTER.toString, "BLOOM_FILTER data structure is recommended for TimestampType columns")
+      case "StringType" => (BLOOM_FILTER.toString, "BLOOM_FILTER data structure is recommended for StringType columns")
+      case "VarcharType" => (BLOOM_FILTER.toString, "BLOOM_FILTER data structure is recommended for VarcharType columns")
+      case "CharType" => (BLOOM_FILTER.toString, "BLOOM_FILTER data structure is recommended for CharType columns")
+      case "StructType" => (BLOOM_FILTER.toString, "BLOOM_FILTER data structure is recommended for StructType columns")
     }
   }
-
 }
