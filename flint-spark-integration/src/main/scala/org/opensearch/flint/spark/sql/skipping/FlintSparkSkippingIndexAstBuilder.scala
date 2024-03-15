@@ -15,7 +15,7 @@ import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKi
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.VALUE_SET_MAX_SIZE_KEY
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
-import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText, updateIndex}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
 import org.apache.spark.sql.Row
@@ -103,8 +103,7 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
     FlintSparkSqlCommand() { flint =>
       val indexName = getSkippingIndexName(flint, ctx.tableName)
       val indexOptions = visitPropertyList(ctx.propertyList())
-      flint.updateIndexOptions(indexName, indexOptions)
-      flint.updateIndexJob(indexName)
+      updateIndex(flint, indexName, indexOptions)
       Seq.empty
     }
   }

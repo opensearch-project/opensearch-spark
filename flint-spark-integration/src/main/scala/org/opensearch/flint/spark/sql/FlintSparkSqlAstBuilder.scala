@@ -5,9 +5,11 @@
 
 package org.opensearch.flint.spark.sql
 
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+
 import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.tree.{ParseTree, RuleNode}
-import org.opensearch.flint.spark.FlintSpark
+import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndexFactory}
 import org.opensearch.flint.spark.sql.covering.FlintSparkCoveringIndexAstBuilder
 import org.opensearch.flint.spark.sql.job.FlintSparkIndexJobAstBuilder
 import org.opensearch.flint.spark.sql.mv.FlintSparkMaterializedViewAstBuilder
@@ -68,5 +70,27 @@ object FlintSparkSqlAstBuilder {
     val startIndex = ctx.getStart.getStartIndex
     val stopIndex = ctx.getStop.getStopIndex
     sqlText.substring(startIndex, stopIndex + 1)
+  }
+
+  /**
+   * Update Flint index metadata and job associated with index.
+   *
+   * @param flint
+   *   Flint Spark which has access to Spark Catalog
+   * @param indexName
+   *   index name
+   * @param updateOptions
+   *   options to update
+   */
+  def updateIndex(flint: FlintSpark, indexName: String, updateOptions: Map[String, String]): Option[String] = {
+    val oldIndex = flint.describeIndex(indexName)
+      .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+
+    // TODO: validation
+    val newOptions = oldIndex.options.options ++ updateOptions
+    val newMetadata = oldIndex.metadata().copy(options = newOptions.mapValues(_.asInstanceOf[AnyRef]).asJava)
+    val newIndex = FlintSparkIndexFactory.create(newMetadata)
+
+    flint.updateIndex(newIndex)
   }
 }

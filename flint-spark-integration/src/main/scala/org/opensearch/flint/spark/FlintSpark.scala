@@ -203,101 +203,33 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   }
 
   /**
-   * Update index with index options.
-   * State remains unchanged throughout options update, since refresh job is not affected.
+   * Update the given index with metadata and update associated job.
+   * TODO: add update modes: AUTO_TO_MANUAL, MANUAL_TO_AUTO, REMAIN_AUTO, REMAIN_MANUAL
    *
-   * @param indexName
-   *   index name
-   * @param updateOptions
-   *   options to update
-   */
-  def updateIndexOptions(indexName: String, updateOptions: Map[String, String]): Unit = {
-    logInfo(s"Updating options for Flint index $indexName")
-    val index = describeIndex(indexName)
-      .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
-    try {
-      flintClient
-        .startTransaction(indexName, dataSourceName)
-        .initialLog(latest => latest.state == ACTIVE || latest.state == REFRESHING)
-        .transientLog(latest => latest)
-        .finalLog(latest => latest)
-        .commit(latest => {
-          // TODO: validation
-          val updateIndex = buildUpdateIndex(index, updateOptions)
-          val metadata = updateIndex.metadata()
-          if (latest == null) { // in case transaction capability is disabled
-            flintClient.updateIndex(indexName, metadata)
-          } else {
-            logInfo(s"Updating index with metadata log entry ID ${latest.id}")
-            flintClient.updateIndex(indexName, metadata.copy(latestId = Some(latest.id)))
-          }
-        })
-      logInfo("Update index complete")
-    } catch {
-      case e: Exception =>
-        logError("Failed to update Flint index options", e)
-        // TODO: more informative
-        throw new IllegalStateException("Failed to update Flint index options")
-    }
-  }
-
-  /**
-   * Update job for index.
-   *
-   * @param indexName
-   * index name
-   */
-  def updateIndexJob(indexName: String): Option[String] = {
-    logInfo(s"Updating job for Flint index $indexName")
-    val index = describeIndex(indexName)
-      .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
-    try {
-      // Assumes that auto refresh index must be updated to non auto refresh index, and vice versa.
-      // Options validation should ensure this.
-      if (index.options.autoRefresh()) {
-        refreshIndex(indexName)
-      } else {
-        cancelIndex(indexName)
-        None
-      }
-    } catch {
-      case e: Exception =>
-        logError("Failed to update Flint index job", e)
-        // TODO: more informative
-        throw new IllegalStateException("Failed to update Flint index job")
-    }
-  }
-
-  /**
-   * Cancel refreshing job associated to index
-   *
-   * @param indexName
-   * index name
+   * @param index
+   *   Flint index to update
    * @return
-   * true if exist and cancelled, otherwise false
+   *   refreshing job ID (empty if no job)
    */
-  def cancelIndex(indexName: String): Boolean = {
-    logInfo(s"Cancelling Flint index $indexName")
+  def updateIndex(index: FlintSparkIndex): Option[String] = {
+    logInfo(s"Updating Flint index $index")
+    val indexName = index.name
     if (flintClient.exists(indexName)) {
+      // TODO: this is in place of MANUAL_TO_AUTO and AUTO_TO_MANUAL. need to change
       try {
-        flintClient
-          .startTransaction(indexName, dataSourceName)
-          .initialLog(latest => latest.state == REFRESHING)
-          .transientLog(latest => latest.copy(state = CANCELLING))
-          .finalLog(latest => latest.copy(state = ACTIVE))
-          .commit(_ => {
-            flintIndexMonitor.stopMonitor(indexName)
-            stopRefreshingJob(indexName)
-            true
-          })
+        index.options.autoRefresh() match {
+          case true =>
+            updateIndexManualToAuto(index)
+          case false =>
+            updateIndexAutoToManual(index)
+        }
       } catch {
         case e: Exception =>
-          logError("Failed to cancel Flint index", e)
-          throw new IllegalStateException("Failed to cancel Flint index")
+          logError("Failed to update Flint index", e)
+          throw new IllegalStateException("Failed to update Flint index")
       }
     } else {
-      logInfo("Flint index to be cancelled doesn't exist")
-      false
+      throw new IllegalStateException(s"Flint index $indexName doesn't exist")
     }
   }
 
@@ -431,12 +363,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     spark.read.format(FLINT_DATASOURCE).load(indexName)
   }
 
-  private def buildUpdateIndex(index: FlintSparkIndex, updateOptions: Map[String, String]): FlintSparkIndex = {
-    val options = index.options.options ++ updateOptions
-    val metadata = index.metadata().copy(options = options.mapValues(_.asInstanceOf[AnyRef]).asJava)
-    FlintSparkIndexFactory.create(metadata)
-  }
-
   private def stopRefreshingJob(indexName: String): Unit = {
     logInfo(s"Terminating refreshing job $indexName")
     val job = spark.streams.active.find(_.name == indexName)
@@ -445,5 +371,45 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     } else {
       logWarning("Refreshing job not found")
     }
+  }
+
+  private def updateIndexAutoToManual(index: FlintSparkIndex): Option[String] = {
+    val indexName = index.name
+    flintClient
+      .startTransaction(indexName, dataSourceName)
+      .initialLog(latest => latest.state == REFRESHING)
+      .transientLog(latest => latest.copy(state = UPDATING))
+      .finalLog(latest => {
+        logInfo("Updating index state to active")
+        latest.copy(state = ACTIVE)
+      })
+      .commit(_ => {
+        flintClient.updateIndex(indexName, index.metadata)
+        logInfo("Update index options complete")
+        flintIndexMonitor.stopMonitor(indexName)
+        stopRefreshingJob(indexName)
+        None
+      })
+  }
+
+  private def updateIndexManualToAuto(index: FlintSparkIndex): Option[String] = {
+    val indexName = index.name
+    val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
+    flintClient
+      .startTransaction(indexName, dataSourceName)
+      .initialLog(latest => latest.state == ACTIVE)
+      .transientLog(latest =>
+        latest.copy(state = UPDATING, createTime = System.currentTimeMillis()))
+      .finalLog(latest => {
+        logInfo("Scheduling index state monitor")
+        flintIndexMonitor.startMonitor(indexName)
+        logInfo("Updating index state to refreshing")
+        latest.copy(state = REFRESHING)
+      })
+      .commit(_ => {
+        flintClient.updateIndex(indexName, index.metadata)
+        logInfo("Update index options complete")
+        indexRefresh.start(spark, flintSparkConf)
+      })
   }
 }

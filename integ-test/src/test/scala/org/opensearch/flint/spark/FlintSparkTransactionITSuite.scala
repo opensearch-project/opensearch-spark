@@ -15,6 +15,7 @@ import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.OpenSearchTransactionSuite
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.updateIndex
 import org.scalatest.matchers.should.Matchers
 
 class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
@@ -128,14 +129,8 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .addPartitions("year", "month")
       .create()
 
-    // Update index option, state should remain active
-    flint.updateIndexOptions(testFlintIndex, Map("auto_refresh" -> "true"))
-    var latest = latestLogEntry(testLatestId)
-    latest should contain("state" -> "active")
-
-    // Start streaming job
-    flint.refreshIndex(testFlintIndex)
-    latest = latestLogEntry(testLatestId)
+    updateIndex(flint, testFlintIndex, Map("auto_refresh" -> "true"))
+    val latest = latestLogEntry(testLatestId)
     latest should contain("state" -> "refreshing")
     latest("jobStartTime").asInstanceOf[Number].longValue() should be > 0L
   }
@@ -150,13 +145,8 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
     flint.refreshIndex(testFlintIndex)
 
     // Update index option, state should remain refreshing
-    flint.updateIndexOptions(testFlintIndex, Map("auto_refresh" -> "false"))
-    var latest = latestLogEntry(testLatestId)
-    latest should contain("state" -> "refreshing")
-
-    // Cancel streaming job
-    flint.cancelIndex(testFlintIndex)
-    latest = latestLogEntry(testLatestId)
+    updateIndex(flint, testFlintIndex, Map("auto_refresh" -> "false"))
+    val latest = latestLogEntry(testLatestId)
     latest should contain("state" -> "active")
   }
 

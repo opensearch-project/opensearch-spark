@@ -13,6 +13,7 @@ import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilterMightContain.bloom_filter_might_contain
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.updateIndex
 import org.opensearch.index.query.QueryBuilders
 import org.opensearch.index.reindex.DeleteByQueryRequest
 import org.scalatest.matchers.{Matcher, MatchResult}
@@ -169,47 +170,50 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("update skipping index with index options successfully") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addValueSet("address")
-      .options(FlintSparkIndexOptions(Map(
-        "auto_refresh" -> "false",
-        "incremental_refresh" -> "true",
-        "refresh_interval" -> "1 Minute",
-        "checkpoint_location" -> "s3a://test/",
-        "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")))
-      .create()
-    flint.describeIndex(testIndex) shouldBe defined
+    withTempDir { checkpointDir =>
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addValueSet("address")
+        .options(FlintSparkIndexOptions(Map(
+          "auto_refresh" -> "false",
+          "incremental_refresh" -> "true",
+          "refresh_interval" -> "1 Minute",
+          "checkpoint_location" -> checkpointDir.getAbsolutePath,
+          "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")))
+        .create()
+      flint.describeIndex(testIndex) shouldBe defined
 
-    val updateOptions = Map(
-      "auto_refresh" -> "true",
-      "incremental_refresh" -> "false",
-      "refresh_interval" -> "5 Minute"
-    )
-    flint.updateIndexOptions(testIndex, updateOptions)
+      val updateOptions = Map(
+        "auto_refresh" -> "true",
+        "incremental_refresh" -> "false",
+        "refresh_interval" -> "5 Minute"
+      )
+      updateIndex(flint, testIndex, updateOptions)
 
-    val readNewIndex = flint.describeIndex(testIndex)
-    readNewIndex shouldBe defined
+      val readNewIndex = flint.describeIndex(testIndex)
+      readNewIndex shouldBe defined
 
-    val optionJson = compact(render(parse(readNewIndex.get.metadata().getContent) \ "_meta" \ "options"))
-    optionJson should matchJson("""
-                                  | {
-                                  |   "auto_refresh": "true",
-                                  |   "incremental_refresh": "false",
-                                  |   "refresh_interval": "5 Minute",
-                                  |   "checkpoint_location": "s3a://test/",
-                                  |   "index_settings": "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
-                                  | }
-                                  |""".stripMargin)
+      val optionJson = compact(render(parse(readNewIndex.get.metadata().getContent) \ "_meta" \ "options"))
+      optionJson should matchJson(
+        s"""
+          | {
+          |   "auto_refresh": "true",
+          |   "incremental_refresh": "false",
+          |   "refresh_interval": "5 Minute",
+          |   "checkpoint_location": "${checkpointDir.getAbsolutePath}",
+          |   "index_settings": "{\\\"number_of_shards\\\": 3,\\\"number_of_replicas\\\": 2}"
+          | }
+          |""".stripMargin)
 
-    // Load index options from index mapping (verify OS index setting in SQL IT)
-    readNewIndex.get.options.autoRefresh() shouldBe true
-    readNewIndex.get.options.incrementalRefresh() shouldBe false
-    readNewIndex.get.options.refreshInterval() shouldBe Some("5 Minute")
-    readNewIndex.get.options.checkpointLocation() shouldBe Some("s3a://test/")
-    readNewIndex.get.options.indexSettings() shouldBe
-      Some("{\"number_of_shards\": 3,\"number_of_replicas\": 2}")
+      // Load index options from index mapping (verify OS index setting in SQL IT)
+      readNewIndex.get.options.autoRefresh() shouldBe true
+      readNewIndex.get.options.incrementalRefresh() shouldBe false
+      readNewIndex.get.options.refreshInterval() shouldBe Some("5 Minute")
+      readNewIndex.get.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
+      readNewIndex.get.options.indexSettings() shouldBe
+        Some("{\"number_of_shards\": 3,\"number_of_replicas\": 2}")
+    }
   }
 
   test("should not have ID column in index data") {
@@ -305,7 +309,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     indexData should have size 2
   }
 
-  test("Update full refresh skipping index to auto refresh should start job") {
+  test("update full refresh skipping index to auto refresh should start job") {
     // Create full refresh Flint index
     flint
       .skippingIndex()
@@ -316,8 +320,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     flint.queryIndex(testIndex).collect().toSet should have size 0
 
     // Update Flint index to auto refresh and wait for complete
-    flint.updateIndexOptions(testIndex, Map("auto_refresh" -> "true"))
-    val jobId = flint.updateIndexJob(testIndex)
+    val jobId = updateIndex(flint, testIndex, Map("auto_refresh" -> "true"))
     jobId shouldBe defined
 
     val job = spark.streams.get(jobId.get)
@@ -328,7 +331,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     flint.queryIndex(testIndex).collect().toSet should have size 2
   }
 
-  test("Update incremental refresh skipping index to auto refresh should start job") {
+  test("update incremental refresh skipping index to auto refresh should start job") {
     withTempDir { checkpointDir =>
       // Create incremental refresh Flint index and wait for complete
       flint
@@ -358,10 +361,12 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
            | """.stripMargin)
 
       // Update Flint index to auto refresh and wait for complete
-      flint.updateIndexOptions(testIndex, Map(
-        "auto_refresh" -> "true",
-        "incremental_refresh" -> "false"))
-      val jobId = flint.updateIndexJob(testIndex)
+      val jobId = updateIndex(
+        flint,
+        testIndex,
+        Map(
+          "auto_refresh" -> "true",
+          "incremental_refresh" -> "false"))
       jobId shouldBe defined
 
       val job = spark.streams.get(jobId.get)
@@ -374,7 +379,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     }
   }
 
-  test("Update auto refresh skipping index to full refresh should stop job") {
+  test("update auto refresh skipping index to full refresh should stop job") {
     // Create auto refresh Flint index and wait for complete
     flint
       .skippingIndex()
@@ -392,8 +397,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     flint.queryIndex(testIndex).collect().toSet should have size 2
 
     // Update Flint index to full refresh
-    flint.updateIndexOptions(testIndex, Map("auto_refresh" -> "false"))
-    flint.updateIndexJob(testIndex) shouldBe empty
+    updateIndex(flint, testIndex, Map("auto_refresh" -> "false")) shouldBe empty
 
     // Expect refresh job to be stopped
     spark.streams.active.find(_.name == testIndex) shouldBe empty
@@ -414,7 +418,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     flint.queryIndex(testIndex).collect().toSet should have size 3
   }
 
-  test("Update auto refresh skipping index to incremental refresh should stop job") {
+  test("update auto refresh skipping index to incremental refresh should stop job") {
     withTempDir { checkpointDir =>
       // Create auto refresh Flint index and wait for complete
       flint
@@ -437,10 +441,12 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       flint.queryIndex(testIndex).collect().toSet should have size 2
 
       // Update Flint index to incremental refresh
-      flint.updateIndexOptions(testIndex, Map(
-        "auto_refresh" -> "false",
-        "incremental_refresh" -> "true"))
-      flint.updateIndexJob(testIndex) shouldBe empty
+      updateIndex(
+        flint,
+        testIndex,
+        Map(
+          "auto_refresh" -> "false",
+          "incremental_refresh" -> "true")) shouldBe empty
 
       // Expect refresh job to be stopped
       spark.streams.active.find(_.name == testIndex) shouldBe empty
