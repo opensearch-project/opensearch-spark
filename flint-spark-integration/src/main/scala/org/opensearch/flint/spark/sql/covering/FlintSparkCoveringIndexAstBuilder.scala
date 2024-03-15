@@ -107,8 +107,8 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       ctx: AlterCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
       val indexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
-      val indexOptions = visitPropertyList(ctx.propertyList())
-      updateIndex(flint, indexName, indexOptions)
+      val indexOptionsMap = visitPropertyList(ctx.propertyList())
+      updateIndex(flint, indexName, indexOptionsMap)
       Seq.empty
     }
   }

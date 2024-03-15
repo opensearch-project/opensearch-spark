@@ -104,8 +104,8 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
       ctx: AlterMaterializedViewStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
       val indexName = getFlintIndexName(flint, ctx.mvName)
-      val indexOptions = visitPropertyList(ctx.propertyList())
-      updateIndex(flint, indexName, indexOptions)
+      val indexOptionsMap = visitPropertyList(ctx.propertyList())
+      updateIndex(flint, indexName, indexOptionsMap)
       Seq.empty
     }
   }

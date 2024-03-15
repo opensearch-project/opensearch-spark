@@ -101,8 +101,8 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       ctx: AlterSkippingIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
       val indexName = getSkippingIndexName(flint, ctx.tableName)
-      val indexOptions = visitPropertyList(ctx.propertyList())
-      updateIndex(flint, indexName, indexOptions)
+      val indexOptionsMap = visitPropertyList(ctx.propertyList())
+      updateIndex(flint, indexName, indexOptionsMap)
       Seq.empty
     }
   }
