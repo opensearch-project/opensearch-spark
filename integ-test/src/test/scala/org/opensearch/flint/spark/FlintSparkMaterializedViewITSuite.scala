@@ -10,6 +10,7 @@ import java.sql.Timestamp
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.updateIndex
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
@@ -185,6 +186,54 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
     withIncrementalMaterializedView(nonAggQuery) { indexData =>
       checkAnswer(indexData.select("name", "age"), Seq(Row("A", 30), Row("B", 20), Row("E", 15)))
+    }
+  }
+
+  test("update materialized view successfully") {
+    withTempDir { checkpointDir =>
+      val indexOptions = FlintSparkIndexOptions(
+        Map(
+          "auto_refresh" -> "true",
+          "checkpoint_location" -> checkpointDir.getAbsolutePath,
+          "watermark_delay" -> "1 Minute"
+        )
+      )
+
+      // Create full refresh Flint index
+      flint
+        .materializedView()
+        .name(testMvName)
+        .query(testQuery)
+        .create()
+      val indexData = flint.queryIndex(testFlintIndex)
+      checkAnswer(indexData, Seq())
+
+      // Update Flint index to auto refresh and wait for complete
+      val jobId = updateIndex(
+        flint,
+        testFlintIndex,
+        Map(
+          "auto_refresh" -> "true",
+          "checkpoint_location" -> checkpointDir.getAbsolutePath,
+          "watermark_delay" -> "1 Minute"))
+      jobId shouldBe defined
+
+      val job = spark.streams.get(jobId.get)
+      failAfter(streamingTimeout) {
+        job.processAllAvailable()
+      }
+
+      checkAnswer(
+        indexData.select("startTime", "count"),
+        Seq(
+          Row(timestamp("2023-10-01 00:00:00"), 1),
+          Row(timestamp("2023-10-01 00:10:00"), 2),
+          Row(timestamp("2023-10-01 01:00:00"), 1)
+          /*
+           * The last row is pending to fire upon watermark
+           *   Row(timestamp("2023-10-01 02:00:00"), 1)
+           */
+        ))
     }
   }
 
