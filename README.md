@@ -26,7 +26,7 @@ Version compatibility:
 To use this application, you can run Spark with Flint extension:
 
 ```
-spark-sql --conf "spark.sql.extensions=org.opensearch.flint.FlintSparkExtensions"
+spark-sql --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintSparkExtensions"
 ```
 
 ## PPL Extension Usage
@@ -34,7 +34,7 @@ spark-sql --conf "spark.sql.extensions=org.opensearch.flint.FlintSparkExtensions
 To use PPL to Spark translation, you can run Spark with PPL extension:
 
 ```
-spark-sql --conf "spark.sql.extensions=org.opensearch.flint.FlintPPLSparkExtensions"
+spark-sql --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintPPLSparkExtensions"
 ```
 
 ### Running With both Extension 
