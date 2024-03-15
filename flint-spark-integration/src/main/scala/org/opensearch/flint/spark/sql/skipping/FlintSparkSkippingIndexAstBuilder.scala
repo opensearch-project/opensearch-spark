@@ -97,7 +97,6 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
     }
   }
 
-  // TODO: similar to create index, options update and job update aren't in the same transaction.
   override def visitAlterSkippingIndexStatement(
       ctx: AlterSkippingIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
