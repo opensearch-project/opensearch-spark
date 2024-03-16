@@ -165,6 +165,10 @@ WITH ( options )
 REFRESH SKIPPING INDEX ON <object>
 
 [DESC|DESCRIBE] SKIPPING INDEX ON <object>
+       
+ALTER SKIPPING INDEX
+ON <object>
+WITH ( options )
 
 DROP SKIPPING INDEX ON <object>
 
@@ -197,6 +201,9 @@ REFRESH SKIPPING INDEX ON alb_logs
 
 DESCRIBE SKIPPING INDEX ON alb_logs
 
+ALTER SKIPPING INDEX ON alb_logs
+WITH ( auto_refresh = false )
+
 DROP SKIPPING INDEX ON alb_logs
 
 VACUUM SKIPPING INDEX ON alb_logs
@@ -216,6 +223,9 @@ SHOW [INDEX|INDEXES] ON <object>
 
 [DESC|DESCRIBE] INDEX name ON <object>
 
+ALTER INDEX name ON <object>
+WITH ( options )
+
 DROP INDEX name ON <object>
 
 VACUUM INDEX name ON <object>
@@ -232,6 +242,9 @@ REFRESH INDEX elb_and_requestUri ON alb_logs
 SHOW INDEX ON alb_logs
 
 DESCRIBE INDEX elb_and_requestUri ON alb_logs
+
+ALTER INDEX elb_and_requestUri ON alb_logs
+WITH ( auto_refresh = false )
 
 DROP INDEX elb_and_requestUri ON alb_logs
 
@@ -250,6 +263,9 @@ REFRESH MATERIALIZED VIEW name
 SHOW MATERIALIZED [VIEW|VIEWS] IN catalog[.database]
 
 [DESC|DESCRIBE] MATERIALIZED VIEW name
+
+ALTER MATERIALIZED VIEW name
+WITH ( options )
 
 DROP MATERIALIZED VIEW name
 
@@ -272,6 +288,9 @@ REFRESH MATERIALIZED VIEW alb_logs_metrics
 SHOW MATERIALIZED VIEWS IN spark_catalog.default
 
 DESC MATERIALIZED VIEW alb_logs_metrics
+
+ALTER MATERIALIZED VIEW alb_logs_metrics
+WITH ( auto_refresh = false )
 
 DROP MATERIALIZED VIEW alb_logs_metrics
 
@@ -344,6 +363,15 @@ WITH (
   checkpoint_location = 's3://test/'
 )
 ```
+
+#### Alter Index Options
+
+User can provide the following options in `WITH` clause of alter statement:
++ `auto_refresh`: This is required for alter statement. Currently, we restrict that an alter statement must change the auto refresh option from its original value.
++ `refresh_interval`
++ `incremental_refresh`
++ `checkpoint_location`
++ `watermark_delay`
 
 ### Index Job Management
 
