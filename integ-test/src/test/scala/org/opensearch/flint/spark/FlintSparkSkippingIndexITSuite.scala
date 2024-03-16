@@ -314,6 +314,51 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     indexData should have size 2
   }
 
+  test("should fail if update skipping index without updating auto_refresh option") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .create()
+
+    the[IllegalArgumentException] thrownBy
+      updateIndex(flint, testIndex, Map("incremental_refresh" -> "true"))
+    the[IllegalArgumentException] thrownBy
+      updateIndex(flint, testIndex, Map("auto_refresh" -> "true"))
+    the[IllegalArgumentException] thrownBy
+      updateIndex(flint, testIndex, Map("checkpoint_location" -> "s3a://test/"))
+    the[IllegalArgumentException] thrownBy
+      updateIndex(
+        flint,
+        testIndex,
+        Map(
+          "auto_refresh" -> "true",
+          "checkpoint_location" -> "s3a://test/"))
+
+    deleteTestIndex(testIndex)
+
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+
+    the[IllegalArgumentException] thrownBy
+      updateIndex(flint, testIndex, Map("incremental_refresh" -> "true"))
+    the[IllegalArgumentException] thrownBy
+      updateIndex(flint, testIndex, Map("auto_refresh" -> "false"))
+    the[IllegalArgumentException] thrownBy
+      updateIndex(flint, testIndex, Map("checkpoint_location" -> "s3a://test/"))
+    the[IllegalArgumentException] thrownBy
+      updateIndex(
+        flint,
+        testIndex,
+        Map(
+          "auto_refresh" -> "false",
+          "checkpoint_location" -> "s3a://test/"))
+  }
+
   test("update full refresh skipping index to auto refresh should start job") {
     // Create full refresh Flint index
     flint
