@@ -19,7 +19,6 @@ import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.AUTO
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
-import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.UpdateMode._
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -31,6 +30,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGN
  * Flint Spark integration API entrypoint.
  */
 class FlintSpark(val spark: SparkSession) extends Logging {
+  import FlintSpark.UpdateMode._
 
   /** Flint spark configuration */
   private val flintSparkConf: FlintSparkConf =
@@ -410,5 +410,13 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         logInfo("Update index options complete")
         indexRefresh.start(spark, flintSparkConf)
       })
+  }
+}
+
+object FlintSpark {
+  object UpdateMode extends Enumeration {
+    type UpdateMode = Value
+    val MANUAL_TO_AUTO, AUTO_TO_MANUAL = Value
+    // TODO: support AUTO_TO_AUTO and MANUAL_TO_MANUAL
   }
 }

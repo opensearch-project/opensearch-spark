@@ -10,6 +10,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.tree.{ParseTree, RuleNode}
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndexFactory}
+import org.opensearch.flint.spark.FlintSpark.UpdateMode._
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, INCREMENTAL_REFRESH, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, WATERMARK_DELAY}
 import org.opensearch.flint.spark.sql.covering.FlintSparkCoveringIndexAstBuilder
 import org.opensearch.flint.spark.sql.index.FlintSparkIndexAstBuilder
@@ -43,13 +44,6 @@ class FlintSparkSqlAstBuilder
 }
 
 object FlintSparkSqlAstBuilder {
-
-  object UpdateMode extends Enumeration {
-    type UpdateMode = Value
-    val MANUAL_TO_AUTO: UpdateMode = Value("manual_to_auto")
-    val AUTO_TO_MANUAL: UpdateMode = Value("auto_to_manual")
-    // TODO: support REMAIN_AUTO and REMAIN_MANUAL
-  }
 
   /**
    * Get full table name if catalog or database not specified. The reason we cannot do this in
@@ -104,8 +98,8 @@ object FlintSparkSqlAstBuilder {
     val newIndex = FlintSparkIndexFactory.create(newMetadata)
 
     val updateMode = newIndex.options.autoRefresh() match {
-      case true => UpdateMode.MANUAL_TO_AUTO
-      case false => UpdateMode.AUTO_TO_MANUAL
+      case true => MANUAL_TO_AUTO
+      case false => AUTO_TO_MANUAL
     }
 
     flint.updateIndex(newIndex, updateMode)
