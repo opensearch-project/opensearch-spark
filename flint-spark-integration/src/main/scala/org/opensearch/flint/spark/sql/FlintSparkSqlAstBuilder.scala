@@ -44,6 +44,13 @@ class FlintSparkSqlAstBuilder
 
 object FlintSparkSqlAstBuilder {
 
+  object UpdateMode extends Enumeration {
+    type UpdateMode = Value
+    val MANUAL_TO_AUTO: UpdateMode = Value("manual_to_auto")
+    val AUTO_TO_MANUAL: UpdateMode = Value("auto_to_manual")
+    // TODO: support REMAIN_AUTO and REMAIN_MANUAL
+  }
+
   /**
    * Get full table name if catalog or database not specified. The reason we cannot do this in
    * common SparkSqlAstBuilder.visitTableName is that SparkSession is required to qualify table
@@ -96,7 +103,12 @@ object FlintSparkSqlAstBuilder {
     val newMetadata = oldIndex.metadata().copy(options = newOptions.mapValues(_.asInstanceOf[AnyRef]).asJava)
     val newIndex = FlintSparkIndexFactory.create(newMetadata)
 
-    flint.updateIndex(newIndex)
+    val updateMode = newIndex.options.autoRefresh() match {
+      case true => UpdateMode.MANUAL_TO_AUTO
+      case false => UpdateMode.AUTO_TO_MANUAL
+    }
+
+    flint.updateIndex(newIndex, updateMode)
   }
 
   /**

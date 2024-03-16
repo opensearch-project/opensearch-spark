@@ -19,6 +19,7 @@ import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.AUTO
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.UpdateMode._
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -204,24 +205,22 @@ class FlintSpark(val spark: SparkSession) extends Logging {
 
   /**
    * Update the given index with metadata and update associated job.
-   * TODO: add update modes: AUTO_TO_MANUAL, MANUAL_TO_AUTO, REMAIN_AUTO, REMAIN_MANUAL
    *
    * @param index
    *   Flint index to update
+   * @param updateMode
+   *   update mode
    * @return
    *   refreshing job ID (empty if no job)
    */
-  def updateIndex(index: FlintSparkIndex): Option[String] = {
+  def updateIndex(index: FlintSparkIndex, updateMode: UpdateMode): Option[String] = {
     logInfo(s"Updating Flint index $index")
     val indexName = index.name
     if (flintClient.exists(indexName)) {
-      // TODO: this is in place of MANUAL_TO_AUTO and AUTO_TO_MANUAL. need to change
       try {
-        index.options.autoRefresh() match {
-          case true =>
-            updateIndexManualToAuto(index)
-          case false =>
-            updateIndexAutoToManual(index)
+        updateMode match {
+          case MANUAL_TO_AUTO => updateIndexManualToAuto(index)
+          case AUTO_TO_MANUAL => updateIndexAutoToManual(index)
         }
       } catch {
         case e: Exception =>
