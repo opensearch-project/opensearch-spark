@@ -318,4 +318,43 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     sql(s"VACUUM SKIPPING INDEX ON $testTable")
     flint.describeIndex(testIndex) shouldBe empty
   }
+
+  test("analyze skipping index with for supported data types") {
+    val result = sql(s"ANALYZE SKIPPING INDEX ON $testTable")
+
+    checkAnswer(
+      result,
+      Seq(
+        Row(
+          "year",
+          "integer",
+          "PARTITION",
+          "PARTITION data structure is recommended for partition columns"),
+        Row(
+          "month",
+          "integer",
+          "PARTITION",
+          "PARTITION data structure is recommended for partition columns"),
+        Row(
+          "name",
+          "string",
+          "BLOOM_FILTER",
+          "BLOOM_FILTER data structure is recommended for StringType columns"),
+        Row(
+          "age",
+          "integer",
+          "MIN_MAX",
+          "MIN_MAX data structure is recommended for IntegerType columns"),
+        Row(
+          "address",
+          "string",
+          "BLOOM_FILTER",
+          "BLOOM_FILTER data structure is recommended for StringType columns")))
+  }
+
+  test("analyze skipping index on invalid table") {
+    the[IllegalStateException] thrownBy {
+      sql(s"ANALYZE SKIPPING INDEX ON testTable")
+    }
+  }
 }

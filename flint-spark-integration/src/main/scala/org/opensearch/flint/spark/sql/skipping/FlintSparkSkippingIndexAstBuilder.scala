@@ -96,6 +96,20 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
     }
   }
 
+  override def visitAnalyzeSkippingIndexStatement(
+      ctx: AnalyzeSkippingIndexStatementContext): Command = {
+
+    val outputSchema = Seq(
+      AttributeReference("column_name", StringType, nullable = false)(),
+      AttributeReference("column_type", StringType, nullable = false)(),
+      AttributeReference("reason", StringType, nullable = false)(),
+      AttributeReference("skipping_type", StringType, nullable = false)())
+
+    FlintSparkSqlCommand(outputSchema) { flint =>
+      flint.analyzeSkippingIndex(ctx.tableName().getText)
+    }
+  }
+
   override def visitDropSkippingIndexStatement(ctx: DropSkippingIndexStatementContext): Command =
     FlintSparkSqlCommand() { flint =>
       val indexName = getSkippingIndexName(flint, ctx.tableName)
