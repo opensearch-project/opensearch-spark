@@ -321,7 +321,7 @@ fetched rows / total rows = 3/3
 +-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+
 ```
 
-- **Analyze Skipping Indexes**: Provides recommendation for creating skipping index. It outputs the following columns:
+- **Analyze Skipping Index**: Provides recommendation for creating skipping index. It outputs the following columns:
   - column_name: recommended column's name
   - column_type: recommended column's type
   - skipping_type: recommended skipping type for column
