@@ -11,12 +11,11 @@ import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConv
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
-import org.mockito.IdiomaticMockito.thrown
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.{be, defined}
-import org.scalatest.matchers.should.Matchers.{an, convertToAnyShouldWrapper, the}
+import org.scalatest.matchers.must.Matchers.defined
+import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE

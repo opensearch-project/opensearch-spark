@@ -20,7 +20,7 @@ import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.logical.Command
-import org.apache.spark.sql.types.{ArrayType, MapType, StringType}
+import org.apache.spark.sql.types.StringType
 
 /**
  * Flint Spark AST builder that builds Spark command for Flint skipping index statement.
