@@ -170,6 +170,8 @@ DROP SKIPPING INDEX ON <object>
 
 VACUUM SKIPPING INDEX ON <object>
 
+ANALYZE SKIPPING INDEX ON <object>
+
 <object> ::= [db_name].[schema_name].table_name
 ```
 
