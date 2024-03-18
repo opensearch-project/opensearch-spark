@@ -8,6 +8,7 @@ package org.opensearch.flint.spark
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.flint.datatype.FlintDataType
@@ -27,6 +28,11 @@ trait FlintSparkIndex {
    * Index options
    */
   val options: FlintSparkIndexOptions
+
+  /**
+   * Latest metadata log entry for index
+   */
+  val latestLogEntry: Option[FlintMetadataLogEntry]
 
   /**
    * @return
@@ -150,6 +156,12 @@ object FlintSparkIndex {
     val settings = index.options.indexSettings()
     if (settings.isDefined) {
       builder.indexSettings(settings.get)
+    }
+
+    // Optional latest metadata log entry
+    val latestLogEntry = index.latestLogEntry
+    if (latestLogEntry.isDefined) {
+      builder.latestLogEntry(latestLogEntry.get)
     }
     builder
   }

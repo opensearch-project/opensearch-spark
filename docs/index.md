@@ -153,7 +153,20 @@ High level API is dependent on query engine implementation. Please see Query Eng
 
 #### Skipping Index
 
-The default maximum size for the value set is 100. In cases where a file contains columns with high cardinality values, the value set will become null. This is the trade-off that prevents excessive memory consumption at the cost of not skipping the file.
+Provided below are the explanations for the parameters of the skipping algorithm. You can find the default values in the function signature below:
+
+- **VALUE_SET(limit=100):** If the column values of a file has higher cardinality than the limit (optional, default is 100), the value set will become null. This trade-off prevents excessive memory consumption at the expense of not skipping the file.
+
+- **BLOOM_FILTER**
+  - **BLOOM_FILTER(num_candidate=10, fpp=0.03):** By default, the adaptive BloomFilter algorithm is used. Users can configure:
+    1. The number of candidates (optional), starting with an expected number of distinct items at 1024 and doubling.
+    2. The false positive probability of each candidate (optional).
+    3. Examples: `BLOOM_FILTER`, `BLOOM_FILTER(20), BLOOM_FILTER(20, 0.01)`
+
+  - **BLOOM_FILTER(false, num_items=10000, fpp=0.03):** Setting the first parameter to `false` will revert to the non-adaptive algorithm. Users can configure:
+    1. The expected number of distinct values (optional).
+    2. The false positive probability (optional).
+    3. Examples: `BLOOM_FILTER(false)`, `BLOOM_FILTER(false, 1000000)`, `BLOOM_FILTER(false, 1000000, 0.01)`
 
 ```sql
 CREATE SKIPPING INDEX [IF NOT EXISTS]
@@ -278,6 +291,34 @@ DESC MATERIALIZED VIEW alb_logs_metrics
 DROP MATERIALIZED VIEW alb_logs_metrics
 
 VACUUM MATERIALIZED VIEW alb_logs_metrics
+```
+
+#### All Indexes
+
+- **Show Flint Indexes**: Displays all the flint indexes with their info. It outputs the following columns:
+  - flint_index_name: the full OpenSearch index name 
+  - kind: type of the index (skipping / covering / mv)
+  - database: database name for the index
+  - table: table name for skipping and covering index
+  - index_name: user defined name for covering index and materialized view
+  - auto_refresh: auto refresh option of the index (true / false)
+  - status: status of the index
+
+```sql
+SHOW FLINT [INDEX|INDEXES] IN catalog[.database]
+```
+
+Example:
+```
+sql> SHOW FLINT INDEXES IN spark_catalog.default;
+fetched rows / total rows = 3/3
++-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+
+| flint_index_name                                            | kind     | database | table     | index_name      | auto_refresh | status     |
+|-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------|
+| flint_spark_catalog_default_http_count_view                 | mv       | default  | NULL      | http_count_view | false        | active     |
+| flint_spark_catalog_default_http_logs_skipping_index        | skipping | default  | http_logs | NULL            | true         | refreshing |
+| flint_spark_catalog_default_http_logs_status_clientip_index | covering | default  | http_logs | status_clientip | false        | active     |
++-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+
 ```
 
 #### Create Index Options

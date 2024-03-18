@@ -8,8 +8,9 @@ package org.opensearch.flint.spark
 import scala.Option.empty
 import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
 
+import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.{Formats, NoTypeHints}
-import org.json4s.native.JsonMethods.parse
+import org.json4s.native.JsonMethods.{compact, parse, render}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
@@ -46,7 +47,8 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
            | (
            |   year PARTITION,
            |   name VALUE_SET,
-           |   age MIN_MAX
+           |   age MIN_MAX,
+           |   address BLOOM_FILTER
            | )
            | WITH (auto_refresh = true)
            | """.stripMargin)
@@ -78,6 +80,51 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
         Row("""["Seattle","Portland"]"""),
         Row(null) // Value set exceeded limit size is expected to be null
       ))
+  }
+
+  test("create skipping index with non-adaptive bloom filter") {
+    sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | (
+           |   address BLOOM_FILTER(false, 1024, 0.01)
+           | )
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
+
+    val job = spark.streams.active.find(_.name == testIndex)
+    awaitStreamingComplete(job.get.id.toString)
+
+    flint.queryIndex(testIndex).count() shouldBe 2
+
+    checkAnswer(sql(s"SELECT name FROM $testTable WHERE address = 'Vancouver'"), Row("Test"))
+    sql(s"SELECT name FROM $testTable WHERE address = 'San Francisco'").count() shouldBe 0
+  }
+
+  Seq(
+    (
+      s"CREATE SKIPPING INDEX ON $testTable (address BLOOM_FILTER(20, 0.01))",
+      """
+        |{
+        |   "adaptive": "true",
+        |   "num_candidates": "20",
+        |   "fpp": "0.01"
+        |}
+        |""".stripMargin),
+    (
+      s"CREATE SKIPPING INDEX ON $testTable (address BLOOM_FILTER(false, 100000, 0.001))",
+      """
+        |{
+        |   "adaptive": "false",
+        |   "num_items": "100000",
+        |   "fpp": "0.001"
+        |}
+        |""".stripMargin)).foreach { case (query, expectedParamJson) =>
+    test(s"create skipping index with bloom filter parameters $expectedParamJson") {
+      sql(query)
+      val metadata = flint.describeIndex(testIndex).get.metadata().getContent
+      val parameters = compact(render(parse(metadata) \\ "parameters"))
+      parameters should matchJson(expectedParamJson)
+    }
   }
 
   test("create skipping index with streaming job options") {

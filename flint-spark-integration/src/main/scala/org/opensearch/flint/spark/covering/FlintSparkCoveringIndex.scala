@@ -8,6 +8,7 @@ package org.opensearch.flint.spark.covering
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.spark._
 import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder, quotedTableName}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
@@ -24,13 +25,20 @@ import org.apache.spark.sql._
  *   source table name
  * @param indexedColumns
  *   indexed column list
+ * @param filterCondition
+ *   filtering condition
+ * @param options
+ *   index options
+ * @param latestLogEntry
+ *   latest metadata log entry for index
  */
 case class FlintSparkCoveringIndex(
     indexName: String,
     tableName: String,
     indexedColumns: Map[String, String],
     filterCondition: Option[String] = None,
-    override val options: FlintSparkIndexOptions = empty)
+    override val options: FlintSparkIndexOptions = empty,
+    override val latestLogEntry: Option[FlintMetadataLogEntry] = None)
     extends FlintSparkIndex {
 
   require(indexedColumns.nonEmpty, "indexed columns must not be empty")
