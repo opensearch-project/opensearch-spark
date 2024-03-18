@@ -183,6 +183,8 @@ DROP SKIPPING INDEX ON <object>
 
 VACUUM SKIPPING INDEX ON <object>
 
+ANALYZE SKIPPING INDEX ON <object>
+
 <object> ::= [db_name].[schema_name].table_name
 ```
 
@@ -317,6 +319,31 @@ fetched rows / total rows = 3/3
 | flint_spark_catalog_default_http_logs_skipping_index        | skipping | default  | http_logs | NULL            | true         | refreshing |
 | flint_spark_catalog_default_http_logs_status_clientip_index | covering | default  | http_logs | status_clientip | false        | active     |
 +-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+
+```
+
+- **Analyze Skipping Index**: Provides recommendation for creating skipping index. It outputs the following columns:
+  - column_name: recommended column's name
+  - column_type: recommended column's type
+  - skipping_type: recommended skipping type for column
+  - reason: why this skipping type is recommended
+
+```sql
+ANALYZE SKIPPING INDEX ON [catalog.database.]table
+```
+
+Example:
+```
+sql> ANALYZE SKIPPING INDEX ON alb_logs;
+fetched rows / total rows = 5/5
++-------------------------+-------------+---------------+-------------------------------------------------------------------+
+| column_name             | column_type | skipping_type | reason                                                            |
+|-------------------------+-------------+---------------+-------------------------------------------------------------------+
+| year                    | integer     | PARTITION     | PARTITION data structure is recommended for partition columns     |
+| month                   | integer     | PARTITION     | PARTITION data structure is recommended for partition columns     |
+| day                     | integer     | PARTITION     | PARTITION data structure is recommended for partition columns     |
+| request_processing_time | integer     | MIN_MAX       | MIN_MAX data structure is recommended for IntegerType columns     |
+| client_ip               | string      | BLOOM_FILTER  | BLOOM_FILTER data structure is recommended for StringType columns |
++-------------------------+-------------+---------------+-------------------------------------------------------------------+
 ```
 
 #### Create Index Options

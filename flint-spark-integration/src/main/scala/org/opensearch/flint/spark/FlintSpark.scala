@@ -19,9 +19,10 @@ import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.AUTO
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
+import org.opensearch.flint.spark.skipping.recommendations.DataTypeSkippingStrategy
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
@@ -330,6 +331,18 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    */
   def queryIndex(indexName: String): DataFrame = {
     spark.read.format(FLINT_DATASOURCE).load(indexName)
+  }
+
+  /**
+   * Recommend skipping index columns and algorithm.
+   *
+   * @param tableName
+   *   table name
+   * @return
+   *   skipping index recommendation dataframe
+   */
+  def analyzeSkippingIndex(tableName: String): Seq[Row] = {
+    new DataTypeSkippingStrategy().analyzeSkippingIndexColumns(tableName, spark)
   }
 
   private def stopRefreshingJob(indexName: String): Unit = {

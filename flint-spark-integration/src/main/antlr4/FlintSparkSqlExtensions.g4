@@ -29,6 +29,7 @@ skippingIndexStatement
     | alterSkippingIndexStatement
     | dropSkippingIndexStatement
     | vacuumSkippingIndexStatement
+    | analyzeSkippingIndexStatement
     ;
 
 createSkippingIndexStatement
@@ -103,6 +104,10 @@ dropCoveringIndexStatement
 
 vacuumCoveringIndexStatement
     : VACUUM INDEX indexName ON tableName
+    ;
+
+analyzeSkippingIndexStatement
+    : ANALYZE SKIPPING INDEX ON tableName
     ;
 
 materializedViewStatement
