@@ -337,12 +337,12 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    * Recommend skipping index columns and algorithm.
    *
    * @param tableName
-   *    table name
+   *   table name
    * @return
-   *    skipping index recommendation dataframe
+   *   skipping index recommendation dataframe
    */
   def analyzeSkippingIndex(tableName: String): Seq[Row] = {
-      new DataTypeSkippingStrategy().analyzeSkippingIndexColumns(tableName, spark)
+    new DataTypeSkippingStrategy().analyzeSkippingIndexColumns(tableName, spark)
   }
 
   private def stopRefreshingJob(indexName: String): Unit = {

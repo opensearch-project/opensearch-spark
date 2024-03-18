@@ -7,18 +7,20 @@ package org.opensearch.flint.spark
 
 import scala.Option.empty
 import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
+
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
+import org.mockito.IdiomaticMockito.thrown
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.{be, defined}
 import org.scalatest.matchers.should.Matchers.{an, convertToAnyShouldWrapper, the}
+
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
-import org.mockito.IdiomaticMockito.thrown
 
 class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
@@ -324,11 +326,31 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     checkAnswer(
       result,
       Seq(
-        Row("year", "integer", "PARTITION", "PARTITION data structure is recommended for partition columns"),
-        Row("month", "integer", "PARTITION", "PARTITION data structure is recommended for partition columns"),
-        Row("name", "string", "BLOOM_FILTER", "BLOOM_FILTER data structure is recommended for StringType columns"),
-        Row("age", "integer", "MIN_MAX", "MIN_MAX data structure is recommended for IntegerType columns"),
-        Row("address", "string", "BLOOM_FILTER", "BLOOM_FILTER data structure is recommended for StringType columns")))
+        Row(
+          "year",
+          "integer",
+          "PARTITION",
+          "PARTITION data structure is recommended for partition columns"),
+        Row(
+          "month",
+          "integer",
+          "PARTITION",
+          "PARTITION data structure is recommended for partition columns"),
+        Row(
+          "name",
+          "string",
+          "BLOOM_FILTER",
+          "BLOOM_FILTER data structure is recommended for StringType columns"),
+        Row(
+          "age",
+          "integer",
+          "MIN_MAX",
+          "MIN_MAX data structure is recommended for IntegerType columns"),
+        Row(
+          "address",
+          "string",
+          "BLOOM_FILTER",
+          "BLOOM_FILTER data structure is recommended for StringType columns")))
   }
 
   test("analyze skipping index on invalid table") {

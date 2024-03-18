@@ -15,10 +15,10 @@ trait AnalyzeSkippingStrategy {
    * Recommend skipping index columns and algorithm.
    *
    * @param tableName
-   * table name
+   *   table name
    * @return
-   * skipping index recommendation dataframe
+   *   skipping index recommendation dataframe
    */
-  def analyzeSkippingIndexColumns(tableName: String, spark: SparkSession) : Seq[Row]
+  def analyzeSkippingIndexColumns(tableName: String, spark: SparkSession): Seq[Row]
 
 }
