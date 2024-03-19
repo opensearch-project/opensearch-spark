@@ -144,7 +144,6 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .create()
     flint.refreshIndex(testFlintIndex)
 
-    // Update index option, state should remain refreshing
     updateIndex(flint, testFlintIndex, Map("auto_refresh" -> "false"))
     val latest = latestLogEntry(testLatestId)
     latest should contain("state" -> "active")

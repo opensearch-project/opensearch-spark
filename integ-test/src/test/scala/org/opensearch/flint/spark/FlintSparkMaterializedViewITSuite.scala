@@ -194,14 +194,6 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
   test("update materialized view successfully") {
     withTempDir { checkpointDir =>
-      val indexOptions = FlintSparkIndexOptions(
-        Map(
-          "auto_refresh" -> "true",
-          "checkpoint_location" -> checkpointDir.getAbsolutePath,
-          "watermark_delay" -> "1 Minute"
-        )
-      )
-
       // Create full refresh Flint index
       flint
         .materializedView()
