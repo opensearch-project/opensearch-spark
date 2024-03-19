@@ -8,11 +8,12 @@ package org.opensearch.flint.spark.sql.skipping
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 import org.antlr.v4.runtime.tree.RuleNode
+import org.opensearch.flint.core.field.bloomfilter.BloomFilterFactory._
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{MIN_MAX, PARTITION, VALUE_SET}
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{BLOOM_FILTER, MIN_MAX, PARTITION, VALUE_SET}
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.VALUE_SET_MAX_SIZE_KEY
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText, updateIndex}
@@ -53,6 +54,19 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
             val valueSetParams = (Seq(VALUE_SET_MAX_SIZE_KEY) zip skipParams).toMap
             indexBuilder.addValueSet(colName, valueSetParams)
           case MIN_MAX => indexBuilder.addMinMax(colName)
+          case BLOOM_FILTER =>
+            // Determine if the given parameters are for adaptive algorithm by the first parameter
+            val bloomFilterParamKeys =
+              if (skipParams.headOption.exists(_.equalsIgnoreCase("false"))) {
+                Seq(
+                  BLOOM_FILTER_ADAPTIVE_KEY,
+                  CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY,
+                  CLASSIC_BLOOM_FILTER_FPP_KEY)
+              } else {
+                Seq(ADAPTIVE_NUMBER_CANDIDATE_KEY, CLASSIC_BLOOM_FILTER_FPP_KEY)
+              }
+            val bloomFilterParams = (bloomFilterParamKeys zip skipParams).toMap
+            indexBuilder.addBloomFilter(colName, bloomFilterParams)
         }
       }
 
@@ -104,6 +118,20 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       val indexOptionsMap = visitPropertyList(ctx.propertyList())
       updateIndex(flint, indexName, indexOptionsMap)
       Seq.empty
+    }
+  }
+
+  override def visitAnalyzeSkippingIndexStatement(
+      ctx: AnalyzeSkippingIndexStatementContext): Command = {
+
+    val outputSchema = Seq(
+      AttributeReference("column_name", StringType, nullable = false)(),
+      AttributeReference("column_type", StringType, nullable = false)(),
+      AttributeReference("reason", StringType, nullable = false)(),
+      AttributeReference("skipping_type", StringType, nullable = false)())
+
+    FlintSparkSqlCommand(outputSchema) { flint =>
+      flint.analyzeSkippingIndex(ctx.tableName().getText)
     }
   }
 
