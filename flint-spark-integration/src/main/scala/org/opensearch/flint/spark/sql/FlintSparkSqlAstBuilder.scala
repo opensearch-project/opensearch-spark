@@ -12,6 +12,7 @@ import org.antlr.v4.runtime.tree.{ParseTree, RuleNode}
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndexFactory}
 import org.opensearch.flint.spark.FlintSpark.UpdateMode._
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
 import org.opensearch.flint.spark.sql.covering.FlintSparkCoveringIndexAstBuilder
 import org.opensearch.flint.spark.sql.index.FlintSparkIndexAstBuilder
@@ -92,7 +93,7 @@ object FlintSparkSqlAstBuilder {
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
 
     val oldOptions = oldIndex.options.options
-    validateOptions(oldOptions, updateOptions)
+    validateUpdateOptions(oldOptions, updateOptions, oldIndex.kind)
 
     val mergedOptions = oldOptions ++ updateOptions
     val newMetadata = oldIndex.metadata().copy(options = mergedOptions.mapValues(_.asInstanceOf[AnyRef]).asJava)
@@ -108,13 +109,17 @@ object FlintSparkSqlAstBuilder {
 
   /**
    * Validate update options.
+   * These are rules specific for updating index, validating the update is allowed.
+   * It doesn't check whether the resulting index options will be valid.
    *
    * @param oldOptions
    *   existing options
    * @param updateOptions
    *   options to update
+   * @param indexKind
+   *   index kind
    */
-  private def validateOptions(oldOptions: Map[String, String], updateOptions: Map[String, String]): Unit = {
+  private def validateUpdateOptions(oldOptions: Map[String, String], updateOptions: Map[String, String], indexKind: String): Unit = {
     val mergedOptions = oldOptions ++ updateOptions
     val newAutoRefresh = mergedOptions.getOrElse(AUTO_REFRESH.toString, "false")
     val oldAutoRefresh = oldOptions.getOrElse(AUTO_REFRESH.toString, "false")
@@ -124,20 +129,23 @@ object FlintSparkSqlAstBuilder {
       throw new IllegalArgumentException("auto_refresh option must be updated")
     }
 
-    // validate allowed options depending on refresh mode
     val newIncrementalRefresh = mergedOptions.getOrElse(INCREMENTAL_REFRESH.toString, "false")
-    val (refreshMode, allowedOptions) = (newAutoRefresh, newIncrementalRefresh) match {
-      case ("true", "false") =>
-        (AUTO, Set(AUTO_REFRESH, INCREMENTAL_REFRESH, CHECKPOINT_LOCATION))
-      case ("false", "false") =>
-        (FULL, Set(AUTO_REFRESH, INCREMENTAL_REFRESH))
-      case ("false", "true") =>
-        (INCREMENTAL, Set(AUTO_REFRESH, INCREMENTAL_REFRESH, WATERMARK_DELAY, CHECKPOINT_LOCATION))
+    val refreshMode = (newAutoRefresh, newIncrementalRefresh) match {
+      case ("true", "false") => AUTO
+      case ("false", "false") => FULL
+      case ("false", "true") => INCREMENTAL
       case ("true", "true") =>
         throw new IllegalArgumentException("auto_refresh and incremental_refresh options cannot both be true")
     }
+
+    // validate allowed options depending on refresh mode
+    val allowedOptions = refreshMode match {
+      case FULL => Set(AUTO_REFRESH, INCREMENTAL_REFRESH)
+      case AUTO | INCREMENTAL =>
+        Set(AUTO_REFRESH, INCREMENTAL_REFRESH, REFRESH_INTERVAL, CHECKPOINT_LOCATION, WATERMARK_DELAY)
+    }
     if (!updateOptions.keys.forall(allowedOptions.map(_.toString).contains)) {
-      throw new IllegalArgumentException(s"Altering to ${refreshMode} refresh index only allows options: ${allowedOptions}")
+      throw new IllegalArgumentException(s"Altering ${indexKind} index to ${refreshMode} refresh only allows options: ${allowedOptions}")
     }
   }
 }
