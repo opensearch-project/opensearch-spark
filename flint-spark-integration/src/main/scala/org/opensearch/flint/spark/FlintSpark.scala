@@ -391,10 +391,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       .startTransaction(indexName, dataSourceName)
       .initialLog(latest => latest.state == REFRESHING)
       .transientLog(latest => latest.copy(state = UPDATING))
-      .finalLog(latest => {
-        logInfo("Updating index state to active")
-        latest.copy(state = ACTIVE)
-      })
+      .finalLog(latest => latest.copy(state = ACTIVE))
       .commit(_ => {
         flintClient.updateIndex(indexName, index.metadata)
         logInfo("Update index options complete")
@@ -415,7 +412,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       .finalLog(latest => {
         logInfo("Scheduling index state monitor")
         flintIndexMonitor.startMonitor(indexName)
-        logInfo("Updating index state to refreshing")
         latest.copy(state = REFRESHING)
       })
       .commit(_ => {
