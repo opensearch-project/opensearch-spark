@@ -6,7 +6,8 @@
 package org.opensearch.flint.spark.skipping
 
 import com.amazon.awslogsdataaccesslayer.connectors.spark.LogsTable
-import org.opensearch.flint.spark.FlintSpark
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.DELETED
+import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
 
 import org.apache.spark.sql.Column
@@ -17,7 +18,6 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.{CatalogPlugin, Identifier}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
-import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.qualifyTableName
 
 /**
@@ -40,7 +40,7 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
             false))
         if hasNoDisjunction(condition) && !location.isInstanceOf[FlintSparkSkippingFileIndex] =>
       val index = flint.describeIndex(getIndexName(table))
-      if (index.exists(_.kind == SKIPPING_INDEX_TYPE)) {
+      if (hasActiveSkippingIndex(index)) {
         val skippingIndex = index.get.asInstanceOf[FlintSparkSkippingIndex]
         val indexFilter = rewriteToIndexFilter(skippingIndex, condition)
 
@@ -69,7 +69,7 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
           // Check if query plan already rewritten
           table.isInstanceOf[LogsTable] && !table.asInstanceOf[LogsTable].hasFileIndexScan() =>
       val index = flint.describeIndex(getIndexName(catalog, identifier))
-      if (index.exists(_.kind == SKIPPING_INDEX_TYPE)) {
+      if (hasActiveSkippingIndex(index)) {
         val skippingIndex = index.get.asInstanceOf[FlintSparkSkippingIndex]
         val indexFilter = rewriteToIndexFilter(skippingIndex, condition)
         /*
@@ -121,6 +121,12 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
     condition.collectFirst { case Or(_, _) =>
       true
     }.isEmpty
+  }
+
+  private def hasActiveSkippingIndex(index: Option[FlintSparkIndex]): Boolean = {
+    index.isDefined &&
+    index.get.kind == SKIPPING_INDEX_TYPE &&
+    index.get.latestLogEntry.exists(_.state != DELETED)
   }
 
   private def rewriteToIndexFilter(
