@@ -7,16 +7,12 @@ package org.opensearch.flint.spark.skipping.bloomfilter
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-
 import org.opensearch.flint.core.field.bloomfilter.{BloomFilter, BloomFilterFactory}
 import org.opensearch.flint.core.field.bloomfilter.adaptive.AdaptiveBloomFilter
 
-import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.aggregate.{ImperativeAggregate, TypedImperativeAggregate}
-import org.apache.spark.sql.functions.{col, xxhash64}
 import org.apache.spark.sql.types.{BinaryType, DataType}
 
 /**
@@ -110,13 +106,4 @@ case class BloomFilterAgg(
 
   override def withNewInputAggBufferOffset(newOffset: Int): ImperativeAggregate =
     copy(inputAggBufferOffset = newOffset)
-}
-
-object BloomFilterAgg {
-
-  def bloom_filter_agg(colName: String, params: Map[String, String]): Column = {
-    new Column(
-      new BloomFilterAgg(xxhash64(col(colName)).expr, BloomFilterFactory.of(params.asJava))
-        .toAggregateExpression())
-  }
 }
