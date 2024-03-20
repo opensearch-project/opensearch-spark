@@ -26,13 +26,15 @@ trait FlintSparkBenchmark extends SqlBasedBenchmark {
   protected lazy val openSearchClient = new RestHighLevelClient(
     RestClient.builder(new HttpHost(openSearchHost, openSearchPort, "http")))
 
+  protected lazy val openSearchOptions: Map[String, String] =
+    Map(
+      s"${HOST_ENDPOINT.optionKey}" -> openSearchHost,
+      s"${HOST_PORT.optionKey}" -> s"$openSearchPort",
+      s"${REFRESH_POLICY.optionKey}" -> "wait_for",
+      s"${IGNORE_DOC_ID_COLUMN.optionKey}" -> "false")
+
   def beforeAll(): Unit = {
     container.start()
-
-    spark.conf.set(HOST_ENDPOINT.key, openSearchHost)
-    spark.conf.set(HOST_PORT.key, openSearchPort)
-    spark.conf.set(REFRESH_POLICY.key, "true")
-    spark.conf.set(CHECKPOINT_MANDATORY.key, "false")
   }
 
   override def afterAll(): Unit = {
