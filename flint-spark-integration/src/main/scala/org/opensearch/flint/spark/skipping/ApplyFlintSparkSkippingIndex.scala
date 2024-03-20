@@ -40,7 +40,7 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
             false))
         if hasNoDisjunction(condition) && !location.isInstanceOf[FlintSparkSkippingFileIndex] =>
       val index = flint.describeIndex(getIndexName(table))
-      if (hasActiveSkippingIndex(index)) {
+      if (isActiveSkippingIndex(index)) {
         val skippingIndex = index.get.asInstanceOf[FlintSparkSkippingIndex]
         val indexFilter = rewriteToIndexFilter(skippingIndex, condition)
 
@@ -69,7 +69,7 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
           // Check if query plan already rewritten
           table.isInstanceOf[LogsTable] && !table.asInstanceOf[LogsTable].hasFileIndexScan() =>
       val index = flint.describeIndex(getIndexName(catalog, identifier))
-      if (hasActiveSkippingIndex(index)) {
+      if (isActiveSkippingIndex(index)) {
         val skippingIndex = index.get.asInstanceOf[FlintSparkSkippingIndex]
         val indexFilter = rewriteToIndexFilter(skippingIndex, condition)
         /*
@@ -123,7 +123,7 @@ class ApplyFlintSparkSkippingIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
     }.isEmpty
   }
 
-  private def hasActiveSkippingIndex(index: Option[FlintSparkIndex]): Boolean = {
+  private def isActiveSkippingIndex(index: Option[FlintSparkIndex]): Boolean = {
     index.isDefined &&
     index.get.kind == SKIPPING_INDEX_TYPE &&
     index.get.latestLogEntry.exists(_.state != DELETED)
