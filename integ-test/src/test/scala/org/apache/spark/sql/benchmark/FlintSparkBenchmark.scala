@@ -13,6 +13,11 @@ import org.opensearch.testcontainers.OpenSearchContainer
 import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
 import org.apache.spark.sql.flint.config.FlintSparkConf._
 
+/**
+ * Flint benchmark base class for benchmarking with Spark and OpenSearch.
+ * [[org.opensearch.flint.OpenSearchSuite]] doesn't work here because Spark's
+ * [[SqlBasedBenchmark]] is not a Scala test suite.
+ */
 trait FlintSparkBenchmark extends SqlBasedBenchmark {
 
   protected lazy val flint: FlintSpark = new FlintSpark(spark)
@@ -33,7 +38,7 @@ trait FlintSparkBenchmark extends SqlBasedBenchmark {
       s"${REFRESH_POLICY.optionKey}" -> "wait_for",
       s"${IGNORE_DOC_ID_COLUMN.optionKey}" -> "false")
 
-  def beforeAll(): Unit = {
+  override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
     container.start()
   }
 

@@ -5,128 +5,175 @@
 
 package org.apache.spark.sql.benchmark
 
-import scala.util.Random
-
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
+import org.opensearch.flint.core.field.bloomfilter.BloomFilterFactory.{ADAPTIVE_NUMBER_CANDIDATE_KEY, BLOOM_FILTER_ADAPTIVE_KEY, CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY}
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
+import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilterSkippingStrategy
+import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
+import org.opensearch.flint.spark.skipping.partition.PartitionSkippingStrategy
+import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
+import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.VALUE_SET_MAX_SIZE_KEY
 
 import org.apache.spark.benchmark.Benchmark
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.SaveMode.Overwrite
+import org.apache.spark.sql.catalyst.dsl.expressions.DslExpression
+import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
+import org.apache.spark.sql.functions.rand
 
+/**
+ * Flint skipping index benchmark that focus on skipping data structure read and write performance
+ * with OpenSearch based on Spark benchmark framework.
+ *
+ * To run this benchmark:
+ * {{{
+ *   > SPARK_GENERATE_BENCHMARK_FILES=1 sbt clean "set every Test / test := {}" "integtest/test:runMain org.apache.spark.sql.benchmark.FlintSkippingIndexBenchmark"
+ *   Results will be written to "benchmarks/FlintSkippingIndexBenchmark-<JDK>-results.txt".
+ * }}}
+ */
 object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
 
-  private val N = 1000
-  private val numFiles = 100
+  /** How many rows generated in test data */
+  private val N = 1000000
 
-  private val noIndexTableNamePrefix = "spark_catalog.default.no_index_test"
-  private val valueSetTableNamePrefix = "spark_catalog.default.value_set_test"
-  private val bloomFilterTableNamePrefix = "spark_catalog.default.bloom_filter_test"
+  /** Test column name and type */
+  private val testColName = "value"
+  private val testColType = "Int"
 
-  override def afterAll(): Unit = {
-    val prefixes =
-      Array(noIndexTableNamePrefix, valueSetTableNamePrefix, bloomFilterTableNamePrefix)
-    for (prefix <- prefixes) {
-      val tables = spark.sql(s"SHOW TABLES IN spark_catalog.default LIKE '$prefix%'").collect()
-      for (table <- tables) {
-        spark.sql(s"DROP TABLE $table")
-      }
-    }
-    super.afterAll()
-  }
-
-  override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
-    beforeAll()
+  override def runBenchmarkSuite(args: Array[String]): Unit = {
+    super.runBenchmarkSuite(args)
 
     runBenchmark("Skipping Index Write") {
-      runWriteBenchmark(16)
       runWriteBenchmark(64)
       runWriteBenchmark(512)
+      runWriteBenchmark(65536)
     }
 
+    /*
     runBenchmark("Skipping Index Read") {
       runReadBenchmark(16)
       runReadBenchmark(64)
       runReadBenchmark(512)
     }
+     */
   }
 
   private def runWriteBenchmark(cardinality: Int): Unit = {
-    val benchmark = new Benchmark(
-      s"Write $N rows with cardinality $cardinality in $numFiles files",
-      numFiles * N,
-      output = output)
-
-    // ValueSet write
-    val valueSetTableName = s"${valueSetTableNamePrefix}_${N}_$cardinality"
-    createTestTable(valueSetTableName, numFiles, N, cardinality)
-    flint
-      .skippingIndex()
-      .onTable(valueSetTableName)
-      .addValueSet("col")
-      .create()
-    benchmark.addCase("ValueSet Write") { _ =>
-      flint.refreshIndex(getSkippingIndexName(valueSetTableName))
-    }
-
-    // BloomFilter write
-    val bloomFilterTableName = s"${bloomFilterTableNamePrefix}_${N}_$cardinality"
-    createTestTable(bloomFilterTableName, numFiles, N, cardinality)
-    flint
-      .skippingIndex()
-      .onTable(bloomFilterTableName)
-      .addValueSet("col")
-      .create()
-    benchmark.addCase("BloomFilter Write") { _ =>
-      flint.refreshIndex(getSkippingIndexName(bloomFilterTableName))
-    }
-    benchmark.run()
+    benchmark(s"Skipping Index Write $N Rows with Cardinality $cardinality")
+      .addCase("Partition Write") { _ =>
+        buildSkippingIndex(
+          PartitionSkippingStrategy(columnName = testColName, columnType = testColType),
+          1 // partition column value should be the same in a single file
+        )
+      }
+      .addCase("MinMax Write") { _ =>
+        buildSkippingIndex(
+          MinMaxSkippingStrategy(columnName = testColName, columnType = testColType),
+          cardinality)
+      }
+      .addCase("ValueSet Write") { _ =>
+        buildSkippingIndex(
+          ValueSetSkippingStrategy(columnName = testColName, columnType = testColType),
+          cardinality)
+      }
+      .addCase("ValueSet Write (Unlimited Size)") { _ =>
+        buildSkippingIndex(
+          ValueSetSkippingStrategy(
+            columnName = testColName,
+            columnType = testColType,
+            params = Map(VALUE_SET_MAX_SIZE_KEY -> Integer.MAX_VALUE.toString)),
+          cardinality)
+      }
+      .addCase("BloomFilter Write") { _ =>
+        buildSkippingIndex(
+          BloomFilterSkippingStrategy(
+            columnName = testColName,
+            columnType = testColType,
+            params = Map(
+              BLOOM_FILTER_ADAPTIVE_KEY -> "false",
+              CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY -> N.toString)),
+          cardinality)
+      }
+      .addCase("BloomFilter Write (Optimal NDV)") { _ =>
+        buildSkippingIndex(
+          BloomFilterSkippingStrategy(
+            columnName = testColName,
+            columnType = testColType,
+            params = Map(
+              BLOOM_FILTER_ADAPTIVE_KEY -> "false",
+              CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY -> cardinality.toString)),
+          cardinality)
+      }
+      .addCase("Adaptive BloomFilter Write") { _ =>
+        buildSkippingIndex(
+          BloomFilterSkippingStrategy(columnName = testColName, columnType = testColType),
+          cardinality)
+      }
+      .addCase("Adaptive BloomFilter Write (5 Candidates)") { _ =>
+        buildSkippingIndex(
+          BloomFilterSkippingStrategy(
+            columnName = testColName,
+            columnType = testColType,
+            params = Map(ADAPTIVE_NUMBER_CANDIDATE_KEY -> "5")),
+          cardinality)
+      }
+      .addCase("Adaptive BloomFilter Write (15 Candidates)") { _ =>
+        buildSkippingIndex(
+          BloomFilterSkippingStrategy(
+            columnName = testColName,
+            columnType = testColType,
+            params = Map(ADAPTIVE_NUMBER_CANDIDATE_KEY -> "15")),
+          cardinality)
+      }
+      .run()
   }
 
-  private def runReadBenchmark(cardinality: Int): Unit = {
-    val benchmark = new Benchmark(
-      s"Read $N rows with cardinality $cardinality in $numFiles files",
-      numFiles * N,
-      output = output)
+  private def runReadBenchmark(cardinality: Int): Unit = {}
 
-    val uniqueValue = cardinality + 10
-    val noIndexTableName = s"${noIndexTableNamePrefix}_${N}_$cardinality"
-    createTestTable(noIndexTableName, numFiles, N, cardinality)
-    benchmark.addCase("No Index Read") { _ =>
-      spark.sql(s"SELECT * FROM $noIndexTableName WHERE col = $uniqueValue")
-    }
-
-    val valueSetTableName = s"${valueSetTableNamePrefix}_${N}_$cardinality"
-    // spark.sql(s"INSERT INTO $valueSetTableName VALUES ($uniqueValue)")
-    benchmark.addCase("ValueSet Read") { _ =>
-      spark.sql(s"SELECT * FROM $valueSetTableName WHERE col = $uniqueValue")
-    }
-
-    val bloomFilterTableName = s"${bloomFilterTableNamePrefix}_${N}_$cardinality"
-    // spark.sql(s"INSERT INTO $valueSetTableName VALUES ($uniqueValue)")
-    benchmark.addCase("BloomFilter Read") { _ =>
-      spark.sql(s"SELECT * FROM $bloomFilterTableName WHERE col = $uniqueValue")
-    }
-    benchmark.run()
+  private def benchmark(name: String): BenchmarkBuilder = {
+    new BenchmarkBuilder(new Benchmark(name, N, output = output))
   }
 
-  private def createTestTable(
-      tableName: String,
-      numFiles: Int,
-      numRows: Int,
-      cardinality: Int): Unit = {
-    spark.sql(s"CREATE TABLE $tableName (col INT) USING JSON")
+  private class BenchmarkBuilder(benchmark: Benchmark) {
 
-    val uniques = Seq.range(1, cardinality + 1)
-    val values =
-      Seq
-        .fill(numRows)(uniques(Random.nextInt(cardinality)))
-        .map(v => s"($v)")
-        .mkString(", ")
-
-    for (_ <- 1 to numFiles) {
-      spark.sql(s"""
-           | INSERT INTO $tableName
-           | SELECT /*+ COALESCE(1) */ *
-           | FROM VALUES $values
-           |""".stripMargin)
+    def addCase(name: String)(f: Int => Unit): BenchmarkBuilder = {
+      benchmark.addCase(name)(f)
+      this
     }
+
+    def run(): Unit = {
+      benchmark.run()
+    }
+  }
+
+  private def buildSkippingIndex(indexCol: FlintSparkSkippingStrategy, cardinality: Int): Unit = {
+    val indexName = getTestIndexName(indexCol, cardinality)
+    val namedAggCols = getNamedAggColumn(indexCol)
+
+    // Generate N random numbers of cardinality and build single skipping index
+    // data structure without grouping by
+    spark
+      .range(N)
+      .withColumn(testColName, (rand() * cardinality + 1).cast(testColType))
+      .agg(namedAggCols.head, namedAggCols.tail: _*)
+      .write
+      .format(FLINT_DATASOURCE)
+      .options(openSearchOptions)
+      .mode(Overwrite)
+      .save(indexName)
+  }
+
+  private def getTestIndexName(indexCol: FlintSparkSkippingStrategy, cardinality: Int): String = {
+    val params = indexCol.parameters.map { case (name, value) => s"${name}_$value" }.mkString("_")
+    s"${indexCol.kind}_${params}_$cardinality"
+  }
+
+  private def getNamedAggColumn(indexCol: FlintSparkSkippingStrategy): Seq[Column] = {
+    val outputNames = indexCol.outputSchema().keys
+    val aggFuncs = indexCol.getAggregators
+
+    // Wrap aggregate function with output column name
+    (outputNames, aggFuncs).zipped.map { case (name, aggFunc) =>
+      new Column(aggFunc.as(name))
+    }.toSeq
   }
 }
