@@ -308,8 +308,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     flint.describeIndex(testFlintIndex) shouldBe defined
     flint.queryIndex(testFlintIndex).count() shouldBe 0
 
-    sql(
-      s"""
+    sql(s"""
          | ALTER INDEX $testIndex ON $testTable
          | WITH (auto_refresh = true)
          | """.stripMargin)

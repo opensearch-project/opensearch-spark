@@ -49,18 +49,15 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
         .create()
       flint.describeIndex(testIndex) shouldBe defined
 
-      val updateOptions = Map(
-        "auto_refresh" -> "true",
-        "incremental_refresh" -> "false"
-      )
+      val updateOptions = Map("auto_refresh" -> "true", "incremental_refresh" -> "false")
       updateIndex(flint, testIndex, updateOptions)
 
       val readNewIndex = flint.describeIndex(testIndex)
       readNewIndex shouldBe defined
 
-      val optionJson = compact(render(parse(readNewIndex.get.metadata().getContent) \ "_meta" \ "options"))
-      optionJson should matchJson(
-        s"""
+      val optionJson =
+        compact(render(parse(readNewIndex.get.metadata().getContent) \ "_meta" \ "options"))
+      optionJson should matchJson(s"""
           | {
           |   "auto_refresh": "true",
           |   "incremental_refresh": "false",
@@ -97,9 +94,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       updateIndex(
         flint,
         testIndex,
-        Map(
-          "auto_refresh" -> "true",
-          "checkpoint_location" -> "s3a://test/"))
+        Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/"))
 
     // auto_refresh not provided
     the[IllegalArgumentException] thrownBy
@@ -123,9 +118,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       updateIndex(
         flint,
         testIndex,
-        Map(
-          "auto_refresh" -> "false",
-          "checkpoint_location" -> "s3a://test/"))
+        Map("auto_refresh" -> "false", "checkpoint_location" -> "s3a://test/"))
 
     // auto_refresh not provided
     the[IllegalArgumentException] thrownBy
@@ -146,9 +139,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     updateIndex(
       flint,
       testIndex,
-      Map(
-        "auto_refresh" -> "false",
-        "incremental_refresh" -> "false"))
+      Map("auto_refresh" -> "false", "incremental_refresh" -> "false"))
     val readNewIndex = flint.describeIndex(testIndex)
     readNewIndex shouldBe defined
 
@@ -169,23 +160,17 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       updateIndex(
         flint,
         testIndex,
-        Map(
-          "auto_refresh" -> "false",
-          "checkpoint_location" -> "s3a://test/"))
+        Map("auto_refresh" -> "false", "checkpoint_location" -> "s3a://test/"))
     the[IllegalArgumentException] thrownBy
       updateIndex(
         flint,
         testIndex,
-        Map(
-          "auto_refresh" -> "false",
-          "refresh_interval" -> "5 Minute"))
+        Map("auto_refresh" -> "false", "refresh_interval" -> "5 Minute"))
     the[IllegalArgumentException] thrownBy
       updateIndex(
         flint,
         testIndex,
-        Map(
-          "auto_refresh" -> "false",
-          "watermark_delay" -> "1 Minute"))
+        Map("auto_refresh" -> "false", "watermark_delay" -> "1 Minute"))
   }
 
   test("should succeed if convert to incremental refresh with refresh_interval") {
@@ -285,12 +270,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       .addPartitions("year", "month")
       .create()
 
-    updateIndex(
-      flint,
-      testIndex,
-      Map(
-        "auto_refresh" -> "true",
-        "refresh_interval" -> "5 Minute"))
+    updateIndex(flint, testIndex, Map("auto_refresh" -> "true", "refresh_interval" -> "5 Minute"))
 
     val readNewIndex = flint.describeIndex(testIndex)
     readNewIndex shouldBe defined
@@ -311,9 +291,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       updateIndex(
         flint,
         testIndex,
-        Map(
-          "auto_refresh" -> "true",
-          "checkpoint_location" -> checkpointDir.getAbsolutePath))
+        Map("auto_refresh" -> "true", "checkpoint_location" -> checkpointDir.getAbsolutePath))
 
       val readNewIndex = flint.describeIndex(testIndex)
       readNewIndex shouldBe defined
@@ -331,12 +309,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       .addPartitions("year", "month")
       .create()
 
-    updateIndex(
-      flint,
-      testIndex,
-      Map(
-        "auto_refresh" -> "true",
-        "watermark_delay" -> "5 Minute"))
+    updateIndex(flint, testIndex, Map("auto_refresh" -> "true", "watermark_delay" -> "5 Minute"))
 
     val readNewIndex = flint.describeIndex(testIndex)
     readNewIndex shouldBe defined
@@ -354,12 +327,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       .create()
 
     the[IllegalArgumentException] thrownBy
-      updateIndex(
-        flint,
-        testIndex,
-        Map(
-          "auto_refresh" -> "true",
-          "output_mode" -> "complete"))
+      updateIndex(flint, testIndex, Map("auto_refresh" -> "true", "output_mode" -> "complete"))
   }
 
   test("should fail if convert to invalid refresh mode") {
@@ -373,9 +341,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       updateIndex(
         flint,
         testIndex,
-        Map(
-          "auto_refresh" -> "true",
-          "incremental_refresh" -> "true"))
+        Map("auto_refresh" -> "true", "incremental_refresh" -> "true"))
 
     deleteTestIndex(testIndex)
 
@@ -446,8 +412,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       openSearchClient.deleteByQuery(
         new DeleteByQueryRequest(testIndex).setQuery(QueryBuilders.matchAllQuery()),
         RequestOptions.DEFAULT)
-      sql(
-        s"""
+      sql(s"""
            | INSERT INTO $testTable
            | PARTITION (year=2023, month=4)
            | VALUES ('Hello', 35, 'Vancouver')
@@ -457,9 +422,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       val jobId = updateIndex(
         flint,
         testIndex,
-        Map(
-          "auto_refresh" -> "true",
-          "incremental_refresh" -> "false"))
+        Map("auto_refresh" -> "true", "incremental_refresh" -> "false"))
       jobId shouldBe defined
 
       val job = spark.streams.get(jobId.get)
@@ -496,8 +459,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     spark.streams.active.find(_.name == testIndex) shouldBe empty
 
     // Generate a new source file
-    sql(
-      s"""
+    sql(s"""
          | INSERT INTO $testTable
          | PARTITION (year=2023, month=4)
          | VALUES ('Hello', 35, 'Vancouver')
@@ -518,11 +480,8 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
         .skippingIndex()
         .onTable(testTable)
         .addPartitions("year", "month")
-        .options(
-          FlintSparkIndexOptions(
-            Map(
-              "auto_refresh" -> "true",
-              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+        .options(FlintSparkIndexOptions(
+          Map("auto_refresh" -> "true", "checkpoint_location" -> checkpointDir.getAbsolutePath)))
         .create()
 
       val jobId = flint.refreshIndex(testIndex)
@@ -537,16 +496,13 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       updateIndex(
         flint,
         testIndex,
-        Map(
-          "auto_refresh" -> "false",
-          "incremental_refresh" -> "true")) shouldBe empty
+        Map("auto_refresh" -> "false", "incremental_refresh" -> "true")) shouldBe empty
 
       // Expect refresh job to be stopped
       spark.streams.active.find(_.name == testIndex) shouldBe empty
 
       // Generate a new source file
-      sql(
-        s"""
+      sql(s"""
            | INSERT INTO $testTable
            | PARTITION (year=2023, month=4)
            | VALUES ('Hello', 35, 'Vancouver')

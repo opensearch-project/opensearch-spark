@@ -88,15 +88,20 @@ object FlintSparkSqlAstBuilder {
    * @param updateOptions
    *   options to update
    */
-  def updateIndex(flint: FlintSpark, indexName: String, updateOptions: Map[String, String]): Option[String] = {
-    val oldIndex = flint.describeIndex(indexName)
+  def updateIndex(
+      flint: FlintSpark,
+      indexName: String,
+      updateOptions: Map[String, String]): Option[String] = {
+    val oldIndex = flint
+      .describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
 
     val oldOptions = oldIndex.options.options
     validateUpdateOptions(oldOptions, updateOptions, oldIndex.kind)
 
     val mergedOptions = oldOptions ++ updateOptions
-    val newMetadata = oldIndex.metadata().copy(options = mergedOptions.mapValues(_.asInstanceOf[AnyRef]).asJava)
+    val newMetadata =
+      oldIndex.metadata().copy(options = mergedOptions.mapValues(_.asInstanceOf[AnyRef]).asJava)
     val newIndex = FlintSparkIndexFactory.create(newMetadata)
 
     val updateMode = newIndex.options.autoRefresh() match {
@@ -108,9 +113,8 @@ object FlintSparkSqlAstBuilder {
   }
 
   /**
-   * Validate update options.
-   * These are rules specific for updating index, validating the update is allowed.
-   * It doesn't check whether the resulting index options will be valid.
+   * Validate update options. These are rules specific for updating index, validating the update
+   * is allowed. It doesn't check whether the resulting index options will be valid.
    *
    * @param oldOptions
    *   existing options
@@ -119,7 +123,10 @@ object FlintSparkSqlAstBuilder {
    * @param indexKind
    *   index kind
    */
-  private def validateUpdateOptions(oldOptions: Map[String, String], updateOptions: Map[String, String], indexKind: String): Unit = {
+  private def validateUpdateOptions(
+      oldOptions: Map[String, String],
+      updateOptions: Map[String, String],
+      indexKind: String): Unit = {
     val mergedOptions = oldOptions ++ updateOptions
     val newAutoRefresh = mergedOptions.getOrElse(AUTO_REFRESH.toString, "false")
     val oldAutoRefresh = oldOptions.getOrElse(AUTO_REFRESH.toString, "false")
@@ -135,17 +142,24 @@ object FlintSparkSqlAstBuilder {
       case ("false", "false") => FULL
       case ("false", "true") => INCREMENTAL
       case ("true", "true") =>
-        throw new IllegalArgumentException("auto_refresh and incremental_refresh options cannot both be true")
+        throw new IllegalArgumentException(
+          "auto_refresh and incremental_refresh options cannot both be true")
     }
 
     // validate allowed options depending on refresh mode
     val allowedOptions = refreshMode match {
       case FULL => Set(AUTO_REFRESH, INCREMENTAL_REFRESH)
       case AUTO | INCREMENTAL =>
-        Set(AUTO_REFRESH, INCREMENTAL_REFRESH, REFRESH_INTERVAL, CHECKPOINT_LOCATION, WATERMARK_DELAY)
+        Set(
+          AUTO_REFRESH,
+          INCREMENTAL_REFRESH,
+          REFRESH_INTERVAL,
+          CHECKPOINT_LOCATION,
+          WATERMARK_DELAY)
     }
     if (!updateOptions.keys.forall(allowedOptions.map(_.toString).contains)) {
-      throw new IllegalArgumentException(s"Altering ${indexKind} index to ${refreshMode} refresh only allows options: ${allowedOptions}")
+      throw new IllegalArgumentException(
+        s"Altering ${indexKind} index to ${refreshMode} refresh only allows options: ${allowedOptions}")
     }
   }
 }

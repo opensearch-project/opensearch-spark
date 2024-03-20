@@ -355,8 +355,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
   }
 
   test("update full refresh skipping index to auto refresh") {
-    sql(
-      s"""
+    sql(s"""
          | CREATE SKIPPING INDEX ON $testTable
          | (
          |   year PARTITION,
@@ -368,8 +367,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     flint.describeIndex(testIndex) shouldBe defined
     flint.queryIndex(testIndex).count() shouldBe 0
 
-    sql(
-      s"""
+    sql(s"""
          | ALTER SKIPPING INDEX ON $testTable
          | WITH (auto_refresh = true)
          | """.stripMargin)
@@ -382,8 +380,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
   test("update incremental refresh skipping index to auto refresh") {
     withTempDir { checkpointDir =>
-      sql(
-        s"""
+      sql(s"""
            | CREATE SKIPPING INDEX ON $testTable
            | ( year PARTITION )
            | WITH (
@@ -397,15 +394,13 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
       flint.queryIndex(testIndex).count() shouldBe 2
 
       // New data will be refreshed after updating index to auto refresh
-      sql(
-        s"""
+      sql(s"""
            | INSERT INTO $testTable
            | PARTITION (year=2023, month=5)
            | VALUES ('Hello', 50, 'Vancouver')
            |""".stripMargin)
 
-      sql(
-        s"""
+      sql(s"""
            | ALTER SKIPPING INDEX ON $testTable
            | WITH (
            |   auto_refresh = true,
@@ -421,8 +416,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
   }
 
   test("update auto refresh skipping index to full refresh") {
-    sql(
-      s"""
+    sql(s"""
          | CREATE SKIPPING INDEX ON $testTable
          | ( year PARTITION )
          | WITH (auto_refresh = true)
@@ -435,8 +429,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     flint.describeIndex(testIndex) shouldBe defined
     flint.queryIndex(testIndex).count() shouldBe 2
 
-    sql(
-      s"""
+    sql(s"""
          | ALTER SKIPPING INDEX ON $testTable
          | WITH (auto_refresh = false)
          | """.stripMargin)
@@ -444,8 +437,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     spark.streams.active.find(_.name == testIndex) shouldBe empty
 
     // New data won't be refreshed until refresh statement triggered
-    sql(
-      s"""
+    sql(s"""
          | INSERT INTO $testTable
          | PARTITION (year=2023, month=5)
          | VALUES ('Hello', 50, 'Vancouver')
@@ -458,8 +450,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
   test("update auto refresh skipping index to incremental refresh") {
     withTempDir { checkpointDir =>
-      sql(
-        s"""
+      sql(s"""
            | CREATE SKIPPING INDEX ON $testTable
            | ( year PARTITION )
            | WITH (
@@ -475,8 +466,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
       flint.describeIndex(testIndex) shouldBe defined
       flint.queryIndex(testIndex).count() shouldBe 2
 
-      sql(
-        s"""
+      sql(s"""
            | ALTER SKIPPING INDEX ON $testTable
            | WITH (
            |   auto_refresh = false,
@@ -487,8 +477,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
       spark.streams.active.find(_.name == testIndex) shouldBe empty
 
       // New data won't be refreshed until refresh statement triggered
-      sql(
-        s"""
+      sql(s"""
            | INSERT INTO $testTable
            | PARTITION (year=2023, month=5)
            | VALUES ('Hello', 50, 'Vancouver')

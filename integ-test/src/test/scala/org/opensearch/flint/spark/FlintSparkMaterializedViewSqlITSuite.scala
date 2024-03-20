@@ -296,8 +296,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       flint.describeIndex(testFlintIndex) shouldBe defined
       flint.queryIndex(testFlintIndex).count() shouldBe 0
 
-      sql(
-        s"""
+      sql(s"""
            | ALTER MATERIALIZED VIEW $testMvName
            | WITH (
            |   auto_refresh = true,
