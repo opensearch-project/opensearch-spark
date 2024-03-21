@@ -98,5 +98,5 @@ public interface FlintClient {
    * Create {@link IRestHighLevelClient}.
    * @return {@link IRestHighLevelClient}
    */
-  public IRestHighLevelClient createClient();
+  IRestHighLevelClient createClient();
 }

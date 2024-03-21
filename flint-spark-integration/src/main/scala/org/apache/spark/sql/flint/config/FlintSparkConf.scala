@@ -75,7 +75,13 @@ object FlintSparkConf {
     FlintConfig("spark.datasource.flint.customAWSCredentialsProvider")
       .datasourceOption()
       .doc("AWS customAWSCredentialsProvider")
-      .createWithDefault(FlintOptions.DEFAULT_CUSTOM_AWS_CREDENTIALS_PROVIDER)
+      .createWithDefault(FlintOptions.DEFAULT_AWS_CREDENTIALS_PROVIDER)
+
+  val SUPER_ADMIN_AWS_CREDENTIALS_PROVIDER =
+    FlintConfig("spark.datasource.flint.superAdminAWSCredentialsProvider")
+      .datasourceOption()
+      .doc("AWS credentials provider for super admin permission")
+      .createWithDefault(FlintOptions.DEFAULT_AWS_CREDENTIALS_PROVIDER)
 
   val DOC_ID_COLUMN_NAME = FlintConfig("spark.datasource.flint.write.id_name")
     .datasourceOption()
@@ -221,6 +227,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       RETRYABLE_HTTP_STATUS_CODES,
       REGION,
       CUSTOM_AWS_CREDENTIALS_PROVIDER,
+      SUPER_ADMIN_AWS_CREDENTIALS_PROVIDER,
       USERNAME,
       PASSWORD,
       SOCKET_TIMEOUT_MILLIS,
