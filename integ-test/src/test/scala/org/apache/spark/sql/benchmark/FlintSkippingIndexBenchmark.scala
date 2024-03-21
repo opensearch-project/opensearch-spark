@@ -5,6 +5,14 @@
 
 package org.apache.spark.sql.benchmark
 
+import java.util.Locale
+
+import scala.concurrent.duration.DurationInt
+
+import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
+import org.opensearch.client.RequestOptions
+import org.opensearch.client.indices.CreateIndexRequest
+import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.core.field.bloomfilter.BloomFilterFactory.{ADAPTIVE_NUMBER_CANDIDATE_KEY, BLOOM_FILTER_ADAPTIVE_KEY, CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind._
@@ -38,6 +46,13 @@ import org.apache.spark.sql.functions.{expr, rand}
  *   9. BloomFilter (adaptive, 15 candidates)
  * }}}
  *
+ * Test parameters:
+ * {{{
+ *   1. N = 1M rows of test data generated
+ *   2. M = 1 OpenSearch doc written as skipping index
+ *   3. cardinality = {64, 2048, 65536} distinct values in N rows
+ * }}}
+ *
  * To run this benchmark:
  * {{{
  *   > SPARK_GENERATE_BENCHMARK_FILES=1 sbt clean "set every Test / test := {}" "integtest/test:runMain org.apache.spark.sql.benchmark.FlintSkippingIndexBenchmark"
@@ -49,43 +64,57 @@ object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
   /** How many rows generated in test data */
   private val N = 1000000
 
+  /** How many OpenSearch docs created */
+  private val M = 1
+
+  /** Cardinalities of test data */
+  private val CARDINALITIES = Seq(64, 2048, 65536)
+
+  /** How many runs for each test case */
+  private val WRITE_TEST_NUM_ITERATIONS = 1
+  private val READ_TEST_NUM_ITERATIONS = 5
+
+  /** Test index name prefix */
+  private val TEST_INDEX_PREFIX = "flint_benchmark"
+
   /** Test column name and type */
   private val testColName = "value"
   private val testColType = "Int"
 
-  override def runBenchmarkSuite(args: Array[String]): Unit = {
-    super.runBenchmarkSuite(args)
+  override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
+    super.runBenchmarkSuite(mainArgs)
 
     runBenchmark("Skipping Index Write") {
-      runWriteBenchmark(64)
-      runWriteBenchmark(512)
-      runWriteBenchmark(65536)
+      CARDINALITIES.foreach(runWriteBenchmark)
     }
     runBenchmark("Skipping Index Read") {
-      runReadBenchmark(16)
-      runReadBenchmark(512)
-      runReadBenchmark(65536)
+      CARDINALITIES.foreach(runReadBenchmark)
     }
   }
 
   private def runWriteBenchmark(cardinality: Int): Unit = {
-    benchmark(s"Skipping Index Write $N Rows with Cardinality $cardinality", N)
-      .addCase("Partition Write") { _ =>
-        // Partitioned column cardinality must be 1 (all values are the same in a single file0
-        writeSkippingIndex(strategy(PARTITION), 1)
+    new Benchmark(
+      name = s"Skipping Index Write $N Rows with Cardinality $cardinality",
+      valuesPerIteration = N,
+      minNumIters = WRITE_TEST_NUM_ITERATIONS,
+      warmupTime = (-1).seconds, // ensure no warm up, otherwise test doc duplicate
+      minTime = (-1).seconds, // ensure run only once, otherwise test doc duplicate
+      output = output)
+      .test("Partition Write") { _ =>
+        writeSkippingIndex(strategy(PARTITION), cardinality)
       }
-      .addCase("MinMax Write") { _ =>
+      .test("MinMax Write") { _ =>
         writeSkippingIndex(strategy(MIN_MAX), cardinality)
       }
-      .addCase("ValueSet Write (Default Size 100)") { _ =>
+      .test("ValueSet Write (Default Size 100)") { _ =>
         writeSkippingIndex(strategy(VALUE_SET), cardinality)
       }
-      .addCase("ValueSet Write (Unlimited Size)") { _ =>
+      .test("ValueSet Write (Unlimited Size)") { _ =>
         writeSkippingIndex(
           strategy(VALUE_SET, Map(VALUE_SET_MAX_SIZE_KEY -> Integer.MAX_VALUE.toString)),
           cardinality)
       }
-      .addCase("BloomFilter Write (1M NDV)") { _ =>
+      .test("BloomFilter Write (1M NDV)") { _ =>
         writeSkippingIndex(
           strategy(
             BLOOM_FILTER,
@@ -94,7 +123,7 @@ object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
               CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY -> N.toString)),
           cardinality)
       }
-      .addCase("BloomFilter Write (Optimal NDV)") { _ =>
+      .test("BloomFilter Write (Optimal NDV)") { _ =>
         writeSkippingIndex(
           strategy(
             BLOOM_FILTER,
@@ -103,15 +132,15 @@ object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
               CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY -> cardinality.toString)),
           cardinality)
       }
-      .addCase("Adaptive BloomFilter Write (Default 10 Candidates)") { _ =>
+      .test("Adaptive BloomFilter Write (Default 10 Candidates)") { _ =>
         writeSkippingIndex(strategy(BLOOM_FILTER), cardinality)
       }
-      .addCase("Adaptive BloomFilter Write (5 Candidates)") { _ =>
+      .test("Adaptive BloomFilter Write (5 Candidates)") { _ =>
         writeSkippingIndex(
           strategy(BLOOM_FILTER, params = Map(ADAPTIVE_NUMBER_CANDIDATE_KEY -> "5")),
           cardinality)
       }
-      .addCase("Adaptive BloomFilter Write (15 Candidates)") { _ =>
+      .test("Adaptive BloomFilter Write (15 Candidates)") { _ =>
         writeSkippingIndex(
           strategy(BLOOM_FILTER, params = Map(ADAPTIVE_NUMBER_CANDIDATE_KEY -> "15")),
           cardinality)
@@ -120,22 +149,26 @@ object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
   }
 
   private def runReadBenchmark(cardinality: Int): Unit = {
-    benchmark(s"Skipping Index Read $N Rows with Cardinality $cardinality", 1)
-      .addCase("Partition Read") { _ =>
+    new Benchmark(
+      name = s"Skipping Index Read $N Rows with Cardinality $cardinality",
+      valuesPerIteration = M,
+      minNumIters = READ_TEST_NUM_ITERATIONS,
+      output = output)
+      .test("Partition Read") { _ =>
         readSkippingIndex(strategy(PARTITION), cardinality)
       }
-      .addCase("MinMax Read") { _ =>
+      .test("MinMax Read") { _ =>
         readSkippingIndex(strategy(MIN_MAX), cardinality)
       }
-      .addCase("ValueSet Read (Default Size 100)") { _ =>
+      .test("ValueSet Read (Default Size 100)") { _ =>
         readSkippingIndex(strategy(VALUE_SET), cardinality)
       }
-      .addCase("ValueSet Read (Unlimited Size)") { _ =>
+      .test("ValueSet Read (Unlimited Size)") { _ =>
         readSkippingIndex(
           strategy(VALUE_SET, Map(VALUE_SET_MAX_SIZE_KEY -> Integer.MAX_VALUE.toString)),
           cardinality)
       }
-      .addCase("BloomFilter Read (1M NDV)") { _ =>
+      .test("BloomFilter Read (1M NDV)") { _ =>
         readSkippingIndex(
           strategy(
             BLOOM_FILTER,
@@ -144,7 +177,7 @@ object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
               CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY -> N.toString)),
           cardinality)
       }
-      .addCase("BloomFilter Read (Optimal NDV)") { _ =>
+      .test("BloomFilter Read (Optimal NDV)") { _ =>
         readSkippingIndex(
           strategy(
             BLOOM_FILTER,
@@ -153,15 +186,15 @@ object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
               CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY -> cardinality.toString)),
           cardinality)
       }
-      .addCase("Adaptive BloomFilter Read (Default 10 Candidates)") { _ =>
+      .test("Adaptive BloomFilter Read (Default 10 Candidates)") { _ =>
         readSkippingIndex(strategy(BLOOM_FILTER), cardinality)
       }
-      .addCase("Adaptive BloomFilter Read (5 Candidates)") { _ =>
+      .test("Adaptive BloomFilter Read (5 Candidates)") { _ =>
         readSkippingIndex(
           strategy(BLOOM_FILTER, params = Map(ADAPTIVE_NUMBER_CANDIDATE_KEY -> "5")),
           cardinality)
       }
-      .addCase("Adaptive BloomFilter Read (15 Candidates)") { _ =>
+      .test("Adaptive BloomFilter Read (15 Candidates)") { _ =>
         readSkippingIndex(
           strategy(BLOOM_FILTER, params = Map(ADAPTIVE_NUMBER_CANDIDATE_KEY -> "15")),
           cardinality)
@@ -169,20 +202,12 @@ object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
       .run()
   }
 
-  private def benchmark(name: String, numRows: Int): BenchmarkBuilder = {
-    new BenchmarkBuilder(new Benchmark(name, numRows, output = output))
-  }
-
   /** Benchmark builder in fluent API style */
-  private class BenchmarkBuilder(benchmark: Benchmark) {
+  private implicit class BenchmarkBuilder(val benchmark: Benchmark) {
 
-    def addCase(name: String)(f: Int => Unit): BenchmarkBuilder = {
+    def test(name: String)(f: Int => Unit): Benchmark = {
       benchmark.addCase(name)(f)
-      this
-    }
-
-    def run(): Unit = {
-      benchmark.run()
+      benchmark
     }
   }
 
@@ -221,9 +246,33 @@ object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
       .schema(schema)
       .load(getTestIndexName(indexCol, cardinality))
       .where(indexQuery)
+      .noop() // Trigger data frame execution and discard output
   }
 
   private def writeSkippingIndex(indexCol: FlintSparkSkippingStrategy, cardinality: Int): Unit = {
+    val testIndexName = getTestIndexName(indexCol, cardinality)
+
+    /*
+     * FIXME: must pre-create index because data type lost in bulk JSON and binary code is auto mapped to text by OS
+     */
+    if (indexCol.kind == BLOOM_FILTER) {
+      val mappings =
+        s"""{
+          |  "properties": {
+          |    "$testColName": {
+          |      "type": "binary",
+          |      "doc_values": true
+          |    }
+          |  }
+          |}""".stripMargin
+      val testOSIndexName = testIndexName.toLowerCase(Locale.ROOT)
+
+      openSearchClient.indices.create(
+        new CreateIndexRequest(testOSIndexName)
+          .mapping(mappings, XContentType.JSON),
+        RequestOptions.DEFAULT)
+    }
+
     /*
      * Generate N random numbers with the given cardinality and build single skipping index
      * data structure without group by.
@@ -233,17 +282,24 @@ object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
       .range(N)
       .withColumn(testColName, (rand() * cardinality + 1).cast(testColType))
       .agg(namedAggCols.head, namedAggCols.tail: _*)
+      .coalesce(M)
       .write
       .format(FLINT_DATASOURCE)
       .options(openSearchOptions)
       .mode(Overwrite)
-      .save(getTestIndexName(indexCol, cardinality))
+      .save(testIndexName)
   }
 
   private def getTestIndexName(indexCol: FlintSparkSkippingStrategy, cardinality: Int): String = {
     // Generate unique name as skipping index name in OpenSearch
-    val params = indexCol.parameters.map { case (name, value) => s"${name}_$value" }.mkString("_")
-    s"${indexCol.kind}_${params}_$cardinality"
+    val params =
+      indexCol.parameters.toSeq
+        .sortBy(_._1)
+        .map { case (name, value) => s"${name}_$value" }
+        .mkString("_")
+    val paramsOrDefault = if (params.isEmpty) "default" else params
+
+    s"${TEST_INDEX_PREFIX}_${indexCol.kind}_cardinality_${cardinality}_$paramsOrDefault"
   }
 
   private def getNamedAggColumn(indexCol: FlintSparkSkippingStrategy): Seq[Column] = {
@@ -254,5 +310,11 @@ object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
     (outputNames, aggFuncs).zipped.map { case (name, aggFunc) =>
       new Column(aggFunc.as(name))
     }.toSeq
+  }
+
+  private def deleteAllTestIndices(): Unit = {
+    openSearchClient
+      .indices()
+      .delete(new DeleteIndexRequest(s"${TEST_INDEX_PREFIX}_*"), RequestOptions.DEFAULT)
   }
 }
