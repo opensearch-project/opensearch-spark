@@ -57,8 +57,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
   val EARLY_TERMIANTION_CHECK_FREQUENCY = 60000L
 
   @volatile var earlyExitFlag: Boolean = false
-  // termiante JVM in the presence non-deamon thread before exiting
-  var terminateJVM = true
 
   def updateSessionIndex(flintCommand: FlintCommand, updater: OpenSearchUpdater): Unit = {
     updater.update(flintCommand.statementId, FlintCommand.serialize(flintCommand))
