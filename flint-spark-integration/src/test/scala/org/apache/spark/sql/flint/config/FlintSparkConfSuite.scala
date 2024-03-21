@@ -9,6 +9,7 @@ import java.util.Optional
 
 import scala.collection.JavaConverters._
 
+import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.http.FlintRetryOptions._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
@@ -60,6 +61,18 @@ class FlintSparkConfSuite extends FlintSuite {
     retryOptions.getMaxRetries shouldBe 5
     retryOptions.getRetryableHttpStatusCodes shouldBe "429,502,503,504"
     retryOptions.getRetryableExceptionClassNames.get() shouldBe "java.net.ConnectException"
+  }
+
+  test("test super admin AWS credentials provider option") {
+    withSparkConf("spark.datasource.flint.superAdminAWSCredentialsProvider") {
+      spark.conf.set(
+        "spark.datasource.flint.superAdminAWSCredentialsProvider",
+        "com.example.superAdminAWSCredentialsProvider")
+      val flintOptions = FlintSparkConf().flintOptions()
+      assert(flintOptions.getCustomAwsCredentialsProvider == "")
+      assert(
+        flintOptions.getSuperAdminAwsCredentialsProvider == "com.example.superAdminAWSCredentialsProvider")
+    }
   }
 
   /**
