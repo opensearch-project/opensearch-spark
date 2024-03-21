@@ -6,43 +6,43 @@ OpenJDK 64-Bit Server VM 11.0.20+0 on Mac OS X 14.3.1
 Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
 Skipping Index Write 1000000 Rows with Cardinality 64:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 -------------------------------------------------------------------------------------------------------------------------------------
-Partition Write                                                 7928           7928           0          0.1        7928.2       1.0X
-MinMax Write                                                    1446           1446           0          0.7        1446.0       5.5X
-ValueSet Write (Default Size 100)                               1698           1698           0          0.6        1698.4       4.7X
-ValueSet Write (Unlimited Size)                                 1456           1456           0          0.7        1455.6       5.4X
-BloomFilter Write (1M NDV)                                      1105           1105           0          0.9        1105.0       7.2X
-BloomFilter Write (Optimal NDV)                                 1063           1063           0          0.9        1063.0       7.5X
-Adaptive BloomFilter Write (Default 10 Candidates)              1056           1056           0          0.9        1056.5       7.5X
-Adaptive BloomFilter Write (5 Candidates)                       1058           1058           0          0.9        1058.3       7.5X
-Adaptive BloomFilter Write (15 Candidates)                      2084           2084           0          0.5        2084.4       3.8X
+Partition Write                                                 1334           1334           0          0.7        1333.8       1.0X
+MinMax Write                                                    1318           1318           0          0.8        1318.3       1.0X
+ValueSet Write (Default Size 100)                               1400           1400           0          0.7        1399.8       1.0X
+ValueSet Write (Unlimited Size)                                 1331           1331           0          0.8        1330.8       1.0X
+BloomFilter Write (1M NDV)                                      1062           1062           0          0.9        1062.4       1.3X
+BloomFilter Write (Optimal NDV)                                 1048           1048           0          1.0        1047.6       1.3X
+Adaptive BloomFilter Write (Default 10 Candidates)              1045           1045           0          1.0        1045.2       1.3X
+Adaptive BloomFilter Write (5 Candidates)                       1053           1053           0          0.9        1053.4       1.3X
+Adaptive BloomFilter Write (15 Candidates)                      2102           2102           0          0.5        2102.1       0.6X
 
 OpenJDK 64-Bit Server VM 11.0.20+0 on Mac OS X 14.3.1
 Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
 Skipping Index Write 1000000 Rows with Cardinality 2048:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ---------------------------------------------------------------------------------------------------------------------------------------
-Partition Write                                                   1300           1300           0          0.8        1300.2       1.0X
-MinMax Write                                                      1261           1261           0          0.8        1261.3       1.0X
-ValueSet Write (Default Size 100)                                 1379           1379           0          0.7        1378.6       0.9X
-ValueSet Write (Unlimited Size)                                   1369           1369           0          0.7        1368.9       0.9X
-BloomFilter Write (1M NDV)                                        1054           1054           0          0.9        1054.4       1.2X
-BloomFilter Write (Optimal NDV)                                   1056           1056           0          0.9        1055.9       1.2X
-Adaptive BloomFilter Write (Default 10 Candidates)                1051           1051           0          1.0        1051.1       1.2X
-Adaptive BloomFilter Write (5 Candidates)                         1063           1063           0          0.9        1062.7       1.2X
-Adaptive BloomFilter Write (15 Candidates)                        2051           2051           0          0.5        2051.0       0.6X
+Partition Write                                                   1288           1288           0          0.8        1287.7       1.0X
+MinMax Write                                                      1295           1295           0          0.8        1295.0       1.0X
+ValueSet Write (Default Size 100)                                 1357           1357           0          0.7        1357.4       0.9X
+ValueSet Write (Unlimited Size)                                   1360           1360           0          0.7        1360.5       0.9X
+BloomFilter Write (1M NDV)                                        1070           1070           0          0.9        1070.2       1.2X
+BloomFilter Write (Optimal NDV)                                   1048           1048           0          1.0        1047.6       1.2X
+Adaptive BloomFilter Write (Default 10 Candidates)                1045           1045           0          1.0        1044.9       1.2X
+Adaptive BloomFilter Write (5 Candidates)                         1061           1061           0          0.9        1061.4       1.2X
+Adaptive BloomFilter Write (15 Candidates)                        2050           2050           0          0.5        2050.2       0.6X
 
 OpenJDK 64-Bit Server VM 11.0.20+0 on Mac OS X 14.3.1
 Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
 Skipping Index Write 1000000 Rows with Cardinality 65536:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ----------------------------------------------------------------------------------------------------------------------------------------
-Partition Write                                                    1233           1233           0          0.8        1233.0       1.0X
-MinMax Write                                                       1245           1245           0          0.8        1244.9       1.0X
-ValueSet Write (Default Size 100)                                  1520           1520           0          0.7        1519.7       0.8X
-ValueSet Write (Unlimited Size)                                    1596           1596           0          0.6        1595.8       0.8X
-BloomFilter Write (1M NDV)                                         1065           1065           0          0.9        1065.3       1.2X
-BloomFilter Write (Optimal NDV)                                    1057           1057           0          0.9        1057.0       1.2X
-Adaptive BloomFilter Write (Default 10 Candidates)                 1062           1062           0          0.9        1061.8       1.2X
-Adaptive BloomFilter Write (5 Candidates)                          1052           1052           0          1.0        1051.9       1.2X
-Adaptive BloomFilter Write (15 Candidates)                         2047           2047           0          0.5        2047.1       0.6X
+Partition Write                                                    1304           1304           0          0.8        1304.1       1.0X
+MinMax Write                                                       1287           1287           0          0.8        1286.8       1.0X
+ValueSet Write (Default Size 100)                                  1474           1474           0          0.7        1473.7       0.9X
+ValueSet Write (Unlimited Size)                                    1713           1713           0          0.6        1713.5       0.8X
+BloomFilter Write (1M NDV)                                         1077           1077           0          0.9        1076.7       1.2X
+BloomFilter Write (Optimal NDV)                                    1049           1049           0          1.0        1048.8       1.2X
+Adaptive BloomFilter Write (Default 10 Candidates)                 1055           1055           0          0.9        1054.7       1.2X
+Adaptive BloomFilter Write (5 Candidates)                          1047           1047           0          1.0        1047.4       1.2X
+Adaptive BloomFilter Write (15 Candidates)                         2054           2054           0          0.5        2054.3       0.6X
 
 
 ================================================================================================
@@ -53,40 +53,40 @@ OpenJDK 64-Bit Server VM 11.0.20+0 on Mac OS X 14.3.1
 Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
 Skipping Index Read 1000000 Rows with Cardinality 64:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ------------------------------------------------------------------------------------------------------------------------------------
-Partition Read                                                   59             79          20          0.0    58833150.0       1.0X
-MinMax Read                                                      56             69          12          0.0    55926430.0       1.1X
-ValueSet Read (Default Size 100)                                 44             57           8          0.0    44342915.0       1.3X
-ValueSet Read (Unlimited Size)                                   45             56           8          0.0    44744854.0       1.3X
-BloomFilter Read (1M NDV)                                      2494           2544          68          0.0  2493617832.0       0.0X
-BloomFilter Read (Optimal NDV)                                 2388           2615         450          0.0  2387523635.0       0.0X
-Adaptive BloomFilter Read (Default 10 Candidates)              2349           2389          47          0.0  2349330716.0       0.0X
-Adaptive BloomFilter Read (5 Candidates)                       2366           2394          28          0.0  2366240134.0       0.0X
-Adaptive BloomFilter Read (15 Candidates)                      2347           2407          59          0.0  2347162371.0       0.0X
+Partition Read                                                   54             65           9          0.0    54473389.0       1.0X
+MinMax Read                                                      57             65           8          0.0    56855820.0       1.0X
+ValueSet Read (Default Size 100)                                 50             61          11          0.0    49529808.0       1.1X
+ValueSet Read (Unlimited Size)                                   43             54           8          0.0    43301469.0       1.3X
+BloomFilter Read (1M NDV)                                      2648           2733          60          0.0  2647662965.0       0.0X
+BloomFilter Read (Optimal NDV)                                 2450           2484          24          0.0  2450135369.0       0.0X
+Adaptive BloomFilter Read (Default 10 Candidates)              2441           2458          18          0.0  2441226280.0       0.0X
+Adaptive BloomFilter Read (5 Candidates)                       2451           2476          26          0.0  2450510244.0       0.0X
+Adaptive BloomFilter Read (15 Candidates)                      2397           2461          44          0.0  2397133383.0       0.0X
 
 OpenJDK 64-Bit Server VM 11.0.20+0 on Mac OS X 14.3.1
 Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
 Skipping Index Read 1000000 Rows with Cardinality 2048:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 --------------------------------------------------------------------------------------------------------------------------------------
-Partition Read                                                     34             41           6          0.0    34280024.0       1.0X
-MinMax Read                                                        39             50           9          0.0    39144570.0       0.9X
-ValueSet Read (Default Size 100)                                   41             54          13          0.0    40504625.0       0.8X
-ValueSet Read (Unlimited Size)                                     37             46           8          0.0    36629686.0       0.9X
-BloomFilter Read (1M NDV)                                        2396           2471          52          0.0  2396434455.0       0.0X
-BloomFilter Read (Optimal NDV)                                   2406           2442          32          0.0  2406111582.0       0.0X
-Adaptive BloomFilter Read (Default 10 Candidates)                2419           2446          26          0.0  2419392722.0       0.0X
-Adaptive BloomFilter Read (5 Candidates)                         2421           2458          33          0.0  2420675769.0       0.0X
-Adaptive BloomFilter Read (15 Candidates)                        2415           2424           9          0.0  2415005443.0       0.0X
+Partition Read                                                     31             35           5          0.0    31101827.0       1.0X
+MinMax Read                                                        33             40           6          0.0    33385163.0       0.9X
+ValueSet Read (Default Size 100)                                   30             37           6          0.0    30479810.0       1.0X
+ValueSet Read (Unlimited Size)                                     31             37           6          0.0    31004587.0       1.0X
+BloomFilter Read (1M NDV)                                        2477           2537          51          0.0  2477281890.0       0.0X
+BloomFilter Read (Optimal NDV)                                   2408           2461          45          0.0  2408002056.0       0.0X
+Adaptive BloomFilter Read (Default 10 Candidates)                2367           2413          43          0.0  2366950203.0       0.0X
+Adaptive BloomFilter Read (5 Candidates)                         2399           2429          26          0.0  2399147197.0       0.0X
+Adaptive BloomFilter Read (15 Candidates)                        2382           2421          34          0.0  2381512783.0       0.0X
 
 OpenJDK 64-Bit Server VM 11.0.20+0 on Mac OS X 14.3.1
 Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
 Skipping Index Read 1000000 Rows with Cardinality 65536:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ---------------------------------------------------------------------------------------------------------------------------------------
-Partition Read                                                      29             36           6          0.0    29499019.0       1.0X
-MinMax Read                                                         33             43           9          0.0    33272156.0       0.9X
-ValueSet Read (Default Size 100)                                    32             39           8          0.0    31548122.0       0.9X
-ValueSet Read (Unlimited Size)                                      46             55           8          0.0    45973861.0       0.6X
-BloomFilter Read (1M NDV)                                         2521           2554          26          0.0  2520994171.0       0.0X
-BloomFilter Read (Optimal NDV)                                    2359           2424          46          0.0  2358583966.0       0.0X
-Adaptive BloomFilter Read (Default 10 Candidates)                 2358           2413          45          0.0  2358475850.0       0.0X
-Adaptive BloomFilter Read (5 Candidates)                          2483           2682         263          0.0  2482781961.0       0.0X
-Adaptive BloomFilter Read (15 Candidates)                         2401           2442          34          0.0  2400778171.0       0.0X
+Partition Read                                                      26             30           5          0.0    25781731.0       1.0X
+MinMax Read                                                         30             34           7          0.0    29514335.0       0.9X
+ValueSet Read (Default Size 100)                                    27             34           6          0.0    27338628.0       0.9X
+ValueSet Read (Unlimited Size)                                      39             45           6          0.0    39315292.0       0.7X
+BloomFilter Read (1M NDV)                                         2374           2433          55          0.0  2373982609.0       0.0X
+BloomFilter Read (Optimal NDV)                                    2354           2415          60          0.0  2354204521.0       0.0X
+Adaptive BloomFilter Read (Default 10 Candidates)                 2322           2407          51          0.0  2321669934.0       0.0X
+Adaptive BloomFilter Read (5 Candidates)                          2413           2465          44          0.0  2413487418.0       0.0X
+Adaptive BloomFilter Read (15 Candidates)                         2351           2401          36          0.0  2351322414.0       0.0X

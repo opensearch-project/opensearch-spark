@@ -15,6 +15,7 @@ import org.opensearch.client.indices.CreateIndexRequest
 import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.core.field.bloomfilter.BloomFilterFactory.{ADAPTIVE_NUMBER_CANDIDATE_KEY, BLOOM_FILTER_ADAPTIVE_KEY, CLASSIC_BLOOM_FILTER_NUM_ITEMS_KEY}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind._
 import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilterSkippingStrategy
 import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
@@ -83,12 +84,24 @@ object FlintSkippingIndexBenchmark extends FlintSparkBenchmark {
 
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
     super.runBenchmarkSuite(mainArgs)
+    warmup()
 
     runBenchmark("Skipping Index Write") {
       CARDINALITIES.foreach(runWriteBenchmark)
     }
     runBenchmark("Skipping Index Read") {
       CARDINALITIES.foreach(runReadBenchmark)
+    }
+  }
+
+  private def warmup(): Unit = {
+    try {
+      SkippingKind.values.foreach(kind => {
+        writeSkippingIndex(strategy(kind), 1)
+        readSkippingIndex(strategy(kind), 1)
+      })
+    } finally {
+      deleteAllTestIndices()
     }
   }
 
