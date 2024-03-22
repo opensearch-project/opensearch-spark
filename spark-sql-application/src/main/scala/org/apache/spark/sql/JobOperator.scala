@@ -19,7 +19,7 @@ import org.opensearch.flint.core.storage.OpenSearchUpdater
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.FlintJob.createSparkSession
-import org.apache.spark.sql.FlintREPL.{executeQuery, logInfo, updateFlintInstanceBeforeShutdown}
+import org.apache.spark.sql.FlintREPL.{executeQuery, logInfo, threadPoolFactory, updateFlintInstanceBeforeShutdown}
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.util.ThreadUtils
 
@@ -106,6 +106,18 @@ case class JobOperator(
       case e: Exception => logError("Fail to close threadpool", e)
     }
     recordStreamingCompletionStatus(exceptionThrown)
+
+    // Check for non-daemon threads that may prevent the driver from shutting down.
+    // Non-daemon threads other than the main thread indicate that the driver is still processing tasks,
+    // which may be due to unresolved bugs in dependencies or threads not being properly shut down.
+    if (terminateJVM && threadPoolFactory.hasNonDaemonThreadsOtherThanMain) {
+      logInfo("A non-daemon thread in the driver is seen.")
+      // Exit the JVM to prevent resource leaks and potential emr-s job hung.
+      // A zero status code is used for a graceful shutdown without indicating an error.
+      // If exiting with non-zero status, emr-s job will fail.
+      // This is a part of the fault tolerance mechanism to handle such scenarios gracefully
+      System.exit(0)
+    }
   }
 
   def stop(): Unit = {

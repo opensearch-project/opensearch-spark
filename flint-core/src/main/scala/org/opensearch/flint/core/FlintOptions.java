@@ -77,7 +77,7 @@ public class FlintOptions implements Serializable {
 
   public static final int DEFAULT_SOCKET_TIMEOUT_MILLIS = 60000;
 
-  public static final int DEFAULT_INACTIVITY_LIMIT_MILLIS = 10 * 60 * 1000;
+  public static final int DEFAULT_INACTIVITY_LIMIT_MILLIS = 3 * 60 * 1000;
   
   public static final String DATA_SOURCE_NAME = "spark.flint.datasource.name";
 
