@@ -195,15 +195,10 @@ public class FlintOpenSearchClient implements FlintClient {
   @Override
   public void updateIndex(String indexName, FlintMetadata metadata) {
     LOG.info("Updating Flint index " + indexName + " with metadata " + metadata);
-    updateIndex(indexName, metadata.getContent());
-  }
-
-  protected void updateIndex(String indexName, String mapping) {
-    LOG.info("Updating Flint index " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
     try (IRestHighLevelClient client = createClient()) {
       PutMappingRequest request = new PutMappingRequest(osIndexName);
-      request.source(mapping, XContentType.JSON);
+      request.source(metadata.getContent(), XContentType.JSON);
       client.updateIndex(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to update Flint index " + osIndexName, e);
