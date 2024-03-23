@@ -15,7 +15,6 @@ import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.OpenSearchTransactionSuite
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.updateIndex
 import org.scalatest.matchers.should.Matchers
 
 class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
@@ -129,7 +128,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .addPartitions("year", "month")
       .create()
 
-    updateIndex(flint, testFlintIndex, Map("auto_refresh" -> "true"))
+    flint.updateIndex(testFlintIndex, Map("auto_refresh" -> "true"))
     val latest = latestLogEntry(testLatestId)
     latest should contain("state" -> "refreshing")
     latest("jobStartTime").asInstanceOf[Number].longValue() should be > 0L
@@ -144,7 +143,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .create()
     flint.refreshIndex(testFlintIndex)
 
-    updateIndex(flint, testFlintIndex, Map("auto_refresh" -> "false"))
+    flint.updateIndex(testFlintIndex, Map("auto_refresh" -> "false"))
     val latest = latestLogEntry(testLatestId)
     latest should contain("state" -> "active")
   }

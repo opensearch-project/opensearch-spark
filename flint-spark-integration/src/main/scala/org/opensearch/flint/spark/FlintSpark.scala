@@ -13,10 +13,11 @@ import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.AUTO
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 import org.opensearch.flint.spark.skipping.recommendations.DataTypeSkippingStrategy
@@ -230,6 +231,87 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       }
     } else {
       throw new IllegalStateException(s"Flint index $indexName doesn't exist")
+    }
+  }
+
+  /**
+   * Update Flint index metadata and job associated with index.
+   *
+   * @param flint
+   *   Flint Spark which has access to Spark Catalog
+   * @param indexName
+   *   index name
+   * @param updateOptions
+   *   options to update
+   */
+  def updateIndex(indexName: String, updateOptions: Map[String, String]): Option[String] = {
+    val oldIndex = describeIndex(indexName)
+      .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+
+    val oldOptions = oldIndex.options.options
+    validateUpdateOptions(oldOptions, updateOptions, oldIndex.kind)
+
+    val mergedOptions = oldOptions ++ updateOptions
+    val newMetadata =
+      oldIndex.metadata().copy(options = mergedOptions.mapValues(_.asInstanceOf[AnyRef]).asJava)
+    val newIndex = FlintSparkIndexFactory.create(newMetadata)
+
+    val updateMode = newIndex.options.autoRefresh() match {
+      case true => MANUAL_TO_AUTO
+      case false => AUTO_TO_MANUAL
+    }
+
+    updateIndex(newIndex, updateMode)
+  }
+
+  /**
+   * Validate update options. These are rules specific for updating index, validating the update
+   * is allowed. It doesn't check whether the resulting index options will be valid.
+   *
+   * @param oldOptions
+   *   existing options
+   * @param updateOptions
+   *   options to update
+   * @param indexKind
+   *   index kind
+   */
+  private def validateUpdateOptions(
+      oldOptions: Map[String, String],
+      updateOptions: Map[String, String],
+      indexKind: String): Unit = {
+    val mergedOptions = oldOptions ++ updateOptions
+    val newAutoRefresh = mergedOptions.getOrElse(AUTO_REFRESH.toString, "false")
+    val oldAutoRefresh = oldOptions.getOrElse(AUTO_REFRESH.toString, "false")
+
+    // auto_refresh must change
+    if (newAutoRefresh == oldAutoRefresh) {
+      throw new IllegalArgumentException("auto_refresh option must be updated")
+    }
+
+    val newIncrementalRefresh = mergedOptions.getOrElse(INCREMENTAL_REFRESH.toString, "false")
+    val refreshMode = (newAutoRefresh, newIncrementalRefresh) match {
+      case ("true", "false") => AUTO
+      case ("false", "false") => FULL
+      case ("false", "true") => INCREMENTAL
+      case ("true", "true") =>
+        throw new IllegalArgumentException(
+          "auto_refresh and incremental_refresh options cannot both be true")
+    }
+
+    // validate allowed options depending on refresh mode
+    val allowedOptions = refreshMode match {
+      case FULL => Set(AUTO_REFRESH, INCREMENTAL_REFRESH)
+      case AUTO | INCREMENTAL =>
+        Set(
+          AUTO_REFRESH,
+          INCREMENTAL_REFRESH,
+          REFRESH_INTERVAL,
+          CHECKPOINT_LOCATION,
+          WATERMARK_DELAY)
+    }
+    if (!updateOptions.keys.forall(allowedOptions.map(_.toString).contains)) {
+      throw new IllegalArgumentException(
+        s"Altering ${indexKind} index to ${refreshMode} refresh only allows options: ${allowedOptions}")
     }
   }
 

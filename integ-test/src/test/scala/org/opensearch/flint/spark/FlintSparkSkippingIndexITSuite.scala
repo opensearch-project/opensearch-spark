@@ -15,7 +15,6 @@ import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilterMightContain.bloom_filter_might_contain
-import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.updateIndex
 import org.opensearch.index.query.QueryBuilders
 import org.opensearch.index.reindex.DeleteByQueryRequest
 import org.scalatest.matchers.{Matcher, MatchResult}
@@ -278,7 +277,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     flint.queryIndex(testIndex).collect().toSet should have size 0
 
     // Update Flint index to auto refresh and wait for complete
-    val jobId = updateIndex(flint, testIndex, Map("auto_refresh" -> "true"))
+    val jobId = flint.updateIndex(testIndex, Map("auto_refresh" -> "true"))
     jobId shouldBe defined
 
     val job = spark.streams.get(jobId.get)

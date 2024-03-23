@@ -11,7 +11,6 @@ import java.util.Base64
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
-import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.updateIndex
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
@@ -204,8 +203,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
       checkAnswer(indexData, Seq())
 
       // Update Flint index to auto refresh and wait for complete
-      val jobId = updateIndex(
-        flint,
+      val jobId = flint.updateIndex(
         testFlintIndex,
         Map(
           "auto_refresh" -> "true",
