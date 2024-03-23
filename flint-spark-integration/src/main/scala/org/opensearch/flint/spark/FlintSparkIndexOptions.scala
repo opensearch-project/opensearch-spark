@@ -118,6 +118,18 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
     map.result()
   }
 
+  /**
+   * Merge two FlintSparkIndexOptions. If an option exists in both instances, the value from the
+   * other instance overwrites the value from this instance.
+   * @param other
+   *   option to merge
+   * @return
+   *   merged Flint Spark index options
+   */
+  def merge(other: FlintSparkIndexOptions): FlintSparkIndexOptions = {
+    FlintSparkIndexOptions(options ++ other.options)
+  }
+
   private def getOptionValue(name: OptionName): Option[String] = {
     options.get(name.toString)
   }

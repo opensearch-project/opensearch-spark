@@ -130,7 +130,10 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
     checkAnswer(indexData, Seq())
 
     // Update Flint index to auto refresh and wait for complete
-    val jobId = flint.updateIndex(testFlintIndex, Map("auto_refresh" -> "true"))
+    val updatedIndex = flint.updateIndexOptions(
+      testFlintIndex,
+      FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+    val jobId = flint.updateIndex(updatedIndex)
     jobId shouldBe defined
 
     val job = spark.streams.get(jobId.get)

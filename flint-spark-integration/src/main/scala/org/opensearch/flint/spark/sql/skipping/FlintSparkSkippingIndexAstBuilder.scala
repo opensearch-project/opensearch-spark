@@ -10,7 +10,6 @@ import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.core.field.bloomfilter.BloomFilterFactory._
 import org.opensearch.flint.spark.FlintSpark
-import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{BLOOM_FILTER, MIN_MAX, PARTITION, VALUE_SET}
@@ -71,7 +70,7 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       }
 
       val ignoreIfExists = ctx.EXISTS() != null
-      val indexOptions = FlintSparkIndexOptions(visitPropertyList(ctx.propertyList()))
+      val indexOptions = visitPropertyList(ctx.propertyList())
       indexBuilder
         .options(indexOptions)
         .create(ignoreIfExists)
@@ -115,8 +114,9 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       ctx: AlterSkippingIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
       val indexName = getSkippingIndexName(flint, ctx.tableName)
-      val indexOptionsMap = visitPropertyList(ctx.propertyList())
-      flint.updateIndex(indexName, indexOptionsMap)
+      val indexOptions = visitPropertyList(ctx.propertyList())
+      val updatedIndex = flint.updateIndexOptions(indexName, indexOptions)
+      flint.updateIndex(updatedIndex)
       Seq.empty
     }
   }

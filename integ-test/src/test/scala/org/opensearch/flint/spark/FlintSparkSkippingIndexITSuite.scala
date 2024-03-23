@@ -277,7 +277,9 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     flint.queryIndex(testIndex).collect().toSet should have size 0
 
     // Update Flint index to auto refresh and wait for complete
-    val jobId = flint.updateIndex(testIndex, Map("auto_refresh" -> "true"))
+    val updatedIndex =
+      flint.updateIndexOptions(testIndex, FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+    val jobId = flint.updateIndex(updatedIndex)
     jobId shouldBe defined
 
     val job = spark.streams.get(jobId.get)

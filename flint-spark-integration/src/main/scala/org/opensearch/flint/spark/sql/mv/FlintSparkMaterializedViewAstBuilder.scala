@@ -9,7 +9,6 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
-import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
@@ -38,7 +37,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
         .query(query)
 
       val ignoreIfExists = ctx.EXISTS() != null
-      val indexOptions = FlintSparkIndexOptions(visitPropertyList(ctx.propertyList()))
+      val indexOptions = visitPropertyList(ctx.propertyList())
       mvBuilder
         .options(indexOptions)
         .create(ignoreIfExists)
@@ -104,8 +103,9 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
       ctx: AlterMaterializedViewStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
       val indexName = getFlintIndexName(flint, ctx.mvName)
-      val indexOptionsMap = visitPropertyList(ctx.propertyList())
-      flint.updateIndex(indexName, indexOptionsMap)
+      val indexOptions = visitPropertyList(ctx.propertyList())
+      val updatedIndex = flint.updateIndexOptions(indexName, indexOptions)
+      flint.updateIndex(updatedIndex)
       Seq.empty
     }
   }

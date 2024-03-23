@@ -7,7 +7,6 @@ package org.opensearch.flint.spark.sql.covering
 
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
-import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
@@ -45,7 +44,7 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       }
 
       val ignoreIfExists = ctx.EXISTS() != null
-      val indexOptions = FlintSparkIndexOptions(visitPropertyList(ctx.propertyList()))
+      val indexOptions = visitPropertyList(ctx.propertyList())
       indexBuilder
         .options(indexOptions)
         .create(ignoreIfExists)
@@ -107,8 +106,9 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       ctx: AlterCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
       val indexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
-      val indexOptionsMap = visitPropertyList(ctx.propertyList())
-      flint.updateIndex(indexName, indexOptionsMap)
+      val indexOptions = visitPropertyList(ctx.propertyList())
+      val updatedIndex = flint.updateIndexOptions(indexName, indexOptions)
+      flint.updateIndex(updatedIndex)
       Seq.empty
     }
   }

@@ -32,7 +32,6 @@ import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGN
  * Flint Spark integration API entrypoint.
  */
 class FlintSpark(val spark: SparkSession) extends Logging {
-  import FlintSpark.UpdateMode._
 
   /** Flint spark configuration */
   private val flintSparkConf: FlintSparkConf =
@@ -215,14 +214,15 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    * @return
    *   refreshing job ID (empty if no job)
    */
-  def updateIndex(index: FlintSparkIndex, updateMode: UpdateMode): Option[String] = {
+  def updateIndex(index: FlintSparkIndex): Option[String] = {
     logInfo(s"Updating Flint index $index")
     val indexName = index.name
     if (flintClient.exists(indexName)) {
       try {
-        updateMode match {
-          case MANUAL_TO_AUTO => updateIndexManualToAuto(index)
-          case AUTO_TO_MANUAL => updateIndexAutoToManual(index)
+        // Relies on validation to forbid auto-to-auto and manual-to-manual updates
+        index.options.autoRefresh() match {
+          case true => updateIndexManualToAuto(index)
+          case false => updateIndexAutoToManual(index)
         }
       } catch {
         case e: Exception =>
@@ -236,64 +236,56 @@ class FlintSpark(val spark: SparkSession) extends Logging {
 
   /**
    * Update Flint index metadata and job associated with index.
+   * TODO: This should probably not be in FlintSpark but be in some Factory or Builder class.
+   * Name for this method is confusing as well.
    *
-   * @param flint
-   *   Flint Spark which has access to Spark Catalog
    * @param indexName
    *   index name
    * @param updateOptions
    *   options to update
+   * @return
+   *   Flint index
    */
-  def updateIndex(indexName: String, updateOptions: Map[String, String]): Option[String] = {
+  def updateIndexOptions(
+      indexName: String,
+      updateOptions: FlintSparkIndexOptions): FlintSparkIndex = {
     val oldIndex = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
 
-    val oldOptions = oldIndex.options.options
-    validateUpdateOptions(oldOptions, updateOptions, oldIndex.kind)
+    val oldOptions = oldIndex.options
+    validateIndexUpdateOptions(oldOptions, updateOptions)
 
-    val mergedOptions = oldOptions ++ updateOptions
-    val newMetadata =
-      oldIndex.metadata().copy(options = mergedOptions.mapValues(_.asInstanceOf[AnyRef]).asJava)
-    val newIndex = FlintSparkIndexFactory.create(newMetadata)
-
-    val updateMode = newIndex.options.autoRefresh() match {
-      case true => MANUAL_TO_AUTO
-      case false => AUTO_TO_MANUAL
-    }
-
-    updateIndex(newIndex, updateMode)
+    val mergedOptions = oldOptions.merge(updateOptions)
+    val newMetadata = oldIndex
+      .metadata()
+      .copy(options = mergedOptions.options.mapValues(_.asInstanceOf[AnyRef]).asJava)
+    FlintSparkIndexFactory.create(newMetadata)
   }
 
   /**
-   * Validate update options. These are rules specific for updating index, validating the update
-   * is allowed. It doesn't check whether the resulting index options will be valid.
+   * Validate index update options. These are rules specific for updating index, validating the
+   * update is allowed. It doesn't check whether the resulting index options will be valid.
    *
    * @param oldOptions
    *   existing options
    * @param updateOptions
    *   options to update
-   * @param indexKind
-   *   index kind
    */
-  private def validateUpdateOptions(
-      oldOptions: Map[String, String],
-      updateOptions: Map[String, String],
-      indexKind: String): Unit = {
-    val mergedOptions = oldOptions ++ updateOptions
-    val newAutoRefresh = mergedOptions.getOrElse(AUTO_REFRESH.toString, "false")
-    val oldAutoRefresh = oldOptions.getOrElse(AUTO_REFRESH.toString, "false")
+  private def validateIndexUpdateOptions(
+      oldOptions: FlintSparkIndexOptions,
+      updateOptions: FlintSparkIndexOptions): Unit = {
+    val mergedOptions = oldOptions.merge(updateOptions)
 
     // auto_refresh must change
-    if (newAutoRefresh == oldAutoRefresh) {
+    if (mergedOptions.autoRefresh() == oldOptions.autoRefresh()) {
       throw new IllegalArgumentException("auto_refresh option must be updated")
     }
 
-    val newIncrementalRefresh = mergedOptions.getOrElse(INCREMENTAL_REFRESH.toString, "false")
-    val refreshMode = (newAutoRefresh, newIncrementalRefresh) match {
-      case ("true", "false") => AUTO
-      case ("false", "false") => FULL
-      case ("false", "true") => INCREMENTAL
-      case ("true", "true") =>
+    val refreshMode = (mergedOptions.autoRefresh(), mergedOptions.incrementalRefresh()) match {
+      case (true, false) => AUTO
+      case (false, false) => FULL
+      case (false, true) => INCREMENTAL
+      case (true, true) =>
         throw new IllegalArgumentException(
           "auto_refresh and incremental_refresh options cannot both be true")
     }
@@ -309,9 +301,9 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           CHECKPOINT_LOCATION,
           WATERMARK_DELAY)
     }
-    if (!updateOptions.keys.forall(allowedOptions.map(_.toString).contains)) {
+    if (!updateOptions.options.keys.forall(allowedOptions.map(_.toString).contains)) {
       throw new IllegalArgumentException(
-        s"Altering ${indexKind} index to ${refreshMode} refresh only allows options: ${allowedOptions}")
+        s"Altering index to ${refreshMode} refresh only allows options: ${allowedOptions}")
     }
   }
 
@@ -501,13 +493,5 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         logInfo("Update index options complete")
         indexRefresh.start(spark, flintSparkConf)
       })
-  }
-}
-
-object FlintSpark {
-  object UpdateMode extends Enumeration {
-    type UpdateMode = Value
-    val MANUAL_TO_AUTO, AUTO_TO_MANUAL = Value
-    // TODO: support AUTO_TO_AUTO and MANUAL_TO_MANUAL
   }
 }
