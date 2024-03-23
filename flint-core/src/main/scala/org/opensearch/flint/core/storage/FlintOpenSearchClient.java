@@ -199,7 +199,7 @@ public class FlintOpenSearchClient implements FlintClient {
     try (IRestHighLevelClient client = createClient()) {
       PutMappingRequest request = new PutMappingRequest(osIndexName);
       request.source(metadata.getContent(), XContentType.JSON);
-      client.updateIndex(request, RequestOptions.DEFAULT);
+      client.updateIndexMapping(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to update Flint index " + osIndexName, e);
     }

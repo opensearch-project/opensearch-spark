@@ -45,7 +45,7 @@ public interface IRestHighLevelClient extends Closeable {
 
     CreateIndexResponse createIndex(CreateIndexRequest createIndexRequest, RequestOptions options) throws IOException;
 
-    void updateIndex(PutMappingRequest putMappingRequest, RequestOptions options) throws IOException;
+    void updateIndexMapping(PutMappingRequest putMappingRequest, RequestOptions options) throws IOException;
 
     void deleteIndex(DeleteIndexRequest deleteIndexRequest, RequestOptions options) throws IOException;
 

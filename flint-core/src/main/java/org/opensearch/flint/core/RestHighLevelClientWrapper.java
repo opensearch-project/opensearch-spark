@@ -65,7 +65,7 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
     }
 
     @Override
-    public void updateIndex(PutMappingRequest putMappingRequest, RequestOptions options) throws IOException {
+    public void updateIndexMapping(PutMappingRequest putMappingRequest, RequestOptions options) throws IOException {
         execute(OS_WRITE_OP_METRIC_PREFIX, () -> client.indices().putMapping(putMappingRequest, options));
     }
 
