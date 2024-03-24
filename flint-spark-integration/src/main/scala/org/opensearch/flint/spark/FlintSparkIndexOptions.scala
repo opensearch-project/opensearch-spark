@@ -10,6 +10,7 @@ import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, INCREMENTAL_REFRESH, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, WATERMARK_DELAY}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
 
 /**
  * Flint Spark index configurable options.
@@ -122,12 +123,14 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
    * Merge two FlintSparkIndexOptions. If an option exists in both instances, the value from the
    * other instance overwrites the value from this instance.
    * @param other
-   *   option to merge
+   *   options to update
    * @return
-   *   merged Flint Spark index options
+   *   updated Flint Spark index options
    */
-  def merge(other: FlintSparkIndexOptions): FlintSparkIndexOptions = {
-    FlintSparkIndexOptions(options ++ other.options)
+  def update(other: FlintSparkIndexOptions): FlintSparkIndexOptions = {
+    val updatedOptions = FlintSparkIndexOptions(options ++ other.options)
+    validateUpdateAllowed(other, updatedOptions)
+    updatedOptions
   }
 
   private def getOptionValue(name: OptionName): Option[String] = {
@@ -138,6 +141,45 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
     getOptionValue(EXTRA_OPTIONS)
       .map(opt => (parse(opt) \ key).extract[Map[String, String]])
       .getOrElse(Map.empty)
+  }
+
+  /**
+   * Validate the index update options are allowed.
+   * @param other
+   *   options to update
+   * @param updatedOptions
+   *   the updated options
+   */
+  private def validateUpdateAllowed(other: FlintSparkIndexOptions, updatedOptions: FlintSparkIndexOptions): Unit = {
+    // auto_refresh must change
+    if (updatedOptions.autoRefresh() == autoRefresh()) {
+      throw new IllegalArgumentException("auto_refresh option must be updated")
+    }
+
+    val refreshMode = (updatedOptions.autoRefresh(), updatedOptions.incrementalRefresh()) match {
+      case (true, false) => AUTO
+      case (false, false) => FULL
+      case (false, true) => INCREMENTAL
+      case (true, true) =>
+        throw new IllegalArgumentException(
+          "auto_refresh and incremental_refresh options cannot both be true")
+    }
+
+    // validate allowed options depending on refresh mode
+    val allowedOptions = refreshMode match {
+      case FULL => Set(AUTO_REFRESH, INCREMENTAL_REFRESH)
+      case AUTO | INCREMENTAL =>
+        Set(
+          AUTO_REFRESH,
+          INCREMENTAL_REFRESH,
+          REFRESH_INTERVAL,
+          CHECKPOINT_LOCATION,
+          WATERMARK_DELAY)
+    }
+    if (!other.options.keys.forall(allowedOptions.map(_.toString).contains)) {
+      throw new IllegalArgumentException(
+        s"Altering index to ${refreshMode} refresh only allows options: ${allowedOptions}")
+    }
   }
 }
 

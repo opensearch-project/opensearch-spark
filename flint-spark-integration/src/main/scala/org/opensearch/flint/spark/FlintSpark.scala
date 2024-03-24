@@ -13,11 +13,10 @@ import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
-import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.AUTO
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 import org.opensearch.flint.spark.skipping.recommendations.DataTypeSkippingStrategy
@@ -248,64 +247,17 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    */
   def updateIndexOptions(
       indexName: String,
-      updateOptions: FlintSparkIndexOptions): FlintSparkIndex = {
-    val oldIndex = describeIndex(indexName)
+      options: FlintSparkIndexOptions): FlintSparkIndex = {
+    val index = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
 
-    val oldOptions = oldIndex.options
-    validateIndexUpdateOptions(oldOptions, updateOptions)
-
-    val mergedOptions = oldOptions.merge(updateOptions)
-    val newMetadata = oldIndex
+    val updatedOptions = index.options.update(options)
+    val updatedMetadata = index
       .metadata()
-      .copy(options = mergedOptions.options.mapValues(_.asInstanceOf[AnyRef]).asJava)
-    FlintSparkIndexFactory.create(newMetadata)
+      .copy(options = updatedOptions.options.mapValues(_.asInstanceOf[AnyRef]).asJava)
+    FlintSparkIndexFactory.create(updatedMetadata)
   }
 
-  /**
-   * Validate index update options. These are rules specific for updating index, validating the
-   * update is allowed. It doesn't check whether the resulting index options will be valid.
-   *
-   * @param oldOptions
-   *   existing options
-   * @param updateOptions
-   *   options to update
-   */
-  private def validateIndexUpdateOptions(
-      oldOptions: FlintSparkIndexOptions,
-      updateOptions: FlintSparkIndexOptions): Unit = {
-    val mergedOptions = oldOptions.merge(updateOptions)
-
-    // auto_refresh must change
-    if (mergedOptions.autoRefresh() == oldOptions.autoRefresh()) {
-      throw new IllegalArgumentException("auto_refresh option must be updated")
-    }
-
-    val refreshMode = (mergedOptions.autoRefresh(), mergedOptions.incrementalRefresh()) match {
-      case (true, false) => AUTO
-      case (false, false) => FULL
-      case (false, true) => INCREMENTAL
-      case (true, true) =>
-        throw new IllegalArgumentException(
-          "auto_refresh and incremental_refresh options cannot both be true")
-    }
-
-    // validate allowed options depending on refresh mode
-    val allowedOptions = refreshMode match {
-      case FULL => Set(AUTO_REFRESH, INCREMENTAL_REFRESH)
-      case AUTO | INCREMENTAL =>
-        Set(
-          AUTO_REFRESH,
-          INCREMENTAL_REFRESH,
-          REFRESH_INTERVAL,
-          CHECKPOINT_LOCATION,
-          WATERMARK_DELAY)
-    }
-    if (!updateOptions.options.keys.forall(allowedOptions.map(_.toString).contains)) {
-      throw new IllegalArgumentException(
-        s"Altering index to ${refreshMode} refresh only allows options: ${allowedOptions}")
-    }
-  }
 
   /**
    * Delete index and refreshing job associated.
