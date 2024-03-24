@@ -203,8 +203,8 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
       checkAnswer(indexData, Seq())
 
       // Update Flint index to auto refresh and wait for complete
-      val updatedIndex = flint.updateIndexOptions(
-        testFlintIndex,
+      val updatedIndex = flint.materializedView().copyWithUpdate(
+        flint.describeIndex(testFlintIndex).get,
         FlintSparkIndexOptions(
           Map(
             "auto_refresh" -> "true",

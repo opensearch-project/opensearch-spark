@@ -104,7 +104,9 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
     FlintSparkSqlCommand() { flint =>
       val indexName = getFlintIndexName(flint, ctx.mvName)
       val indexOptions = visitPropertyList(ctx.propertyList())
-      val updatedIndex = flint.updateIndexOptions(indexName, indexOptions)
+      val index = flint.describeIndex(indexName)
+        .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+      val updatedIndex = flint.materializedView().copyWithUpdate(index, indexOptions)
       flint.updateIndex(updatedIndex)
       Seq.empty
     }

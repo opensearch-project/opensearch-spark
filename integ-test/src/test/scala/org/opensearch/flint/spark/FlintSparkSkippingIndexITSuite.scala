@@ -278,7 +278,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     // Update Flint index to auto refresh and wait for complete
     val updatedIndex =
-      flint.updateIndexOptions(testIndex, FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      flint.skippingIndex().copyWithUpdate(flint.describeIndex(testIndex).get, FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
     val jobId = flint.updateIndex(updatedIndex)
     jobId shouldBe defined
 

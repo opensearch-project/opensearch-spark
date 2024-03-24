@@ -128,8 +128,9 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .addPartitions("year", "month")
       .create()
 
-    val updatedIndex = flint.updateIndexOptions(
-      testFlintIndex,
+    val index = flint.describeIndex(testFlintIndex).get
+    val updatedIndex = flint.skippingIndex().copyWithUpdate(
+      index,
       FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
     flint.updateIndex(updatedIndex)
     val latest = latestLogEntry(testLatestId)
@@ -146,8 +147,9 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .create()
     flint.refreshIndex(testFlintIndex)
 
-    val updatedIndex = flint.updateIndexOptions(
-      testFlintIndex,
+    val index = flint.describeIndex(testFlintIndex).get
+    val updatedIndex = flint.skippingIndex().copyWithUpdate(
+      index,
       FlintSparkIndexOptions(Map("auto_refresh" -> "false")))
     flint.updateIndex(updatedIndex)
     val latest = latestLogEntry(testLatestId)

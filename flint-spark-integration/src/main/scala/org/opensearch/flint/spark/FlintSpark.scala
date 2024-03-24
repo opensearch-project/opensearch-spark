@@ -234,32 +234,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   }
 
   /**
-   * Update Flint index metadata and job associated with index.
-   * TODO: This should probably not be in FlintSpark but be in some Factory or Builder class.
-   * Name for this method is confusing as well.
-   *
-   * @param indexName
-   *   index name
-   * @param updateOptions
-   *   options to update
-   * @return
-   *   Flint index
-   */
-  def updateIndexOptions(
-      indexName: String,
-      options: FlintSparkIndexOptions): FlintSparkIndex = {
-    val index = describeIndex(indexName)
-      .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
-
-    val updatedOptions = index.options.update(options)
-    val updatedMetadata = index
-      .metadata()
-      .copy(options = updatedOptions.options.mapValues(_.asInstanceOf[AnyRef]).asJava)
-    FlintSparkIndexFactory.create(updatedMetadata)
-  }
-
-
-  /**
    * Delete index and refreshing job associated.
    *
    * @param indexName
