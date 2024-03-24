@@ -203,13 +203,15 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
       checkAnswer(indexData, Seq())
 
       // Update Flint index to auto refresh and wait for complete
-      val updatedIndex = flint.materializedView().copyWithUpdate(
-        flint.describeIndex(testFlintIndex).get,
-        FlintSparkIndexOptions(
-          Map(
-            "auto_refresh" -> "true",
-            "checkpoint_location" -> checkpointDir.getAbsolutePath,
-            "watermark_delay" -> "1 Minute")))
+      val updatedIndex = flint
+        .materializedView()
+        .copyWithUpdate(
+          flint.describeIndex(testFlintIndex).get,
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath,
+              "watermark_delay" -> "1 Minute")))
       val jobId = flint.updateIndex(updatedIndex)
       jobId shouldBe defined
 

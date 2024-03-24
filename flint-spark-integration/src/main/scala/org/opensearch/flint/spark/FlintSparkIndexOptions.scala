@@ -150,7 +150,9 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
    * @param updatedOptions
    *   the updated options
    */
-  private def validateUpdateAllowed(other: FlintSparkIndexOptions, updatedOptions: FlintSparkIndexOptions): Unit = {
+  private def validateUpdateAllowed(
+      other: FlintSparkIndexOptions,
+      updatedOptions: FlintSparkIndexOptions): Unit = {
     // auto_refresh must change
     if (updatedOptions.autoRefresh() == autoRefresh()) {
       throw new IllegalArgumentException("auto_refresh option must be updated")
