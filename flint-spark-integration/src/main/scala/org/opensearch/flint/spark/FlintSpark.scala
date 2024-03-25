@@ -13,10 +13,11 @@ import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.AUTO
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 import org.opensearch.flint.spark.skipping.recommendations.DataTypeSkippingStrategy
@@ -216,6 +217,13 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   def updateIndex(index: FlintSparkIndex): Option[String] = {
     logInfo(s"Updating Flint index $index")
     val indexName = index.name
+
+    validateUpdateAllowed(
+      describeIndex(indexName)
+        .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+        .options,
+      index.options)
+
     if (flintClient.exists(indexName)) {
       try {
         // Relies on validation to forbid auto-to-auto and manual-to-manual updates
@@ -382,6 +390,52 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       job.get.stop()
     } else {
       logWarning("Refreshing job not found")
+    }
+  }
+
+  /**
+   * Validate the index update options are allowed.
+   * @param originalOptions
+   *   original options
+   * @param updatedOptions
+   *   the updated options
+   */
+  private def validateUpdateAllowed(
+      originalOptions: FlintSparkIndexOptions,
+      updatedOptions: FlintSparkIndexOptions): Unit = {
+    // auto_refresh must change
+    if (updatedOptions.autoRefresh() == originalOptions.autoRefresh()) {
+      throw new IllegalArgumentException("auto_refresh option must be updated")
+    }
+
+    val refreshMode = (updatedOptions.autoRefresh(), updatedOptions.incrementalRefresh()) match {
+      case (true, false) => AUTO
+      case (false, false) => FULL
+      case (false, true) => INCREMENTAL
+      case (true, true) =>
+        throw new IllegalArgumentException(
+          "auto_refresh and incremental_refresh options cannot both be true")
+    }
+
+    // validate allowed options depending on refresh mode
+    val allowedOptionNames = refreshMode match {
+      case FULL => Set(AUTO_REFRESH, INCREMENTAL_REFRESH)
+      case AUTO | INCREMENTAL =>
+        Set(
+          AUTO_REFRESH,
+          INCREMENTAL_REFRESH,
+          REFRESH_INTERVAL,
+          CHECKPOINT_LOCATION,
+          WATERMARK_DELAY)
+    }
+
+    // Get the changed option names
+    val updateOptionNames = updatedOptions.options.filterNot {
+      case (k, v) => originalOptions.options.get(k).contains(v)
+    }.keys
+    if (!updateOptionNames.forall(allowedOptionNames.map(_.toString).contains)) {
+      throw new IllegalArgumentException(
+        s"Altering index to ${refreshMode} refresh only allows options: ${allowedOptionNames}")
     }
   }
 

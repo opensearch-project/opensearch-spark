@@ -61,8 +61,19 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
   def create(ignoreIfExists: Boolean = false): Unit =
     flint.createIndex(buildIndex(), ignoreIfExists)
 
-  def copyWithUpdate(index: FlintSparkIndex, options: FlintSparkIndexOptions): FlintSparkIndex = {
-    val updatedOptions = index.options.update(options)
+  /**
+   * Copy Flint index with updated options.
+   *
+   * @param index
+   *   Flint index to copy
+   * @param updateOptions
+   *   options to update
+   * @return
+   *   updated Flint index
+   */
+  def copyWithUpdate(index: FlintSparkIndex, updateOptions: FlintSparkIndexOptions): FlintSparkIndex = {
+    val originalOptions = index.options
+    val updatedOptions = originalOptions.copy(options = originalOptions.options ++ updateOptions.options)
     val updatedMetadata = index
       .metadata()
       .copy(options = updatedOptions.options.mapValues(_.asInstanceOf[AnyRef]).asJava)
