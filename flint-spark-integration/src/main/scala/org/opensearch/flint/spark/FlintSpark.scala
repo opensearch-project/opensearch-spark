@@ -426,8 +426,8 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     }
 
     // Get the changed option names
-    val updateOptionNames = updatedOptions.options.filterNot {
-      case (k, v) => originalOptions.options.get(k).contains(v)
+    val updateOptionNames = updatedOptions.options.filterNot { case (k, v) =>
+      originalOptions.options.get(k).contains(v)
     }.keys
     if (!updateOptionNames.forall(allowedOptionNames.map(_.toString).contains)) {
       throw new IllegalArgumentException(

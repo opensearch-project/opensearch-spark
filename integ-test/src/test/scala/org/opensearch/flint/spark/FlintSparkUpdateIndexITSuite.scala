@@ -83,30 +83,18 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     (
       "update index without changing auto_refresh option",
       Seq(
-        (
-          Map("auto_refresh" -> "true"),
-          Map("auto_refresh" -> "true")),
+        (Map("auto_refresh" -> "true"), Map("auto_refresh" -> "true")),
         (
           Map("auto_refresh" -> "true"),
           Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/")),
-        (
-          Map("auto_refresh" -> "true"),
-          Map("checkpoint_location" -> "s3a://test/")),
-        (
-          Map("auto_refresh" -> "true"),
-          Map("watermark_delay" -> "1 Minute")),
-        (
-          Map.empty[String, String],
-          Map("auto_refresh" -> "false")),
+        (Map("auto_refresh" -> "true"), Map("checkpoint_location" -> "s3a://test/")),
+        (Map("auto_refresh" -> "true"), Map("watermark_delay" -> "1 Minute")),
+        (Map.empty[String, String], Map("auto_refresh" -> "false")),
         (
           Map.empty[String, String],
           Map("auto_refresh" -> "false", "checkpoint_location" -> "s3a://test/")),
-        (
-          Map.empty[String, String],
-          Map("incremental_refresh" -> "true")),
-        (
-          Map.empty[String, String],
-          Map("checkpoint_location" -> "s3a://test/")))),
+        (Map.empty[String, String], Map("incremental_refresh" -> "true")),
+        (Map.empty[String, String], Map("checkpoint_location" -> "s3a://test/")))),
     (
       "convert to full refresh with disallowed options",
       Seq(
@@ -131,22 +119,17 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     (
       "convert to auto refresh with disallowed options",
       Seq(
-        (
-          Map.empty[String, String],
-          Map("auto_refresh" -> "true", "output_mode" -> "complete")))),
+        (Map.empty[String, String], Map("auto_refresh" -> "true", "output_mode" -> "complete")))),
     (
       "convert to invalid refresh mode",
       Seq(
         (
           Map.empty[String, String],
           Map("auto_refresh" -> "true", "incremental_refresh" -> "true")),
-        (
-          Map("auto_refresh" -> "true"),
-          Map("incremental_refresh" -> "true")),
+        (Map("auto_refresh" -> "true"), Map("incremental_refresh" -> "true")),
         (
           Map("incremental_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
-          Map("auto_refresh" -> "true"))))
-  ).foreach { case (testName, testCases) =>
+          Map("auto_refresh" -> "true"))))).foreach { case (testName, testCases) =>
     test(s"should fail if $testName") {
       withTempDir { checkpointDir =>
         testCases.foreach { case (initialOptionsMap, updateOptionsMap) =>
@@ -154,24 +137,27 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
             .skippingIndex()
             .onTable(testTable)
             .addPartitions("year", "month")
-            .options(FlintSparkIndexOptions(
-              initialOptionsMap
+            .options(
+              FlintSparkIndexOptions(initialOptionsMap
                 .get("checkpoint_location")
-                .map(_ => initialOptionsMap.updated("checkpoint_location", checkpointDir.getAbsolutePath))
-                .getOrElse(initialOptionsMap)
-            ))
+                .map(_ =>
+                  initialOptionsMap.updated("checkpoint_location", checkpointDir.getAbsolutePath))
+                .getOrElse(initialOptionsMap)))
             .create()
           flint.refreshIndex(testIndex)
           val index = flint.describeIndex(testIndex).get
           the[IllegalArgumentException] thrownBy {
             val updatedIndex = flint
               .skippingIndex()
-              .copyWithUpdate(index, FlintSparkIndexOptions(
-                updateOptionsMap
-                  .get("checkpoint_location")
-                  .map(_ => updateOptionsMap.updated("checkpoint_location", checkpointDir.getAbsolutePath))
-                  .getOrElse(updateOptionsMap)
-              ))
+              .copyWithUpdate(
+                index,
+                FlintSparkIndexOptions(
+                  updateOptionsMap
+                    .get("checkpoint_location")
+                    .map(_ =>
+                      updateOptionsMap
+                        .updated("checkpoint_location", checkpointDir.getAbsolutePath))
+                    .getOrElse(updateOptionsMap)))
             flint.updateIndex(updatedIndex)
           }
           deleteTestIndex(testIndex)
@@ -377,17 +363,24 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       val indexInitial = flint.describeIndex(testIndex).get
       val updatedIndexObsolete = flint
         .skippingIndex()
-        .copyWithUpdate(indexInitial, FlintSparkIndexOptions(Map("auto_refresh" -> "true", "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+        .copyWithUpdate(
+          indexInitial,
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
 
       // This other update finishes first, converting to auto refresh
-      flint.updateIndex(flint
-        .skippingIndex()
-        .copyWithUpdate(indexInitial, FlintSparkIndexOptions(Map("auto_refresh" -> "true"))))
+      flint.updateIndex(
+        flint
+          .skippingIndex()
+          .copyWithUpdate(indexInitial, FlintSparkIndexOptions(Map("auto_refresh" -> "true"))))
       // Adding another update to convert to full refresh, so the obsolete update doesn't fail for option validation or state validation
       val indexUpdated = flint.describeIndex(testIndex).get
-      flint.updateIndex(flint
-        .skippingIndex()
-        .copyWithUpdate(indexUpdated, FlintSparkIndexOptions(Map("auto_refresh" -> "false"))))
+      flint.updateIndex(
+        flint
+          .skippingIndex()
+          .copyWithUpdate(indexUpdated, FlintSparkIndexOptions(Map("auto_refresh" -> "false"))))
 
       // This update trying to update an obsolete index should fail
       the[IllegalStateException] thrownBy
