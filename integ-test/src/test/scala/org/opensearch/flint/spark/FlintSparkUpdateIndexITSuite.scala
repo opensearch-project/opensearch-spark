@@ -499,28 +499,29 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
         .create()
 
       // This update will be delayed
-      val index = flint.describeIndex(testIndex).get
+      val indexInitial = flint.describeIndex(testIndex).get
       val updatedIndexObsolete = flint
         .skippingIndex()
-        .copyWithUpdate(index, FlintSparkIndexOptions(Map("auto_refresh" -> "true", "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+        .copyWithUpdate(indexInitial, FlintSparkIndexOptions(Map("auto_refresh" -> "true", "checkpoint_location" -> checkpointDir.getAbsolutePath)))
 
       // This other update finishes first, converting to auto refresh
       flint.updateIndex(flint
         .skippingIndex()
-        .copyWithUpdate(index, FlintSparkIndexOptions(Map("auto_refresh" -> "true"))))
+        .copyWithUpdate(indexInitial, FlintSparkIndexOptions(Map("auto_refresh" -> "true"))))
       // Adding another update to convert to full refresh, so the obsolete update doesn't fail for option validation or state validation
+      val indexUpdated = flint.describeIndex(testIndex).get
       flint.updateIndex(flint
         .skippingIndex()
-        .copyWithUpdate(index, FlintSparkIndexOptions(Map("auto_refresh" -> "false"))))
+        .copyWithUpdate(indexUpdated, FlintSparkIndexOptions(Map("auto_refresh" -> "false"))))
 
       // This update trying to update an obsolete index should fail
       the[IllegalStateException] thrownBy
         flint.updateIndex(updatedIndexObsolete)
 
       // Verify index after update
-      val readNewIndex = flint.describeIndex(testIndex).get
-      readNewIndex.options.autoRefresh() shouldBe true
-      readNewIndex.options.checkpointLocation() shouldBe empty
+      val indexFinal = flint.describeIndex(testIndex).get
+      indexFinal.options.autoRefresh() shouldBe false
+      indexFinal.options.checkpointLocation() shouldBe empty
     }
   }
 
