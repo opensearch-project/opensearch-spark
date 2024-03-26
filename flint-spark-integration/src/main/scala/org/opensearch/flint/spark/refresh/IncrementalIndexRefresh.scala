@@ -27,7 +27,9 @@ class IncrementalIndexRefresh(indexName: String, index: FlintSparkIndex)
 
   override def validate(spark: SparkSession): Unit = {
     // Non-Hive table is required for incremental refresh
-    require(!isSourceTableNonHive(spark, index), "Flint index incremental refresh doesn't support Hive table")
+    require(
+      !isSourceTableNonHive(spark, index),
+      "Flint index incremental refresh doesn't support Hive table")
 
     // Checkpoint location is required regardless of mandatory option
     val options = index.options

@@ -81,6 +81,16 @@ object FlintSparkIndexRefresh extends Logging {
     }
   }
 
+  /**
+   * Validate if source table(s) of the given Flint index are not Hive table.
+   *
+   * @param spark
+   *   Spark session
+   * @param index
+   *   Flint index
+   * @return
+   *   true if all non Hive, otherwise false
+   */
   def isSourceTableNonHive(spark: SparkSession, index: FlintSparkIndex): Boolean = {
     // Extract source table name (possibly more than 1 for MV source query)
     val tableNames = index match {
@@ -102,6 +112,17 @@ object FlintSparkIndexRefresh extends Logging {
     }
   }
 
+  /**
+   * Validate if checkpoint location is accessible (the folder exists and current Spark session
+   * has permission to access).
+   *
+   * @param spark
+   *   Spark session
+   * @param checkpointLocation
+   *   checkpoint location
+   * @return
+   *   true if accessible, otherwise false
+   */
   def isCheckpointLocationAccessible(spark: SparkSession, checkpointLocation: String): Boolean = {
     val checkpointPath = new Path(checkpointLocation)
     val checkpointManager =
