@@ -46,18 +46,18 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
           "checkpoint_location" -> checkpointDir.getAbsolutePath,
           "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")))
         .create()
-      val index = flint.describeIndex(testIndex).get
+      val indexInitial = flint.describeIndex(testIndex).get
 
       // Update index options
       val updateOptions =
         FlintSparkIndexOptions(Map("auto_refresh" -> "true", "incremental_refresh" -> "false"))
-      val updatedIndex = flint.skippingIndex().copyWithUpdate(index, updateOptions)
+      val updatedIndex = flint.skippingIndex().copyWithUpdate(indexInitial, updateOptions)
       flint.updateIndex(updatedIndex)
 
       // Verify index after update
-      val readNewIndex = flint.describeIndex(testIndex).get
+      val indexFinal = flint.describeIndex(testIndex).get
       val optionJson =
-        compact(render(parse(readNewIndex.metadata().getContent) \ "_meta" \ "options"))
+        compact(render(parse(indexFinal.metadata().getContent) \ "_meta" \ "options"))
       optionJson should matchJson(s"""
           | {
           |   "auto_refresh": "true",
@@ -69,11 +69,11 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
           |""".stripMargin)
 
       // Load index options from index mapping (verify OS index setting in SQL IT)
-      readNewIndex.options.autoRefresh() shouldBe true
-      readNewIndex.options.incrementalRefresh() shouldBe false
-      readNewIndex.options.refreshInterval() shouldBe Some("1 Minute")
-      readNewIndex.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
-      readNewIndex.options.indexSettings() shouldBe
+      indexFinal.options.autoRefresh() shouldBe true
+      indexFinal.options.incrementalRefresh() shouldBe false
+      indexFinal.options.refreshInterval() shouldBe Some("1 Minute")
+      indexFinal.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
+      indexFinal.options.indexSettings() shouldBe
         Some("{\"number_of_shards\": 3,\"number_of_replicas\": 2}")
     }
   }
@@ -176,18 +176,18 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     flint.refreshIndex(testIndex)
 
     // Update index options
-    val index = flint.describeIndex(testIndex).get
+    val indexInitial = flint.describeIndex(testIndex).get
     val updatedIndex = flint
       .skippingIndex()
       .copyWithUpdate(
-        index,
+        indexInitial,
         FlintSparkIndexOptions(Map("auto_refresh" -> "false", "incremental_refresh" -> "false")))
     flint.updateIndex(updatedIndex)
 
     // Verify index after update
-    val readNewIndex = flint.describeIndex(testIndex).get
-    readNewIndex.options.autoRefresh() shouldBe false
-    readNewIndex.options.incrementalRefresh() shouldBe false
+    val indexFinal = flint.describeIndex(testIndex).get
+    indexFinal.options.autoRefresh() shouldBe false
+    indexFinal.options.incrementalRefresh() shouldBe false
   }
 
   test("should fail if convert to full refresh with disallowed options") {
@@ -203,13 +203,13 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
           "checkpoint_location" -> checkpointDir.getAbsolutePath)))
         .create()
       flint.refreshIndex(testIndex)
-      val index = flint.describeIndex(testIndex).get
+      val indexInitial = flint.describeIndex(testIndex).get
 
       the[IllegalArgumentException] thrownBy {
         val updatedIndex = flint
           .skippingIndex()
           .copyWithUpdate(
-            index,
+            indexInitial,
             FlintSparkIndexOptions(
               Map("auto_refresh" -> "false", "checkpoint_location" -> "s3a://test/")))
         flint.updateIndex(updatedIndex)
@@ -218,7 +218,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
         val updatedIndex = flint
           .skippingIndex()
           .copyWithUpdate(
-            index,
+            indexInitial,
             FlintSparkIndexOptions(
               Map("auto_refresh" -> "false", "refresh_interval" -> "5 Minute")))
         flint.updateIndex(updatedIndex)
@@ -227,7 +227,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
         val updatedIndex = flint
           .skippingIndex()
           .copyWithUpdate(
-            index,
+            indexInitial,
             FlintSparkIndexOptions(Map("auto_refresh" -> "false", "watermark_delay" -> "1 Minute")))
         flint.updateIndex(updatedIndex)
       }
@@ -244,11 +244,11 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     flint.refreshIndex(testIndex)
 
     // Update index options
-    val index = flint.describeIndex(testIndex).get
+    val indexInitial = flint.describeIndex(testIndex).get
     val updatedIndex = flint
       .skippingIndex()
       .copyWithUpdate(
-        index,
+        indexInitial,
         FlintSparkIndexOptions(
           Map(
             "auto_refresh" -> "false",
@@ -257,10 +257,10 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     flint.updateIndex(updatedIndex)
 
     // Verify index after update
-    val readNewIndex = flint.describeIndex(testIndex).get
-    readNewIndex.options.autoRefresh() shouldBe false
-    readNewIndex.options.incrementalRefresh() shouldBe true
-    readNewIndex.options.refreshInterval() shouldBe Some("1 Minute")
+    val indexFinal = flint.describeIndex(testIndex).get
+    indexFinal.options.autoRefresh() shouldBe false
+    indexFinal.options.incrementalRefresh() shouldBe true
+    indexFinal.options.refreshInterval() shouldBe Some("1 Minute")
   }
 
   test("should succeed if convert to incremental refresh with checkpoint_location") {
@@ -273,11 +273,11 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     flint.refreshIndex(testIndex)
 
     // Update index options
-    val index = flint.describeIndex(testIndex).get
+    val indexInitial = flint.describeIndex(testIndex).get
     val updatedIndex = flint
       .skippingIndex()
       .copyWithUpdate(
-        index,
+        indexInitial,
         FlintSparkIndexOptions(
           Map(
             "auto_refresh" -> "false",
@@ -286,10 +286,10 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     flint.updateIndex(updatedIndex)
 
     // Verify index after update
-    val readNewIndex = flint.describeIndex(testIndex).get
-    readNewIndex.options.autoRefresh() shouldBe false
-    readNewIndex.options.incrementalRefresh() shouldBe true
-    readNewIndex.options.checkpointLocation() shouldBe Some("s3a://test/")
+    val indexFinal = flint.describeIndex(testIndex).get
+    indexFinal.options.autoRefresh() shouldBe false
+    indexFinal.options.incrementalRefresh() shouldBe true
+    indexFinal.options.checkpointLocation() shouldBe Some("s3a://test/")
   }
 
   test("should succeed if convert to incremental refresh with watermark_delay") {
@@ -302,11 +302,11 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     flint.refreshIndex(testIndex)
 
     // Update index options
-    val index = flint.describeIndex(testIndex).get
+    val indexInitial = flint.describeIndex(testIndex).get
     val updatedIndex = flint
       .skippingIndex()
       .copyWithUpdate(
-        index,
+        indexInitial,
         FlintSparkIndexOptions(
           Map(
             "auto_refresh" -> "false",
@@ -315,10 +315,10 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     flint.updateIndex(updatedIndex)
 
     // Verify index after update
-    val readNewIndex = flint.describeIndex(testIndex).get
-    readNewIndex.options.autoRefresh() shouldBe false
-    readNewIndex.options.incrementalRefresh() shouldBe true
-    readNewIndex.options.watermarkDelay() shouldBe Some("1 Minute")
+    val indexFinal = flint.describeIndex(testIndex).get
+    indexFinal.options.autoRefresh() shouldBe false
+    indexFinal.options.incrementalRefresh() shouldBe true
+    indexFinal.options.watermarkDelay() shouldBe Some("1 Minute")
   }
 
   test("should fail if convert to incremental refresh with disallowed options") {
@@ -329,13 +329,13 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
       .create()
     flint.refreshIndex(testIndex)
-    val index = flint.describeIndex(testIndex).get
+    val indexInitial = flint.describeIndex(testIndex).get
 
     the[IllegalArgumentException] thrownBy {
       val updatedIndex = flint
         .skippingIndex()
         .copyWithUpdate(
-          index,
+          indexInitial,
           FlintSparkIndexOptions(
             Map(
               "auto_refresh" -> "false",
@@ -353,19 +353,19 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       .create()
 
     // Update index options
-    val index = flint.describeIndex(testIndex).get
+    val indexInitial = flint.describeIndex(testIndex).get
     val updatedIndex = flint
       .skippingIndex()
       .copyWithUpdate(
-        index,
+        indexInitial,
         FlintSparkIndexOptions(Map("auto_refresh" -> "true", "refresh_interval" -> "5 Minute")))
     flint.updateIndex(updatedIndex)
 
     // Verify index after update
-    val readNewIndex = flint.describeIndex(testIndex).get
-    readNewIndex.options.autoRefresh() shouldBe true
-    readNewIndex.options.incrementalRefresh() shouldBe false
-    readNewIndex.options.refreshInterval() shouldBe Some("5 Minute")
+    val indexFinal = flint.describeIndex(testIndex).get
+    indexFinal.options.autoRefresh() shouldBe true
+    indexFinal.options.incrementalRefresh() shouldBe false
+    indexFinal.options.refreshInterval() shouldBe Some("5 Minute")
   }
 
   test("should succeed if convert to auto refresh with checkpoint_location") {
@@ -377,11 +377,11 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
         .create()
 
       // Update index options
-      val index = flint.describeIndex(testIndex).get
+      val indexInitial = flint.describeIndex(testIndex).get
       val updatedIndex = flint
         .skippingIndex()
         .copyWithUpdate(
-          index,
+          indexInitial,
           FlintSparkIndexOptions(
             Map(
               "auto_refresh" -> "true",
@@ -389,10 +389,10 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       flint.updateIndex(updatedIndex)
 
       // Verify index after update
-      val readNewIndex = flint.describeIndex(testIndex).get
-      readNewIndex.options.autoRefresh() shouldBe true
-      readNewIndex.options.incrementalRefresh() shouldBe false
-      readNewIndex.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
+      val indexFinal = flint.describeIndex(testIndex).get
+      indexFinal.options.autoRefresh() shouldBe true
+      indexFinal.options.incrementalRefresh() shouldBe false
+      indexFinal.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
     }
   }
 
@@ -404,19 +404,19 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       .create()
 
     // Update index options
-    val index = flint.describeIndex(testIndex).get
+    val indexInitial = flint.describeIndex(testIndex).get
     val updatedIndex = flint
       .skippingIndex()
       .copyWithUpdate(
-        index,
+        indexInitial,
         FlintSparkIndexOptions(Map("auto_refresh" -> "true", "watermark_delay" -> "5 Minute")))
     flint.updateIndex(updatedIndex)
 
     // Verify index after update
-    val readNewIndex = flint.describeIndex(testIndex).get
-    readNewIndex.options.autoRefresh() shouldBe true
-    readNewIndex.options.incrementalRefresh() shouldBe false
-    readNewIndex.options.watermarkDelay() shouldBe Some("5 Minute")
+    val indexFinal = flint.describeIndex(testIndex).get
+    indexFinal.options.autoRefresh() shouldBe true
+    indexFinal.options.incrementalRefresh() shouldBe false
+    indexFinal.options.watermarkDelay() shouldBe Some("5 Minute")
   }
 
   test("should fail if convert to auto refresh with disallowed options") {
@@ -425,13 +425,13 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       .onTable(testTable)
       .addPartitions("year", "month")
       .create()
-    val index = flint.describeIndex(testIndex).get
+    val indexInitial = flint.describeIndex(testIndex).get
 
     the[IllegalArgumentException] thrownBy {
       val updatedIndex = flint
         .skippingIndex()
         .copyWithUpdate(
-          index,
+          indexInitial,
           FlintSparkIndexOptions(Map("auto_refresh" -> "true", "output_mode" -> "complete")))
       flint.updateIndex(updatedIndex)
     }
@@ -443,13 +443,13 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       .onTable(testTable)
       .addPartitions("year", "month")
       .create()
-    var index = flint.describeIndex(testIndex).get
+    var indexInitial = flint.describeIndex(testIndex).get
 
     the[IllegalArgumentException] thrownBy {
       val updatedIndex = flint
         .skippingIndex()
         .copyWithUpdate(
-          index,
+          indexInitial,
           FlintSparkIndexOptions(Map("auto_refresh" -> "true", "incremental_refresh" -> "true")))
       flint.updateIndex(updatedIndex)
     }
@@ -463,12 +463,12 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
       .create()
     flint.refreshIndex(testIndex)
-    index = flint.describeIndex(testIndex).get
+    indexInitial = flint.describeIndex(testIndex).get
 
     the[IllegalArgumentException] thrownBy {
       val updatedIndex = flint
         .skippingIndex()
-        .copyWithUpdate(index, FlintSparkIndexOptions(Map("incremental_refresh" -> "true")))
+        .copyWithUpdate(indexInitial, FlintSparkIndexOptions(Map("incremental_refresh" -> "true")))
       flint.updateIndex(updatedIndex)
     }
 
@@ -480,12 +480,12 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       .addPartitions("year", "month")
       .options(FlintSparkIndexOptions(Map("incremental_refresh" -> "true")))
       .create()
-    index = flint.describeIndex(testIndex).get
+    indexInitial = flint.describeIndex(testIndex).get
 
     the[IllegalArgumentException] thrownBy {
       val updatedIndex = flint
         .skippingIndex()
-        .copyWithUpdate(index, FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+        .copyWithUpdate(indexInitial, FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
       flint.updateIndex(updatedIndex)
     }
   }
@@ -536,11 +536,11 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     flint.queryIndex(testIndex).collect().toSet should have size 0
 
     // Update Flint index to auto refresh and wait for complete
-    val index = flint.describeIndex(testIndex).get
+    val indexInitial = flint.describeIndex(testIndex).get
     val updatedIndex =
       flint
         .skippingIndex()
-        .copyWithUpdate(index, FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+        .copyWithUpdate(indexInitial, FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
     val jobId = flint.updateIndex(updatedIndex)
     jobId shouldBe defined
 
@@ -581,11 +581,11 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
              | """.stripMargin)
 
       // Update Flint index to auto refresh and wait for complete
-      val index = flint.describeIndex(testIndex).get
+      val indexInitial = flint.describeIndex(testIndex).get
       val updatedIndex = flint
         .skippingIndex()
         .copyWithUpdate(
-          index,
+          indexInitial,
           FlintSparkIndexOptions(Map("auto_refresh" -> "true", "incremental_refresh" -> "false")))
       val jobId = flint.updateIndex(updatedIndex)
       jobId shouldBe defined
@@ -618,11 +618,11 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     flint.queryIndex(testIndex).collect().toSet should have size 2
 
     // Update Flint index to full refresh
-    val index = flint.describeIndex(testIndex).get
+    val indexInitial = flint.describeIndex(testIndex).get
     val updatedIndex =
       flint
         .skippingIndex()
-        .copyWithUpdate(index, FlintSparkIndexOptions(Map("auto_refresh" -> "false")))
+        .copyWithUpdate(indexInitial, FlintSparkIndexOptions(Map("auto_refresh" -> "false")))
     flint.updateIndex(updatedIndex) shouldBe empty
 
     // Expect refresh job to be stopped
@@ -663,11 +663,11 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       flint.queryIndex(testIndex).collect().toSet should have size 2
 
       // Update Flint index to incremental refresh
-      val index = flint.describeIndex(testIndex).get
+      val indexInitial = flint.describeIndex(testIndex).get
       val updatedIndex = flint
         .skippingIndex()
         .copyWithUpdate(
-          index,
+          indexInitial,
           FlintSparkIndexOptions(Map("auto_refresh" -> "false", "incremental_refresh" -> "true")))
       flint.updateIndex(updatedIndex) shouldBe empty
 

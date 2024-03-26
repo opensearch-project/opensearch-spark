@@ -437,12 +437,10 @@ class FlintSpark(val spark: SparkSession) extends Logging {
 
   private def updateIndexAutoToManual(index: FlintSparkIndex): Option[String] = {
     val indexName = index.name
-    // TODO: what if index from api user is not constructed with Builder.copyWithUpdate?
     val indexLogEntry = index.latestLogEntry.get
     flintClient
       .startTransaction(indexName, dataSourceName)
       .initialLog(latest =>
-        // TODO: in the future should use another lock to protect entire process and not rely on this
         latest.state == REFRESHING && latest.seqNo == indexLogEntry.seqNo && latest.primaryTerm == indexLogEntry.primaryTerm)
       .transientLog(latest => latest.copy(state = UPDATING))
       .finalLog(latest => latest.copy(state = ACTIVE))
@@ -457,13 +455,11 @@ class FlintSpark(val spark: SparkSession) extends Logging {
 
   private def updateIndexManualToAuto(index: FlintSparkIndex): Option[String] = {
     val indexName = index.name
-    // TODO: what if index from api user is not constructed with Builder.copyWithUpdate?
     val indexLogEntry = index.latestLogEntry.get
     val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
     flintClient
       .startTransaction(indexName, dataSourceName)
       .initialLog(latest =>
-        // TODO: in the future should use another lock to protect entire process and not rely on this
         latest.state == ACTIVE && latest.seqNo == indexLogEntry.seqNo && latest.primaryTerm == indexLogEntry.primaryTerm)
       .transientLog(latest =>
         latest.copy(state = UPDATING, createTime = System.currentTimeMillis()))
