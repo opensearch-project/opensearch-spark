@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark
 
+import org.opensearch.client.RequestOptions
+import org.opensearch.client.indices.CreateIndexRequest
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.AUTO_REFRESH
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
@@ -122,5 +124,23 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
           true,
           "refreshing")))
     deleteTestIndex(testCoveringFlintIndex)
+  }
+
+  test("should ignore non-Flint index") {
+    try {
+      sql(s"CREATE SKIPPING INDEX ON $testTableQualifiedName (name VALUE_SET)")
+
+      // Create a non-Flint index which has flint_ prefix in coincidence
+      openSearchClient
+        .indices()
+        .create(new CreateIndexRequest("flint_spark_catalog_invalid_index"), RequestOptions.DEFAULT)
+
+      // Show statement should ignore such index without problem
+      checkAnswer(
+        sql(s"SHOW FLINT INDEX IN spark_catalog"),
+        Row(testSkippingFlintIndex, "skipping", "default", testTableName, null, false, "active"))
+    } finally {
+      deleteTestIndex(testSkippingFlintIndex)
+    }
   }
 }

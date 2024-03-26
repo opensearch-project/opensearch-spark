@@ -178,7 +178,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       flintClient
         .getAllIndexMetadata(indexNamePattern)
         .asScala
-        .map(FlintSparkIndexFactory.create)
+        .flatMap(FlintSparkIndexFactory.create)
     } else {
       Seq.empty
     }
@@ -196,8 +196,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     logInfo(s"Describing index name $indexName")
     if (flintClient.exists(indexName)) {
       val metadata = flintClient.getIndexMetadata(indexName)
-      val index = FlintSparkIndexFactory.create(metadata)
-      Some(index)
+      FlintSparkIndexFactory.create(metadata)
     } else {
       Option.empty
     }
