@@ -104,6 +104,11 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     } else {
       val metadata = index.metadata()
       try {
+        // Validate index beforehand to avoid leaving behind an orphaned OS index
+        // when streaming job fails to start due to invalidity later
+        index.validate(spark)
+
+        // Start transaction only if index validation passed
         flintClient
           .startTransaction(indexName, dataSourceName, true)
           .initialLog(latest => latest.state == EMPTY || latest.state == DELETED)

@@ -9,8 +9,13 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
+import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.execution.command.DDLUtils
 import org.apache.spark.sql.flint.datatype.FlintDataType
 import org.apache.spark.sql.types.StructType
 
@@ -45,6 +50,16 @@ trait FlintSparkIndex {
    *   Flint index metadata
    */
   def metadata(): FlintMetadata
+
+  /**
+   * Validates the index to ensure its validity. By default, this method validates index options
+   * by delegating to specific index refresh (index options are mostly serving index refresh).
+   * Subclasses can extend this method to include additional validation logic.
+   */
+  def validate(spark: SparkSession): Unit = {
+    val refresh = FlintSparkIndexRefresh.create(name(), this)
+    refresh.validate(spark) // TODO: why indexName arg necessary?
+  }
 
   /**
    * Build a data frame to represent index data computation logic. Upper level code decides how to

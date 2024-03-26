@@ -5,11 +5,21 @@
 
 package org.opensearch.flint.spark.refresh
 
+import java.io.IOException
+
+import org.apache.hadoop.fs.Path
 import org.opensearch.flint.spark.FlintSparkIndex
+import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.RefreshMode
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.command.DDLUtils
+import org.apache.spark.sql.execution.datasources.LogicalRelation
+import org.apache.spark.sql.execution.streaming.CheckpointFileManager
+import org.apache.spark.sql.flint.{loadTable, parseTableName, qualifyTableName}
 import org.apache.spark.sql.flint.config.FlintSparkConf
 
 /**
@@ -25,6 +35,11 @@ trait FlintSparkIndexRefresh extends Logging {
   def refreshMode: RefreshMode
 
   /**
+   * Validate the current index refresh beforehand.
+   */
+  def validate(spark: SparkSession): Unit = {}
+
+  /**
    * Start refreshing the index.
    *
    * @param spark
@@ -37,7 +52,7 @@ trait FlintSparkIndexRefresh extends Logging {
   def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String]
 }
 
-object FlintSparkIndexRefresh {
+object FlintSparkIndexRefresh extends Logging {
 
   /** Index refresh mode */
   object RefreshMode extends Enumeration {
@@ -63,6 +78,44 @@ object FlintSparkIndexRefresh {
       new IncrementalIndexRefresh(indexName, index)
     } else {
       new FullIndexRefresh(indexName, index)
+    }
+  }
+
+  def isSourceTableNonHive(spark: SparkSession, index: FlintSparkIndex): Boolean = {
+    // Extract source table name (possibly more than 1 for MV source query)
+    val tableNames = index match {
+      case skipping: FlintSparkSkippingIndex => Seq(skipping.tableName)
+      case covering: FlintSparkCoveringIndex => Seq(covering.tableName)
+      case mv: FlintSparkMaterializedView =>
+        spark.sessionState.sqlParser
+          .parsePlan(mv.query)
+          .collect { case LogicalRelation(_, _, Some(table), _) =>
+            qualifyTableName(spark, table.identifier.table)
+          }
+    }
+
+    // Validate each source table is Hive
+    tableNames.forall { tableName =>
+      val (catalog, ident) = parseTableName(spark, tableName)
+      val table = loadTable(catalog, ident).get
+      !DDLUtils.isHiveTable(Option(table.properties().get("provider")))
+    }
+  }
+
+  def isCheckpointLocationAccessible(spark: SparkSession, checkpointLocation: String): Boolean = {
+    val checkpointPath = new Path(checkpointLocation)
+    val checkpointManager =
+      CheckpointFileManager.create(checkpointPath, spark.sessionState.newHadoopConf())
+    try {
+      // require(
+      checkpointManager.exists(checkpointPath)
+      //  s"Checkpoint location $checkpointLocation doesn't exist")
+    } catch {
+      case e: IOException =>
+        logWarning(s"Failed to check if checkpoint location $checkpointLocation exists", e)
+        // throw new IllegalArgumentException(
+        //  s"No permission to access checkpoint location $checkpointLocation")
+        false
     }
   }
 }
