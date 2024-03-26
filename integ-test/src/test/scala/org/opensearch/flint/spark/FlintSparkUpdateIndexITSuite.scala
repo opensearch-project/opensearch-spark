@@ -490,6 +490,40 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     }
   }
 
+  test("update index should fail if index is updated by others before transaction starts") {
+    withTempDir { checkpointDir =>
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .create()
+
+      // This update will be delayed
+      val index = flint.describeIndex(testIndex).get
+      val updatedIndexObsolete = flint
+        .skippingIndex()
+        .copyWithUpdate(index, FlintSparkIndexOptions(Map("auto_refresh" -> "true", "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+
+      // This other update finishes first, converting to auto refresh
+      flint.updateIndex(flint
+        .skippingIndex()
+        .copyWithUpdate(index, FlintSparkIndexOptions(Map("auto_refresh" -> "true"))))
+      // Adding another update to convert to full refresh, so the obsolete update doesn't fail for option validation or state validation
+      flint.updateIndex(flint
+        .skippingIndex()
+        .copyWithUpdate(index, FlintSparkIndexOptions(Map("auto_refresh" -> "false"))))
+
+      // This update trying to update an obsolete index should fail
+      the[IllegalStateException] thrownBy
+        flint.updateIndex(updatedIndexObsolete)
+
+      // Verify index after update
+      val readNewIndex = flint.describeIndex(testIndex).get
+      readNewIndex.options.autoRefresh() shouldBe true
+      readNewIndex.options.checkpointLocation() shouldBe empty
+    }
+  }
+
   test("update full refresh index to auto refresh should start job") {
     // Create full refresh Flint index
     flint

@@ -224,20 +224,16 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         .options,
       index.options)
 
-    if (flintClient.exists(indexName)) {
-      try {
-        // Relies on validation to forbid auto-to-auto and manual-to-manual updates
-        index.options.autoRefresh() match {
-          case true => updateIndexManualToAuto(index)
-          case false => updateIndexAutoToManual(index)
-        }
-      } catch {
-        case e: Exception =>
-          logError("Failed to update Flint index", e)
-          throw new IllegalStateException("Failed to update Flint index")
+    try {
+      // Relies on validation to forbid auto-to-auto and manual-to-manual updates
+      index.options.autoRefresh() match {
+        case true => updateIndexManualToAuto(index)
+        case false => updateIndexAutoToManual(index)
       }
-    } else {
-      throw new IllegalStateException(s"Flint index $indexName doesn't exist")
+    } catch {
+      case e: Exception =>
+        logError("Failed to update Flint index", e)
+        throw new IllegalStateException("Failed to update Flint index")
     }
   }
 
