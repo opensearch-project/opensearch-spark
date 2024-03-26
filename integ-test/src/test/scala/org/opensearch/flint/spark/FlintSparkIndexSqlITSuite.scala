@@ -133,7 +133,9 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
       // Create a non-Flint index which has flint_ prefix in coincidence
       openSearchClient
         .indices()
-        .create(new CreateIndexRequest("flint_spark_catalog_invalid_index"), RequestOptions.DEFAULT)
+        .create(
+          new CreateIndexRequest("flint_spark_catalog_invalid_index"),
+          RequestOptions.DEFAULT)
 
       // Show statement should ignore such index without problem
       checkAnswer(
