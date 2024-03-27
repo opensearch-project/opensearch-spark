@@ -131,8 +131,8 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
           Map("incremental_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
           Map("auto_refresh" -> "true"))))).foreach { case (testName, testCases) =>
     test(s"should fail if $testName") {
-      withTempDir { checkpointDir =>
-        testCases.foreach { case (initialOptionsMap, updateOptionsMap) =>
+      testCases.foreach { case (initialOptionsMap, updateOptionsMap) =>
+        withTempDir { checkpointDir =>
           flint
             .skippingIndex()
             .onTable(testTable)
@@ -261,8 +261,8 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
             "checkpoint_location" -> None,
             "watermark_delay" -> Some("1 Minute")))))).foreach { case (testName, testCases) =>
     test(s"should succeed if $testName") {
-      withTempDir { checkpointDir =>
-        testCases.foreach { case (initialOptionsMap, updateOptionsMap, expectedOptionsMap) =>
+      testCases.foreach { case (initialOptionsMap, updateOptionsMap, expectedOptionsMap) =>
+        withTempDir { checkpointDir =>
           flint
             .skippingIndex()
             .onTable(testTable)
