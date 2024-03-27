@@ -8,6 +8,8 @@ package org.opensearch.flint.spark.skipping
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.{DELETED, IndexState, REFRESHING}
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, SKIPPING_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.SkippingKind
@@ -58,7 +60,7 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
     assertFlintQueryRewriter()
       .withSourceTable(testTable, testSchema)
       .withFilter(Or(EqualTo(nameCol, Literal("hello")), EqualTo(ageCol, Literal(30))))
-      .withSkippingIndex(testIndex, "name", "age")
+      .withSkippingIndex(testIndex, REFRESHING, "name", "age")
       .shouldNotRewrite()
   }
 
@@ -69,7 +71,7 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
         And(
           Or(EqualTo(nameCol, Literal("hello")), EqualTo(ageCol, Literal(30))),
           EqualTo(ageCol, Literal(30))))
-      .withSkippingIndex(testIndex, "name", "age")
+      .withSkippingIndex(testIndex, REFRESHING, "name", "age")
       .shouldNotRewrite()
   }
 
@@ -77,15 +79,23 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
     assertFlintQueryRewriter()
       .withSourceTable(testTable, testSchema)
       .withFilter(EqualTo(nameCol, Literal("hello")))
-      .withSkippingIndex(testIndex, "name")
+      .withSkippingIndex(testIndex, REFRESHING, "name")
       .shouldPushDownAfterRewrite(col("name") === "hello")
+  }
+
+  test("should not rewrite query with deleted skipping index") {
+    assertFlintQueryRewriter()
+      .withSourceTable(testTable, testSchema)
+      .withFilter(EqualTo(nameCol, Literal("hello")))
+      .withSkippingIndex(testIndex, DELETED, "name")
+      .shouldNotRewrite()
   }
 
   test("should only push down filter condition with indexed column") {
     assertFlintQueryRewriter()
       .withSourceTable(testTable, testSchema)
       .withFilter(And(EqualTo(nameCol, Literal("hello")), EqualTo(ageCol, Literal(30))))
-      .withSkippingIndex(testIndex, "name")
+      .withSkippingIndex(testIndex, REFRESHING, "name")
       .shouldPushDownAfterRewrite(col("name") === "hello")
   }
 
@@ -93,7 +103,7 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
     assertFlintQueryRewriter()
       .withSourceTable(testTable, testSchema)
       .withFilter(And(EqualTo(nameCol, Literal("hello")), EqualTo(ageCol, Literal(30))))
-      .withSkippingIndex(testIndex, "name", "age")
+      .withSkippingIndex(testIndex, REFRESHING, "name", "age")
       .shouldPushDownAfterRewrite(col("name") === "hello" && col("age") === 30)
 
     assertFlintQueryRewriter()
@@ -102,7 +112,7 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
         And(
           EqualTo(nameCol, Literal("hello")),
           And(EqualTo(ageCol, Literal(30)), EqualTo(addressCol, Literal("Seattle")))))
-      .withSkippingIndex(testIndex, "name", "age", "address")
+      .withSkippingIndex(testIndex, REFRESHING, "name", "age", "address")
       .shouldPushDownAfterRewrite(
         col("name") === "hello" && col("age") === 30 && col("address") === "Seattle")
   }
@@ -139,11 +149,19 @@ class ApplyFlintSparkSkippingIndexSuite extends SparkFunSuite with Matchers {
       this
     }
 
-    def withSkippingIndex(indexName: String, indexCols: String*): AssertionHelper = {
+    def withSkippingIndex(
+        indexName: String,
+        indexState: IndexState,
+        indexCols: String*): AssertionHelper = {
       val skippingIndex = mock[FlintSparkSkippingIndex]
       when(skippingIndex.kind).thenReturn(SKIPPING_INDEX_TYPE)
       when(skippingIndex.name()).thenReturn(indexName)
       when(skippingIndex.indexedColumns).thenReturn(indexCols.map(FakeSkippingStrategy))
+
+      // Mock index log entry with the given state
+      val logEntry = mock[FlintMetadataLogEntry]
+      when(logEntry.state).thenReturn(indexState)
+      when(skippingIndex.latestLogEntry).thenReturn(Some(logEntry))
 
       when(flint.describeIndex(any())).thenReturn(Some(skippingIndex))
       this

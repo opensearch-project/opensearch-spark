@@ -336,6 +336,28 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     }
   }
 
+  test("should not rewrite original query if skipping index is logically deleted") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+    flint.deleteIndex(testIndex)
+
+    val query =
+      s"""
+         | SELECT name
+         | FROM $testTable
+         | WHERE year = 2023 AND month = 4
+         |""".stripMargin
+
+    val actual = sql(query).queryExecution.optimizedPlan
+    withFlintOptimizerDisabled {
+      val expect = sql(query).queryExecution.optimizedPlan
+      actual shouldBe expect
+    }
+  }
+
   test("can build partition skipping index and rewrite applicable query") {
     flint
       .skippingIndex()
