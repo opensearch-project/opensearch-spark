@@ -34,6 +34,8 @@ trait FlintJobExecutor {
   var threadPoolFactory: ThreadPoolFactory = new DefaultThreadPoolFactory()
   var envinromentProvider: EnvironmentProvider = new RealEnvironment()
   var enableHiveSupport: Boolean = true
+  // termiante JVM in the presence non-deamon thread before exiting
+  var terminateJVM = true
 
   // The enabled setting, which can be applied only to the top-level mapping definition and to object fields,
   val resultIndexMapping =

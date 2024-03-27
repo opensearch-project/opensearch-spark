@@ -76,7 +76,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
         JobOperator(spark, query, dataSourceName, resultIndex, true, streamingRunningCount)
       job.envinromentProvider = new MockEnvironment(
         Map("SERVERLESS_EMR_JOB_ID" -> jobRunId, "SERVERLESS_EMR_VIRTUAL_CLUSTER_ID" -> appId))
-
+      job.terminateJVM = false
       job.start()
     }
     futureResult.onComplete {
