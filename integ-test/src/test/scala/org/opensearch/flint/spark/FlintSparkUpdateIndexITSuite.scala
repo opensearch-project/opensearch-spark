@@ -145,6 +145,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
                 .getOrElse(initialOptionsMap)))
             .create()
           flint.refreshIndex(testIndex)
+
           val index = flint.describeIndex(testIndex).get
           the[IllegalArgumentException] thrownBy {
             val updatedIndex = flint
@@ -160,195 +161,152 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
                     .getOrElse(updateOptionsMap)))
             flint.updateIndex(updatedIndex)
           }
+
           deleteTestIndex(testIndex)
         }
       }
     }
   }
 
-  test("should succeed if convert to full refresh with allowed options") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
-      .create()
-    flint.refreshIndex(testIndex)
-
-    // Update index options
-    val indexInitial = flint.describeIndex(testIndex).get
-    val updatedIndex = flint
-      .skippingIndex()
-      .copyWithUpdate(
-        indexInitial,
-        FlintSparkIndexOptions(Map("auto_refresh" -> "false", "incremental_refresh" -> "false")))
-    flint.updateIndex(updatedIndex)
-
-    // Verify index after update
-    val indexFinal = flint.describeIndex(testIndex).get
-    indexFinal.options.autoRefresh() shouldBe false
-    indexFinal.options.incrementalRefresh() shouldBe false
-  }
-
-  test("should succeed if convert to incremental refresh with refresh_interval") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
-      .create()
-    flint.refreshIndex(testIndex)
-
-    // Update index options
-    val indexInitial = flint.describeIndex(testIndex).get
-    val updatedIndex = flint
-      .skippingIndex()
-      .copyWithUpdate(
-        indexInitial,
-        FlintSparkIndexOptions(
+  // Test update options validation success
+  Seq(
+    (
+      "convert to full refresh with allowed options",
+      Seq(
+        (
+          Map("auto_refresh" -> "true"),
+          Map("auto_refresh" -> "false"),
+          Map(
+            "auto_refresh" -> false,
+            "incremental_refresh" -> false,
+            "refresh_interval" -> None,
+            "checkpoint_location" -> None,
+            "watermark_delay" -> None)),
+        (
+          Map("auto_refresh" -> "true"),
+          Map("auto_refresh" -> "false", "incremental_refresh" -> "false"),
+          Map(
+            "auto_refresh" -> false,
+            "incremental_refresh" -> false,
+            "refresh_interval" -> None,
+            "checkpoint_location" -> None,
+            "watermark_delay" -> None)))),
+    (
+      "convert to incremental refresh with allowed options",
+      Seq(
+        (
+          Map("auto_refresh" -> "true"),
           Map(
             "auto_refresh" -> "false",
             "incremental_refresh" -> "true",
-            "refresh_interval" -> "1 Minute")))
-    flint.updateIndex(updatedIndex)
-
-    // Verify index after update
-    val indexFinal = flint.describeIndex(testIndex).get
-    indexFinal.options.autoRefresh() shouldBe false
-    indexFinal.options.incrementalRefresh() shouldBe true
-    indexFinal.options.refreshInterval() shouldBe Some("1 Minute")
-  }
-
-  test("should succeed if convert to incremental refresh with checkpoint_location") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
-      .create()
-    flint.refreshIndex(testIndex)
-
-    // Update index options
-    val indexInitial = flint.describeIndex(testIndex).get
-    val updatedIndex = flint
-      .skippingIndex()
-      .copyWithUpdate(
-        indexInitial,
-        FlintSparkIndexOptions(
+            "refresh_interval" -> "1 Minute"),
+          Map(
+            "auto_refresh" -> false,
+            "incremental_refresh" -> true,
+            "refresh_interval" -> Some("1 Minute"),
+            "checkpoint_location" -> None,
+            "watermark_delay" -> None)),
+        (
+          Map("auto_refresh" -> "true"),
           Map(
             "auto_refresh" -> "false",
             "incremental_refresh" -> "true",
-            "checkpoint_location" -> "s3a://test/")))
-    flint.updateIndex(updatedIndex)
-
-    // Verify index after update
-    val indexFinal = flint.describeIndex(testIndex).get
-    indexFinal.options.autoRefresh() shouldBe false
-    indexFinal.options.incrementalRefresh() shouldBe true
-    indexFinal.options.checkpointLocation() shouldBe Some("s3a://test/")
-  }
-
-  test("should succeed if convert to incremental refresh with watermark_delay") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
-      .create()
-    flint.refreshIndex(testIndex)
-
-    // Update index options
-    val indexInitial = flint.describeIndex(testIndex).get
-    val updatedIndex = flint
-      .skippingIndex()
-      .copyWithUpdate(
-        indexInitial,
-        FlintSparkIndexOptions(
+            "checkpoint_location" -> "s3a://test/"),
+          Map(
+            "auto_refresh" -> false,
+            "incremental_refresh" -> true,
+            "refresh_interval" -> None,
+            "checkpoint_location" -> Some("s3a://test/"),
+            "watermark_delay" -> None)),
+        (
+          Map("auto_refresh" -> "true"),
           Map(
             "auto_refresh" -> "false",
             "incremental_refresh" -> "true",
-            "watermark_delay" -> "1 Minute")))
-    flint.updateIndex(updatedIndex)
+            "watermark_delay" -> "1 Minute"),
+          Map(
+            "auto_refresh" -> false,
+            "incremental_refresh" -> true,
+            "refresh_interval" -> None,
+            "checkpoint_location" -> None,
+            "watermark_delay" -> Some("1 Minute"))))),
+    (
+      "convert to auto refresh with allowed options",
+      Seq(
+        (
+          Map.empty[String, String],
+          Map("auto_refresh" -> "true", "refresh_interval" -> "1 Minute"),
+          Map(
+            "auto_refresh" -> true,
+            "incremental_refresh" -> false,
+            "refresh_interval" -> Some("1 Minute"),
+            "checkpoint_location" -> None,
+            "watermark_delay" -> None)),
+        (
+          Map.empty[String, String],
+          Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
+          Map(
+            "auto_refresh" -> true,
+            "incremental_refresh" -> false,
+            "refresh_interval" -> None,
+            "checkpoint_location" -> Some("s3a://test/"),
+            "watermark_delay" -> None)),
+        (
+          Map.empty[String, String],
+          Map("auto_refresh" -> "true", "watermark_delay" -> "1 Minute"),
+          Map(
+            "auto_refresh" -> true,
+            "incremental_refresh" -> false,
+            "refresh_interval" -> None,
+            "checkpoint_location" -> None,
+            "watermark_delay" -> Some("1 Minute")))))).foreach { case (testName, testCases) =>
+    test(s"should succeed if $testName") {
+      withTempDir { checkpointDir =>
+        testCases.foreach { case (initialOptionsMap, updateOptionsMap, expectedOptionsMap) =>
+          flint
+            .skippingIndex()
+            .onTable(testTable)
+            .addPartitions("year", "month")
+            .options(
+              FlintSparkIndexOptions(initialOptionsMap
+                .get("checkpoint_location")
+                .map(_ =>
+                  initialOptionsMap.updated("checkpoint_location", checkpointDir.getAbsolutePath))
+                .getOrElse(initialOptionsMap)))
+            .create()
+          flint.refreshIndex(testIndex)
 
-    // Verify index after update
-    val indexFinal = flint.describeIndex(testIndex).get
-    indexFinal.options.autoRefresh() shouldBe false
-    indexFinal.options.incrementalRefresh() shouldBe true
-    indexFinal.options.watermarkDelay() shouldBe Some("1 Minute")
-  }
+          val indexInitial = flint.describeIndex(testIndex).get
+          val updatedIndex = flint
+            .skippingIndex()
+            .copyWithUpdate(
+              indexInitial,
+              FlintSparkIndexOptions(
+                updateOptionsMap
+                  .get("checkpoint_location")
+                  .map(_ =>
+                    updateOptionsMap
+                      .updated("checkpoint_location", checkpointDir.getAbsolutePath))
+                  .getOrElse(updateOptionsMap)))
+          flint.updateIndex(updatedIndex)
 
-  test("should succeed if convert to auto refresh with refresh_interval") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .create()
+          val optionsFinal = flint.describeIndex(testIndex).get.options
+          optionsFinal.autoRefresh() shouldBe expectedOptionsMap.get("auto_refresh").get
+          optionsFinal
+            .incrementalRefresh() shouldBe expectedOptionsMap.get("incremental_refresh").get
+          optionsFinal.refreshInterval() shouldBe expectedOptionsMap.get("refresh_interval").get
+          optionsFinal.checkpointLocation() shouldBe (expectedOptionsMap
+            .get("checkpoint_location")
+            .get match {
+            case Some(_) => Some(checkpointDir.getAbsolutePath)
+            case None => None
+          })
+          optionsFinal.watermarkDelay() shouldBe expectedOptionsMap.get("watermark_delay").get
 
-    // Update index options
-    val indexInitial = flint.describeIndex(testIndex).get
-    val updatedIndex = flint
-      .skippingIndex()
-      .copyWithUpdate(
-        indexInitial,
-        FlintSparkIndexOptions(Map("auto_refresh" -> "true", "refresh_interval" -> "5 Minute")))
-    flint.updateIndex(updatedIndex)
-
-    // Verify index after update
-    val indexFinal = flint.describeIndex(testIndex).get
-    indexFinal.options.autoRefresh() shouldBe true
-    indexFinal.options.incrementalRefresh() shouldBe false
-    indexFinal.options.refreshInterval() shouldBe Some("5 Minute")
-  }
-
-  test("should succeed if convert to auto refresh with checkpoint_location") {
-    withTempDir { checkpointDir =>
-      flint
-        .skippingIndex()
-        .onTable(testTable)
-        .addPartitions("year", "month")
-        .create()
-
-      // Update index options
-      val indexInitial = flint.describeIndex(testIndex).get
-      val updatedIndex = flint
-        .skippingIndex()
-        .copyWithUpdate(
-          indexInitial,
-          FlintSparkIndexOptions(
-            Map(
-              "auto_refresh" -> "true",
-              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
-      flint.updateIndex(updatedIndex)
-
-      // Verify index after update
-      val indexFinal = flint.describeIndex(testIndex).get
-      indexFinal.options.autoRefresh() shouldBe true
-      indexFinal.options.incrementalRefresh() shouldBe false
-      indexFinal.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
+          deleteTestIndex(testIndex)
+        }
+      }
     }
-  }
-
-  test("should succeed if convert to auto refresh with watermark_delay") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .create()
-
-    // Update index options
-    val indexInitial = flint.describeIndex(testIndex).get
-    val updatedIndex = flint
-      .skippingIndex()
-      .copyWithUpdate(
-        indexInitial,
-        FlintSparkIndexOptions(Map("auto_refresh" -> "true", "watermark_delay" -> "5 Minute")))
-    flint.updateIndex(updatedIndex)
-
-    // Verify index after update
-    val indexFinal = flint.describeIndex(testIndex).get
-    indexFinal.options.autoRefresh() shouldBe true
-    indexFinal.options.incrementalRefresh() shouldBe false
-    indexFinal.options.watermarkDelay() shouldBe Some("5 Minute")
   }
 
   test("update index should fail if index is updated by others before transaction starts") {
