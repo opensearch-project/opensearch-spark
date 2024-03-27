@@ -31,7 +31,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
   override def beforeEach(): Unit = {
     super.beforeAll()
 
-    createPartitionedMultiRowTable(testTable)
+    createPartitionedMultiRowAddressTable(testTable)
   }
 
   protected override def afterEach(): Unit = {

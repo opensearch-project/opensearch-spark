@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.opensearch.flint.spark.{FlintPPLSparkExtensions, FlintSparkExtensions}
+import org.opensearch.flint.spark.{FlintPPLSparkExtensions, FlintSparkExtensions, FlintSparkSuite}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
@@ -14,7 +14,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf.OPTIMIZER_RULE_ENABLED
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 
-trait FlintPPLSuite extends SharedSparkSession {
+trait FlintPPLSuite extends FlintSparkSuite {
   override protected def sparkConf: SparkConf = {
     val conf = new SparkConf()
       .set("spark.ui.enabled", "false")

@@ -7,6 +7,7 @@ package org.opensearch.flint.spark
 
 import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture}
 
+import scala.collection.immutable.Map
 import scala.concurrent.duration.TimeUnit
 
 import org.mockito.ArgumentMatchers.any
@@ -16,12 +17,22 @@ import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.OpenSearchSuite
+import org.scalatest.prop.TableDrivenPropertyChecks.forAll
 import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
 import org.apache.spark.sql.streaming.StreamTest
+
+// Companion object for the MyTestSuite class
+object TableOptions {
+  // Define the map here
+  val opts: Map[String, String] = Map(
+    "csv" -> "OPTIONS (header 'false', delimiter '\t')",
+    "iceberg" -> ""
+  )
+}
 
 /**
  * Flint Spark suite trait that initializes [[FlintSpark]] API instance.
@@ -30,6 +41,8 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
 
   /** Flint Spark high level API being tested */
   lazy protected val flint: FlintSpark = new FlintSpark(spark)
+  lazy protected val tableType: String = Option(System.getProperty("TABLE_TYPE")).getOrElse("CSV")
+  lazy protected val tableOptions: String = TableOptions.opts.getOrElse(tableType.toLowerCase(), "")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -80,7 +93,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     }
   }
 
-  protected def createPartitionedTable(testTable: String): Unit = {
+  protected def createPartitionedAddressTable(testTable: String): Unit = {
     sql(s"""
          | CREATE TABLE $testTable
          | (
@@ -88,11 +101,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          |   age INT,
          |   address STRING
          | )
-         | USING CSV
-         | OPTIONS (
-         |  header 'false',
-         |  delimiter '\t'
-         | )
+         | USING $tableType $tableOptions
          | PARTITIONED BY (
          |    year INT,
          |    month INT
@@ -112,24 +121,20 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          | """.stripMargin)
   }
 
-  protected def createPartitionedMultiRowTable(testTable: String): Unit = {
+  protected def createPartitionedMultiRowAddressTable(testTable: String): Unit = {
     sql(s"""
-           | CREATE TABLE $testTable
-           | (
-           |   name STRING,
-           |   age INT,
-           |   address STRING
-           | )
-           | USING CSV
-           | OPTIONS (
-           |  header 'false',
-           |  delimiter '\t'
-           | )
-           | PARTITIONED BY (
-           |    year INT,
-           |    month INT
-           | )
-           |""".stripMargin)
+        | CREATE TABLE $testTable
+        | (
+        |   name STRING,
+        |   age INT,
+        |   address STRING
+        | )
+        | USING $tableType $tableOptions
+        | PARTITIONED BY (
+        |    year INT,
+        |    month INT
+        | )
+        |""".stripMargin)
 
     // Use hint to insert all rows in a single csv file
     sql(s"""
@@ -152,27 +157,151 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            |""".stripMargin)
   }
 
+  protected def createPartitionedStateCountryTable(testTable: String): Unit = {
+    sql(s"""
+          | CREATE TABLE $testTable
+          | (
+          |   name STRING,
+          |   age INT,
+          |   state STRING,
+          |   country STRING
+          | )
+          | USING $tableType $tableOptions
+          | PARTITIONED BY (
+          |    year INT,
+          |    month INT
+          | )
+          |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=4)
+           | VALUES ('Jake', 70, 'California', 'USA'),
+           |        ('Hello', 30, 'New York', 'USA'),
+           |        ('John', 25, 'Ontario', 'Canada'),
+           |        ('Jane', 20, 'Quebec', 'Canada')
+           | """.stripMargin)
+  }
+
+  protected def createOccupationTable(testTable: String): Unit = {
+    sql(s"""
+      | CREATE TABLE $testTable
+      | (
+      |   name STRING,
+      |   occupation STRING,
+      |   country STRING,
+      |   salary INT
+      | )
+      | USING $tableType $tableOptions
+      | PARTITIONED BY (
+      |    year INT,
+      |    month INT
+      | )
+      |""".stripMargin)
+
+    // Insert data into the new table
+    sql(s"""
+         | INSERT INTO $testTable
+         | PARTITION (year=2023, month=4)
+         | VALUES ('Jake', 'Engineer', 'England' , 100000),
+         |        ('Hello', 'Artist', 'USA', 70000),
+         |        ('John', 'Doctor', 'Canada', 120000),
+         |        ('David', 'Doctor', 'USA', 120000),
+         |        ('David', 'Unemployed', 'Canada', 0),
+         |        ('Jane', 'Scientist', 'Canada', 90000)
+         | """.stripMargin)
+  }
+
+  protected def createHobbiesTable(testTable: String): Unit = {
+    sql(s"""
+        | CREATE TABLE $testTable
+        | (
+        |   name STRING,
+        |   country STRING,
+        |   hobby STRING,
+        |   language STRING
+        | )
+        | USING $tableType $tableOptions
+        | PARTITIONED BY (
+        |    year INT,
+        |    month INT
+        | )
+        |""".stripMargin)
+
+    // Insert data into the new table
+    sql(s"""
+      | INSERT INTO $testTable
+      | PARTITION (year=2023, month=4)
+      | VALUES ('Jake', 'USA', 'Fishing', 'English'),
+      |        ('Hello', 'USA', 'Painting', 'English'),
+      |        ('John', 'Canada', 'Reading', 'French'),
+      |        ('Jim', 'Canada', 'Hiking', 'English'),
+      |        ('Peter', 'Canada', 'Gaming', 'English'),
+      |        ('Rick', 'USA', 'Swimming', 'English'),
+      |        ('David', 'USA', 'Gardening', 'English'),
+      |        ('Jane', 'Canada', 'Singing', 'French')
+      | """.stripMargin)
+  }
+
   protected def createTimeSeriesTable(testTable: String): Unit = {
     sql(s"""
-         | CREATE TABLE $testTable
-         | (
-         |   time TIMESTAMP,
-         |   name STRING,
-         |   age INT,
-         |   address STRING
-         | )
-         | USING CSV
-         | OPTIONS (
-         |  header 'false',
-         |  delimiter '\t'
-         | )
-         |""".stripMargin)
+      | CREATE TABLE $testTable
+      | (
+      |   time TIMESTAMP,
+      |   name STRING,
+      |   age INT,
+      |   address STRING
+      | )
+      | USING $tableType $tableOptions
+      |""".stripMargin)
 
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:01:00', 'A', 30, 'Seattle')")
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:10:00', 'B', 20, 'Seattle')")
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:15:00', 'C', 35, 'Portland')")
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 01:00:00', 'D', 40, 'Portland')")
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 03:00:00', 'E', 15, 'Vancouver')")
+  }
+
+  protected def createTimeSeriesTransactionTable(testTable: String): Unit = {
+    sql(s"""
+      | CREATE TABLE $testTable
+      | (
+      |   transactionId STRING,
+      |   transactionDate TIMESTAMP,
+      |   productId STRING,
+      |   productsAmount INT,
+      |   customerId STRING
+      | )
+      | USING $tableType $tableOptions
+      | PARTITIONED BY (
+      |    year INT,
+      |    month INT
+      | )
+      |""".stripMargin)
+
+    // Update data insertion
+    // -- Inserting records into the testTable for April 2023
+    sql(s"""
+      | INSERT INTO $testTable PARTITION (year=2023, month=4)
+      | VALUES
+      | ('txn001', CAST('2023-04-01 10:30:00' AS TIMESTAMP), 'prod1', 2, 'cust1'),
+      | ('txn001', CAST('2023-04-01 14:30:00' AS TIMESTAMP), 'prod1', 4, 'cust1'),
+      | ('txn002', CAST('2023-04-02 11:45:00' AS TIMESTAMP), 'prod2', 1, 'cust2'),
+      | ('txn003', CAST('2023-04-03 12:15:00' AS TIMESTAMP), 'prod3', 3, 'cust1'),
+      | ('txn004', CAST('2023-04-04 09:50:00' AS TIMESTAMP), 'prod1', 1, 'cust3')
+      |  """.stripMargin)
+
+    // Update data insertion
+    // -- Inserting records into the testTable for May 2023
+    sql(s"""
+      | INSERT INTO $testTable PARTITION (year=2023, month=5)
+      | VALUES
+      | ('txn005', CAST('2023-05-01 08:30:00' AS TIMESTAMP), 'prod2', 1, 'cust4'),
+      | ('txn006', CAST('2023-05-02 07:25:00' AS TIMESTAMP), 'prod4', 5, 'cust2'),
+      | ('txn007', CAST('2023-05-03 15:40:00' AS TIMESTAMP), 'prod3', 1, 'cust3'),
+      | ('txn007', CAST('2023-05-03 19:30:00' AS TIMESTAMP), 'prod3', 2, 'cust3'),
+      | ('txn008', CAST('2023-05-04 14:15:00' AS TIMESTAMP), 'prod1', 4, 'cust1')
+      |  """.stripMargin)
   }
 
   protected def createTableIssue112(testTable: String): Unit = {
