@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+
 import org.apache.http.Header;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpException;
@@ -32,10 +33,11 @@ import org.apache.http.protocol.HttpContext;
 
 /**
  * From https://github.com/opensearch-project/sql-jdbc/blob/main/src/main/java/org/opensearch/jdbc/transport/http/auth/aws/AWSRequestSigningApacheInterceptor.java
- * An {@link HttpRequestInterceptor} that signs requests using any AWS {@link Signer}
+ * An {@link HttpRequestInterceptor} that signs requests using any AWS {@link Signer} for SIGV4_AUTH
  * and {@link AWSCredentialsProvider}.
  */
 public class AWSRequestSigningApacheInterceptor implements HttpRequestInterceptor {
+
   /**
    * The service that we're connecting to. Technically not necessary.
    * Could be used by a future Signer, though.
@@ -48,22 +50,43 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
   private final Signer signer;
 
   /**
-   * The source of AWS credentials for signing.
+   * Provides the primary source of AWS credentials used for signing requests. These credentials are used
+   * for the majority of requests, except in cases where elevated permissions are required.
    */
-  private final AWSCredentialsProvider awsCredentialsProvider;
+  private final AWSCredentialsProvider primaryCredentialsProvider;
+
+  /**
+   * Provides a source of AWS credentials that are used for signing requests requiring elevated permissions.
+   * This is particularly useful for accessing resources that are restricted to super-administrative operations,
+   * such as certain system indices or administrative APIs. These credentials are expected to have permissions
+   * beyond those of the regular {@link #primaryCredentialsProvider}.
+   */
+  private final AWSCredentialsProvider superAdminAWSCredentialsProvider;
+
+  /**
+   * Identifies data access operations that require super-admin credentials. This identifier can be used to
+   * distinguish between regular and elevated data access needs, facilitating the decision to use
+   * {@link #superAdminAWSCredentialsProvider} over {@link #primaryCredentialsProvider} when accessing sensitive
+   * or restricted resources.
+   */
+  private final String superAdminDataAccessIdentifier;
 
   /**
    *
    * @param service service that we're connecting to
    * @param signer particular signer implementation
-   * @param awsCredentialsProvider source of AWS credentials for signing
+   * @param primaryCredentialsProvider source of AWS credentials for signing
    */
   public AWSRequestSigningApacheInterceptor(final String service,
-      final Signer signer,
-      final AWSCredentialsProvider awsCredentialsProvider) {
+                                            final Signer signer,
+                                            final AWSCredentialsProvider primaryCredentialsProvider,
+                                            final AWSCredentialsProvider superAdminAWSCredentialsProvider,
+                                            final String superAdminDataAccessIdentifier) {
     this.service = service;
     this.signer = signer;
-    this.awsCredentialsProvider = awsCredentialsProvider;
+    this.primaryCredentialsProvider = primaryCredentialsProvider;
+    this.superAdminAWSCredentialsProvider = superAdminAWSCredentialsProvider;
+    this.superAdminDataAccessIdentifier = superAdminDataAccessIdentifier;
   }
 
   /**
@@ -106,7 +129,11 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
     signableRequest.setHeaders(headerArrayToMap(request.getAllHeaders()));
 
     // Sign it
-    signer.sign(signableRequest, awsCredentialsProvider.getCredentials());
+    if (this.service.equals("es") && isSuperAdminDataAccess(signableRequest.getResourcePath())) {
+      signer.sign(signableRequest, superAdminAWSCredentialsProvider.getCredentials());
+    } else {
+      signer.sign(signableRequest, primaryCredentialsProvider.getCredentials());
+    }
 
     // Now copy everything back
     request.setHeaders(mapToHeaderArray(signableRequest.getHeaders()));
@@ -134,6 +161,15 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
       argsList.add(nvp.getValue());
     }
     return parameterMap;
+  }
+
+  /**
+   * @param resourcePath The path of the resource being accessed.
+   * @return true if the resource path contains the super-admin data access identifier, indicating that
+   * the operation requires super-admin credentials; false otherwise.
+   */
+  private boolean isSuperAdminDataAccess(String resourcePath) {
+    return resourcePath.contains(superAdminDataAccessIdentifier);
   }
 
   /**

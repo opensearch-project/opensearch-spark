@@ -261,27 +261,18 @@ public class FlintOpenSearchClient implements FlintClient {
       signer.setServiceName("es");
       signer.setRegionName(options.getRegion());
 
-      // Use DefaultAWSCredentialsProviderChain by default.
-      final AtomicReference<AWSCredentialsProvider> awsCredentialsProvider =
-          new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
-      String providerClass = options.getCustomAwsCredentialsProvider();
-      if (!Strings.isNullOrEmpty(providerClass)) {
-        try {
-          Class<?> awsCredentialsProviderClass = Class.forName(providerClass);
-          Constructor<?> ctor = awsCredentialsProviderClass.getDeclaredConstructor();
-          ctor.setAccessible(true);
-          awsCredentialsProvider.set((AWSCredentialsProvider) ctor.newInstance());
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      }
+      // Initialize and attempt to instantiate custom AWSCredentialsProviders.
+      final AtomicReference<AWSCredentialsProvider> customAWSCredentialsProvider =
+              initializeAndInstantiateProvider(options.getCustomAwsCredentialsProvider());
+      final AtomicReference<AWSCredentialsProvider> superAdminAWSCredentialsProvider =
+              initializeAndInstantiateProvider(options.getSuperAdminAwsCredentialsProvider());
+
       restClientBuilder.setHttpClientConfigCallback(builder -> {
-            HttpAsyncClientBuilder delegate =
-                builder.addInterceptorLast(
-                    new AWSRequestSigningApacheInterceptor(
-                        signer.getServiceName(), signer, awsCredentialsProvider.get()));
-            return RetryableHttpAsyncClient.builder(delegate, options);
-          }
+                HttpAsyncClientBuilder delegate = builder.addInterceptorLast(
+                        new AWSRequestSigningApacheInterceptor(
+                                signer.getServiceName(), signer, customAWSCredentialsProvider.get(), superAdminAWSCredentialsProvider.get(), options.getSystemIndexName()));
+                return RetryableHttpAsyncClient.builder(delegate, options);
+              }
       );
     } else if (options.getAuth().equals(FlintOptions.BASIC_AUTH)) {
       CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
@@ -301,6 +292,26 @@ public class FlintOpenSearchClient implements FlintClient {
     restClientBuilder.setRequestConfigCallback(callback);
 
     return new RestHighLevelClientWrapper(new RestHighLevelClient(restClientBuilder));
+  }
+
+  /**
+   * Initializes and possibly instantiates an AWS credentials provider. If a provider class name is provided,
+   * this method attempts to instantiate the provider using reflection. Otherwise, it defaults to using the
+   * {@link DefaultAWSCredentialsProviderChain}.
+   */
+  private AtomicReference<AWSCredentialsProvider> initializeAndInstantiateProvider(String providerClass) {
+    AWSCredentialsProvider provider = new DefaultAWSCredentialsProviderChain();
+    if (!Strings.isNullOrEmpty(providerClass)) {
+      try {
+        Class<?> clazz = Class.forName(providerClass);
+        Constructor<?> constructor = clazz.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        provider = (AWSCredentialsProvider) constructor.newInstance();
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to instantiate AWSCredentialsProvider: " + providerClass, e);
+      }
+    }
+    return new AtomicReference<>(provider);
   }
 
   /*
