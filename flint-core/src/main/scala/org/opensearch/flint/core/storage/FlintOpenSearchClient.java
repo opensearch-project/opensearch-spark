@@ -261,11 +261,24 @@ public class FlintOpenSearchClient implements FlintClient {
       signer.setServiceName("es");
       signer.setRegionName(options.getRegion());
 
-      // Initialize and attempt to instantiate custom AWSCredentialsProviders.
+      // Use DefaultAWSCredentialsProviderChain by default.
       final AtomicReference<AWSCredentialsProvider> customAWSCredentialsProvider =
-              initializeAndInstantiateProvider(options.getCustomAwsCredentialsProvider());
+              new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
+      String customProviderClass = options.getCustomAwsCredentialsProvider();
+      if (!Strings.isNullOrEmpty(customProviderClass)) {
+        instantiateProvider(customProviderClass, customAWSCredentialsProvider);
+      }
+
+      // Use the customAWSCredentialsProvider for superAdminAWSCredentialsProvider by default,
+      // unless a separate superAdmin provider class name is specified
+      String superAdminProviderClass = options.getSuperAdminAwsCredentialsProvider();
       final AtomicReference<AWSCredentialsProvider> superAdminAWSCredentialsProvider =
-              initializeAndInstantiateProvider(options.getSuperAdminAwsCredentialsProvider());
+              new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
+      if (Strings.isNullOrEmpty(superAdminProviderClass)) {
+        superAdminAWSCredentialsProvider.set(customAWSCredentialsProvider.get());
+      } else {
+        instantiateProvider(superAdminProviderClass, superAdminAWSCredentialsProvider);
+      }
 
       restClientBuilder.setHttpClientConfigCallback(builder -> {
                 HttpAsyncClientBuilder delegate = builder.addInterceptorLast(
@@ -295,23 +308,17 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   /**
-   * Initializes and possibly instantiates an AWS credentials provider. If a provider class name is provided,
-   * this method attempts to instantiate the provider using reflection. Otherwise, it defaults to using the
-   * {@link DefaultAWSCredentialsProviderChain}.
+   * Attempts to instantiate the AWS credential provider using reflection.
    */
-  private AtomicReference<AWSCredentialsProvider> initializeAndInstantiateProvider(String providerClass) {
-    AWSCredentialsProvider provider = new DefaultAWSCredentialsProviderChain();
-    if (!Strings.isNullOrEmpty(providerClass)) {
-      try {
-        Class<?> clazz = Class.forName(providerClass);
-        Constructor<?> constructor = clazz.getDeclaredConstructor();
-        constructor.setAccessible(true);
-        provider = (AWSCredentialsProvider) constructor.newInstance();
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to instantiate AWSCredentialsProvider: " + providerClass, e);
-      }
+  private void instantiateProvider(String providerClass, AtomicReference<AWSCredentialsProvider> provider) {
+    try {
+      Class<?> awsCredentialsProviderClass = Class.forName(providerClass);
+      Constructor<?> ctor = awsCredentialsProviderClass.getDeclaredConstructor();
+      ctor.setAccessible(true);
+      provider.set((AWSCredentialsProvider) ctor.newInstance());
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to instantiate AWSCredentialsProvider: " + providerClass, e);
     }
-    return new AtomicReference<>(provider);
   }
 
   /*
