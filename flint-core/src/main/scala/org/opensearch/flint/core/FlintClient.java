@@ -72,6 +72,14 @@ public interface FlintClient {
   FlintMetadata getIndexMetadata(String indexName);
 
   /**
+   * Update a Flint index with the metadata given.
+   *
+   * @param indexName index name
+   * @param metadata  index metadata
+   */
+  void updateIndex(String indexName, FlintMetadata metadata);
+
+  /**
    * Delete a Flint index.
    *
    * @param indexName index name

@@ -178,6 +178,10 @@ WITH ( options )
 REFRESH SKIPPING INDEX ON <object>
 
 [DESC|DESCRIBE] SKIPPING INDEX ON <object>
+       
+ALTER SKIPPING INDEX
+ON <object>
+WITH ( options )
 
 DROP SKIPPING INDEX ON <object>
 
@@ -212,6 +216,9 @@ REFRESH SKIPPING INDEX ON alb_logs
 
 DESCRIBE SKIPPING INDEX ON alb_logs
 
+ALTER SKIPPING INDEX ON alb_logs
+WITH ( auto_refresh = false )
+
 DROP SKIPPING INDEX ON alb_logs
 
 VACUUM SKIPPING INDEX ON alb_logs
@@ -231,6 +238,9 @@ SHOW [INDEX|INDEXES] ON <object>
 
 [DESC|DESCRIBE] INDEX name ON <object>
 
+ALTER INDEX name ON <object>
+WITH ( options )
+
 DROP INDEX name ON <object>
 
 VACUUM INDEX name ON <object>
@@ -247,6 +257,9 @@ REFRESH INDEX elb_and_requestUri ON alb_logs
 SHOW INDEX ON alb_logs
 
 DESCRIBE INDEX elb_and_requestUri ON alb_logs
+
+ALTER INDEX elb_and_requestUri ON alb_logs
+WITH ( auto_refresh = false )
 
 DROP INDEX elb_and_requestUri ON alb_logs
 
@@ -265,6 +278,9 @@ REFRESH MATERIALIZED VIEW name
 SHOW MATERIALIZED [VIEW|VIEWS] IN catalog[.database]
 
 [DESC|DESCRIBE] MATERIALIZED VIEW name
+
+ALTER MATERIALIZED VIEW name
+WITH ( options )
 
 DROP MATERIALIZED VIEW name
 
@@ -287,6 +303,9 @@ REFRESH MATERIALIZED VIEW alb_logs_metrics
 SHOW MATERIALIZED VIEWS IN spark_catalog.default
 
 DESC MATERIALIZED VIEW alb_logs_metrics
+
+ALTER MATERIALIZED VIEW alb_logs_metrics
+WITH ( auto_refresh = false )
 
 DROP MATERIALIZED VIEW alb_logs_metrics
 
@@ -354,7 +373,7 @@ User can provide the following options in `WITH` clause of create statement:
 + `refresh_interval`: a string as the time interval for incremental refresh, e.g. 1 minute, 10 seconds. This is only applicable when auto refresh enabled. Please check `org.apache.spark.unsafe.types.CalendarInterval` for valid duration identifiers. By default, next micro batch will be generated as soon as the previous one complete processing.
 + `incremental_refresh`: default value is false. incrementally refresh the index if set to true. Otherwise, fully refresh the entire index. This only applicable when auto refresh disabled.
 + `checkpoint_location`: a string as the location path for refresh job checkpoint (auto or incremental). The location has to be a path in an HDFS compatible file system and only applicable when auto refresh enabled. If unspecified, temporary checkpoint directory will be used and may result in checkpoint data lost upon restart.
-+ `watermark_delay`: a string as time expression for how late data can come and still be processed, e.g. 1 minute, 10 seconds. This is required by incremental refresh on materialized view if it has aggregation in the query.
++ `watermark_delay`: a string as time expression for how late data can come and still be processed, e.g. 1 minute, 10 seconds. This is required by auto and incremental refresh on materialized view if it has aggregation in the query.
 + `output_mode`: a mode string that describes how data will be written to streaming sink. If unspecified, default append mode will be applied.
 + `index_settings`: a JSON string as index settings for OpenSearch index that will be created. Please follow the format in OpenSearch documentation. If unspecified, default OpenSearch index settings will be applied.
 + `extra_options`: a JSON string as extra options that can be passed to Spark streaming source and sink API directly. Use qualified source table name (because there could be multiple) and "sink", e.g. '{"sink": "{key: val}", "table1": {key: val}}'
@@ -384,6 +403,15 @@ WITH (
   checkpoint_location = 's3://test/'
 )
 ```
+
+#### Alter Index Options
+
+User can provide the following options in `WITH` clause of alter statement:
++ `auto_refresh`: This is required for alter statement. Currently, we restrict that an alter statement must change the auto refresh option from its original value.
++ `refresh_interval`
++ `incremental_refresh`
++ `checkpoint_location`
++ `watermark_delay`
 
 ### Index Job Management
 

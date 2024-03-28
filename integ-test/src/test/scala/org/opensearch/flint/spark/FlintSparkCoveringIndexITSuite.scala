@@ -118,6 +118,34 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
     checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
   }
 
+  test("update covering index successfully") {
+    // Create full refresh Flint index
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
+    val indexData = flint.queryIndex(testFlintIndex)
+    checkAnswer(indexData, Seq())
+
+    // Update Flint index to auto refresh and wait for complete
+    val updatedIndex = flint
+      .coveringIndex()
+      .copyWithUpdate(
+        flint.describeIndex(testFlintIndex).get,
+        FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+    val jobId = flint.updateIndex(updatedIndex)
+    jobId shouldBe defined
+
+    val job = spark.streams.get(jobId.get)
+    failAfter(streamingTimeout) {
+      job.processAllAvailable()
+    }
+
+    checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
+  }
+
   test("can have multiple covering indexes on a table") {
     flint
       .coveringIndex()

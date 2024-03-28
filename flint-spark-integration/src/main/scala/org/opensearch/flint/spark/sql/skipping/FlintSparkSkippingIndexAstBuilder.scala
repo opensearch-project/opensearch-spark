@@ -110,6 +110,20 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
     }
   }
 
+  override def visitAlterSkippingIndexStatement(
+      ctx: AlterSkippingIndexStatementContext): Command = {
+    FlintSparkSqlCommand() { flint =>
+      val indexName = getSkippingIndexName(flint, ctx.tableName)
+      val indexOptions = visitPropertyList(ctx.propertyList())
+      val index = flint
+        .describeIndex(indexName)
+        .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+      val updatedIndex = flint.skippingIndex().copyWithUpdate(index, indexOptions)
+      flint.updateIndex(updatedIndex)
+      Seq.empty
+    }
+  }
+
   override def visitAnalyzeSkippingIndexStatement(
       ctx: AnalyzeSkippingIndexStatementContext): Command = {
 
