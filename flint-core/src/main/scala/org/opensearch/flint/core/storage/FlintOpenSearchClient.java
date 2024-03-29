@@ -269,21 +269,21 @@ public class FlintOpenSearchClient implements FlintClient {
         instantiateProvider(customProviderClass, customAWSCredentialsProvider);
       }
 
-      // Use the customAWSCredentialsProvider for superAdminAWSCredentialsProvider by default,
-      // unless a separate superAdmin provider class name is specified
-      String superAdminProviderClass = options.getSuperAdminAwsCredentialsProvider();
-      final AtomicReference<AWSCredentialsProvider> superAdminAWSCredentialsProvider =
+      // Set metadataAccessAWSCredentialsProvider to customAWSCredentialsProvider by default for backwards compatibility
+      // unless a specific metadata access provider class name is provided
+      String metadataAccessProviderClass = options.getMetadataAccessAwsCredentialsProvider();
+      final AtomicReference<AWSCredentialsProvider> metadataAccessAWSCredentialsProvider =
               new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
-      if (Strings.isNullOrEmpty(superAdminProviderClass)) {
-        superAdminAWSCredentialsProvider.set(customAWSCredentialsProvider.get());
+      if (Strings.isNullOrEmpty(metadataAccessProviderClass)) {
+        metadataAccessAWSCredentialsProvider.set(customAWSCredentialsProvider.get());
       } else {
-        instantiateProvider(superAdminProviderClass, superAdminAWSCredentialsProvider);
+        instantiateProvider(metadataAccessProviderClass, metadataAccessAWSCredentialsProvider);
       }
 
       restClientBuilder.setHttpClientConfigCallback(builder -> {
                 HttpAsyncClientBuilder delegate = builder.addInterceptorLast(
                         new AWSRequestSigningApacheInterceptor(
-                                signer.getServiceName(), signer, customAWSCredentialsProvider.get(), superAdminAWSCredentialsProvider.get(), options.getSystemIndexName()));
+                                signer.getServiceName(), signer, customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), options.getSystemIndexName()));
                 return RetryableHttpAsyncClient.builder(delegate, options);
               }
       );

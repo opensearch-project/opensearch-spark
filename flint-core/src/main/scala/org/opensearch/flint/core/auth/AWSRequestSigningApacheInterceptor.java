@@ -57,36 +57,38 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
 
   /**
    * Provides a source of AWS credentials that are used for signing requests requiring elevated permissions.
-   * This is particularly useful for accessing resources that are restricted to super-administrative operations,
+   * This is particularly useful for accessing resources that are restricted to metadata operations,
    * such as certain system indices or administrative APIs. These credentials are expected to have permissions
    * beyond those of the regular {@link #primaryCredentialsProvider}.
    */
-  private final AWSCredentialsProvider superAdminAWSCredentialsProvider;
+  private final AWSCredentialsProvider metadataAccessAWSCredentialsProvider;
 
   /**
-   * Identifies data access operations that require super-admin credentials. This identifier can be used to
+   * Identifies operations that require metadata access credentials. This identifier can be used to
    * distinguish between regular and elevated data access needs, facilitating the decision to use
-   * {@link #superAdminAWSCredentialsProvider} over {@link #primaryCredentialsProvider} when accessing sensitive
+   * {@link #metadataAccessAWSCredentialsProvider} over {@link #primaryCredentialsProvider} when accessing sensitive
    * or restricted resources.
    */
-  private final String superAdminDataAccessIdentifier;
+  private final String metadataAccessIdentifier;
 
   /**
    *
    * @param service service that we're connecting to
    * @param signer particular signer implementation
    * @param primaryCredentialsProvider source of AWS credentials for signing
+   * @param metadataAccessAWSCredentialsProvider source of AWS credentials for metadata access
+   * @param metadataAccessIdentifier identifier for metadata access
    */
   public AWSRequestSigningApacheInterceptor(final String service,
                                             final Signer signer,
                                             final AWSCredentialsProvider primaryCredentialsProvider,
-                                            final AWSCredentialsProvider superAdminAWSCredentialsProvider,
-                                            final String superAdminDataAccessIdentifier) {
-    this.service = service;
+                                            final AWSCredentialsProvider metadataAccessAWSCredentialsProvider,
+                                            final String metadataAccessIdentifier) {
+    this.service = service == null ? "unknown" : service;
     this.signer = signer;
     this.primaryCredentialsProvider = primaryCredentialsProvider;
-    this.superAdminAWSCredentialsProvider = superAdminAWSCredentialsProvider;
-    this.superAdminDataAccessIdentifier = superAdminDataAccessIdentifier;
+    this.metadataAccessAWSCredentialsProvider = metadataAccessAWSCredentialsProvider;
+    this.metadataAccessIdentifier = metadataAccessIdentifier;
   }
 
   /**
@@ -129,8 +131,8 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
     signableRequest.setHeaders(headerArrayToMap(request.getAllHeaders()));
 
     // Sign it
-    if (this.service.equals("es") && isSuperAdminDataAccess(signableRequest.getResourcePath())) {
-      signer.sign(signableRequest, superAdminAWSCredentialsProvider.getCredentials());
+    if (this.service.equals("es") && isMetadataAccess(signableRequest.getResourcePath())) {
+      signer.sign(signableRequest, metadataAccessAWSCredentialsProvider.getCredentials());
     } else {
       signer.sign(signableRequest, primaryCredentialsProvider.getCredentials());
     }
@@ -165,11 +167,11 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
 
   /**
    * @param resourcePath The path of the resource being accessed.
-   * @return true if the resource path contains the super-admin data access identifier, indicating that
-   * the operation requires super-admin credentials; false otherwise.
+   * @return true if the resource path contains the metadata access identifier, indicating that
+   * the operation requires metadata access credentials; false otherwise.
    */
-  private boolean isSuperAdminDataAccess(String resourcePath) {
-    return resourcePath.contains(superAdminDataAccessIdentifier);
+  private boolean isMetadataAccess(String resourcePath) {
+    return resourcePath.contains(metadataAccessIdentifier);
   }
 
   /**

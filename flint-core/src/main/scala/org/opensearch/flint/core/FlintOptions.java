@@ -45,10 +45,10 @@ public class FlintOptions implements Serializable {
 
   public static final String CUSTOM_AWS_CREDENTIALS_PROVIDER = "customAWSCredentialsProvider";
 
-  public static final String SUPER_ADMIN_AWS_CREDENTIALS_PROVIDER = "superAdminAWSCredentialsProvider";
+  public static final String METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER = "spark.metadata.accessAWSCredentialsProvider";
 
   /**
-   * By default, customAWSCredentialsProvider and superAdminAWSCredentialsProvider are empty. use DefaultAWSCredentialsProviderChain.
+   * By default, customAWSCredentialsProvider and accessAWSCredentialsProvider are empty. use DefaultAWSCredentialsProviderChain.
    */
   public static final String DEFAULT_AWS_CREDENTIALS_PROVIDER = "";
 
@@ -127,8 +127,8 @@ public class FlintOptions implements Serializable {
     return options.getOrDefault(CUSTOM_AWS_CREDENTIALS_PROVIDER, DEFAULT_AWS_CREDENTIALS_PROVIDER);
   }
 
-  public String getSuperAdminAwsCredentialsProvider() {
-    return options.getOrDefault(SUPER_ADMIN_AWS_CREDENTIALS_PROVIDER, DEFAULT_AWS_CREDENTIALS_PROVIDER);
+  public String getMetadataAccessAwsCredentialsProvider() {
+    return options.getOrDefault(METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER, DEFAULT_AWS_CREDENTIALS_PROVIDER);
   }
 
   public String getUsername() {

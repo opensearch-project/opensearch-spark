@@ -63,15 +63,15 @@ class FlintSparkConfSuite extends FlintSuite {
     retryOptions.getRetryableExceptionClassNames.get() shouldBe "java.net.ConnectException"
   }
 
-  test("test super admin AWS credentials provider option") {
-    withSparkConf("spark.datasource.flint.superAdminAWSCredentialsProvider") {
+  test("test metadata access AWS credentials provider option") {
+    withSparkConf("spark.metadata.accessAWSCredentialsProvider") {
       spark.conf.set(
-        "spark.datasource.flint.superAdminAWSCredentialsProvider",
-        "com.example.superAdminAWSCredentialsProvider")
+        "spark.metadata.accessAWSCredentialsProvider",
+        "com.example.MetadataAccessCredentialsProvider")
       val flintOptions = FlintSparkConf().flintOptions()
       assert(flintOptions.getCustomAwsCredentialsProvider == "")
       assert(
-        flintOptions.getSuperAdminAwsCredentialsProvider == "com.example.superAdminAWSCredentialsProvider")
+        flintOptions.getMetadataAccessAwsCredentialsProvider == "com.example.MetadataAccessCredentialsProvider")
     }
   }
 
