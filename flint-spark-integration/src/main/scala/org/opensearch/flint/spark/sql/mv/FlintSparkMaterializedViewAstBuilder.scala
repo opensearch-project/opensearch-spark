@@ -99,6 +99,20 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
     }
   }
 
+  override def visitAlterMaterializedViewStatement(
+      ctx: AlterMaterializedViewStatementContext): Command = {
+    FlintSparkSqlCommand() { flint =>
+      val indexName = getFlintIndexName(flint, ctx.mvName)
+      val indexOptions = visitPropertyList(ctx.propertyList())
+      val index = flint
+        .describeIndex(indexName)
+        .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+      val updatedIndex = flint.materializedView().copyWithUpdate(index, indexOptions)
+      flint.updateIndex(updatedIndex)
+      Seq.empty
+    }
+  }
+
   override def visitDropMaterializedViewStatement(
       ctx: DropMaterializedViewStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>

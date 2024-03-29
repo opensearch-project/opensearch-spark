@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark
 
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 
 import org.apache.spark.sql.catalog.Column
@@ -58,6 +60,28 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
    */
   def create(ignoreIfExists: Boolean = false): Unit =
     flint.createIndex(buildIndex(), ignoreIfExists)
+
+  /**
+   * Copy Flint index with updated options.
+   *
+   * @param index
+   *   Flint index to copy
+   * @param updateOptions
+   *   options to update
+   * @return
+   *   updated Flint index
+   */
+  def copyWithUpdate(
+      index: FlintSparkIndex,
+      updateOptions: FlintSparkIndexOptions): FlintSparkIndex = {
+    val originalOptions = index.options
+    val updatedOptions =
+      originalOptions.copy(options = originalOptions.options ++ updateOptions.options)
+    val updatedMetadata = index
+      .metadata()
+      .copy(options = updatedOptions.options.mapValues(_.asInstanceOf[AnyRef]).asJava)
+    FlintSparkIndexFactory.create(updatedMetadata).get
+  }
 
   /**
    * Build method for concrete builder class to implement

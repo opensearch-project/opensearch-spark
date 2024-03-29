@@ -96,7 +96,7 @@ case class FlintSparkMaterializedView(
   private def watermark(timeCol: Attribute, child: LogicalPlan) = {
     require(
       options.watermarkDelay().isDefined,
-      "watermark delay is required for incremental refresh with aggregation")
+      "watermark delay is required for auto refresh and incremental refresh with aggregation")
 
     val delay = options.watermarkDelay().get
     EventTimeWatermark(timeCol, IntervalUtils.fromIntervalString(delay), child)

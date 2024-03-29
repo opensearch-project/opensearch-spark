@@ -28,8 +28,8 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
   private val testIndex = "name_and_age"
   private val testFlintIndex = getFlintIndexName(testIndex, testTable)
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
+  override def beforeEach(): Unit = {
+    super.beforeEach()
 
     createPartitionedTable(testTable)
   }
@@ -39,6 +39,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     // Delete all test indices
     deleteTestIndex(testFlintIndex)
+    sql(s"DROP TABLE $testTable")
   }
 
   test("create covering index with auto refresh") {
@@ -294,6 +295,28 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     val result = sql(s"DESC INDEX $testIndex ON $testTable")
     checkAnswer(result, Seq(Row("name", "string", "indexed"), Row("age", "int", "indexed")))
+  }
+
+  test("update covering index") {
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
+
+    flint.describeIndex(testFlintIndex) shouldBe defined
+    flint.queryIndex(testFlintIndex).count() shouldBe 0
+
+    sql(s"""
+         | ALTER INDEX $testIndex ON $testTable
+         | WITH (auto_refresh = true)
+         | """.stripMargin)
+
+    // Wait for streaming job complete current micro batch
+    val job = spark.streams.active.find(_.name == testFlintIndex)
+    awaitStreamingComplete(job.get.id.toString)
+    flint.queryIndex(testFlintIndex).count() shouldBe 2
   }
 
   test("drop and vacuum covering index") {

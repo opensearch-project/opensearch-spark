@@ -36,6 +36,7 @@ import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.client.indices.GetIndexResponse;
+import org.opensearch.client.indices.PutMappingRequest;
 import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.common.Strings;
 import org.opensearch.common.settings.Settings;
@@ -188,6 +189,19 @@ public class FlintOpenSearchClient implements FlintClient {
       return constructFlintMetadata(indexName, mapping.source().string(), settings.toString());
     } catch (Exception e) {
       throw new IllegalStateException("Failed to get Flint index metadata for " + osIndexName, e);
+    }
+  }
+
+  @Override
+  public void updateIndex(String indexName, FlintMetadata metadata) {
+    LOG.info("Updating Flint index " + indexName + " with metadata " + metadata);
+    String osIndexName = sanitizeIndexName(indexName);
+    try (IRestHighLevelClient client = createClient()) {
+      PutMappingRequest request = new PutMappingRequest(osIndexName);
+      request.source(metadata.getContent(), XContentType.JSON);
+      client.updateIndexMapping(request, RequestOptions.DEFAULT);
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to update Flint index " + osIndexName, e);
     }
   }
 

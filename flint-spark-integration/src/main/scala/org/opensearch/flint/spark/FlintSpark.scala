@@ -13,10 +13,11 @@ import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.AUTO
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 import org.opensearch.flint.spark.skipping.recommendations.DataTypeSkippingStrategy
@@ -186,7 +187,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       flintClient
         .getAllIndexMetadata(indexNamePattern)
         .asScala
-        .map(FlintSparkIndexFactory.create)
+        .flatMap(FlintSparkIndexFactory.create)
     } else {
       Seq.empty
     }
@@ -204,10 +205,42 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     logInfo(s"Describing index name $indexName")
     if (flintClient.exists(indexName)) {
       val metadata = flintClient.getIndexMetadata(indexName)
-      val index = FlintSparkIndexFactory.create(metadata)
-      Some(index)
+      FlintSparkIndexFactory.create(metadata)
     } else {
       Option.empty
+    }
+  }
+
+  /**
+   * Update the given index with metadata and update associated job.
+   *
+   * @param index
+   *   Flint index to update
+   * @param updateMode
+   *   update mode
+   * @return
+   *   refreshing job ID (empty if no job)
+   */
+  def updateIndex(index: FlintSparkIndex): Option[String] = {
+    logInfo(s"Updating Flint index $index")
+    val indexName = index.name
+
+    validateUpdateAllowed(
+      describeIndex(indexName)
+        .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+        .options,
+      index.options)
+
+    try {
+      // Relies on validation to forbid auto-to-auto and manual-to-manual updates
+      index.options.autoRefresh() match {
+        case true => updateIndexManualToAuto(index)
+        case false => updateIndexAutoToManual(index)
+      }
+    } catch {
+      case e: Exception =>
+        logError("Failed to update Flint index", e)
+        throw new IllegalStateException("Failed to update Flint index")
     }
   }
 
@@ -361,5 +394,91 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     } else {
       logWarning("Refreshing job not found")
     }
+  }
+
+  /**
+   * Validate the index update options are allowed.
+   * @param originalOptions
+   *   original options
+   * @param updatedOptions
+   *   the updated options
+   */
+  private def validateUpdateAllowed(
+      originalOptions: FlintSparkIndexOptions,
+      updatedOptions: FlintSparkIndexOptions): Unit = {
+    // auto_refresh must change
+    if (updatedOptions.autoRefresh() == originalOptions.autoRefresh()) {
+      throw new IllegalArgumentException("auto_refresh option must be updated")
+    }
+
+    val refreshMode = (updatedOptions.autoRefresh(), updatedOptions.incrementalRefresh()) match {
+      case (true, false) => AUTO
+      case (false, false) => FULL
+      case (false, true) => INCREMENTAL
+      case (true, true) =>
+        throw new IllegalArgumentException(
+          "auto_refresh and incremental_refresh options cannot both be true")
+    }
+
+    // validate allowed options depending on refresh mode
+    val allowedOptionNames = refreshMode match {
+      case FULL => Set(AUTO_REFRESH, INCREMENTAL_REFRESH)
+      case AUTO | INCREMENTAL =>
+        Set(
+          AUTO_REFRESH,
+          INCREMENTAL_REFRESH,
+          REFRESH_INTERVAL,
+          CHECKPOINT_LOCATION,
+          WATERMARK_DELAY)
+    }
+
+    // Get the changed option names
+    val updateOptionNames = updatedOptions.options.filterNot { case (k, v) =>
+      originalOptions.options.get(k).contains(v)
+    }.keys
+    if (!updateOptionNames.forall(allowedOptionNames.map(_.toString).contains)) {
+      throw new IllegalArgumentException(
+        s"Altering index to ${refreshMode} refresh only allows options: ${allowedOptionNames}")
+    }
+  }
+
+  private def updateIndexAutoToManual(index: FlintSparkIndex): Option[String] = {
+    val indexName = index.name
+    val indexLogEntry = index.latestLogEntry.get
+    flintClient
+      .startTransaction(indexName, dataSourceName)
+      .initialLog(latest =>
+        latest.state == REFRESHING && latest.seqNo == indexLogEntry.seqNo && latest.primaryTerm == indexLogEntry.primaryTerm)
+      .transientLog(latest => latest.copy(state = UPDATING))
+      .finalLog(latest => latest.copy(state = ACTIVE))
+      .commit(_ => {
+        flintClient.updateIndex(indexName, index.metadata)
+        logInfo("Update index options complete")
+        flintIndexMonitor.stopMonitor(indexName)
+        stopRefreshingJob(indexName)
+        None
+      })
+  }
+
+  private def updateIndexManualToAuto(index: FlintSparkIndex): Option[String] = {
+    val indexName = index.name
+    val indexLogEntry = index.latestLogEntry.get
+    val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
+    flintClient
+      .startTransaction(indexName, dataSourceName)
+      .initialLog(latest =>
+        latest.state == ACTIVE && latest.seqNo == indexLogEntry.seqNo && latest.primaryTerm == indexLogEntry.primaryTerm)
+      .transientLog(latest =>
+        latest.copy(state = UPDATING, createTime = System.currentTimeMillis()))
+      .finalLog(latest => {
+        logInfo("Scheduling index state monitor")
+        flintIndexMonitor.startMonitor(indexName)
+        latest.copy(state = REFRESHING)
+      })
+      .commit(_ => {
+        flintClient.updateIndex(indexName, index.metadata)
+        logInfo("Update index options complete")
+        indexRefresh.start(spark, flintSparkConf)
+      })
   }
 }

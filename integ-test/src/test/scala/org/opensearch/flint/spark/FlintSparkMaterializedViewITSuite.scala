@@ -191,6 +191,49 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
     }
   }
 
+  test("update materialized view successfully") {
+    withTempDir { checkpointDir =>
+      // Create full refresh Flint index
+      flint
+        .materializedView()
+        .name(testMvName)
+        .query(testQuery)
+        .create()
+      val indexData = flint.queryIndex(testFlintIndex)
+      checkAnswer(indexData, Seq())
+
+      // Update Flint index to auto refresh and wait for complete
+      val updatedIndex = flint
+        .materializedView()
+        .copyWithUpdate(
+          flint.describeIndex(testFlintIndex).get,
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath,
+              "watermark_delay" -> "1 Minute")))
+      val jobId = flint.updateIndex(updatedIndex)
+      jobId shouldBe defined
+
+      val job = spark.streams.get(jobId.get)
+      failAfter(streamingTimeout) {
+        job.processAllAvailable()
+      }
+
+      checkAnswer(
+        indexData.select("startTime", "count"),
+        Seq(
+          Row(timestamp("2023-10-01 00:00:00"), 1),
+          Row(timestamp("2023-10-01 00:10:00"), 2),
+          Row(timestamp("2023-10-01 01:00:00"), 1)
+          /*
+           * The last row is pending to fire upon watermark
+           *   Row(timestamp("2023-10-01 02:00:00"), 1)
+           */
+        ))
+    }
+  }
+
   private def timestamp(ts: String): Timestamp = Timestamp.valueOf(ts)
 
   private def withIncrementalMaterializedView(query: String)(

@@ -266,6 +266,34 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     indexData should have size 2
   }
 
+  test("update skipping index successfully") {
+    // Create full refresh Flint index
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+
+    flint.queryIndex(testIndex).collect().toSet should have size 0
+
+    // Update Flint index to auto refresh and wait for complete
+    val updatedIndex =
+      flint
+        .skippingIndex()
+        .copyWithUpdate(
+          flint.describeIndex(testIndex).get,
+          FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+    val jobId = flint.updateIndex(updatedIndex)
+    jobId shouldBe defined
+
+    val job = spark.streams.get(jobId.get)
+    failAfter(streamingTimeout) {
+      job.processAllAvailable()
+    }
+
+    flint.queryIndex(testIndex).collect().toSet should have size 2
+  }
+
   test("can have only 1 skipping index on a table") {
     flint
       .skippingIndex()
