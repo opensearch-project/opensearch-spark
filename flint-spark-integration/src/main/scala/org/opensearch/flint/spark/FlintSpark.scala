@@ -123,6 +123,9 @@ class FlintSpark(val spark: SparkSession) extends Logging {
             })
         logInfo("Create index complete")
       } catch {
+        case e: FlintSparkException =>
+          logError("Failed to create Flint index", e)
+          throw new IllegalStateException("Failed to create Flint index: " + e.getMessage)
         case e: Exception =>
           logError("Failed to create Flint index", e)
           throw new IllegalStateException("Failed to create Flint index")

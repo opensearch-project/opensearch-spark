@@ -50,36 +50,6 @@ trait FlintSparkIndexRefresh extends Logging {
    *   optional Spark job ID
    */
   def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String]
-}
-
-object FlintSparkIndexRefresh extends Logging {
-
-  /** Index refresh mode */
-  object RefreshMode extends Enumeration {
-    type RefreshMode = Value
-    val AUTO, FULL, INCREMENTAL = Value
-  }
-
-  /**
-   * Create concrete index refresh implementation for the given index.
-   *
-   * @param indexName
-   *   Flint index name
-   * @param index
-   *   Flint index
-   * @return
-   *   index refresh
-   */
-  def create(indexName: String, index: FlintSparkIndex): FlintSparkIndexRefresh = {
-    val options = index.options
-    if (options.autoRefresh()) {
-      new AutoIndexRefresh(indexName, index)
-    } else if (options.incrementalRefresh()) {
-      new IncrementalIndexRefresh(indexName, index)
-    } else {
-      new FullIndexRefresh(indexName, index)
-    }
-  }
 
   /**
    * Validate if source table(s) of the given Flint index are not Hive table.
@@ -91,7 +61,7 @@ object FlintSparkIndexRefresh extends Logging {
    * @return
    *   true if all non Hive, otherwise false
    */
-  def isSourceTableNonHive(spark: SparkSession, index: FlintSparkIndex): Boolean = {
+  protected def isSourceTableNonHive(spark: SparkSession, index: FlintSparkIndex): Boolean = {
     // Extract source table name (possibly more than 1 for MV source query)
     val tableNames = index match {
       case skipping: FlintSparkSkippingIndex => Seq(skipping.tableName)
@@ -123,7 +93,9 @@ object FlintSparkIndexRefresh extends Logging {
    * @return
    *   true if accessible, otherwise false
    */
-  def isCheckpointLocationAccessible(spark: SparkSession, checkpointLocation: String): Boolean = {
+  protected def isCheckpointLocationAccessible(
+      spark: SparkSession,
+      checkpointLocation: String): Boolean = {
     val checkpointPath = new Path(checkpointLocation)
     val checkpointManager =
       CheckpointFileManager.create(checkpointPath, spark.sessionState.newHadoopConf())
@@ -137,6 +109,36 @@ object FlintSparkIndexRefresh extends Logging {
         // throw new IllegalArgumentException(
         //  s"No permission to access checkpoint location $checkpointLocation")
         false
+    }
+  }
+}
+
+object FlintSparkIndexRefresh {
+
+  /** Index refresh mode */
+  object RefreshMode extends Enumeration {
+    type RefreshMode = Value
+    val AUTO, FULL, INCREMENTAL = Value
+  }
+
+  /**
+   * Create concrete index refresh implementation for the given index.
+   *
+   * @param indexName
+   *   Flint index name
+   * @param index
+   *   Flint index
+   * @return
+   *   index refresh
+   */
+  def create(indexName: String, index: FlintSparkIndex): FlintSparkIndexRefresh = {
+    val options = index.options
+    if (options.autoRefresh()) {
+      new AutoIndexRefresh(indexName, index)
+    } else if (options.incrementalRefresh()) {
+      new IncrementalIndexRefresh(indexName, index)
+    } else {
+      new FullIndexRefresh(indexName, index)
     }
   }
 }

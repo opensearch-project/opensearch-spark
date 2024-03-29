@@ -8,8 +8,8 @@ package org.opensearch.flint.spark.refresh
 import java.util.Collections
 
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkIndexOptions}
+import org.opensearch.flint.spark.FlintSparkException.requireValidation
 import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, StreamingRefresh}
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.{isCheckpointLocationAccessible, isSourceTableNonHive}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{AUTO, RefreshMode}
 
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
@@ -33,27 +33,27 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex) extends FlintS
   override def validate(spark: SparkSession): Unit = {
     // Incremental refresh cannot enabled at the same time
     val options = index.options
-    require(
+    requireValidation(
       !options.incrementalRefresh(),
       "Incremental refresh cannot be enabled if auto refresh is enabled")
 
     // Non-Hive table is required for auto refresh
-    require(
+    requireValidation(
       isSourceTableNonHive(spark, index),
-      "Flint index auto refresh doesn't support Hive table")
+      "Index auto refresh doesn't support Hive table")
 
     // Checkpoint location is required if mandatory option set
-    val flintSparkConf = new FlintSparkConf(Collections.emptyMap)
+    val flintSparkConf = new FlintSparkConf(Collections.emptyMap[String, String])
     val checkpointLocation = index.options.checkpointLocation()
     if (flintSparkConf.isCheckpointMandatory) {
-      require(
+      requireValidation(
         checkpointLocation.isDefined,
         s"Checkpoint location is required if ${CHECKPOINT_MANDATORY.key} option enabled")
     }
 
     // Given checkpoint location is accessible
     if (checkpointLocation.isDefined) {
-      require(
+      requireValidation(
         isCheckpointLocationAccessible(spark, checkpointLocation.get),
         s"Checkpoint location ${checkpointLocation.get} doesn't exist or no permission to access")
     }
