@@ -8,21 +8,28 @@ package org.opensearch.flint.spark.skipping.recommendations
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
 
-import com.typesafe.config.{Config, ConfigFactory}
-
 import org.apache.spark.sql.{Row, SparkSession}
-import org.apache.spark.sql.catalog.Column
-import org.apache.spark.sql.catalyst.util.CharVarcharUtils
 import org.apache.spark.sql.flint.{findField, loadTable, parseTableName}
-import org.apache.spark.sql.types.{StructField, StructType}
 
+/**
+ * Data type based skipping index column and algorithm selection.
+ */
 class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
 
+  /**
+   * Recommend skipping index columns and algorithm.
+   *
+   * @param tableName
+   *   table name
+   * @param columns
+   *   list of columns
+   * @return
+   *   skipping index recommendation dataframe
+   */
   override def analyzeSkippingIndexColumns(
       tableName: String,
       columns: List[String],
       spark: SparkSession): Seq[Row] = {
-    val rules: Config = ConfigFactory.load("skipping_index_recommendation.conf")
 
     val (catalog, ident) = parseTableName(spark, tableName)
     val table = loadTable(catalog, ident).getOrElse(
@@ -49,24 +56,24 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
       columnsList.appendAll(columns)
     }
 
+    val recommendations = new RecommendationRules
     columnsList.foreach(column => {
       val field = findField(table.schema(), column).get
       if (partitionFields.contains(column)) {
         result += Row(
           field.name,
           field.dataType.typeName,
-          rules.getString("recommendation.table_partition.PARTITION.skipping_type"),
-          rules.getString("recommendation.table_partition.PARTITION.reason"))
-      } else if (rules.hasPath("recommendation.data_type_rules." + field.dataType.toString)) {
+          recommendations.getSkippingType("PARTITION"),
+          recommendations.getReason("PARTITION"))
+      } else if (recommendations.containsRule(field.dataType.toString)) {
         result += Row(
           field.name,
           field.dataType.typeName,
-          rules.getString(
-            "recommendation.data_type_rules." + field.dataType.toString + ".skipping_type"),
-          rules.getString(
-            "recommendation.data_type_rules." + field.dataType.toString + ".reason"))
+          recommendations.getSkippingType(field.dataType.toString),
+          recommendations.getReason(field.dataType.toString))
       }
     })
     result
   }
+
 }

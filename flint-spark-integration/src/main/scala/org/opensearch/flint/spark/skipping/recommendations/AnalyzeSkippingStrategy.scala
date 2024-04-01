@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.skipping.recommendations
 import org.apache.spark.sql.{Row, SparkSession}
 
 /**
- * Automate skipping index column and algorithm selection.
+ * Automate skipping index column and algorithm selection interface.
  */
 trait AnalyzeSkippingStrategy {
 
@@ -16,12 +16,14 @@ trait AnalyzeSkippingStrategy {
    *
    * @param tableName
    *   table name
+   * @param columns
+   *   list of columns
    * @return
    *   skipping index recommendation dataframe
    */
   def analyzeSkippingIndexColumns(
       tableName: String,
-      columnsMap: List[String] = null,
+      columns: List[String] = null,
       spark: SparkSession): Seq[Row]
 
 }
