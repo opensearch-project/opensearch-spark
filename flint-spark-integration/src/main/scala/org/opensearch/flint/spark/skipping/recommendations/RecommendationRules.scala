@@ -21,9 +21,6 @@ class RecommendationRules {
   /** Set of supported data types */
   private val dataTypes = rules.getConfig("recommendation.data_type_rules").root().keySet()
 
-  /** Set of supported functions */
-  private val functions = rules.getConfig("recommendation.function_rules").root().keySet()
-
   /**
    * Get skipping type recommendation.
    *
@@ -72,8 +69,6 @@ class RecommendationRules {
   def containsRule(input: String): Boolean = {
     if (dataTypes.contains(input)) {
       rules.hasPath("recommendation.data_type_rules." + input)
-    } else if (functions.contains(input)) {
-      rules.hasPath("recommendation.function_rules." + input)
     } else {
       false
     }
