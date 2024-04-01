@@ -9,6 +9,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
 
 import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.flint.{findField, loadTable, parseTableName}
 
 /**
@@ -31,33 +32,12 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
       columns: List[String],
       spark: SparkSession): Seq[Row] = {
 
-    val (catalog, ident) = parseTableName(spark, tableName)
-    val table = loadTable(catalog, ident).getOrElse(
-      throw new IllegalStateException(s"Table $tableName is not found"))
-
-    val partitionFields = table.partitioning().flatMap { transform =>
-      transform
-        .references()
-        .collect({ case reference =>
-          reference.fieldNames()
-        })
-        .flatten
-        .toSet
-    }
+    val table = getTable(tableName, spark)
+    val partitionFields = getPartitionFields(table)
+    val recommendations = new RecommendationRules
 
     val result = ArrayBuffer[Row]()
-    val columnsList = ListBuffer[String]()
-
-    if (columns.isEmpty) {
-      table.schema().fields.map { field =>
-        columnsList += field.name
-      }
-    } else {
-      columnsList.appendAll(columns)
-    }
-
-    val recommendations = new RecommendationRules
-    columnsList.foreach(column => {
+    getColumnsList(table, columns).foreach(column => {
       val field = findField(table.schema(), column).get
       if (partitionFields.contains(column)) {
         result += Row(
@@ -76,4 +56,33 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
     result
   }
 
+  private def getPartitionFields(table: Table): Array[String] = {
+    table.partitioning().flatMap { transform =>
+      transform
+        .references()
+        .collect({ case reference =>
+          reference.fieldNames()
+        })
+        .flatten
+        .toSet
+    }
+  }
+
+  private def getColumnsList(table: Table, columns: List[String]): ListBuffer[String] = {
+    val columnsList = ListBuffer[String]()
+    if (columns.isEmpty) {
+      table.schema().fields.map { field =>
+        columnsList += field.name
+      }
+    } else {
+      columnsList.appendAll(columns)
+    }
+    columnsList
+  }
+
+  private def getTable(tableName: String, spark: SparkSession): Table = {
+    val (catalog, ident) = parseTableName(spark, tableName)
+    loadTable(catalog, ident).getOrElse(
+      throw new IllegalStateException(s"Table $tableName is not found"))
+  }
 }
