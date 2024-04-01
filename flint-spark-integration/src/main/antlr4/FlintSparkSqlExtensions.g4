@@ -62,6 +62,12 @@ vacuumSkippingIndexStatement
     : VACUUM SKIPPING INDEX ON tableName
     ;
 
+analyzeSkippingIndexStatement
+    : ANALYZE SKIPPING INDEX
+        (ON tableName)?
+        (LEFT_PAREN indexColumns=multipartIdentifierPropertyList RIGHT_PAREN)?
+    ;
+
 coveringIndexStatement
     : createCoveringIndexStatement
     | refreshCoveringIndexStatement
@@ -104,10 +110,6 @@ dropCoveringIndexStatement
 
 vacuumCoveringIndexStatement
     : VACUUM INDEX indexName ON tableName
-    ;
-
-analyzeSkippingIndexStatement
-    : ANALYZE SKIPPING INDEX ON tableName
     ;
 
 materializedViewStatement

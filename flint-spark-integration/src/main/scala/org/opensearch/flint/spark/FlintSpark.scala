@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.Map
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
@@ -341,8 +342,8 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    * @return
    *   skipping index recommendation dataframe
    */
-  def analyzeSkippingIndex(tableName: String): Seq[Row] = {
-    new DataTypeSkippingStrategy().analyzeSkippingIndexColumns(tableName, spark)
+  def analyzeSkippingIndex(tableName: String, columnsMap: Map[String, Set[String]]): Seq[Row] = {
+    new DataTypeSkippingStrategy().analyzeSkippingIndexColumns(tableName, columnsMap, spark)
   }
 
   private def stopRefreshingJob(indexName: String): Unit = {

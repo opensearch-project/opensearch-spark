@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark.sql.skipping
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
+import scala.collection.mutable.Map
 
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.core.field.bloomfilter.BloomFilterFactory._
@@ -119,8 +120,16 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       AttributeReference("reason", StringType, nullable = false)(),
       AttributeReference("skipping_type", StringType, nullable = false)())
 
+    val columns = Map.empty[String, Set[String]]
+    if (ctx.indexColumns != null) {
+      ctx.indexColumns.multipartIdentifierProperty().forEach { indexColCtx =>
+        val colName = indexColCtx.multipartIdentifier().getText
+        columns.put(colName, Set.empty)
+      }
+    }
+
     FlintSparkSqlCommand(outputSchema) { flint =>
-      flint.analyzeSkippingIndex(ctx.tableName().getText)
+      flint.analyzeSkippingIndex(ctx.tableName().getText, columns);
     }
   }
 
