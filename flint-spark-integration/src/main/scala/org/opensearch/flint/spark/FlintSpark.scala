@@ -6,7 +6,6 @@
 package org.opensearch.flint.spark
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.Map
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization

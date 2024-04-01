@@ -6,7 +6,6 @@
 package org.opensearch.flint.spark.skipping.recommendations
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.ListBuffer
 
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.connector.catalog.Table
@@ -68,16 +67,12 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
     }
   }
 
-  private def getColumnsList(table: Table, columns: List[String]): ListBuffer[String] = {
-    val columnsList = ListBuffer[String]()
+  private def getColumnsList(table: Table, columns: List[String]): List[String] = {
     if (columns.isEmpty) {
-      table.schema().fields.map { field =>
-        columnsList += field.name
-      }
+      table.schema().fields.map(field => field.name).toList
     } else {
-      columnsList.appendAll(columns)
+      columns
     }
-    columnsList
   }
 
   private def getTable(tableName: String, spark: SparkSession): Table = {
