@@ -102,6 +102,20 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
     }
   }
 
+  override def visitAlterCoveringIndexStatement(
+      ctx: AlterCoveringIndexStatementContext): Command = {
+    FlintSparkSqlCommand() { flint =>
+      val indexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
+      val indexOptions = visitPropertyList(ctx.propertyList())
+      val index = flint
+        .describeIndex(indexName)
+        .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+      val updatedIndex = flint.coveringIndex().copyWithUpdate(index, indexOptions)
+      flint.updateIndex(updatedIndex)
+      Seq.empty
+    }
+  }
+
   override def visitDropCoveringIndexStatement(
       ctx: DropCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>

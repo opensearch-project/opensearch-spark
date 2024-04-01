@@ -121,6 +121,41 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
     latest("jobStartTime").asInstanceOf[Number].longValue() should be > prevStartTime
   }
 
+  test("update full refresh index to auto refresh index") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+
+    val index = flint.describeIndex(testFlintIndex).get
+    val updatedIndex = flint
+      .skippingIndex()
+      .copyWithUpdate(index, FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+    flint.updateIndex(updatedIndex)
+    val latest = latestLogEntry(testLatestId)
+    latest should contain("state" -> "refreshing")
+    latest("jobStartTime").asInstanceOf[Number].longValue() should be > 0L
+  }
+
+  test("update auto refresh index to full refresh index") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .create()
+    flint.refreshIndex(testFlintIndex)
+
+    val index = flint.describeIndex(testFlintIndex).get
+    val updatedIndex = flint
+      .skippingIndex()
+      .copyWithUpdate(index, FlintSparkIndexOptions(Map("auto_refresh" -> "false")))
+    flint.updateIndex(updatedIndex)
+    val latest = latestLogEntry(testLatestId)
+    latest should contain("state" -> "active")
+  }
+
   test("delete and vacuum index") {
     flint
       .skippingIndex()

@@ -23,11 +23,13 @@ import org.opensearch.flint.spark.skipping.minmax.MinMaxSkippingStrategy
 import org.opensearch.flint.spark.skipping.partition.PartitionSkippingStrategy
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
+import org.apache.spark.internal.Logging
+
 /**
  * Flint Spark index factory that encapsulates specific Flint index instance creation. This is for
  * internal code use instead of user facing API.
  */
-object FlintSparkIndexFactory {
+object FlintSparkIndexFactory extends Logging {
 
   /**
    * Creates Flint index from generic Flint metadata.
@@ -35,9 +37,19 @@ object FlintSparkIndexFactory {
    * @param metadata
    *   Flint metadata
    * @return
-   *   Flint index
+   *   Flint index instance, or None if any error during creation
    */
-  def create(metadata: FlintMetadata): FlintSparkIndex = {
+  def create(metadata: FlintMetadata): Option[FlintSparkIndex] = {
+    try {
+      Some(doCreate(metadata))
+    } catch {
+      case e: Exception =>
+        logWarning(s"Failed to create Flint index from metadata $metadata", e)
+        None
+    }
+  }
+
+  private def doCreate(metadata: FlintMetadata): FlintSparkIndex = {
     val indexOptions = FlintSparkIndexOptions(
       metadata.options.asScala.mapValues(_.asInstanceOf[String]).toMap)
     val latestLogEntry = metadata.latestLogEntry

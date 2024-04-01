@@ -27,6 +27,7 @@ import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.CreateIndexResponse;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.client.indices.GetIndexResponse;
+import org.opensearch.client.indices.PutMappingRequest;
 
 import java.io.IOException;
 
@@ -61,6 +62,11 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
     @Override
     public CreateIndexResponse createIndex(CreateIndexRequest createIndexRequest, RequestOptions options) throws IOException {
         return execute(OS_WRITE_OP_METRIC_PREFIX, () -> client.indices().create(createIndexRequest, options));
+    }
+
+    @Override
+    public void updateIndexMapping(PutMappingRequest putMappingRequest, RequestOptions options) throws IOException {
+        execute(OS_WRITE_OP_METRIC_PREFIX, () -> client.indices().putMapping(putMappingRequest, options));
     }
 
     @Override

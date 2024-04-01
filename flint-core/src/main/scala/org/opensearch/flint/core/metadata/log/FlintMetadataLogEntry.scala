@@ -81,6 +81,7 @@ object FlintMetadataLogEntry {
     val CREATING: IndexState.Value = Value("creating")
     val ACTIVE: IndexState.Value = Value("active")
     val REFRESHING: IndexState.Value = Value("refreshing")
+    val UPDATING: IndexState.Value = Value("updating")
     val DELETING: IndexState.Value = Value("deleting")
     val DELETED: IndexState.Value = Value("deleted")
     val FAILED: IndexState.Value = Value("failed")

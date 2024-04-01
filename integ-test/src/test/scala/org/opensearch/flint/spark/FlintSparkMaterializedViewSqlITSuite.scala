@@ -37,7 +37,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
        | GROUP BY TUMBLE(time, '10 Minutes')
        |""".stripMargin
 
-  override def beforeAll(): Unit = {
+  override def beforeEach(): Unit = {
     super.beforeAll()
     createTimeSeriesTable(testTable)
   }
@@ -45,6 +45,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
   override def afterEach(): Unit = {
     super.afterEach()
     deleteTestIndex(testFlintIndex)
+    sql(s"DROP TABLE $testTable")
   }
 
   test("create materialized view with auto refresh") {
@@ -282,6 +283,47 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
   test("should return empty when describe nonexistent materialized view") {
     checkAnswer(sql("DESC MATERIALIZED VIEW nonexistent_mv"), Seq())
+  }
+
+  test("update materialized view") {
+    withTempDir { checkpointDir =>
+      flint
+        .materializedView()
+        .name(testMvName)
+        .query(testQuery)
+        .create()
+
+      flint.describeIndex(testFlintIndex) shouldBe defined
+      flint.queryIndex(testFlintIndex).count() shouldBe 0
+
+      sql(s"""
+           | ALTER MATERIALIZED VIEW $testMvName
+           | WITH (
+           |   auto_refresh = true,
+           |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+           |   watermark_delay = '1 Second'
+           | )
+           |""".stripMargin)
+
+      // Wait for streaming job complete current micro batch
+      val job = spark.streams.active.find(_.name == testFlintIndex)
+      job shouldBe defined
+      failAfter(streamingTimeout) {
+        job.get.processAllAvailable()
+      }
+
+      checkAnswer(
+        flint.queryIndex(testFlintIndex).select("startTime", "count"),
+        Seq(
+          Row(timestamp("2023-10-01 00:00:00"), 1),
+          Row(timestamp("2023-10-01 00:10:00"), 2),
+          Row(timestamp("2023-10-01 01:00:00"), 1)
+          /*
+           * The last row is pending to fire upon watermark
+           *   Row(timestamp("2023-10-01 02:00:00"), 1)
+           */
+        ))
+    }
   }
 
   test("drop and vacuum materialized view") {
