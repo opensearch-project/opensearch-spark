@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark.skipping.recommendations
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.Map
+import scala.collection.mutable.ListBuffer
 
 import com.typesafe.config.{Config, ConfigFactory}
 
@@ -20,7 +20,7 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
 
   override def analyzeSkippingIndexColumns(
       tableName: String,
-      columns: Map[String, Set[String]],
+      columns: List[String],
       spark: SparkSession): Seq[Row] = {
     val rules: Config = ConfigFactory.load("skipping_index_recommendation.conf")
 
@@ -39,31 +39,25 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
     }
 
     val result = ArrayBuffer[Row]()
-    val columnsMap = columns
+    val columnsList = ListBuffer[String]()
 
-    if (columnsMap.isEmpty) {
+    if (columns.isEmpty) {
       table.schema().fields.map { field =>
-        columnsMap += (field.name -> Set.empty)
+        columnsList += field.name
       }
+    } else {
+      columnsList.appendAll(columns)
     }
 
-    columnsMap.foreach(column => {
-      val field = findField(table.schema(), column._1).get
-      if (partitionFields.contains(column._1)) {
+    columnsList.foreach(column => {
+      val field = findField(table.schema(), column).get
+      if (partitionFields.contains(column)) {
         result += Row(
           field.name,
           field.dataType.typeName,
           rules.getString("recommendation.table_partition.PARTITION.skipping_type"),
           rules.getString("recommendation.table_partition.PARTITION.reason"))
-      } else if (!column._2.isEmpty) {
-        column._2.foreach(function => {
-          result += Row(
-            field.name,
-            field.dataType.typeName,
-            rules.getString("recommendation.function_rules." + function + ".skipping_type"),
-            rules.getString("recommendation.function_rules." + function + ".reason"))
-        })
-      } else {
+      } else if (rules.hasPath("recommendation.data_type_rules." + field.dataType.toString)) {
         result += Row(
           field.name,
           field.dataType.typeName,
@@ -74,22 +68,5 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
       }
     })
     result
-  }
-
-  protected def findColumn(allColumns: StructType, colName: String): Column =
-    findField(allColumns, colName)
-      .map(field => convertFieldToColumn(colName, field))
-      .getOrElse(throw new IllegalArgumentException(s"Column $colName does not exist"))
-
-  private def convertFieldToColumn(colName: String, field: StructField): Column = {
-    // Ref to CatalogImpl.listColumns(): Varchar/Char is StringType with real type name in metadata
-    new Column(
-      name = colName,
-      description = field.getComment().orNull,
-      dataType =
-        CharVarcharUtils.getRawType(field.metadata).getOrElse(field.dataType).catalogString,
-      nullable = field.nullable,
-      isPartition = false, // useless for now so just set to false
-      isBucket = false)
   }
 }

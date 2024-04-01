@@ -342,7 +342,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    * @return
    *   skipping index recommendation dataframe
    */
-  def analyzeSkippingIndex(tableName: String, columnsMap: Map[String, Set[String]]): Seq[Row] = {
+  def analyzeSkippingIndex(tableName: String, columnsMap: List[String]): Seq[Row] = {
     new DataTypeSkippingStrategy().analyzeSkippingIndexColumns(tableName, columnsMap, spark)
   }
 
