@@ -18,7 +18,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-
 import org.apache.http.Header;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpException;
@@ -33,11 +32,10 @@ import org.apache.http.protocol.HttpContext;
 
 /**
  * From https://github.com/opensearch-project/sql-jdbc/blob/main/src/main/java/org/opensearch/jdbc/transport/http/auth/aws/AWSRequestSigningApacheInterceptor.java
- * An {@link HttpRequestInterceptor} that signs requests using any AWS {@link Signer} for SIGV4_AUTH
+ * An {@link HttpRequestInterceptor} that signs requests using any AWS {@link Signer}
  * and {@link AWSCredentialsProvider}.
  */
 public class AWSRequestSigningApacheInterceptor implements HttpRequestInterceptor {
-
   /**
    * The service that we're connecting to. Technically not necessary.
    * Could be used by a future Signer, though.
@@ -50,45 +48,22 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
   private final Signer signer;
 
   /**
-   * Provides the primary source of AWS credentials used for signing requests. These credentials are used
-   * for the majority of requests, except in cases where elevated permissions are required.
+   * The source of AWS credentials for signing.
    */
-  private final AWSCredentialsProvider primaryCredentialsProvider;
-
-  /**
-   * Provides a source of AWS credentials that are used for signing requests requiring elevated permissions.
-   * This is particularly useful for accessing resources that are restricted to metadata operations,
-   * such as certain system indices or administrative APIs. These credentials are expected to have permissions
-   * beyond those of the regular {@link #primaryCredentialsProvider}.
-   */
-  private final AWSCredentialsProvider metadataAccessAWSCredentialsProvider;
-
-  /**
-   * Identifies operations that require metadata access credentials. This identifier can be used to
-   * distinguish between regular and elevated data access needs, facilitating the decision to use
-   * {@link #metadataAccessAWSCredentialsProvider} over {@link #primaryCredentialsProvider} when accessing sensitive
-   * or restricted resources.
-   */
-  private final String metadataAccessIdentifier;
+  private final AWSCredentialsProvider awsCredentialsProvider;
 
   /**
    *
    * @param service service that we're connecting to
    * @param signer particular signer implementation
-   * @param primaryCredentialsProvider source of AWS credentials for signing
-   * @param metadataAccessAWSCredentialsProvider source of AWS credentials for metadata access
-   * @param metadataAccessIdentifier identifier for metadata access
+   * @param awsCredentialsProvider source of AWS credentials for signing
    */
   public AWSRequestSigningApacheInterceptor(final String service,
                                             final Signer signer,
-                                            final AWSCredentialsProvider primaryCredentialsProvider,
-                                            final AWSCredentialsProvider metadataAccessAWSCredentialsProvider,
-                                            final String metadataAccessIdentifier) {
-    this.service = service == null ? "unknown" : service;
+                                            final AWSCredentialsProvider awsCredentialsProvider) {
+    this.service = service;
     this.signer = signer;
-    this.primaryCredentialsProvider = primaryCredentialsProvider;
-    this.metadataAccessAWSCredentialsProvider = metadataAccessAWSCredentialsProvider;
-    this.metadataAccessIdentifier = metadataAccessIdentifier;
+    this.awsCredentialsProvider = awsCredentialsProvider;
   }
 
   /**
@@ -96,7 +71,7 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
    */
   @Override
   public void process(final HttpRequest request, final HttpContext context)
-      throws HttpException, IOException {
+          throws HttpException, IOException {
     URIBuilder uriBuilder;
     try {
       uriBuilder = new URIBuilder(request.getRequestLine().getUri());
@@ -112,7 +87,7 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
       signableRequest.setEndpoint(URI.create(host.toURI()));
     }
     final HttpMethodName httpMethod =
-        HttpMethodName.fromValue(request.getRequestLine().getMethod());
+            HttpMethodName.fromValue(request.getRequestLine().getMethod());
     signableRequest.setHttpMethod(httpMethod);
     try {
       signableRequest.setResourcePath(uriBuilder.build().getRawPath());
@@ -122,7 +97,7 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
 
     if (request instanceof HttpEntityEnclosingRequest) {
       HttpEntityEnclosingRequest httpEntityEnclosingRequest =
-          (HttpEntityEnclosingRequest) request;
+              (HttpEntityEnclosingRequest) request;
       if (httpEntityEnclosingRequest.getEntity() != null) {
         signableRequest.setContent(httpEntityEnclosingRequest.getEntity().getContent());
       }
@@ -131,17 +106,13 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
     signableRequest.setHeaders(headerArrayToMap(request.getAllHeaders()));
 
     // Sign it
-    if (this.service.equals("es") && isMetadataAccess(signableRequest.getResourcePath())) {
-      signer.sign(signableRequest, metadataAccessAWSCredentialsProvider.getCredentials());
-    } else {
-      signer.sign(signableRequest, primaryCredentialsProvider.getCredentials());
-    }
+    signer.sign(signableRequest, awsCredentialsProvider.getCredentials());
 
     // Now copy everything back
     request.setHeaders(mapToHeaderArray(signableRequest.getHeaders()));
     if (request instanceof HttpEntityEnclosingRequest) {
       HttpEntityEnclosingRequest httpEntityEnclosingRequest =
-          (HttpEntityEnclosingRequest) request;
+              (HttpEntityEnclosingRequest) request;
       if (httpEntityEnclosingRequest.getEntity() != null) {
         BasicHttpEntity basicHttpEntity = new BasicHttpEntity();
         basicHttpEntity.setContent(signableRequest.getContent());
@@ -159,19 +130,10 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
     Map<String, List<String>> parameterMap = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     for (NameValuePair nvp : params) {
       List<String> argsList =
-          parameterMap.computeIfAbsent(nvp.getName(), k -> new ArrayList<>());
+              parameterMap.computeIfAbsent(nvp.getName(), k -> new ArrayList<>());
       argsList.add(nvp.getValue());
     }
     return parameterMap;
-  }
-
-  /**
-   * @param resourcePath The path of the resource being accessed.
-   * @return true if the resource path contains the metadata access identifier, indicating that
-   * the operation requires metadata access credentials; false otherwise.
-   */
-  private boolean isMetadataAccess(String resourcePath) {
-    return resourcePath.contains(metadataAccessIdentifier);
   }
 
   /**
@@ -194,8 +156,8 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
    */
   private static boolean skipHeader(final Header header) {
     return ("content-length".equalsIgnoreCase(header.getName())
-        && "0".equals(header.getValue())) // Strip Content-Length: 0
-        || "host".equalsIgnoreCase(header.getName()); // Host comes from endpoint
+            && "0".equals(header.getValue())) // Strip Content-Length: 0
+            || "host".equalsIgnoreCase(header.getName()); // Host comes from endpoint
   }
 
   /**

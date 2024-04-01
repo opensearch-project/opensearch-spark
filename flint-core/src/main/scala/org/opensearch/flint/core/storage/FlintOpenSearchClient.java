@@ -46,7 +46,7 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
-import org.opensearch.flint.core.auth.AWSRequestSigningApacheInterceptor;
+import org.opensearch.flint.core.auth.ResourceBasedAWSRequestSigningApacheInterceptor;
 import org.opensearch.flint.core.http.RetryableHttpAsyncClient;
 import org.opensearch.flint.core.metadata.FlintMetadata;
 import org.opensearch.flint.core.metadata.log.DefaultOptimisticTransaction;
@@ -282,7 +282,7 @@ public class FlintOpenSearchClient implements FlintClient {
 
       restClientBuilder.setHttpClientConfigCallback(builder -> {
                 HttpAsyncClientBuilder delegate = builder.addInterceptorLast(
-                        new AWSRequestSigningApacheInterceptor(
+                        new ResourceBasedAWSRequestSigningApacheInterceptor(
                                 signer.getServiceName(), signer, customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), options.getSystemIndexName()));
                 return RetryableHttpAsyncClient.builder(delegate, options);
               }
