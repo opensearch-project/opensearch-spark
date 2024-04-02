@@ -5,7 +5,6 @@
 
 package org.opensearch.flint.spark.refresh
 
-import org.opensearch.flint.spark.FlintSparkException.requireValidation
 import org.opensearch.flint.spark.FlintSparkIndex
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{INCREMENTAL, RefreshMode}
 
@@ -27,17 +26,17 @@ class IncrementalIndexRefresh(indexName: String, index: FlintSparkIndex)
 
   override def validate(spark: SparkSession): Unit = {
     // Non-Hive table is required for incremental refresh
-    requireValidation(
+    require(
       isSourceTableNonHive(spark, index),
       "Index incremental refresh doesn't support Hive table")
 
     // Checkpoint location is required regardless of mandatory option
     val options = index.options
     val checkpointLocation = options.checkpointLocation()
-    requireValidation(
+    require(
       options.checkpointLocation().nonEmpty,
       "Checkpoint location is required by incremental refresh")
-    requireValidation(
+    require(
       isCheckpointLocationAccessible(spark, checkpointLocation.get),
       s"Checkpoint location ${checkpointLocation.get} doesn't exist or no permission to access")
   }

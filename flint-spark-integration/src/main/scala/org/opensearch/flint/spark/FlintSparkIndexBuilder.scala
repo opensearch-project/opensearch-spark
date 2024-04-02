@@ -8,6 +8,7 @@ package org.opensearch.flint.spark
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 
 import org.apache.spark.sql.catalog.Column
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
@@ -59,7 +60,7 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
    *   ignore existing index
    */
   def create(ignoreIfExists: Boolean = false): Unit =
-    flint.createIndex(buildIndex(), ignoreIfExists)
+    flint.createIndex(validateIndex(buildIndex()), ignoreIfExists)
 
   /**
    * Copy Flint index with updated options.
@@ -80,7 +81,24 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
     val updatedMetadata = index
       .metadata()
       .copy(options = updatedOptions.options.mapValues(_.asInstanceOf[AnyRef]).asJava)
-    FlintSparkIndexFactory.create(updatedMetadata).get
+    validateIndex(FlintSparkIndexFactory.create(updatedMetadata).get)
+  }
+
+  /**
+   * Pre-validate index to ensure its validity. By default, this method validates index options by
+   * delegating to specific index refresh (index options are mostly serving index refresh).
+   * Subclasses can extend this method to include additional validation logic.
+   *
+   * @param index
+   *   Flint index to be validated
+   * @return
+   *   the index or exception occurred if validation failed
+   */
+  protected def validateIndex(index: FlintSparkIndex): FlintSparkIndex = {
+    FlintSparkIndexRefresh
+      .create(index.name(), index)
+      .validate(flint.spark) // TODO: why indexName arg necessary?
+    index
   }
 
   /**

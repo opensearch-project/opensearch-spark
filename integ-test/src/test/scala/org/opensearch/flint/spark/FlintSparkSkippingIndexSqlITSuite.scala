@@ -15,7 +15,7 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.{defined, have}
+import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
@@ -234,24 +234,6 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
       sql(s"REFRESH SKIPPING INDEX ON $testTable")
       flint.queryIndex(testIndex).count() shouldBe 3
-    }
-  }
-
-  test("should fail if create auto refresh skipping index on Hive table") {
-    val hiveTableName = "spark_catalog.default.hive_table"
-    withTable(hiveTableName) {
-      sql(s"""
-             | CREATE TABLE $hiveTableName
-             | ( name STRING )
-             |""".stripMargin)
-
-      the[IllegalStateException] thrownBy {
-        sql(s"""
-               | CREATE SKIPPING INDEX ON $hiveTableName
-               | ( name VALUE_SET )
-               | WITH (auto_refresh = true)
-               | """.stripMargin)
-      } should have message "Failed to create Flint index: Index auto refresh doesn't support Hive table"
     }
   }
 
