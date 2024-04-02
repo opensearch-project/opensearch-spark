@@ -237,4 +237,23 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            |    )
            |)""".stripMargin)
   }
+
+  protected def createStructFieldTable(testTable: String): Unit = {
+    sql(s"""
+         | CREATE TABLE $testTable (
+         | id INT,
+         | info STRUCT<
+         | name: STRING,
+         | age: INT>)
+         | USING json
+         |""".stripMargin)
+
+    sql(s"""
+          | INSERT INTO $testTable
+          | VALUES
+          | (1, STRUCT('Alice', 30)),
+          | (2, STRUCT('Bob', 25)),
+          | (3, STRUCT('Charlie', 35))
+          | """.stripMargin)
+  }
 }
