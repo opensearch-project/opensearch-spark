@@ -232,12 +232,16 @@ class FlintSparkPPLTimeWindowITSuite
         "prod3",
         Timestamp.valueOf("2023-05-03 17:00:00"),
         Timestamp.valueOf("2023-05-04 17:00:00")))
-    // Compare the results
-    implicit val timestampOrdering: Ordering[Timestamp] = new Ordering[Timestamp] {
-      def compare(x: Timestamp, y: Timestamp): Int = x.compareTo(y)
+
+    // Define ordering for rows that first compares by the timestamp and then by the productId
+    implicit val rowOrdering: Ordering[Row] = new Ordering[Row] {
+      def compare(x: Row, y: Row): Int = {
+        val dateCompare = x.getAs[Timestamp](2).compareTo(y.getAs[Timestamp](2))
+        if (dateCompare != 0) dateCompare
+        else x.getAs[String](1).compareTo(y.getAs[String](1))
+      }
     }
 
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Timestamp](_.getAs[Timestamp](2))
     assert(results.sorted.sameElements(expectedResults.sorted))
 
     // Retrieve the logical plan

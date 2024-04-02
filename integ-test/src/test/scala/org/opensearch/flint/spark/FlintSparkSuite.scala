@@ -5,11 +5,15 @@
 
 package org.opensearch.flint.spark
 
+import java.nio.file.{Files, Path, Paths, StandardCopyOption}
+import java.util.Comparator
 import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture}
 
 import scala.collection.immutable.Map
 import scala.concurrent.duration.TimeUnit
+import scala.util.Try
 
+import org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
@@ -21,6 +25,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks.forAll
 import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.FlintSuite
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
 import org.apache.spark.sql.streaming.StreamTest
@@ -28,10 +33,8 @@ import org.apache.spark.sql.streaming.StreamTest
 // Companion object for the MyTestSuite class
 object TableOptions {
   // Define the map here
-  val opts: Map[String, String] = Map(
-    "csv" -> "OPTIONS (header 'false', delimiter '\t')",
-    "iceberg" -> ""
-  )
+  val opts: Map[String, String] =
+    Map("csv" -> "OPTIONS (header 'false', delimiter '\t')", "iceberg" -> "")
 }
 
 /**
@@ -42,17 +45,34 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
   /** Flint Spark high level API being tested */
   lazy protected val flint: FlintSpark = new FlintSpark(spark)
   lazy protected val tableType: String = Option(System.getProperty("TABLE_TYPE")).getOrElse("CSV")
-  lazy protected val tableOptions: String = TableOptions.opts.getOrElse(tableType.toLowerCase(), "")
+  lazy protected val tableOptions: String =
+    TableOptions.opts.getOrElse(tableType.toLowerCase(), "")
+
+  override protected def sparkConf: SparkConf = {
+    val conf = super.sparkConf
+      .set("spark.sql.catalog.spark_catalog.type", "hadoop")
+      .set("spark.sql.catalog.spark_catalog.warehouse", s"spark-warehouse/${suiteName}")
+      .set(HOST_ENDPOINT.key, openSearchHost)
+      .set(HOST_PORT.key, openSearchPort.toString)
+      .set(REFRESH_POLICY.key, "true")
+      // Disable mandatory checkpoint for test convenience
+      .set(CHECKPOINT_MANDATORY.key, "false")
+
+    if (tableType.equalsIgnoreCase("iceberg")) {
+      conf
+        .set("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkSessionCatalog")
+        .set(
+          "spark.sql.extensions",
+          List(
+            classOf[IcebergSparkSessionExtensions].getName,
+            classOf[FlintSparkExtensions].getName)
+            .mkString(", "))
+    }
+    conf
+  }
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-
-    setFlintSparkConf(HOST_ENDPOINT, openSearchHost)
-    setFlintSparkConf(HOST_PORT, openSearchPort)
-    setFlintSparkConf(REFRESH_POLICY, "true")
-
-    // Disable mandatory checkpoint for test convenience
-    setFlintSparkConf(CHECKPOINT_MANDATORY, "false")
 
     // Replace executor to avoid impact on IT.
     // TODO: Currently no IT test scheduler so no need to restore it back.
@@ -60,6 +80,11 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     when(mockExecutor.scheduleWithFixedDelay(any[Runnable], any[Long], any[Long], any[TimeUnit]))
       .thenAnswer((_: InvocationOnMock) => mock[ScheduledFuture[_]])
     FlintSparkIndexMonitor.executor = mockExecutor
+  }
+
+  override def afterAll(): Unit = {
+    deleteDirectory(s"spark-warehouse/${suiteName}")
+    super.afterAll()
   }
 
   protected def deleteTestIndex(testIndexNames: String*): Unit = {
@@ -84,6 +109,16 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
           }
       }
     })
+  }
+
+  def deleteDirectory(dirPath: String): Try[Unit] = {
+    Try {
+      val directory = Paths.get(dirPath)
+      Files
+        .walk(directory)
+        .sorted(Comparator.reverseOrder())
+        .forEach(Files.delete(_))
+    }
   }
 
   protected def awaitStreamingComplete(jobId: String): Unit = {

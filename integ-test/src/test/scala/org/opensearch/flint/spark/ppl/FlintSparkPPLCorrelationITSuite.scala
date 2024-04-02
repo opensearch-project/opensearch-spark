@@ -620,7 +620,15 @@ class FlintSparkPPLCorrelationITSuite
       Row(70000.0, "Canada", 50L),
       Row(95000.0, "USA", 40L))
 
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Long](_.getAs[Long](2))
+    // Define ordering for rows that first compares by age then by name
+    implicit val rowOrdering: Ordering[Row] = new Ordering[Row] {
+      def compare(x: Row, y: Row): Int = {
+        val ageCompare = x.getAs[Long](2).compareTo(y.getAs[Long](2))
+        if (ageCompare != 0) ageCompare
+        else x.getAs[String](1).compareTo(y.getAs[String](1))
+      }
+    }
+
     // Compare the results
     assert(results.sorted.sameElements(expectedResults.sorted))
 
