@@ -63,8 +63,7 @@ vacuumSkippingIndexStatement
     ;
 
 analyzeSkippingIndexStatement
-    : ANALYZE SKIPPING INDEX
-        (ON tableName)?
+    : ANALYZE SKIPPING INDEX ON tableName
         (LEFT_PAREN indexColumns=multipartIdentifierPropertyList RIGHT_PAREN)?
     ;
 
