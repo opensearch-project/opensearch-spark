@@ -102,9 +102,10 @@ public interface FlintClient {
    * @return {@link FlintWriter}
    */
   FlintWriter createWriter(String indexName);
+
   /**
    * Create {@link IRestHighLevelClient}.
    * @return {@link IRestHighLevelClient}
    */
-  public IRestHighLevelClient createClient();
+  IRestHighLevelClient createClient();
 }
