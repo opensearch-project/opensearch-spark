@@ -16,8 +16,8 @@ import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.execution.command.DDLUtils
-import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.streaming.CheckpointFileManager
 import org.apache.spark.sql.flint.{loadTable, parseTableName, qualifyTableName}
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -69,8 +69,8 @@ trait FlintSparkIndexRefresh extends Logging {
       case mv: FlintSparkMaterializedView =>
         spark.sessionState.sqlParser
           .parsePlan(mv.query)
-          .collect { case LogicalRelation(_, _, Some(table), _) =>
-            qualifyTableName(spark, table.identifier.table)
+          .collect { case relation: UnresolvedRelation =>
+            qualifyTableName(spark, relation.tableName)
           }
     }
 

@@ -21,11 +21,13 @@ import org.apache.spark.sql.test.TestSparkSession
 trait FlintSparkHiveSuite extends FlintSparkSuite {
 
   override protected def sparkConf: SparkConf = {
-    // Enable Hive support
-    val conf =
-      super.sparkConf
-        .set(StaticSQLConf.CATALOG_IMPLEMENTATION.key, "hive")
-    conf
+    super.sparkConf
+      // Enable Hive support
+      .set(StaticSQLConf.CATALOG_IMPLEMENTATION.key, "hive")
+      // Use in-memory Derby as Hive metastore so no need to clean up metastore_db folder after test
+      .set("javax.jdo.option.ConnectionURL", "jdbc:derby:memory:metastore_db;create=true")
+      .set("hive.metastore.uris", "")
+      .set("javax.jdo.option.ConnectionDriverName", "org.apache.derby.jdbc.EmbeddedDriver")
   }
 
   override protected def createSparkSession: TestSparkSession = {
