@@ -141,8 +141,12 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       }
     }
 
+    val inputs = Map[String, List[String]](
+      "table name" -> List(ctx.tableName().getText),
+      "columns" -> columns.toList)
+
     FlintSparkSqlCommand(outputSchema) { flint =>
-      flint.analyzeSkippingIndex(ctx.tableName().getText, columns.toList);
+      flint.analyzeSkippingIndex(inputs)
     }
   }
 

@@ -14,16 +14,13 @@ trait AnalyzeSkippingStrategy {
   /**
    * Recommend skipping index columns and algorithm.
    *
-   * @param tableName
-   *   table name
-   * @param columns
-   *   list of columns
+   * @param inputs
+   *   inputs for recommendation strategy. This can table name, columns or functions.
    * @return
    *   skipping index recommendation dataframe
    */
   def analyzeSkippingIndexColumns(
-      tableName: String,
-      columns: List[String] = null,
+      inputs: Map[String, List[String]],
       spark: SparkSession): Seq[Row]
 
 }

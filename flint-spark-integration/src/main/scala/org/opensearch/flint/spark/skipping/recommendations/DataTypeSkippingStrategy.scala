@@ -19,24 +19,21 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
   /**
    * Recommend skipping index columns and algorithm.
    *
-   * @param tableName
-   *   table name
-   * @param columns
-   *   list of columns
+   * @param inputs
+   *   inputs for recommendation strategy. This can table name, columns or functions.
    * @return
    *   skipping index recommendation dataframe
    */
   override def analyzeSkippingIndexColumns(
-      tableName: String,
-      columns: List[String],
+      inputs: Map[String, List[String]],
       spark: SparkSession): Seq[Row] = {
 
-    val table = getTable(tableName, spark)
+    val table = getTable(inputs, spark)
     val partitionFields = getPartitionFields(table)
     val recommendations = new RecommendationRules
 
     val result = ArrayBuffer[Row]()
-    getColumnsList(table, columns).foreach(column => {
+    getColumnsList(inputs, spark).foreach(column => {
       val field = findField(table.schema(), column).get
       if (partitionFields.contains(column)) {
         result += Row(
@@ -67,17 +64,25 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
     }
   }
 
-  private def getColumnsList(table: Table, columns: List[String]): List[String] = {
-    if (columns.isEmpty) {
-      table.schema().fields.map(field => field.name).toList
+  private def getColumnsList(
+      inputs: Map[String, List[String]],
+      spark: SparkSession): List[String] = {
+    val table = getTable(inputs, spark)
+    if (inputs.contains("columns") && (!inputs.get("columns").get.isEmpty)) {
+      inputs.get("columns").get
     } else {
-      columns
+      table.schema().fields.map(field => field.name).toList
     }
   }
 
-  private def getTable(tableName: String, spark: SparkSession): Table = {
-    val (catalog, ident) = parseTableName(spark, tableName)
-    loadTable(catalog, ident).getOrElse(
-      throw new IllegalStateException(s"Table $tableName is not found"))
+  private def getTable(inputs: Map[String, List[String]], spark: SparkSession): Table = {
+    if (inputs.contains("table name")) {
+      val tableName = inputs.get("table name").get(0)
+      val (catalog, ident) = parseTableName(spark, tableName)
+      loadTable(catalog, ident).getOrElse(
+        throw new IllegalStateException(s"Table $tableName is not found"))
+    } else {
+      throw new IllegalArgumentException("Table name not found")
+    }
   }
 }
