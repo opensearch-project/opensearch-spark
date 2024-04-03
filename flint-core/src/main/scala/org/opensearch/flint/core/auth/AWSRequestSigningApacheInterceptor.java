@@ -126,7 +126,7 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
    * @param params list of HTTP query params as NameValuePairs
    * @return a multimap of HTTP query params
    */
-  private static Map<String, List<String>> nvpToMapParams(final List<NameValuePair> params) {
+  static Map<String, List<String>> nvpToMapParams(final List<NameValuePair> params) {
     Map<String, List<String>> parameterMap = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     for (NameValuePair nvp : params) {
       List<String> argsList =
@@ -154,10 +154,11 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
    * @param header header line to check
    * @return true if the given header should be excluded when signing
    */
-  private static boolean skipHeader(final Header header) {
+  static boolean skipHeader(final Header header) {
     return ("content-length".equalsIgnoreCase(header.getName())
-        && "0".equals(header.getValue())) // Strip Content-Length: 0
-        || "host".equalsIgnoreCase(header.getName()); // Host comes from endpoint
+            && "0".equals(header.getValue())) // Strip Content-Length: 0
+            || "host".equalsIgnoreCase(header.getName()) // Host comes from endpoint
+            || "connection".equalsIgnoreCase(header.getName()); // Skip setting Connection manually
   }
 
   /**

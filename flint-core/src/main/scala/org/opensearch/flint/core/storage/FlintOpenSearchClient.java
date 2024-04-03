@@ -7,7 +7,6 @@ package org.opensearch.flint.core.storage;
 
 import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
 
-import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import java.io.IOException;
@@ -67,6 +66,9 @@ import scala.Some;
 public class FlintOpenSearchClient implements FlintClient {
 
   private static final Logger LOG = Logger.getLogger(FlintOpenSearchClient.class.getName());
+
+  private static final String SERVICE_NAME = "es";
+
 
   /**
    * {@link NamedXContentRegistry} from {@link SearchModule} used for construct {@link QueryBuilder} from DSL query string.
@@ -257,10 +259,6 @@ public class FlintOpenSearchClient implements FlintClient {
 
     // SigV4 support
     if (options.getAuth().equals(FlintOptions.SIGV4_AUTH)) {
-      AWS4Signer signer = new AWS4Signer();
-      signer.setServiceName("es");
-      signer.setRegionName(options.getRegion());
-
       // Use DefaultAWSCredentialsProviderChain by default.
       final AtomicReference<AWSCredentialsProvider> customAWSCredentialsProvider =
               new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
@@ -283,7 +281,7 @@ public class FlintOpenSearchClient implements FlintClient {
       restClientBuilder.setHttpClientConfigCallback(builder -> {
                 HttpAsyncClientBuilder delegate = builder.addInterceptorLast(
                         new ResourceBasedAWSRequestSigningApacheInterceptor(
-                                signer.getServiceName(), signer, customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), options.getSystemIndexName()));
+                                SERVICE_NAME, options.getRegion(), customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), options.getSystemIndexName()));
                 return RetryableHttpAsyncClient.builder(delegate, options);
               }
       );
