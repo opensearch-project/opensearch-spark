@@ -105,7 +105,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     } else {
       val metadata = index.metadata()
       try {
-        // Start transaction only if index validation passed
         flintClient
           .startTransaction(indexName, dataSourceName, true)
           .initialLog(latest => latest.state == EMPTY || latest.state == DELETED)

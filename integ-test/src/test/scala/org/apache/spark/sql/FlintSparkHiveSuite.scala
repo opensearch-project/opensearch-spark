@@ -27,7 +27,6 @@ trait FlintSparkHiveSuite extends FlintSparkSuite {
       // Use in-memory Derby as Hive metastore so no need to clean up metastore_db folder after test
       .set("javax.jdo.option.ConnectionURL", "jdbc:derby:memory:metastore_db;create=true")
       .set("hive.metastore.uris", "")
-      .set("javax.jdo.option.ConnectionDriverName", "org.apache.derby.jdbc.EmbeddedDriver")
   }
 
   override protected def createSparkSession: TestSparkSession = {

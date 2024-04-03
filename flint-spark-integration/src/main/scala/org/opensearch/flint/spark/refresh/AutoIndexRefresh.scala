@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.refresh
 
 import java.util.Collections
 
-import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkIndexOptions}
+import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkIndexOptions, FlintSparkValidationHelper}
 import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, StreamingRefresh}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{AUTO, RefreshMode}
 
@@ -25,7 +25,9 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, Trigger}
  * @param index
  *   Flint index
  */
-class AutoIndexRefresh(indexName: String, index: FlintSparkIndex) extends FlintSparkIndexRefresh {
+class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
+    extends FlintSparkIndexRefresh
+    with FlintSparkValidationHelper {
 
   override def refreshMode: RefreshMode = AUTO
 
@@ -36,8 +38,8 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex) extends FlintS
       !options.incrementalRefresh(),
       "Incremental refresh cannot be enabled if auto refresh is enabled")
 
-    // Non-Hive table is required for auto refresh
-    require(isSourceTableNonHive(spark, index), "Index auto refresh doesn't support Hive table")
+    // Hive table doesn't support auto refresh
+    require(!isSourceTableHive(spark, index), "Index auto refresh doesn't support Hive table")
 
     // Checkpoint location is required if mandatory option set
     val flintSparkConf = new FlintSparkConf(Collections.emptyMap[String, String])
@@ -48,7 +50,7 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex) extends FlintS
         s"Checkpoint location is required if ${CHECKPOINT_MANDATORY.key} option enabled")
     }
 
-    // Given checkpoint location is accessible
+    // Checkpoint location must be accessible
     if (checkpointLocation.isDefined) {
       require(
         isCheckpointLocationAccessible(spark, checkpointLocation.get),

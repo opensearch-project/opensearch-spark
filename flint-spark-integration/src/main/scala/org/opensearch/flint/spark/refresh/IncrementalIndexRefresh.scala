@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark.refresh
 
-import org.opensearch.flint.spark.FlintSparkIndex
+import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkValidationHelper}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{INCREMENTAL, RefreshMode}
 
 import org.apache.spark.sql.SparkSession
@@ -20,14 +20,15 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
  *   Flint index
  */
 class IncrementalIndexRefresh(indexName: String, index: FlintSparkIndex)
-    extends FlintSparkIndexRefresh {
+    extends FlintSparkIndexRefresh
+    with FlintSparkValidationHelper {
 
   override def refreshMode: RefreshMode = INCREMENTAL
 
   override def validate(spark: SparkSession): Unit = {
     // Non-Hive table is required for incremental refresh
     require(
-      isSourceTableNonHive(spark, index),
+      !isSourceTableHive(spark, index),
       "Index incremental refresh doesn't support Hive table")
 
     // Checkpoint location is required regardless of mandatory option

@@ -96,8 +96,8 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
    */
   protected def validateIndex(index: FlintSparkIndex): FlintSparkIndex = {
     FlintSparkIndexRefresh
-      .create(index.name(), index)
-      .validate(flint.spark) // TODO: why indexName arg necessary?
+      .create(index.name(), index) // TODO: remove first argument?
+      .validate(flint.spark)
     index
   }
 
