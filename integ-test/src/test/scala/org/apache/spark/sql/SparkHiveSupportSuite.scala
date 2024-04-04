@@ -5,20 +5,20 @@
 
 package org.apache.spark.sql
 
-import org.opensearch.flint.spark.FlintSparkSuite
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.hive.HiveSessionStateBuilder
 import org.apache.spark.sql.internal.{SessionState, StaticSQLConf}
-import org.apache.spark.sql.test.TestSparkSession
+import org.apache.spark.sql.test.{SharedSparkSession, TestSparkSession}
 
 /**
  * Flint Spark base suite with Hive support enabled. Because enabling Hive support in Spark
  * configuration alone is not adequate, as [[TestSparkSession]] disregards it and consistently
  * creates its own instance of [[org.apache.spark.sql.test.TestSQLSessionStateBuilder]]. We need
  * to override its session state with that of Hive in the meanwhile.
+ *
+ * Note that we need to extend [[SharedSparkSession]] to call super.sparkConf() method.
  */
-trait FlintSparkHiveSuite extends FlintSparkSuite {
+trait SparkHiveSupportSuite extends SharedSparkSession {
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf

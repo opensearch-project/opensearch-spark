@@ -14,10 +14,10 @@ import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.scalatest.matchers.must.Matchers.have
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
-import org.apache.spark.sql.FlintSparkHiveSuite
+import org.apache.spark.sql.SparkHiveSupportSuite
 import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
 
-class FlintSparkIndexValidationITSuite extends FlintSparkHiveSuite {
+class FlintSparkIndexValidationITSuite extends FlintSparkSuite with SparkHiveSupportSuite {
 
   // Test Hive table name
   private val testTable = "spark_catalog.default.index_validation_test"
