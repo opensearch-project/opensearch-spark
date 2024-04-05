@@ -114,6 +114,6 @@ public class ResourceBasedAWSRequestSigningApacheInterceptor implements HttpRequ
      * @return true if the operation requires metadata access credentials, false otherwise.
      */
     private boolean isMetadataAccess(String resourcePath) {
-        return resourcePath.contains(metadataAccessIdentifier);
+        return !Strings.isNullOrEmpty(metadataAccessIdentifier) && resourcePath.contains(metadataAccessIdentifier);
     }
 }

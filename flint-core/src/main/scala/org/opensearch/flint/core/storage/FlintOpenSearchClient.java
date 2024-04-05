@@ -100,8 +100,7 @@ public class FlintOpenSearchClient implements FlintClient {
   public <T> OptimisticTransaction<T> startTransaction(
       String indexName, String dataSourceName, boolean forceInit) {
     LOG.info("Starting transaction on index " + indexName + " and data source " + dataSourceName);
-    String metaLogIndexName = dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX
-        : META_LOG_NAME_PREFIX + "_" + dataSourceName;
+    String metaLogIndexName = constructMetaLogIndexName(dataSourceName);
     try (IRestHighLevelClient client = createClient()) {
       if (client.doesIndexExist(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
         LOG.info("Found metadata log index " + metaLogIndexName);
@@ -272,6 +271,10 @@ public class FlintOpenSearchClient implements FlintClient {
       String metadataAccessProviderClass = options.getMetadataAccessAwsCredentialsProvider();
       final AtomicReference<AWSCredentialsProvider> metadataAccessAWSCredentialsProvider =
               new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
+
+      String metaLogIndexName = constructMetaLogIndexName(options.getDataSourceName());
+      String systemIndexName = Strings.isNullOrEmpty(options.getSystemIndexName()) ? metaLogIndexName : options.getSystemIndexName();
+
       if (Strings.isNullOrEmpty(metadataAccessProviderClass)) {
         metadataAccessAWSCredentialsProvider.set(customAWSCredentialsProvider.get());
       } else {
@@ -281,7 +284,7 @@ public class FlintOpenSearchClient implements FlintClient {
       restClientBuilder.setHttpClientConfigCallback(builder -> {
                 HttpAsyncClientBuilder delegate = builder.addInterceptorLast(
                         new ResourceBasedAWSRequestSigningApacheInterceptor(
-                                SERVICE_NAME, options.getRegion(), customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), options.getSystemIndexName()));
+                                SERVICE_NAME, options.getRegion(), customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), systemIndexName));
                 return RetryableHttpAsyncClient.builder(delegate, options);
               }
       );
@@ -382,5 +385,9 @@ public class FlintOpenSearchClient implements FlintClient {
 
     String encoded = percentEncode(indexName);
     return toLowercase(encoded);
+  }
+
+  private String constructMetaLogIndexName(String dataSourceName) {
+    return dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX : META_LOG_NAME_PREFIX + "_" + dataSourceName;
   }
 }
