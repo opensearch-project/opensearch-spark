@@ -32,7 +32,8 @@ class FullIndexRefresh(
   override def refreshMode: RefreshMode = FULL
 
   override def validate(spark: SparkSession): Unit = {
-    // Nothing to validate for full refresh for now
+    // Full refresh validates nothing for now, including Hive table validation.
+    // This allows users to continue using their existing Hive table with full refresh only.
   }
 
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {

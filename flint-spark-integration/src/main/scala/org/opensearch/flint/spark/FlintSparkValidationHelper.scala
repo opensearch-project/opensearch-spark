@@ -22,11 +22,10 @@ import org.apache.spark.sql.flint.{loadTable, parseTableName, qualifyTableName}
 /**
  * Flint Spark validation helper.
  */
-trait FlintSparkValidationHelper {
-  self: Logging =>
+trait FlintSparkValidationHelper extends Logging {
 
   /**
-   * Validate if source table(s) of the given Flint index are not Hive table.
+   * Determines whether the source table(s) for a given Flint index are Hive tables.
    *
    * @param spark
    *   Spark session
@@ -36,7 +35,7 @@ trait FlintSparkValidationHelper {
    *   true if all non Hive, otherwise false
    */
   def isSourceTableHive(spark: SparkSession, index: FlintSparkIndex): Boolean = {
-    // Extract source table name (possibly more than 1 for MV source query)
+    // Extract source table name (possibly more than one for MV query)
     val tableNames = index match {
       case skipping: FlintSparkSkippingIndex => Seq(skipping.tableName)
       case covering: FlintSparkCoveringIndex => Seq(covering.tableName)
@@ -57,8 +56,9 @@ trait FlintSparkValidationHelper {
   }
 
   /**
-   * Validate if checkpoint location is accessible (the folder exists and current Spark session
-   * has permission to access).
+   * Checks whether a specified checkpoint location is accessible. Accessibility, in this context,
+   * means that the folder exists and the current Spark session has the necessary permissions to
+   * access it.
    *
    * @param spark
    *   Spark session
@@ -68,11 +68,13 @@ trait FlintSparkValidationHelper {
    *   true if accessible, otherwise false
    */
   def isCheckpointLocationAccessible(spark: SparkSession, checkpointLocation: String): Boolean = {
-    val checkpointPath = new Path(checkpointLocation)
-    val checkpointManager =
-      CheckpointFileManager.create(checkpointPath, spark.sessionState.newHadoopConf())
     try {
-      checkpointManager.exists(checkpointPath)
+      val checkpointManager =
+        CheckpointFileManager.create(
+          new Path(checkpointLocation),
+          spark.sessionState.newHadoopConf())
+
+      checkpointManager.exists(new Path(checkpointLocation))
     } catch {
       case e: IOException =>
         logWarning(s"Failed to check if checkpoint location $checkpointLocation exists", e)

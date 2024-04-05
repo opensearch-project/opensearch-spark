@@ -25,7 +25,16 @@ trait FlintSparkIndexRefresh extends Logging {
   def refreshMode: RefreshMode
 
   /**
-   * Validate the current index refresh beforehand.
+   * Validates the current index refresh settings before the actual execution begins. This method
+   * checks for the integrity of the index refresh configurations and ensures that all options set
+   * for the current refresh mode are valid. This preemptive validation helps in identifying
+   * configuration issues before the refresh operation is initiated, minimizing runtime errors and
+   * potential inconsistencies.
+   *
+   * @param spark
+   *   Spark session
+   * @throws IllegalArgumentException
+   *   if any invalid or inapplicable config identified
    */
   def validate(spark: SparkSession): Unit
 
