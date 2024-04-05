@@ -30,7 +30,6 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
 
     val table = getTable(inputs, spark)
     val partitionFields = getPartitionFields(table)
-    val recommendations = new RecommendationRules
 
     val result = ArrayBuffer[Row]()
     getColumnsList(inputs, spark).foreach(column => {
@@ -39,14 +38,14 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
         result += Row(
           field.name,
           field.dataType.typeName,
-          recommendations.getSkippingType("PARTITION"),
-          recommendations.getReason("PARTITION"))
-      } else if (recommendations.containsRule(field.dataType.toString)) {
+          RecommendationRules.getSkippingType("PARTITION"),
+          RecommendationRules.getReason("PARTITION"))
+      } else if (RecommendationRules.containsRule(field.dataType.toString)) {
         result += Row(
           field.name,
           field.dataType.typeName,
-          recommendations.getSkippingType(field.dataType.toString),
-          recommendations.getReason(field.dataType.toString))
+          RecommendationRules.getSkippingType(field.dataType.toString),
+          RecommendationRules.getReason(field.dataType.toString))
       }
     })
     result

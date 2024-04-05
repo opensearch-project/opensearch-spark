@@ -10,7 +10,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 /**
  * Recommendation rules for skipping index column and algorithm selection.
  */
-class RecommendationRules {
+object RecommendationRules {
 
   /** Recommendation config file */
   private val config = "skipping_index_recommendation.conf"
