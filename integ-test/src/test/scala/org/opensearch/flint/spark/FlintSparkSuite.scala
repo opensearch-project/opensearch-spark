@@ -13,7 +13,6 @@ import scala.collection.immutable.Map
 import scala.concurrent.duration.TimeUnit
 import scala.util.Try
 
-import org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
@@ -30,13 +29,6 @@ import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
 import org.apache.spark.sql.streaming.StreamTest
 
-// Companion object for the MyTestSuite class
-object TableOptions {
-  // Define the map here
-  val opts: Map[String, String] =
-    Map("csv" -> "OPTIONS (header 'false', delimiter '\t')", "iceberg" -> "")
-}
-
 /**
  * Flint Spark suite trait that initializes [[FlintSpark]] API instance.
  */
@@ -44,30 +36,16 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
 
   /** Flint Spark high level API being tested */
   lazy protected val flint: FlintSpark = new FlintSpark(spark)
-  lazy protected val tableType: String = Option(System.getProperty("TABLE_TYPE")).getOrElse("CSV")
-  lazy protected val tableOptions: String =
-    TableOptions.opts.getOrElse(tableType.toLowerCase(), "")
+  lazy protected val tableType: String = "CSV"
+  lazy protected val tableOptions: String = "OPTIONS (header 'false', delimiter '\t')"
 
   override protected def sparkConf: SparkConf = {
     val conf = super.sparkConf
-      .set("spark.sql.catalog.spark_catalog.type", "hadoop")
-      .set("spark.sql.catalog.spark_catalog.warehouse", s"spark-warehouse/${suiteName}")
       .set(HOST_ENDPOINT.key, openSearchHost)
       .set(HOST_PORT.key, openSearchPort.toString)
       .set(REFRESH_POLICY.key, "true")
       // Disable mandatory checkpoint for test convenience
       .set(CHECKPOINT_MANDATORY.key, "false")
-
-    if (tableType.equalsIgnoreCase("iceberg")) {
-      conf
-        .set("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkSessionCatalog")
-        .set(
-          "spark.sql.extensions",
-          List(
-            classOf[IcebergSparkSessionExtensions].getName,
-            classOf[FlintSparkExtensions].getName)
-            .mkString(", "))
-    }
     conf
   }
 
@@ -80,11 +58,6 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     when(mockExecutor.scheduleWithFixedDelay(any[Runnable], any[Long], any[Long], any[TimeUnit]))
       .thenAnswer((_: InvocationOnMock) => mock[ScheduledFuture[_]])
     FlintSparkIndexMonitor.executor = mockExecutor
-  }
-
-  override def afterAll(): Unit = {
-    deleteDirectory(s"spark-warehouse/${suiteName}")
-    super.afterAll()
   }
 
   protected def deleteTestIndex(testIndexNames: String*): Unit = {

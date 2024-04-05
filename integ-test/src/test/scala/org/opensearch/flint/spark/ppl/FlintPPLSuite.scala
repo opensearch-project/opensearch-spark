@@ -5,7 +5,6 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
 import org.opensearch.flint.spark.{FlintPPLSparkExtensions, FlintSparkExtensions, FlintSparkSuite}
 
 import org.apache.spark.SparkConf
@@ -20,10 +19,7 @@ trait FlintPPLSuite extends FlintSparkSuite {
     val conf = super.sparkConf
       .set(
         "spark.sql.extensions",
-        List(
-          classOf[IcebergSparkSessionExtensions].getName,
-          classOf[FlintPPLSparkExtensions].getName,
-          classOf[FlintSparkExtensions].getName)
+        List(classOf[FlintPPLSparkExtensions].getName, classOf[FlintSparkExtensions].getName)
           .mkString(", "))
       .set(OPTIMIZER_RULE_ENABLED.key, "false")
     conf

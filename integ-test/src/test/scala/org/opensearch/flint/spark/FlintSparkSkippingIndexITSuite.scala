@@ -322,10 +322,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("should not rewrite original query if no skipping index") {
-    assume(
-      System.getProperty("TABLE_TYPE") != "iceberg",
-      """Test disabled for iceberg because Iceberg tables have a built-in
-        skipping index which rewrites queries""")
     val query =
       s"""
          | SELECT name
@@ -341,10 +337,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("should not rewrite original query if skipping index is logically deleted") {
-    assume(
-      System.getProperty("TABLE_TYPE") != "iceberg",
-      """Test disabled for Iceberg because Iceberg tables have a built-in
-        skipping index which rewrites queries""")
     flint
       .skippingIndex()
       .onTable(testTable)
@@ -367,10 +359,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("can build partition skipping index and rewrite applicable query") {
-    assume(
-      System.getProperty("TABLE_TYPE") != "iceberg",
-      """Test disabled for Iceberg because Iceberg tables have a built-in
-        skipping index which rewrites queries""")
     flint
       .skippingIndex()
       .onTable(testTable)
@@ -396,10 +384,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("can build value set skipping index and rewrite applicable query") {
-    assume(
-      System.getProperty("TABLE_TYPE") != "iceberg",
-      """Test disabled for Iceberg because Iceberg tables have a built-in
-        skipping index which rewrites queries""")
     flint
       .skippingIndex()
       .onTable(testTable)
@@ -429,10 +413,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("can build min max skipping index and rewrite applicable query") {
-    assume(
-      System.getProperty("TABLE_TYPE") != "iceberg",
-      """Test disabled for Iceberg because Iceberg tables have a built-in
-        skipping index which rewrites queries""")
     flint
       .skippingIndex()
       .onTable(testTable)
@@ -459,10 +439,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("can build bloom filter skipping index and rewrite applicable query") {
-    assume(
-      System.getProperty("TABLE_TYPE") != "iceberg",
-      """Test disabled for Iceberg because Iceberg tables have a built-in
-        skipping index which rewrites queries""")
     flint
       .skippingIndex()
       .onTable(testTable)
@@ -494,10 +470,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("should rewrite applicable query with table name without database specified") {
-    assume(
-      System.getProperty("TABLE_TYPE") != "iceberg",
-      """Test disabled for Iceberg because Iceberg tables have a built-in
-        skipping index which rewrites queries""")
     flint
       .skippingIndex()
       .onTable(testTable)
@@ -516,10 +488,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("should not rewrite original query if filtering condition has disjunction") {
-    assume(
-      System.getProperty("TABLE_TYPE") != "iceberg",
-      """Test disabled for Iceberg because Iceberg tables have a built-in
-        skipping index which rewrites queries""")
     flint
       .skippingIndex()
       .onTable(testTable)
