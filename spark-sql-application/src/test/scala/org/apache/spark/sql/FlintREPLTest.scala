@@ -95,11 +95,13 @@ class FlintREPLTest
     query shouldBe "SELECT * FROM table"
   }
 
-  test("getQuery should return unescaped default query for streaming job if queryOption is None") {
+  test(
+    "getQuery should return unescaped default query for streaming job if queryOption is None") {
     val queryOption = None
     val jobType = "streaming"
     val conf = new SparkConf().set(
-      FlintSparkConf.QUERY.key, "SELECT \\\"1\\\" UNION SELECT '\\\"1\\\"' UNION SELECT \\\"\\\\\\\"1\\\\\\\"\\\"")
+      FlintSparkConf.QUERY.key,
+      "SELECT \\\"1\\\" UNION SELECT '\\\"1\\\"' UNION SELECT \\\"\\\\\\\"1\\\\\\\"\\\"")
 
     val query = FlintREPL.getQuery(queryOption, jobType, conf)
     query shouldBe "SELECT \"1\" UNION SELECT '\"1\"' UNION SELECT \"\\\"1\\\"\""

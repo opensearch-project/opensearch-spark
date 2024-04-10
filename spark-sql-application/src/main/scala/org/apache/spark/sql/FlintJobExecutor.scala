@@ -363,8 +363,8 @@ trait FlintJobExecutor {
   }
 
   /**
-   * Unescape the query string which is escaped for EMR spark submit parameter parsing.
-   * Ref: https://github.com/opensearch-project/sql/pull/2587
+   * Unescape the query string which is escaped for EMR spark submit parameter parsing. Ref:
+   * https://github.com/opensearch-project/sql/pull/2587
    */
   def unescapeQuery(query: String): String = {
     unescapeJava(query)
