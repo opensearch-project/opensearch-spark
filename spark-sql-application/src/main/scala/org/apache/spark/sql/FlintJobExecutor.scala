@@ -11,6 +11,7 @@ import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.concurrent.duration.{Duration, MINUTES}
 
 import com.amazonaws.services.s3.model.AmazonS3Exception
+import org.apache.commons.text.StringEscapeUtils.unescapeJava
 import org.opensearch.flint.core.{FlintClient, IRestHighLevelClient}
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.core.metrics.MetricConstants
@@ -361,6 +362,14 @@ trait FlintJobExecutor {
     }
   }
 
+  /**
+   * Unescape the query string which is escaped for EMR spark submit parameter parsing.
+   * Ref: https://github.com/opensearch-project/sql/pull/2587
+   */
+  def unescapeQuery(query: String): String = {
+    unescapeJava(query)
+  }
+
   def executeQuery(
       spark: SparkSession,
       query: String,
@@ -371,6 +380,7 @@ trait FlintJobExecutor {
     val startTime = System.currentTimeMillis()
     // we have to set job group in the same thread that started the query according to spark doc
     spark.sparkContext.setJobGroup(queryId, "Job group for " + queryId, interruptOnCancel = true)
+    logInfo(s"Executing query: $query")
     val result: DataFrame = spark.sql(query)
     // Get Data
     getFormattedData(
