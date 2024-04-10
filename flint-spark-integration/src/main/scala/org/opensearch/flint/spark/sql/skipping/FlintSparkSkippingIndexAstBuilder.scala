@@ -6,7 +6,6 @@
 package org.opensearch.flint.spark.sql.skipping
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
-import scala.collection.mutable.ListBuffer
 
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.core.field.bloomfilter.BloomFilterFactory._
@@ -22,7 +21,7 @@ import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.logical.Command
-import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
 /**
  * Flint Spark AST builder that builds Spark command for Flint skipping index statement.
@@ -134,19 +133,21 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       AttributeReference("reason", StringType, nullable = false)(),
       AttributeReference("skipping_type", StringType, nullable = false)())
 
-    val columns = ListBuffer[String]()
+    var data = Seq.empty[Row]
     if (ctx.indexColumns != null) {
       ctx.indexColumns.multipartIdentifierProperty().forEach { indexColCtx =>
-        columns += indexColCtx.multipartIdentifier().getText
+        data = data :+ Row(ctx.tableName().getText, indexColCtx.multipartIdentifier().getText)
       }
+    } else {
+      data = data :+ Row(ctx.tableName().getText, null.asInstanceOf[String])
     }
-
-    val inputs = Map[String, List[String]](
-      "table name" -> List(ctx.tableName().getText),
-      "columns" -> columns.toList)
+    val schema = StructType(
+      Seq(
+        StructField("tableName", StringType, nullable = false),
+        StructField("columns", StringType, nullable = true)))
 
     FlintSparkSqlCommand(outputSchema) { flint =>
-      flint.analyzeSkippingIndex(inputs)
+      flint.analyzeSkippingIndex(schema, data)
     }
   }
 
