@@ -9,6 +9,7 @@ import java.util.Optional
 
 import scala.collection.JavaConverters._
 
+import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.http.FlintRetryOptions._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
@@ -60,6 +61,18 @@ class FlintSparkConfSuite extends FlintSuite {
     retryOptions.getMaxRetries shouldBe 5
     retryOptions.getRetryableHttpStatusCodes shouldBe "429,502,503,504"
     retryOptions.getRetryableExceptionClassNames.get() shouldBe "java.net.ConnectException"
+  }
+
+  test("test metadata access AWS credentials provider option") {
+    withSparkConf("spark.metadata.accessAWSCredentialsProvider") {
+      spark.conf.set(
+        "spark.metadata.accessAWSCredentialsProvider",
+        "com.example.MetadataAccessCredentialsProvider")
+      val flintOptions = FlintSparkConf().flintOptions()
+      assert(flintOptions.getCustomAwsCredentialsProvider == "")
+      assert(
+        flintOptions.getMetadataAccessAwsCredentialsProvider == "com.example.MetadataAccessCredentialsProvider")
+    }
   }
 
   /**

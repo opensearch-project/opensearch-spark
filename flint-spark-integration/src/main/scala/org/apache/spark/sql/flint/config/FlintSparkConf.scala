@@ -75,7 +75,7 @@ object FlintSparkConf {
     FlintConfig("spark.datasource.flint.customAWSCredentialsProvider")
       .datasourceOption()
       .doc("AWS customAWSCredentialsProvider")
-      .createWithDefault(FlintOptions.DEFAULT_CUSTOM_AWS_CREDENTIALS_PROVIDER)
+      .createWithDefault(FlintOptions.DEFAULT_AWS_CREDENTIALS_PROVIDER)
 
   val DOC_ID_COLUMN_NAME = FlintConfig("spark.datasource.flint.write.id_name")
     .datasourceOption()
@@ -174,6 +174,10 @@ object FlintSparkConf {
     FlintConfig(s"spark.flint.job.inactivityLimitMillis")
       .doc("inactivity timeout")
       .createWithDefault(String.valueOf(FlintOptions.DEFAULT_INACTIVITY_LIMIT_MILLIS))
+  val METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER =
+    FlintConfig("spark.metadata.accessAWSCredentialsProvider")
+      .doc("AWS credentials provider for metadata access permission")
+      .createOptional()
 }
 
 /**
@@ -234,6 +238,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       DATA_SOURCE_NAME,
       SESSION_ID,
       REQUEST_INDEX,
+      METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER,
       EXCLUDE_JOB_IDS)
       .map(conf => (conf.optionKey, conf.readFrom(reader)))
       .flatMap {
