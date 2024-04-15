@@ -63,8 +63,7 @@ vacuumSkippingIndexStatement
     ;
 
 analyzeSkippingIndexStatement
-    : ANALYZE SKIPPING INDEX ON tableName
-        (LEFT_PAREN indexColumns=multipartIdentifierPropertyList RIGHT_PAREN)?
+    : ANALYZE SKIPPING INDEX (analyzeTable | analyzeQuery)
     ;
 
 coveringIndexStatement
@@ -203,4 +202,17 @@ indexName
 
 tableName
     : multipartIdentifier
+    ;
+
+analyzeTable
+    : ON tableName
+        (LEFT_PAREN indexColumns=multipartIdentifierPropertyList RIGHT_PAREN)?
+    ;
+
+analyzeQuery
+    : FOR analyzeSqlQuery
+    ;
+
+analyzeSqlQuery
+    : .+?
     ;
