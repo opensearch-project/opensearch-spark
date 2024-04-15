@@ -163,4 +163,17 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
       .create()
     deleteTestIndex(getFlintIndexName(newIndex, testTable))
   }
+
+  test("rewrite applicable query with covering index") {
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
+
+    flint.refreshIndex(testFlintIndex)
+
+    sql(s"SELECT name, age FROM $testTable").show
+  }
 }

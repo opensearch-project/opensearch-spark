@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.spark
 
+import org.opensearch.flint.spark.covering.ApplyFlintSparkCoveringIndex
 import org.opensearch.flint.spark.skipping.ApplyFlintSparkSkippingIndex
 
 import org.apache.spark.sql.SparkSession
@@ -23,11 +24,12 @@ class FlintSparkOptimizer(spark: SparkSession) extends Rule[LogicalPlan] {
   private val flint: FlintSpark = new FlintSpark(spark)
 
   /** Only one Flint optimizer rule for now. Need to estimate cost if more than one in future. */
-  private val rule = new ApplyFlintSparkSkippingIndex(flint)
+  private val rules =
+    Seq(new ApplyFlintSparkCoveringIndex(flint), new ApplyFlintSparkSkippingIndex(flint))
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (isOptimizerEnabled) {
-      rule.apply(plan)
+      rules.head.apply(plan) // TODO: apply one by one
     } else {
       plan
     }
