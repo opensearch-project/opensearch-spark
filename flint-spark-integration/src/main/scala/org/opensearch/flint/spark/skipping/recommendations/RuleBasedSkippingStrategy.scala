@@ -15,7 +15,7 @@ import org.apache.spark.sql.functions.col
 /**
  * Data type based skipping index column and algorithm selection.
  */
-class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
+class RuleBasedSkippingStrategy extends AnalyzeSkippingStrategy {
 
   /**
    * Recommend skipping index columns and algorithm.

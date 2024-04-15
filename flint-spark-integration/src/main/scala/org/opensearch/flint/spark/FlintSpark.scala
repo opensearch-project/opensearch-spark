@@ -20,7 +20,7 @@ import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
-import org.opensearch.flint.spark.skipping.recommendations.DataTypeSkippingStrategy
+import org.opensearch.flint.spark.skipping.recommendations.RuleBasedSkippingStrategy
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
@@ -376,7 +376,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    *   skipping index recommendation dataframe
    */
   def analyzeSkippingIndex(schema: StructType, data: Seq[Row]): Seq[Row] = {
-    new DataTypeSkippingStrategy()
+    new RuleBasedSkippingStrategy()
       .analyzeSkippingIndexColumns(
         spark.createDataFrame(spark.sparkContext.parallelize(data), schema),
         spark)
