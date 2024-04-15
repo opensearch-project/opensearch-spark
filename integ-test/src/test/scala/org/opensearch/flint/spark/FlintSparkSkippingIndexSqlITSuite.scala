@@ -579,31 +579,22 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     }
   }
 
-  test("analyze skipping index with sql query") {
+  test("analyze skipping index for sql query") {
     val result =
-      sql(s"ANALYZE SKIPPING INDEX FOR SELECT age FROM $testTable WHERE age < 5")
+      sql(s"ANALYZE SKIPPING INDEX FOR SELECT age FROM $testTable WHERE age IN (2, 4) AND age < 5 ORDER BY year ASC")
 
     checkAnswer(
       result,
       Seq(
+        Row(
+          "age",
+          "integer",
+          "MIN_MAX",
+          "MIN_MAX data structure is recommended for IN function"),
         Row(
           "age",
           "integer",
           "MIN_MAX",
           "MIN_MAX data structure is recommended for LessThan function")))
-  }
-
-  test("analyze skipping index with sql query with IN function") {
-    val result =
-      sql(s"ANALYZE SKIPPING INDEX FOR SELECT age FROM $testTable WHERE age IN(2, 4)")
-
-    checkAnswer(
-      result,
-      Seq(
-        Row(
-          "age",
-          "integer",
-          "MIN_MAX",
-          "MIN_MAX data structure is recommended for IN function")))
   }
 }
