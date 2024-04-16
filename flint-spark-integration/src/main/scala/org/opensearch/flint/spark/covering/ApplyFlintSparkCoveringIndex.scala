@@ -11,6 +11,7 @@ import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.NamedExpression.newExprId
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, V2WriteCommand}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.LogicalRelation
@@ -45,10 +46,15 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
       val indexPattern = getFlintIndexName("*", qualifiedTableName)
       val indexes = flint.describeIndexes(indexPattern)
 
+      // Collect all columns needed by the query from the relation
+      val requiredCols = plan.output.map(_.name).toSet
+
       // Choose the first covering index that meets all criteria
       indexes
         .collectFirst {
-          case index: FlintSparkCoveringIndex if index.filterCondition.isEmpty =>
+          case index: FlintSparkCoveringIndex
+              if index.filterCondition.isEmpty &&
+                requiredCols.subsetOf(index.indexedColumns.keySet) =>
             val ds = new FlintDataSourceV2
             val options = new CaseInsensitiveStringMap(util.Map.of("path", index.name()))
             val inferredSchema = ds.inferSchema(options)
