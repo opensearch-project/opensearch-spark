@@ -9,6 +9,7 @@ import org.mockito.ArgumentMatchers.{any, anyString}
 import org.mockito.Mockito.{mockStatic, when, RETURNS_DEEP_STUBS}
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
 import org.opensearch.flint.spark.FlintSpark
+import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.scalatest.matchers.{Matcher, MatchResult}
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
@@ -20,7 +21,7 @@ import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.sources.BaseRelation
-import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.StructType
 
 class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
 
@@ -48,51 +49,45 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     super.afterAll()
   }
 
-  test("Covering index should be applied when all columns are covered") {
-    val schema = StructType(Seq(StructField("name", StringType), StructField("age", IntegerType)))
-    val baseRelation = mock[BaseRelation]
-    when(baseRelation.schema).thenReturn(schema)
-
-    val table = mock[CatalogTable]
-    // when(table.identifier).thenReturn(TableIdentifier("test_table", Some("default")))
-    when(table.qualifiedName).thenReturn("default.test_table")
-
-    val logicalRelation = LogicalRelation(baseRelation, table)
-    when(flint.describeIndexes(anyString())).thenReturn(
-      Seq(
-        new FlintSparkCoveringIndex(
-          indexName = "test_index",
-          tableName = "spark_catalog.default.test_table",
-          indexedColumns = Map("name" -> "string", "age" -> "int"),
-          filterCondition = None)))
-
-    when(client.getIndexMetadata(anyString()).getContent).thenReturn(s"""
-         | {
-         |   "properties": {
-         |     "name": {
-         |       "type": "keyword"
-         |     },
-         |     "age": {
-         |       "type": "integer"
-         |     }
-         |   }
-         | }
-         |""".stripMargin)
-
-    val transformedPlan = rule.apply(logicalRelation)
-    assert(transformedPlan.isInstanceOf[DataSourceV2Relation])
+  test("should not apply when no index present") {
+    assertFlintQueryRewriter
+      .withTable(StructType.fromDDL("name STRING, age INT"))
+      .assertIndexNotUsed()
   }
 
-  test("Covering index should be applied when all columns are covered 2") {
+  test("should not apply when index on other table") {
+    assertFlintQueryRewriter
+      .withTable(StructType.fromDDL("name STRING, age INT"))
+      .withIndex(
+        new FlintSparkCoveringIndex(
+          indexName = "all",
+          tableName = s"other_s$testTable",
+          indexedColumns = Map("city" -> "string")))
+      .assertIndexNotUsed()
+  }
+
+  test("should not apply when some columns are not covered") {
+    assertFlintQueryRewriter
+      .withTable(StructType.fromDDL("name STRING, age INT, city STRING"))
+      .withProject("name", "age", "city") // city is not covered
+      .withIndex(
+        new FlintSparkCoveringIndex(
+          indexName = "partial",
+          tableName = testTable,
+          indexedColumns = Map("name" -> "string", "age" -> "int")))
+      .assertIndexNotUsed()
+  }
+
+  test("should apply when all columns are covered") {
     assertFlintQueryRewriter
       .withTable(StructType.fromDDL("name STRING, age INT"))
       .withProject("name", "age")
       .withIndex(
         new FlintSparkCoveringIndex(
-          indexName = "test_index",
+          indexName = "all",
           tableName = testTable,
           indexedColumns = Map("name" -> "string", "age" -> "int")))
-      .assertIndexUsed()
+      .assertIndexUsed(getFlintIndexName("all", testTable))
   }
 
   private def assertFlintQueryRewriter: AssertionHelper = new AssertionHelper
@@ -100,16 +95,15 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
   class AssertionHelper {
     private var schema: StructType = _
     private var plan: LogicalPlan = _
-    private var index: FlintSparkCoveringIndex = _
+    private var indexes: Seq[FlintSparkCoveringIndex] = Seq()
 
     def withTable(schema: StructType): AssertionHelper = {
-      this.schema = schema
       val baseRelation = mock[BaseRelation]
-      when(baseRelation.schema).thenReturn(schema)
-
       val table = mock[CatalogTable]
+      when(baseRelation.schema).thenReturn(schema)
       when(table.qualifiedName).thenReturn(testTable)
 
+      this.schema = schema
       this.plan = LogicalRelation(baseRelation, table)
       this
     }
@@ -121,30 +115,55 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     }
 
     def withIndex(index: FlintSparkCoveringIndex): AssertionHelper = {
-      this.index = index
-      when(flint.describeIndexes(anyString())).thenReturn(Seq(index))
+      this.indexes = indexes :+ index
       this
     }
 
-    def assertIndexUsed(): AssertionHelper = {
-      when(client.getIndexMetadata(anyString())).thenReturn(index.metadata())
-
-      rule.apply(plan) should scanIndexOnly
+    def assertIndexUsed(expectedIndexName: String): AssertionHelper = {
+      rewritePlan should scanIndexOnly(expectedIndexName)
       this
     }
 
-    private def scanIndexOnly(): Matcher[LogicalPlan] = {
+    def assertIndexNotUsed(): AssertionHelper = {
+      rewritePlan should scanSourceTable
+      this
+    }
+
+    private def rewritePlan: LogicalPlan = {
+      when(flint.describeIndexes(anyString())).thenReturn(indexes)
+      indexes.foreach { index =>
+        when(client.getIndexMetadata(index.name())).thenReturn(index.metadata())
+      }
+      rule.apply(plan)
+    }
+
+    private def scanSourceTable: Matcher[LogicalPlan] = {
       Matcher { (plan: LogicalPlan) =>
         val result = plan.exists {
-          case relation: DataSourceV2Relation =>
-            relation.table.name() == index.name()
+          case LogicalRelation(_, _, Some(table), _) =>
+            table.qualifiedName == testTable
           case _ => false
         }
 
         MatchResult(
           result,
-          "Plan does not scan index only as expected",
-          "Plan scan index only as expected")
+          s"Plan does not scan table $testTable",
+          s"Plan scans table $testTable as expected")
+      }
+    }
+
+    private def scanIndexOnly(expectedIndexName: String): Matcher[LogicalPlan] = {
+      Matcher { (plan: LogicalPlan) =>
+        val result = plan.exists {
+          case relation: DataSourceV2Relation =>
+            relation.table.name() == expectedIndexName
+          case _ => false
+        }
+
+        MatchResult(
+          result,
+          s"Plan does not scan index $expectedIndexName only",
+          s"Plan scan index $expectedIndexName only as expected")
       }
     }
   }
