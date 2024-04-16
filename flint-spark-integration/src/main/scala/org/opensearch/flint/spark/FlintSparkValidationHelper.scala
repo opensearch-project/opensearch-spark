@@ -25,7 +25,7 @@ import org.apache.spark.sql.flint.{loadTable, parseTableName, qualifyTableName}
 trait FlintSparkValidationHelper extends Logging {
 
   /**
-   * Determines whether the source table(s) for a given Flint index are Hive tables.
+   * Determines whether the source table(s) for a given Flint index are supported.
    *
    * @param spark
    *   Spark session
@@ -34,7 +34,7 @@ trait FlintSparkValidationHelper extends Logging {
    * @return
    *   true if all non Hive, otherwise false
    */
-  def isSourceTableHive(spark: SparkSession, index: FlintSparkIndex): Boolean = {
+  def isTableProviderSupported(spark: SparkSession, index: FlintSparkIndex): Boolean = {
     // Extract source table name (possibly more than one for MV query)
     val tableNames = index match {
       case skipping: FlintSparkSkippingIndex => Seq(skipping.tableName)
@@ -47,10 +47,12 @@ trait FlintSparkValidationHelper extends Logging {
           }
     }
 
-    // Validate if any source table is Hive
+    // Validate if any source table is not supported (currently Hive only)
     tableNames.exists { tableName =>
       val (catalog, ident) = parseTableName(spark, tableName)
       val table = loadTable(catalog, ident).get
+
+      // TODO: add allowed table provider list
       DDLUtils.isHiveTable(Option(table.properties().get("provider")))
     }
   }

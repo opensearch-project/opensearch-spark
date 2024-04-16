@@ -39,11 +39,13 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
       "Incremental refresh cannot be enabled if auto refresh is enabled")
 
     // Hive table doesn't support auto refresh
-    require(!isSourceTableHive(spark, index), "Index auto refresh doesn't support Hive table")
+    require(
+      !isTableProviderSupported(spark, index),
+      "Index auto refresh doesn't support Hive table")
 
     // Checkpoint location is required if mandatory option set
     val flintSparkConf = new FlintSparkConf(Collections.emptyMap[String, String])
-    val checkpointLocation = index.options.checkpointLocation()
+    val checkpointLocation = options.checkpointLocation()
     if (flintSparkConf.isCheckpointMandatory) {
       require(
         checkpointLocation.isDefined,
