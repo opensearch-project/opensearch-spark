@@ -380,7 +380,6 @@ trait FlintJobExecutor {
     val startTime = System.currentTimeMillis()
     // we have to set job group in the same thread that started the query according to spark doc
     spark.sparkContext.setJobGroup(queryId, "Job group for " + queryId, interruptOnCancel = true)
-    logInfo(s"Executing query: $query")
     val result: DataFrame = spark.sql(query)
     // Get Data
     getFormattedData(
