@@ -198,21 +198,58 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
   test("should fail if materialized view query has syntax error") {
     the[ParseException] thrownBy {
+      // Wrong syntax due to incomplete WITH clause
       sql(s"""
            | CREATE MATERIALIZED VIEW $testMvName
            | AS
-           | SELECT time FROM $testTable WITH (
+           | SELECT time FROM $testTable WITH
            | """.stripMargin)
     }
   }
 
   test("should fail if materialized view query has semantic error") {
     the[AnalysisException] thrownBy {
+      // Non-existent time1 column
       sql(s"""
            | CREATE MATERIALIZED VIEW $testMvName
            | AS
            | SELECT time1 FROM $testTable
            | """.stripMargin)
+    }
+  }
+
+  test("should fail if no windowing function for aggregated query") {
+    withTempDir { checkpointDir =>
+      the[IllegalArgumentException] thrownBy {
+        sql(s"""
+            | CREATE MATERIALIZED VIEW $testMvName
+            | AS
+            | SELECT COUNT(*) FROM $testTable GROUP BY time
+            | WITH (
+            |   auto_refresh = true,
+            |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+            |   watermark_delay = '1 Second'
+            | )
+            | """.stripMargin)
+      } should have message
+        "requirement failed: A windowing function is required for incremental refresh with aggregation"
+    }
+  }
+
+  test("should fail if no watermark delay for aggregated query") {
+    withTempDir { checkpointDir =>
+      the[IllegalArgumentException] thrownBy {
+        sql(s"""
+               | CREATE MATERIALIZED VIEW $testMvName
+               | AS
+               | $testQuery
+               | WITH (
+               |   auto_refresh = true,
+               |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+               | )
+               | """.stripMargin)
+      } should have message
+        "requirement failed: watermark delay is required for auto refresh and incremental refresh with aggregation"
     }
   }
 

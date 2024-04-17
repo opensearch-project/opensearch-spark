@@ -17,6 +17,8 @@ import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generat
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getFlintIndexName, MV_INDEX_TYPE}
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{AUTO, INCREMENTAL}
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.FunctionIdentifier
@@ -122,10 +124,9 @@ case class FlintSparkMaterializedView(
           func
       }
 
-      if (winFuncs.size != 1) {
-        throw new IllegalStateException(
-          "A windowing function is required for incremental refresh with aggregation")
-      }
+      require(
+        winFuncs.size == 1,
+        "A windowing function is required for incremental refresh with aggregation")
 
       // Assume first aggregate item must be time column
       val winFunc = winFuncs.head
@@ -198,6 +199,13 @@ object FlintSparkMaterializedView {
 
     override protected def validateIndex(index: FlintSparkIndex): FlintSparkIndex = {
       super.validateIndex(index)
+
+      // Pre-build to ensure windowing function and watermark valid
+      val refreshMode = FlintSparkIndexRefresh.create(index.name(), index).refreshMode
+      if (refreshMode == AUTO || refreshMode == INCREMENTAL) {
+        index.asInstanceOf[StreamingRefresh].buildStream(flint.spark)
+      }
+      index
     }
 
     override protected def buildIndex(): FlintSparkIndex = {
