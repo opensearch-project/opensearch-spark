@@ -56,7 +56,7 @@ object FlintJob extends Logging with FlintJobExecutor {
     conf.set(FlintSparkConf.JOB_TYPE.key, jobType)
 
     val dataSource = conf.get("spark.flint.datasource.name", "")
-    val query = queryOption.getOrElse(conf.get(FlintSparkConf.QUERY.key, ""))
+    val query = queryOption.getOrElse(unescapeQuery(conf.get(FlintSparkConf.QUERY.key, "")))
     if (query.isEmpty) {
       throw new IllegalArgumentException(s"Query undefined for the ${jobType} job.")
     }

@@ -16,3 +16,4 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 | Sean Kao        | [seankao-az](https://github.com/seankao-az)     | Amazon      |
 | Anirudha Jadhav | [anirudha](https://github.com/anirudha)         | Amazon      |
 | Kaituo Li       | [kaituo](https://github.com/kaituo)             | Amazon      |
+| Louis Chu       | [noCharger](https://github.com/noCharger)       | Amazon      |
