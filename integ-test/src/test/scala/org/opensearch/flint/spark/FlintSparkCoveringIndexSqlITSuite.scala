@@ -125,7 +125,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
   test("create skipping index with auto refresh should fail if mandatory checkpoint enabled") {
     setFlintSparkConf(CHECKPOINT_MANDATORY, "true")
     try {
-      the[IllegalStateException] thrownBy {
+      the[IllegalArgumentException] thrownBy {
         sql(s"""
                | CREATE INDEX $testIndex ON $testTable
                | (name, age)

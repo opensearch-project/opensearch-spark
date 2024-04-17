@@ -43,56 +43,58 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
   }
 
   test("create materialized view with metadata successfully") {
-    val indexOptions =
-      FlintSparkIndexOptions(
-        Map(
-          "auto_refresh" -> "true",
-          "checkpoint_location" -> "s3://test/",
-          "watermark_delay" -> "30 Seconds"))
-    flint
-      .materializedView()
-      .name(testMvName)
-      .query(testQuery)
-      .options(indexOptions)
-      .create()
+    withTempDir { checkpointDir =>
+      val indexOptions =
+        FlintSparkIndexOptions(
+          Map(
+            "auto_refresh" -> "true",
+            "checkpoint_location" -> checkpointDir.getAbsolutePath,
+            "watermark_delay" -> "30 Seconds"))
+      flint
+        .materializedView()
+        .name(testMvName)
+        .query(testQuery)
+        .options(indexOptions)
+        .create()
 
-    val index = flint.describeIndex(testFlintIndex)
-    index shouldBe defined
-    index.get.metadata().getContent should matchJson(s"""
-         | {
-         |  "_meta": {
-         |    "version": "${current()}",
-         |    "name": "spark_catalog.default.mv_test_metrics",
-         |    "kind": "mv",
-         |    "source": "$testQuery",
-         |    "indexedColumns": [
-         |    {
-         |      "columnName": "startTime",
-         |      "columnType": "timestamp"
-         |    },{
-         |      "columnName": "count",
-         |      "columnType": "bigint"
-         |    }],
-         |    "options": {
-         |      "auto_refresh": "true",
-         |      "incremental_refresh": "false",
-         |      "checkpoint_location": "s3://test/",
-         |      "watermark_delay": "30 Seconds"
-         |    },
-         |    "latestId": "$testLatestId",
-         |    "properties": {}
-         |  },
-         |  "properties": {
-         |    "startTime": {
-         |      "type": "date",
-         |      "format": "strict_date_optional_time_nanos"
-         |    },
-         |    "count": {
-         |      "type": "long"
-         |    }
-         |  }
-         | }
-         |""".stripMargin)
+      val index = flint.describeIndex(testFlintIndex)
+      index shouldBe defined
+      index.get.metadata().getContent should matchJson(s"""
+           | {
+           |  "_meta": {
+           |    "version": "${current()}",
+           |    "name": "spark_catalog.default.mv_test_metrics",
+           |    "kind": "mv",
+           |    "source": "$testQuery",
+           |    "indexedColumns": [
+           |    {
+           |      "columnName": "startTime",
+           |      "columnType": "timestamp"
+           |    },{
+           |      "columnName": "count",
+           |      "columnType": "bigint"
+           |    }],
+           |    "options": {
+           |      "auto_refresh": "true",
+           |      "incremental_refresh": "false",
+           |      "checkpoint_location": "${checkpointDir.getAbsolutePath}",
+           |      "watermark_delay": "30 Seconds"
+           |    },
+           |    "latestId": "$testLatestId",
+           |    "properties": {}
+           |  },
+           |  "properties": {
+           |    "startTime": {
+           |      "type": "date",
+           |      "format": "strict_date_optional_time_nanos"
+           |    },
+           |    "count": {
+           |      "type": "long"
+           |    }
+           |  }
+           | }
+           |""".stripMargin)
+    }
   }
 
   test("full refresh materialized view") {
