@@ -95,6 +95,12 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
    *   the index or exception occurred if validation failed
    */
   protected def validateIndex(index: FlintSparkIndex): FlintSparkIndex = {
+    // Pre-validate Flint index name length
+    require(
+      index.name().length <= 255,
+      "Flint index name exceeds the maximum allowed length of 255 characters")
+
+    // Pre-validate index refresh options
     FlintSparkIndexRefresh
       .create(index.name(), index) // TODO: remove first argument?
       .validate(flint.spark)

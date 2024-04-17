@@ -15,7 +15,7 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.defined
+import org.scalatest.matchers.must.Matchers.{defined, have}
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
@@ -246,6 +246,18 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
     assertThrows[IllegalStateException] {
       sql(s"REFRESH SKIPPING INDEX ON $testTable")
+    }
+  }
+
+  test("should fail if table name is too long") {
+    val testTableLong = "x" * 255
+    withTable(testTableLong) {
+      sql(s"CREATE TABLE $testTableLong (name STRING) USING JSON")
+
+      the[IllegalArgumentException] thrownBy {
+        sql(s"CREATE SKIPPING INDEX ON $testTableLong (name VALUE_SET)")
+      } should have message
+        "requirement failed: Flint index name exceeds the maximum allowed length of 255 characters"
     }
   }
 
