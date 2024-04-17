@@ -15,7 +15,7 @@ import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.defined
+import org.scalatest.matchers.must.Matchers.{defined, have}
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
@@ -241,7 +241,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
            |""".stripMargin)
   }
 
-  test("create skipping index with quoted index, table and column name") {
+  test("create covering index with quoted index, table and column name") {
     sql(s"""
            | CREATE INDEX `$testIndex` ON `spark_catalog`.`default`.`covering_sql_test`
            | (`name`, `age`)
@@ -254,6 +254,14 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     metadata.name shouldBe testIndex
     metadata.source shouldBe testTable
     metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("name", "age")
+  }
+
+  test("should fail if covering index name is too long") {
+    the[IllegalArgumentException] thrownBy {
+      val testIndexLong = "x" * 255
+      sql(s"CREATE INDEX $testIndexLong ON $testTable (name, age)")
+    } should have message
+      "requirement failed: Flint index name exceeds the maximum allowed length of 255 characters"
   }
 
   test("show all covering index on the source table") {

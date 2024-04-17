@@ -16,7 +16,7 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
-import org.scalatest.matchers.must.Matchers.defined
+import org.scalatest.matchers.must.Matchers.{defined, have}
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
@@ -185,6 +185,25 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       sql(s"CREATE MATERIALIZED VIEW $testMvName AS $testQuery")
 
     sql(s"CREATE MATERIALIZED VIEW IF NOT EXISTS $testMvName AS $testQuery")
+  }
+
+  test("should fail if materialized view name is too long") {
+    withTempDir { checkpointDir =>
+      val testMvLongName = "x" * 255
+
+      the[IllegalArgumentException] thrownBy {
+        sql(s"""
+             | CREATE MATERIALIZED VIEW $testMvLongName
+             | AS $testQuery
+             | WITH (
+             |   auto_refresh = true,
+             |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+             |   watermark_delay = '1 Second'
+             | )
+             |""".stripMargin)
+      } should have message
+        "requirement failed: Flint index name exceeds the maximum allowed length of 255 characters"
+    }
   }
 
   test("issue 112, https://github.com/opensearch-project/opensearch-spark/issues/112") {

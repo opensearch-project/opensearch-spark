@@ -196,6 +196,10 @@ object FlintSparkMaterializedView {
       this
     }
 
+    override protected def validateIndex(index: FlintSparkIndex): FlintSparkIndex = {
+      super.validateIndex(index)
+    }
+
     override protected def buildIndex(): FlintSparkIndex = {
       // TODO: change here and FlintDS class to support complex field type in future
       val outputSchema = flint.spark
