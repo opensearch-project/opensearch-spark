@@ -22,7 +22,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
 
   override def beforeEach(): Unit = {
     super.beforeEach()
-    createPartitionedMultiRowTable(testTable)
+    createPartitionedMultiRowAddressTable(testTable)
   }
 
   override def afterEach(): Unit = {

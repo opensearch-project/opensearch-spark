@@ -32,21 +32,20 @@ import org.apache.spark.sql.internal.SQLConf
 class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
   /** Test table and index name */
-  private val testTable = "spark_catalog.default.test"
+  private val testTable = "spark_catalog.default.skipping_test"
   private val testIndex = getSkippingIndexName(testTable)
   private val testLatestId = Base64.getEncoder.encodeToString(testIndex.getBytes)
 
   override def beforeEach(): Unit = {
     super.beforeEach()
-    createPartitionedMultiRowTable(testTable)
+    createPartitionedMultiRowAddressTable(testTable)
   }
 
   override def afterEach(): Unit = {
-    super.afterEach()
-
     // Delete all test indices
     deleteTestIndex(testIndex)
     sql(s"DROP TABLE $testTable")
+    super.afterEach()
   }
 
   test("create skipping index with metadata successfully") {
@@ -63,7 +62,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
         |   "_meta": {
-        |     "name": "flint_spark_catalog_default_test_skipping_index",
+        |     "name": "flint_spark_catalog_default_skipping_test_skipping_index",
         |     "version": "${current()}",
         |     "kind": "skipping",
         |     "indexedColumns": [
@@ -101,7 +100,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |        "columnName": "name",
         |        "columnType": "string"
         |     }],
-        |     "source": "spark_catalog.default.test",
+        |     "source": "spark_catalog.default.skipping_test",
         |     "options": {
         |       "auto_refresh": "false",
         |       "incremental_refresh": "false"
@@ -480,7 +479,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     // Table name without database name "default"
     val query = sql(s"""
                        | SELECT name
-                       | FROM test
+                       | FROM skipping_test
                        | WHERE year = 2023
                        |""".stripMargin)
 

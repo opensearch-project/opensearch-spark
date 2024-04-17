@@ -31,7 +31,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
   override def beforeEach(): Unit = {
     super.beforeEach()
 
-    createPartitionedTable(testTable)
+    createPartitionedAddressTable(testTable)
   }
 
   override def afterEach(): Unit = {
