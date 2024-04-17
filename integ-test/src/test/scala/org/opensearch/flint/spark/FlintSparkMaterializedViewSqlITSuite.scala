@@ -19,7 +19,8 @@ import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexNam
 import org.scalatest.matchers.must.Matchers.{defined, have}
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.{AnalysisException, Row}
+import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 
 class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
@@ -188,21 +189,30 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
   }
 
   test("should fail if materialized view name is too long") {
-    withTempDir { checkpointDir =>
+    the[IllegalArgumentException] thrownBy {
       val testMvLongName = "x" * 255
+      sql(s"CREATE MATERIALIZED VIEW $testMvLongName AS $testQuery")
+    } should have message
+      "requirement failed: Flint index name exceeds the maximum allowed length of 255 characters"
+  }
 
-      the[IllegalArgumentException] thrownBy {
-        sql(s"""
-             | CREATE MATERIALIZED VIEW $testMvLongName
-             | AS $testQuery
-             | WITH (
-             |   auto_refresh = true,
-             |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
-             |   watermark_delay = '1 Second'
-             | )
-             |""".stripMargin)
-      } should have message
-        "requirement failed: Flint index name exceeds the maximum allowed length of 255 characters"
+  test("should fail if materialized view query has syntax error") {
+    the[ParseException] thrownBy {
+      sql(s"""
+           | CREATE MATERIALIZED VIEW $testMvName
+           | AS
+           | SELECT time FROM $testTable WITH (
+           | """.stripMargin)
+    }
+  }
+
+  test("should fail if materialized view query has semantic error") {
+    the[AnalysisException] thrownBy {
+      sql(s"""
+           | CREATE MATERIALIZED VIEW $testMvName
+           | AS
+           | SELECT time1 FROM $testTable
+           | """.stripMargin)
     }
   }
 
