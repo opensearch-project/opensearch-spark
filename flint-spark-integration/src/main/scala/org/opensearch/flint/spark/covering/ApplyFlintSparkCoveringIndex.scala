@@ -6,12 +6,10 @@
 package org.opensearch.flint.spark.covering
 
 import java.util
-
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.NamedExpression.newExprId
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, V2WriteCommand}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.LogicalRelation
@@ -46,8 +44,16 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
       val indexPattern = getFlintIndexName("*", qualifiedTableName)
       val indexes = flint.describeIndexes(indexPattern)
 
-      // Collect all columns needed by the query from the relation
-      val requiredCols = plan.output.map(_.name).toSet
+      // Collect all columns needed by the query except those in relation. This is because this rule
+      // executes before push down optimization, relation includes all columns in the table.
+      val requiredCols =
+        plan
+          .collect {
+            case _: LogicalRelation => Set.empty[String]
+            case other => other.expressions.flatMap(_.references).map(_.name).toSet
+          }
+          .flatten
+          .toSet
 
       // Choose the first covering index that meets all criteria
       indexes

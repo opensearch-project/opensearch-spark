@@ -17,7 +17,8 @@ import org.scalatestplus.mockito.MockitoSugar.mock
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.parser.CatalystSqlParser.parseExpression
+import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project}
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.sources.BaseRelation
@@ -49,30 +50,32 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     super.afterAll()
   }
 
-  test("should not apply when no index present") {
+  test("should not apply if no index present") {
     assertFlintQueryRewriter
       .withTable(StructType.fromDDL("name STRING, age INT"))
       .assertIndexNotUsed()
   }
 
-  test("should not apply when index on other table") {
-    assertFlintQueryRewriter
-      .withTable(StructType.fromDDL("name STRING, age INT"))
-      .withIndex(
-        new FlintSparkCoveringIndex(
-          indexName = "all",
-          tableName = s"other_s$testTable",
-          indexedColumns = Map("city" -> "string")))
-      .assertIndexNotUsed()
-  }
-
-  test("should not apply when some columns are not covered") {
+  test("should not apply if some columns in project are not covered") {
     assertFlintQueryRewriter
       .withTable(StructType.fromDDL("name STRING, age INT, city STRING"))
       .withProject("name", "age", "city") // city is not covered
       .withIndex(
         new FlintSparkCoveringIndex(
           indexName = "partial",
+          tableName = testTable,
+          indexedColumns = Map("name" -> "string", "age" -> "int")))
+      .assertIndexNotUsed()
+  }
+
+  test("should not apply if some columns in filter are not covered") {
+    assertFlintQueryRewriter
+      .withTable(StructType.fromDDL("name STRING, age INT, city STRING"))
+      .withFilter("city = 'Seattle'")
+      .withProject("name", "age")
+      .withIndex(
+        new FlintSparkCoveringIndex(
+          indexName = "all",
           tableName = testTable,
           indexedColumns = Map("name" -> "string", "age" -> "int")))
       .assertIndexNotUsed()
@@ -111,6 +114,11 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     def withProject(colNames: String*): AssertionHelper = {
       val output = colNames.map(name => AttributeReference(name, schema(name).dataType)())
       this.plan = Project(output, plan)
+      this
+    }
+
+    def withFilter(predicate: String): AssertionHelper = {
+      this.plan = Filter(parseExpression(predicate), plan)
       this
     }
 
