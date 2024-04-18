@@ -116,8 +116,8 @@ class FlintSparkIndexValidationITSuite extends FlintSparkSuite with SparkHiveSup
         withTable(testTable) {
           sql(s"CREATE TABLE $testTable (name STRING) USING JSON")
 
-          // Generate UUID as folder name to ensure the path not exist
-          val checkpointDir = s"/test/${UUID.randomUUID()}"
+          // Use unknown scheme URL to simulate location without access permission
+          val checkpointDir = "unknown://invalid_permission_path"
           the[IllegalArgumentException] thrownBy {
             sql(s"""
                  | $statement
@@ -127,7 +127,7 @@ class FlintSparkIndexValidationITSuite extends FlintSparkSuite with SparkHiveSup
                  | )
                  |""".stripMargin)
           } should have message
-            s"requirement failed: Checkpoint location $checkpointDir doesn't exist or no permission to access"
+            s"requirement failed: No permission to access the checkpoint location $checkpointDir"
         }
       }
     }
