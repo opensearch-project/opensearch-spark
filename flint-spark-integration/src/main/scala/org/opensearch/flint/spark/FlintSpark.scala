@@ -384,7 +384,11 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         StructField("tableName", StringType, nullable = false),
         StructField("columns", StringType, nullable = true)))
 
-    val data = columns.map { column => Row(tableName, column) }
+    val data = if (columns.isEmpty) {
+      Seq(Row(tableName, null.asInstanceOf[String]))
+    } else {
+      columns.map { column => Row(tableName, column) }
+    }
 
     new DataTypeSkippingStrategy()
       .analyzeSkippingIndexColumns(

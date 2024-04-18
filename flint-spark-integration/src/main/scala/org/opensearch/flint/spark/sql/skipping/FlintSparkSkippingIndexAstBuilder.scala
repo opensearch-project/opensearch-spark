@@ -134,15 +134,19 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       AttributeReference("reason", StringType, nullable = false)(),
       AttributeReference("skipping_type", StringType, nullable = false)())
 
+    val columns: List[String] = if (ctx.indexColumns != null) {
+      ctx.indexColumns
+        .multipartIdentifierProperty()
+        .map { identifier =>
+          identifier.multipartIdentifier().getText
+        }
+        .toList
+    } else {
+      List.empty
+    }
+
     FlintSparkSqlCommand(outputSchema) { flint =>
-      flint.analyzeSkippingIndex(
-        ctx.tableName().getText,
-        ctx.indexColumns
-          .multipartIdentifierProperty()
-          .map { identifier =>
-            identifier.multipartIdentifier().getText
-          }
-          .toList)
+      flint.analyzeSkippingIndex(ctx.tableName().getText, columns)
     }
   }
 
