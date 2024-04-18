@@ -27,7 +27,7 @@ import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
 /**
  * Flint Spark integration API entrypoint.
@@ -370,12 +370,22 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   /**
    * Recommend skipping index columns and algorithm.
    *
-   * @param data
-   *   data for recommendation strategy.
+   * @param tableName
+   *   table name
+   * @param columns
+   *   list of columns
    * @return
    *   skipping index recommendation dataframe
    */
-  def analyzeSkippingIndex(schema: StructType, data: Seq[Row]): Seq[Row] = {
+  def analyzeSkippingIndex(tableName: String, columns: List[String]): Seq[Row] = {
+
+    val schema = StructType(
+      Seq(
+        StructField("tableName", StringType, nullable = false),
+        StructField("columns", StringType, nullable = true)))
+
+    val data = columns.map { column => Row(tableName, column) }
+
     new DataTypeSkippingStrategy()
       .analyzeSkippingIndexColumns(
         spark.createDataFrame(spark.sparkContext.parallelize(data), schema),
