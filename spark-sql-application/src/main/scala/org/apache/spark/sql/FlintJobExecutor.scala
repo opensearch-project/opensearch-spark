@@ -7,25 +7,17 @@ package org.apache.spark.sql
 
 import java.util.Locale
 
-import scala.concurrent.{ExecutionContext, Future, TimeoutException}
-import scala.concurrent.duration.{Duration, MINUTES}
-
 import com.amazonaws.services.s3.model.AmazonS3Exception
-import org.opensearch.flint.core.{FlintClient, IRestHighLevelClient}
-import org.opensearch.flint.core.metadata.FlintMetadata
+import org.opensearch.flint.core.IRestHighLevelClient
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
-import play.api.libs.json.{JsArray, JsBoolean, JsObject, Json, JsString, JsValue}
+import play.api.libs.json._
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.FlintREPL.envinromentProvider
 import org.apache.spark.sql.catalyst.parser.ParseException
-import org.apache.spark.sql.execution.datasources.DataSource
-import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.apache.spark.sql.types.{ArrayType, LongType, StringType, StructField, StructType}
-import org.apache.spark.sql.util.{DefaultThreadPoolFactory, EnvironmentProvider, RealEnvironment, RealTimeProvider, ThreadPoolFactory, TimeProvider}
-import org.apache.spark.util.ThreadUtils
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.util._
 
 trait FlintJobExecutor {
   this: Logging =>
@@ -156,7 +148,8 @@ trait FlintJobExecutor {
       query: String,
       sessionId: String,
       startTime: Long,
-      timeProvider: TimeProvider): DataFrame = {
+      timeProvider: TimeProvider,
+      cleaner: Cleaner): DataFrame = {
     // Create the schema dataframe
     val schemaRows = result.schema.fields.map { field =>
       Row(field.name, field.dataType.typeName)
@@ -190,6 +183,11 @@ trait FlintJobExecutor {
 
     val resultSchemaToSave = resultSchema.toJSON.collect.toList.map(_.replaceAll("\"", "'"))
     val endTime = timeProvider.currentEpochMillis()
+
+    // https://github.com/opensearch-project/opensearch-spark/issues/302. Clean shuffle data
+    // after consumed the query result. Streaming query shuffle data is cleaned after each
+    // microBatch execution.
+    cleaner.cleanUp(spark)
 
     // Create the data rows
     val rows = Seq(
@@ -366,7 +364,8 @@ trait FlintJobExecutor {
       query: String,
       dataSource: String,
       queryId: String,
-      sessionId: String): DataFrame = {
+      sessionId: String,
+      streaming: Boolean): DataFrame = {
     // Execute SQL query
     val startTime = System.currentTimeMillis()
     // we have to set job group in the same thread that started the query according to spark doc
@@ -381,7 +380,8 @@ trait FlintJobExecutor {
       query,
       sessionId,
       startTime,
-      currentTimeProvider)
+      currentTimeProvider,
+      CleanerFactory.cleaner(streaming))
   }
 
   private def handleQueryException(
