@@ -5,7 +5,6 @@
 
 package org.opensearch.flint.core;
 
-import dev.failsafe.RetryPolicy;
 import java.io.Serializable;
 import java.util.Map;
 import org.opensearch.flint.core.http.FlintRetryOptions;
@@ -46,10 +45,14 @@ public class FlintOptions implements Serializable {
 
   public static final String CUSTOM_AWS_CREDENTIALS_PROVIDER = "customAWSCredentialsProvider";
 
+  public static final String METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER = "spark.metadata.accessAWSCredentialsProvider";
+
   /**
-   * By default, customAWSCredentialsProvider is empty. use DefaultAWSCredentialsProviderChain.
+   * By default, customAWSCredentialsProvider and accessAWSCredentialsProvider are empty. use DefaultAWSCredentialsProviderChain.
    */
-  public static final String DEFAULT_CUSTOM_AWS_CREDENTIALS_PROVIDER = "";
+  public static final String DEFAULT_AWS_CREDENTIALS_PROVIDER = "";
+
+  public static final String SYSTEM_INDEX_KEY_NAME = "spark.flint.job.requestIndex";
 
   /**
    * Used by {@link org.opensearch.flint.core.storage.OpenSearchScrollReader}
@@ -121,7 +124,11 @@ public class FlintOptions implements Serializable {
   }
 
   public String getCustomAwsCredentialsProvider() {
-    return options.getOrDefault(CUSTOM_AWS_CREDENTIALS_PROVIDER, "");
+    return options.getOrDefault(CUSTOM_AWS_CREDENTIALS_PROVIDER, DEFAULT_AWS_CREDENTIALS_PROVIDER);
+  }
+
+  public String getMetadataAccessAwsCredentialsProvider() {
+    return options.getOrDefault(METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER, DEFAULT_AWS_CREDENTIALS_PROVIDER);
   }
 
   public String getUsername() {
@@ -138,5 +145,9 @@ public class FlintOptions implements Serializable {
 
   public String getDataSourceName() {
     return options.getOrDefault(DATA_SOURCE_NAME, "");
+  }
+
+  public String getSystemIndexName() {
+    return options.getOrDefault(SYSTEM_INDEX_KEY_NAME, "");
   }
 }

@@ -7,6 +7,10 @@ import Dependencies._
 lazy val scala212 = "2.12.14"
 lazy val sparkVersion = "3.3.2"
 lazy val opensearchVersion = "2.6.0"
+lazy val icebergVersion = "1.5.0"
+
+val scalaMinorVersion = scala212.split("\\.").take(2).mkString(".")
+val sparkMinorVersion = sparkVersion.split("\\.").take(2).mkString(".")
 
 ThisBuild / organization := "org.opensearch"
 
@@ -172,6 +176,8 @@ lazy val integtest = (project in file("integ-test"))
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
       "org.testcontainers" % "testcontainers" % "1.18.0" % "test",
+      "org.apache.iceberg" %% s"iceberg-spark-runtime-$sparkMinorVersion" % icebergVersion % "test",
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.11.0" % "test",
       // add opensearch-java client to get node stats
       "org.opensearch.client" % "opensearch-java" % "2.6.0" % "test"
         exclude ("com.fasterxml.jackson.core", "jackson-databind")),

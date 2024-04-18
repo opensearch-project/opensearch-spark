@@ -31,7 +31,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
   override def beforeEach(): Unit = {
     super.beforeAll()
 
-    createPartitionedMultiRowTable(testTable)
+    createPartitionedMultiRowAddressTable(testTable)
   }
 
   protected override def afterEach(): Unit = {
@@ -178,7 +178,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
   test("create skipping index with auto refresh should fail if mandatory checkpoint enabled") {
     setFlintSparkConf(CHECKPOINT_MANDATORY, "true")
     try {
-      the[IllegalStateException] thrownBy {
+      the[IllegalArgumentException] thrownBy {
         sql(s"""
                | CREATE SKIPPING INDEX ON $testTable
                | ( year PARTITION )

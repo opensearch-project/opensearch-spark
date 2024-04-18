@@ -8,6 +8,7 @@ package org.apache.spark.sql
 import java.util.Locale
 
 import com.amazonaws.services.s3.model.AmazonS3Exception
+import org.apache.commons.text.StringEscapeUtils.unescapeJava
 import org.opensearch.flint.core.IRestHighLevelClient
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
@@ -357,6 +358,14 @@ trait FlintJobExecutor {
         logError(error, e)
         Left(error)
     }
+  }
+
+  /**
+   * Unescape the query string which is escaped for EMR spark submit parameter parsing. Ref:
+   * https://github.com/opensearch-project/sql/pull/2587
+   */
+  def unescapeQuery(query: String): String = {
+    unescapeJava(query)
   }
 
   def executeQuery(

@@ -26,7 +26,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    createPartitionedTable(testTable)
+    createPartitionedAddressTable(testTable)
   }
 
   override def afterEach(): Unit = {

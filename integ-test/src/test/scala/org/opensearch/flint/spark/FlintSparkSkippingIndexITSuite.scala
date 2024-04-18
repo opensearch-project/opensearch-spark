@@ -32,21 +32,20 @@ import org.apache.spark.sql.internal.SQLConf
 class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
   /** Test table and index name */
-  private val testTable = "spark_catalog.default.test"
+  private val testTable = "spark_catalog.default.skipping_test"
   private val testIndex = getSkippingIndexName(testTable)
   private val testLatestId = Base64.getEncoder.encodeToString(testIndex.getBytes)
 
   override def beforeEach(): Unit = {
     super.beforeEach()
-    createPartitionedMultiRowTable(testTable)
+    createPartitionedMultiRowAddressTable(testTable)
   }
 
   override def afterEach(): Unit = {
-    super.afterEach()
-
     // Delete all test indices
     deleteTestIndex(testIndex)
     sql(s"DROP TABLE $testTable")
+    super.afterEach()
   }
 
   test("create skipping index with metadata successfully") {
@@ -63,7 +62,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
         |   "_meta": {
-        |     "name": "flint_spark_catalog_default_test_skipping_index",
+        |     "name": "flint_spark_catalog_default_skipping_test_skipping_index",
         |     "version": "${current()}",
         |     "kind": "skipping",
         |     "indexedColumns": [
@@ -101,7 +100,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |        "columnName": "name",
         |        "columnType": "string"
         |     }],
-        |     "source": "spark_catalog.default.test",
+        |     "source": "spark_catalog.default.skipping_test",
         |     "options": {
         |       "auto_refresh": "false",
         |       "incremental_refresh": "false"
@@ -141,36 +140,39 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("create skipping index with index options successfully") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addValueSet("address")
-      .options(FlintSparkIndexOptions(Map(
-        "auto_refresh" -> "true",
-        "refresh_interval" -> "1 Minute",
-        "checkpoint_location" -> "s3a://test/",
-        "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")))
-      .create()
+    withTempDir { checkpointDir =>
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addValueSet("address")
+        .options(FlintSparkIndexOptions(Map(
+          "auto_refresh" -> "true",
+          "refresh_interval" -> "1 Minute",
+          "checkpoint_location" -> checkpointDir.getAbsolutePath,
+          "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")))
+        .create()
 
-    val index = flint.describeIndex(testIndex)
-    index shouldBe defined
-    val optionJson = compact(render(parse(index.get.metadata().getContent) \ "_meta" \ "options"))
-    optionJson should matchJson("""
-        | {
-        |   "auto_refresh": "true",
-        |   "incremental_refresh": "false",
-        |   "refresh_interval": "1 Minute",
-        |   "checkpoint_location": "s3a://test/",
-        |   "index_settings": "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
-        | }
-        |""".stripMargin)
+      val index = flint.describeIndex(testIndex)
+      index shouldBe defined
+      val optionJson =
+        compact(render(parse(index.get.metadata().getContent) \ "_meta" \ "options"))
+      optionJson should matchJson(s"""
+           | {
+           |   "auto_refresh": "true",
+           |   "incremental_refresh": "false",
+           |   "refresh_interval": "1 Minute",
+           |   "checkpoint_location": "${checkpointDir.getAbsolutePath}",
+           |   "index_settings": "{\\"number_of_shards\\": 3,\\"number_of_replicas\\": 2}"
+           | }
+           |""".stripMargin)
 
-    // Load index options from index mapping (verify OS index setting in SQL IT)
-    index.get.options.autoRefresh() shouldBe true
-    index.get.options.refreshInterval() shouldBe Some("1 Minute")
-    index.get.options.checkpointLocation() shouldBe Some("s3a://test/")
-    index.get.options.indexSettings() shouldBe
-      Some("{\"number_of_shards\": 3,\"number_of_replicas\": 2}")
+      // Load index options from index mapping (verify OS index setting in SQL IT)
+      index.get.options.autoRefresh() shouldBe true
+      index.get.options.refreshInterval() shouldBe Some("1 Minute")
+      index.get.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
+      index.get.options.indexSettings() shouldBe
+        Some("{\"number_of_shards\": 3,\"number_of_replicas\": 2}")
+    }
   }
 
   test("should not have ID column in index data") {
@@ -233,16 +235,14 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("should fail if incremental refresh without checkpoint location") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .options(FlintSparkIndexOptions(Map("incremental_refresh" -> "true")))
-      .create()
-
-    assertThrows[IllegalStateException] {
-      flint.refreshIndex(testIndex)
-    }
+    the[IllegalArgumentException] thrownBy {
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(FlintSparkIndexOptions(Map("incremental_refresh" -> "true")))
+        .create()
+    } should have message "requirement failed: Checkpoint location is required by incremental refresh"
   }
 
   test("auto refresh skipping index successfully") {
@@ -479,7 +479,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     // Table name without database name "default"
     val query = sql(s"""
                        | SELECT name
-                       | FROM test
+                       | FROM skipping_test
                        | WHERE year = 2023
                        |""".stripMargin)
 

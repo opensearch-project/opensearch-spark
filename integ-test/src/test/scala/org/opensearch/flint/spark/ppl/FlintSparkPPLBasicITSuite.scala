@@ -22,36 +22,9 @@ class FlintSparkPPLBasicITSuite
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    // Create test table
-    // Update table creation
-    sql(s"""
-         | CREATE TABLE $testTable
-         | (
-         |   name STRING,
-         |   age INT,
-         |   state STRING,
-         |   country STRING
-         | )
-         | USING CSV
-         | OPTIONS (
-         |  header 'false',
-         |  delimiter '\t'
-         | )
-         | PARTITIONED BY (
-         |    year INT,
-         |    month INT
-         | )
-         |""".stripMargin)
 
-    // Update data insertion
-    sql(s"""
-         | INSERT INTO $testTable
-         | PARTITION (year=2023, month=4)
-         | VALUES ('Jake', 70, 'California', 'USA'),
-         |        ('Hello', 30, 'New York', 'USA'),
-         |        ('John', 25, 'Ontario', 'Canada'),
-         |        ('Jane', 20, 'Quebec', 'Canada')
-         | """.stripMargin)
+    // Create test table
+    createPartitionedStateCountryTable(testTable)
   }
 
   protected override def afterEach(): Unit = {

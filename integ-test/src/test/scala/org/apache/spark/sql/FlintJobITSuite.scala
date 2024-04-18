@@ -38,7 +38,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     super.beforeAll()
     // initialized after the container is started
     osClient = new OSClient(new FlintOptions(openSearchOptions.asJava))
-    createPartitionedMultiRowTable(testTable)
+    createPartitionedMultiRowAddressTable(testTable)
   }
 
   protected override def afterEach(): Unit = {

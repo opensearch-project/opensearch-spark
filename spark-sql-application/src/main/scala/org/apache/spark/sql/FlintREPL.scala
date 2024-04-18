@@ -249,7 +249,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         if (defaultQuery.isEmpty) {
           throw new IllegalArgumentException("Query undefined for the streaming job.")
         }
-        defaultQuery
+        unescapeQuery(defaultQuery)
       } else ""
     }
   }

@@ -28,100 +28,19 @@ class FlintSparkPPLCorrelationITSuite
   override def beforeAll(): Unit = {
     super.beforeAll()
     // Create test tables
-    sql(s"""
-         | CREATE TABLE $testTable1
-         | (
-         |   name STRING,
-         |   age INT,
-         |   state STRING,
-         |   country STRING
-         | )
-         | USING CSV
-         | OPTIONS (
-         |  header 'false',
-         |  delimiter '\t'
-         | )
-         | PARTITIONED BY (
-         |    year INT,
-         |    month INT
-         | )
-         |""".stripMargin)
-
-    sql(s"""
-         | CREATE TABLE $testTable2
-         | (
-         |   name STRING,
-         |   occupation STRING,
-         |   country STRING,
-         |   salary INT
-         | )
-         | USING CSV
-         | OPTIONS (
-         |  header 'false',
-         |  delimiter '\t'
-         | )
-         | PARTITIONED BY (
-         |    year INT,
-         |    month INT
-         | )
-         |""".stripMargin)
-
+    createPartitionedStateCountryTable(testTable1)
     // Update data insertion
     sql(s"""
          | INSERT INTO $testTable1
          | PARTITION (year=2023, month=4)
-         | VALUES ('Jake', 70, 'California', 'USA'),
-         |        ('Hello', 30, 'New York', 'USA'),
-         |        ('John', 25, 'Ontario', 'Canada'),
-         |        ('Jim', 27,  'B.C', 'Canada'),
+         | VALUES ('Jim', 27,  'B.C', 'Canada'),
          |        ('Peter', 57,  'B.C', 'Canada'),
          |        ('Rick', 70,  'B.C', 'Canada'),
-         |        ('David', 40,  'Washington', 'USA'),
-         |        ('Jane', 20, 'Quebec', 'Canada')
+         |        ('David', 40,  'Washington', 'USA')
          | """.stripMargin)
-    // Insert data into the new table
-    sql(s"""
-         | INSERT INTO $testTable2
-         | PARTITION (year=2023, month=4)
-         | VALUES ('Jake', 'Engineer', 'England' , 100000),
-         |        ('Hello', 'Artist', 'USA', 70000),
-         |        ('John', 'Doctor', 'Canada', 120000),
-         |        ('David', 'Doctor', 'USA', 120000),
-         |        ('David', 'Unemployed', 'Canada', 0),
-         |        ('Jane', 'Scientist', 'Canada', 90000)
-         | """.stripMargin)
-    sql(s"""
-           | CREATE TABLE $testTable3
-           | (
-           |   name STRING,
-           |   country STRING,
-           |   hobby STRING,
-           |   language STRING
-           | )
-           | USING CSV
-           | OPTIONS (
-           |  header 'false',
-           |  delimiter '\t'
-           | )
-           | PARTITIONED BY (
-           |    year INT,
-           |    month INT
-           | )
-           |""".stripMargin)
 
-    // Insert data into the new table
-    sql(s"""
-           | INSERT INTO $testTable3
-           | PARTITION (year=2023, month=4)
-           | VALUES ('Jake', 'USA', 'Fishing', 'English'),
-           |        ('Hello', 'USA', 'Painting', 'English'),
-           |        ('John', 'Canada', 'Reading', 'French'),
-           |        ('Jim', 'Canada', 'Hiking', 'English'),
-           |        ('Peter', 'Canada', 'Gaming', 'English'),
-           |        ('Rick', 'USA', 'Swimming', 'English'),
-           |        ('David', 'USA', 'Gardening', 'English'),
-           |        ('Jane', 'Canada', 'Singing', 'French')
-           | """.stripMargin)
+    createOccupationTable(testTable2)
+    createHobbiesTable(testTable3)
   }
 
   protected override def afterEach(): Unit = {
@@ -701,7 +620,15 @@ class FlintSparkPPLCorrelationITSuite
       Row(70000.0, "Canada", 50L),
       Row(95000.0, "USA", 40L))
 
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Long](_.getAs[Long](2))
+    // Define ordering for rows that first compares by age then by name
+    implicit val rowOrdering: Ordering[Row] = new Ordering[Row] {
+      def compare(x: Row, y: Row): Int = {
+        val ageCompare = x.getAs[Long](2).compareTo(y.getAs[Long](2))
+        if (ageCompare != 0) ageCompare
+        else x.getAs[String](1).compareTo(y.getAs[String](1))
+      }
+    }
+
     // Compare the results
     assert(results.sorted.sameElements(expectedResults.sorted))
 
