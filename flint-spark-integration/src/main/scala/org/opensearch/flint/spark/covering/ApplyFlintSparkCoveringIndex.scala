@@ -6,10 +6,10 @@
 package org.opensearch.flint.spark.covering
 
 import java.util
+
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, V2WriteCommand}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.LogicalRelation
@@ -67,11 +67,11 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
             val flintTable = ds.getTable(inferredSchema, Array.empty, options)
 
             // Adjust attributes to match the original plan's output
-            val outputAttributes = relation.output.map { attr =>
-              AttributeReference(attr.name, attr.dataType, attr.nullable, attr.metadata)(
-                attr.exprId,
-                attr.qualifier)
-            }
+            // TODO: replace original source column type with filed type in index metadata?
+            val outputAttributes =
+              index.indexedColumns.keys
+                .map(colName => relation.output.find(_.name == colName).get)
+                .toSeq
 
             // Create the DataSourceV2 scan with corrected attributes
             DataSourceV2Relation(flintTable, outputAttributes, None, None, options)

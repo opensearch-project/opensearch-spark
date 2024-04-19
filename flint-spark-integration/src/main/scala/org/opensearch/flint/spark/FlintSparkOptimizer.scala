@@ -28,7 +28,7 @@ class FlintSparkOptimizer(spark: SparkSession) extends Rule[LogicalPlan] {
     Seq(new ApplyFlintSparkCoveringIndex(flint), new ApplyFlintSparkSkippingIndex(flint))
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
-    if (isOptimizerEnabled) {
+    if (FlintSparkConf().isCoveringIndexRewriteEnabled) {
       rules.head.apply(plan) // TODO: apply one by one
     } else {
       plan
