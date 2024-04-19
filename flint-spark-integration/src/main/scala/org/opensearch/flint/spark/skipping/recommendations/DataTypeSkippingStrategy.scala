@@ -5,8 +5,6 @@
 
 package org.opensearch.flint.spark.skipping.recommendations
 
-import scala.collection.mutable.ArrayBuffer
-
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.flint.{findField, loadTable, parseTableName}
@@ -21,49 +19,36 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
    *
    * @param data
    *   data for static rule based recommendation. This can table name and columns.
+   * @param spark
+   *   spark session
    * @return
    *   skipping index recommendation dataframe
    */
   override def analyzeSkippingIndexColumns(data: DataFrame, spark: SparkSession): Seq[Row] = {
-    val result = ArrayBuffer[Row]()
-    data
-      .select("tableName")
-      .distinct
-      .collect()
-      .map(_.getString(0))
-      .foreach(tableName => {
-        val table = getTable(tableName, spark)
-        val partitionFields = getPartitionFields(table)
-        var columns: List[String] = data
-          .filter(s"tableName = '$tableName'")
-          .select("columns")
-          .distinct()
-          .collect()
-          .map(_.getString(0))
-          .toList
-          .filter(_ != null)
-
-        if (columns.isEmpty) {
-          columns = table.schema().fields.map(field => field.name).toList
+    getTableList(data).flatMap(tableName => {
+      val table = getTable(tableName, spark)
+      val partitionFields = getPartitionFields(table)
+      getColumnList(data, tableName, spark).flatMap(column => {
+        val field = findField(table.schema(), column).get
+        val rule = if (partitionFields.contains(column)) {
+          "PARTITION"
+        } else if (RecommendationRules.containsRule(field.dataType.toString)) {
+          field.dataType.toString
+        } else {
+          null.asInstanceOf[String]
         }
-        columns.foreach(column => {
-          val field = findField(table.schema(), column).get
-          if (partitionFields.contains(column)) {
-            result += Row(
+        if (!rule.isEmpty) {
+          Some(
+            Row(
               field.name,
               field.dataType.typeName,
-              RecommendationRules.getSkippingType("PARTITION"),
-              RecommendationRules.getReason("PARTITION"))
-          } else if (RecommendationRules.containsRule(field.dataType.toString)) {
-            result += Row(
-              field.name,
-              field.dataType.typeName,
-              RecommendationRules.getSkippingType(field.dataType.toString),
-              RecommendationRules.getReason(field.dataType.toString))
-          }
-        })
+              RecommendationRules.getSkippingType(rule),
+              RecommendationRules.getReason(rule)))
+        } else {
+          None
+        }
       })
-    result
+    })
   }
 
   private def getPartitionFields(table: Table): Array[String] = {
@@ -76,6 +61,34 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
         .flatten
         .toSet
     }
+  }
+
+  private def getColumnList(
+      data: DataFrame,
+      tableName: String,
+      spark: SparkSession): List[String] = {
+    var columns: List[String] = data
+      .filter(s"tableName = '$tableName'")
+      .select("columns")
+      .distinct()
+      .collect()
+      .map(_.getString(0))
+      .toList
+      .filter(_ != null)
+
+    if (columns.isEmpty) {
+      columns = getTable(tableName, spark).schema().fields.map(field => field.name).toList
+    }
+    columns
+  }
+
+  private def getTableList(data: DataFrame): List[String] = {
+    data
+      .select("tableName")
+      .distinct
+      .collect()
+      .map(_.getString(0))
+      .toList
   }
 
   private def getTable(tableName: String, spark: SparkSession): Table = {
