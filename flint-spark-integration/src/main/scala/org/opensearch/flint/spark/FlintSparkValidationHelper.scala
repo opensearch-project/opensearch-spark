@@ -76,7 +76,11 @@ trait FlintSparkValidationHelper extends Logging {
           new Path(checkpointLocation),
           spark.sessionState.newHadoopConf())
 
+      // The primary intent here is to catch any exceptions during the accessibility check.
+      // The actual result is ignored, as Spark can create any necessary sub-folders
+      // when the streaming job starts.
       checkpointManager.exists(new Path(checkpointLocation))
+      true
     } catch {
       case e: IOException =>
         logWarning(s"Failed to check if checkpoint location $checkpointLocation exists", e)
