@@ -16,6 +16,8 @@ trait AnalyzeSkippingStrategy {
    *
    * @param data
    *   data for recommendation strategy.
+   * @param spark
+   *   spark session.
    * @return
    *   skipping index recommendation dataframe.
    */

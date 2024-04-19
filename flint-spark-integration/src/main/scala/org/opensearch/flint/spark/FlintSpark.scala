@@ -373,7 +373,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    * @param tableName
    *   table name
    * @param columns
-   *   list of columns
+   *   list of column name
    * @return
    *   skipping index recommendation dataframe
    */
@@ -382,7 +382,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     val schema = StructType(
       Seq(
         StructField("tableName", StringType, nullable = false),
-        StructField("columns", StringType, nullable = true)))
+        StructField("columnName", StringType, nullable = true)))
 
     val data = if (columns.isEmpty) {
       Seq(Row(tableName, null.asInstanceOf[String]))

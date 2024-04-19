@@ -18,17 +18,17 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
    * Recommend skipping index columns and algorithm.
    *
    * @param data
-   *   data for static rule based recommendation. This can table name and columns.
+   *   data for static rule based recommendation.
    * @param spark
    *   spark session
    * @return
    *   skipping index recommendation dataframe
    */
   override def analyzeSkippingIndexColumns(data: DataFrame, spark: SparkSession): Seq[Row] = {
-    getTableList(data).flatMap(tableName => {
+    getTableNameList(data).flatMap(tableName => {
       val table = getTable(tableName, spark)
       val partitionFields = getPartitionFields(table)
-      getColumnList(data, tableName, spark).flatMap(column => {
+      getColumnNameList(data, tableName, spark).flatMap(column => {
         val field = findField(table.schema(), column).get
         val rule = if (partitionFields.contains(column)) {
           "PARTITION"
@@ -63,13 +63,13 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
     }
   }
 
-  private def getColumnList(
+  private def getColumnNameList(
       data: DataFrame,
       tableName: String,
       spark: SparkSession): List[String] = {
     var columns: List[String] = data
       .filter(s"tableName = '$tableName'")
-      .select("columns")
+      .select("columnName")
       .distinct()
       .collect()
       .map(_.getString(0))
@@ -82,7 +82,7 @@ class DataTypeSkippingStrategy extends AnalyzeSkippingStrategy {
     columns
   }
 
-  private def getTableList(data: DataFrame): List[String] = {
+  private def getTableNameList(data: DataFrame): List[String] = {
     data
       .select("tableName")
       .distinct
