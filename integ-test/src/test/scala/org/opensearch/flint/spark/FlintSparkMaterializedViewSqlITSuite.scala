@@ -13,6 +13,8 @@ import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConv
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
+import org.opensearch.client.RequestOptions
+import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
@@ -202,7 +204,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       sql(s"""
            | CREATE MATERIALIZED VIEW $testMvName
            | AS
-           | SELECT time FROM $testTable WITH
+           | SELECT time FROM $testTable WITH (
            | """.stripMargin)
     }
   }
@@ -232,7 +234,12 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
             | )
             | """.stripMargin)
       } should have message
-        "requirement failed: A windowing function is required for incremental refresh with aggregation"
+        "requirement failed: A windowing function is required for auto or incremental refresh with aggregation"
+
+      // OS index should not be created because of pre-validation failed above
+      openSearchClient
+        .indices()
+        .exists(new GetIndexRequest(testFlintIndex), RequestOptions.DEFAULT) shouldBe false
     }
   }
 
@@ -249,7 +256,12 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
                | )
                | """.stripMargin)
       } should have message
-        "requirement failed: watermark delay is required for auto refresh and incremental refresh with aggregation"
+        "requirement failed: watermark delay is required for auto or incremental refresh with aggregation"
+
+      // OS index should not be created because of pre-validation failed above
+      openSearchClient
+        .indices()
+        .exists(new GetIndexRequest(testFlintIndex), RequestOptions.DEFAULT) shouldBe false
     }
   }
 
