@@ -23,19 +23,30 @@ class FlintSparkOptimizer(spark: SparkSession) extends Rule[LogicalPlan] {
   /** Flint Spark API */
   private val flint: FlintSpark = new FlintSpark(spark)
 
-  /** Only one Flint optimizer rule for now. Need to estimate cost if more than one in future. */
-  private val rules =
-    Seq(new ApplyFlintSparkCoveringIndex(flint), new ApplyFlintSparkSkippingIndex(flint))
+  /** Skipping index rewrite rule */
+  private val skippingIndexRule = new ApplyFlintSparkSkippingIndex(flint)
+
+  /** Covering index rewrite rule */
+  private val coveringIndexRule = new ApplyFlintSparkCoveringIndex(flint)
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
-    if (FlintSparkConf().isCoveringIndexRewriteEnabled) {
-      rules.head.apply(plan) // TODO: apply one by one
+    if (isFlintOptimizerEnabled) {
+      if (isCoveringIndexOptimizerEnabled) {
+        // Apply covering index rule first
+        skippingIndexRule.apply(coveringIndexRule.apply(plan))
+      } else {
+        skippingIndexRule.apply(plan)
+      }
     } else {
       plan
     }
   }
 
-  private def isOptimizerEnabled: Boolean = {
+  private def isFlintOptimizerEnabled: Boolean = {
     FlintSparkConf().isOptimizerEnabled
+  }
+
+  private def isCoveringIndexOptimizerEnabled: Boolean = {
+    FlintSparkConf().isCoveringIndexOptimizerEnabled
   }
 }

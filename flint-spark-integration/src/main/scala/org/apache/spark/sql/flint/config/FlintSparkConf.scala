@@ -205,7 +205,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
 
   def isOptimizerEnabled: Boolean = OPTIMIZER_RULE_ENABLED.readFrom(reader).toBoolean
 
-  def isCoveringIndexRewriteEnabled: Boolean =
+  def isCoveringIndexOptimizerEnabled: Boolean =
     OPTIMIZER_RULE_COVERING_INDEX_ENABLED.readFrom(reader).toBoolean
 
   def isHybridScanEnabled: Boolean = HYBRID_SCAN_ENABLED.readFrom(reader).toBoolean

@@ -14,6 +14,7 @@ import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.flint.config.FlintSparkConf.OPTIMIZER_RULE_COVERING_INDEX_ENABLED
 
 class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
 
@@ -172,8 +173,39 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
       .addIndexColumns("name", "age")
       .create()
 
-    flint.refreshIndex(testFlintIndex)
+    checkKeywordsExist(sql(s"EXPLAIN SELECT name, age FROM $testTable"), "FlintScan")
+  }
 
-    sql(s"SELECT name, age FROM $testTable").show
+  test("should not rewrite with covering index if disabled") {
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
+
+    spark.conf.set(OPTIMIZER_RULE_COVERING_INDEX_ENABLED.key, "false")
+    try {
+      checkKeywordsNotExist(sql(s"EXPLAIN SELECT name, age FROM $testTable"), "FlintScan")
+    } finally {
+      spark.conf.set(OPTIMIZER_RULE_COVERING_INDEX_ENABLED.key, "true")
+    }
+  }
+
+  test("rewrite applicable query with covering index before skipping index") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addValueSet("name")
+      .addMinMax("age")
+      .create()
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
+
+    checkKeywordsExist(sql(s"EXPLAIN SELECT name, age FROM $testTable"), "FlintScan")
   }
 }

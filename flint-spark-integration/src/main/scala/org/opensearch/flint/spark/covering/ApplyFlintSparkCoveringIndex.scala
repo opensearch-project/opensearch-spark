@@ -26,25 +26,24 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
  */
 class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] {
 
+  /**
+   * Prerequisite:
+   * ```
+   *   1) Not an insert statement
+   *   2) Relation is supported, ex. Iceberg, Delta, File. (is this check required?)
+   *   3) Any covering index on the table:
+   *     3.1) doesn't have filtering condition
+   *     3.2) cover all columns present in the query
+   * ```
+   */
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
-
-    /**
-     * Prerequisite:
-     * ```
-     *   1) Not an insert statement
-     *   2) Relation is supported, ex. Iceberg, Delta, File. (is this check required?)
-     *   3) Any covering index on the table:
-     *     3.1) doesn't have filtering condition
-     *     3.2) cover all columns present in the query
-     * ```
-     */
     case relation @ LogicalRelation(_, _, Some(table), false)
         if !plan.isInstanceOf[V2WriteCommand] =>
       val tableName = table.qualifiedName
-      val requiredCols = allRequiredColumnsInQueryPlan(plan)
+      val requiredCols = requiredColumnsInQueryPlan(plan)
 
       // Choose the first covering index that meets all criteria above
-      allCoveringIndexesOnTable(tableName)
+      coveringIndexesOnTable(tableName)
         .collectFirst {
           case index: FlintSparkCoveringIndex
               if index.filterCondition.isEmpty &&
@@ -54,7 +53,7 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
         .getOrElse(relation) // If no index found, return the original relation
   }
 
-  private def allRequiredColumnsInQueryPlan(plan: LogicalPlan): Set[String] = {
+  private def requiredColumnsInQueryPlan(plan: LogicalPlan): Set[String] = {
     // Collect all columns needed by the query, except those in relation. This is because this rule
     // executes before push down optimization and thus relation includes all columns in the table.
     plan
@@ -66,7 +65,7 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
       .toSet
   }
 
-  private def allCoveringIndexesOnTable(tableName: String): Seq[FlintSparkIndex] = {
+  private def coveringIndexesOnTable(tableName: String): Seq[FlintSparkIndex] = {
     val qualifiedTableName = qualifyTableName(flint.spark, tableName)
     val indexPattern = getFlintIndexName("*", qualifiedTableName)
     flint.describeIndexes(indexPattern)
@@ -75,13 +74,13 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
   private def replaceTableRelationWithIndexRelation(
       relation: LogicalRelation,
       index: FlintSparkCoveringIndex): LogicalPlan = {
+    // Replace with data source relation so as to avoid OpenSearch index required in catalog
     val ds = new FlintDataSourceV2
     val options = new CaseInsensitiveStringMap(util.Map.of("path", index.name()))
     val inferredSchema = ds.inferSchema(options)
     val flintTable = ds.getTable(inferredSchema, Array.empty, options)
 
-    // Adjust attributes to match the original plan's output
-    // TODO: replace original source column type with filed type in index metadata?
+    // Keep original output attributes in index only
     val outputAttributes =
       index.indexedColumns.keys
         .map(colName => relation.output.find(_.name == colName).get)
