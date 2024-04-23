@@ -21,12 +21,14 @@ import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 
 class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
 
+  /** Test table name */
   private val testTable = "spark_catalog.default.apply_covering_index_test"
 
+  // Mock FlintClient to avoid looking for real OpenSearch cluster
   private val clientBuilder = mockStatic(classOf[FlintClientBuilder])
   private val client = mock[FlintClient](RETURNS_DEEP_STUBS)
 
-  /** Mock the FlintSpark dependency */
+  /** Mock FlintSpark which is required by the rule */
   private val flint = mock[FlintSpark]
 
   /** Instantiate the rule once for all tests */
@@ -36,6 +38,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     super.beforeAll()
     sql(s"CREATE TABLE $testTable (name STRING, age INT) USING JSON")
 
+    // Mock static create method in FlintClientBuilder used by Flint data source
     clientBuilder
       .when(() => FlintClientBuilder.build(any(classOf[FlintOptions])))
       .thenReturn(client)
@@ -59,7 +62,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     s"SELECT name, age FROM $testTable",
     s"SELECT name FROM $testTable WHERE age = 30",
     s"SELECT COUNT(*) FROM $testTable GROUP BY age").foreach { query =>
-    test(s"should not apply if columns is not covered in $query") {
+    test(s"should not apply if column is not covered in $query") {
       assertFlintQueryRewriter
         .withQuery(query)
         .withIndex(
@@ -78,7 +81,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     s"SELECT name FROM $testTable WHERE age = 30",
     s"SELECT COUNT(*) FROM $testTable GROUP BY age",
     s"SELECT name, COUNT(*) FROM $testTable WHERE age > 30 GROUP BY name").foreach { query =>
-    test(s"should apply when all columns in $query") {
+    test(s"should apply when all columns are covered in $query") {
       assertFlintQueryRewriter
         .withQuery(query)
         .withIndex(
