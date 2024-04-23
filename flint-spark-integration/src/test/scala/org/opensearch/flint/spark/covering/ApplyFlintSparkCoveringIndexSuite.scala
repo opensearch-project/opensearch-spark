@@ -8,6 +8,8 @@ package org.opensearch.flint.spark.covering
 import org.mockito.ArgumentMatchers.{any, anyString}
 import org.mockito.Mockito.{mockStatic, when, RETURNS_DEEP_STUBS}
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.{ACTIVE, DELETED, IndexState}
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.scalatest.matchers.{Matcher, MatchResult}
@@ -51,14 +53,27 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     super.afterAll()
   }
 
-  test("should not apply if no index present") {
+  test("should not apply if no covering index present") {
     assertFlintQueryRewriter
       .withQuery(s"SELECT name, age FROM $testTable")
       .assertIndexNotUsed()
   }
 
+  test("should not apply if covering index is logically deleted") {
+    assertFlintQueryRewriter
+      .withQuery(s"SELECT name FROM $testTable")
+      .withIndex(
+        new FlintSparkCoveringIndex(
+          indexName = "name",
+          tableName = testTable,
+          indexedColumns = Map("name" -> "string")),
+        DELETED)
+      .assertIndexNotUsed()
+  }
+
   // Covering index doesn't column age
   Seq(
+    s"SELECT * FROM $testTable",
     s"SELECT name, age FROM $testTable",
     s"SELECT name FROM $testTable WHERE age = 30",
     s"SELECT COUNT(*) FROM $testTable GROUP BY age").foreach { query =>
@@ -78,6 +93,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
   Seq(
     s"SELECT * FROM $testTable",
     s"SELECT name, age FROM $testTable",
+    s"SELECT age, name FROM $testTable",
     s"SELECT name FROM $testTable WHERE age = 30",
     s"SELECT COUNT(*) FROM $testTable GROUP BY age",
     s"SELECT name, COUNT(*) FROM $testTable WHERE age > 30 GROUP BY name").foreach { query =>
@@ -120,8 +136,10 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       this
     }
 
-    def withIndex(index: FlintSparkCoveringIndex): AssertionHelper = {
-      this.indexes = indexes :+ index
+    def withIndex(index: FlintSparkCoveringIndex, state: IndexState = ACTIVE): AssertionHelper = {
+      this.indexes = indexes :+
+        index.copy(latestLogEntry =
+          Some(new FlintMetadataLogEntry("id", 0, 0, 0, state, "spark_catalog", "")))
       this
     }
 

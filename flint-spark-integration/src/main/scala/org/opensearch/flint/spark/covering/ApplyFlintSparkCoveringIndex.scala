@@ -7,6 +7,7 @@ package org.opensearch.flint.spark.covering
 
 import java.util
 
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.DELETED
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 
@@ -40,20 +41,18 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
     case relation @ LogicalRelation(_, _, Some(table), false)
         if !plan.isInstanceOf[V2WriteCommand] =>
       val tableName = table.qualifiedName
-      val requiredCols = requiredColumnsInQueryPlan(plan)
+      val requiredCols = collectAllColumnsInQueryPlan(plan)
 
       // Choose the first covering index that meets all criteria above
-      coveringIndexesOnTable(tableName)
+      findAllCoveringIndexesOnTable(tableName)
         .collectFirst {
-          case index: FlintSparkCoveringIndex
-              if index.filterCondition.isEmpty &&
-                requiredCols.subsetOf(index.indexedColumns.keySet) =>
+          case index: FlintSparkCoveringIndex if isCoveringIndexApplicable(index, requiredCols) =>
             replaceTableRelationWithIndexRelation(relation, index)
         }
         .getOrElse(relation) // If no index found, return the original relation
   }
 
-  private def requiredColumnsInQueryPlan(plan: LogicalPlan): Set[String] = {
+  private def collectAllColumnsInQueryPlan(plan: LogicalPlan): Set[String] = {
     // Collect all columns needed by the query, except those in relation. This is because this rule
     // executes before push down optimization and thus relation includes all columns in the table.
     plan
@@ -65,10 +64,18 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
       .toSet
   }
 
-  private def coveringIndexesOnTable(tableName: String): Seq[FlintSparkIndex] = {
+  private def findAllCoveringIndexesOnTable(tableName: String): Seq[FlintSparkIndex] = {
     val qualifiedTableName = qualifyTableName(flint.spark, tableName)
     val indexPattern = getFlintIndexName("*", qualifiedTableName)
     flint.describeIndexes(indexPattern)
+  }
+
+  private def isCoveringIndexApplicable(
+      index: FlintSparkCoveringIndex,
+      requiredCols: Set[String]): Boolean = {
+    index.latestLogEntry.exists(_.state != DELETED) &&
+    index.filterCondition.isEmpty &&
+    requiredCols.subsetOf(index.indexedColumns.keySet)
   }
 
   private def replaceTableRelationWithIndexRelation(
