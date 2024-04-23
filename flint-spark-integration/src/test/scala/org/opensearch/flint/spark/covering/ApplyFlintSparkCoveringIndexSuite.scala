@@ -71,7 +71,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       .assertIndexNotUsed()
   }
 
-  // Covering index doesn't column age
+  // Covering index doesn't cover column age
   Seq(
     s"SELECT * FROM $testTable",
     s"SELECT name, age FROM $testTable",

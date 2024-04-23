@@ -27,19 +27,9 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
  */
 class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] {
 
-  /**
-   * Prerequisite:
-   * ```
-   *   1) Not an insert statement
-   *   2) Relation is supported, ex. Iceberg, Delta, File. (is this check required?)
-   *   3) Any covering index on the table:
-   *     3.1) doesn't have filtering condition
-   *     3.2) cover all columns present in the query
-   * ```
-   */
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
     case relation @ LogicalRelation(_, _, Some(table), false)
-        if !plan.isInstanceOf[V2WriteCommand] =>
+        if !plan.isInstanceOf[V2WriteCommand] => // Not an insert statement
       val tableName = table.qualifiedName
       val requiredCols = collectAllColumnsInQueryPlan(plan)
 
@@ -74,7 +64,7 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
       index: FlintSparkCoveringIndex,
       requiredCols: Set[String]): Boolean = {
     index.latestLogEntry.exists(_.state != DELETED) &&
-    index.filterCondition.isEmpty &&
+    index.filterCondition.isEmpty && // TODO: support partial covering index later
     requiredCols.subsetOf(index.indexedColumns.keySet)
   }
 
@@ -87,7 +77,9 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
     val inferredSchema = ds.inferSchema(options)
     val flintTable = ds.getTable(inferredSchema, Array.empty, options)
 
-    // Keep original output attributes in index only
+    // Keep original output attributes only if available in covering index.
+    // We have to reuse original attribute object because it's already analyzed
+    // with exprId referenced by the other parts of the query plan.
     val outputAttributes =
       index.indexedColumns.keys
         .map(colName => relation.output.find(_.name == colName).get)
