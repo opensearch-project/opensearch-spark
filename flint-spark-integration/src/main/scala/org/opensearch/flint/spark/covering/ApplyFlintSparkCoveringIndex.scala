@@ -11,7 +11,6 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.D
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, V2WriteCommand}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.LogicalRelation
@@ -38,28 +37,29 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
       findAllCoveringIndexesOnTable(tableName)
         .collectFirst {
           case index: FlintSparkCoveringIndex if isCoveringIndexApplicable(index, relationCols) =>
-            replaceTableRelationWithIndexRelation(index, relationCols)
+            replaceTableRelationWithIndexRelation(index, relation)
         }
         .getOrElse(relation) // If no index found, return the original relation
   }
 
   private def collectRelationColumnsInQueryPlan(
       relation: LogicalRelation,
-      plan: LogicalPlan): Map[String, AttributeReference] = {
+      plan: LogicalPlan): Set[String] = {
     // Collect all columns of the relation present in the query plan, except those in relation itself.
     // Because this rule executes before push down optimization and thus relation includes all columns in the table.
-    val relationCols = relation.output.map(attr => (attr.exprId, attr)).toMap
+    val relationColById = relation.output.map(attr => (attr.exprId, attr)).toMap
     plan
       .collect {
-        case _: LogicalRelation => Map.empty[String, AttributeReference]
+        case _: LogicalRelation => Set.empty
         case other =>
           other.expressions
             .flatMap(_.references)
-            .flatMap(ref => relationCols.get(ref.exprId))
-            .map(attr => (attr.name, attr))
-            .toMap
+            .flatMap(ref =>
+              relationColById.get(ref.exprId)) // Ignore attribute not belong to relation
+            .map(attr => attr.name)
       }
-      .reduce(_ ++ _) // Merge all maps from various plan nodes into a single map
+      .flatten
+      .toSet
   }
 
   private def findAllCoveringIndexesOnTable(tableName: String): Seq[FlintSparkIndex] = {
@@ -70,15 +70,15 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
 
   private def isCoveringIndexApplicable(
       index: FlintSparkCoveringIndex,
-      relationCols: Map[String, AttributeReference]): Boolean = {
+      relationCols: Set[String]): Boolean = {
     index.latestLogEntry.exists(_.state != DELETED) &&
     index.filterCondition.isEmpty && // TODO: support partial covering index later
-    relationCols.keySet.subsetOf(index.indexedColumns.keySet)
+    relationCols.subsetOf(index.indexedColumns.keySet)
   }
 
   private def replaceTableRelationWithIndexRelation(
       index: FlintSparkCoveringIndex,
-      relationCols: Map[String, AttributeReference]): LogicalPlan = {
+      relation: LogicalRelation): LogicalPlan = {
     // Replace with data source relation so as to avoid OpenSearch index required in catalog
     val ds = new FlintDataSourceV2
     val options = new CaseInsensitiveStringMap(util.Map.of("path", index.name()))
@@ -88,10 +88,11 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
     // Keep original output attributes only if available in covering index.
     // We have to reuse original attribute object because it's already analyzed
     // with exprId referenced by the other parts of the query plan.
+    val allRelationCols = relation.output.map(attr => (attr.name, attr)).toMap
     val outputAttributes =
-      index.indexedColumns.keys
-        .flatMap(colName => relationCols.get(colName))
-        .toSeq
+      flintTable
+        .schema()
+        .map(field => allRelationCols(field.name)) // index column must exist in relation
 
     // Create the DataSourceV2 scan with corrected attributes
     DataSourceV2Relation(flintTable, outputAttributes, None, None, options)

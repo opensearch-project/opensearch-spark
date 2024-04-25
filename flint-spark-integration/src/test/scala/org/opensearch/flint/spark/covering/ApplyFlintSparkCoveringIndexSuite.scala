@@ -61,6 +61,18 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       .assertIndexNotUsed(testTable)
   }
 
+  test("should not apply if covering index is partial") {
+    assertFlintQueryRewriter
+      .withQuery(s"SELECT name FROM $testTable")
+      .withIndex(
+        new FlintSparkCoveringIndex(
+          indexName = "name",
+          tableName = testTable,
+          indexedColumns = Map("name" -> "string"),
+          filterCondition = Some("age > 30")))
+      .assertIndexNotUsed(testTable)
+  }
+
   test("should not apply if covering index is logically deleted") {
     assertFlintQueryRewriter
       .withQuery(s"SELECT name FROM $testTable")
