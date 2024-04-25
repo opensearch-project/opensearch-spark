@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark.covering
 
-import org.mockito.ArgumentMatchers.{any, anyString}
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{mockStatic, when, RETURNS_DEEP_STUBS}
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
@@ -25,6 +25,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
 
   /** Test table name */
   private val testTable = "spark_catalog.default.apply_covering_index_test"
+  private val testTable2 = "spark_catalog.default.apply_covering_index_test_2"
 
   // Mock FlintClient to avoid looking for real OpenSearch cluster
   private val clientBuilder = mockStatic(classOf[FlintClientBuilder])
@@ -39,6 +40,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     sql(s"CREATE TABLE $testTable (name STRING, age INT) USING JSON")
+    sql(s"CREATE TABLE $testTable2 (name STRING) USING JSON")
 
     // Mock static create method in FlintClientBuilder used by Flint data source
     clientBuilder
@@ -56,7 +58,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
   test("should not apply if no covering index present") {
     assertFlintQueryRewriter
       .withQuery(s"SELECT name, age FROM $testTable")
-      .assertIndexNotUsed()
+      .assertIndexNotUsed(testTable)
   }
 
   test("should not apply if covering index is logically deleted") {
@@ -68,7 +70,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
           tableName = testTable,
           indexedColumns = Map("name" -> "string")),
         DELETED)
-      .assertIndexNotUsed()
+      .assertIndexNotUsed(testTable)
   }
 
   // Covering index doesn't cover column age
@@ -85,7 +87,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
             indexName = "partial",
             tableName = testTable,
             indexedColumns = Map("name" -> "string")))
-        .assertIndexNotUsed()
+        .assertIndexNotUsed(testTable)
     }
   }
 
@@ -95,9 +97,11 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     s"SELECT name, age FROM $testTable",
     s"SELECT age, name FROM $testTable",
     s"SELECT name FROM $testTable WHERE age = 30",
+    s"SELECT SUBSTR(name, 1) FROM $testTable WHERE ABS(age) = 30",
     s"SELECT COUNT(*) FROM $testTable GROUP BY age",
-    s"SELECT name, COUNT(*) FROM $testTable WHERE age > 30 GROUP BY name").foreach { query =>
-    test(s"should apply when all columns are covered in $query") {
+    s"SELECT name, COUNT(*) FROM $testTable WHERE age > 30 GROUP BY name",
+    s"SELECT age, COUNT(*) AS cnt FROM $testTable GROUP BY age ORDER BY cnt").foreach { query =>
+    test(s"should apply if all columns are covered in $query") {
       assertFlintQueryRewriter
         .withQuery(query)
         .withIndex(
@@ -107,6 +111,23 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
             indexedColumns = Map("name" -> "string", "age" -> "int")))
         .assertIndexUsed(getFlintIndexName("all", testTable))
     }
+  }
+
+  test(s"should apply if one table is covered in join query") {
+    assertFlintQueryRewriter
+      .withQuery(s"""
+           | SELECT t1.name, t1.age
+           | FROM $testTable AS t1
+           | JOIN $testTable2 AS t2
+           | ON t1.name = t2.name
+           |""".stripMargin)
+      .withIndex(
+        new FlintSparkCoveringIndex(
+          indexName = "all",
+          tableName = testTable,
+          indexedColumns = Map("name" -> "string", "age" -> "int")))
+      .assertIndexUsed(getFlintIndexName("all", testTable))
+      .assertIndexNotUsed(testTable2)
   }
 
   test("should apply if all columns are covered by one of the covering indexes") {
@@ -148,32 +169,41 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       this
     }
 
-    def assertIndexNotUsed(): AssertionHelper = {
-      rewritePlan should scanSourceTable
+    def assertIndexNotUsed(expectedTableName: String): AssertionHelper = {
+      rewritePlan should scanSourceTable(expectedTableName)
       this
     }
 
     private def rewritePlan: LogicalPlan = {
-      when(flint.describeIndexes(anyString())).thenReturn(indexes)
+      // Assume all mock indexes are on test table
+      when(flint.describeIndexes(any[String])).thenAnswer(invocation => {
+        val indexName = invocation.getArgument(0).asInstanceOf[String]
+        if (indexName == getFlintIndexName("*", testTable)) {
+          indexes
+        } else {
+          Seq.empty
+        }
+      })
+
       indexes.foreach { index =>
         when(client.getIndexMetadata(index.name())).thenReturn(index.metadata())
       }
       rule.apply(plan)
     }
 
-    private def scanSourceTable: Matcher[LogicalPlan] = {
+    private def scanSourceTable(expectedTableName: String): Matcher[LogicalPlan] = {
       Matcher { (plan: LogicalPlan) =>
         val result = plan.exists {
           case LogicalRelation(_, _, Some(table), _) =>
             // Table name in logical relation doesn't have catalog name
-            table.qualifiedName == testTable.split('.').drop(1).mkString(".")
+            table.qualifiedName == expectedTableName.split('.').drop(1).mkString(".")
           case _ => false
         }
 
         MatchResult(
           result,
-          s"Plan does not scan table $testTable",
-          s"Plan scans table $testTable as expected")
+          s"Plan does not scan table $expectedTableName",
+          s"Plan scans table $expectedTableName as expected")
       }
     }
 

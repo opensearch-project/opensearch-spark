@@ -11,6 +11,7 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.D
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, V2WriteCommand}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.LogicalRelation
@@ -31,27 +32,34 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
     case relation @ LogicalRelation(_, _, Some(table), false)
         if !plan.isInstanceOf[V2WriteCommand] => // Not an insert statement
       val tableName = table.qualifiedName
-      val requiredCols = collectAllColumnsInQueryPlan(plan)
+      val relationCols = collectRelationColumnsInQueryPlan(relation, plan)
 
       // Choose the first covering index that meets all criteria above
       findAllCoveringIndexesOnTable(tableName)
         .collectFirst {
-          case index: FlintSparkCoveringIndex if isCoveringIndexApplicable(index, requiredCols) =>
-            replaceTableRelationWithIndexRelation(relation, index)
+          case index: FlintSparkCoveringIndex if isCoveringIndexApplicable(index, relationCols) =>
+            replaceTableRelationWithIndexRelation(index, relationCols)
         }
         .getOrElse(relation) // If no index found, return the original relation
   }
 
-  private def collectAllColumnsInQueryPlan(plan: LogicalPlan): Set[String] = {
-    // Collect all columns needed by the query, except those in relation. This is because this rule
-    // executes before push down optimization and thus relation includes all columns in the table.
+  private def collectRelationColumnsInQueryPlan(
+      relation: LogicalRelation,
+      plan: LogicalPlan): Map[String, AttributeReference] = {
+    // Collect all columns of the relation present in the query plan, except those in relation itself.
+    // Because this rule executes before push down optimization and thus relation includes all columns in the table.
+    val relationCols = relation.output.map(attr => (attr.exprId, attr)).toMap
     plan
       .collect {
-        case _: LogicalRelation => Set.empty[String]
-        case other => other.expressions.flatMap(_.references).map(_.name).toSet
+        case _: LogicalRelation => Map.empty[String, AttributeReference]
+        case other =>
+          other.expressions
+            .flatMap(_.references)
+            .flatMap(ref => relationCols.get(ref.exprId))
+            .map(attr => (attr.name, attr))
+            .toMap
       }
-      .flatten
-      .toSet
+      .reduce(_ ++ _) // Merge all maps from various plan nodes into a single map
   }
 
   private def findAllCoveringIndexesOnTable(tableName: String): Seq[FlintSparkIndex] = {
@@ -62,15 +70,15 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
 
   private def isCoveringIndexApplicable(
       index: FlintSparkCoveringIndex,
-      requiredCols: Set[String]): Boolean = {
+      relationCols: Map[String, AttributeReference]): Boolean = {
     index.latestLogEntry.exists(_.state != DELETED) &&
     index.filterCondition.isEmpty && // TODO: support partial covering index later
-    requiredCols.subsetOf(index.indexedColumns.keySet)
+    relationCols.keySet.subsetOf(index.indexedColumns.keySet)
   }
 
   private def replaceTableRelationWithIndexRelation(
-      relation: LogicalRelation,
-      index: FlintSparkCoveringIndex): LogicalPlan = {
+      index: FlintSparkCoveringIndex,
+      relationCols: Map[String, AttributeReference]): LogicalPlan = {
     // Replace with data source relation so as to avoid OpenSearch index required in catalog
     val ds = new FlintDataSourceV2
     val options = new CaseInsensitiveStringMap(util.Map.of("path", index.name()))
@@ -82,7 +90,7 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
     // with exprId referenced by the other parts of the query plan.
     val outputAttributes =
       index.indexedColumns.keys
-        .map(colName => relation.output.find(_.name == colName).get)
+        .flatMap(colName => relationCols.get(colName))
         .toSeq
 
     // Create the DataSourceV2 scan with corrected attributes
