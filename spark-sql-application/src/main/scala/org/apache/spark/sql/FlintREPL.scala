@@ -22,16 +22,16 @@ import org.opensearch.flint.app.{FlintCommand, FlintInstance}
 import org.opensearch.flint.app.FlintInstance.formats
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.metrics.MetricConstants
-import org.opensearch.flint.core.metrics.MetricsUtil.{decrementCounter, getTimerContext, incrementCounter, registerGauge, stopTimer}
+import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
+import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
 import org.apache.spark.sql.FlintJob.createSparkSession
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.REPL_INACTIVITY_TIMEOUT_MILLIS
-import org.apache.spark.sql.util.{DefaultShutdownHookManager, ShutdownHookManagerTrait}
 import org.apache.spark.util.ThreadUtils
 
 /**
@@ -138,12 +138,21 @@ object FlintREPL extends Logging with FlintJobExecutor {
       val flintSessionIndexUpdater = osClient.createUpdater(sessionIndex.get)
       val sessionTimerContext = getTimerContext(MetricConstants.REPL_PROCESSING_TIME_METRIC)
 
-      addShutdownHook(
-        flintSessionIndexUpdater,
-        osClient,
-        sessionIndex.get,
-        sessionId.get,
-        sessionTimerContext)
+      /**
+       * Transition the session update logic from {@link org.apache.spark.util.ShutdownHookManager} to {@link SparkListenerApplicationEnd}.
+       * This change helps prevent interruptions to asynchronous SigV4A signing during REPL shutdown.
+       *
+       * Cancelling an EMR job directly when SigV4a signer in use could otherwise lead to stale sessions. For
+       * tracking, see the GitHub issue:
+       * https://github.com/opensearch-project/opensearch-spark/issues/320
+       */
+      spark.sparkContext.addSparkListener(
+        new PreShutdownListener(
+          flintSessionIndexUpdater,
+          osClient,
+          sessionIndex.get,
+          sessionId.get,
+          sessionTimerContext))
 
       // 1 thread for updating heart beat
       val threadPool =
@@ -895,16 +904,18 @@ object FlintREPL extends Logging with FlintJobExecutor {
     flintReader
   }
 
-  def addShutdownHook(
+  class PreShutdownListener(
       flintSessionIndexUpdater: OpenSearchUpdater,
       osClient: OSClient,
       sessionIndex: String,
       sessionId: String,
-      sessionTimerContext: Timer.Context,
-      shutdownHookManager: ShutdownHookManagerTrait = DefaultShutdownHookManager): Unit = {
+      sessionTimerContext: Timer.Context)
+      extends SparkListener
+      with Logging {
 
-    shutdownHookManager.addShutdownHook(() => {
+    override def onApplicationEnd(applicationEnd: SparkListenerApplicationEnd): Unit = {
       logInfo("Shutting down REPL")
+      logInfo("earlyExitFlag: " + earlyExitFlag)
       val getResponse = osClient.getDoc(sessionIndex, sessionId)
       if (!getResponse.isExists()) {
         return
@@ -932,7 +943,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           sessionId,
           sessionTimerContext)
       }
-    })
+    }
   }
 
   private def updateFlintInstanceBeforeShutdown(
@@ -1120,6 +1131,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
   }
 
   private def recordSessionSuccess(sessionTimerContext: Timer.Context): Unit = {
+    logInfo("Session Success")
     stopTimer(sessionTimerContext)
     if (sessionRunningCount.get() > 0) {
       sessionRunningCount.decrementAndGet()
