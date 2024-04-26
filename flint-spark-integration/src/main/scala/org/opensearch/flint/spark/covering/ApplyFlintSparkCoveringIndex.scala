@@ -19,8 +19,8 @@ import org.apache.spark.sql.flint.{qualifyTableName, FlintDataSourceV2}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 /**
- * Flint Spark covering index apply rule that rewrites applicable query's table scan operator to
- * accelerate query by reducing data scanned significantly.
+ * Flint Spark covering index apply rule that replace applicable query's table scan operator to
+ * accelerate query by scanning covering index data.
  *
  * @param flint
  *   Flint Spark API
@@ -30,11 +30,10 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
     case relation @ LogicalRelation(_, _, Some(table), false)
         if !plan.isInstanceOf[V2WriteCommand] => // Not an insert statement
-      val tableName = table.qualifiedName
       val relationCols = collectRelationColumnsInQueryPlan(relation, plan)
 
       // Choose the first covering index that meets all criteria above
-      findAllCoveringIndexesOnTable(tableName)
+      findAllCoveringIndexesOnTable(table.qualifiedName)
         .collectFirst {
           case index: FlintSparkCoveringIndex if isCoveringIndexApplicable(index, relationCols) =>
             replaceTableRelationWithIndexRelation(index, relation)
@@ -45,9 +44,11 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
   private def collectRelationColumnsInQueryPlan(
       relation: LogicalRelation,
       plan: LogicalPlan): Set[String] = {
-    // Collect all columns of the relation present in the query plan, except those in relation itself.
-    // Because this rule executes before push down optimization and thus relation includes all columns in the table.
-    val relationColById = relation.output.map(attr => (attr.exprId, attr)).toMap
+    /*
+     * Collect all columns of the relation present in query plan, except those in relation itself.
+     * Because this rule executes before push down optimization, relation includes all columns.
+     */
+    val relationColsById = relation.output.map(attr => (attr.exprId, attr)).toMap
     plan
       .collect {
         case _: LogicalRelation => Set.empty
@@ -55,7 +56,7 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
           other.expressions
             .flatMap(_.references)
             .flatMap(ref =>
-              relationColById.get(ref.exprId)) // Ignore attribute not belong to relation
+              relationColsById.get(ref.exprId)) // Ignore attribute not belong to target relation
             .map(attr => attr.name)
       }
       .flatten
@@ -79,15 +80,14 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
   private def replaceTableRelationWithIndexRelation(
       index: FlintSparkCoveringIndex,
       relation: LogicalRelation): LogicalPlan = {
-    // Replace with data source relation so as to avoid OpenSearch index required in catalog
+    // Make use of data source relation to avoid Spark looking for OpenSearch index in catalog
     val ds = new FlintDataSourceV2
     val options = new CaseInsensitiveStringMap(util.Map.of("path", index.name()))
     val inferredSchema = ds.inferSchema(options)
     val flintTable = ds.getTable(inferredSchema, Array.empty, options)
 
-    // Keep original output attributes only if available in covering index.
-    // We have to reuse original attribute object because it's already analyzed
-    // with exprId referenced by the other parts of the query plan.
+    // Reuse original attribute object because it's already analyzed with exprId referenced
+    // by the other parts of the query plan.
     val allRelationCols = relation.output.map(attr => (attr.name, attr)).toMap
     val outputAttributes =
       flintTable
