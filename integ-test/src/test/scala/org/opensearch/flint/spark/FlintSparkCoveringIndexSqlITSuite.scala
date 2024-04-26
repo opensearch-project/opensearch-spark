@@ -245,7 +245,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("name", "age")
   }
 
-  test("rewrite applicable query with covering index") {
+  test("rewrite applicable simple query with covering index") {
     awaitRefreshComplete(s"""
            | CREATE INDEX $testIndex ON $testTable
            | (name, age)
@@ -255,6 +255,24 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     val query = s"SELECT name, age FROM $testTable"
     checkKeywordsExist(sql(s"EXPLAIN $query"), "FlintScan")
     checkAnswer(sql(query), Seq(Row("Hello", 30), Row("World", 25)))
+  }
+
+  test("rewrite applicable aggregate query with covering index") {
+    awaitRefreshComplete(s"""
+            | CREATE INDEX $testIndex ON $testTable
+            | (name, age)
+            | WITH (auto_refresh = true)
+            | """.stripMargin)
+
+    val query = s"""
+                | SELECT age, COUNT(*) AS count
+                | FROM $testTable
+                | WHERE name = 'Hello'
+                | GROUP BY age
+                | ORDER BY count
+                | """.stripMargin
+    checkKeywordsExist(sql(s"EXPLAIN $query"), "FlintScan")
+    checkAnswer(sql(query), Row(30, 1))
   }
 
   test("should not rewrite with covering index if disabled") {

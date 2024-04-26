@@ -11,6 +11,7 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.D
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, V2WriteCommand}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.LogicalRelation
@@ -86,13 +87,18 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
     val inferredSchema = ds.inferSchema(options)
     val flintTable = ds.getTable(inferredSchema, Array.empty, options)
 
-    // Reuse original attribute object because it's already analyzed with exprId referenced
+    // Reuse original attribute's exprId because it's already analyzed and referenced
     // by the other parts of the query plan.
     val allRelationCols = relation.output.map(attr => (attr.name, attr)).toMap
     val outputAttributes =
       flintTable
         .schema()
-        .map(field => allRelationCols(field.name)) // index column must exist in relation
+        .map(field => {
+          val relationCol = allRelationCols(field.name) // index column must exist in relation
+          AttributeReference(field.name, field.dataType, field.nullable, field.metadata)(
+            relationCol.exprId,
+            relationCol.qualifier)
+        })
 
     // Create the DataSourceV2 scan with corrected attributes
     DataSourceV2Relation(flintTable, outputAttributes, None, None, options)
