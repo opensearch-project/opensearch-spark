@@ -30,7 +30,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    createPartitionedTable(testTable)
+    createPartitionedAddressTable(testTable)
 
     // Replace mock executor with real one and change its delay
     val realExecutor = newDaemonThreadPoolScheduledExecutor("flint-index-heartbeat", 1)

@@ -26,49 +26,7 @@ class FlintSparkPPLTimeWindowITSuite
     super.beforeAll()
     // Create test table
     // Update table creation
-    sql(s"""
-         | CREATE TABLE $testTable
-         | (
-         |   transactionId STRING,
-         |   transactionDate TIMESTAMP,
-         |   productId STRING,
-         |   productsAmount INT,
-         |   customerId STRING
-         | )
-         | USING CSV
-         | OPTIONS (
-         |  header 'false',
-         |  delimiter '\t'
-         | )
-         | PARTITIONED BY (
-         |    year INT,
-         |    month INT
-         | )
-         |""".stripMargin)
-
-    // Update data insertion
-    // -- Inserting records into the testTable for April 2023
-    sql(s"""
-         |INSERT INTO $testTable PARTITION (year=2023, month=4)
-         |VALUES
-         |('txn001', CAST('2023-04-01 10:30:00' AS TIMESTAMP), 'prod1', 2, 'cust1'),
-         |('txn001', CAST('2023-04-01 14:30:00' AS TIMESTAMP), 'prod1', 4, 'cust1'),
-         |('txn002', CAST('2023-04-02 11:45:00' AS TIMESTAMP), 'prod2', 1, 'cust2'),
-         |('txn003', CAST('2023-04-03 12:15:00' AS TIMESTAMP), 'prod3', 3, 'cust1'),
-         |('txn004', CAST('2023-04-04 09:50:00' AS TIMESTAMP), 'prod1', 1, 'cust3')
-         |  """.stripMargin)
-
-    // Update data insertion
-    // -- Inserting records into the testTable for May 2023
-    sql(s"""
-         |INSERT INTO $testTable PARTITION (year=2023, month=5)
-         |VALUES
-         |('txn005', CAST('2023-05-01 08:30:00' AS TIMESTAMP), 'prod2', 1, 'cust4'),
-         |('txn006', CAST('2023-05-02 07:25:00' AS TIMESTAMP), 'prod4', 5, 'cust2'),
-         |('txn007', CAST('2023-05-03 15:40:00' AS TIMESTAMP), 'prod3', 1, 'cust3'),
-         |('txn007', CAST('2023-05-03 19:30:00' AS TIMESTAMP), 'prod3', 2, 'cust3'),
-         |('txn008', CAST('2023-05-04 14:15:00' AS TIMESTAMP), 'prod1', 4, 'cust1')
-         |  """.stripMargin)
+    createTimeSeriesTransactionTable(testTable)
   }
 
   protected override def afterEach(): Unit = {
@@ -274,12 +232,16 @@ class FlintSparkPPLTimeWindowITSuite
         "prod3",
         Timestamp.valueOf("2023-05-03 17:00:00"),
         Timestamp.valueOf("2023-05-04 17:00:00")))
-    // Compare the results
-    implicit val timestampOrdering: Ordering[Timestamp] = new Ordering[Timestamp] {
-      def compare(x: Timestamp, y: Timestamp): Int = x.compareTo(y)
+
+    // Define ordering for rows that first compares by the timestamp and then by the productId
+    implicit val rowOrdering: Ordering[Row] = new Ordering[Row] {
+      def compare(x: Row, y: Row): Int = {
+        val dateCompare = x.getAs[Timestamp](2).compareTo(y.getAs[Timestamp](2))
+        if (dateCompare != 0) dateCompare
+        else x.getAs[String](1).compareTo(y.getAs[String](1))
+      }
     }
 
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Timestamp](_.getAs[Timestamp](2))
     assert(results.sorted.sameElements(expectedResults.sorted))
 
     // Retrieve the logical plan

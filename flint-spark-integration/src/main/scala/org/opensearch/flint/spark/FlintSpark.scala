@@ -407,9 +407,6 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       case (true, false) => AUTO
       case (false, false) => FULL
       case (false, true) => INCREMENTAL
-      case (true, true) =>
-        throw new IllegalArgumentException(
-          "auto_refresh and incremental_refresh options cannot both be true")
     }
 
     // validate allowed options depending on refresh mode

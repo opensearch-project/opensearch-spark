@@ -259,7 +259,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         if (defaultQuery.isEmpty) {
           throw new IllegalArgumentException("Query undefined for the streaming job.")
         }
-        defaultQuery
+        unescapeQuery(defaultQuery)
       } else ""
     }
   }
@@ -837,7 +837,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
         startTime)
     } else {
       val futureQueryExecution = Future {
-        executeQuery(spark, flintCommand.query, dataSource, flintCommand.queryId, sessionId)
+        executeQuery(
+          spark,
+          flintCommand.query,
+          dataSource,
+          flintCommand.queryId,
+          sessionId,
+          false)
       }(executionContext)
 
       // time out after 10 minutes

@@ -22,7 +22,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
 
   override def beforeEach(): Unit = {
     super.beforeEach()
-    createPartitionedMultiRowTable(testTable)
+    createPartitionedMultiRowAddressTable(testTable)
   }
 
   override def afterEach(): Unit = {
@@ -199,12 +199,13 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
           Map(
             "auto_refresh" -> "false",
             "incremental_refresh" -> "true",
-            "refresh_interval" -> "1 Minute"),
+            "refresh_interval" -> "1 Minute",
+            "checkpoint_location" -> "s3a://test/"),
           Map(
             "auto_refresh" -> false,
             "incremental_refresh" -> true,
             "refresh_interval" -> Some("1 Minute"),
-            "checkpoint_location" -> None,
+            "checkpoint_location" -> Some("s3a://test/"),
             "watermark_delay" -> None)),
         (
           Map("auto_refresh" -> "true"),
@@ -223,12 +224,13 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
           Map(
             "auto_refresh" -> "false",
             "incremental_refresh" -> "true",
+            "checkpoint_location" -> "s3a://test/",
             "watermark_delay" -> "1 Minute"),
           Map(
             "auto_refresh" -> false,
             "incremental_refresh" -> true,
             "refresh_interval" -> None,
-            "checkpoint_location" -> None,
+            "checkpoint_location" -> Some("s3a://test/"),
             "watermark_delay" -> Some("1 Minute"))))),
     (
       "convert to auto refresh with allowed options",
