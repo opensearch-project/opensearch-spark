@@ -29,9 +29,7 @@ import org.opensearch.search.sort.SortOrder
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
-import org.apache.spark.sql.FlintJob.createSparkSession
 import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.apache.spark.sql.flint.config.FlintSparkConf.REPL_INACTIVITY_TIMEOUT_MILLIS
 import org.apache.spark.util.ThreadUtils
 
 /**
@@ -139,11 +137,12 @@ object FlintREPL extends Logging with FlintJobExecutor {
       val sessionTimerContext = getTimerContext(MetricConstants.REPL_PROCESSING_TIME_METRIC)
 
       /**
-       * Transition the session update logic from {@link org.apache.spark.util.ShutdownHookManager} to {@link SparkListenerApplicationEnd}.
-       * This change helps prevent interruptions to asynchronous SigV4A signing during REPL shutdown.
+       * Transition the session update logic from {@link
+       * org.apache.spark.util.ShutdownHookManager} to {@link SparkListenerApplicationEnd}. This
+       * change helps prevent interruptions to asynchronous SigV4A signing during REPL shutdown.
        *
-       * Cancelling an EMR job directly when SigV4a signer in use could otherwise lead to stale sessions. For
-       * tracking, see the GitHub issue:
+       * Cancelling an EMR job directly when SigV4a signer in use could otherwise lead to stale
+       * sessions. For tracking, see the GitHub issue:
        * https://github.com/opensearch-project/opensearch-spark/issues/320
        */
       spark.sparkContext.addSparkListener(
