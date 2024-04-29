@@ -14,13 +14,10 @@ import scala.util.{Failure, Success, Try}
 
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
-import org.opensearch.flint.core.storage.OpenSearchUpdater
 
-import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.FlintJob.createSparkSession
-import org.apache.spark.sql.FlintREPL.{executeQuery, logInfo, threadPoolFactory, updateFlintInstanceBeforeShutdown}
 import org.apache.spark.sql.flint.config.FlintSparkConf
+import org.apache.spark.sql.util.ShuffleCleaner
 import org.apache.spark.util.ThreadUtils
 
 case class JobOperator(
@@ -53,7 +50,7 @@ case class JobOperator(
       val futureMappingCheck = Future {
         checkAndCreateIndex(osClient, resultIndex)
       }
-      val data = executeQuery(spark, query, dataSource, "", "")
+      val data = executeQuery(spark, query, dataSource, "", "", streaming)
 
       val mappingCheckResult = ThreadUtils.awaitResult(futureMappingCheck, Duration(1, MINUTES))
       dataToWrite = Some(mappingCheckResult match {
@@ -92,6 +89,8 @@ case class JobOperator(
     try {
       // Wait for streaming job complete if no error and there is streaming job running
       if (!exceptionThrown && streaming && spark.streams.active.nonEmpty) {
+        // Clean Spark shuffle data after each microBatch.
+        spark.streams.addListener(new ShuffleCleaner(spark))
         // wait if any child thread to finish before the main thread terminates
         spark.streams.awaitAnyTermination()
       }
@@ -149,4 +148,5 @@ case class JobOperator(
       case false => incrementCounter(MetricConstants.STREAMING_SUCCESS_METRIC)
     }
   }
+
 }
