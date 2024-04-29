@@ -30,11 +30,12 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
     case relation @ LogicalRelation(_, _, Some(table), false)
-        if !plan.isInstanceOf[V2WriteCommand] => // Not an insert statement
+        if !plan.isInstanceOf[V2WriteCommand] => // TODO: make sure only intercept SELECT query
       val relationCols = collectRelationColumnsInQueryPlan(relation, plan)
 
       // Choose the first covering index that meets all criteria above
       findAllCoveringIndexesOnTable(table.qualifiedName)
+        .sortBy(_.name())
         .collectFirst {
           case index: FlintSparkCoveringIndex if isCoveringIndexApplicable(index, relationCols) =>
             replaceTableRelationWithIndexRelation(index, relation)
