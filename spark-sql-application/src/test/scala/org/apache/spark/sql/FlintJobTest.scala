@@ -7,7 +7,7 @@ package org.apache.spark.sql
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.util.MockTimeProvider
+import org.apache.spark.sql.util.{CleanerFactory, MockTimeProvider}
 
 class FlintJobTest extends SparkFunSuite with JobMatchers {
 
@@ -76,7 +76,8 @@ class FlintJobTest extends SparkFunSuite with JobMatchers {
         "select 1",
         "20",
         currentTime - queryRunTime,
-        new MockTimeProvider(currentTime))
+        new MockTimeProvider(currentTime),
+        CleanerFactory.cleaner(false))
     assertEqualDataframe(expected, result)
   }
 

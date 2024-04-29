@@ -22,15 +22,13 @@ import org.opensearch.flint.app.{FlintCommand, FlintInstance}
 import org.opensearch.flint.app.FlintInstance.formats
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.metrics.MetricConstants
-import org.opensearch.flint.core.metrics.MetricsUtil.{decrementCounter, getTimerContext, incrementCounter, registerGauge, stopTimer}
+import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.FlintJob.createSparkSession
 import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.apache.spark.sql.flint.config.FlintSparkConf.REPL_INACTIVITY_TIMEOUT_MILLIS
 import org.apache.spark.sql.util.{DefaultShutdownHookManager, ShutdownHookManagerTrait}
 import org.apache.spark.util.ThreadUtils
 
@@ -829,7 +827,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
         startTime)
     } else {
       val futureQueryExecution = Future {
-        executeQuery(spark, flintCommand.query, dataSource, flintCommand.queryId, sessionId)
+        executeQuery(
+          spark,
+          flintCommand.query,
+          dataSource,
+          flintCommand.queryId,
+          sessionId,
+          false)
       }(executionContext)
 
       // time out after 10 minutes
