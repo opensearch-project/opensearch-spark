@@ -16,7 +16,6 @@ import scala.concurrent.duration.{Duration, MINUTES}
 import scala.reflect.runtime.universe.TypeTag
 
 import com.codahale.metrics.Timer
-import org.mockito.ArgumentMatchers.{eq => eqTo, _}
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
@@ -28,6 +27,8 @@ import org.opensearch.search.sort.SortOrder
 import org.scalatestplus.mockito.MockitoSugar
 
 import org.apache.spark.{SparkConf, SparkContext, SparkFunSuite}
+import org.apache.spark.scheduler.SparkListenerApplicationEnd
+import org.apache.spark.sql.FlintREPL.PreShutdownListener
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.trees.Origin
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -162,17 +163,18 @@ class FlintREPLTest
     verify(flintSessionUpdater, atLeastOnce()).upsert(eqTo("session1"), *)
   }
 
-  test("createShutdownHook add shutdown hook and update FlintInstance if conditions are met") {
-    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
+  test("PreShutdownListener updates FlintInstance if conditions are met") {
+    // Mock dependencies
     val osClient = mock[OSClient]
     val getResponse = mock[GetResponse]
+    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
     val sessionIndex = "testIndex"
     val sessionId = "testSessionId"
-    val flintSessionContext = mock[Timer.Context]
+    val timerContext = mock[Timer.Context]
 
+    // Setup the getDoc to return a document indicating the session is running
     when(osClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
     when(getResponse.isExists()).thenReturn(true)
-
     when(getResponse.getSourceAsMap).thenReturn(
       Map[String, Object](
         "applicationId" -> "app1",
@@ -184,22 +186,18 @@ class FlintREPLTest
         "state" -> "running",
         "jobStartTime" -> java.lang.Long.valueOf(0L)).asJava)
 
-    val mockShutdownHookManager = new ShutdownHookManagerTrait {
-      override def addShutdownHook(hook: () => Unit): AnyRef = {
-        hook() // execute the hook immediately
-        new Object() // return a dummy AnyRef as per the method signature
-      }
-    }
-
-    // Here, we're injecting our mockShutdownHookManager into the method
-    FlintREPL.addShutdownHook(
+    // Instantiate the listener
+    val listener = new PreShutdownListener(
       flintSessionIndexUpdater,
       osClient,
       sessionIndex,
       sessionId,
-      flintSessionContext,
-      mockShutdownHookManager)
+      timerContext)
 
+    // Simulate application end
+    listener.onApplicationEnd(SparkListenerApplicationEnd(System.currentTimeMillis()))
+
+    // Verify the update is called with the correct arguments
     verify(flintSessionIndexUpdater).updateIf(*, *, *, *)
   }
 
