@@ -10,6 +10,7 @@ import java.util
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.DELETED
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
+import org.opensearch.flint.spark.source.FlintSparkSourceRelation
 
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, V2WriteCommand}
@@ -29,23 +30,23 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] {
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
-    case relation @ LogicalRelation(_, _, Some(table), false)
+    case FlintSparkSourceRelation(relation)
         if !plan.isInstanceOf[V2WriteCommand] => // TODO: make sure only intercept SELECT query
-      val relationCols = collectRelationColumnsInQueryPlan(relation, plan)
+      val relationCols = collectRelationColumnsInQueryPlan(plan, relation)
 
       // Choose the first covering index that meets all criteria above
-      findAllCoveringIndexesOnTable(table.qualifiedName)
+      findAllCoveringIndexesOnTable(relation.tableName)
         .sortBy(_.name())
         .collectFirst {
           case index: FlintSparkCoveringIndex if isCoveringIndexApplicable(index, relationCols) =>
             replaceTableRelationWithIndexRelation(index, relation)
         }
-        .getOrElse(relation) // If no index found, return the original relation
+        .getOrElse(relation.plan) // If no index found, return the original relation
   }
 
   private def collectRelationColumnsInQueryPlan(
-      relation: LogicalRelation,
-      plan: LogicalPlan): Set[String] = {
+      plan: LogicalPlan,
+      relation: FlintSparkSourceRelation): Set[String] = {
     /*
      * Collect all columns of the relation present in query plan, except those in relation itself.
      * Because this rule executes before push down optimization, relation includes all columns.
@@ -81,7 +82,7 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
 
   private def replaceTableRelationWithIndexRelation(
       index: FlintSparkCoveringIndex,
-      relation: LogicalRelation): LogicalPlan = {
+      relation: FlintSparkSourceRelation): LogicalPlan = {
     // Make use of data source relation to avoid Spark looking for OpenSearch index in catalog
     val ds = new FlintDataSourceV2
     val options = new CaseInsensitiveStringMap(util.Map.of("path", index.name()))
