@@ -7,7 +7,6 @@ package org.opensearch.flint.core.storage;
 
 import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
 
-import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import java.io.IOException;
@@ -68,6 +67,9 @@ public class FlintOpenSearchClient implements FlintClient {
 
   private static final Logger LOG = Logger.getLogger(FlintOpenSearchClient.class.getName());
 
+  private static final String SERVICE_NAME = "es";
+
+
   /**
    * {@link NamedXContentRegistry} from {@link SearchModule} used for construct {@link QueryBuilder} from DSL query string.
    */
@@ -98,8 +100,7 @@ public class FlintOpenSearchClient implements FlintClient {
   public <T> OptimisticTransaction<T> startTransaction(
       String indexName, String dataSourceName, boolean forceInit) {
     LOG.info("Starting transaction on index " + indexName + " and data source " + dataSourceName);
-    String metaLogIndexName = dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX
-        : META_LOG_NAME_PREFIX + "_" + dataSourceName;
+    String metaLogIndexName = constructMetaLogIndexName(dataSourceName);
     try (IRestHighLevelClient client = createClient()) {
       if (client.doesIndexExist(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
         LOG.info("Found metadata log index " + metaLogIndexName);
@@ -257,10 +258,6 @@ public class FlintOpenSearchClient implements FlintClient {
 
     // SigV4 support
     if (options.getAuth().equals(FlintOptions.SIGV4_AUTH)) {
-      AWS4Signer signer = new AWS4Signer();
-      signer.setServiceName("es");
-      signer.setRegionName(options.getRegion());
-
       // Use DefaultAWSCredentialsProviderChain by default.
       final AtomicReference<AWSCredentialsProvider> customAWSCredentialsProvider =
               new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
@@ -274,6 +271,10 @@ public class FlintOpenSearchClient implements FlintClient {
       String metadataAccessProviderClass = options.getMetadataAccessAwsCredentialsProvider();
       final AtomicReference<AWSCredentialsProvider> metadataAccessAWSCredentialsProvider =
               new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
+
+      String metaLogIndexName = constructMetaLogIndexName(options.getDataSourceName());
+      String systemIndexName = Strings.isNullOrEmpty(options.getSystemIndexName()) ? metaLogIndexName : options.getSystemIndexName();
+
       if (Strings.isNullOrEmpty(metadataAccessProviderClass)) {
         metadataAccessAWSCredentialsProvider.set(customAWSCredentialsProvider.get());
       } else {
@@ -283,7 +284,7 @@ public class FlintOpenSearchClient implements FlintClient {
       restClientBuilder.setHttpClientConfigCallback(builder -> {
                 HttpAsyncClientBuilder delegate = builder.addInterceptorLast(
                         new ResourceBasedAWSRequestSigningApacheInterceptor(
-                                signer.getServiceName(), signer, customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), options.getSystemIndexName()));
+                                SERVICE_NAME, options.getRegion(), customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), systemIndexName));
                 return RetryableHttpAsyncClient.builder(delegate, options);
               }
       );
@@ -384,5 +385,9 @@ public class FlintOpenSearchClient implements FlintClient {
 
     String encoded = percentEncode(indexName);
     return toLowercase(encoded);
+  }
+
+  private String constructMetaLogIndexName(String dataSourceName) {
+    return dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX : META_LOG_NAME_PREFIX + "_" + dataSourceName;
   }
 }
