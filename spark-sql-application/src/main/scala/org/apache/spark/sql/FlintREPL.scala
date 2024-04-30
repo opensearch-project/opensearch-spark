@@ -28,6 +28,7 @@ import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.FlintJob.configDYNMaxExecutors
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.util.{DefaultShutdownHookManager, ShutdownHookManagerTrait}
 import org.apache.spark.util.ThreadUtils
@@ -91,6 +92,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
     if (jobType.equalsIgnoreCase("streaming")) {
       logInfo(s"""streaming query ${query}""")
+      configDYNMaxExecutors(conf, jobType)
       val streamingRunningCount = new AtomicInteger(0)
       val jobOperator =
         JobOperator(
