@@ -57,7 +57,7 @@ public class OpenSearchUpdater {
         // credentials may expire.
         // also, failure to close the client causes the job to be stuck in the running state as the client resource
         // is not released.
-        try (IRestHighLevelClient client = flintClient.createClient()) {
+        try (IRestHighLevelClient client = (IRestHighLevelClient) flintClient.createClient()) {
             assertIndexExist(client, indexName);
             UpdateRequest updateRequest = new UpdateRequest(indexName, id)
                     .doc(doc, XContentType.JSON)

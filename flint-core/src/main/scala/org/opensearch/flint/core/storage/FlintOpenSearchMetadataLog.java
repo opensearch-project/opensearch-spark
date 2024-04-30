@@ -77,7 +77,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   @Override
   public Optional<FlintMetadataLogEntry> getLatest() {
     LOG.info("Fetching latest log entry with id " + latestId);
-    try (IRestHighLevelClient client = flintClient.createClient()) {
+    try (IRestHighLevelClient client = (IRestHighLevelClient) flintClient.createClient()) {
       GetResponse response =
           client.get(new GetRequest(metaLogIndexName, latestId), RequestOptions.DEFAULT);
 
@@ -102,7 +102,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   @Override
   public void purge() {
     LOG.info("Purging log entry with id " + latestId);
-    try (IRestHighLevelClient client = flintClient.createClient()) {
+    try (IRestHighLevelClient client = (IRestHighLevelClient) flintClient.createClient()) {
       DeleteResponse response =
           client.delete(
               new DeleteRequest(metaLogIndexName, latestId), RequestOptions.DEFAULT);
@@ -151,7 +151,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   private FlintMetadataLogEntry writeLogEntry(
       FlintMetadataLogEntry logEntry,
       CheckedFunction<IRestHighLevelClient, DocWriteResponse> write) {
-    try (IRestHighLevelClient client = flintClient.createClient()) {
+    try (IRestHighLevelClient client = (IRestHighLevelClient) flintClient.createClient()) {
       // Write (create or update) the doc
       DocWriteResponse response = write.apply(client);
 
@@ -174,7 +174,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
 
   private boolean exists() {
     LOG.info("Checking if Flint index exists " + metaLogIndexName);
-    try (IRestHighLevelClient client = flintClient.createClient()) {
+    try (IRestHighLevelClient client = (IRestHighLevelClient) flintClient.createClient()) {
       return client.doesIndexExist(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to check if Flint index exists " + metaLogIndexName, e);

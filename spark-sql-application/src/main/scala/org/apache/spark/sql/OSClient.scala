@@ -42,7 +42,7 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
     new SearchModule(Settings.builder.build, new ArrayList[SearchPlugin]).getNamedXContents)
   def getIndexMetadata(osIndexName: String): String = {
 
-    using(flintClient.createClient()) { client =>
+    using(flintClient.createClient().asInstanceOf[IRestHighLevelClient]) { client =>
       val request = new GetIndexRequest(osIndexName)
       try {
         val response = client.getIndex(request, RequestOptions.DEFAULT)
@@ -70,7 +70,7 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
   def createIndex(osIndexName: String, mapping: String): Unit = {
     logInfo(s"create $osIndexName")
 
-    using(flintClient.createClient()) { client =>
+    using(flintClient.createClient().asInstanceOf[IRestHighLevelClient]) { client =>
       val request = new CreateIndexRequest(osIndexName)
       request.mapping(mapping, XContentType.JSON)
 
@@ -116,7 +116,7 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
     new OpenSearchUpdater(indexName, flintClient)
 
   def getDoc(osIndexName: String, id: String): GetResponse = {
-    using(flintClient.createClient()) { client =>
+    using(flintClient.createClient().asInstanceOf[IRestHighLevelClient]) { client =>
       val request = new GetRequest(osIndexName, id)
       val result = Try(client.get(request, RequestOptions.DEFAULT))
       result match {
@@ -147,7 +147,7 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
       queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser)
     }
     new OpenSearchScrollReader(
-      flintClient.createClient(),
+      flintClient.createClient().asInstanceOf[IRestHighLevelClient],
       indexName,
       new SearchSourceBuilder().query(queryBuilder).sort(sort, SortOrder.ASC),
       flintOptions)
@@ -157,7 +157,7 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
   }
 
   def doesIndexExist(indexName: String): Boolean = {
-    using(flintClient.createClient()) { client =>
+    using(flintClient.createClient().asInstanceOf[IRestHighLevelClient]) { client =>
       try {
         val request = new GetIndexRequest(indexName)
         client.doesIndexExist(request, RequestOptions.DEFAULT)
@@ -179,8 +179,9 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
         XContentType.JSON.xContent.createParser(xContentRegistry, IGNORE_DEPRECATIONS, query)
       queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser)
     }
+
     new OpenSearchQueryReader(
-      flintClient.createClient(),
+      flintClient.createClient().asInstanceOf[IRestHighLevelClient],
       indexName,
       new SearchSourceBuilder().query(queryBuilder).sort(sort, sortOrder))
   } catch {
