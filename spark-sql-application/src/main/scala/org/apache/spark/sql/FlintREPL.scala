@@ -5,30 +5,32 @@
 
 package org.apache.spark.sql
 
+import java.net.ConnectException
+import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture}
+import java.util.concurrent.atomic.AtomicInteger
+
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, TimeoutException}
+import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
+import scala.util.control.NonFatal
+
 import com.codahale.metrics.Timer
-import org.apache.spark.SparkConf
-import org.apache.spark.internal.Logging
-import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
-import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.apache.spark.util.ThreadUtils
 import org.json4s.native.Serialization
 import org.opensearch.action.get.GetResponse
 import org.opensearch.common.Strings
-import org.opensearch.flint.app.FlintInstance.formats
 import org.opensearch.flint.app.{FlintCommand, FlintInstance}
+import org.opensearch.flint.app.FlintInstance.formats
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
 import org.opensearch.search.sort.SortOrder
 
-import java.net.ConnectException
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture}
-import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, TimeoutException}
-import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try}
+import org.apache.spark.SparkConf
+import org.apache.spark.internal.Logging
+import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
+import org.apache.spark.sql.flint.config.FlintSparkConf
+import org.apache.spark.util.ThreadUtils
 
 /**
  * Spark SQL Application entrypoint
