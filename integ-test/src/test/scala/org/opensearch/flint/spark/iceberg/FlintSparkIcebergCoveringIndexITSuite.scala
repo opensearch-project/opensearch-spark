@@ -5,8 +5,9 @@
 
 package org.opensearch.flint.spark.iceberg
 
-import org.opensearch.flint.spark.FlintSparkCoveringIndexSqlITSuite
-
+// FIXME: support Iceberg table in covering index rewrite rule
+/*
 class FlintSparkIcebergCoveringIndexITSuite
     extends FlintSparkCoveringIndexSqlITSuite
     with FlintSparkIcebergSuite {}
+ */

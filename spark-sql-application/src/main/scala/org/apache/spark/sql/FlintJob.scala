@@ -6,15 +6,14 @@
 // defined in spark package so that I can use ThreadUtils
 package org.apache.spark.sql
 
-import java.util.concurrent.atomic.AtomicInteger
-
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.flint.config.FlintSparkConf
+import org.apache.spark.sql.types._
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.registerGauge
 import play.api.libs.json._
 
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.apache.spark.sql.types._
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Spark SQL Application entrypoint
