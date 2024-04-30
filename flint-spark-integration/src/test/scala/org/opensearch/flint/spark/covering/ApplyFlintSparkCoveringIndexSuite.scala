@@ -32,7 +32,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
   private val client = mock[FlintClient](RETURNS_DEEP_STUBS)
 
   /** Mock FlintSpark which is required by the rule */
-  private val flint = mock[FlintSpark]
+  private val flint = mock[FlintSpark](RETURNS_DEEP_STUBS)
 
   /** Instantiate the rule once for all tests */
   private val rule = new ApplyFlintSparkCoveringIndex(flint)
@@ -47,6 +47,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       .when(() => FlintClientBuilder.build(any(classOf[FlintOptions])))
       .thenReturn(client)
     when(flint.spark).thenReturn(spark)
+    // when(flint.spark.conf.getOption(any())).thenReturn(None)
   }
 
   override protected def afterAll(): Unit = {
