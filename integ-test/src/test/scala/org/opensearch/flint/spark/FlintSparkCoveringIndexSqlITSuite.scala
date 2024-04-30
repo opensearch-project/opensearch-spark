@@ -19,7 +19,7 @@ import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
+import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, OPTIMIZER_RULE_COVERING_INDEX_ENABLED}
 
 class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
@@ -43,34 +43,23 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
   }
 
   test("create covering index with auto refresh") {
-    sql(s"""
-         | CREATE INDEX $testIndex ON $testTable
-         | (name, age)
-         | WITH (auto_refresh = true)
-         |""".stripMargin)
-
-    // Wait for streaming job complete current micro batch
-    val job = spark.streams.active.find(_.name == testFlintIndex)
-    job shouldBe defined
-    failAfter(streamingTimeout) {
-      job.get.processAllAvailable()
-    }
+    awaitRefreshComplete(s"""
+           | CREATE INDEX $testIndex ON $testTable
+           | (name, age)
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
 
     val indexData = flint.queryIndex(testFlintIndex)
     indexData.count() shouldBe 2
   }
 
   test("create covering index with filtering condition") {
-    sql(s"""
+    awaitRefreshComplete(s"""
            | CREATE INDEX $testIndex ON $testTable
            | (name, age)
            | WHERE address = 'Portland'
            | WITH (auto_refresh = true)
            |""".stripMargin)
-
-    // Wait for streaming job complete current micro batch
-    val job = spark.streams.active.find(_.name == testFlintIndex)
-    awaitStreamingComplete(job.get.id.toString)
 
     val indexData = flint.queryIndex(testFlintIndex)
     indexData.count() shouldBe 1
@@ -256,6 +245,71 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("name", "age")
   }
 
+  test("rewrite applicable simple query with covering index") {
+    awaitRefreshComplete(s"""
+           | CREATE INDEX $testIndex ON $testTable
+           | (name, age)
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
+
+    val query = s"SELECT name, age FROM $testTable"
+    checkKeywordsExist(sql(s"EXPLAIN $query"), "FlintScan")
+    checkAnswer(sql(query), Seq(Row("Hello", 30), Row("World", 25)))
+  }
+
+  test("rewrite applicable aggregate query with covering index") {
+    awaitRefreshComplete(s"""
+            | CREATE INDEX $testIndex ON $testTable
+            | (name, age)
+            | WITH (auto_refresh = true)
+            | """.stripMargin)
+
+    val query = s"""
+                | SELECT age, COUNT(*) AS count
+                | FROM $testTable
+                | WHERE name = 'Hello'
+                | GROUP BY age
+                | ORDER BY count
+                | """.stripMargin
+    checkKeywordsExist(sql(s"EXPLAIN $query"), "FlintScan")
+    checkAnswer(sql(query), Row(30, 1))
+  }
+
+  test("should not rewrite with covering index if disabled") {
+    awaitRefreshComplete(s"""
+           | CREATE INDEX $testIndex ON $testTable
+           | (name, age)
+           | WITH (auto_refresh = true)
+           |""".stripMargin)
+
+    spark.conf.set(OPTIMIZER_RULE_COVERING_INDEX_ENABLED.key, "false")
+    try {
+      checkKeywordsNotExist(sql(s"EXPLAIN SELECT name, age FROM $testTable"), "FlintScan")
+    } finally {
+      spark.conf.set(OPTIMIZER_RULE_COVERING_INDEX_ENABLED.key, "true")
+    }
+  }
+
+  test("rewrite applicable query with covering index before skipping index") {
+    try {
+      sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | (age MIN_MAX)
+           | """.stripMargin)
+      awaitRefreshComplete(s"""
+           | CREATE INDEX $testIndex ON $testTable
+           | (name, age)
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
+
+      val query = s"SELECT name FROM $testTable WHERE age = 30"
+      checkKeywordsExist(sql(s"EXPLAIN $query"), "FlintScan")
+      checkAnswer(sql(query), Row("Hello"))
+    } finally {
+      deleteTestIndex(getSkippingIndexName(testTable))
+    }
+  }
+
   test("show all covering index on the source table") {
     flint
       .coveringIndex()
@@ -308,14 +362,11 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     flint.describeIndex(testFlintIndex) shouldBe defined
     flint.queryIndex(testFlintIndex).count() shouldBe 0
 
-    sql(s"""
+    awaitRefreshComplete(s"""
          | ALTER INDEX $testIndex ON $testTable
          | WITH (auto_refresh = true)
          | """.stripMargin)
 
-    // Wait for streaming job complete current micro batch
-    val job = spark.streams.active.find(_.name == testFlintIndex)
-    awaitStreamingComplete(job.get.id.toString)
     flint.queryIndex(testFlintIndex).count() shouldBe 2
   }
 
@@ -330,5 +381,13 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     sql(s"DROP INDEX $testIndex ON $testTable")
     sql(s"VACUUM INDEX $testIndex ON $testTable")
     flint.describeIndex(testFlintIndex) shouldBe empty
+  }
+
+  private def awaitRefreshComplete(query: String): Unit = {
+    sql(query)
+
+    // Wait for streaming job complete current micro batch
+    val job = spark.streams.active.find(_.name == testFlintIndex)
+    awaitStreamingComplete(job.get.id.toString)
   }
 }
