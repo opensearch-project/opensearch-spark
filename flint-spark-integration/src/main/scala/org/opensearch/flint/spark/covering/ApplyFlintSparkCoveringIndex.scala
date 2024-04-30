@@ -11,13 +11,11 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.D
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.source.{FlintSparkSourceRelation, FlintSparkSourceRelationProvider}
-import org.opensearch.flint.spark.source.file.FileSourceRelationProvider
-import org.opensearch.flint.spark.source.iceberg.IcebergSourceRelationProvider
 
+import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, V2WriteCommand}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.flint.{qualifyTableName, FlintDataSourceV2}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -31,24 +29,15 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
  */
 class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] {
 
-  private val supportedSourceRelations: Seq[FlintSparkSourceRelationProvider] = {
-    var relations = Seq[FlintSparkSourceRelationProvider]()
-    relations = relations :+ new FileSourceRelationProvider
-
-    if (flint.spark.conf
-        .getOption("spark.sql.catalog.spark_catalog")
-        .contains("org.apache.iceberg.spark.SparkSessionCatalog")) {
-      relations = relations :+ new IcebergSourceRelationProvider
-    }
-    relations
-  }
+  /** All supported source relation providers */
+  private val relationProviders = FlintSparkSourceRelationProvider.getProviders(flint.spark)
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (plan.isInstanceOf[V2WriteCommand]) {
       plan
     } else {
       plan transform { case subPlan =>
-        supportedSourceRelations
+        relationProviders
           .collectFirst {
             case relationProvider if relationProvider.isSupported(subPlan) =>
               val relation = relationProvider.getRelation(subPlan)
@@ -79,7 +68,7 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
     val relationColsById = relation.output.map(attr => (attr.exprId, attr)).toMap
     plan
       .collect {
-        case r: LogicalRelation if r.eq(relation.plan) => Set.empty
+        case r: MultiInstanceRelation if r.eq(relation.plan) => Set.empty
         case other =>
           other.expressions
             .flatMap(_.references)
