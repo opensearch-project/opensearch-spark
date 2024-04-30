@@ -21,21 +21,8 @@ case class FileSourceRelation(override val plan: LogicalRelation)
     extends FlintSparkSourceRelation {
 
   override def tableName: String =
-    plan.catalogTable
-      .getOrElse(throw new IllegalArgumentException("No table found in the source relation plan"))
+    plan.catalogTable.get // catalogTable must be present as pre-checked in source relation provider's
       .qualifiedName
 
   override def output: Seq[AttributeReference] = plan.output
-}
-
-class FileSourceRelationProvider extends FlintSparkSourceRelationProvider {
-
-  override def isSupported(plan: LogicalPlan): Boolean = plan match {
-    case LogicalRelation(_, _, Some(_), false) => true
-    case _ => false
-  }
-
-  override def getRelation(plan: LogicalPlan): FlintSparkSourceRelation = {
-    FileSourceRelation(plan.asInstanceOf[LogicalRelation])
-  }
 }

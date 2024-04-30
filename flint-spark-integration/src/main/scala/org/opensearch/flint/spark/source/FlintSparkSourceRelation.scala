@@ -5,13 +5,8 @@
 
 package org.opensearch.flint.spark.source
 
-import org.opensearch.flint.spark.source.file.FileSourceRelation
-import org.opensearch.flint.spark.source.iceberg.IcebergSourceRelation
-
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.execution.datasources.LogicalRelation
-import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 
 /**
  * This source relation abstraction allows Flint to interact uniformly with different kinds of
@@ -37,11 +32,4 @@ trait FlintSparkSourceRelation {
    *   output column list of the relation
    */
   def output: Seq[AttributeReference]
-}
-
-trait FlintSparkSourceRelationProvider {
-
-  def isSupported(plan: LogicalPlan): Boolean
-
-  def getRelation(plan: LogicalPlan): FlintSparkSourceRelation
 }
