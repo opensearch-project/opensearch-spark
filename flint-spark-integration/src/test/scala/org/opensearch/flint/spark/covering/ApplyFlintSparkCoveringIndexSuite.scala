@@ -27,11 +27,11 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
   private val testTable = "spark_catalog.default.apply_covering_index_test"
   private val testTable2 = "spark_catalog.default.apply_covering_index_test_2"
 
-  // Mock FlintClient to avoid looking for real OpenSearch cluster
+  /** Mock FlintClient to avoid looking for real OpenSearch cluster */
   private val clientBuilder = mockStatic(classOf[FlintClientBuilder])
   private val client = mock[FlintClient](RETURNS_DEEP_STUBS)
 
-  /** Mock FlintSpark which is required by the rule */
+  /** Mock FlintSpark which is required by the rule. Deep stub required to replace spark val. */
   private val flint = mock[FlintSpark](RETURNS_DEEP_STUBS)
 
   /** Instantiate the rule once for all tests */
@@ -47,7 +47,6 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       .when(() => FlintClientBuilder.build(any(classOf[FlintOptions])))
       .thenReturn(client)
     when(flint.spark).thenReturn(spark)
-    // when(flint.spark.conf.getOption(any())).thenReturn(None)
   }
 
   override protected def afterAll(): Unit = {

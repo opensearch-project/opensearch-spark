@@ -60,7 +60,7 @@ object FlintSparkSourceRelationProvider {
    * @return
    *   a sequence of source relation provider
    */
-  def getProviders(spark: SparkSession): Seq[FlintSparkSourceRelationProvider] = {
+  def getAllProviders(spark: SparkSession): Seq[FlintSparkSourceRelationProvider] = {
     var relations = Seq[FlintSparkSourceRelationProvider]()
 
     // File source is built-in supported
