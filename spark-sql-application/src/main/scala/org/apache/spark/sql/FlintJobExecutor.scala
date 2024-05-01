@@ -85,6 +85,19 @@ trait FlintJobExecutor {
         "org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions")
   }
 
+  /*
+   * Override dynamicAllocation.maxExecutors with streaming maxExecutors. more detail at
+   * https://github.com/opensearch-project/opensearch-spark/issues/324
+   */
+  def configDYNMaxExecutors(conf: SparkConf, jobType: String): Unit = {
+    if (jobType.equalsIgnoreCase("streaming")) {
+      conf.set(
+        "spark.dynamicAllocation.maxExecutors",
+        conf
+          .get("spark.flint.streaming.dynamicAllocation.maxExecutors", "10"))
+    }
+  }
+
   def createSparkSession(conf: SparkConf): SparkSession = {
     val builder = SparkSession.builder().config(conf)
     if (enableHiveSupport) {

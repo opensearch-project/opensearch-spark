@@ -91,6 +91,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
     if (jobType.equalsIgnoreCase("streaming")) {
       logInfo(s"""streaming query ${query}""")
+      configDYNMaxExecutors(conf, jobType)
       val streamingRunningCount = new AtomicInteger(0)
       val jobOperator =
         JobOperator(
