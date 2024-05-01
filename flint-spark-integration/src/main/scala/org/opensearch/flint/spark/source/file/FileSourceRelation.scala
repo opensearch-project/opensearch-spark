@@ -5,17 +5,16 @@
 
 package org.opensearch.flint.spark.source.file
 
-import org.opensearch.flint.spark.source.{FlintSparkSourceRelation, FlintSparkSourceRelationProvider}
+import org.opensearch.flint.spark.source.FlintSparkSourceRelation
 
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 
 /**
  * Concrete source relation implementation for Spark built-in file-based data sources.
  *
  * @param plan
- *   the relation plan associated with the file-based data source
+ *   the `LogicalRelation` that represents the plan associated with the File-based table
  */
 case class FileSourceRelation(override val plan: LogicalRelation)
     extends FlintSparkSourceRelation {

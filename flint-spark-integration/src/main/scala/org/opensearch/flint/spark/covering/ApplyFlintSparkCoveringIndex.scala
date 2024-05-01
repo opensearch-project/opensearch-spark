@@ -8,7 +8,7 @@ package org.opensearch.flint.spark.covering
 import java.util
 
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.DELETED
-import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
+import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.source.{FlintSparkSourceRelation, FlintSparkSourceRelationProvider}
 
@@ -30,30 +30,27 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] {
 
   /** All supported source relation providers */
-  private val relationProviders = FlintSparkSourceRelationProvider.getProviders(flint.spark)
+  private val supportedProviders = FlintSparkSourceRelationProvider.getAllProviders(flint.spark)
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (plan.isInstanceOf[V2WriteCommand]) {
       plan
     } else {
       plan transform { case subPlan =>
-        relationProviders
+        supportedProviders
           .collectFirst {
-            case relationProvider if relationProvider.isSupported(subPlan) =>
-              val relation = relationProvider.getRelation(subPlan)
+            case provider if provider.isSupported(subPlan) =>
+              val relation = provider.getRelation(subPlan)
               val relationCols = collectRelationColumnsInQueryPlan(plan, relation)
 
               // Choose the first covering index that meets all criteria above
               findAllCoveringIndexesOnTable(relation.tableName)
                 .sortBy(_.name())
-                .collectFirst {
-                  case index: FlintSparkCoveringIndex
-                      if isCoveringIndexApplicable(index, relationCols) =>
-                    replaceTableRelationWithIndexRelation(index, relation)
-                }
-                .getOrElse(subPlan) // If no index found, return the original relation
+                .find(index => isCoveringIndexApplicable(index, relationCols))
+                .map(index => replaceTableRelationWithIndexRelation(index, relation))
+                .getOrElse(subPlan) // If no index found, return the original node
           }
-          .getOrElse(subPlan)
+          .getOrElse(subPlan) // If not supported by any provider, return the original node
       }
     }
   }
@@ -68,6 +65,7 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
     val relationColsById = relation.output.map(attr => (attr.exprId, attr)).toMap
     plan
       .collect {
+        // Relation interface matches both file and Iceberg relation
         case r: MultiInstanceRelation if r.eq(relation.plan) => Set.empty
         case other =>
           other.expressions
@@ -81,10 +79,14 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
       .toSet
   }
 
-  private def findAllCoveringIndexesOnTable(tableName: String): Seq[FlintSparkIndex] = {
+  private def findAllCoveringIndexesOnTable(tableName: String): Seq[FlintSparkCoveringIndex] = {
     val qualifiedTableName = qualifyTableName(flint.spark, tableName)
     val indexPattern = getFlintIndexName("*", qualifiedTableName)
-    flint.describeIndexes(indexPattern)
+    flint
+      .describeIndexes(indexPattern)
+      .collect { // cast to covering index
+        case index: FlintSparkCoveringIndex => index
+      }
   }
 
   private def isCoveringIndexApplicable(
