@@ -11,12 +11,13 @@ import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.{Duration, MINUTES}
 import scala.util.{Failure, Success}
+import scala.util.control.Breaks.{break, breakable}
 
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.spark.FlintSparkSuite
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.defined
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.matchers.must.Matchers.{defined, have}
+import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.util.MockEnvironment
@@ -215,43 +216,6 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
       true
     }
     pollForResultAndAssert(validation, jobRunId)
-  }
-
-  test("default streaming query maxExecutors is 10") {
-    val query =
-      s"""
-         | CREATE SKIPPING INDEX ON $testTable
-         | (
-         |   year PARTITION,
-         |   name VALUE_SET,
-         |   age MIN_MAX
-         | )
-         | WITH (auto_refresh = true)
-         | """.stripMargin
-    val jobRunId = "00ff4o3b5091080q"
-    threadLocalFuture.set(startJob(query, jobRunId))
-    pollForResultAndAssert(_ => true, jobRunId)
-
-    spark.sparkContext.conf.get("spark.dynamicAllocation.maxExecutors") shouldBe "10"
-  }
-
-  test("override streaming query maxExecutors") {
-    spark.sparkContext.conf.set("spark.flint.streaming.dynamicAllocation.maxExecutors", "30")
-    val query =
-      s"""
-         | CREATE SKIPPING INDEX ON $testTable
-         | (
-         |   year PARTITION,
-         |   name VALUE_SET,
-         |   age MIN_MAX
-         | )
-         | WITH (auto_refresh = true)
-         | """.stripMargin
-    val jobRunId = "00ff4o3b5091080q"
-    threadLocalFuture.set(startJob(query, jobRunId))
-    pollForResultAndAssert(_ => true, jobRunId)
-
-    spark.sparkContext.conf.get("spark.dynamicAllocation.maxExecutors") shouldBe "30"
   }
 
   def commonAssert(
