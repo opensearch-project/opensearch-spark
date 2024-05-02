@@ -74,7 +74,7 @@ public class FlintOptions implements Serializable {
    *
    * WAIT_UNTIL("wait_for")
    */
-  public static final String DEFAULT_REFRESH_POLICY = "wait_for";
+  public static final String DEFAULT_REFRESH_POLICY = "false";
 
   public static final String SOCKET_TIMEOUT_MILLIS = "socket_timeout_millis";
 
