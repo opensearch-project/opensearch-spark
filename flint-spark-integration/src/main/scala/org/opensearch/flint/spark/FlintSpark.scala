@@ -20,13 +20,14 @@ import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
-import org.opensearch.flint.spark.skipping.recommendations.DataTypeSkippingStrategy
+import org.opensearch.flint.spark.skipping.recommendations.RuleBasedSkippingStrategy
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
+import org.apache.spark.sql.types.StructType
 
 /**
  * Flint Spark integration API entrypoint.
@@ -369,13 +370,16 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   /**
    * Recommend skipping index columns and algorithm.
    *
-   * @param tableName
-   *   table name
+   * @param data
+   *   data for recommendation strategy.
    * @return
    *   skipping index recommendation dataframe
    */
-  def analyzeSkippingIndex(tableName: String): Seq[Row] = {
-    new DataTypeSkippingStrategy().analyzeSkippingIndexColumns(tableName, spark)
+  def analyzeSkippingIndex(schema: StructType, data: Seq[Row]): Seq[Row] = {
+    new RuleBasedSkippingStrategy()
+      .analyzeSkippingIndexColumns(
+        spark.createDataFrame(spark.sparkContext.parallelize(data), schema),
+        spark)
   }
 
   private def stopRefreshingJob(indexName: String): Unit = {

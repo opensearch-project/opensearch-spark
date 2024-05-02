@@ -165,6 +165,7 @@ DROP: 'DROP';
 EXISTS: 'EXISTS';
 FALSE: 'FALSE';
 FLINT: 'FLINT';
+FOR: 'FOR';
 IF: 'IF';
 IN: 'IN';
 INDEX: 'INDEX';
@@ -222,7 +223,7 @@ fragment DIGIT
     ;
 
 fragment LETTER
-    : [A-Z]
+    : [a-zA-Z]
     ;
 
 SIMPLE_COMMENT

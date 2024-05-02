@@ -4,21 +4,21 @@
  */
 package org.opensearch.flint.spark.skipping.recommendations
 
-import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
 /**
- * Automate skipping index column and algorithm selection.
+ * Automate skipping index column and algorithm selection interface.
  */
 trait AnalyzeSkippingStrategy {
 
   /**
    * Recommend skipping index columns and algorithm.
    *
-   * @param tableName
-   *   table name
+   * @param data
+   *   data for recommendation strategy.
    * @return
-   *   skipping index recommendation dataframe
+   *   skipping index recommendation dataframe.
    */
-  def analyzeSkippingIndexColumns(tableName: String, spark: SparkSession): Seq[Row]
+  def analyzeSkippingIndexColumns(data: DataFrame, spark: SparkSession): Seq[Row]
 
 }

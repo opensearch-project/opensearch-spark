@@ -21,7 +21,7 @@ import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.logical.Command
-import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
 /**
  * Flint Spark AST builder that builds Spark command for Flint skipping index statement.
@@ -133,8 +133,21 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       AttributeReference("reason", StringType, nullable = false)(),
       AttributeReference("skipping_type", StringType, nullable = false)())
 
+    var data = Seq.empty[Row]
+    if (ctx.analyzeTable() != null) {
+      data = getColumnsDF(ctx.analyzeTable().tableName().getText, ctx.analyzeTable().indexColumns)
+    } else {
+      data = getFunctionsDF(ctx.analyzeQuery().analyzeSqlQuery())
+    }
+
+    val schema = StructType(
+      Seq(
+        StructField("tableName", StringType, nullable = true),
+        StructField("column", StringType, nullable = true),
+        StructField("function", StringType, nullable = true)))
+
     FlintSparkSqlCommand(outputSchema) { flint =>
-      flint.analyzeSkippingIndex(ctx.tableName().getText)
+      flint.analyzeSkippingIndex(schema, data)
     }
   }
 
@@ -166,4 +179,66 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
 
   private def getSkippingIndexName(flint: FlintSpark, tableNameCtx: RuleNode): String =
     FlintSparkSkippingIndex.getSkippingIndexName(getFullTableName(flint, tableNameCtx))
+
+  private def getColumnsDF(
+      tableName: String,
+      columnsCtx: MultipartIdentifierPropertyListContext): Seq[Row] = {
+    var data = Seq.empty[Row]
+    if (columnsCtx != null) {
+      columnsCtx.multipartIdentifierProperty().forEach { indexColCtx =>
+        data = data :+ Row(
+          tableName,
+          indexColCtx.multipartIdentifier().getText,
+          null.asInstanceOf[String])
+      }
+    } else {
+      data = data :+ Row(tableName, null.asInstanceOf[String], null.asInstanceOf[String])
+    }
+    data
+  }
+
+  private def getFunctionsDF(queryCtx: AnalyzeSqlQueryContext): Seq[Row] = {
+    val query = getSqlText(queryCtx)
+
+    val fromPattern = """(?)FROM\s+([\w.]+)""".r
+    val tableName = fromPattern
+      .findFirstMatchIn(query)
+      .map { m =>
+        m.group(1).trim
+      }
+      .getOrElse("")
+
+    val whereClause = getWhereClause(query)
+    if (tableName.nonEmpty && whereClause.nonEmpty) {
+      // Regular expression to match patterns like "column IN(...)", "column > 10", etc
+      val pattern = """(\w+)\s+(IN|<|>|<=|>=|==)\s*.+?(?=(?:AND|OR|NOT|$))""".r
+
+      // Extract column and respective function/operator
+      pattern
+        .findAllMatchIn(whereClause)
+        .map { m =>
+          val column = m.group(1).trim
+          val function = m.group(2).trim
+          Row(tableName, column, function)
+        }
+        .toList
+    } else {
+      throw new IllegalArgumentException(s"query cannot be accelerated")
+    }
+  }
+
+  private def getWhereClause(query: String): String = {
+    val whereIndex = query.toUpperCase().indexOf("WHERE")
+    if (whereIndex != -1) {
+      val whereClause = query.substring(whereIndex + "WHERE".length)
+      val endOfWhereClause = Seq("ORDER BY", "GROUP BY", "HAVING", "LIMIT")
+        .map(clause => whereClause.toUpperCase().indexOf(clause))
+        .filter(_ != -1)
+        .reduceLeftOption(_ min _)
+        .getOrElse(whereClause.length)
+      whereClause.substring(0, endOfWhereClause).trim
+    } else {
+      ""
+    }
+  }
 }
