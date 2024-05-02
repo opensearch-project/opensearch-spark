@@ -75,11 +75,13 @@ class FlintSparkConfSuite extends FlintSuite {
   }
 
   test("test batch bytes options") {
-    val defaultConf = FlintSparkConf(Map("write.batch_size" -> "10").asJava)
-    defaultConf.batchBytes() shouldBe 4 * 1024 * 1024
+    val defaultConf = FlintSparkConf(Map[String, String]().asJava)
+    defaultConf.batchBytes() shouldBe 1024 * 1024
+    defaultConf.flintOptions().getBatchBytes shouldBe 1024 * 1024
 
-    val overrideConf = FlintSparkConf(Map("write.batch_bytes" -> "1mb").asJava)
-    overrideConf.batchBytes() shouldBe 1024 * 1024
+    val overrideConf = FlintSparkConf(Map("write.batch_bytes" -> "4mb").asJava)
+    overrideConf.batchBytes() shouldBe 4 * 1024 * 1024
+    overrideConf.flintOptions().getBatchBytes shouldBe 4 * 1024 * 1024
   }
 
   /**

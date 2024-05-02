@@ -7,6 +7,8 @@ package org.opensearch.flint.core;
 
 import java.io.Serializable;
 import java.util.Map;
+
+import org.apache.spark.network.util.ByteUnit;
 import org.opensearch.flint.core.http.FlintRetryOptions;
 
 /**
@@ -84,6 +86,10 @@ public class FlintOptions implements Serializable {
   
   public static final String DATA_SOURCE_NAME = "spark.flint.datasource.name";
 
+  public static final String BATCH_BYTES = "write.batch_bytes";
+
+  public static final String DEFAULT_BATCH_BYTES = "1mb";
+
   public FlintOptions(Map<String, String> options) {
     this.options = options;
     this.retryOptions = new FlintRetryOptions(options);
@@ -149,5 +155,11 @@ public class FlintOptions implements Serializable {
 
   public String getSystemIndexName() {
     return options.getOrDefault(SYSTEM_INDEX_KEY_NAME, "");
+  }
+
+  public int getBatchBytes() {
+    // we did not expect this value could be large than 10mb = 10 * 1024 * 1024
+    return (int) org.apache.spark.network.util.JavaUtils
+        .byteStringAs(options.getOrDefault(BATCH_BYTES, DEFAULT_BATCH_BYTES), ByteUnit.BYTE);
   }
 }

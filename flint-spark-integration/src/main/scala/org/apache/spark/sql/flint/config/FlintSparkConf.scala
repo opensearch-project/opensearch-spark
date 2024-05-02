@@ -98,12 +98,12 @@ object FlintSparkConf {
         "documents will vary depending on the individual size of each document.")
     .createWithDefault(Integer.MAX_VALUE.toString)
 
-  val BATCH_BYTES = FlintConfig(s"spark.datasource.flint.write.batch_bytes")
+  val BATCH_BYTES = FlintConfig(s"spark.datasource.flint.${FlintOptions.BATCH_BYTES}")
     .datasourceOption()
     .doc(
       "The approximately amount of data in bytes written to Flint in a single batch request. " +
-        "The actual data write to OpenSearch may more than it. Default value is 4mb")
-    .createWithDefault("4mb")
+        s"The actual data write to OpenSearch may more than it. Default value is 1mb")
+    .createWithDefault(FlintOptions.DEFAULT_BATCH_BYTES)
 
   val REFRESH_POLICY = FlintConfig("spark.datasource.flint.write.refresh_policy")
     .datasourceOption()
@@ -248,7 +248,8 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       PASSWORD,
       SOCKET_TIMEOUT_MILLIS,
       JOB_TYPE,
-      REPL_INACTIVITY_TIMEOUT_MILLIS)
+      REPL_INACTIVITY_TIMEOUT_MILLIS,
+      BATCH_BYTES)
       .map(conf => (conf.optionKey, conf.readFrom(reader)))
       .toMap
 

@@ -33,11 +33,12 @@ public class OpenSearchWriter extends FlintWriter {
 
   private IRestHighLevelClient client;
 
-  public OpenSearchWriter(IRestHighLevelClient client, String indexName, String refreshPolicy) {
+  public OpenSearchWriter(IRestHighLevelClient client, String indexName, String refreshPolicy,
+      int bufferSizeInBytes) {
     this.client = client;
     this.indexName = indexName;
     this.refreshPolicy = refreshPolicy;
-    this.baos = new ByteArrayOutputStream();
+    this.baos = new ByteArrayOutputStream(bufferSizeInBytes);
   }
 
   @Override public void write(char[] cbuf, int off, int len) {
