@@ -9,7 +9,6 @@ import java.util.Optional
 
 import scala.collection.JavaConverters._
 
-import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.http.FlintRetryOptions._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
@@ -73,6 +72,14 @@ class FlintSparkConfSuite extends FlintSuite {
       assert(
         flintOptions.getMetadataAccessAwsCredentialsProvider == "com.example.MetadataAccessCredentialsProvider")
     }
+  }
+
+  test("test batch bytes options") {
+    val defaultConf = FlintSparkConf(Map("write.batch_size" -> "10").asJava)
+    defaultConf.batchBytes() shouldBe 4 * 1024 * 1024
+
+    val overrideConf = FlintSparkConf(Map("write.batch_bytes" -> "1mb").asJava)
+    overrideConf.batchBytes() shouldBe 1024 * 1024
   }
 
   /**

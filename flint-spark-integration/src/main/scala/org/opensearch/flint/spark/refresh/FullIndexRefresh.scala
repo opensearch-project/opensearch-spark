@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.spark.refresh
 
+import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.spark.FlintSparkIndex
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{FULL, RefreshMode}
 
@@ -43,6 +44,7 @@ class FullIndexRefresh(
       .write
       .format(FLINT_DATASOURCE)
       .options(flintSparkConf.properties)
+      .option(FlintSparkConf.REFRESH_POLICY.optionKey, "false")
       .mode(Overwrite)
       .save(indexName)
     None

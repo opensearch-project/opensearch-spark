@@ -60,7 +60,7 @@ case class FlintPartitionWriter(
     gen.writeLineEnding()
 
     docCount += 1
-    if (docCount >= options.batchSize()) {
+    if (docCount >= options.batchSize() || gen.getBufferSize >= options.batchBytes()) {
       gen.flush()
       docCount = 0
     }

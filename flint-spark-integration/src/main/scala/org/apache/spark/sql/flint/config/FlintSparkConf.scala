@@ -14,6 +14,7 @@ import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.http.FlintRetryOptions
 
 import org.apache.spark.internal.config.ConfigReader
+import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.flint.config.FlintSparkConf._
 import org.apache.spark.sql.internal.SQLConf
 
@@ -95,7 +96,14 @@ object FlintSparkConf {
       "The number of documents written to Flint in a single batch request is determined by the " +
         "overall size of the HTTP request, which should not exceed 100MB. The actual number of " +
         "documents will vary depending on the individual size of each document.")
-    .createWithDefault("1000")
+    .createWithDefault(Integer.MAX_VALUE.toString)
+
+  val BATCH_BYTES = FlintConfig(s"spark.datasource.flint.write.batch_bytes")
+    .datasourceOption()
+    .doc(
+      "The approximately amount of data in bytes written to Flint in a single batch request. " +
+        "The actual data write to OpenSearch may more than it. Default value is 4mb")
+    .createWithDefault("4mb")
 
   val REFRESH_POLICY = FlintConfig("spark.datasource.flint.write.refresh_policy")
     .datasourceOption()
@@ -193,6 +201,9 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
   @transient lazy val reader = new ConfigReader(properties)
 
   def batchSize(): Int = BATCH_SIZE.readFrom(reader).toInt
+
+  def batchBytes(): Long = org.apache.spark.network.util.JavaUtils
+    .byteStringAs(BATCH_BYTES.readFrom(reader), ByteUnit.BYTE)
 
   def docIdColumnName(): Option[String] = DOC_ID_COLUMN_NAME.readFrom(reader)
 
