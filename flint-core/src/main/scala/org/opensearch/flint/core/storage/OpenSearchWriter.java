@@ -14,7 +14,9 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.rest.RestStatus;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 /**
@@ -27,19 +29,21 @@ public class OpenSearchWriter extends FlintWriter {
 
   private final String refreshPolicy;
 
-  private StringBuilder sb;
+  private final ByteArrayOutputStream baos;
 
   private IRestHighLevelClient client;
 
-  public OpenSearchWriter(IRestHighLevelClient client, String indexName, String refreshPolicy) {
+  public OpenSearchWriter(IRestHighLevelClient client, String indexName, String refreshPolicy,
+      int bufferSizeInBytes) {
     this.client = client;
     this.indexName = indexName;
-    this.sb = new StringBuilder();
     this.refreshPolicy = refreshPolicy;
+    this.baos = new ByteArrayOutputStream(bufferSizeInBytes);
   }
 
   @Override public void write(char[] cbuf, int off, int len) {
-    sb.append(cbuf, off, len);
+    byte[] bytes = new String(cbuf, off, len).getBytes(StandardCharsets.UTF_8);
+    baos.write(bytes, 0, bytes.length);
   }
 
   /**
@@ -48,8 +52,8 @@ public class OpenSearchWriter extends FlintWriter {
    */
   @Override public void flush() {
     try {
-      if (sb.length() > 0) {
-        byte[] bytes = sb.toString().getBytes();
+      if (baos.size() > 0) {
+        byte[] bytes = baos.toByteArray();
         BulkResponse
             response =
             client.bulk(
@@ -63,7 +67,7 @@ public class OpenSearchWriter extends FlintWriter {
     } catch (IOException e) {
       throw new RuntimeException(String.format("Failed to execute bulk request on index: %s", indexName), e);
     } finally {
-      sb.setLength(0);
+      baos.reset();
     }
   }
 
@@ -76,6 +80,10 @@ public class OpenSearchWriter extends FlintWriter {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public long getBufferSize() {
+    return baos.size();
   }
 
   private boolean isCreateConflict(BulkItemResponse itemResp) {

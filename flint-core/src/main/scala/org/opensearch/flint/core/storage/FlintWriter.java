@@ -19,4 +19,9 @@ public abstract class FlintWriter extends Writer {
    * { "title": "Prisoners", "year": 2013 }
    */
   public static final String ACTION_CREATE = "create";
+
+  /**
+   * @return current data written into buffer in bytes.
+   */
+  public abstract long getBufferSize();
 }

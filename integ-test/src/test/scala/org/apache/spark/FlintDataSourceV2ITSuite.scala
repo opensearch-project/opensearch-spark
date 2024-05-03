@@ -216,7 +216,7 @@ class FlintDataSourceV2ITSuite
         df.coalesce(1)
           .write
           .format("flint")
-          .options(options + ("spark.flint.write.batch.size" -> s"$batchSize"))
+          .options(options + ("spark.flint.write.batch_size" -> s"$batchSize"))
           .mode("overwrite")
           .save(indexName)
 
@@ -497,6 +497,39 @@ class FlintDataSourceV2ITSuite
           .toDF("aTimestamp")
           .select(to_timestamp($"aTimestamp", "yyyy-MM-dd HH:mm:ss z").as("aTimestamp")))
     }
+  }
+
+  test("write dataframe to flint with batch bytes configuration") {
+    val indexName = "tbatchbytes"
+    val options = openSearchOptions + (s"${DOC_ID_COLUMN_NAME.optionKey}" -> "aInt")
+    Seq("0b", "10b", "1mb").foreach(batchBytes => {
+      withIndexName(indexName) {
+        val mappings =
+          """{
+            |  "properties": {
+            |    "aInt": {
+            |      "type": "integer"
+            |    }
+            |  }
+            |}""".stripMargin
+        index(indexName, oneNodeSetting, mappings, Seq.empty)
+
+        val df = spark.range(15).toDF("aInt")
+        df.coalesce(1)
+          .write
+          .format("flint")
+          .options(options + ("spark.flint.write.batch_bytes" -> s"$batchBytes"))
+          .mode("overwrite")
+          .save(indexName)
+
+        checkAnswer(
+          spark.sqlContext.read
+            .format("flint")
+            .options(openSearchOptions)
+            .load(indexName),
+          df)
+      }
+    })
   }
 
   /**

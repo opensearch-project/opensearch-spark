@@ -17,6 +17,7 @@ import play.api.libs.json._
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.parser.ParseException
+import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util._
 
@@ -110,6 +111,7 @@ trait FlintJobExecutor {
     try {
       resultData.write
         .format("flint")
+        .option(REFRESH_POLICY.optionKey, "wait_for")
         .mode("append")
         .save(resultIndex)
       IRestHighLevelClient.recordOperationSuccess(

@@ -5,10 +5,9 @@
 
 package org.apache.spark.sql.flint.json
 
-import java.io.Writer
-
 import com.fasterxml.jackson.core.JsonFactory
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
+import org.opensearch.flint.core.storage.FlintWriter
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.SpecializedGetters
@@ -24,7 +23,7 @@ import org.apache.spark.sql.types._
  */
 case class FlintJacksonGenerator(
     dataType: DataType,
-    writer: Writer,
+    writer: FlintWriter,
     options: JSONOptions,
     ignoredFieldName: Option[String] = None) {
   // A `ValueWriter` is responsible for writing a field of an `InternalRow` to appropriate
@@ -313,5 +312,9 @@ case class FlintJacksonGenerator(
         case _ => None
       })
     })
+  }
+
+  def getBufferSize: Long = {
+    writer.getBufferSize;
   }
 }
