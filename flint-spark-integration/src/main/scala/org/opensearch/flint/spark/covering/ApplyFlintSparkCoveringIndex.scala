@@ -33,13 +33,15 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
   private val supportedProviders = FlintSparkSourceRelationProvider.getAllProviders(flint.spark)
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
-    if (plan.isInstanceOf[V2WriteCommand]) {
+    if (plan.isInstanceOf[V2WriteCommand]) { // TODO: bypass any non-select plan
       plan
     } else {
+      // Iterate each sub plan tree in the given plan
       plan transform { case subPlan =>
         supportedProviders
           .collectFirst {
             case provider if provider.isSupported(subPlan) =>
+              logInfo(s"Provider [${provider.name()}] can match sub plan ${subPlan.nodeName}")
               val relation = provider.getRelation(subPlan)
               val relationCols = collectRelationColumnsInQueryPlan(plan, relation)
 
@@ -82,19 +84,35 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
   private def findAllCoveringIndexesOnTable(tableName: String): Seq[FlintSparkCoveringIndex] = {
     val qualifiedTableName = qualifyTableName(flint.spark, tableName)
     val indexPattern = getFlintIndexName("*", qualifiedTableName)
-    flint
-      .describeIndexes(indexPattern)
-      .collect { // cast to covering index
-        case index: FlintSparkCoveringIndex => index
-      }
+    val indexes =
+      flint
+        .describeIndexes(indexPattern)
+        .collect { // cast to covering index
+          case index: FlintSparkCoveringIndex => index
+        }
+
+    val indexNames = indexes.map(_.name()).mkString(",")
+    logInfo(s"Found covering index [$indexNames] on table $qualifiedTableName")
+    indexes
   }
 
   private def isCoveringIndexApplicable(
       index: FlintSparkCoveringIndex,
       relationCols: Set[String]): Boolean = {
-    index.latestLogEntry.exists(_.state != DELETED) &&
-    index.filterCondition.isEmpty && // TODO: support partial covering index later
-    relationCols.subsetOf(index.indexedColumns.keySet)
+    val indexedCols = index.indexedColumns.keySet
+    val isApplicable =
+      index.latestLogEntry.exists(_.state != DELETED) &&
+        index.filterCondition.isEmpty && // TODO: support partial covering index later
+        relationCols.subsetOf(indexedCols)
+
+    logInfo(s"""
+         | Is covering index ${index.name()} applicable: $isApplicable
+         |   Index state: ${index.latestLogEntry.map(_.state)}
+         |   Index filter condition: ${index.filterCondition}
+         |   Columns required: $relationCols
+         |   Columns indexed: $indexedCols
+         |""".stripMargin)
+    isApplicable
   }
 
   private def replaceTableRelationWithIndexRelation(

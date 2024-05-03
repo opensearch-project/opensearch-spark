@@ -8,6 +8,7 @@ package org.opensearch.flint.spark.source
 import org.opensearch.flint.spark.source.file.FileSourceRelationProvider
 import org.opensearch.flint.spark.source.iceberg.IcebergSourceRelationProvider
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 
@@ -50,7 +51,7 @@ trait FlintSparkSourceRelationProvider {
 /**
  * Companion object provides utility methods.
  */
-object FlintSparkSourceRelationProvider {
+object FlintSparkSourceRelationProvider extends Logging {
 
   /**
    * Retrieve all supported source relation provider for the given Spark session.
@@ -72,6 +73,9 @@ object FlintSparkSourceRelationProvider {
         .contains("org.apache.iceberg.spark.SparkSessionCatalog")) {
       relations = relations :+ new IcebergSourceRelationProvider
     }
+
+    val providerNames = relations.map(_.name()).mkString(",")
+    logInfo(s"Loaded source relation providers [$providerNames]")
     relations
   }
 }
