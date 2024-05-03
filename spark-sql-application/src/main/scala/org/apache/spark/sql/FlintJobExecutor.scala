@@ -17,6 +17,7 @@ import play.api.libs.json._
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.parser.ParseException
+import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util._
 
@@ -85,6 +86,19 @@ trait FlintJobExecutor {
         "org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions")
   }
 
+  /*
+   * Override dynamicAllocation.maxExecutors with streaming maxExecutors. more detail at
+   * https://github.com/opensearch-project/opensearch-spark/issues/324
+   */
+  def configDYNMaxExecutors(conf: SparkConf, jobType: String): Unit = {
+    if (jobType.equalsIgnoreCase("streaming")) {
+      conf.set(
+        "spark.dynamicAllocation.maxExecutors",
+        conf
+          .get("spark.flint.streaming.dynamicAllocation.maxExecutors", "10"))
+    }
+  }
+
   def createSparkSession(conf: SparkConf): SparkSession = {
     val builder = SparkSession.builder().config(conf)
     if (enableHiveSupport) {
@@ -97,6 +111,7 @@ trait FlintJobExecutor {
     try {
       resultData.write
         .format("flint")
+        .option(REFRESH_POLICY.optionKey, "wait_for")
         .mode("append")
         .save(resultIndex)
       IRestHighLevelClient.recordOperationSuccess(

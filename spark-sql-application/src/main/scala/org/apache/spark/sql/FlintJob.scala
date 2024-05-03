@@ -60,6 +60,8 @@ object FlintJob extends Logging with FlintJobExecutor {
      * Without this setup, Spark would not recognize names in the format `my_glue1.default`.
      */
     conf.set("spark.sql.defaultCatalog", dataSource)
+    configDYNMaxExecutors(conf, jobType)
+
     val streamingRunningCount = new AtomicInteger(0)
     val jobOperator =
       JobOperator(

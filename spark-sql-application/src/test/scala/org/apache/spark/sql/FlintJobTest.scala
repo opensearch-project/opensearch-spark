@@ -97,4 +97,17 @@ class FlintJobTest extends SparkFunSuite with JobMatchers {
         |""".stripMargin
     assert(FlintJob.isSuperset(input, mapping))
   }
+
+  test("default streaming query maxExecutors is 10") {
+    val conf = spark.sparkContext.conf
+    FlintJob.configDYNMaxExecutors(conf, "streaming")
+    conf.get("spark.dynamicAllocation.maxExecutors") shouldBe "10"
+  }
+
+  test("override streaming query maxExecutors") {
+    spark.sparkContext.conf.set("spark.flint.streaming.dynamicAllocation.maxExecutors", "30")
+    FlintJob.configDYNMaxExecutors(spark.sparkContext.conf, "streaming")
+    spark.sparkContext.conf.get("spark.dynamicAllocation.maxExecutors") shouldBe "30"
+  }
+
 }

@@ -246,8 +246,10 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   public FlintWriter createWriter(String indexName) {
-    LOG.info("Creating Flint index writer for " + indexName);
-    return new OpenSearchWriter(createClient(), sanitizeIndexName(indexName), options.getRefreshPolicy());
+    LOG.info(String.format("Creating Flint index writer for %s, refresh_policy:%s, " +
+        "batch_bytes:%d", indexName, options.getRefreshPolicy(), options.getBatchBytes()));
+    return new OpenSearchWriter(createClient(), sanitizeIndexName(indexName),
+        options.getRefreshPolicy(), options.getBatchBytes());
   }
 
   @Override
