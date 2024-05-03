@@ -22,7 +22,7 @@ case class IcebergSourceRelation(override val plan: DataSourceV2Relation)
     extends FlintSparkSourceRelation {
 
   override def tableName: String =
-    plan.table.name()
+    plan.identifier.map(_.toString()).get
 
   override def output: Seq[AttributeReference] = plan.output
 }
