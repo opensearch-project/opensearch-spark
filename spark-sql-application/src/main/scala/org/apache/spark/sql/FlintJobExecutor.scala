@@ -7,6 +7,7 @@ package org.apache.spark.sql
 
 import java.util.Locale
 
+import com.amazonaws.services.glue.model.{AccessDeniedException, AWSGlueException}
 import com.amazonaws.services.s3.model.AmazonS3Exception
 import org.apache.commons.text.StringEscapeUtils.unescapeJava
 import org.opensearch.flint.core.IRestHighLevelClient
@@ -17,6 +18,7 @@ import play.api.libs.json._
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.parser.ParseException
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util._
@@ -63,6 +65,9 @@ trait FlintJobExecutor {
            "type": "text"
         },
         "sessionId": {
+           "type": "keyword"
+        },
+        "jobType": {
            "type": "keyword"
         },
         "updateTime": {
@@ -190,6 +195,7 @@ trait FlintJobExecutor {
         StructField("queryId", StringType, nullable = true),
         StructField("queryText", StringType, nullable = true),
         StructField("sessionId", StringType, nullable = true),
+        StructField("jobType", StringType, nullable = true),
         // number is not nullable
         StructField("updateTime", LongType, nullable = false),
         StructField("queryRunTime", LongType, nullable = true)))
@@ -218,6 +224,7 @@ trait FlintJobExecutor {
         queryId,
         query,
         sessionId,
+        spark.conf.get(FlintSparkConf.JOB_TYPE.key),
         endTime,
         endTime - startTime))
 
@@ -248,6 +255,7 @@ trait FlintJobExecutor {
         StructField("queryId", StringType, nullable = true),
         StructField("queryText", StringType, nullable = true),
         StructField("sessionId", StringType, nullable = true),
+        StructField("jobType", StringType, nullable = true),
         // number is not nullable
         StructField("updateTime", LongType, nullable = false),
         StructField("queryRunTime", LongType, nullable = true)))
@@ -267,6 +275,7 @@ trait FlintJobExecutor {
         queryId,
         query,
         sessionId,
+        spark.conf.get(FlintSparkConf.JOB_TYPE.key),
         endTime,
         endTime - startTime))
 
@@ -411,12 +420,12 @@ trait FlintJobExecutor {
   private def handleQueryException(
       e: Exception,
       message: String,
-      spark: SparkSession,
-      dataSource: String,
-      query: String,
-      queryId: String,
-      sessionId: String): String = {
-    val error = s"$message: ${e.getMessage}"
+      errorSource: Option[String] = None,
+      statusCode: Option[Int] = None): String = {
+    val sourcePrefix = errorSource.map(src => s"##ErrorSource: $src ").getOrElse("") + statusCode
+      .map(st => s"##StatusCode: $st ")
+      .getOrElse("")
+    val error = s"${sourcePrefix}##$message: ${e.getMessage}"
     logError(error, e)
     error
   }
@@ -426,53 +435,41 @@ trait FlintJobExecutor {
     else getRootCause(e.getCause)
   }
 
-  def processQueryException(
-      ex: Exception,
-      spark: SparkSession,
-      dataSource: String,
-      query: String,
-      queryId: String,
-      sessionId: String): String = {
+  /**
+   * This method converts query exception into error string, which then persist to query result
+   * metadata
+   */
+  def processQueryException(ex: Exception): String = {
     getRootCause(ex) match {
       case r: ParseException =>
-        handleQueryException(r, "Syntax error", spark, dataSource, query, queryId, sessionId)
+        handleQueryException(r, "Syntax error")
       case r: AmazonS3Exception =>
         incrementCounter(MetricConstants.S3_ERR_CNT_METRIC)
         handleQueryException(
           r,
           "Fail to read data from S3. Cause",
-          spark,
-          dataSource,
-          query,
-          queryId,
-          sessionId)
+          Some(r.getServiceName),
+          Some(r.getStatusCode))
+      case r: AWSGlueException =>
+        incrementCounter(MetricConstants.GLUE_ERR_CNT_METRIC)
+        // Redact Access denied in AWS Glue service
+        r match {
+          case accessDenied: AccessDeniedException =>
+            accessDenied.setErrorMessage(
+              "Access denied in AWS Glue service. Please check permissions.")
+          case _ => // No additional action for other types of AWSGlueException
+        }
+        handleQueryException(
+          r,
+          "Fail to read data from Glue. Cause",
+          Some(r.getServiceName),
+          Some(r.getStatusCode))
       case r: AnalysisException =>
-        handleQueryException(
-          r,
-          "Fail to analyze query. Cause",
-          spark,
-          dataSource,
-          query,
-          queryId,
-          sessionId)
+        handleQueryException(r, "Fail to analyze query. Cause")
       case r: SparkException =>
-        handleQueryException(
-          r,
-          "Spark exception. Cause",
-          spark,
-          dataSource,
-          query,
-          queryId,
-          sessionId)
+        handleQueryException(r, "Spark exception. Cause")
       case r: Exception =>
-        handleQueryException(
-          r,
-          "Fail to run query, cause",
-          spark,
-          dataSource,
-          query,
-          queryId,
-          sessionId)
+        handleQueryException(r, "Fail to run query. Cause")
     }
   }
 }

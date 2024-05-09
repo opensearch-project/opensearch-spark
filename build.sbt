@@ -208,6 +208,8 @@ lazy val sparkSqlApplication = (project in file("spark-sql-application"))
     libraryDependencies ++= deps(sparkVersion),
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "play-json" % "2.9.2",
+      "com.amazonaws" % "aws-java-sdk-glue" % "1.12.568" % "provided"
+        exclude ("com.fasterxml.jackson.core", "jackson-databind"),
       // handle AmazonS3Exception
       "com.amazonaws" % "aws-java-sdk-s3" % "1.12.568" % "provided"
         // the transitive jackson.core dependency conflicts with existing scala

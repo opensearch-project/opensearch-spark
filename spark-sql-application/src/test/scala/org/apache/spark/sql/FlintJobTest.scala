@@ -6,6 +6,7 @@
 package org.apache.spark.sql
 
 import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.{CleanerFactory, MockTimeProvider}
 
@@ -13,7 +14,7 @@ class FlintJobTest extends SparkFunSuite with JobMatchers {
 
   val spark =
     SparkSession.builder().appName("Test").master("local").getOrCreate()
-
+  spark.conf.set(FlintSparkConf.JOB_TYPE.key, "streaming")
   // Define input dataframe
   val inputSchema = StructType(
     Seq(
@@ -38,6 +39,7 @@ class FlintJobTest extends SparkFunSuite with JobMatchers {
         StructField("queryId", StringType, nullable = true),
         StructField("queryText", StringType, nullable = true),
         StructField("sessionId", StringType, nullable = true),
+        StructField("jobType", StringType, nullable = true),
         StructField("updateTime", LongType, nullable = false),
         StructField("queryRunTime", LongType, nullable = false)))
 
@@ -61,6 +63,7 @@ class FlintJobTest extends SparkFunSuite with JobMatchers {
         "10",
         "select 1",
         "20",
+        "streaming",
         currentTime,
         queryRunTime))
     val expected: DataFrame =
@@ -93,7 +96,7 @@ class FlintJobTest extends SparkFunSuite with JobMatchers {
       """{"dynamic":false,"properties":{"result":{"type":"object"},"schema":{"type":"object"},
         |"jobRunId":{"type":"keyword"},"applicationId":{
         |"type":"keyword"},"dataSourceName":{"type":"keyword"},"status":{"type":"keyword"}}}
-        |"error":{"type":"text"}}}
+        |"error":{"type":"text"}, "jobType":{"type":"keyword"}}}
         |""".stripMargin
     assert(FlintJob.isSuperset(input, mapping))
   }
