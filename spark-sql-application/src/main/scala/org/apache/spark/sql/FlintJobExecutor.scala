@@ -344,7 +344,7 @@ trait FlintJobExecutor {
     val inputJson = Json.parse(input)
     val mappingJson = Json.parse(mapping)
 
-    compareJson(inputJson, mappingJson)
+    compareJson(inputJson, mappingJson) || compareJson(mappingJson, inputJson)
   }
 
   def checkAndCreateIndex(osClient: OSClient, resultIndex: String): Either[String, Unit] = {

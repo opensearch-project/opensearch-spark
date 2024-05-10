@@ -85,7 +85,7 @@ class FlintJobTest extends SparkFunSuite with JobMatchers {
   }
 
   test("test isSuperset") {
-    // note in input false has enclosed double quotes, while mapping just has false
+    // Note in input false has enclosed double quotes, while mapping just has false
     val input =
       """{"dynamic":"false","properties":{"result":{"type":"object"},"schema":{"type":"object"},
         |"applicationId":{"type":"keyword"},"jobRunId":{
@@ -93,12 +93,17 @@ class FlintJobTest extends SparkFunSuite with JobMatchers {
         |"error":{"type":"text"}}}
         |""".stripMargin
     val mapping =
-      """{"dynamic":false,"properties":{"result":{"type":"object"},"schema":{"type":"object"},
-        |"jobRunId":{"type":"keyword"},"applicationId":{
-        |"type":"keyword"},"dataSourceName":{"type":"keyword"},"status":{"type":"keyword"}}}
-        |"error":{"type":"text"}, "jobType":{"type":"keyword"}}}
+      """{"dynamic":"false","properties":{"result":{"type":"object"},"schema":{"type":"object"}, "jobType":{"type": "keyword"},
+        |"applicationId":{"type":"keyword"},"jobRunId":{
+        |"type":"keyword"},"dataSourceName":{"type":"keyword"},"status":{"type":"keyword"},
+        |"error":{"type":"text"}}}
         |""".stripMargin
+
+    // Assert that input is a superset of mapping
     assert(FlintJob.isSuperset(input, mapping))
+
+    // Assert that mapping is a superset of input
+    assert(FlintJob.isSuperset(mapping, input))
   }
 
   test("default streaming query maxExecutors is 10") {
