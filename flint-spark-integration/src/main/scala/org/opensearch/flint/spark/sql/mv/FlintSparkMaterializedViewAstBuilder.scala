@@ -69,13 +69,15 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
       val catalogDbName =
         ctx.catalogDb.parts
           .map(part => part.getText)
-          .mkString("_")
-      val indexNamePattern = s"flint_${catalogDbName}_*"
+          .mkString(".")
+      val indexNamePattern = s"flint_${catalogDbName.replace('.', '_')}_*"
       flint
         .describeIndexes(indexNamePattern)
-        .collect { case mv: FlintSparkMaterializedView =>
-          // MV name must be qualified when metadata created
-          Row(mv.mvName.split('.').drop(2).mkString("."))
+        .collect {
+          // Ensure index is a MV within the given catalog and database
+          case mv: FlintSparkMaterializedView if mv.mvName.startsWith(s"$catalogDbName.") =>
+            // MV name must be qualified when metadata created
+            Row(mv.mvName.split('.').drop(2).mkString("."))
         }
     }
   }

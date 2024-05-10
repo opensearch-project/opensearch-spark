@@ -339,7 +339,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     deleteTestIndex(getFlintIndexName("idx_address", testTable), getSkippingIndexName(testTable))
   }
 
-  test("show covering index on source table with same prefix") {
+  test("show covering index on source table with the same prefix") {
     flint
       .coveringIndex()
       .name(testIndex)
