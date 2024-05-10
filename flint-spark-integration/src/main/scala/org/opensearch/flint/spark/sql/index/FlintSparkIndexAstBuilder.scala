@@ -11,6 +11,7 @@ import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.IndexBelongsTo
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.ShowFlintIndexStatementContext
 
 import org.apache.spark.sql.Row
@@ -42,6 +43,7 @@ trait FlintSparkIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
       val indexNamePattern = s"flint_${catalogDbName}_*"
       flint
         .describeIndexes(indexNamePattern)
+        .filter(index => index belongsTo ctx.catalogDb)
         .map { index =>
           val (databaseName, tableName, indexName) = index match {
             case skipping: FlintSparkSkippingIndex =>
