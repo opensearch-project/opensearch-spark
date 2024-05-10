@@ -9,6 +9,8 @@ import java.util.Locale
 
 import com.amazonaws.services.glue.model.{AccessDeniedException, AWSGlueException}
 import com.amazonaws.services.s3.model.AmazonS3Exception
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.apache.commons.text.StringEscapeUtils.unescapeJava
 import org.opensearch.flint.core.IRestHighLevelClient
 import org.opensearch.flint.core.metrics.MetricConstants
@@ -25,6 +27,9 @@ import org.apache.spark.sql.util._
 
 trait FlintJobExecutor {
   this: Logging =>
+
+  val mapper = new ObjectMapper()
+  mapper.registerModule(DefaultScalaModule)
 
   var currentTimeProvider: TimeProvider = new RealTimeProvider()
   var threadPoolFactory: ThreadPoolFactory = new DefaultThreadPoolFactory()
@@ -422,12 +427,14 @@ trait FlintJobExecutor {
       message: String,
       errorSource: Option[String] = None,
       statusCode: Option[Int] = None): String = {
-    val sourcePrefix = errorSource.map(src => s"##ErrorSource: $src ").getOrElse("") + statusCode
-      .map(st => s"##StatusCode: $st ")
-      .getOrElse("")
-    val error = s"${sourcePrefix}##$message: ${e.getMessage}"
-    logError(error, e)
-    error
+
+    val errorDetails = Map("Message" -> s"$message: ${e.getMessage}") ++
+      errorSource.map("ErrorSource" -> _) ++
+      statusCode.map(code => "StatusCode" -> code.toString)
+
+    val errorJson = mapper.writeValueAsString(errorDetails)
+    logError(errorJson, e)
+    errorJson
   }
 
   def getRootCause(e: Throwable): Throwable = {

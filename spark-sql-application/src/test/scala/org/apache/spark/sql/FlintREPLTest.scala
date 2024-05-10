@@ -15,7 +15,7 @@ import scala.concurrent.duration._
 import scala.concurrent.duration.{Duration, MINUTES}
 import scala.reflect.runtime.universe.TypeTag
 
-import com.amazonaws.services.glue.model.{AccessDeniedException, AWSGlueException}
+import com.amazonaws.services.glue.model.AccessDeniedException
 import com.codahale.metrics.Timer
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.Mockito._
@@ -450,9 +450,9 @@ class FlintREPLTest
 
     val mockFlintCommand = mock[FlintCommand]
     val expectedError = (
-      "##ErrorSource: AWSGlue ##StatusCode: 400 " +
-        "##Fail to read data from Glue. Cause: Access denied in AWS Glue service. Please check permissions. " +
-        "(Service: AWSGlue; Status Code: 400; Error Code: AccessDeniedException; Request ID: null; Proxy: null)"
+      """{"Message":"Fail to read data from Glue. Cause: Access denied in AWS Glue service. Please check permissions. (Service: AWSGlue; """ +
+        """Status Code: 400; Error Code: AccessDeniedException; Request ID: null; Proxy: null)",""" +
+        """"ErrorSource":"AWSGlue","StatusCode":"400"}"""
     )
 
     val result = FlintREPL.processQueryException(exception, mockFlintCommand)
