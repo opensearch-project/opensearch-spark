@@ -66,7 +66,7 @@ case class JobOperator(
         dataToWrite = Some(
           getFailedData(spark, dataSource, error, "", query, "", startTime, currentTimeProvider))
       case e: Exception =>
-        val error = processQueryException(e, spark, dataSource, query, "", "")
+        val error = processQueryException(e)
         dataToWrite = Some(
           getFailedData(spark, dataSource, error, "", query, "", startTime, currentTimeProvider))
     } finally {

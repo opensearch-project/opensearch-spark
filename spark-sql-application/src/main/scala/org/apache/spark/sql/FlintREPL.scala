@@ -545,19 +545,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       currentTimeProvider)
   }
 
-  def processQueryException(
-      ex: Exception,
-      spark: SparkSession,
-      dataSource: String,
-      flintCommand: FlintCommand,
-      sessionId: String): String = {
-    val error = super.processQueryException(
-      ex,
-      spark,
-      dataSource,
-      flintCommand.query,
-      flintCommand.queryId,
-      sessionId)
+  def processQueryException(ex: Exception, flintCommand: FlintCommand): String = {
+    val error = super.processQueryException(ex)
     flintCommand.fail()
     flintCommand.error = Some(error)
     error
@@ -724,7 +713,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           sessionId,
           startTime)
       case e: Exception =>
-        val error = processQueryException(e, spark, dataSource, flintCommand.query, "", "")
+        val error = processQueryException(e, flintCommand)
         Some(
           handleCommandFailureAndGetFailedData(
             spark,
