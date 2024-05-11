@@ -15,6 +15,7 @@ import scala.concurrent.duration._
 import scala.concurrent.duration.{Duration, MINUTES}
 import scala.reflect.runtime.universe.TypeTag
 
+import com.amazonaws.services.glue.model.AccessDeniedException
 import com.codahale.metrics.Timer
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.Mockito._
@@ -216,6 +217,7 @@ class FlintREPLTest
         StructField("queryId", StringType, nullable = true),
         StructField("queryText", StringType, nullable = true),
         StructField("sessionId", StringType, nullable = true),
+        StructField("jobType", StringType, nullable = true),
         StructField("updateTime", LongType, nullable = false),
         StructField("queryRunTime", LongType, nullable = false)))
 
@@ -235,10 +237,11 @@ class FlintREPLTest
         "10",
         "select 1",
         "20",
+        "interactive",
         currentTime,
         queryRunTime))
     val spark = SparkSession.builder().appName("Test").master("local").getOrCreate()
-
+    spark.conf.set(FlintSparkConf.JOB_TYPE.key, FlintSparkConf.JOB_TYPE.defaultValue.get)
     val expected =
       spark.createDataFrame(spark.sparkContext.parallelize(expectedRows), expectedSchema)
 
@@ -436,6 +439,31 @@ class FlintREPLTest
     assert(result)
   }
 
+  test("processQueryException should handle exceptions, fail the command, and set the error") {
+    val exception = new AccessDeniedException(
+      "Unable to verify existence of default database: com.amazonaws.services.glue.model.AccessDeniedException: " +
+        "User: ****** is not authorized to perform: glue:GetDatabase on resource: ****** " +
+        "because no identity-based policy allows the glue:GetDatabase action")
+    exception.setStatusCode(400)
+    exception.setErrorCode("AccessDeniedException")
+    exception.setServiceName("AWSGlue")
+
+    val mockFlintCommand = mock[FlintCommand]
+    val expectedError = (
+      """{"Message":"Fail to read data from Glue. Cause: Access denied in AWS Glue service. Please check permissions. (Service: AWSGlue; """ +
+        """Status Code: 400; Error Code: AccessDeniedException; Request ID: null; Proxy: null)",""" +
+        """"ErrorSource":"AWSGlue","StatusCode":"400"}"""
+    )
+
+    val result = FlintREPL.processQueryException(exception, mockFlintCommand)
+
+    result shouldEqual expectedError
+    verify(mockFlintCommand).fail()
+    verify(mockFlintCommand).error = Some(expectedError)
+
+    assert(result == expectedError)
+  }
+
   test("Doc Exists and excludeJobIds is an ArrayList Containing JobId") {
     val sessionId = "session123"
     val jobId = "jobABC"
@@ -547,10 +575,13 @@ class FlintREPLTest
   test("executeAndHandle should handle TimeoutException properly") {
     val mockSparkSession = mock[SparkSession]
     val mockFlintCommand = mock[FlintCommand]
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.JOB_TYPE.key))
+      .thenReturn(FlintSparkConf.JOB_TYPE.defaultValue.get)
     // val mockExecutionContextExecutor: ExecutionContextExecutor = mock[ExecutionContextExecutor]
     val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor("flint-repl", 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
-
     try {
       val dataSource = "someDataSource"
       val sessionId = "someSessionId"
@@ -596,6 +627,10 @@ class FlintREPLTest
 
   test("executeAndHandle should handle ParseException properly") {
     val mockSparkSession = mock[SparkSession]
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.JOB_TYPE.key))
+      .thenReturn(FlintSparkConf.JOB_TYPE.defaultValue.get)
     val flintCommand =
       new FlintCommand(
         "Running",
@@ -606,7 +641,6 @@ class FlintREPLTest
         None)
     val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor("flint-repl", 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
-
     try {
       val dataSource = "someDataSource"
       val sessionId = "someSessionId"
@@ -1019,6 +1053,11 @@ class FlintREPLTest
       .thenReturn(expectedDataFrame)
     val sparkContext = mock[SparkContext]
     when(mockSparkSession.sparkContext).thenReturn(sparkContext)
+
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.JOB_TYPE.key))
+      .thenReturn(FlintSparkConf.JOB_TYPE.defaultValue.get)
 
     when(expectedDataFrame.toDF(any[Seq[String]]: _*)).thenReturn(expectedDataFrame)
 
