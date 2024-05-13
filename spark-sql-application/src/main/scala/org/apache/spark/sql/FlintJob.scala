@@ -8,6 +8,7 @@ package org.apache.spark.sql
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.registerGauge
 import play.api.libs.json._
@@ -28,28 +29,17 @@ import org.apache.spark.sql.types._
  */
 object FlintJob extends Logging with FlintJobExecutor {
   def main(args: Array[String]): Unit = {
-    val (queryOption, resultIndex) = args.length match {
-      case 1 =>
-        (None, args(0)) // Starting from OS 2.13, resultIndex is the only argument
-      case 2 =>
-        (
-          Some(args(0)),
-          args(1)
-        ) // Before OS 2.13, there are two arguments, the second one is resultIndex
-      case _ =>
-        throw new IllegalArgumentException(
-          "Unsupported number of arguments. Expected 1 or 2 arguments.")
-    }
+    val (queryOption, resultIndex) = parseArgs(args)
 
     val conf = createSparkConf()
     val jobType = conf.get("spark.flint.job.type", "batch")
-    logInfo(s"""Job type is: ${jobType}""")
+    CustomLogging.logInfo(s"""Job type is: ${jobType}""")
     conf.set(FlintSparkConf.JOB_TYPE.key, jobType)
 
     val dataSource = conf.get("spark.flint.datasource.name", "")
     val query = queryOption.getOrElse(unescapeQuery(conf.get(FlintSparkConf.QUERY.key, "")))
     if (query.isEmpty) {
-      throw new IllegalArgumentException(s"Query undefined for the ${jobType} job.")
+      logAndThrow(s"Query undefined for the ${jobType} job.")
     }
     // https://github.com/opensearch-project/opensearch-spark/issues/138
     /*

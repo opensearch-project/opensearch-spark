@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.apache.commons.text.StringEscapeUtils.unescapeJava
 import org.opensearch.flint.core.IRestHighLevelClient
+import org.opensearch.flint.core.logging.{CustomLogging, OperationMessage}
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
 import play.api.libs.json._
@@ -433,7 +434,11 @@ trait FlintJobExecutor {
       statusCode.map(code => "StatusCode" -> code.toString)
 
     val errorJson = mapper.writeValueAsString(errorDetails)
-    logError(errorJson, e)
+
+    statusCode.foreach { code =>
+      CustomLogging.logError(new OperationMessage("", code), e)
+    }
+
     errorJson
   }
 
@@ -478,5 +483,24 @@ trait FlintJobExecutor {
       case r: Exception =>
         handleQueryException(r, "Fail to run query. Cause")
     }
+  }
+
+  def parseArgs(args: Array[String]): (Option[String], String) = {
+    args match {
+      case Array(resultIndex) =>
+        (None, resultIndex) // Starting from OS 2.13, resultIndex is the only argument
+      case Array(query, resultIndex) =>
+        (
+          Some(query),
+          resultIndex
+        ) // Before OS 2.13, there are two arguments, the second one is resultIndex
+      case _ => logAndThrow("Unsupported number of arguments. Expected 1 or 2 arguments.")
+    }
+  }
+
+  def logAndThrow(errorMessage: String): Nothing = {
+    val t = new IllegalArgumentException(errorMessage)
+    CustomLogging.logError(t)
+    throw t
   }
 }
