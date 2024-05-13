@@ -21,6 +21,7 @@ import org.opensearch.common.Strings
 import org.opensearch.flint.app.{FlintCommand, FlintInstance}
 import org.opensearch.flint.app.FlintInstance.formats
 import org.opensearch.flint.core.FlintOptions
+import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
@@ -67,7 +68,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     val (queryOption, resultIndex) = parseArgs(args)
 
     if (Strings.isNullOrEmpty(resultIndex)) {
-      throw new IllegalArgumentException("resultIndex is not set")
+      logAndThrow("resultIndex is not set")
     }
 
     // init SparkContext
@@ -84,7 +85,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     conf.set("spark.sql.defaultCatalog", dataSource)
 
     val jobType = conf.get(FlintSparkConf.JOB_TYPE.key, FlintSparkConf.JOB_TYPE.defaultValue.get)
-    logInfo(s"""Job type is: ${FlintSparkConf.JOB_TYPE.defaultValue.get}""")
+    CustomLogging.logInfo(s"""Job type is: ${FlintSparkConf.JOB_TYPE.defaultValue.get}""")
     conf.set(FlintSparkConf.JOB_TYPE.key, jobType)
 
     val query = getQuery(queryOption, jobType, conf)
@@ -109,10 +110,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
       val sessionId: Option[String] = Option(conf.get(FlintSparkConf.SESSION_ID.key, null))
 
       if (sessionIndex.isEmpty) {
-        throw new IllegalArgumentException(FlintSparkConf.REQUEST_INDEX.key + " is not set")
+        logAndThrow(FlintSparkConf.REQUEST_INDEX.key + " is not set")
       }
       if (sessionId.isEmpty) {
-        throw new IllegalArgumentException(FlintSparkConf.SESSION_ID.key + " is not set")
+        logAndThrow(FlintSparkConf.SESSION_ID.key + " is not set")
       }
 
       val spark = createSparkSession(conf)
@@ -238,27 +239,12 @@ object FlintREPL extends Logging with FlintJobExecutor {
     }
   }
 
-  def parseArgs(args: Array[String]): (Option[String], String) = {
-    args.length match {
-      case 1 =>
-        (None, args(0)) // Starting from OS 2.13, resultIndex is the only argument
-      case 2 =>
-        (
-          Some(args(0)),
-          args(1)
-        ) // Before OS 2.13, there are two arguments, the second one is resultIndex
-      case _ =>
-        throw new IllegalArgumentException(
-          "Unsupported number of arguments. Expected 1 or 2 arguments.")
-    }
-  }
-
   def getQuery(queryOption: Option[String], jobType: String, conf: SparkConf): String = {
     queryOption.getOrElse {
       if (jobType.equalsIgnoreCase("streaming")) {
         val defaultQuery = conf.get(FlintSparkConf.QUERY.key, "")
         if (defaultQuery.isEmpty) {
-          throw new IllegalArgumentException("Query undefined for the streaming job.")
+          logAndThrow("Query undefined for the streaming job.")
         }
         unescapeQuery(defaultQuery)
       } else ""
@@ -456,7 +442,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       sessionIndex: String,
       sessionTimerContext: Timer.Context): Unit = {
     val error = s"Session error: ${e.getMessage}"
-    logError(error, e)
+    CustomLogging.logError(error, e)
 
     val flintInstance = getExistingFlintInstance(osClient, sessionIndex, sessionId)
       .getOrElse(createFailedFlintInstance(applicationId, jobId, sessionId, jobStartTime, error))
@@ -476,7 +462,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
       Option(getResponse.getSourceAsMap)
         .map(FlintInstance.deserializeFromMap)
     case Failure(exception) =>
-      logError(s"Failed to retrieve existing FlintInstance: ${exception.getMessage}", exception)
+      CustomLogging.logError(
+        s"Failed to retrieve existing FlintInstance: ${exception.getMessage}",
+        exception)
       None
     case _ => None
   }
@@ -645,7 +633,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       // or invalid catalog (e.g., we are operating on data not defined in provided data source)
       case e: Exception =>
         val error = s"""Fail to write result of ${flintCommand}, cause: ${e.getMessage}"""
-        logError(error, e)
+        CustomLogging.logError(error, e)
         flintCommand.fail()
         updateSessionIndex(flintCommand, flintSessionIndexUpdater)
         recordStatementStateChange(flintCommand, statementTimerContext)
@@ -672,7 +660,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
      * actions that require the computation of results that need to be collected or stored.
      */
     spark.sparkContext.cancelJobGroup(flintCommand.queryId)
-    logError(error)
     Some(
       handleCommandFailureAndGetFailedData(
         spark,
@@ -705,13 +692,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
           queryWaitTimeMillis))
     } catch {
       case e: TimeoutException =>
-        handleCommandTimeout(
-          spark,
-          dataSource,
-          s"Executing ${flintCommand.query} timed out",
-          flintCommand,
-          sessionId,
-          startTime)
+        val error = s"Executing ${flintCommand.query} timed out"
+        CustomLogging.logError(error, e)
+        handleCommandTimeout(spark, dataSource, error, flintCommand, sessionId, startTime)
       case e: Exception =>
         val error = processQueryException(e, flintCommand)
         Some(
@@ -769,10 +752,12 @@ object FlintREPL extends Logging with FlintJobExecutor {
         } catch {
           case e: TimeoutException =>
             val error = s"Getting the mapping of index $resultIndex timed out"
+            CustomLogging.logError(error, e)
             dataToWrite =
               handleCommandTimeout(spark, dataSource, error, flintCommand, sessionId, startTime)
           case NonFatal(e) =>
             val error = s"An unexpected error occurred: ${e.getMessage}"
+            CustomLogging.logError(error, e)
             dataToWrite = Some(
               handleCommandFailureAndGetFailedData(
                 spark,
@@ -1003,13 +988,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
             case ie: InterruptedException =>
               // Preserve the interrupt status
               Thread.currentThread().interrupt()
-              logError("HeartBeatUpdater task was interrupted", ie)
+              CustomLogging.logError("HeartBeatUpdater task was interrupted", ie)
               incrementCounter(
                 MetricConstants.REQUEST_METADATA_HEARTBEAT_FAILED_METRIC
               ) // Record heartbeat failure metric
             // maybe due to invalid sequence number or primary term
             case e: Exception =>
-              logWarning(
+              CustomLogging.logWarning(
                 s"""Fail to update the last update time of the flint instance ${sessionId}""",
                 e)
               incrementCounter(
@@ -1069,7 +1054,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     } catch {
       // still proceed since we are not sure what happened (e.g., OpenSearch cluster may be unresponsive)
       case e: Exception =>
-        logError(s"""Fail to find id ${sessionId} from session index.""", e)
+        CustomLogging.logError(s"""Fail to find id ${sessionId} from session index.""", e)
         true
     }
   }
@@ -1114,10 +1099,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
             if e.getCause != null && e.getCause.isInstanceOf[ConnectException] =>
           retries += 1
           val delay = initialDelay * math.pow(2, retries - 1).toLong
-          logError(s"Fail to connect to OpenSearch cluster. Retrying in $delay...", e)
+          CustomLogging.logError(
+            s"Fail to connect to OpenSearch cluster. Retrying in $delay...",
+            e)
           Thread.sleep(delay.toMillis)
 
         case e: Exception =>
+          CustomLogging.logError(e)
           throw e
       }
     }

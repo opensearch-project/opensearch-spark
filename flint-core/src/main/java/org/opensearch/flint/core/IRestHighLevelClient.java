@@ -28,6 +28,8 @@ import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.client.indices.PutMappingRequest;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
+import org.opensearch.flint.core.logging.CustomLogging;
+import org.opensearch.flint.core.logging.OperationMessage;
 import org.opensearch.flint.core.metrics.MetricsUtil;
 
 import java.io.Closeable;
@@ -90,7 +92,11 @@ public interface IRestHighLevelClient extends Closeable {
     static void recordOperationFailure(String metricNamePrefix, Exception e) {
         OpenSearchException openSearchException = extractOpenSearchException(e);
         int statusCode = openSearchException != null ? openSearchException.status().getStatus() : 500;
-
+        if (openSearchException != null) {
+            CustomLogging.logError(new OperationMessage("OpenSearch Operation failed.", statusCode), openSearchException);
+        } else {
+            CustomLogging.logError("OpenSearch Operation failed with an exception.", e);
+        }
         if (statusCode == 403) {
             String forbiddenErrorMetricName = metricNamePrefix + ".403.count";
             MetricsUtil.incrementCounter(forbiddenErrorMetricName);
@@ -104,15 +110,16 @@ public interface IRestHighLevelClient extends Closeable {
      * Extracts an OpenSearchException from the given Throwable.
      * Checks if the Throwable is an instance of OpenSearchException or caused by one.
      *
-     * @param ex the exception to be checked
+     * @param e the exception to be checked
      * @return the extracted OpenSearchException, or null if not found
      */
-    private static OpenSearchException extractOpenSearchException(Throwable ex) {
-        if (ex instanceof OpenSearchException) {
-            return (OpenSearchException) ex;
-        } else if (ex.getCause() instanceof OpenSearchException) {
-            return (OpenSearchException) ex.getCause();
+    static OpenSearchException extractOpenSearchException(Throwable e) {
+        if (e instanceof OpenSearchException) {
+            return (OpenSearchException) e;
+        } else if (e.getCause() == null) {
+            return null;
+        } else {
+            return extractOpenSearchException(e.getCause());
         }
-        return null;
     }
 }
