@@ -34,10 +34,13 @@ case class FlintScan(
    * Print pushedPredicates when explain(mode="extended"). Learn from SPARK JDBCScan.
    */
   override def description(): String = {
-    super.description() + ", PushedPredicates: " + seqToString(pushedPredicates)
+    super.description() + ", PushedPredicates: " + pushedPredicates
+      .map {
+        case p if p.name().equalsIgnoreCase("BLOOM_FILTER_MIGHT_CONTAIN") => p.name()
+        case p => p.toString()
+      }
+      .mkString("[", ", ", "]")
   }
-
-  private def seqToString(seq: Seq[Any]): String = seq.mkString("[", ", ", "]")
 }
 
 // todo. add partition support.

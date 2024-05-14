@@ -30,5 +30,6 @@ case class FlintScanBuilder(tableName: String, schema: StructType, options: Flin
     unSupported
   }
 
-  override def pushedPredicates(): Array[Predicate] = pushedPredicate
+  override def pushedPredicates(): Array[Predicate] = pushedPredicate.filterNot(_.name()
+    .equalsIgnoreCase("BLOOM_FILTER_MIGHT_CONTAIN"))
 }

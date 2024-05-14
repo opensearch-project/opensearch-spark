@@ -32,7 +32,7 @@ import org.apache.spark.sql.internal.SQLConf
 class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
   /** Test table and index name */
-  private val testTable = "spark_catalog.default.skipping_test"
+  private val testTable = s"${catalogName}.default.skipping_test"
   private val testIndex = getSkippingIndexName(testTable)
   private val testLatestId = Base64.getEncoder.encodeToString(testIndex.getBytes)
 
@@ -62,7 +62,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
         |   "_meta": {
-        |     "name": "flint_spark_catalog_default_skipping_test_skipping_index",
+        |     "name": "flint_${catalogName}_default_skipping_test_skipping_index",
         |     "version": "${current()}",
         |     "kind": "skipping",
         |     "indexedColumns": [
@@ -100,7 +100,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         |        "columnName": "name",
         |        "columnType": "string"
         |     }],
-        |     "source": "spark_catalog.default.skipping_test",
+        |     "source": "${catalogName}.default.skipping_test",
         |     "options": {
         |       "auto_refresh": "false",
         |       "incremental_refresh": "false"
@@ -548,7 +548,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
   test("create skipping index for all supported data types successfully") {
     // Prepare test table
-    val testTable = "spark_catalog.default.data_type_table"
+    val testTable = s"$catalogName.default.data_type_table"
     val testIndex = getSkippingIndexName(testTable)
     val testLatestId = Base64.getEncoder.encodeToString(testIndex.getBytes)
     sql(s"""
@@ -612,7 +612,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     index shouldBe defined
     index.get.metadata().getContent should matchJson(s"""{
          |   "_meta": {
-         |     "name": "flint_spark_catalog_default_data_type_table_skipping_index",
+         |     "name": "flint_${catalogName}_default_data_type_table_skipping_index",
          |     "version": "${current()}",
          |     "kind": "skipping",
          |     "indexedColumns": [
@@ -762,7 +762,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   test("can build skipping index for varchar and char and rewrite applicable query") {
-    val testTable = "spark_catalog.default.varchar_char_table"
+    val testTable = s"${catalogName}.default.varchar_char_table"
     val testIndex = getSkippingIndexName(testTable)
     sql(s"""
          | CREATE TABLE $testTable
