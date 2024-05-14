@@ -5,6 +5,8 @@
 
 package org.apache.spark.sql.flint
 
+import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilterMightContain
+
 import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory, Scan}
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -34,10 +36,13 @@ case class FlintScan(
    * Print pushedPredicates when explain(mode="extended"). Learn from SPARK JDBCScan.
    */
   override def description(): String = {
-    super.description() + ", PushedPredicates: " + seqToString(pushedPredicates)
+    super.description() + ", PushedPredicates: " + pushedPredicates
+      .map {
+        case p if p.name().equalsIgnoreCase(BloomFilterMightContain.NAME) => p.name()
+        case p => p.toString()
+      }
+      .mkString("[", ", ", "]")
   }
-
-  private def seqToString(seq: Seq[Any]): String = seq.mkString("[", ", ", "]")
 }
 
 // todo. add partition support.
