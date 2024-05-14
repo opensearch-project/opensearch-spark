@@ -28,6 +28,11 @@ public final class MetricConstants {
     public static final String S3_ERR_CNT_METRIC = "s3.error.count";
 
     /**
+     * Metric name for counting the errors encountered with Amazon Glue operations.
+     */
+    public static final String GLUE_ERR_CNT_METRIC = "glue.error.count";
+
+    /**
      * Metric name for counting the number of sessions currently running.
      */
     public static final String REPL_RUNNING_METRIC = "session.running.count";

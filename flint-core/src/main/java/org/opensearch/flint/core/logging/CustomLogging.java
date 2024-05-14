@@ -44,9 +44,9 @@ public class CustomLogging {
     private static final Map<String, BiConsumer<String, Throwable>> logLevelActions = new HashMap<>();
 
     static {
-        String[] parts = System.getenv().getOrDefault("FLINT_CLUSTER_NAME", UNKNOWN + ":" + UNKNOWN).split(":");
+        DOMAIN_NAME = System.getenv().getOrDefault("FLINT_CLUSTER_NAME", UNKNOWN + ":" + UNKNOWN);
+        String[] parts = DOMAIN_NAME.split(":");
         CLIENT_ID = parts.length == 2 ? parts[0] : UNKNOWN;
-        DOMAIN_NAME = parts.length == 2 ? parts[1] : UNKNOWN;
 
         logLevelActions.put("DEBUG", logger::debug);
         logLevelActions.put("INFO", logger::info);
@@ -78,10 +78,6 @@ public class CustomLogging {
      * @return A map representation of the log event.
      */
     protected static Map<String, Object> constructLogEventMap(String level, Object content, Throwable throwable) {
-        if (content == null) {
-            throw new IllegalArgumentException("Log message must not be null");
-        }
-
         Map<String, Object> logEventMap = new LinkedHashMap<>();
         Map<String, Object> body = new LinkedHashMap<>();
         constructMessageBody(content, body);
@@ -105,6 +101,11 @@ public class CustomLogging {
     }
 
     private static void constructMessageBody(Object content, Map<String, Object> body) {
+        if (content == null) {
+            body.put("message", "");
+            return;
+        }
+
         if (content instanceof Message) {
             Message message = (Message) content;
             body.put("message", message.getFormattedMessage());
@@ -149,6 +150,10 @@ public class CustomLogging {
 
     public static void logError(Object message) {
         log("ERROR", message, null);
+    }
+
+    public static void logError(Throwable throwable) {
+        log("ERROR", "", throwable);
     }
 
     public static void logError(Object message, Throwable throwable) {
