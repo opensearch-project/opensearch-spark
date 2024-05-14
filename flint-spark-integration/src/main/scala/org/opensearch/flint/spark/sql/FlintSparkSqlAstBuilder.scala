@@ -5,9 +5,15 @@
 
 package org.opensearch.flint.spark.sql
 
+import scala.collection.JavaConverters._
+
 import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.tree.{ParseTree, RuleNode}
-import org.opensearch.flint.spark.FlintSpark
+import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
+import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
+import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.MultipartIdentifierContext
 import org.opensearch.flint.spark.sql.covering.FlintSparkCoveringIndexAstBuilder
 import org.opensearch.flint.spark.sql.index.FlintSparkIndexAstBuilder
 import org.opensearch.flint.spark.sql.job.FlintSparkIndexJobAstBuilder
@@ -70,5 +76,27 @@ object FlintSparkSqlAstBuilder {
     val startIndex = ctx.getStart.getStartIndex
     val stopIndex = ctx.getStop.getStopIndex
     sqlText.substring(startIndex, stopIndex + 1)
+  }
+
+  /**
+   * Check if a Flint index belong to catalog and database namespace.
+   *
+   * @param index
+   *   Flint index
+   */
+  implicit class IndexBelongsTo(private val index: FlintSparkIndex) {
+
+    def belongsTo(catalogDbCtx: MultipartIdentifierContext): Boolean = {
+      // Use prefix "catalog.database." to filter out index belong to this namespace
+      val catalogDbName = catalogDbCtx.parts.asScala.map(_.getText).mkString("", ".", ".")
+      index match {
+        case skipping: FlintSparkSkippingIndex =>
+          skipping.tableName.startsWith(catalogDbName)
+        case covering: FlintSparkCoveringIndex =>
+          covering.tableName.startsWith(catalogDbName)
+        case mv: FlintSparkMaterializedView => mv.mvName.startsWith(catalogDbName)
+        case _ => false
+      }
+    }
   }
 }

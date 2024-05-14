@@ -127,6 +127,18 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
     deleteTestIndex(testCoveringFlintIndex)
   }
 
+  test("show flint index in database with the same prefix") {
+    flint.materializedView().name("spark_catalog.default.mv1").query(testMvQuery).create()
+    flint.materializedView().name("spark_catalog.default_test.mv2").query(testMvQuery).create()
+    checkAnswer(
+      sql(s"SHOW FLINT INDEX IN spark_catalog.default").select("index_name"),
+      Seq(Row("mv1")))
+
+    deleteTestIndex(
+      FlintSparkMaterializedView.getFlintIndexName("spark_catalog.default.mv1"),
+      FlintSparkMaterializedView.getFlintIndexName("spark_catalog.default_test.mv2"))
+  }
+
   test("should ignore non-Flint index") {
     try {
       sql(s"CREATE SKIPPING INDEX ON $testTableQualifiedName (name VALUE_SET)")

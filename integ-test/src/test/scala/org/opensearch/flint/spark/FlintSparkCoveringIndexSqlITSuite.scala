@@ -339,6 +339,33 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     deleteTestIndex(getFlintIndexName("idx_address", testTable), getSkippingIndexName(testTable))
   }
 
+  test("show covering index on source table with the same prefix") {
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
+
+    val testTable2 = s"${testTable}_2"
+    withTable(testTable2) {
+      // Create another table with same prefix
+      createPartitionedAddressTable(testTable2)
+      flint
+        .coveringIndex()
+        .name(testIndex)
+        .onTable(testTable2)
+        .addIndexColumns("address")
+        .create()
+
+      // Expect no testTable2 present
+      val result = sql(s"SHOW INDEX ON $testTable")
+      checkAnswer(result, Seq(Row(testIndex)))
+
+      deleteTestIndex(getFlintIndexName(testIndex, testTable2))
+    }
+  }
+
   test("describe covering index") {
     flint
       .coveringIndex()

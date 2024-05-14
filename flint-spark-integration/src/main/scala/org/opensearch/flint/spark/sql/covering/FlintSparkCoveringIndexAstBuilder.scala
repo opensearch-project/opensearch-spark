@@ -76,8 +76,9 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       val indexNamePattern = FlintSparkCoveringIndex.getFlintIndexName("*", fullTableName)
       flint
         .describeIndexes(indexNamePattern)
-        .collect { case index: FlintSparkCoveringIndex =>
-          Row(index.indexName)
+        .collect {
+          case index: FlintSparkCoveringIndex if index.tableName == fullTableName =>
+            Row(index.indexName)
         }
     }
   }

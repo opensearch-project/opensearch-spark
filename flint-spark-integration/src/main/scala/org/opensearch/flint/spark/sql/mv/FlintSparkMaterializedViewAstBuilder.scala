@@ -11,7 +11,7 @@ import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
-import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
+import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText, IndexBelongsTo}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
 import org.apache.spark.sql.Row
@@ -73,9 +73,11 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
       val indexNamePattern = s"flint_${catalogDbName}_*"
       flint
         .describeIndexes(indexNamePattern)
-        .collect { case mv: FlintSparkMaterializedView =>
-          // MV name must be qualified when metadata created
-          Row(mv.mvName.split('.').drop(2).mkString("."))
+        .collect {
+          // Ensure index is a MV within the given catalog and database
+          case mv: FlintSparkMaterializedView if mv belongsTo ctx.catalogDb =>
+            // MV name must be qualified when metadata created
+            Row(mv.mvName.split('.').drop(2).mkString("."))
         }
     }
   }
