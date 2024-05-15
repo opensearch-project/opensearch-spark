@@ -330,6 +330,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
       flint.describeIndex(s"flint_${catalogName}_sample_test1_skipping_index") shouldBe defined
       flint.describeIndex(s"flint_${catalogName}_sample_test2_skipping_index") shouldBe defined
     } finally {
+
       /**
        * TODO: REMOVE DROP TABLE when iceberg support CASCADE. More reading at
        * https://github.com/apache/iceberg/pull/7275.

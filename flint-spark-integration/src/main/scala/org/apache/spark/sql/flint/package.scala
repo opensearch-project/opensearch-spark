@@ -147,24 +147,22 @@ package object flint {
   def resolveCatalogName(spark: SparkSession, catalog: CatalogPlugin): String = {
 
     /**
-     * Flint use FlintDelegatingSessionCatalog to customized catalog name.
-     * FlintDelegatingSessionCatalog name is spark_catalog which can not change. @see <a
-     * href="https://github.com/opensearch-project/opensearch-spark/issues/319#issuecomment2099515920">issue319</a>
+     * Check if the provided catalog is a session catalog.
      */
     if (CatalogV2Util.isSessionCatalog(catalog)) {
       val defaultCatalog = spark.conf.get(DEFAULT_CATALOG)
-      // defaultCatalog name is as same as customized catalog name.
       if (spark.sessionState.catalogManager.isCatalogRegistered(defaultCatalog)) {
         defaultCatalog
       } else {
+
         /**
-         * It may happen when spark.sql.defaultCatalog is configured, but there's no implementation.
-         * For instance, spark.sql.defaultCatalog = "unknown"
+         * It may happen when spark.sql.defaultCatalog is configured, but there's no
+         * implementation. For instance, spark.sql.defaultCatalog = "unknown"
          */
-        throw new RuntimeException("Unknown catalog name")
+        throw new IllegalStateException(s"Unknown catalog name: $defaultCatalog")
       }
     } else {
-      // Works for customized non Spark V2SessionCatalog implementation.
+      // Return the name for non-session catalogs
       catalog.name()
     }
   }
