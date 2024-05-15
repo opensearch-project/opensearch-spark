@@ -83,7 +83,7 @@ class FlintCatalogSuite extends SparkFunSuite with MockitoSugar {
     }
 
     def shouldThrowException(): Unit = {
-      assertThrows[RuntimeException] {
+      assertThrows[IllegalStateException] {
         resolveCatalogName(spark, catalog)
       }
     }
