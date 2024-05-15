@@ -9,6 +9,7 @@ import java.util.concurrent.ScheduledExecutorService
 
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog._
+import org.apache.spark.sql.internal.SQLConf.DEFAULT_CATALOG
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.util.{ShutdownHookManager, ThreadUtils}
 
@@ -72,14 +73,8 @@ package object flint {
   def qualifyTableName(spark: SparkSession, tableName: String): String = {
     val (catalog, ident) = parseTableName(spark, tableName)
 
-    // Tricky that our Flint delegate catalog's name has to be spark_catalog
-    // so we have to find its actual name in CatalogManager
-    val catalogMgr = spark.sessionState.catalogManager
-    val catalogName =
-      catalogMgr
-        .listCatalogs(Some("*"))
-        .find(catalogMgr.catalog(_) == catalog)
-        .getOrElse(catalog.name())
+    // more reading at https://github.com/opensearch-project/opensearch-spark/issues/319.
+    val catalogName = resolveCatalogName(spark, catalog)
 
     s"$catalogName.${ident.namespace.mkString(".")}.${ident.name}"
   }
@@ -133,5 +128,44 @@ package object flint {
    */
   def findField(rootField: StructType, fieldName: String): Option[StructField] = {
     rootField.findNestedField(fieldName.split('.')).map(_._2)
+  }
+
+  /**
+   * Resolve catalog name. spark.sql.defaultCatalog name is returned if catalog.name is
+   * spark_catalog otherwise, catalog.name is returned.
+   * @see
+   *   <a href="https://github.com/opensearch-project/opensearch-spark/issues/319#issuecomment
+   * -2099630984">issue319</a>
+   *
+   * @param spark
+   *   Spark Session
+   * @param catalog
+   *   Spark Catalog
+   * @return
+   *   catalog name.
+   */
+  def resolveCatalogName(spark: SparkSession, catalog: CatalogPlugin): String = {
+
+    /**
+     * Flint use FlintDelegatingSessionCatalog to customized catalog name.
+     * FlintDelegatingSessionCatalog name is spark_catalog which can not change. @see <a
+     * href="https://github.com/opensearch-project/opensearch-spark/issues/319#issuecomment2099515920">issue319</a>
+     */
+    if (CatalogV2Util.isSessionCatalog(catalog)) {
+      val defaultCatalog = spark.conf.get(DEFAULT_CATALOG)
+      // defaultCatalog name is as same as customized catalog name.
+      if (spark.sessionState.catalogManager.isCatalogRegistered(defaultCatalog)) {
+        defaultCatalog
+      } else {
+        /**
+         * It may happen when spark.sql.defaultCatalog is configured, but there's no implementation.
+         * For instance, spark.sql.defaultCatalog = "unknown"
+         */
+        throw new RuntimeException("Unknown catalog name")
+      }
+    } else {
+      // Works for customized non Spark V2SessionCatalog implementation.
+      catalog.name()
+    }
   }
 }

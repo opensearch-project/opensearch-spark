@@ -25,8 +25,8 @@ import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
 class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
   /** Test table and index name */
-  private val testTable = "spark_catalog.default.skipping_sql_test"
-  private val testIndex = getSkippingIndexName(testTable)
+  protected val testTable = s"$catalogName.default.skipping_sql_test"
+  protected val testIndex = getSkippingIndexName(testTable)
 
   override def beforeEach(): Unit = {
     super.beforeAll()
@@ -273,7 +273,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
 
   test("create skipping index with quoted table and column name") {
     sql(s"""
-           | CREATE SKIPPING INDEX ON `spark_catalog`.`default`.`skipping_sql_test`
+           | CREATE SKIPPING INDEX ON `$catalogName`.`default`.`skipping_sql_test`
            | (
            |   `year` PARTITION,
            |   `name` VALUE_SET,
@@ -319,17 +319,25 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     sql("USE sample")
 
     // Create index without database name specified
-    sql("CREATE TABLE test1 (name STRING) USING CSV")
+    sql(s"CREATE TABLE test1 (name STRING) USING $tableType")
     sql("CREATE SKIPPING INDEX ON test1 (name VALUE_SET)")
 
     // Create index with database name specified
-    sql("CREATE TABLE test2 (name STRING) USING CSV")
+    sql(s"CREATE TABLE test2 (name STRING) USING $tableType")
     sql("CREATE SKIPPING INDEX ON sample.test2 (name VALUE_SET)")
 
     try {
-      flint.describeIndex("flint_spark_catalog_sample_test1_skipping_index") shouldBe defined
-      flint.describeIndex("flint_spark_catalog_sample_test2_skipping_index") shouldBe defined
+      flint.describeIndex(s"flint_${catalogName}_sample_test1_skipping_index") shouldBe defined
+      flint.describeIndex(s"flint_${catalogName}_sample_test2_skipping_index") shouldBe defined
     } finally {
+      /**
+       * TODO: REMOVE DROP TABLE when iceberg support CASCADE. More reading at
+       * https://github.com/apache/iceberg/pull/7275.
+       */
+      if (tableType.equalsIgnoreCase("iceberg")) {
+        sql("DROP TABLE test1")
+        sql("DROP TABLE test2")
+      }
       sql("DROP DATABASE sample CASCADE")
     }
   }
