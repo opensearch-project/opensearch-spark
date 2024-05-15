@@ -5,6 +5,8 @@
 
 package org.apache.spark.sql.flint
 
+import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilterMightContain
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.connector.read.{Scan, ScanBuilder, SupportsPushDownV2Filters}
@@ -31,4 +33,5 @@ case class FlintScanBuilder(tableName: String, schema: StructType, options: Flin
   }
 
   override def pushedPredicates(): Array[Predicate] = pushedPredicate
+    .filterNot(_.name().equalsIgnoreCase(BloomFilterMightContain.NAME))
 }
