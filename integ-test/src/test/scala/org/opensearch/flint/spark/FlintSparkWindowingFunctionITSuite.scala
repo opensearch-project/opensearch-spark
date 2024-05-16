@@ -12,10 +12,8 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{QueryTest, Row}
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{MetadataBuilder, StructField, StructType}
 
-// FIXME: Actual   :StructType(StructField("window", StructType(StructField("start", TimestampType, true, {}), StructField("end", TimestampType, true, {})), false, {"spark.timeWindow":true}))
-@Ignore()
 class FlintSparkWindowingFunctionITSuite extends QueryTest with FlintSuite {
 
   test("tumble windowing function") {
@@ -29,8 +27,21 @@ class FlintSparkWindowingFunctionITSuite extends QueryTest with FlintSuite {
 
     val resultDF = inputDF.selectExpr("TUMBLE(timestamp, '10 minutes')")
 
-    resultDF.schema shouldBe StructType.fromDDL(
-      "window struct<start:timestamp,end:timestamp> NOT NULL")
+    // Since Spark 3.4. https://issues.apache.org/jira/browse/SPARK-40821
+    val expected =
+      StructType(StructType.fromDDL("window struct<start:timestamp,end:timestamp> NOT NULL").map {
+        case StructField(name, dataType: StructType, nullable, _) if name == "window" =>
+          StructField(
+            name,
+            dataType,
+            nullable,
+            metadata = new MetadataBuilder()
+              .putBoolean("spark.timeWindow", true)
+              .build())
+        case other => other
+      })
+
+    resultDF.schema shouldBe expected
     checkAnswer(
       resultDF,
       Seq(
