@@ -12,4 +12,4 @@ import org.opensearch.flint.spark.FlintSparkMaterializedViewSqlITSuite
  */
 class FlintSparkSessionCatalogMaterializedViewITSuite
     extends FlintSparkMaterializedViewSqlITSuite
-    with FlintSessionCatalogSuit {}
+    with FlintSessionCatalogSuite {}

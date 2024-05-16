@@ -46,7 +46,6 @@ trait FlintSparkIcebergSuite extends FlintSparkSuite {
 
   override def afterAll(): Unit = {
     deleteDirectory(s"spark-warehouse/${suiteName}")
-//    deleteDirectory(s"spark-warehouse/${suiteName}_sc")
     super.afterAll()
   }
 

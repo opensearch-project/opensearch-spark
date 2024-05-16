@@ -12,4 +12,4 @@ import org.opensearch.flint.spark.FlintSparkSkippingIndexSqlITSuite
  */
 class FlintSparkSessionCatalogSkippingIndexITSuite
     extends FlintSparkSkippingIndexSqlITSuite
-    with FlintSessionCatalogSuit {}
+    with FlintSessionCatalogSuite {}

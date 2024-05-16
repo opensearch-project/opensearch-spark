@@ -12,7 +12,7 @@ import org.apache.spark.SparkConf
 /**
  * Test with FlintDelegatingSessionCatalog.
  */
-trait FlintSessionCatalogSuit extends FlintSparkSuite {
+trait FlintSessionCatalogSuite extends FlintSparkSuite {
   // Override catalog name
   override lazy protected val catalogName: String = "mycatalog"
 
