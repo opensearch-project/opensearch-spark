@@ -154,6 +154,18 @@ object FlintSparkConf {
     .doc("Checkpoint location for incremental refresh index will be mandatory if enabled")
     .createWithDefault("true")
 
+  val MONITOR_INITIAL_DELAY_SECONDS = FlintConfig("spark.flint.monitor.initialDelaySeconds")
+    .doc("Initial delay in seconds before starting the monitoring task")
+    .createWithDefault("15")
+
+  val MONITOR_INTERVAL_SECONDS = FlintConfig("spark.flint.monitor.intervalSeconds")
+    .doc("Interval in seconds for scheduling the monitoring task")
+    .createWithDefault("60")
+
+  val MONITOR_MAX_ERROR_COUNT = FlintConfig("spark.flint.monitor.maxErrorCount")
+    .doc("Maximum number of consecutive errors allowed in index monitor")
+    .createWithDefault("5")
+
   val SOCKET_TIMEOUT_MILLIS =
     FlintConfig(s"spark.datasource.flint.${FlintOptions.SOCKET_TIMEOUT_MILLIS}")
       .datasourceOption()
@@ -222,6 +234,12 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
   def isHybridScanEnabled: Boolean = HYBRID_SCAN_ENABLED.readFrom(reader).toBoolean
 
   def isCheckpointMandatory: Boolean = CHECKPOINT_MANDATORY.readFrom(reader).toBoolean
+
+  def monitorInitialDelaySeconds(): Int = MONITOR_INITIAL_DELAY_SECONDS.readFrom(reader).toInt
+
+  def monitorIntervalSeconds(): Int = MONITOR_INTERVAL_SECONDS.readFrom(reader).toInt
+
+  def monitorMaxErrorCount(): Int = MONITOR_MAX_ERROR_COUNT.readFrom(reader).toInt
 
   /**
    * spark.sql.session.timeZone
