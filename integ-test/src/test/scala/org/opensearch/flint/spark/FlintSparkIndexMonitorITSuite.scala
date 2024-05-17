@@ -128,6 +128,20 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     }
   }
 
+  test("monitor task and streaming job should terminate if exception occurred consistently") {
+    val task = FlintSparkIndexMonitor.indexMonitorTracker(testFlintIndex)
+
+    // Block write on metadata log index
+    setWriteBlockOnMetadataLogIndex(true)
+    waitForMonitorTaskRun()
+
+    // Both monitor task and streaming job should stop after 5 times
+    10 times { (_, _) => {} }
+
+    task.isCancelled shouldBe true
+    spark.streams.active.exists(_.name == testFlintIndex) shouldBe false
+  }
+
   private def getLatestTimestamp: (Long, Long) = {
     val latest = latestLogEntry(testLatestId)
     (latest("jobStartTime").asInstanceOf[Long], latest("lastUpdateTime").asInstanceOf[Long])

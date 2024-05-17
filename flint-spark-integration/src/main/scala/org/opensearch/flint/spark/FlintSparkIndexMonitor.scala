@@ -42,33 +42,7 @@ class FlintSparkIndexMonitor(
    */
   def startMonitor(indexName: String): Unit = {
     val task = FlintSparkIndexMonitor.executor.scheduleWithFixedDelay(
-      () => {
-        logInfo(s"Scheduler trigger index monitor task for $indexName")
-        try {
-          if (isStreamingJobActive(indexName)) {
-            logInfo("Streaming job is still active")
-            flintClient
-              .startTransaction(indexName, dataSourceName)
-              .initialLog(latest => latest.state == REFRESHING)
-              .finalLog(latest => latest) // timestamp will update automatically
-              .commit(_ => {})
-          } else {
-            logError("Streaming job is not active. Cancelling monitor task")
-            flintClient
-              .startTransaction(indexName, dataSourceName)
-              .initialLog(_ => true)
-              .finalLog(latest => latest.copy(state = FAILED))
-              .commit(_ => {})
-
-            stopMonitor(indexName)
-            logInfo("Index monitor task is cancelled")
-          }
-        } catch {
-          case e: Throwable =>
-            logError("Failed to update index log entry", e)
-            MetricsUtil.incrementCounter(MetricConstants.STREAMING_HEARTBEAT_FAILED_METRIC)
-        }
-      },
+      new FlintSparkIndexMonitorTask(indexName),
       15, // Delay to ensure final logging is complete first, otherwise version conflicts
       60, // TODO: make interval configurable
       TimeUnit.SECONDS)
@@ -92,8 +66,63 @@ class FlintSparkIndexMonitor(
     }
   }
 
+  private class FlintSparkIndexMonitorTask(indexName: String) extends Runnable {
+
+    /** Error counter */
+    private var errorCnt = 0
+
+    override def run(): Unit = {
+      logInfo(s"Scheduler trigger index monitor task for $indexName")
+      try {
+        if (isStreamingJobActive(indexName)) {
+          logInfo("Streaming job is still active")
+          flintClient
+            .startTransaction(indexName, dataSourceName)
+            .initialLog(latest => latest.state == REFRESHING)
+            .finalLog(latest => latest) // timestamp will update automatically
+            .commit(_ => {})
+        } else {
+          logError("Streaming job is not active. Cancelling monitor task")
+          flintClient
+            .startTransaction(indexName, dataSourceName)
+            .initialLog(_ => true)
+            .finalLog(latest => latest.copy(state = FAILED))
+            .commit(_ => {})
+
+          stopMonitor(indexName)
+          logInfo("Index monitor task is cancelled")
+        }
+
+        // Reset counter if success
+        errorCnt = 0
+      } catch {
+        case e: Throwable =>
+          errorCnt += 1
+          logError(s"Failed to update index log entry, consecutive errors: $errorCnt", e)
+          MetricsUtil.incrementCounter(MetricConstants.STREAMING_HEARTBEAT_FAILED_METRIC)
+
+          // Stop streaming job and its monitor if max retry limit reached
+          if (errorCnt >= 10) {
+            logInfo(s"Terminating streaming job and index monitor for $indexName")
+            stopStreamingJob(indexName)
+            stopMonitor(indexName)
+            logInfo(s"Streaming job and index monitor terminated")
+          }
+      }
+    }
+  }
+
   private def isStreamingJobActive(indexName: String): Boolean =
     spark.streams.active.exists(_.name == indexName)
+
+  private def stopStreamingJob(indexName: String): Unit = {
+    val job = spark.streams.active.find(_.name == indexName)
+    if (job.isDefined) {
+      job.get.stop()
+    } else {
+      logWarning("Refreshing job not found")
+    }
+  }
 }
 
 object FlintSparkIndexMonitor extends Logging {
