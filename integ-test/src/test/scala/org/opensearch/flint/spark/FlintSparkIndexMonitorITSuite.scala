@@ -140,7 +140,11 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     waitForMonitorTaskRun()
 
     // Both monitor task and streaming job should stop after 10 times
-    10 times { (_, _) => {} }
+    10 times { (_, _) =>
+      {
+        // assert nothing. just wait enough times of task execution
+      }
+    }
 
     task.isCancelled shouldBe true
     spark.streams.active.exists(_.name == testFlintIndex) shouldBe false
