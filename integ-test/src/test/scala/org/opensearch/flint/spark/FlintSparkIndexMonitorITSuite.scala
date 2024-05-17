@@ -19,6 +19,7 @@ import org.opensearch.flint.OpenSearchTransactionSuite
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.should.Matchers
 
+import org.apache.spark.sql.flint.config.FlintSparkConf.MONITOR_MAX_ERROR_COUNT
 import org.apache.spark.sql.flint.newDaemonThreadPoolScheduledExecutor
 
 class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matchers {
@@ -40,6 +41,9 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
       realExecutor.scheduleWithFixedDelay(invocation.getArgument(0), 5, 1, TimeUnit.SECONDS)
     }).when(FlintSparkIndexMonitor.executor)
       .scheduleWithFixedDelay(any[Runnable], any[Long], any[Long], any[TimeUnit])
+
+    // Set max error count higher to avoid impact on transient error test case
+    setFlintSparkConf(MONITOR_MAX_ERROR_COUNT, 10)
   }
 
   override def beforeEach(): Unit = {
@@ -135,7 +139,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     setWriteBlockOnMetadataLogIndex(true)
     waitForMonitorTaskRun()
 
-    // Both monitor task and streaming job should stop after 5 times
+    // Both monitor task and streaming job should stop after 10 times
     10 times { (_, _) => {} }
 
     task.isCancelled shouldBe true

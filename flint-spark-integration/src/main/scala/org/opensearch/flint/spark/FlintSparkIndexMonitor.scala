@@ -16,6 +16,7 @@ import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.newDaemonThreadPoolScheduledExecutor
 
 /**
@@ -34,6 +35,12 @@ class FlintSparkIndexMonitor(
     dataSourceName: String)
     extends Logging {
 
+  /** Max error count allowed */
+  private val MAX_ERROR_COUNT = FlintSparkConf().monitorMaxErrorCount()
+
+  /** Task execution interval */
+  private val INTERVAL = FlintSparkConf().monitorIntervalSeconds()
+
   /**
    * Start monitoring task on the given Flint index.
    *
@@ -44,7 +51,7 @@ class FlintSparkIndexMonitor(
     val task = FlintSparkIndexMonitor.executor.scheduleWithFixedDelay(
       new FlintSparkIndexMonitorTask(indexName),
       15, // Delay to ensure final logging is complete first, otherwise version conflicts
-      60, // TODO: make interval configurable
+      INTERVAL,
       TimeUnit.SECONDS)
 
     FlintSparkIndexMonitor.indexMonitorTracker.put(indexName, task)
@@ -66,9 +73,16 @@ class FlintSparkIndexMonitor(
     }
   }
 
+  /**
+   * Index monitor task that encapsulates the execution logic with number of consecutive error
+   * tracked.
+   *
+   * @param indexName
+   *   Flint index name
+   */
   private class FlintSparkIndexMonitorTask(indexName: String) extends Runnable {
 
-    /** Error counter */
+    /** The number of consecutive error */
     private var errorCnt = 0
 
     override def run(): Unit = {
@@ -92,9 +106,7 @@ class FlintSparkIndexMonitor(
           stopMonitor(indexName)
           logInfo("Index monitor task is cancelled")
         }
-
-        // Reset counter if success
-        errorCnt = 0
+        errorCnt = 0 // Reset counter if no error
       } catch {
         case e: Throwable =>
           errorCnt += 1
@@ -102,7 +114,7 @@ class FlintSparkIndexMonitor(
           MetricsUtil.incrementCounter(MetricConstants.STREAMING_HEARTBEAT_FAILED_METRIC)
 
           // Stop streaming job and its monitor if max retry limit reached
-          if (errorCnt >= 10) {
+          if (errorCnt >= MAX_ERROR_COUNT) {
             logInfo(s"Terminating streaming job and index monitor for $indexName")
             stopStreamingJob(indexName)
             stopMonitor(indexName)
