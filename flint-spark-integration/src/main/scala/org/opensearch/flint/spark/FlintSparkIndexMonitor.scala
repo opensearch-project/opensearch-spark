@@ -35,11 +35,14 @@ class FlintSparkIndexMonitor(
     dataSourceName: String)
     extends Logging {
 
+  /** Task execution initial delay in seconds */
+  private val INITIAL_DELAY_SECONDS = FlintSparkConf().monitorInitialDelaySeconds()
+
+  /** Task execution interval in seconds */
+  private val INTERVAL_SECONDS = FlintSparkConf().monitorIntervalSeconds()
+
   /** Max error count allowed */
   private val MAX_ERROR_COUNT = FlintSparkConf().monitorMaxErrorCount()
-
-  /** Task execution interval */
-  private val INTERVAL = FlintSparkConf().monitorIntervalSeconds()
 
   /**
    * Start monitoring task on the given Flint index.
@@ -48,10 +51,16 @@ class FlintSparkIndexMonitor(
    *   Flint index name
    */
   def startMonitor(indexName: String): Unit = {
+    logInfo(s"""Starting index monitor for $indexName with configuration:
+         | - Initial delay: $INITIAL_DELAY_SECONDS seconds
+         | - Interval: $INTERVAL_SECONDS seconds
+         | - Max error count: $MAX_ERROR_COUNT
+         |""".stripMargin)
+
     val task = FlintSparkIndexMonitor.executor.scheduleWithFixedDelay(
       new FlintSparkIndexMonitorTask(indexName),
-      15, // Delay to ensure final logging is complete first, otherwise version conflicts
-      INTERVAL,
+      INITIAL_DELAY_SECONDS, // Delay to ensure final logging is complete first, otherwise version conflicts
+      INTERVAL_SECONDS,
       TimeUnit.SECONDS)
 
     FlintSparkIndexMonitor.indexMonitorTracker.put(indexName, task)

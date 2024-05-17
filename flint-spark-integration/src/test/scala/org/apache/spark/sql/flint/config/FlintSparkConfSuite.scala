@@ -13,7 +13,7 @@ import org.opensearch.flint.core.http.FlintRetryOptions._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
-import org.apache.spark.sql.flint.config.FlintSparkConf.{MONITOR_INTERVAL_SECONDS, MONITOR_MAX_ERROR_COUNT}
+import org.apache.spark.sql.flint.config.FlintSparkConf.{MONITOR_INITIAL_DELAY_SECONDS, MONITOR_INTERVAL_SECONDS, MONITOR_MAX_ERROR_COUNT}
 
 class FlintSparkConfSuite extends FlintSuite {
   test("test spark conf") {
@@ -87,16 +87,19 @@ class FlintSparkConfSuite extends FlintSuite {
 
   test("test index monitor options") {
     val defaultConf = FlintSparkConf()
-    defaultConf.monitorMaxErrorCount() shouldBe 5
+    defaultConf.monitorInitialDelaySeconds() shouldBe 15
     defaultConf.monitorIntervalSeconds() shouldBe 60
+    defaultConf.monitorMaxErrorCount() shouldBe 5
 
     withSparkConf(MONITOR_MAX_ERROR_COUNT.key, MONITOR_INTERVAL_SECONDS.key) {
-      setFlintSparkConf(MONITOR_MAX_ERROR_COUNT, 10)
+      setFlintSparkConf(MONITOR_INITIAL_DELAY_SECONDS, 5)
       setFlintSparkConf(MONITOR_INTERVAL_SECONDS, 30)
+      setFlintSparkConf(MONITOR_MAX_ERROR_COUNT, 10)
 
       val overrideConf = FlintSparkConf()
-      overrideConf.monitorMaxErrorCount() shouldBe 10
+      defaultConf.monitorInitialDelaySeconds() shouldBe 5
       overrideConf.monitorIntervalSeconds() shouldBe 30
+      overrideConf.monitorMaxErrorCount() shouldBe 10
     }
   }
 
