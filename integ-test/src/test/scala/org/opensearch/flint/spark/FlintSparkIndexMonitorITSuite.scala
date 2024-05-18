@@ -19,6 +19,7 @@ import org.opensearch.flint.OpenSearchTransactionSuite
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.should.Matchers
 
+import org.apache.spark.sql.flint.config.FlintSparkConf.MONITOR_MAX_ERROR_COUNT
 import org.apache.spark.sql.flint.newDaemonThreadPoolScheduledExecutor
 
 class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matchers {
@@ -40,6 +41,9 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
       realExecutor.scheduleWithFixedDelay(invocation.getArgument(0), 5, 1, TimeUnit.SECONDS)
     }).when(FlintSparkIndexMonitor.executor)
       .scheduleWithFixedDelay(any[Runnable], any[Long], any[Long], any[TimeUnit])
+
+    // Set max error count higher to avoid impact on transient error test case
+    setFlintSparkConf(MONITOR_MAX_ERROR_COUNT, 10)
   }
 
   override def beforeEach(): Unit = {
@@ -126,6 +130,24 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
       lastUpdateTime should be > prevLastUpdateTime
       prevLastUpdateTime = lastUpdateTime
     }
+  }
+
+  test("monitor task and streaming job should terminate if exception occurred consistently") {
+    val task = FlintSparkIndexMonitor.indexMonitorTracker(testFlintIndex)
+
+    // Block write on metadata log index
+    setWriteBlockOnMetadataLogIndex(true)
+    waitForMonitorTaskRun()
+
+    // Both monitor task and streaming job should stop after 10 times
+    10 times { (_, _) =>
+      {
+        // assert nothing. just wait enough times of task execution
+      }
+    }
+
+    task.isCancelled shouldBe true
+    spark.streams.active.exists(_.name == testFlintIndex) shouldBe false
   }
 
   private def getLatestTimestamp: (Long, Long) = {
