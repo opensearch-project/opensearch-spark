@@ -797,13 +797,10 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     // CharType column is padded to a fixed length with whitespace
     val paddedChar = "sample char".padTo(20, ' ')
     checkAnswer(query, Row("sample varchar", paddedChar))
-    /*
-     * todo Spark 3.4 add read-side padding, SkippingIndex rule can not push down char_col plan now.
-     *  https://issues.apache.org/jira/browse/SPARK-40697
-     */
     query.queryExecution.executedPlan should
       useFlintSparkSkippingFileIndex(
-        hasIndexFilter(isnull(col("varchar_col")) || col("varchar_col") === "sample varchar"))
+        hasIndexFilter((isnull(col("varchar_col")) || col("varchar_col") === "sample varchar") &&
+          (isnull(col("char_col")) || col("char_col") === paddedChar)))
 
     deleteTestIndex(testIndex)
   }
