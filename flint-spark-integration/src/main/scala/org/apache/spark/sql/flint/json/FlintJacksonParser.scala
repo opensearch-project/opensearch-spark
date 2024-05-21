@@ -118,7 +118,7 @@ class FlintJacksonParser(
             array.toArray[InternalRow](schema)
           }
         case START_ARRAY =>
-          throw QueryExecutionErrors.cannotParseJsonArraysAsStructsError()
+          throw QueryExecutionErrors.cannotParseJsonArraysAsStructsError(parser.currentToken().asString())
       }
   }
 
@@ -537,7 +537,7 @@ class FlintJacksonParser(
         // JSON parser currently doesn't support partial results for corrupted records.
         // For such records, all fields other than the field configured by
         // `columnNameOfCorruptRecord` are set to `null`.
-        throw BadRecordException(() => recordLiteral(record), () => None, e)
+        throw BadRecordException(() => recordLiteral(record), () => new Array[InternalRow](0), e)
       case e: CharConversionException if options.encoding.isEmpty =>
         val msg =
           """JSON parser cannot handle a character in its input.
@@ -545,11 +545,13 @@ class FlintJacksonParser(
             |""".stripMargin + e.getMessage
         val wrappedCharException = new CharConversionException(msg)
         wrappedCharException.initCause(e)
-        throw BadRecordException(() => recordLiteral(record), () => None, wrappedCharException)
+        throw BadRecordException(() => recordLiteral(record), () => new Array[InternalRow](0), wrappedCharException)
       case PartialResultException(row, cause) =>
+        val partialResults = new Array[InternalRow](1)
+        partialResults(0) = row
         throw BadRecordException(
           record = () => recordLiteral(record),
-          partialResult = () => Some(row),
+          partialResults = () => partialResults,
           cause)
     }
   }

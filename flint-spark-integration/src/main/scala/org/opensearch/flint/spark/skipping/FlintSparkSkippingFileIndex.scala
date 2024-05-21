@@ -44,7 +44,7 @@ case class FlintSparkSkippingFileIndex(
 
     // Keep partition files present in selected file list above
     partitions
-      .map(p => p.copy(files = p.files.filter(f => isFileNotSkipped(selectedFiles, f))))
+      .map(p => p.copy(files = p.files.filter(f => isFileNotSkipped(selectedFiles, f.fileStatus))))
       .filter(p => p.files.nonEmpty)
   }
 
