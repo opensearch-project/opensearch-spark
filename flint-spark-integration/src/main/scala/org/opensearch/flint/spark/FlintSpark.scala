@@ -204,13 +204,13 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
    */
   def updateIndex(index: FlintSparkIndex): Option[String] = {
     val indexName = index.name()
-    withTransaction[Option[String]](indexName, s"Update Flint index $indexName") { tx =>
-      validateUpdateAllowed(
-        describeIndex(indexName)
-          .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
-          .options,
-        index.options)
+    validateUpdateAllowed(
+      describeIndex(indexName)
+        .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+        .options,
+      index.options)
 
+    withTransaction[Option[String]](indexName, s"Update Flint index $indexName") { tx =>
       // Relies on validation to forbid auto-to-auto and manual-to-manual updates
       index.options.autoRefresh() match {
         case true => updateIndexManualToAuto(index, tx)
