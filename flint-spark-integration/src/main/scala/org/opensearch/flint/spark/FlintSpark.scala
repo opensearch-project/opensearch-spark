@@ -32,7 +32,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGN
 /**
  * Flint Spark integration API entrypoint.
  */
-class FlintSpark(val spark: SparkSession) extends Logging {
+class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport with Logging {
 
   /** Flint spark configuration */
   private val flintSparkConf: FlintSparkConf =
@@ -42,7 +42,8 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         IGNORE_DOC_ID_COLUMN.optionKey -> "true").asJava)
 
   /** Flint client for low-level index operation */
-  private val flintClient: FlintClient = FlintClientBuilder.build(flintSparkConf.flintOptions())
+  override protected val flintClient: FlintClient =
+    FlintClientBuilder.build(flintSparkConf.flintOptions())
 
   /** Required by json4s parse function */
   implicit val formats: Formats = Serialization.formats(NoTypeHints) + SkippingKindSerializer
@@ -51,7 +52,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    * Data source name. Assign empty string in case of backward compatibility. TODO: remove this in
    * future
    */
-  private val dataSourceName: String =
+  override protected val dataSourceName: String =
     spark.conf.getOption("spark.flint.datasource.name").getOrElse("")
 
   /** Flint Spark index monitor */
@@ -431,31 +432,5 @@ class FlintSpark(val spark: SparkSession) extends Logging {
         logInfo("Update index options complete")
         indexRefresh.start(spark, flintSparkConf)
       })
-  }
-
-  private def withTransaction[T](
-      indexName: String,
-      operationName: String,
-      forceInit: Boolean = false)(opBlock: OptimisticTransaction[T] => T): T = {
-    logInfo(s"Starting index operation [$operationName] with forceInit=$forceInit")
-    try {
-      val tx: OptimisticTransaction[T] =
-        flintClient.startTransaction(indexName, dataSourceName, forceInit)
-
-      val result = opBlock(tx)
-      logInfo(s"Index operation [$operationName] complete")
-      result
-    } catch {
-      case e: Exception =>
-        val detailedMessage =
-          s"Failed to execute index operation [$operationName] caused by ${e.getMessage}"
-        logError(detailedMessage, e)
-
-        // Re-throw directly if runtime exception or wrap it
-        e match {
-          case re: RuntimeException => throw re
-          case _ => throw new IllegalStateException(detailedMessage, e)
-        }
-    }
   }
 }
