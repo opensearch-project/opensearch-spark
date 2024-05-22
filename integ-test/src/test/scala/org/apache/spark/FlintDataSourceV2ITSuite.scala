@@ -62,8 +62,7 @@ class FlintDataSourceV2ITSuite
     }
   }
 
-  // FIXME
-  ignore("scan with filter push-down") {
+  test("scan with filter push-down") {
     val indexName = "t0003"
     withIndexName(indexName) {
       val mappings = """{
@@ -105,7 +104,9 @@ class FlintDataSourceV2ITSuite
 
       val df2 = df.filter($"aText".contains("second"))
       checkFiltersRemoved(df2)
-      checkPushedInfo(df2, "PushedPredicates: [aText IS NOT NULL, aText LIKE '%second%']")
+      checkPushedInfo(
+        df2,
+        "PushedPredicates: [aText IS NOT NULL, aText LIKE '%second%' ESCAPE '\\']")
       checkAnswer(df2, Row(2, "b", "i am second"))
 
       val df3 =
@@ -118,7 +119,7 @@ class FlintDataSourceV2ITSuite
       checkFiltersRemoved(df4)
       checkPushedInfo(
         df4,
-        "PushedPredicates: [aInt IS NOT NULL, aText IS NOT NULL, aInt > 1, aText LIKE '%second%']")
+        "PushedPredicates: [aInt IS NOT NULL, aText IS NOT NULL, aInt > 1, aText LIKE '%second%' ESCAPE '\\']")
       checkAnswer(df4, Row(2, "b", "i am second"))
     }
   }
