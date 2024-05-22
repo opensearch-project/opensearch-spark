@@ -20,7 +20,7 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
   private val testIndex = "test_index"
   private val testOpName = "test operation"
 
-  // Creating a fake FlintSparkTransactionSupport for test
+  /** Creating a fake FlintSparkTransactionSupport subclass for test */
   private val transactionSupport = new FlintSparkTransactionSupport with Logging {
     override protected def flintClient: FlintClient = mockFlintClient
     override protected def dataSourceName: String = testDataSource
@@ -41,20 +41,20 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
   test("should throw exception with nested exception message") {
     the[IllegalStateException] thrownBy {
       transactionSupport.withTransaction[Unit](testIndex, testOpName) { _ =>
-        throw new IllegalArgumentException("fake exception")
+        throw new IllegalArgumentException("Fake exception")
       }
     } should have message
-      "Failed to execute index operation [test operation] caused by: fake exception"
+      "Failed to execute index operation [test operation] caused by: Fake exception"
   }
 
   test("should throw exception with root cause exception message") {
     the[IllegalStateException] thrownBy {
       transactionSupport.withTransaction[Unit](testIndex, testOpName) { _ =>
-        val rootCause = new IllegalArgumentException("fake root cause")
+        val rootCause = new IllegalArgumentException("Fake root cause")
         val cause = new RuntimeException("message ignored", rootCause)
         throw new IllegalStateException("message ignored", cause)
       }
     } should have message
-      "Failed to execute index operation [test operation] caused by: fake root cause"
+      "Failed to execute index operation [test operation] caused by: Fake root cause"
   }
 }

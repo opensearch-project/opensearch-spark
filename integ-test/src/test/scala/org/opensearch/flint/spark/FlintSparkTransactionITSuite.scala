@@ -177,6 +177,19 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       RequestOptions.DEFAULT) shouldBe false
   }
 
+  test("should fail to vacuum index if index is not logically deleted") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+
+    the[IllegalStateException] thrownBy {
+      flint.vacuumIndex(testFlintIndex)
+    } should have message
+      s"Failed to execute index operation [Vacuum Flint index $testFlintIndex] caused by: Index state [active] doesn't satisfy precondition"
+  }
+
   test("should not recreate index if index data still exists") {
     flint
       .skippingIndex()

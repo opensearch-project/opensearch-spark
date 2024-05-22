@@ -36,7 +36,7 @@ trait FlintSparkTransactionSupport { self: Logging =>
    * @param opName
    *   the name of the operation, used for logging
    * @param forceInit
-   *   a boolean flag indicating whether to force the initialization of the transaction
+   *   a boolean flag indicating whether to force the initialization of the metadata log
    * @param opBlock
    *   the operation block to execute within the transaction context, which takes an
    *   `OptimisticTransaction` and returns a value of type `T`
