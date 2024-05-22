@@ -44,7 +44,7 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
         .onTable(getFullTableName(flint, ctx.tableName))
 
       ctx.indexColTypeList().indexColType().forEach { colTypeCtx =>
-        val colName = colTypeCtx.identifier().getText
+        val colName = colTypeCtx.multipartIdentifier().getText
         val skipType = SkippingKind.withName(colTypeCtx.skipType.getText)
         val skipParams = visitSkipParams(colTypeCtx.skipParams())
         skipType match {

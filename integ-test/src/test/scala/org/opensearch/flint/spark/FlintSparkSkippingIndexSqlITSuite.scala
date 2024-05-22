@@ -166,6 +166,38 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
 
+  test("build skipping index for nested field") {
+    val testTable = "spark_catalog.default.nested_field_table"
+    val testIndex = getSkippingIndexName(testTable)
+    withTable(testTable) {
+      createStructTable(testTable)
+
+      sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | (
+           |   struct_col.field1.subfield VALUE_SET,
+           |   struct_col.field2 MIN_MAX
+           | )
+           | WITH (
+           |   auto_refresh = true
+           | )
+           | """.stripMargin)
+
+      val job = spark.streams.active.find(_.name == testIndex)
+      awaitStreamingComplete(job.get.id.toString)
+
+      // Query rewrite nested field
+      val query1 = s"SELECT int_col FROM $testTable WHERE struct_col.field2 = 456"
+      checkAnswer(sql(query1), Row(40))
+      checkKeywordsExist(sql(s"EXPLAIN $query1"), "FlintSparkSkippingFileIndex")
+
+      // Query rewrite deep nested field
+      val query2 = s"SELECT int_col FROM $testTable WHERE struct_col.field1.subfield = 'value3'"
+      checkAnswer(sql(query2), Row(50))
+      checkKeywordsExist(sql(s"EXPLAIN $query2"), "FlintSparkSkippingFileIndex")
+    }
+  }
+
   test("create skipping index with invalid option") {
     the[IllegalArgumentException] thrownBy
       sql(s"""

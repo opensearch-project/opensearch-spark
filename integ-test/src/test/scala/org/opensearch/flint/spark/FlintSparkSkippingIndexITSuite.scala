@@ -809,25 +809,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     val testTable = "spark_catalog.default.nested_field_table"
     val testIndex = getSkippingIndexName(testTable)
     withTable(testTable) {
-      sql(s"""
-           | CREATE TABLE $testTable
-           | (
-           |   int_col INT,
-           |   struct_col STRUCT<field1: STRUCT<subfield:STRING>, field2: INT>
-           | )
-           | USING JSON
-           |""".stripMargin)
-      sql(s"""
-           | INSERT INTO $testTable
-           | SELECT /*+ COALESCE(1) */ *
-           | FROM VALUES
-           | ( 30, STRUCT(STRUCT("value1"),123) ),
-           | ( 40, STRUCT(STRUCT("value2"),456) )
-           |""".stripMargin)
-      sql(s"""
-           | INSERT INTO $testTable
-           | VALUES ( 50, STRUCT(STRUCT("value3"),789) )
-           |""".stripMargin)
+      createStructTable(testTable)
 
       flint
         .skippingIndex()
