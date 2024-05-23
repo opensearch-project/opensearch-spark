@@ -13,7 +13,7 @@ import org.opensearch.flint.core.http.FlintRetryOptions._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
-import org.apache.spark.sql.flint.config.FlintSparkConf.{MONITOR_INITIAL_DELAY_SECONDS, MONITOR_INTERVAL_SECONDS, MONITOR_MAX_ERROR_COUNT}
+import org.apache.spark.sql.flint.config.FlintSparkConf.{CUSTOM_SESSION_MANAGER, MONITOR_INITIAL_DELAY_SECONDS, MONITOR_INTERVAL_SECONDS, MONITOR_MAX_ERROR_COUNT, REQUEST_INDEX}
 
 class FlintSparkConfSuite extends FlintSuite {
   test("test spark conf") {
@@ -100,6 +100,31 @@ class FlintSparkConfSuite extends FlintSuite {
       defaultConf.monitorInitialDelaySeconds() shouldBe 5
       overrideConf.monitorIntervalSeconds() shouldBe 30
       overrideConf.monitorMaxErrorCount() shouldBe 10
+    }
+  }
+
+  test("test getCustomSessionManager") {
+    withSparkConf(CUSTOM_SESSION_MANAGER.key) {
+      // default value
+      val defaultFlintOptions = FlintSparkConf().flintOptions()
+      assert(
+        defaultFlintOptions.getCustomSessionManager == "org.apache.spark.sql.SessionManagerImpl")
+
+      setFlintSparkConf(CUSTOM_SESSION_MANAGER, "custom.manager.ClassName")
+      val flintOptions = FlintSparkConf().flintOptions()
+      assert(flintOptions.getCustomSessionManager == "custom.manager.ClassName")
+    }
+  }
+
+  test("test getRequestMetadata") {
+    withSparkConf(REQUEST_INDEX.key) {
+      // default value
+      val defaultFlintOptions = FlintSparkConf().flintOptions()
+      assert(defaultFlintOptions.getRequestMetadata == null)
+
+      setFlintSparkConf(REQUEST_INDEX, "dummy")
+      val flintOptions = FlintSparkConf().flintOptions()
+      assert(flintOptions.getRequestMetadata == "dummy")
     }
   }
 

@@ -238,6 +238,7 @@ trait FlintJobExecutor {
     spark.createDataFrame(rows).toDF(schema.fields.map(_.name): _*)
   }
 
+  // TODO: refactor this for writer
   def getFailedData(
       spark: SparkSession,
       dataSource: String,

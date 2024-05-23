@@ -67,19 +67,7 @@ lazy val flintCore = (project in file("flint-core"))
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
       "com.amazonaws" % "aws-java-sdk-cloudwatch" % "1.12.593"
         exclude("com.fasterxml.jackson.core", "jackson-databind"),
-      "software.amazon.awssdk" % "auth-crt" % "2.25.23",
-      "org.scalactic" %% "scalactic" % "3.2.15" % "test",
-      "org.scalatest" %% "scalatest" % "3.2.15" % "test",
-      "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
-      "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
-      "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
-      "org.mockito" % "mockito-core" % "4.6.1" % "test",
-      "org.mockito" % "mockito-inline" % "4.6.1" % "test",
-      "org.mockito" % "mockito-junit-jupiter" % "3.12.4" % "test",
-      "org.junit.jupiter" % "junit-jupiter-api" % "5.9.0" % "test",
-      "org.junit.jupiter" % "junit-jupiter-engine" % "5.9.0" % "test",
-      "com.google.truth" % "truth" % "1.1.5" % "test",
-      "net.aichler" % "jupiter-interface" % "0.11.1" % Test
+      "software.amazon.awssdk" % "auth-crt" % "2.25.23"
     ),
     libraryDependencies ++= deps(sparkVersion),
     publish / skip := true)
@@ -104,9 +92,10 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
     Antlr4 / antlr4GenListener := true,
     Antlr4 / antlr4GenVisitor := true,
     // Assembly settings
-    assemblyPackageScala / assembleArtifact := false,
-    assembly / assemblyOption ~= {
-      _.withIncludeScala(false)
+    assembly / test := {},
+    assembly / assemblyExcludedJars := {
+      val cp = (assembly / fullClasspath).value
+      cp.filter(_.data.getName.contains("test"))
     },
     assembly / assemblyMergeStrategy := {
       case PathList(ps @ _*) if ps.last endsWith ("module-info.class") =>
@@ -117,8 +106,7 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
       case x =>
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
-    },
-    assembly / test := (Test / test).value)
+    })
 
 lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
   .dependsOn(flintCore)
@@ -144,9 +132,10 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
     Antlr4 / antlr4GenListener := true,
     Antlr4 / antlr4GenVisitor := true,
     // Assembly settings
-    assemblyPackageScala / assembleArtifact := false,
-    assembly / assemblyOption ~= {
-      _.withIncludeScala(false)
+    assembly / test := {},
+    assembly / assemblyExcludedJars := {
+      val cp = (assembly / fullClasspath).value
+      cp.filter(_.data.getName.contains("test"))
     },
     assembly / assemblyMergeStrategy := {
       case PathList(ps @ _*) if ps.last endsWith ("module-info.class") =>
@@ -157,12 +146,7 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
       case x =>
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
-    },
-    assembly / assemblyExcludedJars := {
-      val cp = (assembly / fullClasspath).value
-      cp filter { file => file.data.getName.contains("LogsConnectorSpark")}
-    },
-    assembly / test := (Test / test).value)
+    })
 
 // Test assembly package with integration test.
 lazy val integtest = (project in file("integ-test"))
@@ -220,13 +204,10 @@ lazy val sparkSqlApplication = (project in file("spark-sql-application"))
       "org.mockito" %% "mockito-scala" % "1.16.42" % "test",
       "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test"),
     // Assembly settings
-    // the sbt assembly plugin found multiple copies of the module-info.class file with
-    // different contents in the jars  that it was merging flintCore dependencies.
-    // This can happen if you have multiple dependencies that include the same library,
-    // but with different versions.
-    assemblyPackageScala / assembleArtifact := false,
-    assembly / assemblyOption ~= {
-      _.withIncludeScala(false)
+    assembly / test := {},
+    assembly / assemblyExcludedJars := {
+      val cp = (assembly / fullClasspath).value
+      cp.filter(_.data.getName.contains("test"))
     },
     assembly / assemblyMergeStrategy := {
       case PathList(ps@_*) if ps.last endsWith ("module-info.class") =>
@@ -237,9 +218,7 @@ lazy val sparkSqlApplication = (project in file("spark-sql-application"))
       case x =>
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
-    },
-    assembly / test := (Test / test).value
-  )
+    })
 
 lazy val sparkSqlApplicationCosmetic = project
   .settings(

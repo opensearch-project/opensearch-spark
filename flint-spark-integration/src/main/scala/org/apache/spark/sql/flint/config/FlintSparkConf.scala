@@ -203,6 +203,20 @@ object FlintSparkConf {
     FlintConfig("spark.metadata.accessAWSCredentialsProvider")
       .doc("AWS credentials provider for metadata access permission")
       .createOptional()
+
+  val CUSTOM_SESSION_MANAGER =
+    FlintConfig("spark.datasource.flint.customSessionManager")
+      .datasourceOption()
+      .createWithDefault("org.apache.spark.sql.SessionManagerImpl")
+
+  val CUSTOM_COMMAND_LIFECYCLE_MANAGER =
+    FlintConfig("spark.datasource.flint.customCommandLifecycleManager")
+      .datasourceOption()
+      .createWithDefault("org.apache.spark.sql.CommandLifecycleManagerImpl")
+
+  val CUSTOM_REPL_WRITER =
+    FlintConfig("spark.datasource.flint.customReplWriter")
+      .createOptional()
 }
 
 /**
@@ -267,6 +281,8 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       SOCKET_TIMEOUT_MILLIS,
       JOB_TYPE,
       REPL_INACTIVITY_TIMEOUT_MILLIS,
+      CUSTOM_SESSION_MANAGER,
+      CUSTOM_COMMAND_LIFECYCLE_MANAGER,
       BATCH_BYTES)
       .map(conf => (conf.optionKey, conf.readFrom(reader)))
       .toMap
@@ -277,6 +293,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       SESSION_ID,
       REQUEST_INDEX,
       METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER,
+      CUSTOM_REPL_WRITER,
       EXCLUDE_JOB_IDS)
       .map(conf => (conf.optionKey, conf.readFrom(reader)))
       .flatMap {

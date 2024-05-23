@@ -6,18 +6,24 @@
 package org.opensearch.flint.app
 
 import org.json4s.{Formats, NoTypeHints}
-import org.json4s.JsonAST.JString
+import org.json4s.JsonAST.{JInt, JNothing, JString}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 
 class FlintCommand(
     var state: String,
     val query: String,
+    val queryId: String,
+    val sessionId: String,
+    val submitTime: Long,
+    val queryRunTimeSecs: Option[Long],
+    val dataSource: String,
     // statementId is the statement type doc id
     val statementId: String,
-    val queryId: String,
-    val submitTime: Long,
-    var error: Option[String] = None) {
+    val flintIndexName: Option[String],
+    var error: Option[String] = None,
+    val executionContext: Option[Map[String, Any]] = None) {
+
   def running(): Unit = {
     state = "running"
   }
@@ -59,20 +65,55 @@ object FlintCommand {
     val meta = parse(command)
     val state = (meta \ "state").extract[String]
     val query = (meta \ "query").extract[String]
-    val statementId = (meta \ "statementId").extract[String]
     val queryId = (meta \ "queryId").extract[String]
+    val sessionId = (meta \ "sessionId").extract[String]
     val submitTime = (meta \ "submitTime").extract[Long]
-    val maybeError: Option[String] = (meta \ "error") match {
-      case JString(str) => Some(str)
+    val queryRunTimeSecs = (meta \ "queryRunTimeSecs") match {
+      case JInt(num) => Some(num.toLong)
+      case JNothing => None
       case _ => None
     }
+    val dataSource = (meta \ "dataSource").extract[String]
+    val statementId = (meta \ "statementId").extract[String]
+    val flintIndexName = (meta \ "flintIndexName") match {
+      case JString(str) => Some(str)
+      case JNothing => None
+      case _ => None
+    }
+    val maybeError: Option[String] = (meta \ "error") match {
+      case JString(str) => Some(str)
+      case JNothing => None
+      case _ => None
+    }
+    val executionContext = (meta \ "executionContext").extract[Option[Map[String, Any]]]
 
-    new FlintCommand(state, query, statementId, queryId, submitTime, maybeError)
+    new FlintCommand(
+      state,
+      query,
+      queryId,
+      sessionId,
+      submitTime,
+      queryRunTimeSecs,
+      dataSource,
+      statementId,
+      flintIndexName,
+      maybeError,
+      executionContext)
   }
 
   def serialize(flintCommand: FlintCommand): String = {
-    // we only need to modify state and error
     Serialization.write(
-      Map("state" -> flintCommand.state, "error" -> flintCommand.error.getOrElse("")))
+      Map(
+        "state" -> flintCommand.state,
+        "query" -> flintCommand.query,
+        "queryId" -> flintCommand.queryId,
+        "sessionId" -> flintCommand.sessionId,
+        "submitTime" -> flintCommand.submitTime,
+        "queryRunTimeSecs" -> flintCommand.queryRunTimeSecs.getOrElse(null),
+        "dataSource" -> flintCommand.dataSource,
+        "statementId" -> flintCommand.statementId,
+        "flintIndexName" -> flintCommand.flintIndexName.getOrElse(null),
+        "error" -> flintCommand.error.getOrElse(null),
+        "executionContext" -> flintCommand.executionContext.getOrElse(null)))
   }
 }

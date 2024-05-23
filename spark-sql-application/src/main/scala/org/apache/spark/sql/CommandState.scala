@@ -12,7 +12,7 @@ import org.opensearch.flint.core.storage.FlintReader
 case class CommandState(
     recordedLastActivityTime: Long,
     recordedVerificationResult: VerificationResult,
-    flintReader: FlintReader,
-    futureMappingCheck: Future[Either[String, Unit]],
+    commandLifecycleManager: CommandLifecycleManager,
+    futurePrepareCommandExecution: Future[Either[String, Unit]],
     executionContext: ExecutionContextExecutor,
     recordedLastCanPickCheckTime: Long)

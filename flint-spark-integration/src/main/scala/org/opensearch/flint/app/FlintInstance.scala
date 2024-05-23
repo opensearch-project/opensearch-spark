@@ -8,7 +8,6 @@ package org.opensearch.flint.app
 import java.util.{Map => JavaMap}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 import org.json4s.{Formats, JNothing, JNull, NoTypeHints}
 import org.json4s.JsonAST.{JArray, JString}
@@ -25,12 +24,17 @@ class FlintInstance(
     val lastUpdateTime: Long,
     val jobStartTime: Long = 0,
     val excludedJobIds: Seq[String] = Seq.empty[String],
-    val error: Option[String] = None) {
+    val error: Option[String] = None,
+    val currentVersion: Option[Long] = None,
+    val executionContext: Option[Map[String, Any]] = None) {
   override def toString: String = {
     val excludedJobIdsStr = excludedJobIds.mkString("[", ", ", "]")
     val errorStr = error.getOrElse("None")
+    val currentVersionStr = currentVersion.map(_.toString).getOrElse("None")
+    val executionContextStr = executionContext.map(_.toString).getOrElse("None")
     s"FlintInstance(applicationId=$applicationId, jobId=$jobId, sessionId=$sessionId, state=$state, " +
-      s"lastUpdateTime=$lastUpdateTime, jobStartTime=$jobStartTime, excludedJobIds=$excludedJobIdsStr, error=$errorStr)"
+      s"lastUpdateTime=$lastUpdateTime, jobStartTime=$jobStartTime, excludedJobIds=$excludedJobIdsStr, error=$errorStr, " +
+      s"currentVersion=$currentVersionStr, executionContext=$executionContextStr)"
   }
 }
 
@@ -49,19 +53,21 @@ object FlintInstance {
       case JNothing | JNull => 0L // Default value for missing or null jobStartTime
       case value => value.extract[Long]
     }
-    // To handle the possibility of excludeJobIds not being present,
-    // we use extractOpt which gives us an Option[Seq[String]].
-    // If it is not present, it will return None, which we can then
-    // convert to an empty Seq[String] using getOrElse.
-    // Replace extractOpt with jsonOption and map
     val excludeJobIds: Seq[String] = meta \ "excludeJobIds" match {
       case JArray(lst) => lst.map(_.extract[String])
       case _ => Seq.empty[String]
     }
-
     val maybeError: Option[String] = (meta \ "error") match {
       case JString(str) => Some(str)
       case _ => None
+    }
+    val currentVersion: Option[Long] = (meta \ "currentVersion") match {
+      case JNothing | JNull => None
+      case value => Some(value.extract[Long])
+    }
+    val executionContext: Option[Map[String, Any]] = (meta \ "executionContext") match {
+      case JNothing | JNull => None
+      case value => Some(value.extract[Map[String, Any]])
     }
 
     new FlintInstance(
@@ -72,7 +78,9 @@ object FlintInstance {
       lastUpdateTime,
       jobStartTime,
       excludeJobIds,
-      maybeError)
+      maybeError,
+      currentVersion,
+      executionContext)
   }
 
   def deserializeFromMap(source: JavaMap[String, AnyRef]): FlintInstance = {
@@ -104,6 +112,17 @@ object FlintInstance {
       case _ => None
     }
 
+    val currentVersion: Option[Long] = scalaSource.get("currentVersion") match {
+      case Some(value: java.lang.Long) => Some(value.longValue())
+      case _ => None
+    }
+
+    val executionContext: Option[Map[String, Any]] = scalaSource.get("executionContext") match {
+      case Some(map: java.util.Map[_, _]) =>
+        Some(map.asInstanceOf[java.util.Map[String, Any]].asScala.toMap)
+      case _ => None
+    }
+
     // Construct a new FlintInstance with the extracted values.
     new FlintInstance(
       applicationId,
@@ -113,7 +132,9 @@ object FlintInstance {
       lastUpdateTime,
       jobStartTime,
       excludeJobIds,
-      maybeError)
+      maybeError,
+      currentVersion,
+      executionContext)
   }
 
   /**
@@ -148,7 +169,9 @@ object FlintInstance {
       // clients can easily ignore this field if it's not in use, avoiding the need
       // for array parsing logic. This makes the serialized data more straightforward to handle.
       "excludeJobIds" -> job.excludedJobIds.mkString(","),
-      "jobStartTime" -> job.jobStartTime)
+      "jobStartTime" -> job.jobStartTime,
+      "currentVersion" -> job.currentVersion.getOrElse(""),
+      "executionContext" -> job.executionContext.getOrElse(Map.empty[String, Any]))
 
     val resultMap = if (includeJobId) {
       baseMap + ("jobId" -> job.jobId)
