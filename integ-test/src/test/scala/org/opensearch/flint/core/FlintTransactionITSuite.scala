@@ -53,11 +53,11 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     createLatestLogEntry(
       FlintMetadataLogEntry(
         id = testLatestId,
-        seqNo = UNASSIGNED_SEQ_NO,
-        primaryTerm = UNASSIGNED_PRIMARY_TERM,
+        indexName = testFlintIndex,
+        dataSource = testDataSourceName,
         createTime = testCreateTime,
         state = ACTIVE,
-        dataSource = testDataSourceName,
+        Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
         error = ""))
 
     flintMetadataLogService
@@ -113,11 +113,11 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     createLatestLogEntry(
       FlintMetadataLogEntry(
         id = testLatestId,
-        seqNo = UNASSIGNED_SEQ_NO,
-        primaryTerm = UNASSIGNED_PRIMARY_TERM,
+        indexName = testFlintIndex,
+        dataSource = testDataSourceName,
         createTime = 1234567890123L,
         state = ACTIVE,
-        dataSource = testDataSourceName,
+        Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
         error = ""))
 
     flintMetadataLogService
@@ -200,11 +200,11 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     createLatestLogEntry(
       FlintMetadataLogEntry(
         id = testLatestId,
-        seqNo = UNASSIGNED_SEQ_NO,
-        primaryTerm = UNASSIGNED_PRIMARY_TERM,
+        indexName = testFlintIndex,
+        dataSource = testDataSourceName,
         createTime = 1234567890123L,
         state = ACTIVE,
-        dataSource = testDataSourceName,
+        Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
         error = ""))
 
     the[IllegalStateException] thrownBy {

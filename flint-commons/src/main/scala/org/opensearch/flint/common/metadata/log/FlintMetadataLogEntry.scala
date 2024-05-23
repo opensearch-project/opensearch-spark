@@ -5,51 +5,71 @@
 
 package org.opensearch.flint.common.metadata.log
 
+import java.util.{Map => JMap}
+import java.util.Base64
+
+import scala.collection.JavaConverters._
+
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
 
 /**
- * Flint metadata log entry. This is temporary and will merge field in FlintMetadata here and move
- * implementation specific field, such as seqNo, primaryTerm, dataSource to properties.
+ * Flint metadata log entry. This is temporary and will merge field in FlintMetadata here.
  *
  * @param id
  *   log entry id
- * @param seqNo
- *   OpenSearch sequence number
- * @param primaryTerm
- *   OpenSearch primary term
+ * @param indexName
+ *   Flint index name
+ * @param dataSource
+ *   data source associated //TODO: remove?
+ * @param createTime
+ *   streaming job start time
  * @param state
  *   Flint index state
- * @param dataSource
- *   OpenSearch data source associated //TODO: remove?
+ * @param entryVersion
+ *   entry version fields for consistency control
  * @param error
  *   error details if in error state
  */
 case class FlintMetadataLogEntry(
     id: String,
-    seqNo: Long,
-    primaryTerm: Long,
+    indexName: String,
+    dataSource: String,
     /**
      * This is currently used as streaming job start time. In future, this should represent the
      * create timestamp of the log entry
      */
     createTime: Long,
     state: IndexState,
-    dataSource: String,
+    // TODO: consider making EntryVersion class for type check for fields
+    entryVersion: Map[String, _],
     error: String) {
 
-  def this(id: String, seqNo: Long, primaryTerm: Long, map: java.util.Map[String, AnyRef]) {
+  def this(id: String, seqNo: Long, primaryTerm: Long, map: JMap[String, AnyRef]) {
     this(
       id,
-      seqNo,
-      primaryTerm,
+      // TODO: avoid decode
+      new String(Base64.getDecoder().decode(id)),
+      map.get("dataSourceName").asInstanceOf[String],
       /* getSourceAsMap() may use Integer or Long even though it's always long in index mapping */
       map.get("jobStartTime").asInstanceOf[Number].longValue(),
       IndexState.from(map.get("state").asInstanceOf[String]),
-      map.get("dataSourceName").asInstanceOf[String],
+      Map("seqNo" -> seqNo, "primaryTerm" -> primaryTerm),
       map.get("error").asInstanceOf[String])
   }
 
+  def this(
+      id: String,
+      indexName: String,
+      dataSource: String,
+      createTime: Long,
+      state: IndexState,
+      entryVersion: JMap[String, _],
+      error: String) {
+    this(id, indexName, dataSource, createTime, state, entryVersion.asScala.toMap, error)
+  }
+
+  // TODO: storage specific. should move to FlintOpenSearchMetadataLog
   def toJson: String = {
     // Implicitly populate latest appId, jobId and timestamp whenever persist
     s"""
@@ -95,6 +115,7 @@ object FlintMetadataLogEntry {
     }
   }
 
+  // TODO: OpenSearch specific stuff should move to FlintOpenSearchMetadataLog
   val QUERY_EXECUTION_REQUEST_MAPPING: String =
     """{
       |  "dynamic": false,
@@ -152,6 +173,7 @@ object FlintMetadataLogEntry {
       |  }
       |}""".stripMargin
 
+  // TODO: OpenSearch specific stuff should move to FlintOpenSearchMetadataLog
   val QUERY_EXECUTION_REQUEST_SETTINGS: String =
     """{
       |  "index": {

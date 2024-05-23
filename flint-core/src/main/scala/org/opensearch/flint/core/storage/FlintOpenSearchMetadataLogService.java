@@ -48,7 +48,7 @@ public class FlintOpenSearchMetadataLogService implements FlintMetadataLogServic
       String errorMsg = "Metadata log index not found " + metadataLogIndexName;
       throw new IllegalStateException(errorMsg);
     }
-    return new DefaultOptimisticTransaction<>(dataSourceName, metadataLog.get());
+    return new DefaultOptimisticTransaction<>(metadataLog.get());
   }
 
   @Override
