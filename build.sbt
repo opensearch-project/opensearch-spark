@@ -5,7 +5,7 @@
 import Dependencies._
 
 lazy val scala212 = "2.12.14"
-lazy val sparkVersion = "3.4.1"
+lazy val sparkVersion = "3.5.1"
 lazy val opensearchVersion = "2.6.0"
 lazy val icebergVersion = "1.5.0"
 
@@ -14,6 +14,7 @@ val sparkMinorVersion = sparkVersion.split("\\.").take(2).mkString(".")
 
 ThisBuild / organization := "org.opensearch"
 
+// TODO: Bump to 0.4.1 ?
 ThisBuild / version := "0.4.0-SNAPSHOT"
 
 ThisBuild / scalaVersion := scala212
