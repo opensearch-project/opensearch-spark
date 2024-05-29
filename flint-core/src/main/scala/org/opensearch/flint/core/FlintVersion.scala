@@ -18,6 +18,7 @@ object FlintVersion {
   val V_0_2_0: FlintVersion = FlintVersion("0.2.0")
   val V_0_3_0: FlintVersion = FlintVersion("0.3.0")
   val V_0_4_0: FlintVersion = FlintVersion("0.4.0")
+  val V_0_4_1: FlintVersion = FlintVersion("0.4.1")
 
-  def current(): FlintVersion = V_0_4_0
+  def current(): FlintVersion = V_0_4_1
 }
