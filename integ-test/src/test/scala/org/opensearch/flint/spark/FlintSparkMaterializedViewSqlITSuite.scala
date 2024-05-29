@@ -16,7 +16,7 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
-import org.scalatest.matchers.must.Matchers.defined
+import org.scalatest.matchers.must.Matchers.{defined, have}
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
@@ -250,6 +250,26 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     metadata.source shouldBe testQuotedQuery
     metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("start.time", "count")
   }
+
+  Seq(
+    s"SELECT name, name FROM $testTable",
+    s"SELECT name AS dup_col, age AS dup_col FROM $testTable")
+    .foreach { query =>
+      test(s"should fail to create materialized view if duplicate columns in $query") {
+        the[IllegalArgumentException] thrownBy {
+          withTempDir { checkpointDir =>
+            sql(s"""
+               | CREATE MATERIALIZED VIEW $testMvName
+               | AS $query
+               | WITH (
+               |   auto_refresh = true,
+               |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+               | )
+               |""".stripMargin)
+          }
+        } should have message "requirement failed: Duplicate columns found in materialized view query output"
+      }
+    }
 
   test("show all materialized views in catalog and database") {
     // Show in catalog

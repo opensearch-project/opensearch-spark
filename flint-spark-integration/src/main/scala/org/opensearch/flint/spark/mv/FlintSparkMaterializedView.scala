@@ -196,6 +196,22 @@ object FlintSparkMaterializedView {
       this
     }
 
+    override protected def validateIndex(index: FlintSparkIndex): FlintSparkIndex = {
+      /*
+       * Validate if duplicate column names in the output schema.
+       * MV query may be empty in the case of ALTER index statement.
+       */
+      if (query.nonEmpty) {
+        val outputColNames = flint.spark.sql(query).schema.map(_.name)
+        require(
+          outputColNames.distinct.length == outputColNames.length,
+          "Duplicate columns found in materialized view query output")
+      }
+
+      // Continue to perform any additional index validation
+      super.validateIndex(index)
+    }
+
     override protected def buildIndex(): FlintSparkIndex = {
       // TODO: change here and FlintDS class to support complex field type in future
       val outputSchema = flint.spark
