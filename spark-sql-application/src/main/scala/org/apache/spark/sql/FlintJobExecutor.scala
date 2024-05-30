@@ -7,6 +7,8 @@ package org.apache.spark.sql
 
 import java.util.Locale
 
+import scala.collection.JavaConverters._
+
 import com.amazonaws.services.glue.model.{AccessDeniedException, AWSGlueException}
 import com.amazonaws.services.s3.model.AmazonS3Exception
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -177,12 +179,16 @@ trait FlintJobExecutor {
       startTime: Long,
       timeProvider: TimeProvider,
       cleaner: Cleaner): DataFrame = {
-    // Create the schema dataframe
-    val schemaRows = result.schema.fields.map { field =>
-      Row(field.name, field.dataType.typeName)
-    }
+    // collect schema rows as List
+    val schemaRows = result.schema.fields
+      .map { field =>
+        Row(field.name, field.dataType.typeName)
+      }
+      .toList
+      .asJava
+
     val resultSchema = spark.createDataFrame(
-      spark.sparkContext.parallelize(schemaRows),
+      schemaRows,
       StructType(
         Seq(
           StructField("column_name", StringType, nullable = false),
