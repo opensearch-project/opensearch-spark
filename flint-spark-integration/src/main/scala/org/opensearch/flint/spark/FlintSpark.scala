@@ -54,7 +54,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     spark.conf.getOption("spark.flint.datasource.name").getOrElse("")
 
   /** Flint Spark index monitor */
-  private val flintIndexMonitor: FlintSparkIndexMonitor =
+  val flintIndexMonitor: FlintSparkIndexMonitor =
     new FlintSparkIndexMonitor(spark, flintClient, dataSourceName)
 
   /**

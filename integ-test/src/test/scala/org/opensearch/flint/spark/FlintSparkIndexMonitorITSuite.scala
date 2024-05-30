@@ -12,7 +12,6 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{doAnswer, spy}
-import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
 import org.opensearch.action.admin.indices.settings.put.UpdateSettingsRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.flint.OpenSearchTransactionSuite
@@ -105,8 +104,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     spark.streams.active.find(_.name == testFlintIndex).get.stop()
     waitForMonitorTaskRun()
 
-    // Index state transit to failed and task is cancelled
-    latestLogEntry(testLatestId) should contain("state" -> "failed")
+    // Monitor task should be cancelled
     task.isCancelled shouldBe true
   }
 
@@ -148,6 +146,45 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
 
     task.isCancelled shouldBe true
     spark.streams.active.exists(_.name == testFlintIndex) shouldBe false
+  }
+
+  test("await monitor terminated without exception should stay refreshing state") {
+    // Setup a timer to terminate the streaming job
+    new Thread(() => {
+      Thread.sleep(3000L)
+      spark.streams.active.find(_.name == testFlintIndex).get.stop()
+    }).start()
+
+    // Await until streaming job terminated
+    flint.flintIndexMonitor.awaitMonitor()
+
+    // Assert index state is active now
+    val latestLog = latestLogEntry(testLatestId)
+    latestLog should contain("state" -> "refreshing")
+  }
+
+  test("await monitor terminated with exception should update index state to failed") {
+    // Simulate an exception in the streaming job
+    new Thread(() => {
+      Thread.sleep(3000L)
+
+      val settings = Map("index.blocks.write" -> true)
+      val request = new UpdateSettingsRequest(testFlintIndex).settings(settings.asJava)
+      openSearchClient.indices().putSettings(request, RequestOptions.DEFAULT)
+
+      sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=6)
+           | VALUES ('Test', 35, 'Vancouver')
+           | """.stripMargin)
+    }).start()
+
+    // Await until streaming job terminated
+    flint.flintIndexMonitor.awaitMonitor()
+
+    // Assert index state is active now
+    val latestLog = latestLogEntry(testLatestId)
+    latestLog should contain("state" -> "failed")
   }
 
   private def getLatestTimestamp: (Long, Long) = {

@@ -83,6 +83,57 @@ class FlintSparkIndexMonitor(
   }
 
   /**
+   * Waits for the termination of a Spark streaming job associated with a specified index name and
+   * updates the Flint index state based on the outcome of the job.
+   *
+   * @param indexName
+   *   The name of the index to monitor. If none is specified, the method will default to any
+   *   active stream.
+   */
+  def awaitMonitor(indexName: Option[String] = None): Unit = {
+    logInfo(s"Awaiting index monitor for $indexName")
+
+    // Find streaming job for the given index name, otherwise use the first if any
+    val job = indexName
+      .flatMap(name => spark.streams.active.find(_.name == name))
+      .orElse(spark.streams.active.headOption)
+
+    if (job.isDefined) {
+      val name = job.get.name // use streaming job name because indexName maybe None
+      logInfo(s"Awaiting streaming job $name until terminated")
+      try {
+
+        /**
+         * Await termination of the streaming job. Do not transition the index state to ACTIVE
+         * post-termination to prevent conflicts with ongoing transactions in DROP/ALTER API
+         * operations. It's generally expected that the job will be terminated through a DROP or
+         * ALTER operation if no exceptions are thrown.
+         */
+        job.get.awaitTermination()
+        logInfo(s"Streaming job $name terminated without exception")
+      } catch {
+        case e: Throwable =>
+          /**
+           * Transition the index state to FAILED upon encountering an exception.
+           * ```
+           * TODO:
+           * 1) Determine the appropriate state code based on the type of exception encountered
+           * 2) Record and persist the error message of the root cause for further diagnostics.
+           * ```
+           */
+          logError(s"Streaming job $name terminated with exception", e)
+          flintClient
+            .startTransaction(name, dataSourceName)
+            .initialLog(latest => latest.state == REFRESHING)
+            .finalLog(latest => latest.copy(state = FAILED))
+            .commit(_ => {})
+      }
+    } else {
+      logInfo(s"Index monitor for [$indexName] not found")
+    }
+  }
+
+  /**
    * Index monitor task that encapsulates the execution logic with number of consecutive error
    * tracked.
    *
@@ -106,12 +157,6 @@ class FlintSparkIndexMonitor(
             .commit(_ => {})
         } else {
           logError("Streaming job is not active. Cancelling monitor task")
-          flintClient
-            .startTransaction(indexName, dataSourceName)
-            .initialLog(_ => true)
-            .finalLog(latest => latest.copy(state = FAILED))
-            .commit(_ => {})
-
           stopMonitor(indexName)
           logInfo("Index monitor task is cancelled")
         }
