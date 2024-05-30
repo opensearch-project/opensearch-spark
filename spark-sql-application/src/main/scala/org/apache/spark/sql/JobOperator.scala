@@ -14,7 +14,7 @@ import scala.util.{Failure, Success, Try}
 
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
-import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndexMonitor}
+import org.opensearch.flint.spark.FlintSpark
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -94,6 +94,13 @@ case class JobOperator(
         spark.streams.addListener(new ShuffleCleaner(spark))
         // Await streaming job thread to finish before the main thread terminates
         new FlintSpark(spark).flintIndexMonitor.awaitMonitor()
+      } else {
+        logInfo(s"""
+           | Skip streaming job await due to conditions not met:
+           |  - exceptionThrown: $exceptionThrown
+           |  - streaming: $streaming
+           |  - activeStreams: ${spark.streams.active.mkString(",")}
+           |""".stripMargin)
       }
     } catch {
       case e: Exception => logError("streaming job failed", e)
@@ -123,8 +130,9 @@ case class JobOperator(
 
   def stop(): Unit = {
     Try {
+      logInfo("Stopping Spark session")
       spark.stop()
-      logInfo("stopped spark session")
+      logInfo("Stopped Spark session")
     } match {
       case Success(_) =>
       case Failure(e) => logError("unexpected error while stopping spark session", e)

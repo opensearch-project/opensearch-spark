@@ -20,6 +20,7 @@ import org.scalatest.matchers.must.Matchers.{defined, have}
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.util.MockEnvironment
 import org.apache.spark.util.ThreadUtils
 
@@ -72,6 +73,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     val streamingRunningCount = new AtomicInteger(0)
 
     val futureResult = Future {
+      spark.conf.set(FlintSparkConf.JOB_TYPE.key, "streaming")
       val job =
         JobOperator(spark, query, dataSourceName, resultIndex, true, streamingRunningCount)
       job.envinromentProvider = new MockEnvironment(
