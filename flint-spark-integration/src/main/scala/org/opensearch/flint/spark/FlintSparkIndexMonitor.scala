@@ -5,11 +5,16 @@
 
 package org.opensearch.flint.spark
 
+import java.time.Duration
+import java.util.Collections.singletonList
 import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import scala.collection.concurrent.{Map, TrieMap}
 import scala.sys.addShutdownHook
 
+import dev.failsafe.{Failsafe, RetryPolicy}
+import dev.failsafe.event.ExecutionAttemptedEvent
+import dev.failsafe.function.CheckedRunnable
 import org.opensearch.flint.core.FlintClient
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.{FAILED, REFRESHING}
 import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
@@ -122,11 +127,13 @@ class FlintSparkIndexMonitor(
            * ```
            */
           logError(s"Streaming job $name terminated with exception", e)
-          flintClient
-            .startTransaction(name, dataSourceName)
-            .initialLog(latest => latest.state == REFRESHING)
-            .finalLog(latest => latest.copy(state = FAILED))
-            .commit(_ => {})
+          retry {
+            flintClient
+              .startTransaction(name, dataSourceName)
+              .initialLog(latest => latest.state == REFRESHING)
+              .finalLog(latest => latest.copy(state = FAILED))
+              .commit(_ => {})
+          }
       }
     } else {
       logInfo(s"Index monitor for [$indexName] not found")
@@ -188,6 +195,25 @@ class FlintSparkIndexMonitor(
     } else {
       logWarning("Refreshing job not found")
     }
+  }
+
+  private def retry(operation: => Unit): Unit = {
+    // Retry policy for 3 times every 1 second
+    val retryPolicy = RetryPolicy
+      .builder[Unit]()
+      .handle(classOf[Throwable])
+      .withDelay(Duration.ofSeconds(1))
+      .withMaxRetries(3)
+      .onFailedAttempt((event: ExecutionAttemptedEvent[Unit]) =>
+        logError("Attempt to update index state failed: " + event))
+      .build()
+
+    // Use the retry policy with Failsafe
+    Failsafe
+      .`with`(singletonList(retryPolicy))
+      .run(new CheckedRunnable {
+        override def run(): Unit = operation
+      })
   }
 }
 

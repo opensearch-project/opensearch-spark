@@ -42,6 +42,10 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     super.beforeAll()
     // initialized after the container is started
     osClient = new OSClient(new FlintOptions(openSearchOptions.asJava))
+  }
+
+  protected override def beforeEach(): Unit = {
+    super.beforeEach()
     createPartitionedMultiRowAddressTable(testTable)
   }
 
@@ -49,8 +53,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     super.afterEach()
 
     deleteTestIndex(testIndex)
-
-    waitJobStop(threadLocalFuture.get())
+    sql(s"DROP TABLE $testTable")
 
     threadLocalFuture.remove()
   }
@@ -160,8 +163,10 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     threadLocalFuture.set(startJob(query, jobRunId))
 
     // Waiting from streaming job start and complete current batch
+    Thread.sleep(5000L)
     pollForResultAndAssert(_ => true, jobRunId)
     val activeJob = spark.streams.active.find(_.name == testIndex)
+    activeJob shouldBe defined
     awaitStreamingComplete(activeJob.get.id.toString)
 
     try {
@@ -181,7 +186,8 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
         case _: Exception => // expected
       }
 
-      // Assert Flint index transitioned to FAILED state
+      // Assert Flint index transitioned to FAILED state after waiting seconds
+      Thread.sleep(2000L)
       val latestId = Base64.getEncoder.encodeToString(testIndex.getBytes)
       latestLogEntry(latestId) should contain("state" -> "failed")
     } finally {
