@@ -152,23 +152,22 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     val query =
       s"""
          | CREATE SKIPPING INDEX ON $testTable
-         | (
-         |   year PARTITION,
-         |   name VALUE_SET,
-         |   age MIN_MAX
-         | )
+         | ( year PARTITION )
          | WITH (auto_refresh = true)
          | """.stripMargin
     val jobRunId = "00ff4o3b5091080q"
     threadLocalFuture.set(startJob(query, jobRunId))
 
-    // Waiting from streaming job start and complete current batch
+    // Waiting from streaming job start and complete current batch in Future thread in startJob
+    // Otherwise, active job will be None here
     Thread.sleep(5000L)
     pollForResultAndAssert(_ => true, jobRunId)
     val activeJob = spark.streams.active.find(_.name == testIndex)
     activeJob shouldBe defined
     awaitStreamingComplete(activeJob.get.id.toString)
 
+    // Wait in case JobOperator has not reached condition check before awaitTermination
+    Thread.sleep(5000L)
     try {
       // Set Flint index readonly to simulate streaming job exception
       setFlintIndexReadOnly(true)
@@ -328,6 +327,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
   }
 
   private def setFlintIndexReadOnly(readonly: Boolean): Unit = {
+    logInfo(s"Updating index $testIndex setting with readonly [$readonly]")
     openSearchClient
       .indices()
       .putSettings(

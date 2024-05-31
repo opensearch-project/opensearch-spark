@@ -103,7 +103,7 @@ class FlintSparkIndexMonitor(
       .flatMap(name => spark.streams.active.find(_.name == name))
       .orElse(spark.streams.active.headOption)
 
-    if (job.isDefined) {
+    if (job.isDefined) { // must be present after DataFrameWriter.start() called in refreshIndex API
       val name = job.get.name // use streaming job name because indexName maybe None
       logInfo(s"Awaiting streaming job $name until terminated")
       try {
