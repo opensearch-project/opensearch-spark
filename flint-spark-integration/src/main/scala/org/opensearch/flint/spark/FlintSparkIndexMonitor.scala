@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark
 
 import java.time.Duration
+import java.time.temporal.ChronoUnit.SECONDS
 import java.util.Collections.singletonList
 import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
@@ -119,7 +120,8 @@ class FlintSparkIndexMonitor(
       } catch {
         case e: Throwable =>
           /**
-           * Transition the index state to FAILED upon encountering an exception.
+           * Transition the index state to FAILED upon encountering an exception. Retry in case
+           * conflicts with final transaction in scheduled task.
            * ```
            * TODO:
            * 1) Determine the appropriate state code based on the type of exception encountered
@@ -202,7 +204,8 @@ class FlintSparkIndexMonitor(
     val retryPolicy = RetryPolicy
       .builder[Unit]()
       .handle(classOf[Throwable])
-      .withDelay(Duration.ofSeconds(1))
+      .withBackoff(1, 30, SECONDS)
+      .withJitter(Duration.ofMillis(100))
       .withMaxRetries(3)
       .onFailedAttempt((event: ExecutionAttemptedEvent[Unit]) =>
         logError("Attempt to update index state failed: " + event))

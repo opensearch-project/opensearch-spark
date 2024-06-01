@@ -84,7 +84,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
        * all Spark conf required by Flint code underlying manually.
        */
       spark.conf.set(DATA_SOURCE_NAME.key, dataSourceName)
-      spark.conf.set(JOB_TYPE.key, "batch")
+      spark.conf.set(JOB_TYPE.key, "streaming")
 
       /**
        * FlintJob.main() is not called because we need to manually set these variables within a
