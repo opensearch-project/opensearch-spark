@@ -5,11 +5,17 @@
 
 package org.opensearch.flint.spark
 
+import java.time.Duration
+import java.time.temporal.ChronoUnit.SECONDS
+import java.util.Collections.singletonList
 import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import scala.collection.concurrent.{Map, TrieMap}
 import scala.sys.addShutdownHook
 
+import dev.failsafe.{Failsafe, RetryPolicy}
+import dev.failsafe.event.ExecutionAttemptedEvent
+import dev.failsafe.function.CheckedRunnable
 import org.opensearch.flint.core.FlintClient
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.{FAILED, REFRESHING}
 import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
@@ -83,6 +89,60 @@ class FlintSparkIndexMonitor(
   }
 
   /**
+   * Waits for the termination of a Spark streaming job associated with a specified index name and
+   * updates the Flint index state based on the outcome of the job.
+   *
+   * @param indexName
+   *   The name of the index to monitor. If none is specified, the method will default to any
+   *   active stream.
+   */
+  def awaitMonitor(indexName: Option[String] = None): Unit = {
+    logInfo(s"Awaiting index monitor for $indexName")
+
+    // Find streaming job for the given index name, otherwise use the first if any
+    val job = indexName
+      .flatMap(name => spark.streams.active.find(_.name == name))
+      .orElse(spark.streams.active.headOption)
+
+    if (job.isDefined) { // must be present after DataFrameWriter.start() called in refreshIndex API
+      val name = job.get.name // use streaming job name because indexName maybe None
+      logInfo(s"Awaiting streaming job $name until terminated")
+      try {
+
+        /**
+         * Await termination of the streaming job. Do not transition the index state to ACTIVE
+         * post-termination to prevent conflicts with ongoing transactions in DROP/ALTER API
+         * operations. It's generally expected that the job will be terminated through a DROP or
+         * ALTER operation if no exceptions are thrown.
+         */
+        job.get.awaitTermination()
+        logInfo(s"Streaming job $name terminated without exception")
+      } catch {
+        case e: Throwable =>
+          /**
+           * Transition the index state to FAILED upon encountering an exception. Retry in case
+           * conflicts with final transaction in scheduled task.
+           * ```
+           * TODO:
+           * 1) Determine the appropriate state code based on the type of exception encountered
+           * 2) Record and persist the error message of the root cause for further diagnostics.
+           * ```
+           */
+          logError(s"Streaming job $name terminated with exception", e)
+          retry {
+            flintClient
+              .startTransaction(name, dataSourceName)
+              .initialLog(latest => latest.state == REFRESHING)
+              .finalLog(latest => latest.copy(state = FAILED))
+              .commit(_ => {})
+          }
+      }
+    } else {
+      logInfo(s"Index monitor for [$indexName] not found")
+    }
+  }
+
+  /**
    * Index monitor task that encapsulates the execution logic with number of consecutive error
    * tracked.
    *
@@ -106,12 +166,6 @@ class FlintSparkIndexMonitor(
             .commit(_ => {})
         } else {
           logError("Streaming job is not active. Cancelling monitor task")
-          flintClient
-            .startTransaction(indexName, dataSourceName)
-            .initialLog(_ => true)
-            .finalLog(latest => latest.copy(state = FAILED))
-            .commit(_ => {})
-
           stopMonitor(indexName)
           logInfo("Index monitor task is cancelled")
         }
@@ -143,6 +197,26 @@ class FlintSparkIndexMonitor(
     } else {
       logWarning("Refreshing job not found")
     }
+  }
+
+  private def retry(operation: => Unit): Unit = {
+    // Retry policy for 3 times every 1 second
+    val retryPolicy = RetryPolicy
+      .builder[Unit]()
+      .handle(classOf[Throwable])
+      .withBackoff(1, 30, SECONDS)
+      .withJitter(Duration.ofMillis(100))
+      .withMaxRetries(3)
+      .onFailedAttempt((event: ExecutionAttemptedEvent[Unit]) =>
+        logError("Attempt to update index state failed: " + event))
+      .build()
+
+    // Use the retry policy with Failsafe
+    Failsafe
+      .`with`(singletonList(retryPolicy))
+      .run(new CheckedRunnable {
+        override def run(): Unit = operation
+      })
   }
 }
 
