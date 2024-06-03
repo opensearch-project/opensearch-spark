@@ -56,7 +56,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     spark.conf.getOption("spark.flint.datasource.name").getOrElse("")
 
   /** Flint Spark index monitor */
-  private val flintIndexMonitor: FlintSparkIndexMonitor =
+  val flintIndexMonitor: FlintSparkIndexMonitor =
     new FlintSparkIndexMonitor(spark, flintClient, dataSourceName)
 
   /**
@@ -231,7 +231,8 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     withTransaction[Boolean](indexName, s"Delete Flint index $indexName") { tx =>
       if (flintClient.exists(indexName)) {
         tx
-          .initialLog(latest => latest.state == ACTIVE || latest.state == REFRESHING)
+          .initialLog(latest =>
+            latest.state == ACTIVE || latest.state == REFRESHING || latest.state == FAILED)
           .transientLog(latest => latest.copy(state = DELETING))
           .finalLog(latest => latest.copy(state = DELETED))
           .commit(_ => {
