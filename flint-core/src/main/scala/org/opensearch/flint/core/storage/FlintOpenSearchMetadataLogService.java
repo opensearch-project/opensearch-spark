@@ -88,8 +88,8 @@ public class FlintOpenSearchMetadataLogService implements FlintMetadataLogServic
     LOG.info("Initializing metadata log index " + metadataLogIndexName);
     try (IRestHighLevelClient client = createOpenSearchClient()) {
       CreateIndexRequest request = new CreateIndexRequest(metadataLogIndexName);
-      request.mapping(FlintMetadataLogEntry.QUERY_EXECUTION_REQUEST_MAPPING(), XContentType.JSON);
-      request.settings(FlintMetadataLogEntry.QUERY_EXECUTION_REQUEST_SETTINGS(), XContentType.JSON);
+      request.mapping(FlintOpenSearchMetadataLogEntryStorageUtils.QUERY_EXECUTION_REQUEST_MAPPING, XContentType.JSON);
+      request.settings(FlintOpenSearchMetadataLogEntryStorageUtils.QUERY_EXECUTION_REQUEST_SETTINGS, XContentType.JSON);
       client.createIndex(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to initialize metadata log index " + metadataLogIndexName, e);

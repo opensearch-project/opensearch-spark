@@ -86,7 +86,6 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
       initialLog = initialLog.copy(
           initialLog.id(),
           initialLog.indexName(),
-          initialLog.dataSource(),
           initialLog.createTime(),
           initialLog.state(),
           latest.entryVersion(),

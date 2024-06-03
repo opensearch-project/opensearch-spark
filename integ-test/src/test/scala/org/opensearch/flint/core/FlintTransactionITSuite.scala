@@ -40,7 +40,6 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         latest.id shouldBe testLatestId
         latest.state shouldBe EMPTY
         latest.createTime shouldBe 0L
-        latest.dataSource shouldBe testDataSourceName
         latest.error shouldBe ""
         true
       })
@@ -54,7 +53,6 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       FlintMetadataLogEntry(
         id = testLatestId,
         indexName = testFlintIndex,
-        dataSource = testDataSourceName,
         createTime = testCreateTime,
         state = ACTIVE,
         Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
@@ -65,7 +63,6 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       .initialLog(latest => {
         latest.id shouldBe testLatestId
         latest.createTime shouldBe testCreateTime
-        latest.dataSource shouldBe testDataSourceName
         latest.error shouldBe ""
         true
       })
@@ -74,7 +71,6 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       .commit(latest => {
         latest.id shouldBe testLatestId
         latest.createTime shouldBe testCreateTime
-        latest.dataSource shouldBe testDataSourceName
         latest.error shouldBe ""
       })
 
@@ -114,7 +110,6 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       FlintMetadataLogEntry(
         id = testLatestId,
         indexName = testFlintIndex,
-        dataSource = testDataSourceName,
         createTime = 1234567890123L,
         state = ACTIVE,
         Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
@@ -201,7 +196,6 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       FlintMetadataLogEntry(
         id = testLatestId,
         indexName = testFlintIndex,
-        dataSource = testDataSourceName,
         createTime = 1234567890123L,
         state = ACTIVE,
         Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
@@ -243,7 +237,6 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         latest.id shouldBe testLatestId
         latest.state shouldBe EMPTY
         latest.createTime shouldBe 0L
-        latest.dataSource shouldBe testDataSourceName
         latest.error shouldBe ""
         true
       })
