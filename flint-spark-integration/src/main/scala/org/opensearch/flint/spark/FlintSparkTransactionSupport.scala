@@ -47,7 +47,7 @@ trait FlintSparkTransactionSupport { self: Logging =>
    */
   def withTransaction[T](indexName: String, opName: String, forceInit: Boolean = false)(
       opBlock: OptimisticTransaction[T] => T): T = {
-    logInfo(s"Starting index operation [$opName] with forceInit=$forceInit")
+    logInfo(s"Starting index operation [$opName for $indexName] with forceInit=$forceInit")
     try {
       // Create transaction (only have side effect if forceInit is true)
       val tx: OptimisticTransaction[T] =

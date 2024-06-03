@@ -99,7 +99,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
    */
   def createIndex(index: FlintSparkIndex, ignoreIfExists: Boolean = false): Unit = {
     val indexName = index.name()
-    val opName = s"Create Flint index $indexName with ignoreIfExists $ignoreIfExists"
+    val opName = s"Create Flint index with ignoreIfExists $ignoreIfExists"
     withTransaction[Unit](indexName, opName, forceInit = true) { tx =>
       if (flintClient.exists(indexName)) {
         if (!ignoreIfExists) {
@@ -131,7 +131,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
    *   refreshing job ID (empty if batch job for now)
    */
   def refreshIndex(indexName: String): Option[String] =
-    withTransaction[Option[String]](indexName, s"Refresh Flint index $indexName") { tx =>
+    withTransaction[Option[String]](indexName, "Refresh Flint index") { tx =>
       val index = describeIndex(indexName)
         .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
       val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
@@ -210,7 +210,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         .options,
       index.options)
 
-    withTransaction[Option[String]](indexName, s"Update Flint index $indexName") { tx =>
+    withTransaction[Option[String]](indexName, "Update Flint index") { tx =>
       // Relies on validation to forbid auto-to-auto and manual-to-manual updates
       index.options.autoRefresh() match {
         case true => updateIndexManualToAuto(index, tx)
@@ -228,7 +228,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
    *   true if exist and deleted, otherwise false
    */
   def deleteIndex(indexName: String): Boolean =
-    withTransaction[Boolean](indexName, s"Delete Flint index $indexName") { tx =>
+    withTransaction[Boolean](indexName, "Delete Flint index") { tx =>
       if (flintClient.exists(indexName)) {
         tx
           .initialLog(latest =>
@@ -256,7 +256,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
    *   true if exist and deleted, otherwise false
    */
   def vacuumIndex(indexName: String): Boolean =
-    withTransaction[Boolean](indexName, s"Vacuum Flint index $indexName") { tx =>
+    withTransaction[Boolean](indexName, "Vacuum Flint index") { tx =>
       if (flintClient.exists(indexName)) {
         tx
           .initialLog(latest => latest.state == DELETED)
@@ -279,7 +279,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
    *   index name
    */
   def recoverIndex(indexName: String): Boolean =
-    withTransaction[Boolean](indexName, s"Recover Flint index $indexName") { tx =>
+    withTransaction[Boolean](indexName, "Recover Flint index") { tx =>
       val index = describeIndex(indexName)
       if (index.exists(_.options.autoRefresh())) {
         tx

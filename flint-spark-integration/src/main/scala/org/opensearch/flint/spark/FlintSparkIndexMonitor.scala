@@ -37,9 +37,10 @@ import org.apache.spark.sql.flint.newDaemonThreadPoolScheduledExecutor
  */
 class FlintSparkIndexMonitor(
     spark: SparkSession,
-    flintClient: FlintClient,
-    dataSourceName: String)
-    extends Logging {
+    override val flintClient: FlintClient,
+    override val dataSourceName: String)
+    extends FlintSparkTransactionSupport
+    with Logging {
 
   /** Task execution initial delay in seconds */
   private val INITIAL_DELAY_SECONDS = FlintSparkConf().monitorInitialDelaySeconds()
@@ -130,11 +131,13 @@ class FlintSparkIndexMonitor(
            */
           logError(s"Streaming job $name terminated with exception", e)
           retry {
-            flintClient
-              .startTransaction(name, dataSourceName)
-              .initialLog(latest => latest.state == REFRESHING)
-              .finalLog(latest => latest.copy(state = FAILED))
-              .commit(_ => {})
+            withTransaction[Unit](name, "Monitor index job") { tx =>
+              flintClient
+                .startTransaction(name, dataSourceName)
+                .initialLog(latest => latest.state == REFRESHING)
+                .finalLog(latest => latest.copy(state = FAILED))
+                .commit(_ => {})
+            }
           }
       }
     } else {
@@ -155,15 +158,15 @@ class FlintSparkIndexMonitor(
     private var errorCnt = 0
 
     override def run(): Unit = {
-      logInfo(s"Scheduler trigger index monitor task for $indexName")
       try {
         if (isStreamingJobActive(indexName)) {
           logInfo("Streaming job is still active")
-          flintClient
-            .startTransaction(indexName, dataSourceName)
-            .initialLog(latest => latest.state == REFRESHING)
-            .finalLog(latest => latest) // timestamp will update automatically
-            .commit(_ => {})
+          withTransaction[Unit](indexName, "Monitor index job") { tx =>
+            tx
+              .initialLog(latest => latest.state == REFRESHING)
+              .finalLog(latest => latest) // timestamp will update automatically
+              .commit(_ => {})
+          }
         } else {
           logError("Streaming job is not active. Cancelling monitor task")
           stopMonitor(indexName)
