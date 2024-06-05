@@ -3,13 +3,38 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.app
+package org.opensearch.flint.data
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.JsonAST.JString
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 
+object CommandStates {
+  val Running = "running"
+  val Success = "success"
+  val Failed = "failed"
+  val Waiting = "waiting"
+}
+
+/**
+ * Represents a command processed in the Flint job.
+ *
+ * @param state
+ *   The current state of the command.
+ * @param query
+ *   SQL-like query string that the command will execute.
+ * @param statementId
+ *   Unique identifier for the type of statement.
+ * @param queryId
+ *   Unique identifier for the query.
+ * @param submitTime
+ *   Timestamp when the command was submitted.
+ * @param error
+ *   Optional error message if the command fails.
+ * @param commandContext
+ *   Additional context for the command as key-value pairs.
+ */
 class FlintCommand(
     var state: String,
     val query: String,
@@ -17,38 +42,22 @@ class FlintCommand(
     val statementId: String,
     val queryId: String,
     val submitTime: Long,
-    var error: Option[String] = None) {
-  def running(): Unit = {
-    state = "running"
-  }
+    var error: Option[String] = None,
+    commandContext: Map[String, Any] = Map.empty[String, Any])
+    extends ContextualData {
+  context = commandContext
 
-  def complete(): Unit = {
-    state = "success"
-  }
+  def running(): Unit = state = CommandStates.Running
+  def complete(): Unit = state = CommandStates.Success
+  def fail(): Unit = state = CommandStates.Failed
+  def isRunning: Boolean = state == CommandStates.Running
+  def isComplete: Boolean = state == CommandStates.Success
+  def isFailed: Boolean = state == CommandStates.Failed
+  def isWaiting: Boolean = state == CommandStates.Waiting
 
-  def fail(): Unit = {
-    state = "failed"
-  }
-
-  def isRunning(): Boolean = {
-    state == "running"
-  }
-
-  def isComplete(): Boolean = {
-    state == "success"
-  }
-
-  def isFailed(): Boolean = {
-    state == "failed"
-  }
-
-  def isWaiting(): Boolean = {
-    state == "waiting"
-  }
-
-  override def toString: String = {
+  // Does not include context, which could contain sensitive information.
+  override def toString: String =
     s"FlintCommand(state=$state, query=$query, statementId=$statementId, queryId=$queryId, submitTime=$submitTime, error=$error)"
-  }
 }
 
 object FlintCommand {

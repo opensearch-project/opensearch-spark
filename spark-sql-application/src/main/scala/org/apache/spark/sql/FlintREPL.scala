@@ -18,13 +18,13 @@ import com.codahale.metrics.Timer
 import org.json4s.native.Serialization
 import org.opensearch.action.get.GetResponse
 import org.opensearch.common.Strings
-import org.opensearch.flint.app.{FlintCommand, FlintInstance}
-import org.opensearch.flint.app.FlintInstance.formats
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
+import org.opensearch.flint.data.{FlintCommand, InteractiveSession}
+import org.opensearch.flint.data.InteractiveSession.formats
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.SparkConf
@@ -411,7 +411,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       excludeJobIds: Seq[String] = Seq.empty[String]): Unit = {
     val includeJobId = !excludeJobIds.isEmpty && !excludeJobIds.contains(jobId)
     val currentTime = currentTimeProvider.currentEpochMillis()
-    val flintJob = new FlintInstance(
+    val flintJob = new InteractiveSession(
       applicationId,
       jobId,
       sessionId,
@@ -421,9 +421,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
       excludeJobIds)
 
     val serializedFlintInstance = if (includeJobId) {
-      FlintInstance.serialize(flintJob, currentTime, true)
+      InteractiveSession.serialize(flintJob, currentTime, true)
     } else {
-      FlintInstance.serializeWithoutJobId(flintJob, currentTime)
+      InteractiveSession.serializeWithoutJobId(flintJob, currentTime)
     }
     flintSessionIndexUpdater.upsert(sessionId, serializedFlintInstance)
     logInfo(
@@ -456,11 +456,11 @@ object FlintREPL extends Logging with FlintJobExecutor {
   private def getExistingFlintInstance(
       osClient: OSClient,
       sessionIndex: String,
-      sessionId: String): Option[FlintInstance] = Try(
+      sessionId: String): Option[InteractiveSession] = Try(
     osClient.getDoc(sessionIndex, sessionId)) match {
     case Success(getResponse) if getResponse.isExists() =>
       Option(getResponse.getSourceAsMap)
-        .map(FlintInstance.deserializeFromMap)
+        .map(InteractiveSession.deserializeFromMap)
     case Failure(exception) =>
       CustomLogging.logError(
         s"Failed to retrieve existing FlintInstance: ${exception.getMessage}",
@@ -474,7 +474,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       jobId: String,
       sessionId: String,
       jobStartTime: Long,
-      errorMessage: String): FlintInstance = new FlintInstance(
+      errorMessage: String): InteractiveSession = new InteractiveSession(
     applicationId,
     jobId,
     sessionId,
@@ -484,13 +484,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
     error = Some(errorMessage))
 
   private def updateFlintInstance(
-      flintInstance: FlintInstance,
+      flintInstance: InteractiveSession,
       flintSessionIndexUpdater: OpenSearchUpdater,
       sessionId: String): Unit = {
     val currentTime = currentTimeProvider.currentEpochMillis()
     flintSessionIndexUpdater.upsert(
       sessionId,
-      FlintInstance.serializeWithoutJobId(flintInstance, currentTime))
+      InteractiveSession.serializeWithoutJobId(flintInstance, currentTime))
   }
 
   /**
@@ -622,7 +622,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       statementTimerContext: Timer.Context): Unit = {
     try {
       dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
-      if (flintCommand.isRunning() || flintCommand.isWaiting()) {
+      if (flintCommand.isRunning || flintCommand.isWaiting) {
         // we have set failed state in exception handling
         flintCommand.complete()
       }
@@ -932,11 +932,11 @@ object FlintREPL extends Logging with FlintJobExecutor {
       flintSessionIndexUpdater: OpenSearchUpdater,
       sessionId: String,
       sessionTimerContext: Timer.Context): Unit = {
-    val flintInstance = FlintInstance.deserializeFromMap(source)
+    val flintInstance = InteractiveSession.deserializeFromMap(source)
     flintInstance.state = "dead"
     flintSessionIndexUpdater.updateIf(
       sessionId,
-      FlintInstance.serializeWithoutJobId(
+      InteractiveSession.serializeWithoutJobId(
         flintInstance,
         currentTimeProvider.currentEpochMillis()),
       getResponse.getSeqNo,
@@ -1137,9 +1137,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
     if (statementRunningCount.get() > 0) {
       statementRunningCount.decrementAndGet()
     }
-    if (flintCommand.isComplete()) {
+    if (flintCommand.isComplete) {
       incrementCounter(MetricConstants.STATEMENT_SUCCESS_METRIC)
-    } else if (flintCommand.isFailed()) {
+    } else if (flintCommand.isFailed) {
       incrementCounter(MetricConstants.STATEMENT_FAILED_METRIC)
     }
   }

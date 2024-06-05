@@ -15,9 +15,9 @@ import scala.util.control.Breaks.{break, breakable}
 
 import org.opensearch.OpenSearchStatusException
 import org.opensearch.flint.OpenSearchSuite
-import org.opensearch.flint.app.{FlintCommand, FlintInstance}
 import org.opensearch.flint.core.{FlintClient, FlintOptions}
 import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintReader, OpenSearchUpdater}
+import org.opensearch.flint.data.{FlintCommand, InteractiveSession}
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.SparkFunSuite
@@ -559,15 +559,15 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
   }
 
   def awaitConditionForSessionOrTimeout(
-      expected: FlintInstance => Boolean,
+      expected: InteractiveSession => Boolean,
       sessionId: String): Boolean = {
-    awaitConditionOrTimeout[FlintInstance](
+    awaitConditionOrTimeout[InteractiveSession](
       osClient,
       expected,
       sessionId,
       10000,
       requestIndex,
-      FlintInstance.deserialize,
+      InteractiveSession.deserialize,
       "session")
   }
 }

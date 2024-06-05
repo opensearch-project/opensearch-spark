@@ -3,42 +3,78 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.app
+package org.opensearch.flint.data
 
 import java.util.{Map => JavaMap}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 import org.json4s.{Formats, JNothing, JNull, NoTypeHints}
 import org.json4s.JsonAST.{JArray, JString}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 
-// lastUpdateTime is added to FlintInstance to track the last update time of the instance. Its unit is millisecond.
-class FlintInstance(
+object SessionStates {
+  val Running = "running"
+  val Complete = "complete"
+  val Failed = "failed"
+  val Waiting = "waiting"
+}
+
+/**
+ * Represents an interactive session for job and state management.
+ *
+ * @param applicationId
+ *   Unique identifier for the EMR-S application.
+ * @param jobId
+ *   Identifier for the specific EMR-S job.
+ * @param sessionId
+ *   Unique session identifier.
+ * @param state
+ *   Current state of the session.
+ * @param lastUpdateTime
+ *   Timestamp of the last update.
+ * @param jobStartTime
+ *   Start time of the job.
+ * @param excludedJobIds
+ *   List of job IDs that are excluded.
+ * @param error
+ *   Optional error message.
+ * @param sessionContext
+ *   Additional context for the session.
+ */
+class InteractiveSession(
     val applicationId: String,
     val jobId: String,
-    // sessionId is the session type doc id
     val sessionId: String,
     var state: String,
     val lastUpdateTime: Long,
     val jobStartTime: Long = 0,
     val excludedJobIds: Seq[String] = Seq.empty[String],
-    val error: Option[String] = None) {
+    val error: Option[String] = None,
+    sessionContext: Map[String, Any] = Map.empty[String, Any])
+    extends ContextualData {
+  context = sessionContext // Initialize the context from the constructor
+
+  def isRunning: Boolean = state == SessionStates.Running
+  def isComplete: Boolean = state == SessionStates.Complete
+  def isFailed: Boolean = state == SessionStates.Failed
+  def isWaiting: Boolean = state == SessionStates.Waiting
+
   override def toString: String = {
     val excludedJobIdsStr = excludedJobIds.mkString("[", ", ", "]")
     val errorStr = error.getOrElse("None")
+    // Does not include context, which could contain sensitive information.
     s"FlintInstance(applicationId=$applicationId, jobId=$jobId, sessionId=$sessionId, state=$state, " +
       s"lastUpdateTime=$lastUpdateTime, jobStartTime=$jobStartTime, excludedJobIds=$excludedJobIdsStr, error=$errorStr)"
   }
 }
 
-object FlintInstance {
+object InteractiveSession {
 
   implicit val formats: Formats = Serialization.formats(NoTypeHints)
 
-  def deserialize(job: String): FlintInstance = {
+  def deserialize(job: String): InteractiveSession = {
     val meta = parse(job)
     val applicationId = (meta \ "applicationId").extract[String]
     val state = (meta \ "state").extract[String]
@@ -64,7 +100,7 @@ object FlintInstance {
       case _ => None
     }
 
-    new FlintInstance(
+    new InteractiveSession(
       applicationId,
       jobId,
       sessionId,
@@ -75,7 +111,7 @@ object FlintInstance {
       maybeError)
   }
 
-  def deserializeFromMap(source: JavaMap[String, AnyRef]): FlintInstance = {
+  def deserializeFromMap(source: JavaMap[String, AnyRef]): InteractiveSession = {
     // Since we are dealing with JavaMap, we convert it to a Scala mutable Map for ease of use.
     val scalaSource = source.asScala
 
@@ -105,7 +141,7 @@ object FlintInstance {
     }
 
     // Construct a new FlintInstance with the extracted values.
-    new FlintInstance(
+    new InteractiveSession(
       applicationId,
       jobId,
       sessionId,
@@ -133,7 +169,10 @@ object FlintInstance {
    * @return
    *   serialized Flint session
    */
-  def serialize(job: FlintInstance, currentTime: Long, includeJobId: Boolean = true): String = {
+  def serialize(
+      job: InteractiveSession,
+      currentTime: Long,
+      includeJobId: Boolean = true): String = {
     val baseMap = Map(
       "type" -> "session",
       "sessionId" -> job.sessionId,
@@ -159,7 +198,7 @@ object FlintInstance {
     Serialization.write(resultMap)
   }
 
-  def serializeWithoutJobId(job: FlintInstance, currentTime: Long): String = {
+  def serializeWithoutJobId(job: InteractiveSession, currentTime: Long): String = {
     serialize(job, currentTime, includeJobId = false)
   }
 }
