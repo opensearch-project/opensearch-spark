@@ -89,7 +89,7 @@ case class JobOperator(
 
     try {
       // Wait for streaming job complete if no error and there is streaming job running
-      if (!exceptionThrown && streaming && spark.streams.active.nonEmpty) {
+      if (!exceptionThrown && streaming) {
         // Clean Spark shuffle data after each microBatch.
         spark.streams.addListener(new ShuffleCleaner(spark))
         // Await streaming job thread to finish before the main thread terminates
