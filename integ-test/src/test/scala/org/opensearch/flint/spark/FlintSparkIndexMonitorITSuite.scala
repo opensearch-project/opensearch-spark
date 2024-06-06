@@ -190,22 +190,6 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
 
   test(
     "await monitor terminated with streaming job exit early should update index state to failed") {
-    new Thread(() => {
-      Thread.sleep(3000L)
-
-      // Set Flint index readonly to simulate streaming job exception
-      val settings = Map("index.blocks.write" -> true)
-      val request = new UpdateSettingsRequest(testFlintIndex).settings(settings.asJava)
-      openSearchClient.indices().putSettings(request, RequestOptions.DEFAULT)
-
-      // Trigger a new micro batch execution
-      sql(s"""
-             | INSERT INTO $testTable
-             | PARTITION (year=2023, month=6)
-             | VALUES ('Test', 35, 'Vancouver')
-             | """.stripMargin)
-    }).start()
-
     // Terminate streaming job intentionally before await
     spark.streams.active.find(_.name == testFlintIndex).get.stop()
 
