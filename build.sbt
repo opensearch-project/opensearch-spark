@@ -48,7 +48,7 @@ lazy val commonSettings = Seq(
 
 // running `scalafmtAll` includes all subprojects under root
 lazy val root = (project in file("."))
-  .aggregate(flintCore, flintSparkIntegration, pplSparkIntegration, sparkSqlApplication, integtest)
+  .aggregate(flintCore, flintSparkIntegration, pplSparkIntegration, sparkSqlApplication)
   .disablePlugins(AssemblyPlugin)
   .settings(name := "flint", publish / skip := true)
 
