@@ -126,7 +126,12 @@ class FlintSparkIndexMonitor(
     } else {
       logInfo(s"Index monitor for [$indexName] not found.")
 
-      // Streaming job may exit early. Try to find Flint index name in monitor list.
+      /*
+       * Streaming job exits early. Try to find Flint index name in monitor list.
+       * Assuming: 1) there are at most 1 entry in the list, otherwise index name
+       * must be given upon this method call; 2) this await API must be called for
+       * auto refresh index, otherwise index state will be updated mistakenly.
+       */
       val name = FlintSparkIndexMonitor.indexMonitorTracker.keys.headOption
       if (name.isDefined) {
         logInfo(s"Found index name in index monitor task list: ${name.get}")
