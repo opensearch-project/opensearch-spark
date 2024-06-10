@@ -11,10 +11,10 @@ import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 
 object CommandStates {
-  val Running = "running"
-  val Success = "success"
-  val Failed = "failed"
-  val Waiting = "waiting"
+  val RUNNING = "running"
+  val SUCCESS = "success"
+  val FAILED = "failed"
+  val WAITING = "waiting"
 }
 
 /**
@@ -47,13 +47,13 @@ class FlintCommand(
     extends ContextualData {
   context = commandContext
 
-  def running(): Unit = state = CommandStates.Running
-  def complete(): Unit = state = CommandStates.Success
-  def fail(): Unit = state = CommandStates.Failed
-  def isRunning: Boolean = state == CommandStates.Running
-  def isComplete: Boolean = state == CommandStates.Success
-  def isFailed: Boolean = state == CommandStates.Failed
-  def isWaiting: Boolean = state == CommandStates.Waiting
+  def running(): Unit = state = CommandStates.RUNNING
+  def complete(): Unit = state = CommandStates.SUCCESS
+  def fail(): Unit = state = CommandStates.FAILED
+  def isRunning: Boolean = state == CommandStates.RUNNING
+  def isComplete: Boolean = state == CommandStates.SUCCESS
+  def isFailed: Boolean = state == CommandStates.FAILED
+  def isWaiting: Boolean = state == CommandStates.WAITING
 
   // Does not include context, which could contain sensitive information.
   override def toString: String =

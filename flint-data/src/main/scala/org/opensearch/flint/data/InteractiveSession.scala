@@ -15,10 +15,10 @@ import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 
 object SessionStates {
-  val Running = "running"
-  val Complete = "complete"
-  val Failed = "failed"
-  val Waiting = "waiting"
+  val RUNNING = "running"
+  val COMPLETE = "complete"
+  val FAILED = "failed"
+  val WAITING = "waiting"
 }
 
 /**
@@ -56,10 +56,10 @@ class InteractiveSession(
     extends ContextualData {
   context = sessionContext // Initialize the context from the constructor
 
-  def isRunning: Boolean = state == SessionStates.Running
-  def isComplete: Boolean = state == SessionStates.Complete
-  def isFailed: Boolean = state == SessionStates.Failed
-  def isWaiting: Boolean = state == SessionStates.Waiting
+  def isRunning: Boolean = state == SessionStates.RUNNING
+  def isComplete: Boolean = state == SessionStates.COMPLETE
+  def isFailed: Boolean = state == SessionStates.FAILED
+  def isWaiting: Boolean = state == SessionStates.WAITING
 
   override def toString: String = {
     val excludedJobIdsStr = excludedJobIds.mkString("[", ", ", "]")
