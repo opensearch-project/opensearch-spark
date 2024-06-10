@@ -7,10 +7,7 @@ package org.opensearch.flint.core.storage;
 
 import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
 
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -18,20 +15,10 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
-import org.opensearch.client.RestClient;
-import org.opensearch.client.RestClientBuilder;
-import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.client.indices.GetIndexResponse;
@@ -45,13 +32,10 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
-import org.opensearch.flint.core.auth.ResourceBasedAWSRequestSigningApacheInterceptor;
-import org.opensearch.flint.core.http.RetryableHttpAsyncClient;
 import org.opensearch.flint.core.metadata.FlintMetadata;
 import org.opensearch.flint.core.metadata.log.DefaultOptimisticTransaction;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
-import org.opensearch.flint.core.RestHighLevelClientWrapper;
 import org.opensearch.index.query.AbstractQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
@@ -66,8 +50,6 @@ import scala.Some;
 public class FlintOpenSearchClient implements FlintClient {
 
   private static final Logger LOG = Logger.getLogger(FlintOpenSearchClient.class.getName());
-
-  private static final String SERVICE_NAME = "es";
 
 
   /**
@@ -254,74 +236,7 @@ public class FlintOpenSearchClient implements FlintClient {
 
   @Override
   public IRestHighLevelClient createClient() {
-    RestClientBuilder
-        restClientBuilder =
-        RestClient.builder(new HttpHost(options.getHost(), options.getPort(), options.getScheme()));
-
-    // SigV4 support
-    if (options.getAuth().equals(FlintOptions.SIGV4_AUTH)) {
-      // Use DefaultAWSCredentialsProviderChain by default.
-      final AtomicReference<AWSCredentialsProvider> customAWSCredentialsProvider =
-              new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
-      String customProviderClass = options.getCustomAwsCredentialsProvider();
-      if (!Strings.isNullOrEmpty(customProviderClass)) {
-        instantiateProvider(customProviderClass, customAWSCredentialsProvider);
-      }
-
-      // Set metadataAccessAWSCredentialsProvider to customAWSCredentialsProvider by default for backwards compatibility
-      // unless a specific metadata access provider class name is provided
-      String metadataAccessProviderClass = options.getMetadataAccessAwsCredentialsProvider();
-      final AtomicReference<AWSCredentialsProvider> metadataAccessAWSCredentialsProvider =
-              new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
-
-      String metaLogIndexName = constructMetaLogIndexName(options.getDataSourceName());
-      String systemIndexName = Strings.isNullOrEmpty(options.getSystemIndexName()) ? metaLogIndexName : options.getSystemIndexName();
-
-      if (Strings.isNullOrEmpty(metadataAccessProviderClass)) {
-        metadataAccessAWSCredentialsProvider.set(customAWSCredentialsProvider.get());
-      } else {
-        instantiateProvider(metadataAccessProviderClass, metadataAccessAWSCredentialsProvider);
-      }
-
-      restClientBuilder.setHttpClientConfigCallback(builder -> {
-                HttpAsyncClientBuilder delegate = builder.addInterceptorLast(
-                        new ResourceBasedAWSRequestSigningApacheInterceptor(
-                                SERVICE_NAME, options.getRegion(), customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), systemIndexName));
-                return RetryableHttpAsyncClient.builder(delegate, options);
-              }
-      );
-    } else if (options.getAuth().equals(FlintOptions.BASIC_AUTH)) {
-      CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-      credentialsProvider.setCredentials(
-          AuthScope.ANY,
-          new UsernamePasswordCredentials(options.getUsername(), options.getPassword()));
-      restClientBuilder.setHttpClientConfigCallback(builder -> {
-        HttpAsyncClientBuilder delegate = builder.setDefaultCredentialsProvider(credentialsProvider);
-        return RetryableHttpAsyncClient.builder(delegate, options);
-      });
-    } else {
-      restClientBuilder.setHttpClientConfigCallback(delegate ->
-          RetryableHttpAsyncClient.builder(delegate, options));
-    }
-
-    final RequestConfigurator callback = new RequestConfigurator(options);
-    restClientBuilder.setRequestConfigCallback(callback);
-
-    return new RestHighLevelClientWrapper(new RestHighLevelClient(restClientBuilder));
-  }
-
-  /**
-   * Attempts to instantiate the AWS credential provider using reflection.
-   */
-  private void instantiateProvider(String providerClass, AtomicReference<AWSCredentialsProvider> provider) {
-    try {
-      Class<?> awsCredentialsProviderClass = Class.forName(providerClass);
-      Constructor<?> ctor = awsCredentialsProviderClass.getDeclaredConstructor();
-      ctor.setAccessible(true);
-      provider.set((AWSCredentialsProvider) ctor.newInstance());
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to instantiate AWSCredentialsProvider: " + providerClass, e);
-    }
+    return OpenSearchClientFactory.createClient(options);
   }
 
   /*
