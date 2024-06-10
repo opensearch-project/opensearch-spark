@@ -46,16 +46,9 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   /** Required by json4s parse function */
   implicit val formats: Formats = Serialization.formats(NoTypeHints) + SkippingKindSerializer
 
-  /**
-   * Data source name. Assign empty string in case of backward compatibility. TODO: remove this in
-   * future
-   */
-  private val dataSourceName: String =
-    spark.conf.getOption("spark.flint.datasource.name").getOrElse("")
-
   /** Flint Spark index monitor */
   val flintIndexMonitor: FlintSparkIndexMonitor =
-    new FlintSparkIndexMonitor(spark, flintClient, dataSourceName)
+    new FlintSparkIndexMonitor(spark, flintClient)
 
   /**
    * Create index builder for creating index with fluent API.
@@ -106,7 +99,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
       val metadata = index.metadata()
       try {
         flintClient
-          .startTransaction(indexName, dataSourceName, true)
+          .startTransaction(indexName, true)
           .initialLog(latest => latest.state == EMPTY || latest.state == DELETED)
           .transientLog(latest => latest.copy(state = CREATING))
           .finalLog(latest => latest.copy(state = ACTIVE))
@@ -142,7 +135,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
 
     try {
       flintClient
-        .startTransaction(indexName, dataSourceName)
+        .startTransaction(indexName)
         .initialLog(latest => latest.state == ACTIVE)
         .transientLog(latest =>
           latest.copy(state = REFRESHING, createTime = System.currentTimeMillis()))
@@ -249,7 +242,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     if (flintClient.exists(indexName)) {
       try {
         flintClient
-          .startTransaction(indexName, dataSourceName)
+          .startTransaction(indexName)
           .initialLog(latest =>
             latest.state == ACTIVE || latest.state == REFRESHING || latest.state == FAILED)
           .transientLog(latest => latest.copy(state = DELETING))
@@ -284,7 +277,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     if (flintClient.exists(indexName)) {
       try {
         flintClient
-          .startTransaction(indexName, dataSourceName)
+          .startTransaction(indexName)
           .initialLog(latest => latest.state == DELETED)
           .transientLog(latest => latest.copy(state = VACUUMING))
           .finalLog(_ => NO_LOG_ENTRY)
@@ -315,7 +308,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     if (index.exists(_.options.autoRefresh())) {
       try {
         flintClient
-          .startTransaction(indexName, dataSourceName)
+          .startTransaction(indexName)
           .initialLog(latest => Set(ACTIVE, REFRESHING, FAILED).contains(latest.state))
           .transientLog(latest =>
             latest.copy(state = RECOVERING, createTime = System.currentTimeMillis()))
@@ -346,7 +339,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
          */
         logWarning("Cleaning up metadata log as index data has been deleted")
         flintClient
-          .startTransaction(indexName, dataSourceName)
+          .startTransaction(indexName)
           .initialLog(_ => true)
           .finalLog(_ => NO_LOG_ENTRY)
           .commit(_ => {})
@@ -436,7 +429,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     val indexName = index.name
     val indexLogEntry = index.latestLogEntry.get
     flintClient
-      .startTransaction(indexName, dataSourceName)
+      .startTransaction(indexName)
       .initialLog(latest =>
         latest.state == REFRESHING && latest.seqNo == indexLogEntry.seqNo && latest.primaryTerm == indexLogEntry.primaryTerm)
       .transientLog(latest => latest.copy(state = UPDATING))
@@ -455,7 +448,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     val indexLogEntry = index.latestLogEntry.get
     val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
     flintClient
-      .startTransaction(indexName, dataSourceName)
+      .startTransaction(indexName)
       .initialLog(latest =>
         latest.state == ACTIVE && latest.seqNo == indexLogEntry.seqNo && latest.primaryTerm == indexLogEntry.primaryTerm)
       .transientLog(latest =>
