@@ -21,7 +21,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
 
-import org.apache.spark.sql.flint.config.FlintSparkConf.{REFRESH_POLICY, SCROLL_DURATION, SCROLL_SIZE}
+import org.apache.spark.sql.flint.config.FlintSparkConf.{DATA_SOURCE_NAME, REFRESH_POLICY, SCROLL_DURATION, SCROLL_SIZE}
 
 class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with Matchers {
 
@@ -31,8 +31,11 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
   behavior of "Flint OpenSearch client"
 
   it should "throw IllegalStateException if metadata log index doesn't exists" in {
+    val options = openSearchOptions + (DATA_SOURCE_NAME.key -> "non-exist-datasource")
+    val flintClient = FlintClientBuilder.build(new FlintOptions(options.asJava))
+
     the[IllegalStateException] thrownBy {
-      flintClient.startTransaction("test", "non-exist-index")
+      flintClient.startTransaction("test")
     }
   }
 

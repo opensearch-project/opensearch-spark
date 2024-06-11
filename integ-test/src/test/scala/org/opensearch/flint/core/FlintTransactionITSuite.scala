@@ -37,7 +37,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("empty metadata log entry content") {
     flintClient
-      .startTransaction(testFlintIndex, testDataSourceName)
+      .startTransaction(testFlintIndex)
       .initialLog(latest => {
         latest.id shouldBe testLatestId
         latest.state shouldBe EMPTY
@@ -102,7 +102,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         error = ""))
 
     flintClient
-      .startTransaction(testFlintIndex, testDataSourceName)
+      .startTransaction(testFlintIndex)
       .initialLog(latest => {
         latest.id shouldBe testLatestId
         latest.createTime shouldBe testCreateTime
@@ -126,7 +126,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should transit from initial to final log if initial log is empty") {
     flintClient
-      .startTransaction(testFlintIndex, testDataSourceName)
+      .startTransaction(testFlintIndex)
       .initialLog(latest => {
         latest.state shouldBe EMPTY
         true
@@ -140,7 +140,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should transit from initial to final log directly if no transient log") {
     flintClient
-      .startTransaction(testFlintIndex, testDataSourceName)
+      .startTransaction(testFlintIndex)
       .initialLog(_ => true)
       .finalLog(latest => latest.copy(state = ACTIVE))
       .commit(_ => latestLogEntry(testLatestId) should contain("state" -> "empty"))
@@ -162,7 +162,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         error = ""))
 
     flintClient
-      .startTransaction(testFlintIndex, testDataSourceName)
+      .startTransaction(testFlintIndex)
       .initialLog(latest => {
         latest.state shouldBe ACTIVE
         true
@@ -177,7 +177,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   test("should exit if initial log entry doesn't meet precondition") {
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex, testDataSourceName)
+        .startTransaction(testFlintIndex)
         .initialLog(_ => false)
         .transientLog(latest => latest.copy(state = ACTIVE))
         .finalLog(latest => latest)
@@ -191,7 +191,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   test("should fail if initial log entry updated by others when updating transient log entry") {
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex, testDataSourceName)
+        .startTransaction(testFlintIndex)
         .initialLog(_ => true)
         .transientLog(latest => {
           // This update will happen first and thus cause version conflict as expected
@@ -207,7 +207,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   test("should fail if transient log entry updated by others when updating final log entry") {
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex, testDataSourceName)
+        .startTransaction(testFlintIndex)
         .initialLog(_ => true)
         .transientLog(latest => {
 
@@ -225,7 +225,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     // Use create index scenario in this test case
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex, testDataSourceName)
+        .startTransaction(testFlintIndex)
         .initialLog(_ => true)
         .transientLog(latest => latest.copy(state = CREATING))
         .finalLog(latest => latest.copy(state = ACTIVE))
@@ -250,7 +250,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex, testDataSourceName)
+        .startTransaction(testFlintIndex)
         .initialLog(_ => true)
         .transientLog(latest => latest.copy(state = REFRESHING))
         .finalLog(_ => throw new RuntimeException("Mock final log error"))
@@ -266,7 +266,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     // Use create index scenario in this test case
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex, testDataSourceName)
+        .startTransaction(testFlintIndex)
         .initialLog(_ => true)
         .finalLog(latest => latest.copy(state = ACTIVE))
         .commit(_ => throw new RuntimeException("Mock operation error"))
@@ -279,7 +279,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   test("forceInit translog, even index is deleted before startTransaction") {
     deleteIndex(testMetaLogIndex)
     flintClient
-      .startTransaction(testFlintIndex, testDataSourceName, true)
+      .startTransaction(testFlintIndex, true)
       .initialLog(latest => {
         latest.id shouldBe testLatestId
         latest.state shouldBe EMPTY
@@ -299,7 +299,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   test("should fail if index is deleted before initial operation") {
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex, testDataSourceName)
+        .startTransaction(testFlintIndex)
         .initialLog(latest => {
           deleteIndex(testMetaLogIndex)
           true
@@ -313,7 +313,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   test("should fail if index is deleted before transient operation") {
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex, testDataSourceName)
+        .startTransaction(testFlintIndex)
         .initialLog(latest => true)
         .transientLog(latest => {
           deleteIndex(testMetaLogIndex)
@@ -327,7 +327,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   test("should fail if index is deleted before final operation") {
     the[IllegalStateException] thrownBy {
       flintClient
-        .startTransaction(testFlintIndex, testDataSourceName)
+        .startTransaction(testFlintIndex)
         .initialLog(latest => true)
         .transientLog(latest => { latest.copy(state = CREATING) })
         .finalLog(latest => {
