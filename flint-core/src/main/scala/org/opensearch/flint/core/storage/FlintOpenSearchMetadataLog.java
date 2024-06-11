@@ -182,7 +182,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   }
 
   private IRestHighLevelClient createOpenSearchClient() {
-    return OpenSearchClientFactory.createClient(options);
+    return OpenSearchClientUtils.createClient(options);
   }
 
   @FunctionalInterface

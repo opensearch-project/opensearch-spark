@@ -236,7 +236,7 @@ public class FlintOpenSearchClient implements FlintClient {
 
   @Override
   public IRestHighLevelClient createClient() {
-    return OpenSearchClientFactory.createClient(options);
+    return OpenSearchClientUtils.createClient(options);
   }
 
   /*
