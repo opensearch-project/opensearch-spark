@@ -91,16 +91,18 @@ public class FlintOpenSearchClient implements FlintClient {
   public final static String META_LOG_NAME_PREFIX = ".query_execution_request";
 
   private final FlintOptions options;
+  private final String dataSourceName;
+  private final String metaLogIndexName;
 
   public FlintOpenSearchClient(FlintOptions options) {
     this.options = options;
+    this.dataSourceName = options.getDataSourceName();
+    this.metaLogIndexName = constructMetaLogIndexName();
   }
 
   @Override
-  public <T> OptimisticTransaction<T> startTransaction(
-      String indexName, String dataSourceName, boolean forceInit) {
+  public <T> OptimisticTransaction<T> startTransaction(String indexName, boolean forceInit) {
     LOG.info("Starting transaction on index " + indexName + " and data source " + dataSourceName);
-    String metaLogIndexName = constructMetaLogIndexName(dataSourceName);
     try (IRestHighLevelClient client = createClient()) {
       if (client.doesIndexExist(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
         LOG.info("Found metadata log index " + metaLogIndexName);
@@ -122,8 +124,8 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override
-  public <T> OptimisticTransaction<T> startTransaction(String indexName, String dataSourceName) {
-    return startTransaction(indexName, dataSourceName, false);
+  public <T> OptimisticTransaction<T> startTransaction(String indexName) {
+    return startTransaction(indexName, false);
   }
 
   @Override
@@ -274,7 +276,6 @@ public class FlintOpenSearchClient implements FlintClient {
       final AtomicReference<AWSCredentialsProvider> metadataAccessAWSCredentialsProvider =
               new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
 
-      String metaLogIndexName = constructMetaLogIndexName(options.getDataSourceName());
       String systemIndexName = Strings.isNullOrEmpty(options.getSystemIndexName()) ? metaLogIndexName : options.getSystemIndexName();
 
       if (Strings.isNullOrEmpty(metadataAccessProviderClass)) {
@@ -389,7 +390,7 @@ public class FlintOpenSearchClient implements FlintClient {
     return toLowercase(encoded);
   }
 
-  private String constructMetaLogIndexName(String dataSourceName) {
+  private String constructMetaLogIndexName() {
     return dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX : META_LOG_NAME_PREFIX + "_" + dataSourceName;
   }
 }
