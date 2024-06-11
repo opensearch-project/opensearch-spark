@@ -23,7 +23,7 @@ import org.opensearch.action.update.UpdateRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.flint.core.FlintClient;
+import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLog;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
@@ -37,9 +37,9 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   private static final Logger LOG = Logger.getLogger(FlintOpenSearchMetadataLog.class.getName());
 
   /**
-   * Flint client to create Rest OpenSearch client (This will be refactored later)
+   * Flint options to create Rest OpenSearch client
    */
-  private final FlintClient flintClient;
+  private final FlintOptions options;
 
   /**
    * Reuse query request index as Flint metadata log store
@@ -51,8 +51,8 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
    */
   private final String latestId;
 
-  public FlintOpenSearchMetadataLog(FlintClient flintClient, String flintIndexName, String metaLogIndexName) {
-    this.flintClient = flintClient;
+  public FlintOpenSearchMetadataLog(FlintOptions options, String flintIndexName, String metaLogIndexName) {
+    this.options = options;
     this.metaLogIndexName = metaLogIndexName;
     this.latestId = Base64.getEncoder().encodeToString(flintIndexName.getBytes());
   }
@@ -77,7 +77,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   @Override
   public Optional<FlintMetadataLogEntry> getLatest() {
     LOG.info("Fetching latest log entry with id " + latestId);
-    try (IRestHighLevelClient client = flintClient.createClient()) {
+    try (IRestHighLevelClient client = createOpenSearchClient()) {
       GetResponse response =
           client.get(new GetRequest(metaLogIndexName, latestId), RequestOptions.DEFAULT);
 
@@ -102,7 +102,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   @Override
   public void purge() {
     LOG.info("Purging log entry with id " + latestId);
-    try (IRestHighLevelClient client = flintClient.createClient()) {
+    try (IRestHighLevelClient client = createOpenSearchClient()) {
       DeleteResponse response =
           client.delete(
               new DeleteRequest(metaLogIndexName, latestId), RequestOptions.DEFAULT);
@@ -151,7 +151,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   private FlintMetadataLogEntry writeLogEntry(
       FlintMetadataLogEntry logEntry,
       CheckedFunction<IRestHighLevelClient, DocWriteResponse> write) {
-    try (IRestHighLevelClient client = flintClient.createClient()) {
+    try (IRestHighLevelClient client = createOpenSearchClient()) {
       // Write (create or update) the doc
       DocWriteResponse response = write.apply(client);
 
@@ -174,11 +174,15 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
 
   private boolean exists() {
     LOG.info("Checking if Flint index exists " + metaLogIndexName);
-    try (IRestHighLevelClient client = flintClient.createClient()) {
+    try (IRestHighLevelClient client = createOpenSearchClient()) {
       return client.doesIndexExist(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to check if Flint index exists " + metaLogIndexName, e);
     }
+  }
+
+  private IRestHighLevelClient createOpenSearchClient() {
+    return OpenSearchClientUtils.createClient(options);
   }
 
   @FunctionalInterface
