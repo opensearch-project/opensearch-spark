@@ -19,7 +19,7 @@ import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.{QUERY_EXECUTION_REQUEST_MAPPING, QUERY_EXECUTION_REQUEST_SETTINGS}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
-import org.opensearch.flint.core.storage.FlintOpenSearchClient._
+import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService.META_LOG_NAME_PREFIX
 import org.opensearch.flint.spark.FlintSparkSuite
 
 import org.apache.spark.sql.flint.config.FlintSparkConf.DATA_SOURCE_NAME

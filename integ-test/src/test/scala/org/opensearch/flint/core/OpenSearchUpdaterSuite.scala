@@ -11,7 +11,7 @@ import org.opensearch.action.get.{GetRequest, GetResponse}
 import org.opensearch.client.RequestOptions
 import org.opensearch.flint.OpenSearchTransactionSuite
 import org.opensearch.flint.app.FlintInstance
-import org.opensearch.flint.core.storage.{FlintOpenSearchClient, OpenSearchUpdater}
+import org.opensearch.flint.core.storage.OpenSearchUpdater
 import org.scalatest.matchers.should.Matchers
 
 class OpenSearchUpdaterSuite extends OpenSearchTransactionSuite with Matchers {
@@ -31,10 +31,10 @@ class OpenSearchUpdaterSuite extends OpenSearchTransactionSuite with Matchers {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava));
+    flintClient = FlintClientBuilder.build(new FlintOptions(openSearchOptions.asJava));
     updater = new OpenSearchUpdater(
       testMetaLogIndex,
-      new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava)))
+      FlintClientBuilder.build(new FlintOptions(openSearchOptions.asJava)))
   }
 
   test("upsert flintJob should success") {

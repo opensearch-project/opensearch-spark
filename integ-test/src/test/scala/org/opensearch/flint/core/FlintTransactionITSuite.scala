@@ -16,7 +16,6 @@ import org.opensearch.flint.OpenSearchTransactionSuite
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
-import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
@@ -32,7 +31,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   override def beforeAll(): Unit = {
     super.beforeAll()
     val options = openSearchOptions + (DATA_SOURCE_NAME.key -> testDataSourceName)
-    flintClient = new FlintOpenSearchClient(new FlintOptions(options.asJava))
+    flintClient = FlintClientBuilder.build(new FlintOptions(options.asJava))
   }
 
   test("empty metadata log entry content") {

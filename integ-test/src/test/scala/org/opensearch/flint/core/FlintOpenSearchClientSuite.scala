@@ -16,7 +16,7 @@ import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.transport.rest_client.RestClientTransport
 import org.opensearch.flint.OpenSearchSuite
 import org.opensearch.flint.core.metadata.FlintMetadata
-import org.opensearch.flint.core.storage.{FlintOpenSearchClient, OpenSearchScrollReader}
+import org.opensearch.flint.core.storage.OpenSearchScrollReader
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
@@ -26,7 +26,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf.{DATA_SOURCE_NAME, REFRE
 class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with Matchers {
 
   /** Lazy initialize after container started. */
-  lazy val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
+  lazy val flintClient = FlintClientBuilder.build(new FlintOptions(openSearchOptions.asJava))
 
   behavior of "Flint OpenSearch client"
 
@@ -216,7 +216,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
           |}""".stripMargin
 
       val options = openSearchOptions + (s"${REFRESH_POLICY.optionKey}" -> "wait_for")
-      val flintClient = new FlintOpenSearchClient(new FlintOptions(options.asJava))
+      val flintClient = FlintClientBuilder.build(new FlintOptions(options.asJava))
       index(indexName, oneNodeSetting, mappings, Seq.empty)
       val writer = flintClient.createWriter(indexName)
       writer.write("""{"create":{}}""")
@@ -259,7 +259,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
 
       val options =
         openSearchOptions + (s"${SCROLL_DURATION.optionKey}" -> "1", s"${SCROLL_SIZE.optionKey}" -> "1")
-      val flintClient = new FlintOpenSearchClient(new FlintOptions(options.asJava))
+      val flintClient = FlintClientBuilder.build(new FlintOptions(options.asJava))
       val match_all = null
       val reader = flintClient.createReader(indexName, match_all)
 

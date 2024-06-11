@@ -12,8 +12,8 @@ import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.{compact, parse, render}
 import org.json4s.native.Serialization
+import org.opensearch.flint.core.FlintClientBuilder
 import org.opensearch.flint.core.FlintOptions
-import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
@@ -158,7 +158,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
            |""".stripMargin)
 
     // Check if the index setting option is set to OS index setting
-    val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
+    val flintClient = FlintClientBuilder.build(new FlintOptions(openSearchOptions.asJava))
 
     implicit val formats: Formats = Serialization.formats(NoTypeHints)
     val settings = parse(flintClient.getIndexMetadata(testIndex).indexSettings.get)

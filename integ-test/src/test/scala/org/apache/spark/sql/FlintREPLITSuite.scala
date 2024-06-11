@@ -16,8 +16,8 @@ import scala.util.control.Breaks.{break, breakable}
 import org.opensearch.OpenSearchStatusException
 import org.opensearch.flint.OpenSearchSuite
 import org.opensearch.flint.app.{FlintCommand, FlintInstance}
-import org.opensearch.flint.core.{FlintClient, FlintOptions}
-import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintReader, OpenSearchUpdater}
+import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
+import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.SparkFunSuite
@@ -115,11 +115,11 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava));
+    flintClient = FlintClientBuilder.build(new FlintOptions(openSearchOptions.asJava));
     osClient = new OSClient(new FlintOptions(openSearchOptions.asJava))
     updater = new OpenSearchUpdater(
       requestIndex,
-      new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava)))
+      FlintClientBuilder.build(new FlintOptions(openSearchOptions.asJava)))
 
   }
 
