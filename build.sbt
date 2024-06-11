@@ -48,7 +48,7 @@ lazy val commonSettings = Seq(
 
 // running `scalafmtAll` includes all subprojects under root
 lazy val root = (project in file("."))
-  .aggregate(flintData, flintCore, flintSparkIntegration, pplSparkIntegration, sparkSqlApplication, integtest)
+  .aggregate(flintCommons, flintCore, flintSparkIntegration, pplSparkIntegration, sparkSqlApplication, integtest)
   .disablePlugins(AssemblyPlugin)
   .settings(name := "flint", publish / skip := true)
 
@@ -84,10 +84,10 @@ lazy val flintCore = (project in file("flint-core"))
     libraryDependencies ++= deps(sparkVersion),
     publish / skip := true)
 
-lazy val flintData = (project in file("flint-data"))
+lazy val flintCommons = (project in file("flint-commons"))
   .settings(
     commonSettings,
-    name := "flint-data",
+    name := "flint-commons",
     scalaVersion := scala212,
     libraryDependencies ++= Seq(
       "org.scalactic" %% "scalactic" % "3.2.15" % "test",
@@ -152,7 +152,7 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
     assembly / test := (Test / test).value)
 
 lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
-  .dependsOn(flintCore, flintData)
+  .dependsOn(flintCore, flintCommons)
   .enablePlugins(AssemblyPlugin, Antlr4Plugin)
   .settings(
     commonSettings,
@@ -197,7 +197,7 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
 
 // Test assembly package with integration test.
 lazy val integtest = (project in file("integ-test"))
-  .dependsOn(flintData % "test->test", flintSparkIntegration % "test->test", pplSparkIntegration % "test->test", sparkSqlApplication % "test->test")
+  .dependsOn(flintCommons % "test->test", flintSparkIntegration % "test->test", pplSparkIntegration % "test->test", sparkSqlApplication % "test->test")
   .settings(
     commonSettings,
     name := "integ-test",
