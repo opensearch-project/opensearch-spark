@@ -26,14 +26,8 @@ import org.apache.spark.sql.flint.newDaemonThreadPoolScheduledExecutor
  *   Spark session
  * @param flintClient
  *   Flint client
- * @param dataSourceName
- *   data source name
  */
-class FlintSparkIndexMonitor(
-    spark: SparkSession,
-    flintClient: FlintClient,
-    dataSourceName: String)
-    extends Logging {
+class FlintSparkIndexMonitor(spark: SparkSession, flintClient: FlintClient) extends Logging {
 
   /** Task execution initial delay in seconds */
   private val INITIAL_DELAY_SECONDS = FlintSparkConf().monitorInitialDelaySeconds()
@@ -100,14 +94,14 @@ class FlintSparkIndexMonitor(
         if (isStreamingJobActive(indexName)) {
           logInfo("Streaming job is still active")
           flintClient
-            .startTransaction(indexName, dataSourceName)
+            .startTransaction(indexName)
             .initialLog(latest => latest.state == REFRESHING)
             .finalLog(latest => latest) // timestamp will update automatically
             .commit(_ => {})
         } else {
           logError("Streaming job is not active. Cancelling monitor task")
           flintClient
-            .startTransaction(indexName, dataSourceName)
+            .startTransaction(indexName)
             .initialLog(_ => true)
             .finalLog(latest => latest.copy(state = FAILED))
             .commit(_ => {})
