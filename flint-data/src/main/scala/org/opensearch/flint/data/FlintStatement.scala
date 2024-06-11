@@ -10,7 +10,7 @@ import org.json4s.JsonAST.JString
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 
-object CommandStates {
+object StatementStates {
   val RUNNING = "running"
   val SUCCESS = "success"
   val FAILED = "failed"
@@ -18,24 +18,24 @@ object CommandStates {
 }
 
 /**
- * Represents a command processed in the Flint job.
+ * Represents a statement processed in the Flint job.
  *
  * @param state
- *   The current state of the command.
+ *   The current state of the statement.
  * @param query
- *   SQL-like query string that the command will execute.
+ *   SQL-like query string that the statement will execute.
  * @param statementId
  *   Unique identifier for the type of statement.
  * @param queryId
  *   Unique identifier for the query.
  * @param submitTime
- *   Timestamp when the command was submitted.
+ *   Timestamp when the statement was submitted.
  * @param error
- *   Optional error message if the command fails.
- * @param commandContext
- *   Additional context for the command as key-value pairs.
+ *   Optional error message if the statement fails.
+ * @param statementContext
+ *   Additional context for the statement as key-value pairs.
  */
-class FlintCommand(
+class FlintStatement(
     var state: String,
     val query: String,
     // statementId is the statement type doc id
@@ -43,29 +43,29 @@ class FlintCommand(
     val queryId: String,
     val submitTime: Long,
     var error: Option[String] = None,
-    commandContext: Map[String, Any] = Map.empty[String, Any])
-    extends ContextualData {
-  context = commandContext
+    statementContext: Map[String, Any] = Map.empty[String, Any])
+    extends ContextualDataStore {
+  context = statementContext
 
-  def running(): Unit = state = CommandStates.RUNNING
-  def complete(): Unit = state = CommandStates.SUCCESS
-  def fail(): Unit = state = CommandStates.FAILED
-  def isRunning: Boolean = state == CommandStates.RUNNING
-  def isComplete: Boolean = state == CommandStates.SUCCESS
-  def isFailed: Boolean = state == CommandStates.FAILED
-  def isWaiting: Boolean = state == CommandStates.WAITING
+  def running(): Unit = state = StatementStates.RUNNING
+  def complete(): Unit = state = StatementStates.SUCCESS
+  def fail(): Unit = state = StatementStates.FAILED
+  def isRunning: Boolean = state == StatementStates.RUNNING
+  def isComplete: Boolean = state == StatementStates.SUCCESS
+  def isFailed: Boolean = state == StatementStates.FAILED
+  def isWaiting: Boolean = state == StatementStates.WAITING
 
   // Does not include context, which could contain sensitive information.
   override def toString: String =
-    s"FlintCommand(state=$state, query=$query, statementId=$statementId, queryId=$queryId, submitTime=$submitTime, error=$error)"
+    s"FlintStatement(state=$state, query=$query, statementId=$statementId, queryId=$queryId, submitTime=$submitTime, error=$error)"
 }
 
-object FlintCommand {
+object FlintStatement {
 
   implicit val formats: Formats = Serialization.formats(NoTypeHints)
 
-  def deserialize(command: String): FlintCommand = {
-    val meta = parse(command)
+  def deserialize(statement: String): FlintStatement = {
+    val meta = parse(statement)
     val state = (meta \ "state").extract[String]
     val query = (meta \ "query").extract[String]
     val statementId = (meta \ "statementId").extract[String]
@@ -76,12 +76,12 @@ object FlintCommand {
       case _ => None
     }
 
-    new FlintCommand(state, query, statementId, queryId, submitTime, maybeError)
+    new FlintStatement(state, query, statementId, queryId, submitTime, maybeError)
   }
 
-  def serialize(flintCommand: FlintCommand): String = {
+  def serialize(flintStatement: FlintStatement): String = {
     // we only need to modify state and error
     Serialization.write(
-      Map("state" -> flintCommand.state, "error" -> flintCommand.error.getOrElse("")))
+      Map("state" -> flintStatement.state, "error" -> flintStatement.error.getOrElse("")))
   }
 }

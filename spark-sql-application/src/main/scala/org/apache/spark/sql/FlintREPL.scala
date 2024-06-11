@@ -23,7 +23,7 @@ import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
-import org.opensearch.flint.data.{FlintCommand, InteractiveSession}
+import org.opensearch.flint.data.{FlintStatement, InteractiveSession}
 import org.opensearch.flint.data.InteractiveSession.formats
 import org.opensearch.search.sort.SortOrder
 
@@ -57,8 +57,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
   @volatile var earlyExitFlag: Boolean = false
 
-  def updateSessionIndex(flintCommand: FlintCommand, updater: OpenSearchUpdater): Unit = {
-    updater.update(flintCommand.statementId, FlintCommand.serialize(flintCommand))
+  def updateSessionIndex(flintStatement: FlintStatement, updater: OpenSearchUpdater): Unit = {
+    updater.update(flintStatement.statementId, FlintStatement.serialize(flintStatement))
   }
 
   private val sessionRunningCount = new AtomicInteger(0)
@@ -494,9 +494,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
   }
 
   /**
-   * handling the case where a command's execution fails, updates the flintCommand with the error
-   * and failure status, and then write the result to result index. Thus, an error is written to
-   * both result index or statement model in request index
+   * handling the case where a command's execution fails, updates the flintStatement with the
+   * error and failure status, and then write the result to result index. Thus, an error is
+   * written to both result index or statement model in request index
    *
    * @param spark
    *   spark session
@@ -504,7 +504,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
    *   data source
    * @param error
    *   error message
-   * @param flintCommand
+   * @param flintStatement
    *   flint command
    * @param sessionId
    *   session id
@@ -517,26 +517,26 @@ object FlintREPL extends Logging with FlintJobExecutor {
       spark: SparkSession,
       dataSource: String,
       error: String,
-      flintCommand: FlintCommand,
+      flintStatement: FlintStatement,
       sessionId: String,
       startTime: Long): DataFrame = {
-    flintCommand.fail()
-    flintCommand.error = Some(error)
+    flintStatement.fail()
+    flintStatement.error = Some(error)
     super.getFailedData(
       spark,
       dataSource,
       error,
-      flintCommand.queryId,
-      flintCommand.query,
+      flintStatement.queryId,
+      flintStatement.query,
       sessionId,
       startTime,
       currentTimeProvider)
   }
 
-  def processQueryException(ex: Exception, flintCommand: FlintCommand): String = {
+  def processQueryException(ex: Exception, flintStatement: FlintStatement): String = {
     val error = super.processQueryException(ex)
-    flintCommand.fail()
-    flintCommand.error = Some(error)
+    flintStatement.fail()
+    flintStatement.error = Some(error)
     error
   }
 
@@ -570,12 +570,12 @@ object FlintREPL extends Logging with FlintJobExecutor {
       } else {
         val statementTimerContext = getTimerContext(
           MetricConstants.STATEMENT_PROCESSING_TIME_METRIC)
-        val flintCommand = processCommandInitiation(flintReader, flintSessionIndexUpdater)
+        val flintStatement = processCommandInitiation(flintReader, flintSessionIndexUpdater)
 
         val (dataToWrite, returnedVerificationResult) = processStatementOnVerification(
           recordedVerificationResult,
           spark,
-          flintCommand,
+          flintStatement,
           dataSource,
           sessionId,
           executionContext,
@@ -587,7 +587,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         verificationResult = returnedVerificationResult
         finalizeCommand(
           dataToWrite,
-          flintCommand,
+          flintStatement,
           resultIndex,
           flintSessionIndexUpdater,
           osClient,
@@ -606,7 +606,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
    *
    * @param dataToWrite
    *   data to write
-   * @param flintCommand
+   * @param flintStatement
    *   flint command
    * @param resultIndex
    *   result index
@@ -615,28 +615,28 @@ object FlintREPL extends Logging with FlintJobExecutor {
    */
   private def finalizeCommand(
       dataToWrite: Option[DataFrame],
-      flintCommand: FlintCommand,
+      flintStatement: FlintStatement,
       resultIndex: String,
       flintSessionIndexUpdater: OpenSearchUpdater,
       osClient: OSClient,
       statementTimerContext: Timer.Context): Unit = {
     try {
       dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
-      if (flintCommand.isRunning || flintCommand.isWaiting) {
+      if (flintStatement.isRunning || flintStatement.isWaiting) {
         // we have set failed state in exception handling
-        flintCommand.complete()
+        flintStatement.complete()
       }
-      updateSessionIndex(flintCommand, flintSessionIndexUpdater)
-      recordStatementStateChange(flintCommand, statementTimerContext)
+      updateSessionIndex(flintStatement, flintSessionIndexUpdater)
+      recordStatementStateChange(flintStatement, statementTimerContext)
     } catch {
       // e.g., maybe due to authentication service connection issue
       // or invalid catalog (e.g., we are operating on data not defined in provided data source)
       case e: Exception =>
-        val error = s"""Fail to write result of ${flintCommand}, cause: ${e.getMessage}"""
+        val error = s"""Fail to write result of ${flintStatement}, cause: ${e.getMessage}"""
         CustomLogging.logError(error, e)
-        flintCommand.fail()
-        updateSessionIndex(flintCommand, flintSessionIndexUpdater)
-        recordStatementStateChange(flintCommand, statementTimerContext)
+        flintStatement.fail()
+        updateSessionIndex(flintStatement, flintSessionIndexUpdater)
+        recordStatementStateChange(flintStatement, statementTimerContext)
     }
   }
 
@@ -644,7 +644,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       spark: SparkSession,
       dataSource: String,
       error: String,
-      flintCommand: FlintCommand,
+      flintStatement: FlintStatement,
       sessionId: String,
       startTime: Long): Option[DataFrame] = {
     /*
@@ -659,20 +659,20 @@ object FlintREPL extends Logging with FlintJobExecutor {
      * of Spark jobs. In the context of Spark SQL, this typically happens when we perform
      * actions that require the computation of results that need to be collected or stored.
      */
-    spark.sparkContext.cancelJobGroup(flintCommand.queryId)
+    spark.sparkContext.cancelJobGroup(flintStatement.queryId)
     Some(
       handleCommandFailureAndGetFailedData(
         spark,
         dataSource,
         error,
-        flintCommand,
+        flintStatement,
         sessionId,
         startTime))
   }
 
   def executeAndHandle(
       spark: SparkSession,
-      flintCommand: FlintCommand,
+      flintStatement: FlintStatement,
       dataSource: String,
       sessionId: String,
       executionContext: ExecutionContextExecutor,
@@ -683,7 +683,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       Some(
         executeQueryAsync(
           spark,
-          flintCommand,
+          flintStatement,
           dataSource,
           sessionId,
           executionContext,
@@ -692,17 +692,17 @@ object FlintREPL extends Logging with FlintJobExecutor {
           queryWaitTimeMillis))
     } catch {
       case e: TimeoutException =>
-        val error = s"Executing ${flintCommand.query} timed out"
+        val error = s"Executing ${flintStatement.query} timed out"
         CustomLogging.logError(error, e)
-        handleCommandTimeout(spark, dataSource, error, flintCommand, sessionId, startTime)
+        handleCommandTimeout(spark, dataSource, error, flintStatement, sessionId, startTime)
       case e: Exception =>
-        val error = processQueryException(e, flintCommand)
+        val error = processQueryException(e, flintStatement)
         Some(
           handleCommandFailureAndGetFailedData(
             spark,
             dataSource,
             error,
-            flintCommand,
+            flintStatement,
             sessionId,
             startTime))
     }
@@ -711,14 +711,14 @@ object FlintREPL extends Logging with FlintJobExecutor {
   private def processStatementOnVerification(
       recordedVerificationResult: VerificationResult,
       spark: SparkSession,
-      flintCommand: FlintCommand,
+      flintStatement: FlintStatement,
       dataSource: String,
       sessionId: String,
       executionContext: ExecutionContextExecutor,
       futureMappingCheck: Future[Either[String, Unit]],
       resultIndex: String,
       queryExecutionTimeout: Duration,
-      queryWaitTimeMillis: Long): (Option[DataFrame], VerificationResult) = {
+      queryWaitTimeMillis: Long) = {
     val startTime: Long = currentTimeProvider.currentEpochMillis()
     var verificationResult = recordedVerificationResult
     var dataToWrite: Option[DataFrame] = None
@@ -730,7 +730,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
             case Right(_) =>
               dataToWrite = executeAndHandle(
                 spark,
-                flintCommand,
+                flintStatement,
                 dataSource,
                 sessionId,
                 executionContext,
@@ -745,7 +745,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
                   spark,
                   dataSource,
                   error,
-                  flintCommand,
+                  flintStatement,
                   sessionId,
                   startTime))
           }
@@ -754,7 +754,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
             val error = s"Getting the mapping of index $resultIndex timed out"
             CustomLogging.logError(error, e)
             dataToWrite =
-              handleCommandTimeout(spark, dataSource, error, flintCommand, sessionId, startTime)
+              handleCommandTimeout(spark, dataSource, error, flintStatement, sessionId, startTime)
           case NonFatal(e) =>
             val error = s"An unexpected error occurred: ${e.getMessage}"
             CustomLogging.logError(error, e)
@@ -763,7 +763,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
                 spark,
                 dataSource,
                 error,
-                flintCommand,
+                flintStatement,
                 sessionId,
                 startTime))
         }
@@ -773,13 +773,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
             spark,
             dataSource,
             err,
-            flintCommand,
+            flintStatement,
             sessionId,
             startTime))
       case VerifiedWithoutError =>
         dataToWrite = executeAndHandle(
           spark,
-          flintCommand,
+          flintStatement,
           dataSource,
           sessionId,
           executionContext,
@@ -788,13 +788,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
           queryWaitTimeMillis)
     }
 
-    logInfo(s"command complete: $flintCommand")
+    logInfo(s"command complete: $flintStatement")
     (dataToWrite, verificationResult)
   }
 
   def executeQueryAsync(
       spark: SparkSession,
-      flintCommand: FlintCommand,
+      flintStatement: FlintStatement,
       dataSource: String,
       sessionId: String,
       executionContext: ExecutionContextExecutor,
@@ -802,21 +802,21 @@ object FlintREPL extends Logging with FlintJobExecutor {
       queryExecutionTimeOut: Duration,
       queryWaitTimeMillis: Long): DataFrame = {
     if (currentTimeProvider
-        .currentEpochMillis() - flintCommand.submitTime > queryWaitTimeMillis) {
+        .currentEpochMillis() - flintStatement.submitTime > queryWaitTimeMillis) {
       handleCommandFailureAndGetFailedData(
         spark,
         dataSource,
         "wait timeout",
-        flintCommand,
+        flintStatement,
         sessionId,
         startTime)
     } else {
       val futureQueryExecution = Future {
         executeQuery(
           spark,
-          flintCommand.query,
+          flintStatement.query,
           dataSource,
-          flintCommand.queryId,
+          flintStatement.queryId,
           sessionId,
           false)
       }(executionContext)
@@ -827,16 +827,16 @@ object FlintREPL extends Logging with FlintJobExecutor {
   }
   private def processCommandInitiation(
       flintReader: FlintReader,
-      flintSessionIndexUpdater: OpenSearchUpdater): FlintCommand = {
+      flintSessionIndexUpdater: OpenSearchUpdater): FlintStatement = {
     val command = flintReader.next()
     logDebug(s"raw command: $command")
-    val flintCommand = FlintCommand.deserialize(command)
-    logDebug(s"command: $flintCommand")
-    flintCommand.running()
-    logDebug(s"command running: $flintCommand")
-    updateSessionIndex(flintCommand, flintSessionIndexUpdater)
+    val flintStatement = FlintStatement.deserialize(command)
+    logDebug(s"command: $flintStatement")
+    flintStatement.running()
+    logDebug(s"command running: $flintStatement")
+    updateSessionIndex(flintStatement, flintSessionIndexUpdater)
     statementRunningCount.incrementAndGet()
-    flintCommand
+    flintStatement
   }
 
   private def createQueryReader(
@@ -1131,15 +1131,15 @@ object FlintREPL extends Logging with FlintJobExecutor {
   }
 
   private def recordStatementStateChange(
-      flintCommand: FlintCommand,
+      flintStatement: FlintStatement,
       statementTimerContext: Timer.Context): Unit = {
     stopTimer(statementTimerContext)
     if (statementRunningCount.get() > 0) {
       statementRunningCount.decrementAndGet()
     }
-    if (flintCommand.isComplete) {
+    if (flintStatement.isComplete) {
       incrementCounter(MetricConstants.STATEMENT_SUCCESS_METRIC)
-    } else if (flintCommand.isFailed) {
+    } else if (flintStatement.isFailed) {
       incrementCounter(MetricConstants.STATEMENT_FAILED_METRIC)
     }
   }

@@ -53,7 +53,7 @@ class InteractiveSession(
     val excludedJobIds: Seq[String] = Seq.empty[String],
     val error: Option[String] = None,
     sessionContext: Map[String, Any] = Map.empty[String, Any])
-    extends ContextualData {
+    extends ContextualDataStore {
   context = sessionContext // Initialize the context from the constructor
 
   def isRunning: Boolean = state == SessionStates.RUNNING

@@ -17,7 +17,7 @@ import org.opensearch.OpenSearchStatusException
 import org.opensearch.flint.OpenSearchSuite
 import org.opensearch.flint.core.{FlintClient, FlintOptions}
 import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintReader, OpenSearchUpdater}
-import org.opensearch.flint.data.{FlintCommand, InteractiveSession}
+import org.opensearch.flint.data.{FlintStatement, InteractiveSession}
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.SparkFunSuite
@@ -546,15 +546,15 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
   }
 
   def awaitConditionForStatementOrTimeout(
-      expected: FlintCommand => Boolean,
+      expected: FlintStatement => Boolean,
       statementId: String): Boolean = {
-    awaitConditionOrTimeout[FlintCommand](
+    awaitConditionOrTimeout[FlintStatement](
       osClient,
       expected,
       statementId,
       10000,
       requestIndex,
-      FlintCommand.deserialize,
+      FlintStatement.deserialize,
       "statement")
   }
 

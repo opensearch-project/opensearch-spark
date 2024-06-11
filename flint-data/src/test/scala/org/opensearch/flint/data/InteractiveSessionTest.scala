@@ -161,17 +161,17 @@ class InteractiveSessionTest extends SparkFunSuite with Matchers {
       new InteractiveSession("app-123", "job-456", "session-789", "RUNNING", 1620000000000L)
     session.context shouldBe empty
 
-    session.addContext("key1", "value1")
-    session.addContext("key2", 42)
+    session.setContextValue("key1", "value1")
+    session.setContextValue("key2", 42)
 
     session.context should contain("key1" -> "value1")
     session.context should contain("key2" -> 42)
 
-    session.getContext("key1") shouldBe Some("value1")
-    session.getContext("key2") shouldBe Some(42)
-    session.getContext("key3") shouldBe None // Test for a key that does not exist
+    session.getContextValue("key1") shouldBe Some("value1")
+    session.getContextValue("key2") shouldBe Some(42)
+    session.getContextValue("key3") shouldBe None // Test for a key that does not exist
 
-    session.addContext("key1", "updatedValue")
-    session.getContext("key1") shouldBe Some("updatedValue")
+    session.setContextValue("key1", "updatedValue")
+    session.getContextValue("key1") shouldBe Some("updatedValue")
   }
 }
