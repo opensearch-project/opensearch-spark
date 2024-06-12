@@ -27,6 +27,7 @@ import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
 /**
  * Flint Spark integration API entrypoint.
@@ -365,11 +366,28 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    *
    * @param tableName
    *   table name
+   * @param columns
+   *   list of column name
    * @return
    *   skipping index recommendation dataframe
    */
-  def analyzeSkippingIndex(tableName: String): Seq[Row] = {
-    new DataTypeSkippingStrategy().analyzeSkippingIndexColumns(tableName, spark)
+  def analyzeSkippingIndex(tableName: String, columns: List[String]): Seq[Row] = {
+
+    val schema = StructType(
+      Seq(
+        StructField("tableName", StringType, nullable = false),
+        StructField("columnName", StringType, nullable = true)))
+
+    val data = if (columns.isEmpty) {
+      Seq(Row(tableName, null.asInstanceOf[String]))
+    } else {
+      columns.map { column => Row(tableName, column) }
+    }
+
+    new DataTypeSkippingStrategy()
+      .analyzeSkippingIndexColumns(
+        spark.createDataFrame(spark.sparkContext.parallelize(data), schema),
+        spark)
   }
 
   private def stopRefreshingJob(indexName: String): Unit = {

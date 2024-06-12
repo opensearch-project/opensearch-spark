@@ -534,6 +534,39 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
           "BLOOM_FILTER data structure is recommended for StringType columns")))
   }
 
+  test("analyze skipping index with columns") {
+    val result = sql(s"ANALYZE SKIPPING INDEX ON $testTable(year, age)")
+
+    checkAnswer(
+      result,
+      Seq(
+        Row(
+          "year",
+          "integer",
+          "PARTITION",
+          "PARTITION data structure is recommended for partition columns"),
+        Row(
+          "age",
+          "integer",
+          "MIN_MAX",
+          "MIN_MAX data structure is recommended for IntegerType columns")))
+  }
+
+  test("analyze skipping index with nested column") {
+    val structTableName = "spark_catalog.default.struct_column_test"
+    createStructFieldTable(structTableName)
+    val result = sql(s"ANALYZE SKIPPING INDEX ON $structTableName(info.name)")
+
+    checkAnswer(
+      result,
+      Seq(
+        Row(
+          "name",
+          "string",
+          "BLOOM_FILTER",
+          "BLOOM_FILTER data structure is recommended for StringType columns")))
+  }
+
   test("analyze skipping index on invalid table") {
     the[IllegalStateException] thrownBy {
       sql(s"ANALYZE SKIPPING INDEX ON testTable")
