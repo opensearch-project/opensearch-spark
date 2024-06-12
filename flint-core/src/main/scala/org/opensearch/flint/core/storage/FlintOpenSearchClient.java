@@ -75,6 +75,10 @@ public class FlintOpenSearchClient implements FlintClient {
     this.metadataLogService = metadataLogService;
   }
 
+  public FlintOpenSearchClient(FlintOptions options) {
+    this(options, new FlintOpenSearchMetadataLogService(options));
+  }
+
   @Override
   public <T> OptimisticTransaction<T> startTransaction(String indexName, boolean forceInit) {
     return metadataLogService.startTransaction(indexName, forceInit);
