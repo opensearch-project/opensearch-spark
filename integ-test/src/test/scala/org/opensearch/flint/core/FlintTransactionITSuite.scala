@@ -11,17 +11,13 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.{JsonMethods, Serialization}
-import org.mockito.Mockito.when
 import org.opensearch.flint.OpenSearchTransactionSuite
-import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogService
-import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService
 import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.sql.flint.config.FlintSparkConf.DATA_SOURCE_NAME
 
@@ -30,13 +26,11 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   val testFlintIndex = "flint_test_index"
   val testLatestId: String = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
   var flintMetadataLogService: FlintMetadataLogService = _
-  var flintClient: FlintClient = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
     val options = openSearchOptions + (DATA_SOURCE_NAME.key -> testDataSourceName)
     flintMetadataLogService = new FlintOpenSearchMetadataLogService(new FlintOptions(options.asJava))
-    flintClient = new FlintOpenSearchClient(new FlintOptions(options.asJava), flintMetadataLogService)
   }
 
   test("empty metadata log entry content") {
@@ -52,50 +46,6 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       })
       .finalLog(latest => latest)
       .commit(_ => {})
-  }
-
-  test("get index metadata with latest log entry") {
-    val indexName = "test_latest_log_entry"
-    val latestId: String = Base64.getEncoder.encodeToString(indexName.getBytes)
-    val testCreateTime = 1234567890123L
-    val flintMetadataLogEntry = FlintMetadataLogEntry(
-      id = latestId,
-      seqNo = UNASSIGNED_SEQ_NO,
-      primaryTerm = UNASSIGNED_PRIMARY_TERM,
-      createTime = testCreateTime,
-      state = ACTIVE,
-      dataSource = testDataSourceName,
-      error = "")
-    val metadata = mock[FlintMetadata]
-    when(metadata.getContent).thenReturn("{}")
-    when(metadata.indexSettings).thenReturn(None)
-    when(metadata.latestLogEntry).thenReturn(Some(flintMetadataLogEntry))
-
-    flintClient.createIndex(indexName, metadata)
-    createLatestLogEntry(flintMetadataLogEntry)
-
-    val latest = flintClient.getIndexMetadata(indexName).latestLogEntry
-    latest.isDefined shouldBe true
-    latest.get.id shouldBe latestId
-    latest.get.createTime shouldBe testCreateTime
-    latest.get.dataSource shouldBe testDataSourceName
-    latest.get.error shouldBe ""
-
-    flintClient.deleteIndex(indexName)
-    flintClient.exists(indexName) shouldBe false
-  }
-
-  test("get index metadata without log entry") {
-    val indexName = "empty_log_entry"
-    val metadata = mock[FlintMetadata]
-    when(metadata.getContent).thenReturn("{}")
-    when(metadata.indexSettings).thenReturn(None)
-    flintClient.createIndex(indexName, metadata)
-
-    flintClient.getIndexMetadata(indexName).latestLogEntry shouldBe empty
-
-    flintClient.deleteIndex(indexName)
-    flintClient.exists(indexName) shouldBe false
   }
 
   test("should preserve original values when transition") {
