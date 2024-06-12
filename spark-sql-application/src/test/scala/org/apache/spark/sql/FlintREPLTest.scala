@@ -151,14 +151,7 @@ class FlintREPLTest
       })
 
     // Invoke the method
-    FlintREPL.createHeartBeatUpdater(
-      1000L,
-      flintSessionUpdater,
-      "session1",
-      threadPool,
-      osClient,
-      "sessionIndex",
-      0)
+    FlintREPL.createHeartBeatUpdater()
 
     // Verifications
     verify(flintSessionUpdater, atLeastOnce()).upsert(eqTo("session1"), *)
@@ -545,7 +538,7 @@ class FlintREPLTest
     try {
       val flintSessionIndexUpdater = mock[OpenSearchUpdater]
 
-      val commandContext = CommandContext(
+      val commandContext = QueryExecutionContext(
         spark,
         dataSource,
         resultIndex,
@@ -698,15 +691,7 @@ class FlintREPLTest
     val mockConf = new SparkConf().set("spark.flint.deployment.excludeJobs", "")
 
     // other mock objects like osClient, flintSessionIndexUpdater with necessary mocking
-    val result = FlintREPL.setupFlintJobWithExclusionCheck(
-      mockConf,
-      Some("sessionIndex"),
-      Some("sessionId"),
-      osClient,
-      "jobId",
-      "appId",
-      flintSessionIndexUpdater,
-      System.currentTimeMillis())
+    val result = FlintREPL.setupFlintJobWithExclusionCheck()
     assert(!result) // Expecting false as the job should proceed normally
   }
 
@@ -720,15 +705,7 @@ class FlintREPLTest
     val flintSessionIndexUpdater = mock[OpenSearchUpdater]
     val mockConf = new SparkConf().set("spark.flint.deployment.excludeJobs", "jobId")
 
-    val result = FlintREPL.setupFlintJobWithExclusionCheck(
-      mockConf,
-      Some("sessionIndex"),
-      Some("sessionId"),
-      osClient,
-      "jobId",
-      "appId",
-      flintSessionIndexUpdater,
-      System.currentTimeMillis())
+    val result = FlintREPL.setupFlintJobWithExclusionCheck()
     assert(result) // Expecting true as the job should exit early
   }
 
@@ -754,15 +731,7 @@ class FlintREPLTest
     val flintSessionIndexUpdater = mock[OpenSearchUpdater]
     val mockConf = new SparkConf().set("spark.flint.deployment.excludeJobs", "job-1,job-2")
 
-    val result = FlintREPL.setupFlintJobWithExclusionCheck(
-      mockConf,
-      Some("sessionIndex"),
-      Some("sessionId"),
-      osClient,
-      "jobId",
-      "appId",
-      flintSessionIndexUpdater,
-      System.currentTimeMillis())
+    val result = FlintREPL.setupFlintJobWithExclusionCheck()
     assert(result) // Expecting true for early exit due to duplicate job
   }
 
@@ -775,15 +744,7 @@ class FlintREPLTest
     val flintSessionIndexUpdater = mock[OpenSearchUpdater]
     val mockConf = new SparkConf().set("spark.flint.deployment.excludeJobs", "job-3,job-4")
 
-    val result = FlintREPL.setupFlintJobWithExclusionCheck(
-      mockConf,
-      Some("sessionIndex"),
-      Some("sessionId"),
-      osClient,
-      "jobId",
-      "appId",
-      flintSessionIndexUpdater,
-      System.currentTimeMillis())
+    val result = FlintREPL.setupFlintJobWithExclusionCheck()
     assert(!result) // Expecting false as the job proceeds normally
   }
 
@@ -794,15 +755,7 @@ class FlintREPLTest
     val mockConf = new SparkConf().set("spark.flint.deployment.excludeJobs", "")
 
     assertThrows[NoSuchElementException] {
-      FlintREPL.setupFlintJobWithExclusionCheck(
-        mockConf,
-        None, // No sessionIndex provided
-        None, // No sessionId provided
-        osClient,
-        "jobId",
-        "appId",
-        flintSessionIndexUpdater,
-        System.currentTimeMillis())
+      FlintREPL.setupFlintJobWithExclusionCheck()
     }
   }
 
@@ -826,7 +779,7 @@ class FlintREPLTest
 
     val flintSessionIndexUpdater = mock[OpenSearchUpdater]
 
-    val commandContext = CommandContext(
+    val commandContext = QueryExecutionContext(
       spark,
       dataSource,
       resultIndex,
@@ -876,7 +829,7 @@ class FlintREPLTest
 
     val flintSessionIndexUpdater = mock[OpenSearchUpdater]
 
-    val commandContext = CommandContext(
+    val commandContext = QueryExecutionContext(
       spark,
       dataSource,
       resultIndex,
@@ -932,7 +885,7 @@ class FlintREPLTest
 
     val flintSessionIndexUpdater = mock[OpenSearchUpdater]
 
-    val commandContext = CommandContext(
+    val commandContext = QueryExecutionContext(
       spark,
       dataSource,
       resultIndex,
@@ -982,7 +935,7 @@ class FlintREPLTest
 
     val flintSessionIndexUpdater = mock[OpenSearchUpdater]
 
-    val commandContext = CommandContext(
+    val commandContext = QueryExecutionContext(
       spark,
       dataSource,
       resultIndex,
@@ -1063,7 +1016,7 @@ class FlintREPLTest
 
     val flintSessionIndexUpdater = mock[OpenSearchUpdater]
 
-    val commandContext = CommandContext(
+    val commandContext = QueryExecutionContext(
       mockSparkSession,
       dataSource,
       resultIndex,
@@ -1113,7 +1066,7 @@ class FlintREPLTest
 
     val flintSessionIndexUpdater = mock[OpenSearchUpdater]
 
-    val commandContext = CommandContext(
+    val commandContext = QueryExecutionContext(
       spark,
       dataSource,
       resultIndex,
