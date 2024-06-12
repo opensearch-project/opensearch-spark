@@ -20,6 +20,9 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogService;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
 
+/**
+ * Flint metadata log service implementation for OpenSearch storage.
+ */
 public class FlintOpenSearchMetadataLogService implements FlintMetadataLogService {
 
   private static final Logger LOG = Logger.getLogger(FlintOpenSearchMetadataLogService.class.getName());

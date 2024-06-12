@@ -7,6 +7,10 @@ package org.opensearch.flint.core.metadata.log;
 
 import java.util.Optional;
 
+/**
+ * Flint metadata log service provides API for metadata log related operations on a Flint index
+ * regardless of concrete storage.
+ */
 public interface FlintMetadataLogService {
 
   /**
