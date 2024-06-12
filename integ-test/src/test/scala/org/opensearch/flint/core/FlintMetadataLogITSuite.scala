@@ -50,7 +50,8 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should fail if metadata log index doesn't exists") {
     val options = openSearchOptions + (DATA_SOURCE_NAME.key -> "non-exist-datasource")
-    val flintMetadataLogService = new FlintOpenSearchMetadataLogService(new FlintOptions(options.asJava))
+    val flintMetadataLogService =
+      new FlintOpenSearchMetadataLogService(new FlintOptions(options.asJava))
 
     the[IllegalStateException] thrownBy {
       flintMetadataLogService.startTransaction(testFlintIndex)
@@ -78,14 +79,16 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should not get index metadata log if not exist") {
     val options = openSearchOptions + (DATA_SOURCE_NAME.key -> "non-exist-datasource")
-    val flintMetadataLogService = new FlintOpenSearchMetadataLogService(new FlintOptions(options.asJava))
+    val flintMetadataLogService =
+      new FlintOpenSearchMetadataLogService(new FlintOptions(options.asJava))
     val metadataLog = flintMetadataLogService.getIndexMetadataLog(testFlintIndex)
     metadataLog.isPresent shouldBe false
   }
 
   test("should initialize index metadata log if forceInit") {
     val options = openSearchOptions + (DATA_SOURCE_NAME.key -> "non-exist-datasource")
-    val flintMetadataLogService = new FlintOpenSearchMetadataLogService(new FlintOptions(options.asJava))
+    val flintMetadataLogService =
+      new FlintOpenSearchMetadataLogService(new FlintOptions(options.asJava))
     val metadataLog = flintMetadataLogService.getIndexMetadataLog(testFlintIndex, true)
     metadataLog.isPresent shouldBe true
   }

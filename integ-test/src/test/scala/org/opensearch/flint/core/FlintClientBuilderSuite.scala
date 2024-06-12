@@ -21,7 +21,8 @@ class FlintClientBuilderSuite extends AnyFlatSpec with OpenSearchSuite with Matc
   }
 
   it should "fail if cannot instantiate metadata log service" in {
-    val options = openSearchOptions + (FlintOptions.CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS -> "org.dummy.Class")
+    val options =
+      openSearchOptions + (FlintOptions.CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS -> "org.dummy.Class")
     the[RuntimeException] thrownBy {
       FlintClientBuilder.build(new FlintOptions(options.asJava))
     }

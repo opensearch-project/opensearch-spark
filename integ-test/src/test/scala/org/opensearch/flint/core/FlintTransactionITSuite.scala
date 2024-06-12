@@ -30,7 +30,8 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   override def beforeAll(): Unit = {
     super.beforeAll()
     val options = openSearchOptions + (DATA_SOURCE_NAME.key -> testDataSourceName)
-    flintMetadataLogService = new FlintOpenSearchMetadataLogService(new FlintOptions(options.asJava))
+    flintMetadataLogService = new FlintOpenSearchMetadataLogService(
+      new FlintOptions(options.asJava))
   }
 
   test("empty metadata log entry content") {
