@@ -17,10 +17,10 @@ public interface FlintMetadataLogService {
    * Start a new optimistic transaction.
    *
    * @param indexName index name
-   * @param forceInit forceInit create empty metadata log if not exist.
+   * @param initIfNotExist initIfNotExist create empty metadata log if not exist.
    * @return transaction handle
    */
-  <T> OptimisticTransaction<T> startTransaction(String indexName, boolean forceInit);
+  <T> OptimisticTransaction<T> startTransaction(String indexName, boolean initIfNotExist);
 
   /**
    * Start a new optimistic transaction.

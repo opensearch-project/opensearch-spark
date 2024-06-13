@@ -27,10 +27,7 @@ public class FlintOpenSearchMetadataLogService implements FlintMetadataLogServic
 
   private static final Logger LOG = Logger.getLogger(FlintOpenSearchMetadataLogService.class.getName());
 
-  /**
-   * Metadata log index name prefix
-   */
-  public final static String META_LOG_NAME_PREFIX = ".query_execution_request";
+  public final static String METADATA_LOG_INDEX_NAME_PREFIX = ".query_execution_request";
 
   private final FlintOptions options;
   private final String dataSourceName;
@@ -87,7 +84,7 @@ public class FlintOpenSearchMetadataLogService implements FlintMetadataLogServic
   }
 
   private String constructMetaLogIndexName() {
-    return dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX : META_LOG_NAME_PREFIX + "_" + dataSourceName;
+    return dataSourceName.isEmpty() ? METADATA_LOG_INDEX_NAME_PREFIX : METADATA_LOG_INDEX_NAME_PREFIX + "_" + dataSourceName;
   }
 
   private IRestHighLevelClient createOpenSearchClient() {

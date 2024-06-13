@@ -31,10 +31,10 @@ public interface FlintClient {
    * Start a new optimistic transaction.
    *
    * @param indexName index name
-   * @param forceInit forceInit create empty translog if not exist.
+   * @param initIfNotExist initIfNotExist create empty translog if not exist.
    * @return transaction handle
    */
-  <T> OptimisticTransaction<T> startTransaction(String indexName, boolean forceInit);
+  <T> OptimisticTransaction<T> startTransaction(String indexName, boolean initIfNotExist);
 
   /**
    * Create a Flint index with the metadata given.
