@@ -15,11 +15,11 @@ import scala.util.control.NonFatal
 
 import com.codahale.metrics.Timer
 import org.opensearch.common.Strings
-import org.opensearch.flint.app.{FlintCommand, FlintInstance}
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
+import org.opensearch.flint.data.{FlintCommand, FlintInstance}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
@@ -428,7 +428,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       if (!canPickNextStatementResult) {
         earlyExitFlag = true
         canProceed = false
-      } else if (commandLifecycleManager.hasPendingCommand(sessionId)) {
+      } else if (!commandLifecycleManager.hasPendingCommand(sessionId)) {
         canProceed = false
       } else {
         val flintCommand = commandLifecycleManager.initCommandLifecycle(sessionId)
@@ -447,6 +447,14 @@ object FlintREPL extends Logging with FlintJobExecutor {
         verificationResult = returnedVerificationResult
         try {
           dataToWrite.foreach(df => logInfo("DF: " + df))
+          val options = FlintSparkConf().flintOptions()
+          val queryResultWriter =
+            instantiateWriter[QueryResultWriter](options.getCustomQueryResultWriter)
+          logInfo("queryResultWriter name: " + queryResultWriter.getClass.getSimpleName)
+          logInfo("command: " + flintCommand.toString)
+
+          queryResultWriter.write(dataToWrite.get, command = flintCommand)
+
           if (flintCommand.isRunning() || flintCommand.isWaiting()) {
             // we have set failed state in exception handling
             flintCommand.complete()
@@ -807,6 +815,18 @@ object FlintREPL extends Logging with FlintJobExecutor {
       val ctor = providerClass.getDeclaredConstructor(classOf[CommandContext])
       ctor.setAccessible(true)
       ctor.newInstance(context).asInstanceOf[T]
+    } catch {
+      case e: Exception =>
+        throw new RuntimeException(s"Failed to instantiate provider: $className", e)
+    }
+  }
+
+  private def instantiateWriter[T](className: String): T = {
+    try {
+      val providerClass = Utils.classForName(className)
+      val ctor = providerClass.getDeclaredConstructor()
+      ctor.setAccessible(true)
+      ctor.newInstance().asInstanceOf[T]
     } catch {
       case e: Exception =>
         throw new RuntimeException(s"Failed to instantiate provider: $className", e)

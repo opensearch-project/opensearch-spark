@@ -214,8 +214,8 @@ object FlintSparkConf {
       .datasourceOption()
       .createWithDefault("org.apache.spark.sql.CommandLifecycleManagerImpl")
 
-  val CUSTOM_REPL_WRITER =
-    FlintConfig("spark.datasource.flint.customReplWriter")
+  val CUSTOM_QUERY_RESULT_WRITER =
+    FlintConfig("spark.flint.job.customQueryResultWriter")
       .createOptional()
 }
 
@@ -293,7 +293,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       SESSION_ID,
       REQUEST_INDEX,
       METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER,
-      CUSTOM_REPL_WRITER,
+      CUSTOM_QUERY_RESULT_WRITER,
       EXCLUDE_JOB_IDS)
       .map(conf => (conf.optionKey, conf.readFrom(reader)))
       .flatMap {

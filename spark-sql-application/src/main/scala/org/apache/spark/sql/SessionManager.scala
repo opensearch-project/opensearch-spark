@@ -5,7 +5,7 @@
 
 package org.apache.spark.sql
 
-import org.opensearch.flint.app.FlintInstance
+import org.opensearch.flint.data.FlintInstance
 
 import org.apache.spark.sql.UpdateMode.UpdateMode
 

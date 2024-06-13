@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.app
+package org.opensearch.flint.data
 
 import java.util.{Map => JavaMap}
 

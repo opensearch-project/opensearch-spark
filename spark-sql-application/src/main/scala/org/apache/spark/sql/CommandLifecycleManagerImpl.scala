@@ -8,11 +8,11 @@ package org.apache.spark.sql
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.codahale.metrics.Timer
-import org.opensearch.flint.app.FlintCommand
 import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
+import org.opensearch.flint.data.FlintCommand
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.internal.Logging

@@ -48,7 +48,7 @@ lazy val commonSettings = Seq(
 
 // running `scalafmtAll` includes all subprojects under root
 lazy val root = (project in file("."))
-  .aggregate(flintCore, flintSparkIntegration, pplSparkIntegration, sparkSqlApplication, integtest)
+  .aggregate(flintData, flintCore, flintSparkIntegration, pplSparkIntegration, sparkSqlApplication, integtest)
   .disablePlugins(AssemblyPlugin)
   .settings(name := "flint", publish / skip := true)
 
@@ -71,6 +71,30 @@ lazy val flintCore = (project in file("flint-core"))
     ),
     libraryDependencies ++= deps(sparkVersion),
     publish / skip := true)
+
+lazy val flintData = (project in file("flint-data"))
+  .settings(
+    commonSettings,
+    name := "flint-data",
+    scalaVersion := scala212,
+    libraryDependencies ++= Seq(
+      "org.json4s" %% "json4s-jackson" % "4.0.5",
+      "org.json4s" %% "json4s-native" % "4.0.5",
+      "org.scalatest" %% "scalatest" % "3.2.15" % "test",
+      "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test"
+    ),
+    libraryDependencies ++= deps(sparkVersion),
+    publish / skip := true,
+    assembly / test := {}, // Disable tests in assembly
+    assembly / assemblyOption ~= {
+      _.withIncludeScala(false)
+    },
+    assemblyMergeStrategy in assembly := {
+      case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+      case x => MergeStrategy.first
+    }
+  )
+  .enablePlugins(AssemblyPlugin)
 
 lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
   .enablePlugins(AssemblyPlugin, Antlr4Plugin)
@@ -109,7 +133,7 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
     })
 
 lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
-  .dependsOn(flintCore)
+  .dependsOn(flintCore, flintData)
   .enablePlugins(AssemblyPlugin, Antlr4Plugin)
   .settings(
     commonSettings,

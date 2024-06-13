@@ -8,10 +8,10 @@ package org.apache.spark.sql
 import scala.util.{Failure, Success, Try}
 
 import org.json4s.native.Serialization
-import org.opensearch.flint.app.FlintInstance
-import org.opensearch.flint.app.FlintInstance.formats
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.logging.CustomLogging
+import org.opensearch.flint.data.FlintInstance
+import org.opensearch.flint.data.FlintInstance.formats
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging

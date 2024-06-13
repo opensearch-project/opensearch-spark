@@ -5,7 +5,7 @@
 
 package org.apache.spark.sql
 
-import org.opensearch.flint.app.FlintCommand
+import org.opensearch.flint.data.FlintCommand
 
 trait CommandLifecycleManager {
   def setWriter(writer: REPLWriter): Unit

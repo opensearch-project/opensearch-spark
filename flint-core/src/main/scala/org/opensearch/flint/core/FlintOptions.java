@@ -64,7 +64,7 @@ public class FlintOptions implements Serializable {
   // New constants
   public static final String CUSTOM_SESSION_MANAGER = "customSessionManager";
   public static final String CUSTOM_COMMAND_LIFECYCLE_MANAGER = "customCommandLifecycleManager";
-  public static final String CUSTOM_REPL_WRITER = "customReplWriter";
+  public static final String CUSTOM_QUERY_RESULT_WRITER = "customQueryResultWriter";
 
   public FlintOptions(Map<String, String> options) {
     this.options = options;
@@ -150,10 +150,9 @@ public class FlintOptions implements Serializable {
     return options.getOrDefault(CUSTOM_COMMAND_LIFECYCLE_MANAGER, "org.apache.spark.sql.CommandLifecycleManagerImpl");
   }
 
-  public String getCustomReplWriter() {
-    return options.getOrDefault(CUSTOM_REPL_WRITER, "");
+  public String getCustomQueryResultWriter() {
+    return options.getOrDefault(CUSTOM_QUERY_RESULT_WRITER, "");
   }
-
   public String getRequestMetadata() {
     return options.getOrDefault("spark.flint.job.requestIndex", null);
   }
