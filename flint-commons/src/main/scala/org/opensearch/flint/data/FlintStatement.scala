@@ -42,6 +42,7 @@ class FlintStatement(
     val statementId: String,
     val queryId: String,
     val submitTime: Long,
+    var queryStartTime: Option[Long] = Some(-1L),
     var error: Option[String] = None,
     statementContext: Map[String, Any] = Map.empty[String, Any])
     extends ContextualDataStore {
@@ -76,7 +77,7 @@ object FlintStatement {
       case _ => None
     }
 
-    new FlintStatement(state, query, statementId, queryId, submitTime, maybeError)
+    new FlintStatement(state, query, statementId, queryId, submitTime, error = maybeError)
   }
 
   def serialize(flintStatement: FlintStatement): String = {

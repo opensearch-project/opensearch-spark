@@ -7,13 +7,14 @@ package org.apache.spark.sql
 
 import scala.concurrent.duration.Duration
 
-case class QueryExecutionContext(
+case class StatementExecutionContext(
     spark: SparkSession,
     jobId: String,
     sessionId: String,
     sessionManager: SessionManager,
+    statementLifecycleManager: StatementLifecycleManager,
+    queryResultWriter: QueryResultWriter,
     dataSource: String,
-    resultIndex: String,
     queryExecutionTimeout: Duration,
     inactivityLimitMillis: Long,
     queryWaitTimeMillis: Long)

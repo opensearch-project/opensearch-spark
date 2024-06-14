@@ -9,10 +9,9 @@ import scala.concurrent.{ExecutionContextExecutor, Future}
 
 import org.opensearch.flint.core.storage.FlintReader
 
-case class CommandState(
+case class InMemoryQueryExecutionState(
     recordedLastActivityTime: Long,
+    recordedLastCanPickCheckTime: Long,
     recordedVerificationResult: VerificationResult,
-    flintReader: FlintReader,
-    futureMappingCheck: Future[Either[String, Unit]],
-    executionContext: ExecutionContextExecutor,
-    recordedLastCanPickCheckTime: Long)
+    futurePrepareQueryExecution: Future[Either[String, Unit]],
+    futureExecutor: ExecutionContextExecutor)

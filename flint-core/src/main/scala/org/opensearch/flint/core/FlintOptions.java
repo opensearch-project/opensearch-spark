@@ -49,20 +49,12 @@ public class FlintOptions implements Serializable {
 
   public static final String METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER = "spark.metadata.accessAWSCredentialsProvider";
 
-  public static final String CUSTOM_SESSION_MANAGER = "customSessionManager";
-
-  public static final String CUSTOM_STATEMENT_MANAGER = "customStatementManager";
-
-  public static final String CUSTOM_QUERY_RESULT_WRITER = "customQueryResultWriter";
-
   /**
    * By default, customAWSCredentialsProvider and accessAWSCredentialsProvider are empty. use DefaultAWSCredentialsProviderChain.
    */
   public static final String DEFAULT_AWS_CREDENTIALS_PROVIDER = "";
 
   public static final String SYSTEM_INDEX_KEY_NAME = "spark.flint.job.requestIndex";
-
-  public static final String FLINT_SESSION_ID = "spark.flint.job.sessionId";
 
   /**
    * Used by {@link org.opensearch.flint.core.storage.OpenSearchScrollReader}
@@ -145,18 +137,6 @@ public class FlintOptions implements Serializable {
     return options.getOrDefault(METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER, DEFAULT_AWS_CREDENTIALS_PROVIDER);
   }
 
-  public String getCustomSessionManager() {
-    return options.getOrDefault(CUSTOM_SESSION_MANAGER, "");
-  }
-
-  public String getCustomStatementManager() {
-    return options.getOrDefault(CUSTOM_STATEMENT_MANAGER, "");
-  }
-
-  public String getCustomQueryResultWriter() {
-    return options.getOrDefault(CUSTOM_QUERY_RESULT_WRITER, "");
-  }
-
   public String getUsername() {
     return options.getOrDefault(USERNAME, "flint");
   }
@@ -175,10 +155,6 @@ public class FlintOptions implements Serializable {
 
   public String getSystemIndexName() {
     return options.getOrDefault(SYSTEM_INDEX_KEY_NAME, "");
-  }
-
-  public String getSessionId() {
-    return options.getOrDefault(FLINT_SESSION_ID, null);
   }
 
   public int getBatchBytes() {

@@ -181,12 +181,7 @@ class FlintREPLTest
         "jobStartTime" -> java.lang.Long.valueOf(0L)).asJava)
 
     // Instantiate the listener
-    val listener = new PreShutdownListener(
-      flintSessionIndexUpdater,
-      osClient,
-      sessionIndex,
-      sessionId,
-      timerContext)
+    val listener = new PreShutdownListener(osClient, flintSessionIndexUpdater)
 
     // Simulate application end
     listener.onApplicationEnd(SparkListenerApplicationEnd(System.currentTimeMillis()))
@@ -245,13 +240,12 @@ class FlintREPLTest
 
       // Compare the result
       val result =
-        FlintREPL.handleCommandFailureAndGetFailedData(
+        FlintREPL.handleStatementFailureAndGetFailedData(
           spark,
           dataSourceName,
           error,
           flintStatement,
-          "20",
-          currentTime - queryRunTime)
+          "20")
       assertEqualDataframe(expected, result)
       assert("failed" == flintStatement.state)
       assert(error == flintStatement.error.get)
@@ -601,16 +595,7 @@ class FlintREPLTest
       val sparkContext = mock[SparkContext]
       when(mockSparkSession.sparkContext).thenReturn(sparkContext)
 
-      val result = FlintREPL.executeAndHandle(
-        mockSparkSession,
-        mockFlintStatement,
-        dataSource,
-        sessionId,
-        executionContext,
-        startTime,
-        // make sure it times out before mockSparkSession.sql can return, which takes 60 seconds
-        Duration(1, SECONDS),
-        600000)
+      val result = FlintREPL.executeAndHandle()
 
       verify(mockSparkSession, times(1)).sql(any[String])
       verify(sparkContext, times(1)).cancelJobGroup(any[String])
@@ -652,15 +637,7 @@ class FlintREPLTest
         .thenReturn(expectedDataFrame)
       when(expectedDataFrame.toDF(any[Seq[String]]: _*)).thenReturn(expectedDataFrame)
 
-      val result = FlintREPL.executeAndHandle(
-        mockSparkSession,
-        flintStatement,
-        dataSource,
-        sessionId,
-        executionContext,
-        startTime,
-        Duration.Inf, // Use Duration.Inf or a large enough duration to avoid a timeout,
-        600000)
+      val result = FlintREPL.executeAndHandle()
 
       // Verify that ParseException was caught and handled
       result should not be None // or result.isDefined shouldBe true

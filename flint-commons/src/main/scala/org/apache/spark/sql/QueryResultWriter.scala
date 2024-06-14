@@ -8,5 +8,9 @@ package org.apache.spark.sql
 import org.opensearch.flint.data.FlintStatement
 
 trait QueryResultWriter {
-  def write(dataFrame: DataFrame, flintStatement: FlintStatement): Unit
+  def reformatQueryResult(
+      dataFrame: DataFrame,
+      flintStatement: FlintStatement,
+      queryExecutionContext: StatementExecutionContext): DataFrame
+  def persistQueryResult(dataFrame: DataFrame, flintStatement: FlintStatement): Unit
 }
