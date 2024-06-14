@@ -51,7 +51,11 @@ public class FlintOpenSearchMetadataLogService implements FlintMetadataLogServic
   }
 
   @Override
-  public Optional<FlintMetadataLog<FlintMetadataLogEntry>> getIndexMetadataLog(String indexName, boolean initIfNotExist) {
+  public Optional<FlintMetadataLog<FlintMetadataLogEntry>> getIndexMetadataLog(String indexName) {
+    return getIndexMetadataLog(indexName, false);
+  }
+
+  private Optional<FlintMetadataLog<FlintMetadataLogEntry>> getIndexMetadataLog(String indexName, boolean initIfNotExist) {
     LOG.info("Getting metadata log for index " + indexName + " and data source " + dataSourceName);
     try (IRestHighLevelClient client = createOpenSearchClient()) {
       if (client.doesIndexExist(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {

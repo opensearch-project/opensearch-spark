@@ -9,7 +9,7 @@ import java.util.Optional;
 
 /**
  * Flint metadata log service provides API for metadata log related operations on a Flint index
- * regardless of concrete storage.
+ * regardless of underlying storage.
  */
 public interface FlintMetadataLogService {
 
@@ -36,18 +36,7 @@ public interface FlintMetadataLogService {
    * Get metadata log for index.
    *
    * @param indexName index name
-   * @param initIfNotExist create empty metadata log if not exist
    * @return optional metadata log
    */
-  Optional<FlintMetadataLog<FlintMetadataLogEntry>> getIndexMetadataLog(String indexName, boolean initIfNotExist);
-
-  /**
-   * Get metadata log for index.
-   *
-   * @param indexName index name
-   * @return optional metadata log
-   */
-  default Optional<FlintMetadataLog<FlintMetadataLogEntry>> getIndexMetadataLog(String indexName) {
-    return getIndexMetadataLog(indexName, false);
-  }
+  Optional<FlintMetadataLog<FlintMetadataLogEntry>> getIndexMetadataLog(String indexName);
 }
