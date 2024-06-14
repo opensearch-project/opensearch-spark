@@ -156,11 +156,7 @@ class FlintSparkIndexMonitor(
       try {
         if (isStreamingJobActive(indexName)) {
           logInfo("Streaming job is still active")
-          flintMetadataLogService
-            .startTransaction(indexName)
-            .initialLog(latest => latest.state == REFRESHING)
-            .finalLog(latest => latest) // timestamp will update automatically
-            .commit(_ => {})
+          flintMetadataLogService.recordHeartbeat(indexName)
         } else {
           logError("Streaming job is not active. Cancelling monitor task")
           stopMonitor(indexName)

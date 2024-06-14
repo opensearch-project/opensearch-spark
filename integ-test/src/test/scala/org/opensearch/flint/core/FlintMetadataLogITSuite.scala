@@ -78,4 +78,23 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
     val metadataLog = flintMetadataLogService.getIndexMetadataLog(testFlintIndex)
     metadataLog.isPresent shouldBe false
   }
+
+  test("should update timestamp when record heartbeat") {
+    val refreshingLogEntry = flintMetadataLogEntry.copy(state = REFRESHING)
+    createLatestLogEntry(refreshingLogEntry)
+    val updateTimeBeforeHeartbeat =
+      latestLogEntry(testLatestId).get("lastUpdateTime").get.asInstanceOf[Long]
+    flintMetadataLogService.recordHeartbeat(testFlintIndex)
+    latestLogEntry(testLatestId)
+      .get("lastUpdateTime")
+      .get
+      .asInstanceOf[Long] should be > updateTimeBeforeHeartbeat
+  }
+
+  test("should fail when record heartbeat if index not refreshing") {
+    createLatestLogEntry(flintMetadataLogEntry)
+    the[IllegalStateException] thrownBy {
+      flintMetadataLogService.recordHeartbeat(testFlintIndex)
+    }
+  }
 }

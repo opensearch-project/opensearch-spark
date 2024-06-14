@@ -39,4 +39,11 @@ public interface FlintMetadataLogService {
    * @return optional metadata log
    */
   Optional<FlintMetadataLog<FlintMetadataLogEntry>> getIndexMetadataLog(String indexName);
+
+  /**
+   * Record heartbeat timestamp for index streaming job.
+   *
+   * @param indexName index name
+   */
+  void recordHeartbeat(String indexName);
 }

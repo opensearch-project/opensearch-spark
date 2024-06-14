@@ -17,6 +17,7 @@ import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.flint.core.metadata.log.DefaultOptimisticTransaction;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLog;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState$;
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogService;
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
 
@@ -53,6 +54,14 @@ public class FlintOpenSearchMetadataLogService implements FlintMetadataLogServic
   @Override
   public Optional<FlintMetadataLog<FlintMetadataLogEntry>> getIndexMetadataLog(String indexName) {
     return getIndexMetadataLog(indexName, false);
+  }
+
+  @Override
+  public void recordHeartbeat(String indexName) {
+    startTransaction(indexName)
+        .initialLog(latest -> latest.state() == IndexState$.MODULE$.REFRESHING())
+        .finalLog(latest -> latest) // timestamp will update automatically
+        .commit(latest -> null);
   }
 
   private Optional<FlintMetadataLog<FlintMetadataLogEntry>> getIndexMetadataLog(String indexName, boolean initIfNotExist) {
