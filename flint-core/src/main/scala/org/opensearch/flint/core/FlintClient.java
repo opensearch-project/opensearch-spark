@@ -19,24 +19,6 @@ import org.opensearch.flint.core.storage.FlintWriter;
 public interface FlintClient {
 
   /**
-   * Start a new optimistic transaction.
-   *
-   * @param indexName index name
-   * @return transaction handle
-   */
-  <T> OptimisticTransaction<T> startTransaction(String indexName);
-
-  /**
-   *
-   * Start a new optimistic transaction.
-   *
-   * @param indexName index name
-   * @param forceInit force init transaction and create empty translog if not exist
-   * @return transaction handle
-   */
-  <T> OptimisticTransaction<T> startTransaction(String indexName, boolean forceInit);
-
-  /**
    * Create a Flint index with the metadata given.
    *
    * @param indexName index name

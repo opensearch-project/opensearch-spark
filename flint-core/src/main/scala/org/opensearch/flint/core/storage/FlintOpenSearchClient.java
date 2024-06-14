@@ -80,16 +80,6 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override
-  public <T> OptimisticTransaction<T> startTransaction(String indexName, boolean forceInit) {
-    return metadataLogService.startTransaction(indexName, forceInit);
-  }
-
-  @Override
-  public <T> OptimisticTransaction<T> startTransaction(String indexName) {
-    return metadataLogService.startTransaction(indexName);
-  }
-
-  @Override
   public void createIndex(String indexName, FlintMetadata metadata) {
     LOG.info("Creating Flint index " + indexName + " with metadata " + metadata);
     createIndex(indexName, metadata.getContent(), metadata.indexSettings());

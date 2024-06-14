@@ -10,6 +10,7 @@ import scala.collection.JavaConverters._
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
+import org.opensearch.flint.core.metadata.log.{FlintMetadataLogService, FlintMetadataLogServiceBuilder}
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
@@ -43,12 +44,15 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   /** Flint client for low-level index operation */
   private val flintClient: FlintClient = FlintClientBuilder.build(flintSparkConf.flintOptions())
 
+  private val flintMetadataLogService: FlintMetadataLogService =
+    FlintMetadataLogServiceBuilder.build(flintSparkConf.flintOptions())
+
   /** Required by json4s parse function */
   implicit val formats: Formats = Serialization.formats(NoTypeHints) + SkippingKindSerializer
 
   /** Flint Spark index monitor */
   val flintIndexMonitor: FlintSparkIndexMonitor =
-    new FlintSparkIndexMonitor(spark, flintClient)
+    new FlintSparkIndexMonitor(spark, flintMetadataLogService)
 
   /**
    * Create index builder for creating index with fluent API.
@@ -98,7 +102,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     } else {
       val metadata = index.metadata()
       try {
-        flintClient
+        flintMetadataLogService
           .startTransaction(indexName, true)
           .initialLog(latest => latest.state == EMPTY || latest.state == DELETED)
           .transientLog(latest => latest.copy(state = CREATING))
@@ -134,7 +138,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
 
     try {
-      flintClient
+      flintMetadataLogService
         .startTransaction(indexName)
         .initialLog(latest => latest.state == ACTIVE)
         .transientLog(latest =>
@@ -241,7 +245,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     logInfo(s"Deleting Flint index $indexName")
     if (flintClient.exists(indexName)) {
       try {
-        flintClient
+        flintMetadataLogService
           .startTransaction(indexName)
           .initialLog(latest =>
             latest.state == ACTIVE || latest.state == REFRESHING || latest.state == FAILED)
@@ -276,7 +280,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     logInfo(s"Vacuuming Flint index $indexName")
     if (flintClient.exists(indexName)) {
       try {
-        flintClient
+        flintMetadataLogService
           .startTransaction(indexName)
           .initialLog(latest => latest.state == DELETED)
           .transientLog(latest => latest.copy(state = VACUUMING))
@@ -307,7 +311,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     val index = describeIndex(indexName)
     if (index.exists(_.options.autoRefresh())) {
       try {
-        flintClient
+        flintMetadataLogService
           .startTransaction(indexName)
           .initialLog(latest => Set(ACTIVE, REFRESHING, FAILED).contains(latest.state))
           .transientLog(latest =>
@@ -338,7 +342,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
          * interim, but metadata log get deleted by this cleanup process.
          */
         logWarning("Cleaning up metadata log as index data has been deleted")
-        flintClient
+        flintMetadataLogService
           .startTransaction(indexName)
           .initialLog(_ => true)
           .finalLog(_ => NO_LOG_ENTRY)
@@ -428,7 +432,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   private def updateIndexAutoToManual(index: FlintSparkIndex): Option[String] = {
     val indexName = index.name
     val indexLogEntry = index.latestLogEntry.get
-    flintClient
+    flintMetadataLogService
       .startTransaction(indexName)
       .initialLog(latest =>
         latest.state == REFRESHING && latest.seqNo == indexLogEntry.seqNo && latest.primaryTerm == indexLogEntry.primaryTerm)
@@ -447,7 +451,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
     val indexName = index.name
     val indexLogEntry = index.latestLogEntry.get
     val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
-    flintClient
+    flintMetadataLogService
       .startTransaction(indexName)
       .initialLog(latest =>
         latest.state == ACTIVE && latest.seqNo == indexLogEntry.seqNo && latest.primaryTerm == indexLogEntry.primaryTerm)
