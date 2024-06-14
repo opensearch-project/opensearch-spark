@@ -88,6 +88,10 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
           .queryName(indexName)
           .addSinkOptions(options, flintSparkConf)
           .foreachBatch { (batchDF: DataFrame, _: Long) =>
+            // Debugging
+            logInfo(s"New micro batch size: ${batchDF.count()}")
+            logInfo(s"New micro batch data: ${batchDF.collect().mkString(",")}")
+
             new FullIndexRefresh(indexName, index, Some(batchDF))
               .start(spark, flintSparkConf)
             () // discard return value above and return unit to use right overridden method

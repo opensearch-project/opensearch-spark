@@ -14,7 +14,7 @@ import org.opensearch.flint.spark.source.{FlintSparkSourceRelation, FlintSparkSo
 
 import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, V2WriteCommand}
+import org.apache.spark.sql.catalyst.plans.logical.{Call, LogicalPlan, V2WriteCommand}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.flint.{qualifyTableName, FlintDataSourceV2}
@@ -33,7 +33,8 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark) extends Rule[LogicalPlan] 
   private val supportedProviders = FlintSparkSourceRelationProvider.getAllProviders(flint.spark)
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
-    if (plan.isInstanceOf[V2WriteCommand]) { // TODO: bypass any non-select plan
+    if (plan.isInstanceOf[V2WriteCommand] || plan
+        .isInstanceOf[Call]) { // TODO: bypass any non-select plan
       plan
     } else {
       // Iterate each sub plan tree in the given plan
