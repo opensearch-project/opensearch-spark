@@ -36,7 +36,7 @@ public class FlintOpenSearchMetadataLogService implements FlintMetadataLogServic
   public FlintOpenSearchMetadataLogService(FlintOptions options) {
     this.options = options;
     this.dataSourceName = options.getDataSourceName();
-    this.metaLogIndexName = constructMetaLogIndexName();
+    this.metaLogIndexName = constructMetadataLogIndexName();
   }
 
   @Override
@@ -87,7 +87,7 @@ public class FlintOpenSearchMetadataLogService implements FlintMetadataLogServic
     }
   }
 
-  private String constructMetaLogIndexName() {
+  private String constructMetadataLogIndexName() {
     return dataSourceName.isEmpty() ? METADATA_LOG_INDEX_NAME_PREFIX : METADATA_LOG_INDEX_NAME_PREFIX + "_" + dataSourceName;
   }
 
