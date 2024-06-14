@@ -124,8 +124,8 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
 
     val allMetadata = flintClient.getAllIndexMetadata("flint_*_index")
     allMetadata should have size 2
-    allMetadata.forEach(metadata => metadata.getContent should not be empty)
-    allMetadata.forEach(metadata => metadata.indexSettings should not be empty)
+    allMetadata.values.forEach(metadata => metadata.getContent should not be empty)
+    allMetadata.values.forEach(metadata => metadata.indexSettings should not be empty)
   }
 
   it should "convert index name to all lowercase" in {

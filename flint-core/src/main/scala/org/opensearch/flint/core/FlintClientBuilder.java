@@ -6,7 +6,6 @@
 package org.opensearch.flint.core;
 
 import org.opensearch.flint.core.storage.FlintOpenSearchClient;
-import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService;
 
 /**
  * {@link FlintClient} builder.
@@ -14,6 +13,6 @@ import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService;
 public class FlintClientBuilder {
 
   public static FlintClient build(FlintOptions options) {
-    return new FlintOpenSearchClient(options, new FlintOpenSearchMetadataLogService(options));
+    return new FlintOpenSearchClient(options);
   }
 }

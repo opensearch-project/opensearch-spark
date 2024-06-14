@@ -10,10 +10,9 @@ import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATI
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -33,10 +32,6 @@ import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.flint.core.metadata.FlintMetadata;
-import org.opensearch.flint.core.metadata.log.FlintMetadataLog;
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogService;
-import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
 import org.opensearch.index.query.AbstractQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
@@ -68,15 +63,9 @@ public class FlintOpenSearchClient implements FlintClient {
       Set.of(' ', ',', ':', '"', '+', '/', '\\', '|', '?', '#', '>', '<');
 
   private final FlintOptions options;
-  private final FlintMetadataLogService metadataLogService;
-
-  public FlintOpenSearchClient(FlintOptions options, FlintMetadataLogService metadataLogService) {
-    this.options = options;
-    this.metadataLogService = metadataLogService;
-  }
 
   public FlintOpenSearchClient(FlintOptions options) {
-    this(options, new FlintOpenSearchMetadataLogService(options));
+    this.options = options;
   }
 
   @Override
@@ -112,7 +101,7 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override
-  public List<FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
+  public Map<String, FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
     LOG.info("Fetching all Flint index metadata for pattern " + indexNamePattern);
     String osIndexNamePattern = sanitizeIndexName(indexNamePattern);
     try (IRestHighLevelClient client = createClient()) {
@@ -120,11 +109,13 @@ public class FlintOpenSearchClient implements FlintClient {
       GetIndexResponse response = client.getIndex(request, RequestOptions.DEFAULT);
 
       return Arrays.stream(response.getIndices())
-          .map(index -> constructFlintMetadata(
-              index,
-              response.getMappings().get(index).source().toString(),
-              response.getSettings().get(index).toString()))
-          .collect(Collectors.toList());
+          .collect(Collectors.toMap(
+              index -> index,
+              index -> FlintMetadata.apply(
+                  response.getMappings().get(index).source().toString(),
+                  response.getSettings().get(index).toString()
+              )
+          ));
     } catch (Exception e) {
       throw new IllegalStateException("Failed to get Flint index metadata for " + osIndexNamePattern, e);
     }
@@ -140,7 +131,7 @@ public class FlintOpenSearchClient implements FlintClient {
 
       MappingMetadata mapping = response.getMappings().get(osIndexName);
       Settings settings = response.getSettings().get(osIndexName);
-      return constructFlintMetadata(indexName, mapping.source().string(), settings.toString());
+      return FlintMetadata.apply(mapping.source().string(), settings.toString());
     } catch (Exception e) {
       throw new IllegalStateException("Failed to get Flint index metadata for " + osIndexName, e);
     }
@@ -208,17 +199,6 @@ public class FlintOpenSearchClient implements FlintClient {
   @Override
   public IRestHighLevelClient createClient() {
     return OpenSearchClientUtils.createClient(options);
-  }
-
-  /*
-   * Constructs Flint metadata with latest metadata log entry attached if it's available.
-   */
-  private FlintMetadata constructFlintMetadata(String indexName, String mapping, String settings) {
-    Optional<FlintMetadataLogEntry> latest = metadataLogService.getIndexMetadataLog(indexName)
-        .flatMap(FlintMetadataLog::getLatest);
-    return latest
-        .map(entry -> FlintMetadata.apply(mapping, settings, entry))
-        .orElseGet(() -> FlintMetadata.apply(mapping, settings));
   }
 
   /*
