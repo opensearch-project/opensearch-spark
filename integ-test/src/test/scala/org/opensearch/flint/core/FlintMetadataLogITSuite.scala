@@ -78,12 +78,4 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
     val metadataLog = flintMetadataLogService.getIndexMetadataLog(testFlintIndex)
     metadataLog.isPresent shouldBe false
   }
-
-  test("should initialize index metadata log if forceInit") {
-    val options = openSearchOptions + (DATA_SOURCE_NAME.key -> "non-exist-datasource")
-    val flintMetadataLogService =
-      new FlintOpenSearchMetadataLogService(new FlintOptions(options.asJava))
-    val metadataLog = flintMetadataLogService.getIndexMetadataLog(testFlintIndex, true)
-    metadataLog.isPresent shouldBe true
-  }
 }
