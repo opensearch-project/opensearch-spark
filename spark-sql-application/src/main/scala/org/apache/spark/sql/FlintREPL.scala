@@ -447,11 +447,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
         verificationResult = returnedVerificationResult
         try {
           dataToWrite.foreach(df => logInfo("DF: " + df))
-          val options = FlintSparkConf().flintOptions()
+          val name = spark.conf.get(FlintSparkConf.CUSTOM_QUERY_RESULT_WRITER.key)
+          logInfo("queryResultWriter name: " + name)
           val queryResultWriter =
-            instantiateWriter[QueryResultWriter](options.getCustomQueryResultWriter)
-          logInfo("queryResultWriter name: " + queryResultWriter.getClass.getSimpleName)
-          logInfo("command: " + flintCommand.toString)
+            instantiateWriter[QueryResultWriter](name)
 
           queryResultWriter.write(dataToWrite.get, command = flintCommand)
 

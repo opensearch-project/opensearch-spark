@@ -407,21 +407,16 @@ trait FlintJobExecutor {
       sessionId: String,
       streaming: Boolean): DataFrame = {
     // Execute SQL query
+    logInfo("Executing SQL query: " + query)
+
     val startTime = System.currentTimeMillis()
     // we have to set job group in the same thread that started the query according to spark doc
     spark.sparkContext.setJobGroup(queryId, "Job group for " + queryId, interruptOnCancel = true)
-    val result: DataFrame = spark.sql(query)
-    // Get Data
-    getFormattedData(
-      result,
-      spark,
-      dataSource,
-      queryId,
-      query,
-      sessionId,
-      startTime,
-      currentTimeProvider,
-      CleanerFactory.cleaner(streaming))
+    spark.sparkContext.setLocalProperty("spark.sql.local.query", query)
+    spark.sparkContext.setLocalProperty("spark.sql.local.queryLanguage", "SQL")
+    val result = spark.sql(query)
+    logInfo("Executed SQL query result: " + result)
+    result
   }
 
   private def handleQueryException(
