@@ -16,8 +16,8 @@ import scala.sys.addShutdownHook
 import dev.failsafe.{Failsafe, RetryPolicy}
 import dev.failsafe.event.ExecutionAttemptedEvent
 import dev.failsafe.function.CheckedRunnable
-import org.opensearch.flint.core.FlintClient
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.{FAILED, REFRESHING}
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogService
 import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 
 import org.apache.spark.internal.Logging
@@ -30,10 +30,13 @@ import org.apache.spark.sql.flint.newDaemonThreadPoolScheduledExecutor
  *
  * @param spark
  *   Spark session
- * @param flintClient
- *   Flint client
+ * @param flintMetadataLogService
+ *   Flint metadata log service
  */
-class FlintSparkIndexMonitor(spark: SparkSession, flintClient: FlintClient) extends Logging {
+class FlintSparkIndexMonitor(
+    spark: SparkSession,
+    flintMetadataLogService: FlintMetadataLogService)
+    extends Logging {
 
   /** Task execution initial delay in seconds */
   private val INITIAL_DELAY_SECONDS = FlintSparkConf().monitorInitialDelaySeconds()
@@ -153,11 +156,7 @@ class FlintSparkIndexMonitor(spark: SparkSession, flintClient: FlintClient) exte
       try {
         if (isStreamingJobActive(indexName)) {
           logInfo("Streaming job is still active")
-          flintClient
-            .startTransaction(indexName)
-            .initialLog(latest => latest.state == REFRESHING)
-            .finalLog(latest => latest) // timestamp will update automatically
-            .commit(_ => {})
+          flintMetadataLogService.recordHeartbeat(indexName)
         } else {
           logError("Streaming job is not active. Cancelling monitor task")
           stopMonitor(indexName)
@@ -205,7 +204,7 @@ class FlintSparkIndexMonitor(spark: SparkSession, flintClient: FlintClient) exte
   private def retryUpdateIndexStateToFailed(indexName: String): Unit = {
     logInfo(s"Updating index state to failed for $indexName")
     retry {
-      flintClient
+      flintMetadataLogService
         .startTransaction(indexName)
         .initialLog(latest => latest.state == REFRESHING)
         .finalLog(latest => latest.copy(state = FAILED))

@@ -44,16 +44,16 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   /**
    * Reuse query request index as Flint metadata log store
    */
-  private final String metaLogIndexName;
+  private final String metadataLogIndexName;
 
   /**
    * Doc id for latest log entry (Naming rule is static so no need to query Flint index metadata)
    */
   private final String latestId;
 
-  public FlintOpenSearchMetadataLog(FlintOptions options, String flintIndexName, String metaLogIndexName) {
+  public FlintOpenSearchMetadataLog(FlintOptions options, String flintIndexName, String metadataLogIndexName) {
     this.options = options;
-    this.metaLogIndexName = metaLogIndexName;
+    this.metadataLogIndexName = metadataLogIndexName;
     this.latestId = Base64.getEncoder().encodeToString(flintIndexName.getBytes());
   }
 
@@ -62,7 +62,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     // TODO: use single doc for now. this will be always append in future.
     FlintMetadataLogEntry latest;
     if (!exists()) {
-      String errorMsg = "Flint Metadata Log index not found " + metaLogIndexName;
+      String errorMsg = "Flint Metadata Log index not found " + metadataLogIndexName;
       LOG.log(SEVERE, errorMsg);
       throw new IllegalStateException(errorMsg);
     }
@@ -79,7 +79,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     LOG.info("Fetching latest log entry with id " + latestId);
     try (IRestHighLevelClient client = createOpenSearchClient()) {
       GetResponse response =
-          client.get(new GetRequest(metaLogIndexName, latestId), RequestOptions.DEFAULT);
+          client.get(new GetRequest(metadataLogIndexName, latestId), RequestOptions.DEFAULT);
 
       if (response.isExists()) {
         FlintMetadataLogEntry latest = new FlintMetadataLogEntry(
@@ -105,7 +105,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     try (IRestHighLevelClient client = createOpenSearchClient()) {
       DeleteResponse response =
           client.delete(
-              new DeleteRequest(metaLogIndexName, latestId), RequestOptions.DEFAULT);
+              new DeleteRequest(metadataLogIndexName, latestId), RequestOptions.DEFAULT);
 
       LOG.info("Purged log entry with result " + response.getResult());
     } catch (Exception e) {
@@ -129,7 +129,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     return writeLogEntry(logEntryWithId,
         client -> client.index(
             new IndexRequest()
-                .index(metaLogIndexName)
+                .index(metadataLogIndexName)
                 .id(logEntryWithId.id())
                 .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
                 .source(logEntryWithId.toJson(), XContentType.JSON),
@@ -140,7 +140,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     LOG.info("Updating log entry " + logEntry);
     return writeLogEntry(logEntry,
         client -> client.update(
-            new UpdateRequest(metaLogIndexName, logEntry.id())
+            new UpdateRequest(metadataLogIndexName, logEntry.id())
                 .doc(logEntry.toJson(), XContentType.JSON)
                 .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
                 .setIfSeqNo(logEntry.seqNo())
@@ -173,11 +173,11 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   }
 
   private boolean exists() {
-    LOG.info("Checking if Flint index exists " + metaLogIndexName);
+    LOG.info("Checking if Flint index exists " + metadataLogIndexName);
     try (IRestHighLevelClient client = createOpenSearchClient()) {
-      return client.doesIndexExist(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT);
+      return client.doesIndexExist(new GetIndexRequest(metadataLogIndexName), RequestOptions.DEFAULT);
     } catch (IOException e) {
-      throw new IllegalStateException("Failed to check if Flint index exists " + metaLogIndexName, e);
+      throw new IllegalStateException("Failed to check if Flint index exists " + metadataLogIndexName, e);
     }
   }
 

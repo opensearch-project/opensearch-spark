@@ -11,15 +11,13 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.{JsonMethods, Serialization}
-import org.mockito.Mockito.when
 import org.opensearch.flint.OpenSearchTransactionSuite
-import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
-import org.opensearch.flint.core.storage.FlintOpenSearchClient
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogService
+import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService
 import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.sql.flint.config.FlintSparkConf.DATA_SOURCE_NAME
 
@@ -27,16 +25,17 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   val testFlintIndex = "flint_test_index"
   val testLatestId: String = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
-  var flintClient: FlintClient = _
+  var flintMetadataLogService: FlintMetadataLogService = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
     val options = openSearchOptions + (DATA_SOURCE_NAME.key -> testDataSourceName)
-    flintClient = new FlintOpenSearchClient(new FlintOptions(options.asJava))
+    flintMetadataLogService = new FlintOpenSearchMetadataLogService(
+      new FlintOptions(options.asJava))
   }
 
   test("empty metadata log entry content") {
-    flintClient
+    flintMetadataLogService
       .startTransaction(testFlintIndex)
       .initialLog(latest => {
         latest.id shouldBe testLatestId
@@ -48,45 +47,6 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       })
       .finalLog(latest => latest)
       .commit(_ => {})
-  }
-
-  test("get index metadata with latest log entry") {
-    val testCreateTime = 1234567890123L
-    val flintMetadataLogEntry = FlintMetadataLogEntry(
-      id = testLatestId,
-      seqNo = UNASSIGNED_SEQ_NO,
-      primaryTerm = UNASSIGNED_PRIMARY_TERM,
-      createTime = testCreateTime,
-      state = ACTIVE,
-      dataSource = testDataSourceName,
-      error = "")
-    val metadata = mock[FlintMetadata]
-    when(metadata.getContent).thenReturn("{}")
-    when(metadata.indexSettings).thenReturn(None)
-    when(metadata.latestLogEntry).thenReturn(Some(flintMetadataLogEntry))
-
-    flintClient.createIndex(testFlintIndex, metadata)
-    createLatestLogEntry(flintMetadataLogEntry)
-
-    val latest = flintClient.getIndexMetadata(testFlintIndex).latestLogEntry
-    latest.isDefined shouldBe true
-    latest.get.id shouldBe testLatestId
-    latest.get.createTime shouldBe testCreateTime
-    latest.get.dataSource shouldBe testDataSourceName
-    latest.get.error shouldBe ""
-
-    deleteTestIndex(testFlintIndex)
-  }
-
-  test("should get empty metadata log entry") {
-    val metadata = mock[FlintMetadata]
-    when(metadata.getContent).thenReturn("{}")
-    when(metadata.indexSettings).thenReturn(None)
-    flintClient.createIndex(testFlintIndex, metadata)
-
-    flintClient.getIndexMetadata(testFlintIndex).latestLogEntry shouldBe empty
-
-    deleteTestIndex(testFlintIndex)
   }
 
   test("should preserve original values when transition") {
@@ -101,7 +61,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         dataSource = testDataSourceName,
         error = ""))
 
-    flintClient
+    flintMetadataLogService
       .startTransaction(testFlintIndex)
       .initialLog(latest => {
         latest.id shouldBe testLatestId
@@ -125,7 +85,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   }
 
   test("should transit from initial to final log if initial log is empty") {
-    flintClient
+    flintMetadataLogService
       .startTransaction(testFlintIndex)
       .initialLog(latest => {
         latest.state shouldBe EMPTY
@@ -139,7 +99,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   }
 
   test("should transit from initial to final log directly if no transient log") {
-    flintClient
+    flintMetadataLogService
       .startTransaction(testFlintIndex)
       .initialLog(_ => true)
       .finalLog(latest => latest.copy(state = ACTIVE))
@@ -161,7 +121,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         dataSource = testDataSourceName,
         error = ""))
 
-    flintClient
+    flintMetadataLogService
       .startTransaction(testFlintIndex)
       .initialLog(latest => {
         latest.state shouldBe ACTIVE
@@ -176,7 +136,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should exit if initial log entry doesn't meet precondition") {
     the[IllegalStateException] thrownBy {
-      flintClient
+      flintMetadataLogService
         .startTransaction(testFlintIndex)
         .initialLog(_ => false)
         .transientLog(latest => latest.copy(state = ACTIVE))
@@ -190,7 +150,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should fail if initial log entry updated by others when updating transient log entry") {
     the[IllegalStateException] thrownBy {
-      flintClient
+      flintMetadataLogService
         .startTransaction(testFlintIndex)
         .initialLog(_ => true)
         .transientLog(latest => {
@@ -206,7 +166,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should fail if transient log entry updated by others when updating final log entry") {
     the[IllegalStateException] thrownBy {
-      flintClient
+      flintMetadataLogService
         .startTransaction(testFlintIndex)
         .initialLog(_ => true)
         .transientLog(latest => {
@@ -224,7 +184,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   test("should rollback to initial log if transaction operation failed") {
     // Use create index scenario in this test case
     the[IllegalStateException] thrownBy {
-      flintClient
+      flintMetadataLogService
         .startTransaction(testFlintIndex)
         .initialLog(_ => true)
         .transientLog(latest => latest.copy(state = CREATING))
@@ -249,7 +209,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         error = ""))
 
     the[IllegalStateException] thrownBy {
-      flintClient
+      flintMetadataLogService
         .startTransaction(testFlintIndex)
         .initialLog(_ => true)
         .transientLog(latest => latest.copy(state = REFRESHING))
@@ -265,7 +225,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     "should not necessarily rollback if transaction operation failed but no transient action") {
     // Use create index scenario in this test case
     the[IllegalStateException] thrownBy {
-      flintClient
+      flintMetadataLogService
         .startTransaction(testFlintIndex)
         .initialLog(_ => true)
         .finalLog(latest => latest.copy(state = ACTIVE))
@@ -278,7 +238,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("forceInit translog, even index is deleted before startTransaction") {
     deleteIndex(testMetaLogIndex)
-    flintClient
+    flintMetadataLogService
       .startTransaction(testFlintIndex, true)
       .initialLog(latest => {
         latest.id shouldBe testLatestId
@@ -298,7 +258,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should fail if index is deleted before initial operation") {
     the[IllegalStateException] thrownBy {
-      flintClient
+      flintMetadataLogService
         .startTransaction(testFlintIndex)
         .initialLog(latest => {
           deleteIndex(testMetaLogIndex)
@@ -312,7 +272,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should fail if index is deleted before transient operation") {
     the[IllegalStateException] thrownBy {
-      flintClient
+      flintMetadataLogService
         .startTransaction(testFlintIndex)
         .initialLog(latest => true)
         .transientLog(latest => {
@@ -326,7 +286,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should fail if index is deleted before final operation") {
     the[IllegalStateException] thrownBy {
-      flintClient
+      flintMetadataLogService
         .startTransaction(testFlintIndex)
         .initialLog(latest => true)
         .transientLog(latest => { latest.copy(state = CREATING) })
