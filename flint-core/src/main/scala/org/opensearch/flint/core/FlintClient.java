@@ -5,10 +5,9 @@
 
 package org.opensearch.flint.core;
 
-import java.util.List;
+import java.util.Map;
 
 import org.opensearch.flint.core.metadata.FlintMetadata;
-import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
 import org.opensearch.flint.core.storage.FlintReader;
 import org.opensearch.flint.core.storage.FlintWriter;
 
@@ -17,24 +16,6 @@ import org.opensearch.flint.core.storage.FlintWriter;
  * on a Flint index regardless of concrete storage.
  */
 public interface FlintClient {
-
-  /**
-   * Start a new optimistic transaction.
-   *
-   * @param indexName index name
-   * @return transaction handle
-   */
-  <T> OptimisticTransaction<T> startTransaction(String indexName);
-
-  /**
-   *
-   * Start a new optimistic transaction.
-   *
-   * @param indexName index name
-   * @param forceInit forceInit create empty translog if not exist.
-   * @return transaction handle
-   */
-  <T> OptimisticTransaction<T> startTransaction(String indexName, boolean forceInit);
 
   /**
    * Create a Flint index with the metadata given.
@@ -56,9 +37,10 @@ public interface FlintClient {
    * Retrieve all metadata for Flint index whose name matches the given pattern.
    *
    * @param indexNamePattern index name pattern
-   * @return all matched index metadata
+   * @return map where the keys are the matched index names, and the values are
+   *         corresponding index metadata
    */
-  List<FlintMetadata> getAllIndexMetadata(String indexNamePattern);
+  Map<String, FlintMetadata> getAllIndexMetadata(String indexNamePattern);
 
   /**
    * Retrieve metadata in a Flint index.

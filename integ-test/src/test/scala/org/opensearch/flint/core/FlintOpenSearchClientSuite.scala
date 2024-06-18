@@ -30,15 +30,6 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
 
   behavior of "Flint OpenSearch client"
 
-  it should "throw IllegalStateException if metadata log index doesn't exists" in {
-    val options = openSearchOptions + (DATA_SOURCE_NAME.key -> "non-exist-datasource")
-    val flintClient = FlintClientBuilder.build(new FlintOptions(options.asJava))
-
-    the[IllegalStateException] thrownBy {
-      flintClient.startTransaction("test")
-    }
-  }
-
   it should "create index successfully" in {
     val indexName = "test"
     val content =
@@ -133,8 +124,8 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
 
     val allMetadata = flintClient.getAllIndexMetadata("flint_*_index")
     allMetadata should have size 2
-    allMetadata.forEach(metadata => metadata.getContent should not be empty)
-    allMetadata.forEach(metadata => metadata.indexSettings should not be empty)
+    allMetadata.values.forEach(metadata => metadata.getContent should not be empty)
+    allMetadata.values.forEach(metadata => metadata.indexSettings should not be empty)
   }
 
   it should "convert index name to all lowercase" in {
