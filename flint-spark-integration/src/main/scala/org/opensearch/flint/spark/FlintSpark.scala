@@ -45,8 +45,11 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   /** Flint client for low-level index operation */
   private val flintClient: FlintClient = FlintClientBuilder.build(flintSparkConf.flintOptions())
 
-  private val flintMetadataLogService: FlintMetadataLogService =
-    FlintMetadataLogServiceBuilder.build(flintSparkConf.flintOptions())
+  private val flintMetadataLogService: FlintMetadataLogService = {
+    FlintMetadataLogServiceBuilder.build(
+      flintSparkConf.flintOptions(),
+      spark.sparkContext.getConf)
+  }
 
   /** Required by json4s parse function */
   implicit val formats: Formats = Serialization.formats(NoTypeHints) + SkippingKindSerializer
