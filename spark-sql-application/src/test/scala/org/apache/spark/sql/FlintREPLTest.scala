@@ -22,8 +22,8 @@ import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.opensearch.action.get.GetResponse
-import org.opensearch.flint.app.FlintCommand
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchReader, OpenSearchUpdater}
+import org.opensearch.flint.data.FlintStatement
 import org.opensearch.search.sort.SortOrder
 import org.scalatestplus.mockito.MockitoSugar
 
@@ -245,7 +245,7 @@ class FlintREPLTest
     val expected =
       spark.createDataFrame(spark.sparkContext.parallelize(expectedRows), expectedSchema)
 
-    val flintCommand = new FlintCommand("failed", "select 1", "30", "10", currentTime, None)
+    val flintStatement = new FlintStatement("failed", "select 1", "30", "10", currentTime, None)
 
     try {
       FlintREPL.currentTimeProvider = new MockTimeProvider(currentTime)
@@ -256,12 +256,12 @@ class FlintREPLTest
           spark,
           dataSourceName,
           error,
-          flintCommand,
+          flintStatement,
           "20",
           currentTime - queryRunTime)
       assertEqualDataframe(expected, result)
-      assert("failed" == flintCommand.state)
-      assert(error == flintCommand.error.get)
+      assert("failed" == flintStatement.state)
+      assert(error == flintStatement.error.get)
     } finally {
       spark.close()
       FlintREPL.currentTimeProvider = new RealTimeProvider()
@@ -448,18 +448,18 @@ class FlintREPLTest
     exception.setErrorCode("AccessDeniedException")
     exception.setServiceName("AWSGlue")
 
-    val mockFlintCommand = mock[FlintCommand]
+    val mockFlintStatement = mock[FlintStatement]
     val expectedError = (
       """{"Message":"Fail to read data from Glue. Cause: Access denied in AWS Glue service. Please check permissions. (Service: AWSGlue; """ +
         """Status Code: 400; Error Code: AccessDeniedException; Request ID: null; Proxy: null)",""" +
         """"ErrorSource":"AWSGlue","StatusCode":"400"}"""
     )
 
-    val result = FlintREPL.processQueryException(exception, mockFlintCommand)
+    val result = FlintREPL.processQueryException(exception, mockFlintStatement)
 
     result shouldEqual expectedError
-    verify(mockFlintCommand).fail()
-    verify(mockFlintCommand).error = Some(expectedError)
+    verify(mockFlintStatement).fail()
+    verify(mockFlintStatement).error = Some(expectedError)
 
     assert(result == expectedError)
   }
@@ -574,7 +574,7 @@ class FlintREPLTest
 
   test("executeAndHandle should handle TimeoutException properly") {
     val mockSparkSession = mock[SparkSession]
-    val mockFlintCommand = mock[FlintCommand]
+    val mockFlintStatement = mock[FlintStatement]
     val mockConf = mock[RuntimeConfig]
     when(mockSparkSession.conf).thenReturn(mockConf)
     when(mockSparkSession.conf.get(FlintSparkConf.JOB_TYPE.key))
@@ -588,8 +588,8 @@ class FlintREPLTest
       val startTime = System.currentTimeMillis()
       val expectedDataFrame = mock[DataFrame]
 
-      when(mockFlintCommand.query).thenReturn("SELECT 1")
-      when(mockFlintCommand.submitTime).thenReturn(Instant.now().toEpochMilli())
+      when(mockFlintStatement.query).thenReturn("SELECT 1")
+      when(mockFlintStatement.submitTime).thenReturn(Instant.now().toEpochMilli())
       // When the `sql` method is called, execute the custom Answer that introduces a delay
       when(mockSparkSession.sql(any[String])).thenAnswer(new Answer[DataFrame] {
         override def answer(invocation: InvocationOnMock): DataFrame = {
@@ -610,7 +610,7 @@ class FlintREPLTest
 
       val result = FlintREPL.executeAndHandle(
         mockSparkSession,
-        mockFlintCommand,
+        mockFlintStatement,
         dataSource,
         sessionId,
         executionContext,
@@ -631,8 +631,8 @@ class FlintREPLTest
     when(mockSparkSession.conf).thenReturn(mockConf)
     when(mockSparkSession.conf.get(FlintSparkConf.JOB_TYPE.key))
       .thenReturn(FlintSparkConf.JOB_TYPE.defaultValue.get)
-    val flintCommand =
-      new FlintCommand(
+    val flintStatement =
+      new FlintStatement(
         "Running",
         "select * from default.http_logs limit1 1",
         "10",
@@ -661,7 +661,7 @@ class FlintREPLTest
 
       val result = FlintREPL.executeAndHandle(
         mockSparkSession,
-        flintCommand,
+        flintStatement,
         dataSource,
         sessionId,
         executionContext,
@@ -671,8 +671,8 @@ class FlintREPLTest
 
       // Verify that ParseException was caught and handled
       result should not be None // or result.isDefined shouldBe true
-      flintCommand.error should not be None
-      flintCommand.error.get should include("Syntax error:")
+      flintStatement.error should not be None
+      flintStatement.error.get should include("Syntax error:")
     } finally threadPool.shutdown()
 
   }

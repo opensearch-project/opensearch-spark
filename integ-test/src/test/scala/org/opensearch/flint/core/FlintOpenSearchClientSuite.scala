@@ -21,7 +21,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
 
-import org.apache.spark.sql.flint.config.FlintSparkConf.{REFRESH_POLICY, SCROLL_DURATION, SCROLL_SIZE}
+import org.apache.spark.sql.flint.config.FlintSparkConf.{DATA_SOURCE_NAME, REFRESH_POLICY, SCROLL_DURATION, SCROLL_SIZE}
 
 class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with Matchers {
 
@@ -29,12 +29,6 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
   lazy val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
 
   behavior of "Flint OpenSearch client"
-
-  it should "throw IllegalStateException if metadata log index doesn't exists" in {
-    the[IllegalStateException] thrownBy {
-      flintClient.startTransaction("test", "non-exist-index")
-    }
-  }
 
   it should "create index successfully" in {
     val indexName = "test"
@@ -130,8 +124,8 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
 
     val allMetadata = flintClient.getAllIndexMetadata("flint_*_index")
     allMetadata should have size 2
-    allMetadata.forEach(metadata => metadata.getContent should not be empty)
-    allMetadata.forEach(metadata => metadata.indexSettings should not be empty)
+    allMetadata.values.forEach(metadata => metadata.getContent should not be empty)
+    allMetadata.values.forEach(metadata => metadata.indexSettings should not be empty)
   }
 
   it should "convert index name to all lowercase" in {

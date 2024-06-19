@@ -188,6 +188,19 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     latestLog should contain("state" -> "failed")
   }
 
+  test(
+    "await monitor terminated with streaming job exit early should update index state to failed") {
+    // Terminate streaming job intentionally before await
+    spark.streams.active.find(_.name == testFlintIndex).get.stop()
+
+    // Await until streaming job terminated
+    flint.flintIndexMonitor.awaitMonitor()
+
+    // Assert index state is active now
+    val latestLog = latestLogEntry(testLatestId)
+    latestLog should contain("state" -> "failed")
+  }
+
   private def getLatestTimestamp: (Long, Long) = {
     val latest = latestLogEntry(testLatestId)
     (latest("jobStartTime").asInstanceOf[Long], latest("lastUpdateTime").asInstanceOf[Long])

@@ -10,15 +10,15 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import org.opensearch.action.get.{GetRequest, GetResponse}
 import org.opensearch.client.RequestOptions
 import org.opensearch.flint.OpenSearchTransactionSuite
-import org.opensearch.flint.app.FlintInstance
 import org.opensearch.flint.core.storage.{FlintOpenSearchClient, OpenSearchUpdater}
+import org.opensearch.flint.data.InteractiveSession
 import org.scalatest.matchers.should.Matchers
 
 class OpenSearchUpdaterSuite extends OpenSearchTransactionSuite with Matchers {
   val sessionId = "sessionId"
   val timestamp = 1700090926955L
   val flintJob =
-    new FlintInstance(
+    new InteractiveSession(
       "applicationId",
       "jobId",
       sessionId,
@@ -38,7 +38,7 @@ class OpenSearchUpdaterSuite extends OpenSearchTransactionSuite with Matchers {
   }
 
   test("upsert flintJob should success") {
-    updater.upsert(sessionId, FlintInstance.serialize(flintJob, timestamp))
+    updater.upsert(sessionId, InteractiveSession.serialize(flintJob, timestamp))
     getFlintInstance(sessionId)._2.lastUpdateTime shouldBe timestamp
   }
 
@@ -46,15 +46,15 @@ class OpenSearchUpdaterSuite extends OpenSearchTransactionSuite with Matchers {
     deleteIndex(testMetaLogIndex)
 
     the[IllegalStateException] thrownBy {
-      updater.upsert(sessionId, FlintInstance.serialize(flintJob, timestamp))
+      updater.upsert(sessionId, InteractiveSession.serialize(flintJob, timestamp))
     }
   }
 
   test("update flintJob should success") {
-    updater.upsert(sessionId, FlintInstance.serialize(flintJob, timestamp))
+    updater.upsert(sessionId, InteractiveSession.serialize(flintJob, timestamp))
 
     val newTimestamp = 1700090926956L
-    updater.update(sessionId, FlintInstance.serialize(flintJob, newTimestamp))
+    updater.update(sessionId, InteractiveSession.serialize(flintJob, newTimestamp))
     getFlintInstance(sessionId)._2.lastUpdateTime shouldBe newTimestamp
   }
 
@@ -62,25 +62,25 @@ class OpenSearchUpdaterSuite extends OpenSearchTransactionSuite with Matchers {
     deleteIndex(testMetaLogIndex)
 
     the[IllegalStateException] thrownBy {
-      updater.update(sessionId, FlintInstance.serialize(flintJob, timestamp))
+      updater.update(sessionId, InteractiveSession.serialize(flintJob, timestamp))
     }
   }
 
   test("updateIf flintJob should success") {
-    updater.upsert(sessionId, FlintInstance.serialize(flintJob, timestamp))
+    updater.upsert(sessionId, InteractiveSession.serialize(flintJob, timestamp))
     val (resp, latest) = getFlintInstance(sessionId)
 
     val newTimestamp = 1700090926956L
     updater.updateIf(
       sessionId,
-      FlintInstance.serialize(latest, newTimestamp),
+      InteractiveSession.serialize(latest, newTimestamp),
       resp.getSeqNo,
       resp.getPrimaryTerm)
     getFlintInstance(sessionId)._2.lastUpdateTime shouldBe newTimestamp
   }
 
   test("index is deleted when updateIf flintJob should throw IllegalStateException") {
-    updater.upsert(sessionId, FlintInstance.serialize(flintJob, timestamp))
+    updater.upsert(sessionId, InteractiveSession.serialize(flintJob, timestamp))
     val (resp, latest) = getFlintInstance(sessionId)
 
     deleteIndex(testMetaLogIndex)
@@ -88,15 +88,15 @@ class OpenSearchUpdaterSuite extends OpenSearchTransactionSuite with Matchers {
     the[IllegalStateException] thrownBy {
       updater.updateIf(
         sessionId,
-        FlintInstance.serialize(latest, timestamp),
+        InteractiveSession.serialize(latest, timestamp),
         resp.getSeqNo,
         resp.getPrimaryTerm)
     }
   }
 
-  def getFlintInstance(docId: String): (GetResponse, FlintInstance) = {
+  def getFlintInstance(docId: String): (GetResponse, InteractiveSession) = {
     val response =
       openSearchClient.get(new GetRequest(testMetaLogIndex, docId), RequestOptions.DEFAULT)
-    (response, FlintInstance.deserializeFromMap(response.getSourceAsMap))
+    (response, InteractiveSession.deserializeFromMap(response.getSourceAsMap))
   }
 }
