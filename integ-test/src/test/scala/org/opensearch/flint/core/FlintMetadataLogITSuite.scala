@@ -10,13 +10,10 @@ import java.util.{Base64, Optional}
 import scala.collection.JavaConverters._
 
 import org.opensearch.flint.OpenSearchTransactionSuite
+import org.opensearch.flint.common.metadata.log.{FlintMetadataLog, FlintMetadataLogEntry, FlintMetadataLogService, OptimisticTransaction}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.metadata.log.DefaultOptimisticTransaction
-import org.opensearch.flint.core.metadata.log.FlintMetadataLog
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogService
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogServiceBuilder
-import org.opensearch.flint.core.metadata.log.OptimisticTransaction
 import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLog
 import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService
 import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}

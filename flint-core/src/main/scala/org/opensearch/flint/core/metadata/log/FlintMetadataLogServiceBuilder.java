@@ -7,6 +7,7 @@ package org.opensearch.flint.core.metadata.log;
 
 import java.lang.reflect.Constructor;
 import org.apache.spark.SparkConf;
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogService;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService;
 

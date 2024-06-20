@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.covering
 
 import java.util
 
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.DELETED
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.DELETED
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 
