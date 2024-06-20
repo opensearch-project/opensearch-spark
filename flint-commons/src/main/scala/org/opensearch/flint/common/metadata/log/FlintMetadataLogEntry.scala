@@ -160,14 +160,4 @@ object FlintMetadataLogEntry {
       |    "number_of_replicas": "0"
       |  }
       |}""".stripMargin
-
-  def failLogEntry(dataSourceName: String, error: String): FlintMetadataLogEntry =
-    FlintMetadataLogEntry(
-      "",
-      UNASSIGNED_SEQ_NO,
-      UNASSIGNED_PRIMARY_TERM,
-      0L,
-      IndexState.FAILED,
-      dataSourceName,
-      error)
 }
