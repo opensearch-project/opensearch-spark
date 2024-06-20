@@ -49,7 +49,8 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
     val customOptions =
       openSearchOptions + (CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS.key -> "org.opensearch.flint.core.TestMetadataLogService")
     val customFlintOptions = new FlintOptions(customOptions.asJava)
-    val customFlintMetadataLogService = FlintMetadataLogServiceBuilder.build(customFlintOptions, sparkConf)
+    val customFlintMetadataLogService =
+      FlintMetadataLogServiceBuilder.build(customFlintOptions, sparkConf)
     customFlintMetadataLogService shouldBe a[TestMetadataLogService]
   }
 
