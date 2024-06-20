@@ -67,13 +67,6 @@ object FlintSparkSourceRelationProvider extends Logging {
     // File source is built-in supported
     relations = relations :+ new FileSourceRelationProvider
 
-    // Add Iceberg provider if it's enabled in Spark conf
-    if (spark.conf
-        .getOption("spark.sql.catalog.spark_catalog")
-        .contains("org.apache.iceberg.spark.SparkSessionCatalog")) {
-      relations = relations :+ new IcebergSourceRelationProvider
-    }
-
     val providerNames = relations.map(_.name()).mkString(",")
     logInfo(s"Loaded source relation providers [$providerNames]")
     relations
