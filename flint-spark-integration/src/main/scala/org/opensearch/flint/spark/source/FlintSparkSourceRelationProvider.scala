@@ -6,7 +6,6 @@
 package org.opensearch.flint.spark.source
 
 import org.opensearch.flint.spark.source.file.FileSourceRelationProvider
-import org.opensearch.flint.spark.source.iceberg.IcebergSourceRelationProvider
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
