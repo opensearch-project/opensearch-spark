@@ -46,11 +46,11 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
   }
 
   test("should build metadata log service") {
-    val options =
+    val customOptions =
       openSearchOptions + (CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS.key -> "org.opensearch.flint.core.TestMetadataLogService")
-    val flintOptions = new FlintOptions(options.asJava)
-    flintMetadataLogService = FlintMetadataLogServiceBuilder.build(flintOptions, sparkConf)
-    flintMetadataLogService shouldBe a[TestMetadataLogService]
+    val customFlintOptions = new FlintOptions(customOptions.asJava)
+    val customFlintMetadataLogService = FlintMetadataLogServiceBuilder.build(customFlintOptions, sparkConf)
+    customFlintMetadataLogService shouldBe a[TestMetadataLogService]
   }
 
   test("should fail to build metadata log service if class name doesn't exist") {
@@ -122,9 +122,9 @@ case class TestMetadataLogService(sparkConf: SparkConf) extends FlintMetadataLog
   override def startTransaction[T](
       indexName: String,
       forceInit: Boolean): OptimisticTransaction[T] = {
-    new DefaultOptimisticTransaction(
-      "",
-      new FlintOpenSearchMetadataLog(new FlintOptions(Map[String, String]().asJava), "", ""))
+    val flintOptions = new FlintOptions(Map[String, String]().asJava)
+    val metadataLog = new FlintOpenSearchMetadataLog(flintOptions, "", "")
+    new DefaultOptimisticTransaction("", metadataLog)
   }
 
   override def startTransaction[T](indexName: String): OptimisticTransaction[T] = {
