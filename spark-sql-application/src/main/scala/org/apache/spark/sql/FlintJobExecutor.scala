@@ -16,6 +16,7 @@ import org.opensearch.flint.core.IRestHighLevelClient
 import org.opensearch.flint.core.logging.{CustomLogging, OperationMessage}
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
+import org.opensearch.flint.data.FlintCommand
 import play.api.libs.json._
 
 import org.apache.spark.{SparkConf, SparkException}
@@ -416,6 +417,30 @@ trait FlintJobExecutor {
     spark.sparkContext.setLocalProperty("spark.sql.local.queryLanguage", "SQL")
     val result = spark.sql(query)
     logInfo("Executed SQL query result: " + result)
+    result
+  }
+
+  def executeQuery(
+      spark: SparkSession,
+      command: FlintCommand,
+      dataSource: String,
+      queryId: String,
+      sessionId: String,
+      streaming: Boolean,
+      queryResultWriter: QueryResultWriter): DataFrame = {
+    // Execute SQL query
+    val query = command.query
+    logInfo("commitID - b933e5df61002d72d496cac4e0ea9099a4cfe017")
+    logInfo("Executing SQL query: " + query)
+
+    val startTime = System.currentTimeMillis()
+    // we have to set job group in the same thread that started the query according to spark doc
+    spark.sparkContext.setJobGroup(queryId, "Job group for " + queryId, interruptOnCancel = true)
+    spark.sparkContext.setLocalProperty("spark.sql.local.query", query)
+    spark.sparkContext.setLocalProperty("spark.sql.local.queryLanguage", "SQL")
+    val result = spark.sql(query)
+    logInfo("Executed SQL query result: " + result)
+    queryResultWriter.write(result, command)
     result
   }
 

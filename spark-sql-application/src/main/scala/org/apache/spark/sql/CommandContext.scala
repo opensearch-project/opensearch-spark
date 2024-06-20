@@ -16,6 +16,7 @@ case class CommandContext(
     resultIndex: String,
     sessionId: String,
     sessionManager: SessionManager,
+    queryResultWriter: QueryResultWriter,
     jobId: String,
     queryExecutionTimeout: Duration,
     inactivityLimitMillis: Long,

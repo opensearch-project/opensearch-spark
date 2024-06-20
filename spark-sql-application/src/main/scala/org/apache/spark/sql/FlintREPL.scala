@@ -186,12 +186,18 @@ object FlintREPL extends Logging with FlintJobExecutor {
               excludeJobIds)
         }
 
+        val name = spark.conf.get(FlintSparkConf.CUSTOM_QUERY_RESULT_WRITER.key)
+        logInfo("queryResultWriter name: " + name)
+        val queryResultWriter =
+          instantiateWriter[QueryResultWriter](name)
+
         val commandContext = CommandContext(
           spark,
           dataSource,
           resultIndex,
           sessionId.get,
           sessionManager,
+          queryResultWriter,
           jobId,
           queryExecutionTimeoutSecs,
           inactivityLimitMillis,
@@ -434,25 +440,14 @@ object FlintREPL extends Logging with FlintJobExecutor {
         val flintCommand = commandLifecycleManager.initCommandLifecycle(sessionId)
         val (dataToWrite, returnedVerificationResult) = processStatementOnVerification(
           recordedVerificationResult,
-          spark,
           flintCommand,
-          dataSource,
-          sessionId,
+          context,
           executionContext,
-          futurePrepareCommandExecution,
-          resultIndex,
-          queryExecutionTimeout,
-          queryWaitTimeMillis)
+          futurePrepareCommandExecution)
 
         verificationResult = returnedVerificationResult
         try {
           dataToWrite.foreach(df => logInfo("DF: " + df))
-          val name = spark.conf.get(FlintSparkConf.CUSTOM_QUERY_RESULT_WRITER.key)
-          logInfo("queryResultWriter name: " + name)
-          val queryResultWriter =
-            instantiateWriter[QueryResultWriter](name)
-
-          queryResultWriter.write(dataToWrite.get, command = flintCommand)
 
           if (flintCommand.isRunning() || flintCommand.isWaiting()) {
             // we have set failed state in exception handling
@@ -516,7 +511,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       executionContext: ExecutionContextExecutor,
       startTime: Long,
       queryExecuitonTimeOut: Duration,
-      queryWaitTimeMillis: Long): Option[DataFrame] = {
+      queryWaitTimeMillis: Long,
+      queryResultWriter: QueryResultWriter): Option[DataFrame] = {
     try {
       Some(
         executeQueryAsync(
@@ -527,7 +523,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
           executionContext,
           startTime,
           queryExecuitonTimeOut,
-          queryWaitTimeMillis))
+          queryWaitTimeMillis,
+          queryResultWriter))
     } catch {
       case e: TimeoutException =>
         val error = s"Executing ${flintCommand.query} timed out"
@@ -546,18 +543,15 @@ object FlintREPL extends Logging with FlintJobExecutor {
     }
   }
 
-  // TODO: Refactor to new writer interface
   private def processStatementOnVerification(
       recordedVerificationResult: VerificationResult,
-      spark: SparkSession,
       flintCommand: FlintCommand,
-      dataSource: String,
-      sessionId: String,
+      context: CommandContext,
       executionContext: ExecutionContextExecutor,
-      futurePrepareCommandExecution: Future[Either[String, Unit]],
-      resultIndex: String,
-      queryExecutionTimeout: Duration,
-      queryWaitTimeMillis: Long): (Option[DataFrame], VerificationResult) = {
+      futurePrepareCommandExecution: Future[Either[String, Unit]])
+      : (Option[DataFrame], VerificationResult) = {
+    import context._
+
     val startTime: Long = currentTimeProvider.currentEpochMillis()
     var verificationResult = recordedVerificationResult
     var dataToWrite: Option[DataFrame] = None
@@ -575,7 +569,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
                 executionContext,
                 startTime,
                 queryExecutionTimeout,
-                queryWaitTimeMillis)
+                queryWaitTimeMillis,
+                queryResultWriter)
               verificationResult = VerifiedWithoutError
             case Left(error) =>
               verificationResult = VerifiedWithError(error)
@@ -624,7 +619,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
           executionContext,
           startTime,
           queryExecutionTimeout,
-          queryWaitTimeMillis)
+          queryWaitTimeMillis,
+          queryResultWriter)
     }
 
     logInfo(s"command complete: $flintCommand")
@@ -640,7 +636,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       executionContext: ExecutionContextExecutor,
       startTime: Long,
       queryExecutionTimeOut: Duration,
-      queryWaitTimeMillis: Long): DataFrame = {
+      queryWaitTimeMillis: Long,
+      queryResultWriter: QueryResultWriter): DataFrame = {
     if (currentTimeProvider
         .currentEpochMillis() - flintCommand.submitTime > queryWaitTimeMillis) {
       handleCommandFailureAndGetFailedData(
@@ -651,14 +648,16 @@ object FlintREPL extends Logging with FlintJobExecutor {
         sessionId,
         startTime)
     } else {
+      logInfo("1-commitID - b933e5df61002d72d496cac4e0ea9099a4cfe017")
       val futureQueryExecution = Future {
         executeQuery(
           spark,
-          flintCommand.query,
+          flintCommand,
           dataSource,
           flintCommand.queryId,
           sessionId,
-          false)
+          false,
+          queryResultWriter)
       }(executionContext)
 
       // time out after 10 minutes

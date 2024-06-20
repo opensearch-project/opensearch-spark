@@ -617,7 +617,8 @@ class FlintREPLTest
         startTime,
         // make sure it times out before mockSparkSession.sql can return, which takes 60 seconds
         Duration(1, SECONDS),
-        600000)
+        600000,
+        null)
 
       verify(mockSparkSession, times(1)).sql(any[String])
       verify(sparkContext, times(1)).cancelJobGroup(any[String])
@@ -628,6 +629,7 @@ class FlintREPLTest
   test("executeAndHandle should handle ParseException properly") {
     val mockSparkSession = mock[SparkSession]
     val mockConf = mock[RuntimeConfig]
+    val mockWriter = mock[QueryResultWriter]
     when(mockSparkSession.conf).thenReturn(mockConf)
     when(mockSparkSession.conf.get(FlintSparkConf.JOB_TYPE.key))
       .thenReturn(FlintSparkConf.JOB_TYPE.defaultValue.get)
@@ -661,13 +663,13 @@ class FlintREPLTest
 
       val result = FlintREPL.executeAndHandle(
         mockSparkSession,
-        flintCommand,
-        dataSource,
-        sessionId,
-        executionContext,
-        startTime,
-        Duration.Inf, // Use Duration.Inf or a large enough duration to avoid a timeout,
-        600000)
+        dataSource = dataSource,
+        sessionId = sessionId,
+        executionContext = executionContext,
+        startTime = startTime,
+        queryExecuitonTimeOut = Duration.Inf,
+        queryWaitTimeMillis = 600000,
+        mockWriter)
 
       // Verify that ParseException was caught and handled
       result should not be None // or result.isDefined shouldBe true
