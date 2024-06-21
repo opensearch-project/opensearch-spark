@@ -437,7 +437,7 @@ trait FlintJobExecutor {
     // we have to set job group in the same thread that started the query according to spark doc
     spark.sparkContext.setJobGroup(queryId, "Job group for " + queryId, interruptOnCancel = true)
     spark.sparkContext.setLocalProperty("spark.sql.local.query", query)
-    spark.sparkContext.setLocalProperty("spark.sql.local.queryLanguage", "SQL")
+    spark.sparkContext.setLocalProperty("spark.sql.local.queryLanguage", command.queryLang.get)
     val result = spark.sql(query)
     logInfo("Executed SQL query result: " + result)
     queryResultWriter.write(result, command)
