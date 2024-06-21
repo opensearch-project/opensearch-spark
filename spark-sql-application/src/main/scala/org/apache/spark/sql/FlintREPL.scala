@@ -531,15 +531,18 @@ object FlintREPL extends Logging with FlintJobExecutor {
         CustomLogging.logError(error, e)
         handleCommandTimeout(spark, dataSource, error, flintCommand, sessionId, startTime)
       case e: Exception =>
-        val error = processQueryException(e, flintCommand)
-        Some(
-          handleCommandFailureAndGetFailedData(
-            spark,
-            dataSource,
-            error,
-            flintCommand,
-            sessionId,
-            startTime))
+        logInfo("commitID: 017f1635b004e2f6277fb84ede444f6cc211bcbe")
+        logInfo("Louis E: " + e.getClass.getSimpleName)
+        throw e
+//        val error = processQueryException(e, flintCommand)
+//        Some(
+//          handleCommandFailureAndGetFailedData(
+//            spark,
+//            dataSource,
+//            error,
+//            flintCommand,
+//            sessionId,
+//            startTime))
     }
   }
 
