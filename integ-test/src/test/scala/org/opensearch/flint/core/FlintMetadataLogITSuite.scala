@@ -119,8 +119,7 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
   }
 }
 
-case class TestMetadataLogService(sparkConfParam: SparkConf)
-    extends FlintMetadataLogService(sparkConfParam) {
+case class TestMetadataLogService(sparkConf: SparkConf) extends FlintMetadataLogService {
   override def startTransaction[T](
       indexName: String,
       forceInit: Boolean): OptimisticTransaction[T] = {
