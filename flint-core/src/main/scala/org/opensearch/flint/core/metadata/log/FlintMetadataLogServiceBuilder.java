@@ -13,6 +13,10 @@ import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService;
 
 /**
  * {@link FlintMetadataLogService} builder.
+ * <p>
+ * Custom implementations of {@link FlintMetadataLogService} are expected to provide a public
+ * constructor with the signature {@code public MyCustomService(SparkConf sparkConf)} to be
+ * instantiated by this builder.
  */
 public class FlintMetadataLogServiceBuilder {
   public static FlintMetadataLogService build(FlintOptions options, SparkConf sparkConf) {
