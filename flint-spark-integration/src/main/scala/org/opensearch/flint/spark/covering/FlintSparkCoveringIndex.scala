@@ -7,8 +7,8 @@ package org.opensearch.flint.spark.covering
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.FlintMetadata
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.spark._
 import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder, quotedTableName}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty

@@ -54,6 +54,7 @@ lazy val root = (project in file("."))
 
 lazy val flintCore = (project in file("flint-core"))
   .disablePlugins(AssemblyPlugin)
+  .dependsOn(flintCommons)
   .settings(
     commonSettings,
     name := "flint-core",

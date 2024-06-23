@@ -5,19 +5,22 @@
 
 package org.opensearch.flint.core
 
-import java.util.Base64
+import java.util.{Base64, Optional}
 
 import scala.collection.JavaConverters._
 
 import org.opensearch.flint.OpenSearchTransactionSuite
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogService
+import org.opensearch.flint.common.metadata.log.{FlintMetadataLog, FlintMetadataLogEntry, FlintMetadataLogService, OptimisticTransaction}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState._
+import org.opensearch.flint.core.metadata.log.DefaultOptimisticTransaction
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogServiceBuilder
+import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLog
 import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService
 import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
 import org.scalatest.matchers.should.Matchers
 
-import org.apache.spark.sql.flint.config.FlintSparkConf.DATA_SOURCE_NAME
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.flint.config.FlintSparkConf.{CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS, DATA_SOURCE_NAME}
 
 class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
 
@@ -42,7 +45,24 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
     flintMetadataLogService = new FlintOpenSearchMetadataLogService(flintOptions)
   }
 
-  test("should fail if metadata log index doesn't exists") {
+  test("should build metadata log service") {
+    val customOptions =
+      openSearchOptions + (CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS.key -> "org.opensearch.flint.core.TestMetadataLogService")
+    val customFlintOptions = new FlintOptions(customOptions.asJava)
+    val customFlintMetadataLogService =
+      FlintMetadataLogServiceBuilder.build(customFlintOptions, sparkConf)
+    customFlintMetadataLogService shouldBe a[TestMetadataLogService]
+  }
+
+  test("should fail to build metadata log service if class name doesn't exist") {
+    val options = openSearchOptions + (CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS.key -> "dummy")
+    val flintOptions = new FlintOptions(options.asJava)
+    the[RuntimeException] thrownBy {
+      FlintMetadataLogServiceBuilder.build(flintOptions, sparkConf)
+    }
+  }
+
+  test("should fail to start transaction if metadata log index doesn't exists") {
     val options = openSearchOptions + (DATA_SOURCE_NAME.key -> "non-exist-datasource")
     val flintMetadataLogService =
       new FlintOpenSearchMetadataLogService(new FlintOptions(options.asJava))
@@ -97,4 +117,25 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
       flintMetadataLogService.recordHeartbeat(testFlintIndex)
     }
   }
+}
+
+case class TestMetadataLogService(sparkConf: SparkConf) extends FlintMetadataLogService {
+  override def startTransaction[T](
+      indexName: String,
+      forceInit: Boolean): OptimisticTransaction[T] = {
+    val flintOptions = new FlintOptions(Map[String, String]().asJava)
+    val metadataLog = new FlintOpenSearchMetadataLog(flintOptions, "", "")
+    new DefaultOptimisticTransaction("", metadataLog)
+  }
+
+  override def startTransaction[T](indexName: String): OptimisticTransaction[T] = {
+    startTransaction(indexName, false)
+  }
+
+  override def getIndexMetadataLog(
+      indexName: String): Optional[FlintMetadataLog[FlintMetadataLogEntry]] = {
+    Optional.empty()
+  }
+
+  override def recordHeartbeat(indexName: String): Unit = {}
 }

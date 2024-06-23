@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark.skipping
 
 import com.amazon.awslogsdataaccesslayer.connectors.spark.LogsTable
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.DELETED
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.DELETED
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
 
