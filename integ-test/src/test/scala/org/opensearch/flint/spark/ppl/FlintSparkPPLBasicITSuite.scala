@@ -65,6 +65,33 @@ class FlintSparkPPLBasicITSuite
     assert(expectedPlan === logicalPlan)
   }
 
+  test("create ppl simple query with escaped identifiers test") {
+    val frame = sql("source = `spark_catalog`.`default`.`flint_ppl_test`")
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("Jake", 70, "California", "USA", 2023, 4),
+      Row("Hello", 30, "New York", "USA", 2023, 4),
+      Row("John", 25, "Ontario", "Canada", 2023, 4),
+      Row("Jane", 20, "Quebec", "Canada", 2023, 4))
+    // Compare the results
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val expectedPlan: LogicalPlan =
+      Project(
+        Seq(UnresolvedStar(None)),
+        UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
+    // Compare the two plans
+    assert(expectedPlan === logicalPlan)
+  }
+
   test("create ppl simple query with head (limit) 3 test") {
     val frame = sql(s"""
          | source = $testTable| head 2
@@ -189,6 +216,30 @@ class FlintSparkPPLBasicITSuite
   test("create ppl simple query two with fields and head (limit) with sorting test") {
     val frame = sql(s"""
          | source = $testTable| fields name, age | head 1 | sort age
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 1)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val project = Project(
+      Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
+      UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
+    // Define the expected logical plan
+    val limitPlan: LogicalPlan = Limit(Literal(1), project)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, limitPlan)
+
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), sortedPlan);
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+
+  test("create ppl simple query with quoted field names test") {
+    val frame = sql(s"""
+         | source = $testTable| fields `name`, `age` | head 1 | sort `age`
          | """.stripMargin)
 
     // Retrieve the results

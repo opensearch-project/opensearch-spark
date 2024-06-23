@@ -32,7 +32,16 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, UnresolvedRelation(Seq("table")))
     assertEquals(expectedPlan, logPlan)
+  }
 
+  test("test simple search with escaped table name") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan = planTrnasformer.visit(plan(pplParser, "source=`table`", false), context)
+
+    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, UnresolvedRelation(Seq("table")))
+    assertEquals(expectedPlan, logPlan)
   }
 
   test("test simple search with schema.table and no explicit fields (defaults to all fields)") {
