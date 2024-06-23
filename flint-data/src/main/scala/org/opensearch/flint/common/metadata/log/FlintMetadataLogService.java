@@ -3,13 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.core.metadata.log;
+package org.opensearch.flint.common.metadata.log;
 
 import java.util.Optional;
 
 /**
  * Flint metadata log service provides API for metadata log related operations on a Flint index
  * regardless of underlying storage.
+ * <p>
+ * Custom implementations of this interface are expected to provide a public constructor with
+ * the signature {@code public MyCustomService(SparkConf sparkConf)} to be instantiated by
+ * the FlintMetadataLogServiceBuilder.
  */
 public interface FlintMetadataLogService {
 

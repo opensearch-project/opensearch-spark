@@ -1,3 +1,8 @@
+/*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package org.opensearch.flint.core;
 
 import java.io.Serializable;
@@ -19,17 +24,29 @@ public class FlintOptions implements Serializable {
   private final FlintRetryOptions retryOptions;
 
   public static final String HOST = "host";
+
   public static final String PORT = "port";
+
   public static final String REGION = "region";
+
   public static final String DEFAULT_REGION = "us-west-2";
+
   public static final String SCHEME = "scheme";
+
   public static final String AUTH = "auth";
+
   public static final String NONE_AUTH = "noauth";
+
   public static final String SIGV4_AUTH = "sigv4";
+
   public static final String BASIC_AUTH = "basic";
+
   public static final String USERNAME = "auth.username";
+
   public static final String PASSWORD = "auth.password";
+
   public static final String CUSTOM_AWS_CREDENTIALS_PROVIDER = "customAWSCredentialsProvider";
+
   public static final String METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER = "spark.metadata.accessAWSCredentialsProvider";
 
   /**
@@ -38,13 +55,19 @@ public class FlintOptions implements Serializable {
   public static final String DEFAULT_AWS_CREDENTIALS_PROVIDER = "";
 
   public static final String SYSTEM_INDEX_KEY_NAME = "spark.flint.job.requestIndex";
+
+  /**
+   * Used by {@link org.opensearch.flint.core.storage.OpenSearchScrollReader}
+   */
   public static final String SCROLL_SIZE = "read.scroll_size";
   public static final int DEFAULT_SCROLL_SIZE = 100;
+
   public static final String SCROLL_DURATION = "read.scroll_duration";
   /**
    * 5 minutes;
    */
   public static final int DEFAULT_SCROLL_DURATION = 5;
+
   public static final String REFRESH_POLICY = "write.refresh_policy";
   /**
    * NONE("false")
@@ -54,16 +77,24 @@ public class FlintOptions implements Serializable {
    * WAIT_UNTIL("wait_for")
    */
   public static final String DEFAULT_REFRESH_POLICY = "false";
+
   public static final String SOCKET_TIMEOUT_MILLIS = "socket_timeout_millis";
+
   public static final int DEFAULT_SOCKET_TIMEOUT_MILLIS = 60000;
+
   public static final int DEFAULT_INACTIVITY_LIMIT_MILLIS = 3 * 60 * 1000;
+  
   public static final String DATA_SOURCE_NAME = "spark.flint.datasource.name";
+
   public static final String BATCH_BYTES = "write.batch_bytes";
+
   public static final String DEFAULT_BATCH_BYTES = "1mb";
 
   // New constants
   public static final String CUSTOM_SESSION_MANAGER = "customSessionManager";
   public static final String CUSTOM_COMMAND_LIFECYCLE_MANAGER = "customCommandLifecycleManager";
+
+  public static final String CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS = "spark.datasource.flint.customFlintMetadataLogServiceClass";
 
   public FlintOptions(Map<String, String> options) {
     this.options = options;
@@ -86,9 +117,7 @@ public class FlintOptions implements Serializable {
     return Integer.parseInt(options.getOrDefault(SCROLL_DURATION, String.valueOf(DEFAULT_SCROLL_DURATION)));
   }
 
-  public String getRefreshPolicy() {
-    return options.getOrDefault(REFRESH_POLICY, DEFAULT_REFRESH_POLICY);
-  }
+  public String getRefreshPolicy() {return options.getOrDefault(REFRESH_POLICY, DEFAULT_REFRESH_POLICY);}
 
   public FlintRetryOptions getRetryOptions() {
     return retryOptions;
@@ -137,7 +166,7 @@ public class FlintOptions implements Serializable {
   public int getBatchBytes() {
     // we did not expect this value could be large than 10mb = 10 * 1024 * 1024
     return (int) org.apache.spark.network.util.JavaUtils
-            .byteStringAs(options.getOrDefault(BATCH_BYTES, DEFAULT_BATCH_BYTES), ByteUnit.BYTE);
+        .byteStringAs(options.getOrDefault(BATCH_BYTES, DEFAULT_BATCH_BYTES), ByteUnit.BYTE);
   }
 
   // New getter methods
@@ -151,5 +180,9 @@ public class FlintOptions implements Serializable {
 
   public String getRequestMetadata() {
     return options.getOrDefault("spark.flint.job.requestIndex", null);
+  }
+
+  public String getCustomFlintMetadataLogServiceClass() {
+    return options.getOrDefault(CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS, "");
   }
 }

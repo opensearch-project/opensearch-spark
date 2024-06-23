@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark.skipping
 
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.DELETED
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.DELETED
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
 

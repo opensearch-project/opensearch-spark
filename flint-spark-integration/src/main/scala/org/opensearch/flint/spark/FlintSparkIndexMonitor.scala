@@ -10,8 +10,8 @@ import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture, TimeUnit
 import scala.collection.concurrent.{Map, TrieMap}
 import scala.sys.addShutdownHook
 
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.{FAILED, REFRESHING}
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogService
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{FAILED, REFRESHING}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogService
 import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 
 import org.apache.spark.internal.Logging

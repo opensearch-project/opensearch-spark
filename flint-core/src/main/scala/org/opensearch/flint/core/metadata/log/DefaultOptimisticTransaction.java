@@ -7,7 +7,7 @@ package org.opensearch.flint.core.metadata.log;
 
 import static java.util.logging.Level.SEVERE;
 import static java.util.logging.Level.WARNING;
-import static org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState$;
+import static org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState$;
 import static org.opensearch.index.seqno.SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
 import static org.opensearch.index.seqno.SequenceNumbers.UNASSIGNED_SEQ_NO;
 
@@ -15,6 +15,10 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
+
+import org.opensearch.flint.common.metadata.log.FlintMetadataLog;
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry;
+import org.opensearch.flint.common.metadata.log.OptimisticTransaction;
 
 /**
  * Default optimistic transaction implementation that captures the basic workflow for

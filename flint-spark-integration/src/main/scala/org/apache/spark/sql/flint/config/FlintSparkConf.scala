@@ -175,6 +175,11 @@ object FlintSparkConf {
     FlintConfig(s"spark.flint.datasource.name")
       .doc("data source name")
       .createOptional()
+  val CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS =
+    FlintConfig(FlintOptions.CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS)
+      .datasourceOption()
+      .doc("custom Flint metadata log service class")
+      .createOptional()
   val QUERY =
     FlintConfig("spark.flint.job.query")
       .doc("Flint query for batch and streaming job")
@@ -290,6 +295,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
     val optionsWithoutDefault = Seq(
       RETRYABLE_EXCEPTION_CLASS_NAMES,
       DATA_SOURCE_NAME,
+      CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS,
       SESSION_ID,
       REQUEST_INDEX,
       METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER,
