@@ -9,10 +9,13 @@ import scala.collection.JavaConverters._
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState._
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogService
+import org.opensearch.flint.common.metadata.log.OptimisticTransaction
+import org.opensearch.flint.common.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
-import org.opensearch.flint.core.metadata.log.OptimisticTransaction
-import org.opensearch.flint.core.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
+import org.opensearch.flint.core.metadata.FlintMetadata
+import org.opensearch.flint.core.metadata.log.FlintMetadataLogServiceBuilder
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
@@ -42,22 +45,21 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         IGNORE_DOC_ID_COLUMN.optionKey -> "true").asJava)
 
   /** Flint client for low-level index operation */
-  override protected val flintClient: FlintClient =
+  protected val flintClient: FlintClient =
     FlintClientBuilder.build(flintSparkConf.flintOptions())
+
+  override protected val flintMetadataLogService: FlintMetadataLogService = {
+    FlintMetadataLogServiceBuilder.build(
+      flintSparkConf.flintOptions(),
+      spark.sparkContext.getConf)
+  }
 
   /** Required by json4s parse function */
   implicit val formats: Formats = Serialization.formats(NoTypeHints) + SkippingKindSerializer
 
-  /**
-   * Data source name. Assign empty string in case of backward compatibility. TODO: remove this in
-   * future
-   */
-  override protected val dataSourceName: String =
-    spark.conf.getOption("spark.flint.datasource.name").getOrElse("")
-
   /** Flint Spark index monitor */
   val flintIndexMonitor: FlintSparkIndexMonitor =
-    new FlintSparkIndexMonitor(spark, flintClient, dataSourceName)
+    new FlintSparkIndexMonitor(spark, flintMetadataLogService)
 
   /**
    * Create index builder for creating index with fluent API.
@@ -135,7 +137,6 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       val index = describeIndex(indexName)
         .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
       val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
-
       tx
         .initialLog(latest => latest.state == ACTIVE)
         .transientLog(latest =>
@@ -168,6 +169,10 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       flintClient
         .getAllIndexMetadata(indexNamePattern)
         .asScala
+        .map { case (indexName, metadata) =>
+          attachLatestLogEntry(indexName, metadata)
+        }
+        .toList
         .flatMap(FlintSparkIndexFactory.create)
     } else {
       Seq.empty
@@ -186,7 +191,8 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     logInfo(s"Describing index name $indexName")
     if (flintClient.exists(indexName)) {
       val metadata = flintClient.getIndexMetadata(indexName)
-      FlintSparkIndexFactory.create(metadata)
+      val metadataWithEntry = attachLatestLogEntry(indexName, metadata)
+      FlintSparkIndexFactory.create(metadataWithEntry)
     } else {
       Option.empty
     }
@@ -347,6 +353,27 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       job.get.stop()
     } else {
       logWarning("Refreshing job not found")
+    }
+  }
+
+  /**
+   * Attaches latest log entry to metadata if available.
+   *
+   * @param indexName
+   *   index name
+   * @param metadata
+   *   base flint metadata
+   * @return
+   *   flint metadata with latest log entry attached if available
+   */
+  private def attachLatestLogEntry(indexName: String, metadata: FlintMetadata): FlintMetadata = {
+    val latest = flintMetadataLogService
+      .getIndexMetadataLog(indexName)
+      .flatMap(_.getLatest)
+    if (latest.isPresent) {
+      metadata.copy(latestLogEntry = Some(latest.get()))
+    } else {
+      metadata
     }
   }
 

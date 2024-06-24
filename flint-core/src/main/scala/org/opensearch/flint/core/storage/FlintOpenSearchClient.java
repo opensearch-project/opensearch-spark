@@ -7,31 +7,17 @@ package org.opensearch.flint.core.storage;
 
 import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
 
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
-import org.opensearch.client.RestClient;
-import org.opensearch.client.RestClientBuilder;
-import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.client.indices.GetIndexResponse;
@@ -45,20 +31,13 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
-import org.opensearch.flint.core.auth.ResourceBasedAWSRequestSigningApacheInterceptor;
-import org.opensearch.flint.core.http.RetryableHttpAsyncClient;
 import org.opensearch.flint.core.metadata.FlintMetadata;
-import org.opensearch.flint.core.metadata.log.DefaultOptimisticTransaction;
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
-import org.opensearch.flint.core.metadata.log.OptimisticTransaction;
-import org.opensearch.flint.core.RestHighLevelClientWrapper;
 import org.opensearch.index.query.AbstractQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.search.SearchModule;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import scala.Option;
-import scala.Some;
 
 /**
  * Flint client implementation for OpenSearch storage.
@@ -66,8 +45,6 @@ import scala.Some;
 public class FlintOpenSearchClient implements FlintClient {
 
   private static final Logger LOG = Logger.getLogger(FlintOpenSearchClient.class.getName());
-
-  private static final String SERVICE_NAME = "es";
 
 
   /**
@@ -85,45 +62,10 @@ public class FlintOpenSearchClient implements FlintClient {
   private final static Set<Character> INVALID_INDEX_NAME_CHARS =
       Set.of(' ', ',', ':', '"', '+', '/', '\\', '|', '?', '#', '>', '<');
 
-  /**
-   * Metadata log index name prefix
-   */
-  public final static String META_LOG_NAME_PREFIX = ".query_execution_request";
-
   private final FlintOptions options;
 
   public FlintOpenSearchClient(FlintOptions options) {
     this.options = options;
-  }
-
-  @Override
-  public <T> OptimisticTransaction<T> startTransaction(
-      String indexName, String dataSourceName, boolean forceInit) {
-    LOG.info("Starting transaction on index " + indexName + " and data source " + dataSourceName);
-    String metaLogIndexName = constructMetaLogIndexName(dataSourceName);
-    try (IRestHighLevelClient client = createClient()) {
-      if (client.doesIndexExist(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
-        LOG.info("Found metadata log index " + metaLogIndexName);
-      } else {
-        if (forceInit) {
-          createIndex(metaLogIndexName, FlintMetadataLogEntry.QUERY_EXECUTION_REQUEST_MAPPING(),
-              Some.apply(FlintMetadataLogEntry.QUERY_EXECUTION_REQUEST_SETTINGS()));
-        } else {
-          String errorMsg = "Metadata log index not found " + metaLogIndexName;
-          LOG.warning(errorMsg);
-          throw new IllegalStateException(errorMsg);
-        }
-      }
-      return new DefaultOptimisticTransaction<>(dataSourceName,
-          new FlintOpenSearchMetadataLog(this, indexName, metaLogIndexName));
-    } catch (IOException e) {
-      throw new IllegalStateException("Failed to check if index metadata log index exists " + metaLogIndexName, e);
-    }
-  }
-
-  @Override
-  public <T> OptimisticTransaction<T> startTransaction(String indexName, String dataSourceName) {
-    return startTransaction(indexName, dataSourceName, false);
   }
 
   @Override
@@ -159,7 +101,7 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override
-  public List<FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
+  public Map<String, FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
     LOG.info("Fetching all Flint index metadata for pattern " + indexNamePattern);
     String osIndexNamePattern = sanitizeIndexName(indexNamePattern);
     try (IRestHighLevelClient client = createClient()) {
@@ -167,11 +109,13 @@ public class FlintOpenSearchClient implements FlintClient {
       GetIndexResponse response = client.getIndex(request, RequestOptions.DEFAULT);
 
       return Arrays.stream(response.getIndices())
-          .map(index -> constructFlintMetadata(
-              index,
-              response.getMappings().get(index).source().toString(),
-              response.getSettings().get(index).toString()))
-          .collect(Collectors.toList());
+          .collect(Collectors.toMap(
+              index -> index,
+              index -> FlintMetadata.apply(
+                  response.getMappings().get(index).source().toString(),
+                  response.getSettings().get(index).toString()
+              )
+          ));
     } catch (Exception e) {
       throw new IllegalStateException("Failed to get Flint index metadata for " + osIndexNamePattern, e);
     }
@@ -187,7 +131,7 @@ public class FlintOpenSearchClient implements FlintClient {
 
       MappingMetadata mapping = response.getMappings().get(osIndexName);
       Settings settings = response.getSettings().get(osIndexName);
-      return constructFlintMetadata(indexName, mapping.source().string(), settings.toString());
+      return FlintMetadata.apply(mapping.source().string(), settings.toString());
     } catch (Exception e) {
       throw new IllegalStateException("Failed to get Flint index metadata for " + osIndexName, e);
     }
@@ -254,102 +198,7 @@ public class FlintOpenSearchClient implements FlintClient {
 
   @Override
   public IRestHighLevelClient createClient() {
-    RestClientBuilder
-        restClientBuilder =
-        RestClient.builder(new HttpHost(options.getHost(), options.getPort(), options.getScheme()));
-
-    // SigV4 support
-    if (options.getAuth().equals(FlintOptions.SIGV4_AUTH)) {
-      // Use DefaultAWSCredentialsProviderChain by default.
-      final AtomicReference<AWSCredentialsProvider> customAWSCredentialsProvider =
-              new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
-      String customProviderClass = options.getCustomAwsCredentialsProvider();
-      if (!Strings.isNullOrEmpty(customProviderClass)) {
-        instantiateProvider(customProviderClass, customAWSCredentialsProvider);
-      }
-
-      // Set metadataAccessAWSCredentialsProvider to customAWSCredentialsProvider by default for backwards compatibility
-      // unless a specific metadata access provider class name is provided
-      String metadataAccessProviderClass = options.getMetadataAccessAwsCredentialsProvider();
-      final AtomicReference<AWSCredentialsProvider> metadataAccessAWSCredentialsProvider =
-              new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
-
-      String metaLogIndexName = constructMetaLogIndexName(options.getDataSourceName());
-      String systemIndexName = Strings.isNullOrEmpty(options.getSystemIndexName()) ? metaLogIndexName : options.getSystemIndexName();
-
-      if (Strings.isNullOrEmpty(metadataAccessProviderClass)) {
-        metadataAccessAWSCredentialsProvider.set(customAWSCredentialsProvider.get());
-      } else {
-        instantiateProvider(metadataAccessProviderClass, metadataAccessAWSCredentialsProvider);
-      }
-
-      restClientBuilder.setHttpClientConfigCallback(builder -> {
-                HttpAsyncClientBuilder delegate = builder.addInterceptorLast(
-                        new ResourceBasedAWSRequestSigningApacheInterceptor(
-                                SERVICE_NAME, options.getRegion(), customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), systemIndexName));
-                return RetryableHttpAsyncClient.builder(delegate, options);
-              }
-      );
-    } else if (options.getAuth().equals(FlintOptions.BASIC_AUTH)) {
-      CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-      credentialsProvider.setCredentials(
-          AuthScope.ANY,
-          new UsernamePasswordCredentials(options.getUsername(), options.getPassword()));
-      restClientBuilder.setHttpClientConfigCallback(builder -> {
-        HttpAsyncClientBuilder delegate = builder.setDefaultCredentialsProvider(credentialsProvider);
-        return RetryableHttpAsyncClient.builder(delegate, options);
-      });
-    } else {
-      restClientBuilder.setHttpClientConfigCallback(delegate ->
-          RetryableHttpAsyncClient.builder(delegate, options));
-    }
-
-    final RequestConfigurator callback = new RequestConfigurator(options);
-    restClientBuilder.setRequestConfigCallback(callback);
-
-    return new RestHighLevelClientWrapper(new RestHighLevelClient(restClientBuilder));
-  }
-
-  /**
-   * Attempts to instantiate the AWS credential provider using reflection.
-   */
-  private void instantiateProvider(String providerClass, AtomicReference<AWSCredentialsProvider> provider) {
-    try {
-      Class<?> awsCredentialsProviderClass = Class.forName(providerClass);
-      Constructor<?> ctor = awsCredentialsProviderClass.getDeclaredConstructor();
-      ctor.setAccessible(true);
-      provider.set((AWSCredentialsProvider) ctor.newInstance());
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to instantiate AWSCredentialsProvider: " + providerClass, e);
-    }
-  }
-
-  /*
-   * Constructs Flint metadata with latest metadata log entry attached if it's available.
-   * It relies on FlintOptions to provide data source name.
-   */
-  private FlintMetadata constructFlintMetadata(String indexName, String mapping, String settings) {
-    String dataSourceName = options.getDataSourceName();
-    String metaLogIndexName = dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX
-        : META_LOG_NAME_PREFIX + "_" + dataSourceName;
-    Optional<FlintMetadataLogEntry> latest = Optional.empty();
-
-    try (IRestHighLevelClient client = createClient()) {
-      if (client.doesIndexExist(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT)) {
-        LOG.info("Found metadata log index " + metaLogIndexName);
-        FlintOpenSearchMetadataLog metadataLog =
-            new FlintOpenSearchMetadataLog(this, indexName, metaLogIndexName);
-        latest = metadataLog.getLatest();
-      }
-    } catch (IOException e) {
-      throw new IllegalStateException("Failed to check if index metadata log index exists " + metaLogIndexName, e);
-    }
-
-    if (latest.isEmpty()) {
-      return FlintMetadata.apply(mapping, settings);
-    } else {
-      return FlintMetadata.apply(mapping, settings, latest.get());
-    }
+    return OpenSearchClientUtils.createClient(options);
   }
 
   /*
@@ -387,9 +236,5 @@ public class FlintOpenSearchClient implements FlintClient {
 
     String encoded = percentEncode(indexName);
     return toLowercase(encoded);
-  }
-
-  private String constructMetaLogIndexName(String dataSourceName) {
-    return dataSourceName.isEmpty() ? META_LOG_NAME_PREFIX : META_LOG_NAME_PREFIX + "_" + dataSourceName;
   }
 }

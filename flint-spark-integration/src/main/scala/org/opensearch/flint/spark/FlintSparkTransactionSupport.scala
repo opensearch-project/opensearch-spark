@@ -5,8 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import org.opensearch.flint.core.FlintClient
-import org.opensearch.flint.core.metadata.log.OptimisticTransaction
+import org.opensearch.flint.common.metadata.log.{FlintMetadataLogService, OptimisticTransaction}
 
 import org.apache.spark.internal.Logging
 
@@ -20,11 +19,8 @@ import org.apache.spark.internal.Logging
  */
 trait FlintSparkTransactionSupport { self: Logging =>
 
-  /** Abstract FlintClient that need to be defined in the mixing class */
-  protected def flintClient: FlintClient
-
-  /** Abstract data source name that need to be defined in the mixing class */
-  protected def dataSourceName: String
+  /** Flint metadata log service defined in the mixing class */
+  protected def flintMetadataLogService: FlintMetadataLogService
 
   /**
    * Executes a block of code within a transaction context, handling and logging errors
@@ -51,7 +47,7 @@ trait FlintSparkTransactionSupport { self: Logging =>
     try {
       // Create transaction (only have side effect if forceInit is true)
       val tx: OptimisticTransaction[T] =
-        flintClient.startTransaction(indexName, dataSourceName, forceInit)
+        flintMetadataLogService.startTransaction(indexName, forceInit)
 
       val result = opBlock(tx)
       logInfo(s"Index operation [$opName] complete")

@@ -16,10 +16,10 @@ import org.opensearch.action.update.UpdateRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest}
 import org.opensearch.common.xcontent.XContentType
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.{QUERY_EXECUTION_REQUEST_MAPPING, QUERY_EXECUTION_REQUEST_SETTINGS}
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
-import org.opensearch.flint.core.storage.FlintOpenSearchClient._
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.{QUERY_EXECUTION_REQUEST_MAPPING, QUERY_EXECUTION_REQUEST_SETTINGS}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
+import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService.METADATA_LOG_INDEX_NAME_PREFIX
 import org.opensearch.flint.spark.FlintSparkSuite
 
 import org.apache.spark.sql.flint.config.FlintSparkConf.DATA_SOURCE_NAME
@@ -31,7 +31,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf.DATA_SOURCE_NAME
 trait OpenSearchTransactionSuite extends FlintSparkSuite {
 
   val testDataSourceName = "myglue"
-  lazy val testMetaLogIndex: String = META_LOG_NAME_PREFIX + "_" + testDataSourceName
+  lazy val testMetaLogIndex: String = METADATA_LOG_INDEX_NAME_PREFIX + "_" + testDataSourceName
 
   override def beforeAll(): Unit = {
     super.beforeAll()

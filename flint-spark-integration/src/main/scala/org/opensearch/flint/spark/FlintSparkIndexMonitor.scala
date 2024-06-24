@@ -16,8 +16,8 @@ import scala.sys.addShutdownHook
 import dev.failsafe.{Failsafe, RetryPolicy}
 import dev.failsafe.event.ExecutionAttemptedEvent
 import dev.failsafe.function.CheckedRunnable
-import org.opensearch.flint.core.FlintClient
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.{FAILED, REFRESHING}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{FAILED, REFRESHING}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogService
 import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 
 import org.apache.spark.internal.Logging
@@ -30,15 +30,12 @@ import org.apache.spark.sql.flint.newDaemonThreadPoolScheduledExecutor
  *
  * @param spark
  *   Spark session
- * @param flintClient
- *   Flint client
- * @param dataSourceName
- *   data source name
+ * @param flintMetadataLogService
+ *   Flint metadata log service
  */
 class FlintSparkIndexMonitor(
     spark: SparkSession,
-    override val flintClient: FlintClient,
-    override val dataSourceName: String)
+    override val flintMetadataLogService: FlintMetadataLogService)
     extends FlintSparkTransactionSupport
     with Logging {
 
@@ -81,7 +78,8 @@ class FlintSparkIndexMonitor(
    */
   def stopMonitor(indexName: String): Unit = {
     logInfo(s"Cancelling scheduled task for index $indexName")
-    val task = FlintSparkIndexMonitor.indexMonitorTracker.remove(indexName)
+    // Hack: Don't remove because awaitMonitor API requires Flint index name.
+    val task = FlintSparkIndexMonitor.indexMonitorTracker.get(indexName)
     if (task.isDefined) {
       task.get.cancel(true)
     } else {
@@ -120,28 +118,25 @@ class FlintSparkIndexMonitor(
         logInfo(s"Streaming job $name terminated without exception")
       } catch {
         case e: Throwable =>
-          /**
-           * Transition the index state to FAILED upon encountering an exception. Retry in case
-           * conflicts with final transaction in scheduled task.
-           * ```
-           * TODO:
-           * 1) Determine the appropriate state code based on the type of exception encountered
-           * 2) Record and persist the error message of the root cause for further diagnostics.
-           * ```
-           */
-          logError(s"Streaming job $name terminated with exception", e)
-          retry {
-            withTransaction[Unit](name, "Monitor index job") { tx =>
-              flintClient
-                .startTransaction(name, dataSourceName)
-                .initialLog(latest => latest.state == REFRESHING)
-                .finalLog(latest => latest.copy(state = FAILED))
-                .commit(_ => {})
-            }
-          }
+          logError(s"Streaming job $name terminated with exception: ${e.getMessage}")
+          retryUpdateIndexStateToFailed(name)
       }
     } else {
-      logInfo(s"Index monitor for [$indexName] not found")
+      logInfo(s"Index monitor for [$indexName] not found.")
+
+      /*
+       * Streaming job exits early. Try to find Flint index name in monitor list.
+       * Assuming: 1) there are at most 1 entry in the list, otherwise index name
+       * must be given upon this method call; 2) this await API must be called for
+       * auto refresh index, otherwise index state will be updated mistakenly.
+       */
+      val name = FlintSparkIndexMonitor.indexMonitorTracker.keys.headOption
+      if (name.isDefined) {
+        logInfo(s"Found index name in index monitor task list: ${name.get}")
+        retryUpdateIndexStateToFailed(name.get)
+      } else {
+        logInfo(s"Index monitor task list is empty")
+      }
     }
   }
 
@@ -161,12 +156,7 @@ class FlintSparkIndexMonitor(
       try {
         if (isStreamingJobActive(indexName)) {
           logInfo("Streaming job is still active")
-          withTransaction[Unit](indexName, "Monitor index job") { tx =>
-            tx
-              .initialLog(latest => latest.state == REFRESHING)
-              .finalLog(latest => latest) // timestamp will update automatically
-              .commit(_ => {})
-          }
+          flintMetadataLogService.recordHeartbeat(indexName)
         } else {
           logError("Streaming job is not active. Cancelling monitor task")
           stopMonitor(indexName)
@@ -199,6 +189,26 @@ class FlintSparkIndexMonitor(
       job.get.stop()
     } else {
       logWarning("Refreshing job not found")
+    }
+  }
+
+  /**
+   * Transition the index state to FAILED upon encountering an exception. Retry in case conflicts
+   * with final transaction in scheduled task.
+   * ```
+   * TODO:
+   * 1) Determine the appropriate state code based on the type of exception encountered
+   * 2) Record and persist the error message of the root cause for further diagnostics.
+   * ```
+   */
+  private def retryUpdateIndexStateToFailed(indexName: String): Unit = {
+    logInfo(s"Updating index state to failed for $indexName")
+    retry {
+      flintMetadataLogService
+        .startTransaction(indexName)
+        .initialLog(latest => latest.state == REFRESHING)
+        .finalLog(latest => latest.copy(state = FAILED))
+        .commit(_ => {})
     }
   }
 

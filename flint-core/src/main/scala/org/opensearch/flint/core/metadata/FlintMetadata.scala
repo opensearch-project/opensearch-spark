@@ -7,10 +7,10 @@ package org.opensearch.flint.core.metadata
 
 import java.util
 
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.FlintVersion
 import org.opensearch.flint.core.FlintVersion.current
 import org.opensearch.flint.core.metadata.FlintJsonHelper._
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 
 /**
  * Flint metadata follows Flint index specification and defines metadata for a Flint index

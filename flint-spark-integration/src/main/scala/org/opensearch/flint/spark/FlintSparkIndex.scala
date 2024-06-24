@@ -7,8 +7,8 @@ package org.opensearch.flint.spark
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.FlintMetadata
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.flint.datatype.FlintDataType

@@ -90,6 +90,8 @@ public class FlintOptions implements Serializable {
 
   public static final String DEFAULT_BATCH_BYTES = "1mb";
 
+  public static final String CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS = "spark.datasource.flint.customFlintMetadataLogServiceClass";
+
   public FlintOptions(Map<String, String> options) {
     this.options = options;
     this.retryOptions = new FlintRetryOptions(options);
@@ -161,5 +163,9 @@ public class FlintOptions implements Serializable {
     // we did not expect this value could be large than 10mb = 10 * 1024 * 1024
     return (int) org.apache.spark.network.util.JavaUtils
         .byteStringAs(options.getOrDefault(BATCH_BYTES, DEFAULT_BATCH_BYTES), ByteUnit.BYTE);
+  }
+
+  public String getCustomFlintMetadataLogServiceClass() {
+    return options.getOrDefault(CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS, "");
   }
 }
