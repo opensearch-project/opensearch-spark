@@ -23,10 +23,10 @@ import org.opensearch.action.update.UpdateRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.flint.common.metadata.log.FlintMetadataLog;
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
-import org.opensearch.flint.core.metadata.log.FlintMetadataLog;
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
 
 /**
  * Flint metadata log in OpenSearch store. For now use single doc instead of maintaining history

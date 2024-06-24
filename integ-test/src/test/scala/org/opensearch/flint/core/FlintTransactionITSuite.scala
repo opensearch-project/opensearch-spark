@@ -12,9 +12,8 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.{JsonMethods, Serialization}
 import org.opensearch.flint.OpenSearchTransactionSuite
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogService
+import org.opensearch.flint.common.metadata.log.{FlintMetadataLogEntry, FlintMetadataLogService}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService
 import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
 import org.scalatest.matchers.should.Matchers

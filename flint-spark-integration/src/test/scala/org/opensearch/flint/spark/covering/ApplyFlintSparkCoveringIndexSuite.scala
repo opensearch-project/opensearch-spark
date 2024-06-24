@@ -7,9 +7,9 @@ package org.opensearch.flint.spark.covering
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{mockStatic, when, RETURNS_DEEP_STUBS}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{ACTIVE, DELETED, IndexState}
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.{ACTIVE, DELETED, IndexState}
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.scalatest.matchers.{Matcher, MatchResult}

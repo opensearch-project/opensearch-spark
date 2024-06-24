@@ -16,8 +16,8 @@ import scala.sys.addShutdownHook
 import dev.failsafe.{Failsafe, RetryPolicy}
 import dev.failsafe.event.ExecutionAttemptedEvent
 import dev.failsafe.function.CheckedRunnable
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.{FAILED, REFRESHING}
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogService
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{FAILED, REFRESHING}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogService
 import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 
 import org.apache.spark.internal.Logging

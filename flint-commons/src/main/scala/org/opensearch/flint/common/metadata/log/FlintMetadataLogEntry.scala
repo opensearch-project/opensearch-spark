@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.core.metadata.log
+package org.opensearch.flint.common.metadata.log
 
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
-import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
 
 /**
  * Flint metadata log entry. This is temporary and will merge field in FlintMetadata here and move
@@ -161,14 +160,4 @@ object FlintMetadataLogEntry {
       |    "number_of_replicas": "0"
       |  }
       |}""".stripMargin
-
-  def failLogEntry(dataSourceName: String, error: String): FlintMetadataLogEntry =
-    FlintMetadataLogEntry(
-      "",
-      UNASSIGNED_SEQ_NO,
-      UNASSIGNED_PRIMARY_TERM,
-      0L,
-      IndexState.FAILED,
-      dataSourceName,
-      error)
 }
