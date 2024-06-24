@@ -35,9 +35,8 @@ import org.apache.spark.sql.flint.newDaemonThreadPoolScheduledExecutor
  */
 class FlintSparkIndexMonitor(
     spark: SparkSession,
-    override val flintMetadataLogService: FlintMetadataLogService)
-    extends FlintSparkTransactionSupport
-    with Logging {
+    flintMetadataLogService: FlintMetadataLogService)
+    extends Logging {
 
   /** Task execution initial delay in seconds */
   private val INITIAL_DELAY_SECONDS = FlintSparkConf().monitorInitialDelaySeconds()
@@ -153,6 +152,7 @@ class FlintSparkIndexMonitor(
     private var errorCnt = 0
 
     override def run(): Unit = {
+      logInfo(s"Scheduler trigger index monitor task for $indexName")
       try {
         if (isStreamingJobActive(indexName)) {
           logInfo("Streaming job is still active")

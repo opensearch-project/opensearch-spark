@@ -45,8 +45,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         IGNORE_DOC_ID_COLUMN.optionKey -> "true").asJava)
 
   /** Flint client for low-level index operation */
-  protected val flintClient: FlintClient =
-    FlintClientBuilder.build(flintSparkConf.flintOptions())
+  private val flintClient: FlintClient = FlintClientBuilder.build(flintSparkConf.flintOptions())
 
   override protected val flintMetadataLogService: FlintMetadataLogService = {
     FlintMetadataLogServiceBuilder.build(
@@ -99,10 +98,9 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
    * @param ignoreIfExists
    *   Ignore existing index
    */
-  def createIndex(index: FlintSparkIndex, ignoreIfExists: Boolean = false): Unit = {
-    val indexName = index.name()
-    val opName = s"Create Flint index with ignoreIfExists $ignoreIfExists"
-    withTransaction[Unit](indexName, opName, forceInit = true) { tx =>
+  def createIndex(index: FlintSparkIndex, ignoreIfExists: Boolean = false): Unit =
+    withTransaction[Unit](index.name(), "Create Flint index", forceInit = true) { tx =>
+      val indexName = index.name()
       if (flintClient.exists(indexName)) {
         if (!ignoreIfExists) {
           throw new IllegalStateException(s"Flint index $indexName already exists")
@@ -122,7 +120,6 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
             })
       }
     }
-  }
 
   /**
    * Start refreshing index data according to the given mode.
