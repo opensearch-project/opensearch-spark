@@ -54,9 +54,6 @@ val df = spark.sql("SELECT * FROM dev.default.`index1,index2`")
 df.show()
 ```
 
-
-
-
 ## Limitation
 ### Unsupported catalog operation
 - List Tables: Not supported.
