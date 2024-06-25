@@ -7,8 +7,11 @@ package org.apache.spark.sql.flint
 
 import java.util
 
+import scala.collection.JavaConverters._
+
 import org.opensearch.flint.core.FlintClientBuilder
 
+import org.apache.spark.opensearch.catalog.OpenSearchCatalog
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.catalog.{SupportsRead, SupportsWrite, Table, TableCapability}
 import org.apache.spark.sql.connector.catalog.TableCapability.{BATCH_READ, BATCH_WRITE, STREAMING_WRITE, TRUNCATE}
@@ -37,19 +40,19 @@ case class FlintTable(conf: util.Map[String, String], userSpecifiedSchema: Optio
 
   lazy val name: String = flintSparkConf.tableName()
 
-  var schema: StructType = {
-    if (schema == null) {
-      schema = if (userSpecifiedSchema.isDefined) {
-        userSpecifiedSchema.get
-      } else {
-        FlintDataType.deserialize(
-          FlintClientBuilder
-            .build(flintSparkConf.flintOptions())
-            .getIndexMetadata(name)
-            .getContent)
-      }
+  // todo. currently, we use first index schema in multiple indices. we should merge StructType
+  //  to widen type
+  lazy val schema: StructType = {
+    userSpecifiedSchema.getOrElse {
+      FlintClientBuilder
+        .build(flintSparkConf.flintOptions())
+        .getAllIndexMetadata(OpenSearchCatalog.indexNames(name): _*)
+        .values()
+        .asScala
+        .headOption
+        .map(m => FlintDataType.deserialize(m.getContent))
+        .getOrElse(StructType(Nil))
     }
-    schema
   }
 
   override def capabilities(): util.Set[TableCapability] =

@@ -40,7 +40,7 @@ public interface FlintClient {
    * @return map where the keys are the matched index names, and the values are
    *         corresponding index metadata
    */
-  Map<String, FlintMetadata> getAllIndexMetadata(String indexNamePattern);
+  Map<String, FlintMetadata> getAllIndexMetadata(String... indexNamePattern);
 
   /**
    * Retrieve metadata in a Flint index.
