@@ -49,6 +49,7 @@ import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Kmeans;
+import org.opensearch.sql.ast.tree.Lookup;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
@@ -254,6 +255,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitDedupe(Dedupe node, CatalystPlanContext context) {
         throw new IllegalStateException("Not Supported operation : dedupe ");
+    }
+
+    @Override
+    public LogicalPlan visitLookup(Lookup node, CatalystPlanContext context) {
+        throw new IllegalStateException("Not Supported operation : lookup ");
     }
 
     /**

@@ -72,6 +72,13 @@ public class ArgumentFactory {
             : new Argument("consecutive", new Literal(false, DataType.BOOLEAN)));
   }
 
+  public static List<Argument> getArgumentList(OpenSearchPPLParser.LookupCommandContext ctx) {
+    return Arrays.asList(
+            ctx.appendonly != null
+                    ? new Argument("appendonly", getArgumentValue(ctx.appendonly))
+                    : new Argument("appendonly", new Literal(false, DataType.BOOLEAN)));
+  }
+
   /**
    * Get list of {@link Argument}.
    *
