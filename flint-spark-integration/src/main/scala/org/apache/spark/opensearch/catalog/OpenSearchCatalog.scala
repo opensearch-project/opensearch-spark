@@ -6,7 +6,7 @@
 package org.apache.spark.opensearch.catalog
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.opensearch.catalog.OpenSearchCatalog.{OPENSEARCH_PREFIX}
+import org.apache.spark.opensearch.catalog.OpenSearchCatalog.OPENSEARCH_PREFIX
 import org.apache.spark.sql.catalyst.analysis.{NoSuchNamespaceException, NoSuchTableException}
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
