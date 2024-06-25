@@ -209,7 +209,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
         .addValueSet("name")
         .create()
     } should have message
-      s"Failed to execute index operation [Create Flint index with ignoreIfExists false] caused by: Flint index $testFlintIndex already exists"
+      s"Failed to execute index operation [Create Flint index] caused by: Flint index $testFlintIndex already exists"
   }
 
   test("should clean up metadata log entry if index data has been deleted") {
