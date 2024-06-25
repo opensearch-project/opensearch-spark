@@ -43,21 +43,21 @@ trait FlintSparkTransactionSupport { self: Logging =>
    */
   def withTransaction[T](indexName: String, opName: String, forceInit: Boolean = false)(
       opBlock: OptimisticTransaction[T] => T): T = {
-    logInfo(s"Starting index operation [$opName for $indexName] with forceInit=$forceInit")
+    logInfo(s"Starting index operation [$opName $indexName] with forceInit=$forceInit")
     try {
       // Create transaction (only have side effect if forceInit is true)
       val tx: OptimisticTransaction[T] =
         flintMetadataLogService.startTransaction(indexName, forceInit)
 
       val result = opBlock(tx)
-      logInfo(s"Index operation [$opName] complete")
+      logInfo(s"Index operation [$opName $indexName] complete")
       result
     } catch {
       case e: Exception =>
         // Extract and add root cause message to final error message
         val rootCauseMessage = extractRootCause(e)
         val detailedMessage =
-          s"Failed to execute index operation [$opName] caused by: $rootCauseMessage"
+          s"Failed to execute index operation [$opName $indexName] caused by: $rootCauseMessage"
         logError(detailedMessage, e)
 
         // Re-throw with new detailed error message

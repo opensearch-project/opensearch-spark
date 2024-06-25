@@ -187,7 +187,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
     the[IllegalStateException] thrownBy {
       flint.vacuumIndex(testFlintIndex)
     } should have message
-      s"Failed to execute index operation [Vacuum Flint index] caused by: Index state [active] doesn't satisfy precondition"
+      s"Failed to execute index operation [Vacuum Flint index $testFlintIndex] caused by: Index state [active] doesn't satisfy precondition"
   }
 
   test("should not recreate index if index data still exists") {
@@ -209,7 +209,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
         .addValueSet("name")
         .create()
     } should have message
-      s"Failed to execute index operation [Create Flint index] caused by: Flint index $testFlintIndex already exists"
+      s"Failed to execute index operation [Create Flint index $testFlintIndex] caused by: Flint index $testFlintIndex already exists"
   }
 
   test("should clean up metadata log entry if index data has been deleted") {

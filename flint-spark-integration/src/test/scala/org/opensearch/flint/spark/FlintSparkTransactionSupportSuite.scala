@@ -43,7 +43,7 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
         throw new IllegalArgumentException("Fake exception")
       }
     } should have message
-      "Failed to execute index operation [test operation] caused by: Fake exception"
+      s"Failed to execute index operation [test operation $testIndex] caused by: Fake exception"
   }
 
   test("should throw exception with root cause exception message") {
@@ -54,6 +54,6 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
         throw new IllegalStateException("message ignored", cause)
       }
     } should have message
-      "Failed to execute index operation [test operation] caused by: Fake root cause"
+      s"Failed to execute index operation [test operation $testIndex] caused by: Fake root cause"
   }
 }
