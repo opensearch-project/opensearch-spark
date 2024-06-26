@@ -27,12 +27,12 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
   private val testTable = "spark_catalog.default.apply_covering_index_test"
   private val testTable2 = "spark_catalog.default.apply_covering_index_test_2"
 
-  // Mock FlintClient to avoid looking for real OpenSearch cluster
+  /** Mock FlintClient to avoid looking for real OpenSearch cluster */
   private val clientBuilder = mockStatic(classOf[FlintClientBuilder])
   private val client = mock[FlintClient](RETURNS_DEEP_STUBS)
 
-  /** Mock FlintSpark which is required by the rule */
-  private val flint = mock[FlintSpark]
+  /** Mock FlintSpark which is required by the rule. Deep stub required to replace spark val. */
+  private val flint = mock[FlintSpark](RETURNS_DEEP_STUBS)
 
   /** Instantiate the rule once for all tests */
   private val rule = new ApplyFlintSparkCoveringIndex(flint)
