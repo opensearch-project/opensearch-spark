@@ -37,23 +37,13 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
     verify(mockFlintMetadataLogService, times(1)).startTransaction(testIndex, true)
   }
 
-  test("should throw exception with nested exception message") {
-    the[IllegalStateException] thrownBy {
-      transactionSupport.withTransaction[Unit](testIndex, testOpName) { _ =>
-        throw new IllegalArgumentException("Fake exception")
-      }
-    } should have message
-      s"Failed to execute index operation [test operation $testIndex] caused by: Fake exception"
-  }
-
-  test("should throw exception with root cause exception message") {
-    the[IllegalStateException] thrownBy {
+  test("should throw original exception") {
+    the[RuntimeException] thrownBy {
       transactionSupport.withTransaction[Unit](testIndex, testOpName) { _ =>
         val rootCause = new IllegalArgumentException("Fake root cause")
-        val cause = new RuntimeException("message ignored", rootCause)
-        throw new IllegalStateException("message ignored", cause)
+        val cause = new RuntimeException("Fake cause", rootCause)
+        throw cause
       }
-    } should have message
-      s"Failed to execute index operation [test operation $testIndex] caused by: Fake root cause"
+    } should have message "Fake cause"
   }
 }

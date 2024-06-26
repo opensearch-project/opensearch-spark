@@ -126,7 +126,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
       } catch (Exception ex) {
         LOG.log(WARNING, "Failed to rollback transient log", ex);
       }
-      throw new IllegalStateException("Failed to commit transaction operation");
+      throw new IllegalStateException("Failed to commit transaction operation", e);
     }
   }
 

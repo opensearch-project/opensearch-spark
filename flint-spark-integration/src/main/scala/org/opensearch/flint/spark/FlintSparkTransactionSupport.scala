@@ -54,29 +54,10 @@ trait FlintSparkTransactionSupport { self: Logging =>
       result
     } catch {
       case e: Exception =>
-        // Extract and add root cause message to final error message
-        val rootCauseMessage = extractRootCause(e)
-        val detailedMessage =
-          s"Failed to execute index operation [$opName $indexName] caused by: $rootCauseMessage"
-        logError(detailedMessage, e)
+        logError(s"Failed to execute index operation [$opName $indexName]", e)
 
-        // Re-throw with new detailed error message
-        throw new IllegalStateException(detailedMessage)
+        // Rethrowing the original exception for high level logic to handle
+        throw e
     }
-  }
-
-  private def extractRootCause(e: Throwable): String = {
-    var cause = e
-    while (cause.getCause != null && cause.getCause != cause) {
-      cause = cause.getCause
-    }
-
-    if (cause.getLocalizedMessage != null) {
-      return cause.getLocalizedMessage
-    }
-    if (cause.getMessage != null) {
-      return cause.getMessage
-    }
-    cause.toString
   }
 }
