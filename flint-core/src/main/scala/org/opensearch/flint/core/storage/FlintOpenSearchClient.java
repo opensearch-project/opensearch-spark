@@ -60,7 +60,7 @@ public class FlintOpenSearchClient implements FlintClient {
    * excluding '*' because it's reserved for pattern matching.
    */
   private final static Set<Character> INVALID_INDEX_NAME_CHARS =
-      Set.of(' ', ':', '"', '+', '/', '\\', '|', '?', '#', '>', '<');
+      Set.of(' ', ',', ':', '"', '+', '/', '\\', '|', '?', '#', '>', '<');
 
   private final FlintOptions options;
 

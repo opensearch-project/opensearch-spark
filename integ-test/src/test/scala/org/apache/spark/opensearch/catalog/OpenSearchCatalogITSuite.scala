@@ -55,7 +55,8 @@ class OpenSearchCatalogITSuite
     }
   }
 
-  test("Load comma seperated index expression as table") {
+  // FIXME, enable it when add partition info into OpenSearchTable.
+  ignore("Load comma seperated index expression as table") {
     val indexName1 = "t0001"
     val indexName2 = "t0002"
     withIndexName(indexName1) {

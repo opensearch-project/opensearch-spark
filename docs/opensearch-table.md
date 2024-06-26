@@ -33,7 +33,7 @@ spark.conf.set("spark.sql.catalog.dev.opensearch.auth", "noauth")
 Once the catalog is configured, you can use Spark SQL to query OpenSearch indices as tables:
 
 - The namespace **MUST** be `default`.
-- When using a wildcard index name or a comma-separated index name as the table, it **MUST** be wrapped in backticks.
+- When using a wildcard index name, it **MUST** be wrapped in backticks.
 
 Example:
 
@@ -45,12 +45,6 @@ df.show()
 Using a wildcard index name:
 ```scala
 val df = spark.sql("SELECT * FROM dev.default.`my_index*`")
-df.show()
-```
-
-Using a comma-separated index name:
-```scala
-val df = spark.sql("SELECT * FROM dev.default.`index1,index2`")
 df.show()
 ```
 
