@@ -26,7 +26,7 @@ class PPLLogicalPlanLookupTranslatorTestSuite
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source = table | lookup a b,c as d appendonly=true q,w as z ", false), context)
+      planTransformer.visit(plan(pplParser, "source = table | lookup a b,c as d, e as f,g as b, j appendonly=true q,w as z ", false), context)
     val star = Seq(UnresolvedStar(None))
 
     val priceField = UnresolvedAttribute("price")

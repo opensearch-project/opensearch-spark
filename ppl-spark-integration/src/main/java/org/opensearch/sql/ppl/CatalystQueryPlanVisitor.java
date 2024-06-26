@@ -6,7 +6,6 @@
 package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
-import org.apache.spark.sql.catalyst.analysis.UnresolvedFieldName;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.EqualTo;
@@ -23,6 +22,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
+import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.AllFields;
@@ -63,6 +63,7 @@ import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
+import org.sparkproject.guava.collect.Iterables;
 import scala.Option;
 import scala.collection.Seq;
 
@@ -266,6 +267,14 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitLookup(Lookup node, CatalystPlanContext context) {
+        Node root = node.getChild().get(0);
+
+        while(!root.getChild().isEmpty()) {
+            root = root.getChild().get(0);
+        }
+
+        org.opensearch.sql.ast.tree.Relation source = (org.opensearch.sql.ast.tree.Relation) root;
+
         node.getChild().get(0).accept(this, context);
 
         //TODO: not sure how to implement appendonly
@@ -275,7 +284,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         //TODO: use node.getCopyFieldList() to prefilter the right logical plan
         //and return only the fields listed there. rename fields when requested
 
-        Expression joinExpression = visitFieldMap(node.getMatchFieldList());
+        Expression joinCondition = visitFieldMap(node.getMatchFieldList(), source.getTableQualifiedName().toString(), node.getIndexName(), context);
 
         return context.apply(p -> new Join(
 
@@ -285,37 +294,37 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
                 JoinType.apply("left"), //https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-join.html
 
-                Option.apply(joinExpression), //which fields to join
+                Option.apply(joinCondition), //which fields to join
 
                 JoinHint.NONE() //TODO: check, https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-hints.html#join-hints-types
         ));
     }
 
-    private Expression visitFieldMap(List<Map> fieldMap) {
+    private org.opensearch.sql.ast.expression.Field prefixField(List<String> prefixParts, UnresolvedExpression field) {
+        org.opensearch.sql.ast.expression.Field in = (org.opensearch.sql.ast.expression.Field) field;
+        org.opensearch.sql.ast.expression.QualifiedName inq = (org.opensearch.sql.ast.expression.QualifiedName) in.getField();
+        Iterable finalParts = Iterables.concat(prefixParts, inq.getParts());
+        return new org.opensearch.sql.ast.expression.Field(new org.opensearch.sql.ast.expression.QualifiedName(finalParts), in.getFieldArgs());
+    }
+
+    private Expression visitFieldMap(List<Map> fieldMap, String sourceTableName, String lookupTableName, CatalystPlanContext context) {
         int size = fieldMap.size();
 
         List<Expression> allEqlExpressions = new ArrayList<>(size);
 
         for (Map map : fieldMap) {
-            Expression eql = new EqualTo(new UnresolvedFieldName(seq(of(((Field) map.getTarget()).getField().toString()))),
-                    new UnresolvedFieldName(seq(of(((Field) map.getOrigin()).getField().toString()))));
+
+            Expression origin = visitExpression(prefixField(of(sourceTableName.split("\\.")),map.getOrigin()), context);
+            Expression target = visitExpression(prefixField(of(lookupTableName.split("\\.")),map.getTarget()), context);
+
+            //important
+            context.retainAllNamedParseExpressions(e -> e);
+
+            Expression eql = new EqualTo(origin, target);
             allEqlExpressions.add(eql);
         }
 
-        if(size == 1)  {
-            return allEqlExpressions.get(0);
-        } else if(size == 2) {
-            return new org.apache.spark.sql.catalyst.expressions.And(allEqlExpressions.get(0),allEqlExpressions.get(1));
-        } else {
-            //2     and(1,2)   -> 1 * and
-            //3 ->  and(1, and(2,3)) -> 2 * and
-            //4 ->  and(and(1,2), and(3,4)) -> 3 * and
-            //5 ->  and(and(1, and(2,3)),and(4,5)) -> 4* and
-            //6 ->  and(and(and(1,2), and(3,4)), and(5,6)) -> 5* and
-
-            //TODO: implement
-            throw new RuntimeException("not implemented");
-        }
+        return allEqlExpressions.stream().reduce(org.apache.spark.sql.catalyst.expressions.And::new).orElse(null);
     }
 
     /**
