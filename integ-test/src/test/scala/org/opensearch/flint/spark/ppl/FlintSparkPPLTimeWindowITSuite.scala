@@ -25,7 +25,6 @@ class FlintSparkPPLTimeWindowITSuite
   override def beforeAll(): Unit = {
     super.beforeAll()
     // Create test table
-    // Update table creation
     createTimeSeriesTransactionTable(testTable)
   }
 
@@ -39,16 +38,6 @@ class FlintSparkPPLTimeWindowITSuite
   }
 
   test("create ppl query count sales by days window test") {
-    /*
-       val dataFrame = spark.read.table(testTable)
-       val query = dataFrame
-         .groupBy(
-           window(
-             col("transactionDate"), " 1 days")
-         ).agg(sum(col("productsAmount")))
-
-       query.show(false)
-     */
     val frame = sql(s"""
          | source = $testTable| stats sum(productsAmount) by span(transactionDate, 1d) as age_date
          | """.stripMargin)

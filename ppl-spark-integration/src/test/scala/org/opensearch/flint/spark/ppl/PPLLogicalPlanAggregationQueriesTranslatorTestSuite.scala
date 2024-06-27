@@ -20,14 +20,14 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     with LogicalPlanTestUtils
     with Matchers {
 
-  private val planTrnasformer = new CatalystQueryPlanVisitor()
+  private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
 
   test("test average price  ") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan =
-      planTrnasformer.visit(plan(pplParser, "source = table | stats avg(price) ", false), context)
+      planTransformer.visit(plan(pplParser, "source = table | stats avg(price) ", false), context)
     // SQL: SELECT avg(price) as avg_price FROM table
     val star = Seq(UnresolvedStar(None))
 
@@ -44,7 +44,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   ignore("test average price with Alias") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(
+    val logPlan = planTransformer.visit(
       plan(pplParser, "source = table | stats avg(price) as avg_price", false),
       context)
     // SQL: SELECT avg(price) as avg_price FROM table
@@ -63,7 +63,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test average price group by product ") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(
+    val logPlan = planTransformer.visit(
       plan(pplParser, "source = table | stats avg(price) by product", false),
       context)
     // SQL: SELECT product, AVG(price) AS avg_price FROM table GROUP BY product
@@ -87,7 +87,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test average price group by product and filter") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(
+    val logPlan = planTransformer.visit(
       plan(pplParser, "source = table country ='USA' | stats avg(price) by product", false),
       context)
     // SQL: SELECT product, AVG(price) AS avg_price FROM table GROUP BY product
@@ -115,7 +115,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test average price group by product and filter sorted") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(
+    val logPlan = planTransformer.visit(
       plan(
         pplParser,
         "source = table country ='USA' | stats avg(price) by product | sort product",
@@ -148,7 +148,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   }
   test("create ppl simple avg age by span of interval of 10 years query test ") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(
+    val logPlan = planTransformer.visit(
       plan(pplParser, "source = table | stats avg(age) by span(age, 10) as age_span", false),
       context)
     // Define the expected logical plan
@@ -169,7 +169,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
 
   test("create ppl simple avg age by span of interval of 10 years query with sort test ") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(
+    val logPlan = planTransformer.visit(
       plan(
         pplParser,
         "source = table | stats avg(age) by span(age, 10) as age_span | sort age",
@@ -195,7 +195,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
 
   test("create ppl simple avg age by span of interval of 10 years by country query test ") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(
+    val logPlan = planTransformer.visit(
       plan(
         pplParser,
         "source = table | stats avg(age) by span(age, 10) as age_span, country",
@@ -223,7 +223,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   }
   test("create ppl query count sales by weeks window and productId with sorting test") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(
+    val logPlan = planTransformer.visit(
       plan(
         pplParser,
         "source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date | sort age_date",
@@ -262,7 +262,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
 
   test("create ppl query count sales by days window and productId with sorting test") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(
+    val logPlan = planTransformer.visit(
       plan(
         pplParser,
         "source = table | stats sum(productsAmount) by span(transactionDate, 1d) as age_date, productId | sort age_date",
@@ -300,7 +300,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   }
   test("create ppl query count status amount by day window and group by status test") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(
+    val logPlan = planTransformer.visit(
       plan(
         pplParser,
         "source = table | stats sum(status) by span(@timestamp, 1d) as status_count_by_day, status | head 100",
@@ -336,7 +336,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test(
     "create ppl query count only error (status >= 400) status amount by day window and group by status test") {
     val context = new CatalystPlanContext
-    val logPlan = planTrnasformer.visit(
+    val logPlan = planTransformer.visit(
       plan(
         pplParser,
         "source = table | where status >= 400 | stats sum(status) by span(@timestamp, 1d) as status_count_by_day, status | head 100",
