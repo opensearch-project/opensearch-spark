@@ -101,11 +101,12 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   @Override
-  public Map<String, FlintMetadata> getAllIndexMetadata(String indexNamePattern) {
-    LOG.info("Fetching all Flint index metadata for pattern " + indexNamePattern);
-    String osIndexNamePattern = sanitizeIndexName(indexNamePattern);
+  public Map<String, FlintMetadata> getAllIndexMetadata(String... indexNamePattern) {
+    LOG.info("Fetching all Flint index metadata for pattern " + String.join(",", indexNamePattern));
+    String[] indexNames =
+        Arrays.stream(indexNamePattern).map(this::sanitizeIndexName).toArray(String[]::new);
     try (IRestHighLevelClient client = createClient()) {
-      GetIndexRequest request = new GetIndexRequest(osIndexNamePattern);
+      GetIndexRequest request = new GetIndexRequest(indexNames);
       GetIndexResponse response = client.getIndex(request, RequestOptions.DEFAULT);
 
       return Arrays.stream(response.getIndices())
@@ -117,7 +118,8 @@ public class FlintOpenSearchClient implements FlintClient {
               )
           ));
     } catch (Exception e) {
-      throw new IllegalStateException("Failed to get Flint index metadata for " + osIndexNamePattern, e);
+      throw new IllegalStateException("Failed to get Flint index metadata for " +
+          String.join(",", indexNames), e);
     }
   }
 
