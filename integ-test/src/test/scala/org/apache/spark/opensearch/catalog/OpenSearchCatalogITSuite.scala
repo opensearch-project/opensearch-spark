@@ -70,7 +70,8 @@ class OpenSearchCatalogITSuite extends FlintSparkSuite {
         spark.sql(s"""
           INSERT INTO ${catalogName}.default.$indexName VALUES ('234', 'event-1', 'source-1')""")
       }
-      assert(exception.getMessage.contains(s"Table does not support writes: $indexName"))
+      assert(
+        exception.getMessage.contains(s"Table $indexName does not support append in batch mode."))
     }
   }
 
@@ -85,7 +86,7 @@ class OpenSearchCatalogITSuite extends FlintSparkSuite {
     }
   }
 
-  test("Failed to override value of readonly table") {
+  test("Failed to overwrite value of readonly table") {
     val indexName = "t0001"
     withIndexName(indexName) {
       simpleIndex(indexName)
@@ -93,7 +94,9 @@ class OpenSearchCatalogITSuite extends FlintSparkSuite {
         spark.sql(s"""
           INSERT OVERWRITE TABLE ${catalogName}.default.$indexName VALUES ('234', 'event-1', 'source-1')""")
       }
-      assert(exception.getMessage.contains(s"Table does not support writes: $indexName"))
+      assert(
+        exception.getMessage.contains(
+          s"Table $indexName does not support truncate in batch mode."))
     }
   }
 
