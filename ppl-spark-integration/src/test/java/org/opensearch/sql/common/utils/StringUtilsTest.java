@@ -1,6 +1,6 @@
 package org.opensearch.sql.common.utils;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.Assert.assertEquals;
 import static org.opensearch.sql.common.utils.StringUtils.unquoteIdentifier;
 import static org.opensearch.sql.common.utils.StringUtils.unquoteText;
 
