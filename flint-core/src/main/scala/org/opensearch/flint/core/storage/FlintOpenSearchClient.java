@@ -14,6 +14,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
@@ -61,6 +62,9 @@ public class FlintOpenSearchClient implements FlintClient {
    */
   private final static Set<Character> INVALID_INDEX_NAME_CHARS =
       Set.of(' ', ',', ':', '"', '+', '/', '\\', '|', '?', '#', '>', '<');
+
+  private final static Function<String, String> SHARD_ID_PREFERENCE =
+      shardId -> "_shards:"+shardId;
 
   private final FlintOptions options;
 
@@ -173,7 +177,20 @@ public class FlintOpenSearchClient implements FlintClient {
    */
   @Override
   public FlintReader createReader(String indexName, String query) {
-    LOG.info("Creating Flint index reader for " + indexName + " with query " + query);
+    return createReader(indexName, query, null);
+  }
+
+  /**
+   * Create {@link FlintReader}.
+   *
+   * @param indexName index name.
+   * @param query DSL query. DSL query is null means match_all
+   * @param shardId shardId
+   * @return
+   */
+  @Override
+  public FlintReader createReader(String indexName, String query, String shardId) {
+    LOG.info("Creating Flint index reader for " + indexName + " with query " + query + " shardId " + shardId);
     try {
       QueryBuilder queryBuilder = new MatchAllQueryBuilder();
       if (!Strings.isNullOrEmpty(query)) {
@@ -185,7 +202,8 @@ public class FlintOpenSearchClient implements FlintClient {
       return new OpenSearchScrollReader(createClient(),
           sanitizeIndexName(indexName),
           new SearchSourceBuilder().query(queryBuilder),
-          options);
+          options,
+          SHARD_ID_PREFERENCE.apply(shardId));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

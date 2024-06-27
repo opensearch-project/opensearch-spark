@@ -15,14 +15,19 @@ import org.apache.spark.sql.flint.storage.FlintQueryCompiler
 import org.apache.spark.sql.types.StructType
 
 case class FlintPartitionReaderFactory(
-    tableName: String,
     schema: StructType,
     options: FlintSparkConf,
     pushedPredicates: Array[Predicate])
     extends PartitionReaderFactory {
   override def createReader(partition: InputPartition): PartitionReader[InternalRow] = {
-    val query = FlintQueryCompiler(schema).compile(pushedPredicates)
-    val flintClient = FlintClientBuilder.build(options.flintOptions())
-    new FlintPartitionReader(flintClient.createReader(tableName, query), schema, options)
+    partition match {
+      case OpenSearchSplit(shardInfo) =>
+        val query = FlintQueryCompiler(schema).compile(pushedPredicates)
+        val flintClient = FlintClientBuilder.build(options.flintOptions())
+        new FlintPartitionReader(
+          flintClient.createReader(shardInfo.indexName, query, shardInfo.id.toString),
+          schema,
+          options)
+    }
   }
 }
