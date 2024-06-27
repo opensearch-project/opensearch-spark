@@ -6,16 +6,13 @@
 package org.apache.spark.opensearch.catalog
 
 import org.opensearch.flint.OpenSearchSuite
+import org.opensearch.flint.spark.FlintSparkSuite
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.streaming.StreamTest
 
-class OpenSearchCatalogITSuite
-    extends QueryTest
-    with StreamTest
-    with FlintSuite
-    with OpenSearchSuite {
+class OpenSearchCatalogITSuite extends FlintSparkSuite {
 
   private val catalogName = "dev"
 
