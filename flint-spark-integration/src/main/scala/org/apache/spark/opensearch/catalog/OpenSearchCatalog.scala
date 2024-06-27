@@ -10,7 +10,7 @@ import org.apache.spark.opensearch.catalog.OpenSearchCatalog.OPENSEARCH_PREFIX
 import org.apache.spark.sql.catalyst.analysis.{NoSuchNamespaceException, NoSuchTableException}
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.flint.FlintTable
+import org.apache.spark.sql.flint.FlintReadOnlyTable
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -55,7 +55,7 @@ class OpenSearchCatalog extends CatalogPlugin with TableCatalog with Logging {
       removePrefixFromMap(options.asCaseSensitiveMap(), OPENSEARCH_PREFIX))
     conf.put("path", ident.name())
 
-    FlintTable(conf, Option.empty)
+    new FlintReadOnlyTable(conf, Option.empty)
   }
 
   override def createTable(

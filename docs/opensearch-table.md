@@ -49,9 +49,12 @@ df.show()
 ```
 
 ## Limitation
-### Unsupported catalog operation
+### catalog operation
 - List Tables: Not supported.
 - Create Table: Not supported.
 - Alter Table: Not supported.
 - Drop Table: Not supported.
 - Rename Table: Not supported.
+
+### table operation
+- Table only support read operation, for instance, SELECT, DESCRIBE.

@@ -8,7 +8,7 @@ package org.apache.spark.opensearch.catalog
 import org.opensearch.flint.OpenSearchSuite
 
 import org.apache.spark.FlintSuite
-import org.apache.spark.sql.{QueryTest, Row}
+import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.streaming.StreamTest
 
 class OpenSearchCatalogITSuite
@@ -27,6 +27,9 @@ class OpenSearchCatalogITSuite
       "org.apache.spark.opensearch.catalog.OpenSearchCatalog")
     spark.conf.set(s"spark.sql.catalog.${catalogName}.opensearch.port", s"$openSearchPort")
     spark.conf.set(s"spark.sql.catalog.${catalogName}.opensearch.host", openSearchHost)
+    spark.conf.set(
+      s"spark.sql.catalog.${catalogName}.opensearch.write.refresh_policy",
+      "wait_for")
   }
 
   test("Load single index as table") {
@@ -35,10 +38,65 @@ class OpenSearchCatalogITSuite
       simpleIndex(indexName)
       val df = spark.sql(s"""
         SELECT accountId, eventName, eventSource
-        FROM ${catalogName}.default.${indexName}""")
+        FROM ${catalogName}.default.$indexName""")
 
       assert(df.count() == 1)
       checkAnswer(df, Row("123", "event", "source"))
+    }
+  }
+
+  test("Describe single index as table") {
+    val indexName = "t0001"
+    withIndexName(indexName) {
+      simpleIndex(indexName)
+      val df = spark.sql(s"""
+        DESC ${catalogName}.default.$indexName""")
+
+      assert(df.count() == 6)
+      checkAnswer(
+        df,
+        Seq(
+          Row("# Partitioning", "", ""),
+          Row("", "", ""),
+          Row("Not partitioned", "", ""),
+          Row("accountId", "string", ""),
+          Row("eventName", "string", ""),
+          Row("eventSource", "string", "")))
+    }
+  }
+
+  test("Failed to write value to readonly table") {
+    val indexName = "t0001"
+    withIndexName(indexName) {
+      simpleIndex(indexName)
+      val exception = intercept[AnalysisException] {
+        spark.sql(s"""
+          INSERT INTO ${catalogName}.default.$indexName VALUES ('234', 'event-1', 'source-1')""")
+      }
+      assert(exception.getMessage.contains(s"Table does not support writes: $indexName"))
+    }
+  }
+
+  test("Failed to delete value from readonly table") {
+    val indexName = "t0001"
+    withIndexName(indexName) {
+      simpleIndex(indexName)
+      val exception = intercept[AnalysisException] {
+        spark.sql(s"DELETE FROM ${catalogName}.default.$indexName WHERE accountId = '234'")
+      }
+      assert(exception.getMessage.contains(s"Table does not support deletes: $indexName"))
+    }
+  }
+
+  test("Failed to override value of readonly table") {
+    val indexName = "t0001"
+    withIndexName(indexName) {
+      simpleIndex(indexName)
+      val exception = intercept[AnalysisException] {
+        spark.sql(s"""
+          INSERT OVERWRITE TABLE ${catalogName}.default.$indexName VALUES ('234', 'event-1', 'source-1')""")
+      }
+      assert(exception.getMessage.contains(s"Table does not support writes: $indexName"))
     }
   }
 
