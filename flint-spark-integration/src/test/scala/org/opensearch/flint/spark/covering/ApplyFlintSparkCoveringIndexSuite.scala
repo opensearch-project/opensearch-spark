@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark.covering
 
+import scala.collection.JavaConverters._
+
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{mockStatic, when, RETURNS_DEEP_STUBS}
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
@@ -198,7 +200,8 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       })
 
       indexes.foreach { index =>
-        when(client.getIndexMetadata(index.name())).thenReturn(index.metadata())
+        when(client.getAllIndexMetadata(index.name()))
+          .thenReturn(Map.apply(index.name() -> index.metadata()).asJava)
       }
       rule.apply(plan)
     }
