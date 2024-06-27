@@ -16,7 +16,7 @@ import org.apache.spark.FlintSuite
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException
 import org.apache.spark.sql.connector.catalog.{Identifier, TableChange}
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.flint.FlintTable
+import org.apache.spark.sql.flint.FlintReadOnlyTable
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -71,7 +71,7 @@ class OpenSearchCatalogTest
     table should not be null
     table.name() should be("table1")
 
-    val flintTableConf = FlintTable.unapply(table.asInstanceOf[FlintTable]).get._1
+    val flintTableConf = table.asInstanceOf[FlintReadOnlyTable].conf
     flintTableConf.get("port") should be("9200")
     flintTableConf.get("scheme") should be("http")
     flintTableConf.get("auth") should be("noauth")

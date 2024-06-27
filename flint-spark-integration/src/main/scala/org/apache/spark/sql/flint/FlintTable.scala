@@ -18,7 +18,9 @@ import org.apache.spark.sql.types.StructType
  * @param userSpecifiedSchema
  *   userSpecifiedSchema
  */
-case class FlintTable(conf: util.Map[String, String], userSpecifiedSchema: Option[StructType])
+case class FlintTable(
+    override val conf: util.Map[String, String],
+    override val userSpecifiedSchema: Option[StructType])
     extends FlintReadOnlyTable(conf, userSpecifiedSchema)
     with SupportsWrite {
 

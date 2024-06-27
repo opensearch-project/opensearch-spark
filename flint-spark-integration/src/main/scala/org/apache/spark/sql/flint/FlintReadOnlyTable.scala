@@ -29,7 +29,9 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
  * @param userSpecifiedSchema
  *   userSpecifiedSchema
  */
-class FlintReadOnlyTable(conf: util.Map[String, String], userSpecifiedSchema: Option[StructType])
+class FlintReadOnlyTable(
+    val conf: util.Map[String, String],
+    val userSpecifiedSchema: Option[StructType])
     extends Table
     with SupportsRead {
 
