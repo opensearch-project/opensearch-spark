@@ -81,7 +81,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
     if (!initialCondition.test(latest)) {
       LOG.warning("Initial log entry doesn't satisfy precondition " + latest);
       throw new IllegalStateException(
-          "Transaction failed due to initial log precondition not satisfied");
+          String.format("Index state [%s] doesn't satisfy precondition", latest.state()));
     }
 
     // Append optional transient log
@@ -122,7 +122,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
       } catch (Exception ex) {
         LOG.log(WARNING, "Failed to rollback transient log", ex);
       }
-      throw new IllegalStateException("Failed to commit transaction operation");
+      throw new IllegalStateException("Failed to commit transaction operation", e);
     }
   }
 
