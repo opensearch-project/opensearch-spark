@@ -67,8 +67,8 @@ public class StringUtils {
   /**
    * Unquote Identifier which has ` as mark.
    *
-   * @param identifier identifier that possibly enclosed by double quotes or back ticks
-   * @return An unquoted string whose outer pair of (double/back-tick) quotes have been removed
+   * @param identifier identifier that possibly enclosed by backticks
+   * @return An unquoted string whose outer pair of backticks have been removed
    */
   public static String unquoteIdentifier(String identifier) {
     if (isQuoted(identifier, "`")) {
