@@ -45,7 +45,6 @@ class FlintSparkPPLFiltersITSuite
     // Define the expected results
     val expectedResults: Array[Row] = Array(Row("John", 25))
     // Compare the results
-    // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
 
@@ -71,7 +70,6 @@ class FlintSparkPPLFiltersITSuite
     val results: Array[Row] = frame.collect()
     // Define the expected results
     val expectedResults: Array[Row] = Array(Row("John", 25), Row("Jane", 20))
-    // Compare the results
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
@@ -182,7 +180,6 @@ class FlintSparkPPLFiltersITSuite
     // Define the expected results
     val expectedResults: Array[Row] = Array(Row("Jake", 70), Row("Hello", 30))
     // Compare the results
-    // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
 
@@ -208,7 +205,6 @@ class FlintSparkPPLFiltersITSuite
     val results: Array[Row] = frame.collect()
     // Define the expected results
     val expectedResults: Array[Row] = Array(Row("Hello", 30), Row("John", 25), Row("Jane", 20))
-    // Compare the results
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
@@ -287,7 +283,6 @@ class FlintSparkPPLFiltersITSuite
     // Define the expected results
     val expectedResults: Array[Row] = Array(Row("Hello", 30), Row("John", 25), Row("Jane", 20))
 
-    // Compare the results
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))

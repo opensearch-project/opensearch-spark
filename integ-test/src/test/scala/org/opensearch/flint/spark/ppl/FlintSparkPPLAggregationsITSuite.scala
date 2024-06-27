@@ -47,7 +47,6 @@ class FlintSparkPPLAggregationsITSuite
     val expectedResults: Array[Row] = Array(Row(36.25))
 
     // Compare the results
-    // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
 
@@ -76,7 +75,6 @@ class FlintSparkPPLAggregationsITSuite
     // Define the expected results
     val expectedResults: Array[Row] = Array(Row(25))
 
-    // Compare the results
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
     assert(results.sorted.sameElements(expectedResults.sorted))

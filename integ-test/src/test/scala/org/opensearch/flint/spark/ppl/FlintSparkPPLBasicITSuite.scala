@@ -50,7 +50,6 @@ class FlintSparkPPLBasicITSuite
       Row("John", 25, "Ontario", "Canada", 2023, 4),
       Row("Jane", 20, "Quebec", "Canada", 2023, 4))
     // Compare the results
-    // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
 
@@ -76,7 +75,6 @@ class FlintSparkPPLBasicITSuite
       Row("Hello", 30, "New York", "USA", 2023, 4),
       Row("John", 25, "Ontario", "Canada", 2023, 4),
       Row("Jane", 20, "Quebec", "Canada", 2023, 4))
-    // Compare the results
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
@@ -117,7 +115,6 @@ class FlintSparkPPLBasicITSuite
          | source = $testTable| sort name | head 2
          | """.stripMargin)
 
-    // Retrieve the results
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     assert(results.length == 2)
