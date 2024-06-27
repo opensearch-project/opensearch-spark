@@ -32,6 +32,7 @@ import org.opensearch.sql.ast.expression.SpanUnit;
 import org.opensearch.sql.ast.expression.UnresolvedArgument;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.expression.Xor;
+import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
 import java.util.Arrays;
@@ -322,7 +323,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
 
     @Override
     public UnresolvedExpression visitStringLiteral(OpenSearchPPLParser.StringLiteralContext ctx) {
-        return new Literal(ctx.getText(), DataType.STRING);
+        return new Literal(StringUtils.unquoteText(ctx.getText()), DataType.STRING);
     }
 
     @Override
@@ -349,7 +350,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         String name = ctx.spanClause().getText();
         return ctx.alias != null
                 ? new Alias(
-                name, visit(ctx.spanClause()), ctx.alias.getText())
+                name, visit(ctx.spanClause()), StringUtils.unquoteIdentifier(ctx.alias.getText()))
                 : new Alias(name, visit(ctx.spanClause()));
     }
 
@@ -363,6 +364,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         return new QualifiedName(
                 ctx.stream()
                         .map(RuleContext::getText)
+                        .map(StringUtils::unquoteIdentifier)
                         .collect(Collectors.toList()));
     }
 
@@ -373,10 +375,10 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         ImmutableList.Builder<UnresolvedExpression> builder = ImmutableList.builder();
         builder.add(
                 new UnresolvedArgument(
-                        "field", new QualifiedName(ctx.field.getText())));
+                        "field", new QualifiedName(StringUtils.unquoteText(ctx.field.getText()))));
         builder.add(
                 new UnresolvedArgument(
-                        "query", new Literal(ctx.query.getText(), DataType.STRING)));
+                        "query", new Literal(StringUtils.unquoteText(ctx.query.getText()), DataType.STRING)));
         ctx.relevanceArg()
                 .forEach(
                         v ->
@@ -384,7 +386,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                                         new UnresolvedArgument(
                                                 v.relevanceArgName().getText().toLowerCase(),
                                                 new Literal(
-                                                        v.relevanceArgValue().getText(),
+                                                        StringUtils.unquoteText(v.relevanceArgValue().getText()),
                                                         DataType.STRING))));
         return builder.build();
     }
