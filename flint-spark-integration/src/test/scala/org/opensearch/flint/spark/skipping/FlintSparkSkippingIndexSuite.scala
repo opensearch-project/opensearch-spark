@@ -20,6 +20,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.FlintSuite
+import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.expressions.aggregate.CollectSet
 import org.apache.spark.sql.functions.col
 
@@ -71,17 +72,19 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
     indexDf.schema.fieldNames should contain only ("name", FILE_PATH_COLUMN, ID_COLUMN)
   }
 
-  test("can build index on table name with special characters") {
-    val testTableSpecial = "spark_catalog.default.test/2023/10"
+  test("can parse identifier name with special characters during index build") {
+    val testTableSpecial = "spark_catalog.de-fault.test/2023/10"
     val indexCol = mock[FlintSparkSkippingStrategy]
     when(indexCol.outputSchema()).thenReturn(Map("name" -> "string"))
     when(indexCol.getAggregators).thenReturn(
       Seq(CollectSet(col("name").expr).toAggregateExpression()))
     val index = new FlintSparkSkippingIndex(testTableSpecial, Seq(indexCol))
 
-    val df = spark.createDataFrame(Seq(("hello", 20))).toDF("name", "age")
-    val indexDf = index.build(spark, Some(df))
-    indexDf.schema.fieldNames should contain only ("name", FILE_PATH_COLUMN, ID_COLUMN)
+    val error = intercept[AnalysisException] {
+      index.build(spark, None)
+    }
+    // Getting this error means that parsing doesn't fail with unquoted identifier
+    assert(error.getMessage().contains("UnresolvedRelation"))
   }
 
   // Test index build for different column type
