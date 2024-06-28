@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.data
 
-import java.util.{Map => JavaMap}
+import java.util.{List => JavaList, Map => JavaMap}
 
 import scala.collection.JavaConverters._
 
@@ -16,9 +16,9 @@ import org.json4s.native.Serialization
 
 object SessionStates {
   val RUNNING = "running"
-  val COMPLETE = "complete"
-  val FAILED = "failed"
-  val WAITING = "waiting"
+  val DEAD = "dead"
+  val FAIL = "fail"
+  val NOT_STARTED = "not_started"
 }
 
 /**
@@ -57,9 +57,9 @@ class InteractiveSession(
   context = sessionContext // Initialize the context from the constructor
 
   def isRunning: Boolean = state == SessionStates.RUNNING
-  def isComplete: Boolean = state == SessionStates.COMPLETE
-  def isFailed: Boolean = state == SessionStates.FAILED
-  def isWaiting: Boolean = state == SessionStates.WAITING
+  def isDead: Boolean = state == SessionStates.DEAD
+  def isFail: Boolean = state == SessionStates.FAIL
+  def isNotStarted: Boolean = state == SessionStates.NOT_STARTED
 
   override def toString: String = {
     val excludedJobIdsStr = excludedJobIds.mkString("[", ", ", "]")
@@ -129,10 +129,7 @@ object InteractiveSession {
     }
 
     // We safely handle the possibility of excludeJobIds being absent or not a list.
-    val excludeJobIds: Seq[String] = scalaSource.get("excludeJobIds") match {
-      case Some(lst: java.util.List[_]) => lst.asScala.toList.map(_.asInstanceOf[String])
-      case _ => Seq.empty[String]
-    }
+    val excludeJobIds: Seq[String] = parseExcludedJobIds(scalaSource.get("excludeJobIds"))
 
     // Handle error similarly, ensuring we get an Option[String].
     val maybeError: Option[String] = scalaSource.get("error") match {
@@ -200,5 +197,14 @@ object InteractiveSession {
 
   def serializeWithoutJobId(job: InteractiveSession, currentTime: Long): String = {
     serialize(job, currentTime, includeJobId = false)
+  }
+  private def parseExcludedJobIds(source: Option[Any]): Seq[String] = {
+    source match {
+      case Some(s: String) => Seq(s)
+      case Some(list: JavaList[_]) => list.asScala.toList.collect { case str: String => str }
+      case None => Seq.empty[String]
+      case _ =>
+        Seq.empty
+    }
   }
 }

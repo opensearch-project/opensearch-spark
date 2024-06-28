@@ -89,6 +89,24 @@ trait FlintJobExecutor {
       }
     }""".stripMargin
 
+  // Define the data schema
+  val schema = StructType(
+    Seq(
+      StructField("result", ArrayType(StringType, containsNull = true), nullable = true),
+      StructField("schema", ArrayType(StringType, containsNull = true), nullable = true),
+      StructField("jobRunId", StringType, nullable = true),
+      StructField("applicationId", StringType, nullable = true),
+      StructField("dataSourceName", StringType, nullable = true),
+      StructField("status", StringType, nullable = true),
+      StructField("error", StringType, nullable = true),
+      StructField("queryId", StringType, nullable = true),
+      StructField("queryText", StringType, nullable = true),
+      StructField("sessionId", StringType, nullable = true),
+      StructField("jobType", StringType, nullable = true),
+      // number is not nullable
+      StructField("updateTime", LongType, nullable = false),
+      StructField("queryRunTime", LongType, nullable = true)))
+
   def createSparkConf(): SparkConf = {
     new SparkConf()
       .setAppName(getClass.getSimpleName)
@@ -175,7 +193,6 @@ trait FlintJobExecutor {
       query: String,
       sessionId: String,
       startTime: Long,
-      timeProvider: TimeProvider,
       cleaner: Cleaner): DataFrame = {
     // Create the schema dataframe
     val schemaRows = result.schema.fields.map { field =>
@@ -188,29 +205,11 @@ trait FlintJobExecutor {
           StructField("column_name", StringType, nullable = false),
           StructField("data_type", StringType, nullable = false))))
 
-    // Define the data schema
-    val schema = StructType(
-      Seq(
-        StructField("result", ArrayType(StringType, containsNull = true), nullable = true),
-        StructField("schema", ArrayType(StringType, containsNull = true), nullable = true),
-        StructField("jobRunId", StringType, nullable = true),
-        StructField("applicationId", StringType, nullable = true),
-        StructField("dataSourceName", StringType, nullable = true),
-        StructField("status", StringType, nullable = true),
-        StructField("error", StringType, nullable = true),
-        StructField("queryId", StringType, nullable = true),
-        StructField("queryText", StringType, nullable = true),
-        StructField("sessionId", StringType, nullable = true),
-        StructField("jobType", StringType, nullable = true),
-        // number is not nullable
-        StructField("updateTime", LongType, nullable = false),
-        StructField("queryRunTime", LongType, nullable = true)))
-
     val resultToSave = result.toJSON.collect.toList
       .map(_.replaceAll("'", "\\\\'").replaceAll("\"", "'"))
 
     val resultSchemaToSave = resultSchema.toJSON.collect.toList.map(_.replaceAll("\"", "'"))
-    val endTime = timeProvider.currentEpochMillis()
+    val endTime = currentTimeProvider.currentEpochMillis()
 
     // https://github.com/opensearch-project/opensearch-spark/issues/302. Clean shuffle data
     // after consumed the query result. Streaming query shuffle data is cleaned after each
@@ -245,28 +244,9 @@ trait FlintJobExecutor {
       queryId: String,
       query: String,
       sessionId: String,
-      startTime: Long,
-      timeProvider: TimeProvider): DataFrame = {
+      startTime: Long): DataFrame = {
 
-    // Define the data schema
-    val schema = StructType(
-      Seq(
-        StructField("result", ArrayType(StringType, containsNull = true), nullable = true),
-        StructField("schema", ArrayType(StringType, containsNull = true), nullable = true),
-        StructField("jobRunId", StringType, nullable = true),
-        StructField("applicationId", StringType, nullable = true),
-        StructField("dataSourceName", StringType, nullable = true),
-        StructField("status", StringType, nullable = true),
-        StructField("error", StringType, nullable = true),
-        StructField("queryId", StringType, nullable = true),
-        StructField("queryText", StringType, nullable = true),
-        StructField("sessionId", StringType, nullable = true),
-        StructField("jobType", StringType, nullable = true),
-        // number is not nullable
-        StructField("updateTime", LongType, nullable = false),
-        StructField("queryRunTime", LongType, nullable = true)))
-
-    val endTime = timeProvider.currentEpochMillis()
+    val endTime = currentTimeProvider.currentEpochMillis()
 
     // Create the data rows
     val rows = Seq(
@@ -419,7 +399,6 @@ trait FlintJobExecutor {
       query,
       sessionId,
       startTime,
-      currentTimeProvider,
       CleanerFactory.cleaner(streaming))
   }
 
@@ -485,16 +464,19 @@ trait FlintJobExecutor {
     }
   }
 
-  def parseArgs(args: Array[String]): (Option[String], String) = {
+  def parseArgs(args: Array[String]): (Option[String], Option[String]) = {
     args match {
+      case Array() =>
+        (None, None)
       case Array(resultIndex) =>
-        (None, resultIndex) // Starting from OS 2.13, resultIndex is the only argument
+        (None, Some(resultIndex)) // Starting from OS 2.13, resultIndex is the only argument
       case Array(query, resultIndex) =>
         (
           Some(query),
-          resultIndex
+          Some(resultIndex)
         ) // Before OS 2.13, there are two arguments, the second one is resultIndex
-      case _ => logAndThrow("Unsupported number of arguments. Expected 1 or 2 arguments.")
+      case _ =>
+        logAndThrow("Unsupported number of arguments. Expected no more than two arguments.")
     }
   }
 
