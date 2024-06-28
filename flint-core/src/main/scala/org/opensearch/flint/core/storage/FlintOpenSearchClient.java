@@ -64,7 +64,7 @@ public class FlintOpenSearchClient implements FlintClient {
       Set.of(' ', ',', ':', '"', '+', '/', '\\', '|', '?', '#', '>', '<');
 
   private final static Function<String, String> SHARD_ID_PREFERENCE =
-      shardId -> "_shards:"+shardId;
+      shardId -> shardId == null ? shardId : "_shards:"+shardId;
 
   private final FlintOptions options;
 

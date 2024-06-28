@@ -26,9 +26,12 @@ object PartitionInfo {
   /**
    * Creates a PartitionInfo instance.
    *
-   * @param partitionName The name of the partition.
-   * @param settings The settings of the partition.
-   * @return An instance of PartitionInfo.
+   * @param partitionName
+   *   The name of the partition.
+   * @param settings
+   *   The settings of the partition.
+   * @return
+   *   An instance of PartitionInfo.
    */
   def apply(partitionName: String, settings: String): PartitionInfo = {
     val shards =
@@ -39,8 +42,10 @@ object PartitionInfo {
   /**
    * Extracts the number of shards from the settings string.
    *
-   * @param settingStr The settings string.
-   * @return The number of shards.
+   * @param settingStr
+   *   The settings string.
+   * @return
+   *   The number of shards.
    */
   def numberOfShards(settingStr: String): Int = {
     val setting = JsonMethods.parse(settingStr)
