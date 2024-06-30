@@ -29,7 +29,6 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
   val testCreateTime = 1234567890123L
   val flintMetadataLogEntry = FlintMetadataLogEntry(
     testLatestId,
-    testFlintIndex,
     testCreateTime,
     ACTIVE,
     Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),

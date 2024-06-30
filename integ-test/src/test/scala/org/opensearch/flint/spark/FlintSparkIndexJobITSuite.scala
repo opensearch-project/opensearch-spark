@@ -70,7 +70,6 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
 
       updateLatestLogEntry(
         constructLogEntry(
-          testIndex,
           latestId,
           UNASSIGNED_SEQ_NO,
           UNASSIGNED_PRIMARY_TERM,
@@ -94,7 +93,6 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
 
       updateLatestLogEntry(
         constructLogEntry(
-          testIndex,
           latestId,
           UNASSIGNED_SEQ_NO,
           UNASSIGNED_PRIMARY_TERM,

@@ -85,7 +85,6 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
       // Copy latest entryVersion to initialLog for potential rollback use
       initialLog = initialLog.copy(
           initialLog.id(),
-          initialLog.indexName(),
           initialLog.createTime(),
           initialLog.state(),
           latest.entryVersion(),

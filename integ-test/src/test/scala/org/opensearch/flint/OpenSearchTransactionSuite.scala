@@ -18,8 +18,7 @@ import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest}
 import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
-import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogEntryStorageUtils.{QUERY_EXECUTION_REQUEST_MAPPING, QUERY_EXECUTION_REQUEST_SETTINGS}
-import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogEntryStorageUtils.toJson
+import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogEntryStorageUtils.{toJson, QUERY_EXECUTION_REQUEST_MAPPING, QUERY_EXECUTION_REQUEST_SETTINGS}
 import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService.METADATA_LOG_INDEX_NAME_PREFIX
 import org.opensearch.flint.spark.FlintSparkSuite
 

@@ -99,16 +99,13 @@ public class FlintOpenSearchMetadataLogEntryStorageUtils {
         logEntry.id(), logEntry.state(), applicationId, jobId, dataSourceName, logEntry.createTime(), lastUpdateTime, logEntry.error());
   }
 
-  // TODO: remove flintIndexName from argument?
   public static FlintMetadataLogEntry constructLogEntry(
-      String flintIndexName,
       String id,
       Long seqNo,
       Long primaryTerm,
       Map<String, Object> sourceMap) {
     return new FlintMetadataLogEntry(
         id,
-        flintIndexName,
         /* getSourceAsMap() may use Integer or Long even though it's always long in index mapping */
         (Long) sourceMap.get("jobStartTime"),
         FlintMetadataLogEntry.IndexState$.MODULE$.from((String) sourceMap.get("state")),

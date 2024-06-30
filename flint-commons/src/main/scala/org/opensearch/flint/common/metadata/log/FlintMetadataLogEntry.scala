@@ -16,10 +16,6 @@ import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
  *
  * @param id
  *   log entry id
- * @param indexName
- *   Flint index name
- * @param createTime
- *   streaming job start time
  * @param state
  *   Flint index state
  * @param entryVersion
@@ -29,7 +25,6 @@ import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
  */
 case class FlintMetadataLogEntry(
     id: String,
-    indexName: String,
     /**
      * This is currently used as streaming job start time. In future, this should represent the
      * create timestamp of the log entry
@@ -41,12 +36,11 @@ case class FlintMetadataLogEntry(
 
   def this(
       id: String,
-      indexName: String,
       createTime: Long,
       state: IndexState,
       entryVersion: JMap[String, _],
       error: String) {
-    this(id, indexName, createTime, state, entryVersion.asScala.toMap, error)
+    this(id, createTime, state, entryVersion.asScala.toMap, error)
   }
 }
 

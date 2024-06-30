@@ -50,7 +50,6 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
    * Reuse query request index as Flint metadata log store
    */
   private final String metadataLogIndexName;
-  private final String flintIndexName;
   private final String dataSourceName;
 
   /**
@@ -61,7 +60,6 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   public FlintOpenSearchMetadataLog(FlintOptions options, String flintIndexName, String metadataLogIndexName) {
     this.options = options;
     this.metadataLogIndexName = metadataLogIndexName;
-    this.flintIndexName = flintIndexName;
     this.dataSourceName = options.getDataSourceName();
     this.latestId = Base64.getEncoder().encodeToString(flintIndexName.getBytes());
   }
@@ -92,7 +90,6 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
 
       if (response.isExists()) {
         FlintMetadataLogEntry latest = constructLogEntry(
-            flintIndexName,
             response.getId(),
             response.getSeqNo(),
             response.getPrimaryTerm(),
@@ -128,7 +125,6 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   public FlintMetadataLogEntry emptyLogEntry() {
     return new FlintMetadataLogEntry(
         "",
-        "",
         0L,
         FlintMetadataLogEntry.IndexState$.MODULE$.EMPTY(),
         Map.of("seqNo", UNASSIGNED_SEQ_NO, "primaryTerm", UNASSIGNED_PRIMARY_TERM),
@@ -137,7 +133,6 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
 
   public FlintMetadataLogEntry failLogEntry(String error) {
     return new FlintMetadataLogEntry(
-        "",
         "",
         0L,
         FlintMetadataLogEntry.IndexState$.MODULE$.FAILED(),
@@ -149,9 +144,8 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     LOG.info("Creating log entry " + logEntry);
     // Assign doc ID here
     FlintMetadataLogEntry logEntryWithId =
-        new FlintMetadataLogEntry(
+        logEntry.copy(
             latestId,
-            flintIndexName,
             logEntry.createTime(),
             logEntry.state(),
             logEntry.entryVersion(),
@@ -189,7 +183,6 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
       // Copy latest seqNo and primaryTerm after write
       logEntry = new FlintMetadataLogEntry(
           logEntry.id(),
-          flintIndexName,
           logEntry.createTime(),
           logEntry.state(),
           Map.of("seqNo", response.getSeqNo(), "primaryTerm", response.getPrimaryTerm()),

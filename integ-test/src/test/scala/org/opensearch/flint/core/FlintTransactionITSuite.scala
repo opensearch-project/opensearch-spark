@@ -52,7 +52,6 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     createLatestLogEntry(
       FlintMetadataLogEntry(
         id = testLatestId,
-        indexName = testFlintIndex,
         createTime = testCreateTime,
         state = ACTIVE,
         Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
@@ -109,7 +108,6 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     createLatestLogEntry(
       FlintMetadataLogEntry(
         id = testLatestId,
-        indexName = testFlintIndex,
         createTime = 1234567890123L,
         state = ACTIVE,
         Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
@@ -195,7 +193,6 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     createLatestLogEntry(
       FlintMetadataLogEntry(
         id = testLatestId,
-        indexName = testFlintIndex,
         createTime = 1234567890123L,
         state = ACTIVE,
         Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
