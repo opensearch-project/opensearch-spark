@@ -77,8 +77,17 @@ public class FlintOpenSearchMetadataLogEntryStorageUtils {
       "  }",
       "}");
 
-  // TODO: move dataSourceName to entry
-  public static String toJson(FlintMetadataLogEntry logEntry, String dataSourceName) {
+  /**
+   * Convert a log entry to json string for persisting to OpenSearch.
+   * Expects the following field in storage context:
+   * - dataSourceName: data source name
+   *
+   * @param logEntry
+   *   log entry to convert
+   * @return
+   *   json string representation of the log entry
+   */
+  public static String toJson(FlintMetadataLogEntry logEntry) {
     String applicationId = System.getenv().getOrDefault("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown");
     String jobId = System.getenv().getOrDefault("SERVERLESS_EMR_JOB_ID", "unknown");
     long lastUpdateTime = System.currentTimeMillis();
@@ -96,9 +105,23 @@ public class FlintOpenSearchMetadataLogEntryStorageUtils {
             "  \"lastUpdateTime\": %d,\n" +
             "  \"error\": \"%s\"\n" +
             "}",
-        logEntry.id(), logEntry.state(), applicationId, jobId, dataSourceName, logEntry.createTime(), lastUpdateTime, logEntry.error());
+        logEntry.id(), logEntry.state(), applicationId, jobId, logEntry.storageContext().get("dataSourceName").get(), logEntry.createTime(), lastUpdateTime, logEntry.error());
   }
 
+  /**
+   * Construct a log entry from OpenSearch document fields.
+   *
+   * @param id
+   *   OpenSearch document id
+   * @param seqNo
+   *   OpenSearch document sequence number
+   * @param primaryTerm
+   *   OpenSearch document primary term
+   * @param sourceMap
+   *   OpenSearch document source as a map
+   * @return
+   *   log entry
+   */
   public static FlintMetadataLogEntry constructLogEntry(
       String id,
       Long seqNo,
@@ -106,10 +129,11 @@ public class FlintOpenSearchMetadataLogEntryStorageUtils {
       Map<String, Object> sourceMap) {
     return new FlintMetadataLogEntry(
         id,
-        /* getSourceAsMap() may use Integer or Long even though it's always long in index mapping */
+        /* sourceMap may use Integer or Long even though it's always long in index mapping */
         (Long) sourceMap.get("jobStartTime"),
         FlintMetadataLogEntry.IndexState$.MODULE$.from((String) sourceMap.get("state")),
         Map.of("seqNo", seqNo, "primaryTerm", primaryTerm),
-        (String) sourceMap.get("error"));
+        (String) sourceMap.get("error"),
+        Map.of("dataSourceName", (String) sourceMap.get("dataSourceName")));
   }
 }

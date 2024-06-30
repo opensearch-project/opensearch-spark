@@ -88,7 +88,8 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
           initialLog.createTime(),
           initialLog.state(),
           latest.entryVersion(),
-          initialLog.error());
+          initialLog.error(),
+          initialLog.storageContext());
     }
 
     // Perform operation

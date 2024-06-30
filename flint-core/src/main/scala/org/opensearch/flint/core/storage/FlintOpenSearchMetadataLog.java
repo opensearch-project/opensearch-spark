@@ -128,7 +128,8 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
         0L,
         FlintMetadataLogEntry.IndexState$.MODULE$.EMPTY(),
         Map.of("seqNo", UNASSIGNED_SEQ_NO, "primaryTerm", UNASSIGNED_PRIMARY_TERM),
-        "");
+        "",
+        Map.of("dataSourceName", dataSourceName));
   }
 
   public FlintMetadataLogEntry failLogEntry(String error) {
@@ -137,7 +138,8 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
         0L,
         FlintMetadataLogEntry.IndexState$.MODULE$.FAILED(),
         Map.of("seqNo", UNASSIGNED_SEQ_NO, "primaryTerm", UNASSIGNED_PRIMARY_TERM),
-        error);
+        error,
+        Map.of("dataSourceName", dataSourceName));
   }
 
   private FlintMetadataLogEntry createLogEntry(FlintMetadataLogEntry logEntry) {
@@ -149,7 +151,8 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
             logEntry.createTime(),
             logEntry.state(),
             logEntry.entryVersion(),
-            logEntry.error());
+            logEntry.error(),
+            logEntry.storageContext());
 
     return writeLogEntry(logEntryWithId,
         client -> client.index(
@@ -157,7 +160,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
                 .index(metadataLogIndexName)
                 .id(logEntryWithId.id())
                 .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
-                .source(toJson(logEntryWithId, dataSourceName), XContentType.JSON),
+                .source(toJson(logEntryWithId), XContentType.JSON),
             RequestOptions.DEFAULT));
   }
 
@@ -166,7 +169,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     return writeLogEntry(logEntry,
         client -> client.update(
             new UpdateRequest(metadataLogIndexName, logEntry.id())
-                .doc(toJson(logEntry, dataSourceName), XContentType.JSON)
+                .doc(toJson(logEntry), XContentType.JSON)
                 .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
                 .setIfSeqNo((Long) logEntry.entryVersion().get("seqNo").get())
                 .setIfPrimaryTerm((Long) logEntry.entryVersion().get("primaryTerm").get()),
@@ -186,7 +189,8 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
           logEntry.createTime(),
           logEntry.state(),
           Map.of("seqNo", response.getSeqNo(), "primaryTerm", response.getPrimaryTerm()),
-          logEntry.error());
+          logEntry.error(),
+          logEntry.storageContext());
 
       LOG.info("Log entry written as " + logEntry);
       return logEntry;

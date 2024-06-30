@@ -32,7 +32,8 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
     testCreateTime,
     ACTIVE,
     Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
-    "")
+    "",
+    Map("dataSourceName" -> testDataSourceName))
 
   var flintMetadataLogService: FlintMetadataLogService = _
 
@@ -86,6 +87,7 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
     latest.get.id shouldBe testLatestId
     latest.get.createTime shouldBe testCreateTime
     latest.get.error shouldBe ""
+    latest.get.storageContext.get("dataSourceName").get shouldBe testDataSourceName
   }
 
   test("should not get index metadata log if not exist") {

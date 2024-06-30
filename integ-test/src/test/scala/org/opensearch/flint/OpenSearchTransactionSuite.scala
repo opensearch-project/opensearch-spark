@@ -66,14 +66,14 @@ trait OpenSearchTransactionSuite extends FlintSparkSuite {
       new IndexRequest()
         .index(testMetaLogIndex)
         .id(latest.id)
-        .source(toJson(latest, testDataSourceName), XContentType.JSON),
+        .source(toJson(latest), XContentType.JSON),
       RequestOptions.DEFAULT)
   }
 
   def updateLatestLogEntry(latest: FlintMetadataLogEntry, newState: IndexState): Unit = {
     openSearchClient.update(
       new UpdateRequest(testMetaLogIndex, latest.id)
-        .doc(toJson(latest.copy(state = newState), testDataSourceName), XContentType.JSON),
+        .doc(toJson(latest.copy(state = newState)), XContentType.JSON),
       RequestOptions.DEFAULT)
   }
 
