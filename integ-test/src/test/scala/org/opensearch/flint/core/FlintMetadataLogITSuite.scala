@@ -124,7 +124,7 @@ case class TestMetadataLogService(sparkConf: SparkConf) extends FlintMetadataLog
       forceInit: Boolean): OptimisticTransaction[T] = {
     val flintOptions = new FlintOptions(Map[String, String]().asJava)
     val metadataLog = new FlintOpenSearchMetadataLog(flintOptions, "", "")
-    new DefaultOptimisticTransaction("", metadataLog)
+    new DefaultOptimisticTransaction(metadataLog)
   }
 
   override def startTransaction[T](indexName: String): OptimisticTransaction[T] = {

@@ -130,7 +130,7 @@ public class FlintOpenSearchMetadataLogEntryStorageUtils {
     return new FlintMetadataLogEntry(
         id,
         /* sourceMap may use Integer or Long even though it's always long in index mapping */
-        (Long) sourceMap.get("jobStartTime"),
+        ((Number) sourceMap.get("jobStartTime")).longValue(),
         FlintMetadataLogEntry.IndexState$.MODULE$.from((String) sourceMap.get("state")),
         Map.of("seqNo", seqNo, "primaryTerm", primaryTerm),
         (String) sourceMap.get("error"),
