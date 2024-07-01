@@ -177,6 +177,19 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       RequestOptions.DEFAULT) shouldBe false
   }
 
+  test("should fail to vacuum index if index is not logically deleted") {
+    flint
+      .skippingIndex()
+      .onTable(testTable)
+      .addPartitions("year", "month")
+      .create()
+
+    the[IllegalStateException] thrownBy {
+      flint.vacuumIndex(testFlintIndex)
+    } should have message
+      s"Index state [active] doesn't satisfy precondition"
+  }
+
   test("should not recreate index if index data still exists") {
     flint
       .skippingIndex()
@@ -195,7 +208,8 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
         .onTable(testTable)
         .addValueSet("name")
         .create()
-    } should have message s"Flint index $testFlintIndex already exists"
+    } should have message
+      s"Flint index $testFlintIndex already exists"
   }
 
   test("should clean up metadata log entry if index data has been deleted") {
