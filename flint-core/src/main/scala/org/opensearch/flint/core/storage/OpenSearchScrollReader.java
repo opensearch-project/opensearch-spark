@@ -69,9 +69,9 @@ public class OpenSearchScrollReader extends OpenSearchReader {
       return Optional.of(response);
     } else {
       try {
-        return Optional.of(client.scroll(new SearchScrollRequest().scroll(scrollDuration)
-                .scrollId(scrollId),
-            RequestOptions.DEFAULT));
+        return Optional
+            .of(client.scroll(new SearchScrollRequest().scroll(scrollDuration).scrollId(scrollId),
+                RequestOptions.DEFAULT));
       } catch (OpenSearchStatusException e) {
         LOG.log(Level.WARNING, "scroll context not exist", e);
         scrollId = null;
@@ -92,10 +92,8 @@ public class OpenSearchScrollReader extends OpenSearchReader {
       }
     } catch (OpenSearchStatusException e) {
       // OpenSearch throw exception if scroll already closed. https://github.com/opensearch-project/OpenSearch/issues/11121
-      LOG.log(
-          Level.WARNING,
-          "close scroll exception, it is a known bug https://github" + ".com/opensearch-project/OpenSearch/issues/11121.",
-          e);
+      LOG.log(Level.WARNING, "close scroll exception, it is a known bug https://github" +
+          ".com/opensearch-project/OpenSearch/issues/11121.", e);
     } finally {
       scrollId = null;
     }
