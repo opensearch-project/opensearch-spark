@@ -79,6 +79,7 @@ lazy val flintCore = (project in file("flint-core"))
       "org.mockito" % "mockito-junit-jupiter" % "3.12.4" % "test",
       "org.junit.jupiter" % "junit-jupiter-api" % "5.9.0" % "test",
       "org.junit.jupiter" % "junit-jupiter-engine" % "5.9.0" % "test",
+      "com.typesafe.play" %% "play-json" % "2.9.2" % "test",
       "com.google.truth" % "truth" % "1.1.5" % "test",
       "net.aichler" % "jupiter-interface" % "0.11.1" % Test
     ),

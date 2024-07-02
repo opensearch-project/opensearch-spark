@@ -9,7 +9,10 @@ import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry;
 
 import java.util.Map;
 
-public class FlintOpenSearchMetadataLogEntryStorageUtils {
+/**
+ * Utility class for handling Flint metadata log entries in OpenSearch storage.
+ */
+public class FlintMetadataLogEntryOpenSearchConverter {
 
   public static final String QUERY_EXECUTION_REQUEST_MAPPING = String.join("\n",
       "{",
@@ -105,7 +108,14 @@ public class FlintOpenSearchMetadataLogEntryStorageUtils {
             "  \"lastUpdateTime\": %d,\n" +
             "  \"error\": \"%s\"\n" +
             "}",
-        logEntry.id(), logEntry.state(), applicationId, jobId, logEntry.storageContext().get("dataSourceName").get(), logEntry.createTime(), lastUpdateTime, logEntry.error());
+        logEntry.id(),
+        logEntry.state(),
+        applicationId,
+        jobId,
+        logEntry.storageContext().get("dataSourceName").get(),
+        logEntry.createTime(),
+        lastUpdateTime,
+        logEntry.error());
   }
 
   /**

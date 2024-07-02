@@ -6,8 +6,8 @@
 package org.opensearch.flint.core.storage;
 
 import static java.util.logging.Level.SEVERE;
-import static org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogEntryStorageUtils.constructLogEntry;
-import static org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogEntryStorageUtils.toJson;
+import static org.opensearch.flint.core.storage.FlintMetadataLogEntryOpenSearchConverter.constructLogEntry;
+import static org.opensearch.flint.core.storage.FlintMetadataLogEntryOpenSearchConverter.toJson;
 import static org.opensearch.action.support.WriteRequest.RefreshPolicy;
 import static org.opensearch.index.seqno.SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
 import static org.opensearch.index.seqno.SequenceNumbers.UNASSIGNED_SEQ_NO;

@@ -11,7 +11,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.OpenSearchTransactionSuite
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState._
-import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogEntryStorageUtils.constructLogEntry
+import org.opensearch.flint.core.storage.FlintMetadataLogEntryOpenSearchConverter.constructLogEntry
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
 import org.scalatest.matchers.should.Matchers
