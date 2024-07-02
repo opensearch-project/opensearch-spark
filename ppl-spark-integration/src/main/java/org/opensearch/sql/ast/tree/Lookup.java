@@ -7,6 +7,7 @@ package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
+import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.Map;
 
@@ -16,21 +17,21 @@ import java.util.List;
 
 public class Lookup extends UnresolvedPlan {
   private UnresolvedPlan child;
-  private final String indexName;
+  private final String tableName;
   private final List<Map> matchFieldList;
   private final List<Argument> options;
-  private final List<Map> copyFieldList;
+  private final List<Alias> copyFieldList;
 
-  public Lookup(UnresolvedPlan child, String indexName, List<Map> matchFieldList, List<Argument> options, List<Map> copyFieldList) {
+  public Lookup(UnresolvedPlan child, String tableName, List<Map> matchFieldList, List<Argument> options, List<Alias> copyFieldList) {
     this.child = child;
-    this.indexName = indexName;
+    this.tableName = tableName;
     this.matchFieldList = matchFieldList;
     this.options = options;
     this.copyFieldList = copyFieldList;
   }
 
-  public Lookup(String indexName, List<Map> matchFieldList, List<Argument> options, List<Map> copyFieldList) {
-    this.indexName = indexName;
+  public Lookup(String tableName, List<Map> matchFieldList, List<Argument> options, List<Alias> copyFieldList) {
+    this.tableName = tableName;
     this.matchFieldList = matchFieldList;
     this.options = options;
     this.copyFieldList = copyFieldList;
@@ -42,8 +43,8 @@ public class Lookup extends UnresolvedPlan {
     return this;
   }
 
-  public String getIndexName() {
-    return indexName;
+  public String getTableName() {
+    return tableName;
   }
 
   public List<Map> getMatchFieldList() {
@@ -54,7 +55,7 @@ public class Lookup extends UnresolvedPlan {
     return options;
   }
 
-  public List<Map> getCopyFieldList() {
+  public List<Alias> getCopyFieldList() {
     return copyFieldList;
   }
 

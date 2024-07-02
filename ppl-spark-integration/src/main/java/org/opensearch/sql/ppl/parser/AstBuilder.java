@@ -44,7 +44,6 @@ import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -216,9 +215,9 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
             ctx.copyFieldWithOptAs().stream()
                     .map(
                             ct ->
-                                    new Map(
-                                            evaluateFieldExpressionContext(ct.orignalCopyField),
-                                            evaluateFieldExpressionContext(ct.asCopyField, ct.orignalCopyField)))
+                                    new Alias(
+                                            ct.asCopyField == null? ct.orignalCopyField.getText() : ct.asCopyField.getText(),
+                                            evaluateFieldExpressionContext(ct.orignalCopyField)))
                     .collect(Collectors.toList()));
   }
 

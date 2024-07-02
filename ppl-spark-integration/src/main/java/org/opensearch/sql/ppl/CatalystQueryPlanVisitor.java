@@ -7,6 +7,7 @@ package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.EqualTo;
 import org.apache.spark.sql.catalyst.expressions.Expression;
@@ -68,6 +69,7 @@ import scala.Option;
 import scala.collection.Seq;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -280,17 +282,26 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         //TODO: not sure how to implement appendonly
         Boolean appendonly = (Boolean) node.getOptions().get(0).getValue().getValue();
 
-        LogicalPlan right = new UnresolvedRelation(seq(of(node.getIndexName())), CaseInsensitiveStringMap.empty(), false);
+        LogicalPlan lookupRelation = new UnresolvedRelation(seq(of(node.getTableName())), CaseInsensitiveStringMap.empty(), false);
+        org.apache.spark.sql.catalyst.plans.logical.Project lookupProject;
+
+        List<NamedExpression> lookupRelationFields = buildLookupTableFieldList(node, context);
+        if (! lookupRelationFields.isEmpty()) {
+            lookupProject = new org.apache.spark.sql.catalyst.plans.logical.Project(seq(lookupRelationFields), lookupRelation);
+        } else {
+            lookupProject = new org.apache.spark.sql.catalyst.plans.logical.Project(seq(of(new UnresolvedStar(Option.empty()))), lookupRelation);
+        }
+
         //TODO: use node.getCopyFieldList() to prefilter the right logical plan
         //and return only the fields listed there. rename fields when requested
 
-        Expression joinCondition = visitFieldMap(node.getMatchFieldList(), source.getTableQualifiedName().toString(), node.getIndexName(), context);
+        Expression joinCondition = buildLookupTableJoinCondition(node.getMatchFieldList(), source.getTableQualifiedName().toString(), node.getTableName(), context);
 
         return context.apply(p -> new Join(
 
                 p, //original query (left)
 
-                right, //lookup query (right)
+                lookupProject, //lookup query (right)
 
                 JoinType.apply("left"), //https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-join.html
 
@@ -300,6 +311,18 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         ));
     }
 
+    private List<NamedExpression> buildLookupTableFieldList(Lookup node, CatalystPlanContext context) {
+        if (node.getCopyFieldList().isEmpty()) {
+            return Collections.emptyList();
+        } else {
+            //todo should we also append fields used to match records - node.getMatchFieldList()?
+            List<NamedExpression> copyFields = node.getCopyFieldList().stream()
+                    .map(copyField -> (NamedExpression) expressionAnalyzer.visitAlias(copyField, context))
+                    .collect(Collectors.toList());
+            return copyFields;
+        }
+    }
+
     private org.opensearch.sql.ast.expression.Field prefixField(List<String> prefixParts, UnresolvedExpression field) {
         org.opensearch.sql.ast.expression.Field in = (org.opensearch.sql.ast.expression.Field) field;
         org.opensearch.sql.ast.expression.QualifiedName inq = (org.opensearch.sql.ast.expression.QualifiedName) in.getField();
@@ -307,15 +330,19 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         return new org.opensearch.sql.ast.expression.Field(new org.opensearch.sql.ast.expression.QualifiedName(finalParts), in.getFieldArgs());
     }
 
-    private Expression visitFieldMap(List<Map> fieldMap, String sourceTableName, String lookupTableName, CatalystPlanContext context) {
+    private Expression buildLookupTableJoinCondition(List<Map> fieldMap, String sourceTableName, String lookupTableName, CatalystPlanContext context) {
         int size = fieldMap.size();
 
         List<Expression> allEqlExpressions = new ArrayList<>(size);
 
         for (Map map : fieldMap) {
 
-            Expression origin = visitExpression(prefixField(of(sourceTableName.split("\\.")),map.getOrigin()), context);
-            Expression target = visitExpression(prefixField(of(lookupTableName.split("\\.")),map.getTarget()), context);
+            //todo do we need to run prefixField? match fields are anyway handled as qualifiedName?
+//            Expression origin = visitExpression(prefixField(of(sourceTableName.split("\\.")),map.getOrigin()), context);
+//            Expression target = visitExpression(prefixField(of(lookupTableName.split("\\.")),map.getTarget()), context);
+            Expression origin = visitExpression(map.getOrigin(), context);
+            Expression target = visitExpression(map.getTarget(), context);
+
 
             //important
             context.retainAllNamedParseExpressions(e -> e);
