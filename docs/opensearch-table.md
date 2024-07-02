@@ -58,3 +58,6 @@ df.show()
 
 ### table operation
 - Table only support read operation, for instance, SELECT, DESCRIBE.
+
+##  InputPartition
+Each InputPartition represents a data split that can be processed by a single Spark task. The number of input partitions returned corresponds to the number of RDD partitions produced by this scan. An OpenSearch table can contain multiple indices, each comprising multiple shards. The input partition count is determined by multiplying the number of indices by the number of shards. Read requests are divided and executed in parallel across multiple shards on multiple nodes.

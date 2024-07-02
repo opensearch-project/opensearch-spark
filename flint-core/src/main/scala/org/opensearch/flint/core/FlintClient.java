@@ -75,6 +75,16 @@ public interface FlintClient {
   FlintReader createReader(String indexName, String query);
 
   /**
+   * Create {@link FlintReader}.
+   *
+   * @param indexName index name.
+   * @param shardId shard id.
+   * @param query DSL query. DSL query is null means match_all
+   * @return {@link FlintReader}.
+   */
+  FlintReader createReader(String indexName, String shardId, String query);
+
+  /**
    * Create {@link FlintWriter}.
    *
    * @param indexName - index name

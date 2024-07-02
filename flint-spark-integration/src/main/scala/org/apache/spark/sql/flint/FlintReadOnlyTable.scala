@@ -12,6 +12,7 @@ import scala.collection.JavaConverters._
 import org.opensearch.flint.core.FlintClientBuilder
 
 import org.apache.spark.opensearch.catalog.OpenSearchCatalog
+import org.apache.spark.opensearch.table.OpenSearchTable
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.catalog.{SupportsRead, Table, TableCapability}
 import org.apache.spark.sql.connector.catalog.TableCapability.{BATCH_READ, BATCH_WRITE, STREAMING_WRITE, TRUNCATE}
@@ -41,25 +42,17 @@ class FlintReadOnlyTable(
 
   lazy val name: String = flintSparkConf.tableName()
 
-  // todo. currently, we use first index schema in multiple indices. we should merge StructType
-  //  to widen type
+  lazy val openSearchTable: OpenSearchTable =
+    OpenSearchTable.apply(name, flintSparkConf.flintOptions())
+
   lazy val schema: StructType = {
-    userSpecifiedSchema.getOrElse {
-      FlintClientBuilder
-        .build(flintSparkConf.flintOptions())
-        .getAllIndexMetadata(OpenSearchCatalog.indexNames(name): _*)
-        .values()
-        .asScala
-        .headOption
-        .map(m => FlintDataType.deserialize(m.getContent))
-        .getOrElse(StructType(Nil))
-    }
+    userSpecifiedSchema.getOrElse { openSearchTable.schema }
   }
 
   override def capabilities(): util.Set[TableCapability] =
     util.EnumSet.of(BATCH_READ)
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
-    FlintScanBuilder(name, schema, flintSparkConf)
+    FlintScanBuilder(openSearchTable, schema, flintSparkConf)
   }
 }

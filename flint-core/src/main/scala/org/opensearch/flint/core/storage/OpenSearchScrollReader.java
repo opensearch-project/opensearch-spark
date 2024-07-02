@@ -19,6 +19,8 @@ import org.opensearch.search.builder.SearchSourceBuilder;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -35,8 +37,23 @@ public class OpenSearchScrollReader extends OpenSearchReader {
 
   private String scrollId = null;
 
-  public OpenSearchScrollReader(IRestHighLevelClient client, String indexName, SearchSourceBuilder searchSourceBuilder, FlintOptions options) {
-    super(client, new SearchRequest().indices(indexName).source(searchSourceBuilder.size(options.getScrollSize())));
+  public OpenSearchScrollReader(
+      IRestHighLevelClient client,
+      String indexName,
+      SearchSourceBuilder searchSourceBuilder,
+      FlintOptions options) {
+    this(client, indexName, searchSourceBuilder, options, null);
+  }
+
+  public OpenSearchScrollReader(
+      IRestHighLevelClient client,
+      String indexName,
+      SearchSourceBuilder searchSourceBuilder,
+      FlintOptions options,
+      String preference) {
+    super(client,
+        applyPreference(preference).apply(new SearchRequest().indices(indexName)
+            .source(searchSourceBuilder.size(options.getScrollSize()))));
     this.options = options;
     this.scrollDuration = TimeValue.timeValueMinutes(options.getScrollDuration());
   }
@@ -53,8 +70,8 @@ public class OpenSearchScrollReader extends OpenSearchReader {
     } else {
       try {
         return Optional
-        .of(client.scroll(new SearchScrollRequest().scroll(scrollDuration).scrollId(scrollId),
-            RequestOptions.DEFAULT));
+            .of(client.scroll(new SearchScrollRequest().scroll(scrollDuration).scrollId(scrollId),
+                RequestOptions.DEFAULT));
       } catch (OpenSearchStatusException e) {
         LOG.log(Level.WARNING, "scroll context not exist", e);
         scrollId = null;
@@ -87,5 +104,13 @@ public class OpenSearchScrollReader extends OpenSearchReader {
    */
   public String getScrollId() {
     return scrollId;
+  }
+
+  static private Function<SearchRequest, SearchRequest> applyPreference(String preference) {
+    if (Strings.isNullOrEmpty(preference)) {
+      return searchRequest -> searchRequest;
+    } else {
+      return searchRequest -> searchRequest.preference(preference);
+    }
   }
 }

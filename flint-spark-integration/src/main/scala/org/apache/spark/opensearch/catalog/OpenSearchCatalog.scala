@@ -39,12 +39,10 @@ class OpenSearchCatalog extends CatalogPlugin with TableCatalog with Logging {
 
   override def name(): String = catalogName
 
-  @throws[NoSuchNamespaceException]
   override def listTables(namespace: Array[String]): Array[Identifier] = {
     throw new UnsupportedOperationException("OpenSearchCatalog does not support listTables")
   }
 
-  @throws[NoSuchTableException]
   override def loadTable(ident: Identifier): Table = {
     logInfo(s"Loading table ${ident.name()}")
     if (!ident.namespace().exists(n => OpenSearchCatalog.isDefaultNamespace(n))) {
