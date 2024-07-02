@@ -64,33 +64,48 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
   }
 
   Seq(
-    /*("age = 30", "age = 20", false),
+    ("age = 30", "age = 20", false),
     ("age = 30", "age < 20", false),
     ("age = 30", "age > 50", false),
     ("age > 30 AND age < 60", "age > 20 AND age < 50", false),
+    ("age > 30", "age >= 30", false),
+    ("age <= 30", "age <= 20", false),
+    ("age < 50", "age = 49", false),
+    ("age <= 50", "age = 50", false),
+    ("age > 30 AND age < 60", "age > 40 AND age < 50", false),
+    (null, "age > 30", false), // no query filter
     ("age = 30", "age = 30", true),
     ("age = 30", "age <= 30", true),
     ("age = 30", "age >= 30", true),
-    ("age = 30", "age > 20 AND age < 50", true),*/
-    ("age > 30 AND age < 40", "age > 20 AND age < 50", true)).foreach {
-    case (queryFilter, indexFilter, expectedResult) =>
-      test(
-        s"apply partial covering index with [$indexFilter] to query filter [$queryFilter]: $expectedResult") {
-        val assertion = assertFlintQueryRewriter
-          .withQuery(s"SELECT name FROM $testTable WHERE $queryFilter")
-          .withIndex(
-            new FlintSparkCoveringIndex(
-              indexName = "partial",
-              tableName = testTable,
-              indexedColumns = Map("name" -> "string", "age" -> "int"),
-              filterCondition = Some(indexFilter)))
-
-        if (expectedResult) {
-          assertion.assertIndexUsed(getFlintIndexName("partial", testTable))
-        } else {
-          assertion.assertIndexNotUsed(testTable)
-        }
+    ("age = 30", "age > 20 AND age < 50", true),
+    ("age > 30 AND age < 40", "age > 20 AND age < 50", true),
+    ("age >= 30", "age > 29", true),
+    ("age <= 30", "age < 31", true),
+    ("age > 30", null, true) // no index filter
+  ).foreach { case (queryFilter, indexFilter, expectedResult) =>
+    test(
+      s"apply partial covering index with [$indexFilter] to query filter [$queryFilter]: $expectedResult") {
+      val query = if (queryFilter == null) {
+        s"SELECT name FROM $testTable"
+      } else {
+        s"SELECT name FROM $testTable WHERE $queryFilter"
       }
+
+      val assertion = assertFlintQueryRewriter
+        .withQuery(query)
+        .withIndex(
+          new FlintSparkCoveringIndex(
+            indexName = "partial",
+            tableName = testTable,
+            indexedColumns = Map("name" -> "string", "age" -> "int"),
+            filterCondition = Option(indexFilter)))
+
+      if (expectedResult) {
+        assertion.assertIndexUsed(getFlintIndexName("partial", testTable))
+      } else {
+        assertion.assertIndexNotUsed(testTable)
+      }
+    }
   }
 
   test("should not apply if covering index is logically deleted") {
