@@ -7,17 +7,23 @@ package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
+import org.apache.spark.sql.catalyst.expressions.EqualTo;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
+import org.apache.spark.sql.catalyst.plans.JoinType;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
+import org.apache.spark.sql.catalyst.plans.logical.Join;
+import org.apache.spark.sql.catalyst.plans.logical.JoinHint;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
+import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.AllFields;
@@ -32,6 +38,7 @@ import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.Literal;
+import org.opensearch.sql.ast.expression.Map;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
 import org.opensearch.sql.ast.expression.QualifiedName;
@@ -49,6 +56,7 @@ import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Kmeans;
+import org.opensearch.sql.ast.tree.Lookup;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
@@ -56,9 +64,12 @@ import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
+import org.sparkproject.guava.collect.Iterables;
 import scala.Option;
 import scala.collection.Seq;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -254,6 +265,93 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitDedupe(Dedupe node, CatalystPlanContext context) {
         throw new IllegalStateException("Not Supported operation : dedupe ");
+    }
+
+    @Override
+    public LogicalPlan visitLookup(Lookup node, CatalystPlanContext context) {
+        Node root = node.getChild().get(0);
+
+        while(!root.getChild().isEmpty()) {
+            root = root.getChild().get(0);
+        }
+
+        org.opensearch.sql.ast.tree.Relation source = (org.opensearch.sql.ast.tree.Relation) root;
+
+        node.getChild().get(0).accept(this, context);
+
+        //TODO: not sure how to implement appendonly
+        Boolean appendonly = (Boolean) node.getOptions().get(0).getValue().getValue();
+
+        LogicalPlan lookupRelation = new UnresolvedRelation(seq(of(node.getTableName())), CaseInsensitiveStringMap.empty(), false);
+        org.apache.spark.sql.catalyst.plans.logical.Project lookupProject;
+
+        List<NamedExpression> lookupRelationFields = buildLookupTableFieldList(node, context);
+        if (! lookupRelationFields.isEmpty()) {
+            lookupProject = new org.apache.spark.sql.catalyst.plans.logical.Project(seq(lookupRelationFields), lookupRelation);
+        } else {
+            lookupProject = new org.apache.spark.sql.catalyst.plans.logical.Project(seq(of(new UnresolvedStar(Option.empty()))), lookupRelation);
+        }
+
+        //TODO: use node.getCopyFieldList() to prefilter the right logical plan
+        //and return only the fields listed there. rename fields when requested
+
+        Expression joinCondition = buildLookupTableJoinCondition(node.getMatchFieldList(), source.getTableQualifiedName().toString(), node.getTableName(), context);
+
+        return context.apply(p -> new Join(
+
+                p, //original query (left)
+
+                lookupProject, //lookup query (right)
+
+                JoinType.apply("left"), //https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-join.html
+
+                Option.apply(joinCondition), //which fields to join
+
+                JoinHint.NONE() //TODO: check, https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-hints.html#join-hints-types
+        ));
+    }
+
+    private List<NamedExpression> buildLookupTableFieldList(Lookup node, CatalystPlanContext context) {
+        if (node.getCopyFieldList().isEmpty()) {
+            return Collections.emptyList();
+        } else {
+            //todo should we also append fields used to match records - node.getMatchFieldList()?
+            List<NamedExpression> copyFields = node.getCopyFieldList().stream()
+                    .map(copyField -> (NamedExpression) expressionAnalyzer.visitAlias(copyField, context))
+                    .collect(Collectors.toList());
+            return copyFields;
+        }
+    }
+
+    private org.opensearch.sql.ast.expression.Field prefixField(List<String> prefixParts, UnresolvedExpression field) {
+        org.opensearch.sql.ast.expression.Field in = (org.opensearch.sql.ast.expression.Field) field;
+        org.opensearch.sql.ast.expression.QualifiedName inq = (org.opensearch.sql.ast.expression.QualifiedName) in.getField();
+        Iterable finalParts = Iterables.concat(prefixParts, inq.getParts());
+        return new org.opensearch.sql.ast.expression.Field(new org.opensearch.sql.ast.expression.QualifiedName(finalParts), in.getFieldArgs());
+    }
+
+    private Expression buildLookupTableJoinCondition(List<Map> fieldMap, String sourceTableName, String lookupTableName, CatalystPlanContext context) {
+        int size = fieldMap.size();
+
+        List<Expression> allEqlExpressions = new ArrayList<>(size);
+
+        for (Map map : fieldMap) {
+
+            //todo do we need to run prefixField? match fields are anyway handled as qualifiedName?
+//            Expression origin = visitExpression(prefixField(of(sourceTableName.split("\\.")),map.getOrigin()), context);
+//            Expression target = visitExpression(prefixField(of(lookupTableName.split("\\.")),map.getTarget()), context);
+            Expression origin = visitExpression(map.getOrigin(), context);
+            Expression target = visitExpression(map.getTarget(), context);
+
+
+            //important
+            context.retainAllNamedParseExpressions(e -> e);
+
+            Expression eql = new EqualTo(origin, target);
+            allEqlExpressions.add(eql);
+        }
+
+        return allEqlExpressions.stream().reduce(org.apache.spark.sql.catalyst.expressions.And::new).orElse(null);
     }
 
     /**
