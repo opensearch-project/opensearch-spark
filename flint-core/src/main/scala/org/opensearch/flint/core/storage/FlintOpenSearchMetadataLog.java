@@ -36,6 +36,12 @@ import org.opensearch.flint.core.IRestHighLevelClient;
 /**
  * Flint metadata log in OpenSearch store. For now use single doc instead of maintaining history
  * of metadata log.
+ * Expects the following fields from maps in FlintMetadataLogEntry:
+ * - entryVersion:
+ *   - seqNo: Long
+ *   - primaryTerm: Long
+ * - storageContext:
+ *   - dataSourceName: String
  */
 public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadataLogEntry> {
 
