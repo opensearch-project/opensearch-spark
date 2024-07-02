@@ -17,8 +17,8 @@ import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest}
 import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.{QUERY_EXECUTION_REQUEST_MAPPING, QUERY_EXECUTION_REQUEST_SETTINGS}
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
+import org.opensearch.flint.core.storage.FlintMetadataLogEntryOpenSearchConverter.{toJson, QUERY_EXECUTION_REQUEST_MAPPING, QUERY_EXECUTION_REQUEST_SETTINGS}
 import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService.METADATA_LOG_INDEX_NAME_PREFIX
 import org.opensearch.flint.spark.FlintSparkSuite
 
@@ -66,14 +66,14 @@ trait OpenSearchTransactionSuite extends FlintSparkSuite {
       new IndexRequest()
         .index(testMetaLogIndex)
         .id(latest.id)
-        .source(latest.toJson, XContentType.JSON),
+        .source(toJson(latest), XContentType.JSON),
       RequestOptions.DEFAULT)
   }
 
   def updateLatestLogEntry(latest: FlintMetadataLogEntry, newState: IndexState): Unit = {
     openSearchClient.update(
       new UpdateRequest(testMetaLogIndex, latest.id)
-        .doc(latest.copy(state = newState).toJson, XContentType.JSON),
+        .doc(toJson(latest.copy(state = newState)), XContentType.JSON),
       RequestOptions.DEFAULT)
   }
 

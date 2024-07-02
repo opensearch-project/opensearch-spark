@@ -424,7 +424,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     val indexLogEntry = index.latestLogEntry.get
     tx
       .initialLog(latest =>
-        latest.state == REFRESHING && latest.seqNo == indexLogEntry.seqNo && latest.primaryTerm == indexLogEntry.primaryTerm)
+        latest.state == REFRESHING && latest.entryVersion == indexLogEntry.entryVersion)
       .transientLog(latest => latest.copy(state = UPDATING))
       .finalLog(latest => latest.copy(state = ACTIVE))
       .commit(_ => {
@@ -444,7 +444,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
     tx
       .initialLog(latest =>
-        latest.state == ACTIVE && latest.seqNo == indexLogEntry.seqNo && latest.primaryTerm == indexLogEntry.primaryTerm)
+        latest.state == ACTIVE && latest.entryVersion == indexLogEntry.entryVersion)
       .transientLog(latest =>
         latest.copy(state = UPDATING, createTime = System.currentTimeMillis()))
       .finalLog(latest => {
