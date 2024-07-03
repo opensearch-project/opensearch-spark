@@ -464,6 +464,23 @@ class FlintREPLTest
     assert(result == expectedError)
   }
 
+  test("handleGeneralException should handle MetaException with AccessDeniedException properly") {
+    val mockFlintCommand = mock[FlintStatement]
+
+    // Simulate the root cause being MetaException
+    val exception = new org.apache.hadoop.hive.metastore.api.MetaException(
+      "AWSCatalogMetastoreClient: Unable to verify existence of default database: com.amazonaws.services.glue.model.AccessDeniedException: User: ****** is not authorized to perform: ******")
+
+    val result = FlintREPL.processQueryException(exception, mockFlintCommand)
+
+    val expectedError =
+      """{"Message":"Fail to run query. Cause: Access denied in AWS Glue service. Please check permissions."}"""
+
+    result shouldEqual expectedError
+    verify(mockFlintCommand).fail()
+    verify(mockFlintCommand).error = Some(expectedError)
+  }
+
   test("Doc Exists and excludeJobIds is an ArrayList Containing JobId") {
     val sessionId = "session123"
     val jobId = "jobABC"
