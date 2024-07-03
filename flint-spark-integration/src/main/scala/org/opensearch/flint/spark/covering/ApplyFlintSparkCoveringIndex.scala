@@ -41,13 +41,13 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark)
     } else {
       // Iterate each sub plan tree in the given plan
       plan transform {
-        case subPlan @ Filter(condition, ExtractRelation(relation)) if isConjunction(condition) =>
-          doApply(plan, relation, Some(condition))
-            .map(newRelation => subPlan.copy(child = newRelation))
-            .getOrElse(subPlan)
-        case subPlan @ ExtractRelation(relation) =>
-          doApply(plan, relation, None)
-            .getOrElse(subPlan)
+        case filter @ Filter(condition, Relation(sourceRelation)) if isConjunction(condition) =>
+          doApply(plan, sourceRelation, Some(condition))
+            .map(newRelation => filter.copy(child = newRelation))
+            .getOrElse(filter)
+        case relation @ Relation(sourceRelation) =>
+          doApply(plan, sourceRelation, None)
+            .getOrElse(relation)
       }
     }
   }
@@ -65,8 +65,9 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark)
       .map(index => replaceTableRelationWithIndexRelation(index, relation))
   }
 
-  private object ExtractRelation {
+  private object Relation {
     def unapply(subPlan: LogicalPlan): Option[FlintSparkSourceRelation] = {
+      // Check if any source relation can support the plan node
       supportedProviders.collectFirst {
         case provider if provider.isSupported(subPlan) =>
           logInfo(s"Provider [${provider.name()}] can match plan ${subPlan.nodeName}")
@@ -83,20 +84,28 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark)
      * Because this rule executes before push down optimization, relation includes all columns.
      */
     val relationColsById = relation.output.map(attr => (attr.exprId, attr)).toMap
-    plan
-      .collect {
-        // Relation interface matches both file and Iceberg relation
-        case r: MultiInstanceRelation if r.eq(relation.plan) => Set.empty
-        case other =>
-          other.expressions
-            .flatMap(_.references)
-            .flatMap(ref => {
-              relationColsById.get(ref.exprId)
-            }) // Ignore attribute not belong to current relation being rewritten
-            .map(attr => attr.name)
-      }
-      .flatten
-      .toSet
+    val relationCols =
+      plan
+        .collect {
+          // Relation interface matches both file and Iceberg relation
+          case r: MultiInstanceRelation if r.eq(relation.plan) => Set.empty
+          case other =>
+            other.expressions
+              .flatMap(_.references)
+              .flatMap(ref => {
+                relationColsById.get(ref.exprId)
+              }) // Ignore attribute not belong to current relation being rewritten
+              .map(attr => attr.name)
+        }
+        .flatten
+        .toSet
+
+    if (relationCols.isEmpty) {
+      // Return all if plan only has relation operator, e.g. SELECT * or all columns
+      relationColsById.values.map(_.name).toSet
+    } else {
+      relationCols
+    }
   }
 
   private def findAllCoveringIndexesOnTable(tableName: String): Seq[FlintSparkCoveringIndex] = {

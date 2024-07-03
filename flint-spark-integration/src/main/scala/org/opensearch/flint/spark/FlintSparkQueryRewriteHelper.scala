@@ -41,8 +41,9 @@ trait FlintSparkQueryRewriteHelper {
    *   True if the index filter can subsume the query filter, otherwise False.
    */
   def subsume(indexFilter: Expression, queryFilter: Expression): Boolean = {
-    require(isConjunction(indexFilter), "Index filter is not a conjunction")
-    require(isConjunction(queryFilter), "Query filter is not a conjunction")
+    if (!isConjunction(indexFilter) || !isConjunction(queryFilter)) {
+      return false
+    }
 
     // Flatten a potentially nested conjunction into a sequence of individual conditions
     def flattenConditions(filter: Expression): Seq[Expression] = filter match {

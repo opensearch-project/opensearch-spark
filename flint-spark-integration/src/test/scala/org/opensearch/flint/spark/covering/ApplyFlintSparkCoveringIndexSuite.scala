@@ -84,7 +84,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     "age <= 50",
     "age > 20 AND age < 50",
     "age >= 20 AND age < 50",
-    "age > 20 AND age < 50",
+    "age > 20 AND age <= 50",
     "age >=20 AND age <= 50")
   (for {
     indexFilter <- conditions
@@ -134,8 +134,8 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
 
   // Covering index doesn't cover column age
   Seq(
-    // s"SELECT * FROM $testTable", // FIXME: only relation operator
-    // s"SELECT name, age FROM $testTable", // FIXME: only relation operator
+    s"SELECT * FROM $testTable",
+    s"SELECT name, age FROM $testTable",
     s"SELECT name FROM $testTable WHERE age = 30",
     s"SELECT COUNT(*) FROM $testTable GROUP BY age").foreach { query =>
     test(s"should not apply if column is not covered in $query") {
