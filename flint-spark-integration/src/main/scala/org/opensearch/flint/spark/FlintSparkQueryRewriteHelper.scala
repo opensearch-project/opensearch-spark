@@ -53,7 +53,7 @@ trait FlintSparkQueryRewriteHelper {
     val queryConditions = flattenConditions(queryFilter)
 
     // Ensures that every condition in the index filter is subsumed by at least one condition
-    // in the query filter
+    // on the same column in the query filter
     indexConditions.forall { indexCondition =>
       queryConditions.exists { queryCondition =>
         (indexCondition, queryCondition) match {
@@ -79,9 +79,7 @@ trait FlintSparkQueryRewriteHelper {
   case class Range(lower: Option[Bound], upper: Option[Bound]) {
 
     /**
-     * Determines if this range subsumes (completely covers) another range. A range is considered
-     * to subsume another if its lower bound is less restrictive and its upper bound is more
-     * restrictive than those of the other range.
+     * Determines if this range subsumes (completely covers) another range.
      *
      * @param other
      *   The other range to compare against.
@@ -108,7 +106,7 @@ trait FlintSparkQueryRewriteHelper {
 
     /**
      * Constructs a Range object from a binary comparison expression, translating comparison
-     * operators into bounds with appropriate inclusivity.
+     * operators into bounds with appropriate inclusiveness.
      *
      * @param condition
      *   The binary comparison
@@ -124,7 +122,7 @@ trait FlintSparkQueryRewriteHelper {
         Range(None, Some(Bound(value, inclusive = true)))
       case EqualTo(_, value: Literal) =>
         Range(Some(Bound(value, inclusive = true)), Some(Bound(value, inclusive = true)))
-      case _ => Range(None, None) // For unsupported or complex conditions
+      case _ => Range(None, None) // Infinity for unsupported or complex conditions
     }
   }
 
@@ -145,7 +143,8 @@ trait FlintSparkQueryRewriteHelper {
      * @param other
      *   The bound to compare against.
      * @return
-     *   True if this bound is less than or equal to the other bound.
+     *   True if this bound is less than or equal to the other bound, either because value is
+     *   smaller, this bound is inclusive, or both bound are exclusive.
      */
     def lessThanOrEqualTo(other: Bound): Boolean = {
       val cmp = value.value.asInstanceOf[Comparable[Any]].compareTo(other.value.value)
@@ -158,7 +157,8 @@ trait FlintSparkQueryRewriteHelper {
      * @param other
      *   The bound to compare against.
      * @return
-     *   True if this bound is greater than or equal to the other bound.
+     *   True if this bound is greater than or equal to the other bound, either because value is
+     *   greater, this bound is inclusive, or both bound are exclusive.
      */
     def greaterThanOrEqualTo(other: Bound): Boolean = {
       val cmp = value.value.asInstanceOf[Comparable[Any]].compareTo(other.value.value)

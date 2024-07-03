@@ -14,7 +14,7 @@ import org.opensearch.flint.spark.source.{FlintSparkSourceRelation, FlintSparkSo
 
 import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression}
-import org.apache.spark.sql.catalyst.parser.CatalystSqlParser
+import org.apache.spark.sql.catalyst.parser.CatalystSqlParser.parseExpression
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, V2WriteCommand}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
@@ -119,29 +119,27 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark)
       queryFilter: Option[Expression],
       relationCols: Set[String]): Boolean = {
     val indexedCols = index.indexedColumns.keySet
-    val isSubsumed = subsume(queryFilter, index.filterCondition)
+    val subsumption = (index.filterCondition, queryFilter) match {
+      case (None, _) => true // full index can cover any query filter
+      case (Some(_), None) => false // partial index cannot cover query without filter
+      case (Some(indexFilter), Some(_)) =>
+        subsume(parseExpression(indexFilter), queryFilter.get)
+    }
     val isApplicable =
       index.latestLogEntry.exists(_.state != DELETED) &&
-        isSubsumed &&
+        subsumption &&
         relationCols.subsetOf(indexedCols)
 
     logInfo(s"""
          | Is covering index ${index.name()} applicable: $isApplicable
          |   Index state: ${index.latestLogEntry.map(_.state)}
-         |   Index filter subsumption: $isSubsumed
+         |   Query filter: $queryFilter
+         |   Index filter: ${index.filterCondition}
+         |   Subsumption test: $subsumption
          |   Columns required: $relationCols
          |   Columns indexed: $indexedCols
          |""".stripMargin)
     isApplicable
-  }
-
-  private def subsume(queryFilter: Option[Expression], indexFilter: Option[String]): Boolean = {
-    (queryFilter, indexFilter) match {
-      case (_, None) => true // full indexing
-      case (None, Some(_)) => false
-      case (Some(_), Some(_)) =>
-        subsume(CatalystSqlParser.parseExpression(indexFilter.get), queryFilter.get)
-    }
   }
 
   private def replaceTableRelationWithIndexRelation(

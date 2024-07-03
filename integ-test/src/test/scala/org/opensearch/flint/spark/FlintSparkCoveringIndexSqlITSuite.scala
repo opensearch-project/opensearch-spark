@@ -257,6 +257,19 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     checkAnswer(sql(query), Seq(Row("Hello", 30), Row("World", 25)))
   }
 
+  test("rewrite applicable simple query with partial covering index") {
+    awaitRefreshComplete(s"""
+           | CREATE INDEX $testIndex ON $testTable
+           | (name, age)
+           | WHERE age > 25
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
+
+    val query = s"SELECT name, age FROM $testTable WHERE age >= 30"
+    checkKeywordsExist(sql(s"EXPLAIN $query"), "FlintScan")
+    checkAnswer(sql(query), Seq(Row("Hello", 30)))
+  }
+
   test("rewrite applicable aggregate query with covering index") {
     awaitRefreshComplete(s"""
             | CREATE INDEX $testIndex ON $testTable
@@ -288,6 +301,19 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     } finally {
       spark.conf.set(OPTIMIZER_RULE_COVERING_INDEX_ENABLED.key, "true")
     }
+  }
+
+  test("should not rewrite with partial covering index if not applicable") {
+    awaitRefreshComplete(s"""
+           | CREATE INDEX $testIndex ON $testTable
+           | (name, age)
+           | WHERE age > 25
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
+
+    val query = s"SELECT name, age FROM $testTable WHERE age > 20"
+    checkKeywordsNotExist(sql(s"EXPLAIN $query"), "FlintScan")
+    checkAnswer(sql(query), Seq(Row("Hello", 30), Row("World", 25)))
   }
 
   test("rewrite applicable query with covering index before skipping index") {
