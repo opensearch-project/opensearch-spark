@@ -41,7 +41,7 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark)
     } else {
       // Iterate each sub plan tree in the given plan
       plan transform {
-        case subPlan @ Filter(condition, ExtractRelation(relation)) =>
+        case subPlan @ Filter(condition, ExtractRelation(relation)) if isConjunction(condition) =>
           doApply(plan, relation, Some(condition))
             .map(newRelation => subPlan.copy(child = newRelation))
             .getOrElse(subPlan)
