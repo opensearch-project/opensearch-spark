@@ -20,4 +20,5 @@ case class CommandContext(
     jobId: String,
     queryExecutionTimeout: Duration,
     inactivityLimitMillis: Long,
-    queryWaitTimeMillis: Long)
+    queryWaitTimeMillis: Long,
+    queryLoopExecutionFrequency: Long)

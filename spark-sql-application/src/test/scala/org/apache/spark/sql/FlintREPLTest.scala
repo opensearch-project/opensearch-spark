@@ -556,7 +556,8 @@ class FlintREPLTest
         jobId,
         Duration(10, MINUTES),
         60,
-        60)
+        60,
+        100)
 
       intercept[RuntimeException] {
         FlintREPL.exponentialBackoffRetry(maxRetries, 2.seconds) {
@@ -839,7 +840,8 @@ class FlintREPLTest
       jobId,
       Duration(10, MINUTES),
       shortInactivityLimit,
-      60)
+      60,
+      100)
 
     // Mock processCommands to always allow loop continuation
     val getResponse = mock[GetResponse]
@@ -857,6 +859,57 @@ class FlintREPLTest
 
     // Stop the SparkSession
     spark.stop()
+  }
+
+  // TODO: Figure out how to test gracefully
+  test("queryLoop frequency should be configurable") {
+    val mockReader = mock[FlintReader]
+    val osClient = mock[OSClient]
+    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+      .thenReturn(mockReader)
+    when(mockReader.hasNext).thenReturn(false)
+
+    val resultIndex = "testResultIndex"
+    val dataSource = "testDataSource"
+    val sessionIndex = "testSessionIndex"
+    val sessionId = "testSessionId"
+    val jobId = "testJobId"
+
+    val shortInactivityLimit = 100 // 100 milliseconds
+    val queryLoopExecutionFrequency = 900 // 100 milliseconds
+    // Create a SparkSession for testing
+    val spark = SparkSession.builder().master("local").appName("FlintREPLTest").getOrCreate()
+    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
+
+    val commandContext = CommandContext(
+      spark,
+      dataSource,
+      resultIndex,
+      sessionId,
+      flintSessionIndexUpdater,
+      osClient,
+      sessionIndex,
+      jobId,
+      Duration(10, MINUTES),
+      shortInactivityLimit,
+      60,
+      queryLoopExecutionFrequency)
+
+    // Mock processCommands to always allow loop continuation
+    val getResponse = mock[GetResponse]
+    when(osClient.getDoc(*, *)).thenReturn(getResponse)
+    when(getResponse.isExists()).thenReturn(false)
+
+    val startTime = System.currentTimeMillis()
+    FlintREPL.queryLoop(commandContext)
+    val endTime = System.currentTimeMillis()
+
+    assert(endTime - startTime >= shortInactivityLimit + 100)
+    assert(endTime - startTime >= shortInactivityLimit + queryLoopExecutionFrequency)
+
+    // Stop the SparkSession
+    spark.stop()
+    FlintREPL.threadPoolFactory = new DefaultThreadPoolFactory()
   }
 
   test("queryLoop should stop when canPickUpNextStatement is false") {
@@ -889,7 +942,8 @@ class FlintREPLTest
       jobId,
       Duration(10, MINUTES),
       longInactivityLimit,
-      60)
+      60,
+      100)
 
     // Mocking canPickNextStatement to return false
     when(osClient.getDoc(sessionIndex, sessionId)).thenAnswer(_ => {
@@ -945,7 +999,8 @@ class FlintREPLTest
       jobId,
       Duration(10, MINUTES),
       inactivityLimit,
-      60)
+      60,
+      100)
 
     try {
       // Mocking ThreadUtils to track the shutdown call
@@ -995,7 +1050,8 @@ class FlintREPLTest
       jobId,
       Duration(10, MINUTES),
       inactivityLimit,
-      60)
+      60,
+      100)
 
     try {
       // Mocking ThreadUtils to track the shutdown call
@@ -1076,7 +1132,8 @@ class FlintREPLTest
       jobId,
       Duration(10, MINUTES),
       inactivityLimit,
-      60)
+      60,
+      100)
 
     val startTime = Instant.now().toEpochMilli()
 
@@ -1126,7 +1183,8 @@ class FlintREPLTest
       jobId,
       Duration(10, MINUTES),
       inactivityLimit,
-      60)
+      60,
+      100)
 
     val startTime = Instant.now().toEpochMilli()
 
