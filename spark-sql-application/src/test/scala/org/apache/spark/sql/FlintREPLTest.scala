@@ -465,7 +465,7 @@ class FlintREPLTest
   }
 
   test("handleGeneralException should handle MetaException with AccessDeniedException properly") {
-    val mockFlintCommand = mock[FlintStatement]
+    val mockFlintCommand = mock[FlintCommand]
 
     // Simulate the root cause being MetaException
     val exception = new org.apache.hadoop.hive.metastore.api.MetaException(
