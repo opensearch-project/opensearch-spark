@@ -52,6 +52,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
   private val MAPPING_CHECK_TIMEOUT = Duration(1, MINUTES)
   private val DEFAULT_QUERY_EXECUTION_TIMEOUT = Duration(30, MINUTES)
   private val DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS = 10 * 60 * 1000
+  private val DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY = 100L
   val INITIAL_DELAY_MILLIS = 3000L
   val EARLY_TERMIANTION_CHECK_FREQUENCY = 60000L
 
@@ -134,7 +135,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
         SECONDS)
       val queryWaitTimeoutMillis: Long =
         conf.getLong("spark.flint.job.queryWaitTimeoutMillis", DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS)
-
+      val queryLoopExecutionFrequency: Long =
+        conf.getLong(
+          "spark.flint.job.queryLoopExecutionFrequency",
+          DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY)
       val flintSessionIndexUpdater = osClient.createUpdater(sessionIndex.get)
       val sessionTimerContext = getTimerContext(MetricConstants.REPL_PROCESSING_TIME_METRIC)
 
@@ -199,7 +203,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
           jobId,
           queryExecutionTimeoutSecs,
           inactivityLimitMillis,
-          queryWaitTimeoutMillis)
+          queryWaitTimeoutMillis,
+          queryLoopExecutionFrequency)
         exponentialBackoffRetry(maxRetries = 5, initialDelay = 2.seconds) {
           queryLoop(commandContext)
         }
@@ -342,7 +347,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
   }
 
   def queryLoop(commandContext: CommandContext): Unit = {
-    // 1 thread for updating heart beat
+    // 1 thread for async query execution
     val threadPool = threadPoolFactory.newDaemonThreadPoolScheduledExecutor("flint-repl-query", 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
 
@@ -392,7 +397,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           flintReader.close()
         }
 
-        Thread.sleep(100)
+        Thread.sleep(commandContext.queryLoopExecutionFrequency)
       }
     } finally {
       if (threadPool != null) {

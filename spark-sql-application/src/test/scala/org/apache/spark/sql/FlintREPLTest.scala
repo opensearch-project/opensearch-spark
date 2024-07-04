@@ -17,14 +17,15 @@ import scala.reflect.runtime.universe.TypeTag
 
 import com.amazonaws.services.glue.model.AccessDeniedException
 import com.codahale.metrics.Timer
-import org.mockito.ArgumentMatchersSugar
-import org.mockito.Mockito._
+import org.mockito.{ArgumentMatchersSugar, Mockito}
+import org.mockito.Mockito.{atLeastOnce, never, times, verify, when}
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.opensearch.action.get.GetResponse
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchReader, OpenSearchUpdater}
 import org.opensearch.flint.data.FlintStatement
 import org.opensearch.search.sort.SortOrder
+import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatestplus.mockito.MockitoSugar
 
 import org.apache.spark.{SparkConf, SparkContext, SparkFunSuite}
@@ -599,7 +600,8 @@ class FlintREPLTest
         jobId,
         Duration(10, MINUTES),
         60,
-        60)
+        60,
+        100)
 
       intercept[RuntimeException] {
         FlintREPL.exponentialBackoffRetry(maxRetries, 2.seconds) {
@@ -880,7 +882,8 @@ class FlintREPLTest
       jobId,
       Duration(10, MINUTES),
       shortInactivityLimit,
-      60)
+      60,
+      100)
 
     // Mock processCommands to always allow loop continuation
     val getResponse = mock[GetResponse]
@@ -930,7 +933,8 @@ class FlintREPLTest
       jobId,
       Duration(10, MINUTES),
       longInactivityLimit,
-      60)
+      60,
+      100)
 
     // Mocking canPickNextStatement to return false
     when(osClient.getDoc(sessionIndex, sessionId)).thenAnswer(_ => {
@@ -986,7 +990,8 @@ class FlintREPLTest
       jobId,
       Duration(10, MINUTES),
       inactivityLimit,
-      60)
+      60,
+      100)
 
     try {
       // Mocking ThreadUtils to track the shutdown call
@@ -1036,7 +1041,8 @@ class FlintREPLTest
       jobId,
       Duration(10, MINUTES),
       inactivityLimit,
-      60)
+      60,
+      100)
 
     try {
       // Mocking ThreadUtils to track the shutdown call
@@ -1117,7 +1123,8 @@ class FlintREPLTest
       jobId,
       Duration(10, MINUTES),
       inactivityLimit,
-      60)
+      60,
+      100)
 
     val startTime = Instant.now().toEpochMilli()
 
@@ -1131,58 +1138,70 @@ class FlintREPLTest
     verify(osClient, times(1)).getIndexMetadata(*)
   }
 
-  test("queryLoop should execute loop without processing any commands") {
-    val mockReader = mock[FlintReader]
-    val osClient = mock[OSClient]
-    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
-      .thenReturn(mockReader)
-    val getResponse = mock[GetResponse]
-    when(osClient.getDoc(*, *)).thenReturn(getResponse)
-    when(getResponse.isExists()).thenReturn(false)
+  val testCases = Table(
+    ("inactivityLimit", "queryLoopExecutionFrequency"),
+    (5000, 100), // 5 seconds, 100 ms
+    (100, 300) // 100 ms, 300 ms
+  )
 
-    // Configure mockReader to always return false, indicating no commands to process
-    when(mockReader.hasNext).thenReturn(false)
+  test(
+    "queryLoop should execute loop without processing any commands for different inactivity limits and frequencies") {
+    forAll(testCases) { (inactivityLimit, queryLoopExecutionFrequency) =>
+      val mockReader = mock[FlintReader]
+      val osClient = mock[OSClient]
+      when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+        .thenReturn(mockReader)
+      val getResponse = mock[GetResponse]
+      when(osClient.getDoc(*, *)).thenReturn(getResponse)
+      when(getResponse.isExists()).thenReturn(false)
+      when(mockReader.hasNext).thenReturn(false)
 
-    val resultIndex = "testResultIndex"
-    val dataSource = "testDataSource"
-    val sessionIndex = "testSessionIndex"
-    val sessionId = "testSessionId"
-    val jobId = "testJobId"
+      val resultIndex = "testResultIndex"
+      val dataSource = "testDataSource"
+      val sessionIndex = "testSessionIndex"
+      val sessionId = "testSessionId"
+      val jobId = "testJobId"
 
-    val inactivityLimit = 5000 // 5 seconds
+      // Create a SparkSession for testing
+      val spark = SparkSession.builder().master("local").appName("FlintREPLTest").getOrCreate()
 
-    // Create a SparkSession for testing
-    val spark = SparkSession.builder().master("local").appName("FlintREPLTest").getOrCreate()
+      val flintSessionIndexUpdater = mock[OpenSearchUpdater]
 
-    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
+      val commandContext = CommandContext(
+        spark,
+        dataSource,
+        resultIndex,
+        sessionId,
+        flintSessionIndexUpdater,
+        osClient,
+        sessionIndex,
+        jobId,
+        Duration(10, MINUTES),
+        inactivityLimit,
+        60,
+        queryLoopExecutionFrequency)
 
-    val commandContext = CommandContext(
-      spark,
-      dataSource,
-      resultIndex,
-      sessionId,
-      flintSessionIndexUpdater,
-      osClient,
-      sessionIndex,
-      jobId,
-      Duration(10, MINUTES),
-      inactivityLimit,
-      60)
+      val startTime = Instant.now().toEpochMilli()
 
-    val startTime = Instant.now().toEpochMilli()
+      // Running the queryLoop
+      FlintREPL.queryLoop(commandContext)
 
-    // Running the queryLoop
-    FlintREPL.queryLoop(commandContext)
+      val endTime = Instant.now().toEpochMilli()
 
-    val endTime = Instant.now().toEpochMilli()
+      val elapsedTime = endTime - startTime
 
-    // Assert that the loop ran for at least the duration of the inactivity limit
-    assert(endTime - startTime >= inactivityLimit)
+      // Assert that the loop ran for at least the duration of the inactivity limit
+      assert(elapsedTime >= inactivityLimit)
 
-    // Verify that no command was actually processed
-    verify(mockReader, never()).next()
+      // Verify query execution frequency
+      val expectedCalls = Math.ceil(elapsedTime.toDouble / queryLoopExecutionFrequency).toInt
+      verify(mockReader, Mockito.atMost(expectedCalls)).hasNext
 
-    // Stop the SparkSession
-    spark.stop()
+      // Verify that no command was actually processed
+      verify(mockReader, never()).next()
+
+      // Stop the SparkSession
+      spark.stop()
+    }
   }
 }
