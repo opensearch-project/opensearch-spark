@@ -196,11 +196,17 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
     },
     assembly / test := (Test / test).value)
 
+lazy val IntegrationTest = config("it") extend Test
+
 // Test assembly package with integration test.
 lazy val integtest = (project in file("integ-test"))
   .dependsOn(flintCommons % "test->test", flintSparkIntegration % "test->test", pplSparkIntegration % "test->test", sparkSqlApplication % "test->test")
+  .configs(IntegrationTest)
   .settings(
     commonSettings,
+    inConfig(IntegrationTest)(Defaults.testSettings), // Apply test settings to the IntegrationTest configuration
+    IntegrationTest / scalaSource := baseDirectory.value / "src" / "it" / "scala",
+    IntegrationTest / javaSource := baseDirectory.value / "src" / "it" / "java",
     name := "integ-test",
     scalaVersion := scala212,
     libraryDependencies ++= Seq(
