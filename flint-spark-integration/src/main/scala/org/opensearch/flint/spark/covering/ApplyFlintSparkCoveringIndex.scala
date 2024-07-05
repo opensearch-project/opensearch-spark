@@ -114,8 +114,8 @@ class ApplyFlintSparkCoveringIndex(flint: FlintSpark)
     val indexes =
       flint
         .describeIndexes(indexPattern)
-        .collect { // cast to covering index
-          case index: FlintSparkCoveringIndex => index
+        .collect { // cast to covering index and double check table name
+          case index: FlintSparkCoveringIndex if index.tableName == qualifiedTableName => index
         }
 
     val indexNames = indexes.map(_.name()).mkString(",")
