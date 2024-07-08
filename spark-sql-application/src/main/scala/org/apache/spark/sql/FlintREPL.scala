@@ -651,15 +651,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
     } else {
       logInfo("1-commitID - b933e5df61002d72d496cac4e0ea9099a4cfe017")
       val futureQueryExecution = Future {
-        Some(
-          executeQuery(
-            spark,
-            flintCommand,
-            dataSource,
-            flintCommand.queryId,
-            sessionId,
-            false,
-            queryResultWriter))
+        commandLifecycleManager.setLocalProperties(flintCommand)
+        Some(executeQuery(spark, flintCommand, flintCommand.queryId, queryResultWriter))
       }(executionContext)
 
       // time out after 10 minutes

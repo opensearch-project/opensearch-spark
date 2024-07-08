@@ -145,4 +145,8 @@ class CommandLifecycleManagerImpl(commandContext: CommandContext)
       incrementCounter(MetricConstants.STATEMENT_FAILED_METRIC)
     }
   }
+
+  override def setLocalProperties(commandDetails: FlintCommand): Unit = {
+    // NO-OP
+  }
 }
