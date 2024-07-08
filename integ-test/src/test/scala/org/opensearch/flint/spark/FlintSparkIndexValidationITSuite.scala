@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import java.util.{Locale, UUID}
+import java.util.Locale
 
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
@@ -112,6 +112,38 @@ class FlintSparkIndexValidationITSuite extends FlintSparkSuite with SparkHiveSup
     (INCREMENTAL, createMaterializedViewStatement))
     .foreach { case (refreshMode, statement) =>
       test(
+        s"should fail to create $refreshMode refresh Flint index if checkpoint location is not writable: $statement") {
+        withTable(testTable) {
+          sql(s"CREATE TABLE $testTable (name STRING) USING JSON")
+
+          withTempDir { checkpointDir =>
+            // Set checkpoint dir readonly to simulate the exception
+            checkpointDir.setWritable(false)
+
+            the[IllegalArgumentException] thrownBy {
+              sql(s"""
+                   | $statement
+                   | WITH (
+                   |   ${optionName(refreshMode)} = true,
+                   |   checkpoint_location = "$checkpointDir"
+                   | )
+                   |""".stripMargin)
+            } should have message
+              s"requirement failed: No sufficient permission to access the checkpoint location $checkpointDir"
+          }
+        }
+      }
+    }
+
+  Seq(
+    (AUTO, createSkippingIndexStatement),
+    (AUTO, createCoveringIndexStatement),
+    (AUTO, createMaterializedViewStatement),
+    (INCREMENTAL, createSkippingIndexStatement),
+    (INCREMENTAL, createCoveringIndexStatement),
+    (INCREMENTAL, createMaterializedViewStatement))
+    .foreach { case (refreshMode, statement) =>
+      test(
         s"should fail to create $refreshMode refresh Flint index if checkpoint location is inaccessible: $statement") {
         withTable(testTable) {
           sql(s"CREATE TABLE $testTable (name STRING) USING JSON")
@@ -127,7 +159,7 @@ class FlintSparkIndexValidationITSuite extends FlintSparkSuite with SparkHiveSup
                  | )
                  |""".stripMargin)
           } should have message
-            s"requirement failed: No permission to access the checkpoint location $checkpointDir"
+            s"requirement failed: No sufficient permission to access the checkpoint location $checkpointDir"
         }
       }
     }

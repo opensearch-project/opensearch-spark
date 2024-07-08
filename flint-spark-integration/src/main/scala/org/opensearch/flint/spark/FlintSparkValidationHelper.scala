@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark
 
 import java.io.IOException
+import java.util.UUID
 
 import org.apache.hadoop.fs.Path
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
@@ -76,14 +77,26 @@ trait FlintSparkValidationHelper extends Logging {
           new Path(checkpointLocation),
           spark.sessionState.newHadoopConf())
 
-      // The primary intent here is to catch any exceptions during the accessibility check.
-      // The actual result is ignored, as Spark can create any necessary sub-folders
-      // when the streaming job starts.
+      /*
+       * Read permission check: The primary intent here is to catch any exceptions
+       * during the accessibility check. The actual result is ignored, as Spark can
+       * create any necessary sub-folders when the streaming job starts.
+       */
       checkpointManager.exists(new Path(checkpointLocation))
+
+      /*
+       * Write permission check: Attempt to create a temporary file to verify write access.
+       * The temporary file is left in place in case additional delete permissions are required
+       * for some file systems.
+       */
+      val tempFilePath = new Path(checkpointLocation, s"${UUID.randomUUID().toString}.tmp")
+      val outputStream = checkpointManager.createAtomic(tempFilePath, overwriteIfPossible = true)
+      outputStream.close()
+
       true
     } catch {
       case e: IOException =>
-        logWarning(s"Failed to check if checkpoint location $checkpointLocation exists", e)
+        logWarning(s"Failed to check if checkpoint location $checkpointLocation accessible", e)
         false
     }
   }

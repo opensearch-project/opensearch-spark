@@ -39,7 +39,7 @@ class IncrementalIndexRefresh(indexName: String, index: FlintSparkIndex)
       "Checkpoint location is required by incremental refresh")
     require(
       isCheckpointLocationAccessible(spark, checkpointLocation.get),
-      s"No permission to access the checkpoint location ${checkpointLocation.get}")
+      s"No sufficient permission to access the checkpoint location ${checkpointLocation.get}")
   }
 
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {
