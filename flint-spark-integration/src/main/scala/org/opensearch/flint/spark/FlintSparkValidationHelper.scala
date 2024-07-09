@@ -89,7 +89,10 @@ trait FlintSparkValidationHelper extends Logging {
        * The temporary file is left in place in case additional delete permissions are required
        * for some file systems.
        */
-      val tempFilePath = new Path(checkpointLocation, s"${UUID.randomUUID().toString}.tmp")
+      val tempFilePath =
+        new Path(
+          checkpointManager.createCheckpointDirectory(),
+          s"${UUID.randomUUID().toString}.tmp")
       val outputStream = checkpointManager.createAtomic(tempFilePath, overwriteIfPossible = true)
       outputStream.close()
 

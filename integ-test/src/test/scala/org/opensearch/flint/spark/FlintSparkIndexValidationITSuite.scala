@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import java.util.Locale
+import java.util.{Locale, UUID}
 
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
@@ -205,9 +205,42 @@ class FlintSparkIndexValidationITSuite extends FlintSparkSuite with SparkHiveSup
           sql(statement)
           flint.refreshIndex(flintIndexName)
           flint.queryIndex(flintIndexName).count() shouldBe 1
+
+          deleteTestIndex(flintIndexName)
         }
       }
   }
+
+  Seq(
+    (skippingIndexName, AUTO, createSkippingIndexStatement),
+    (coveringIndexName, AUTO, createCoveringIndexStatement),
+    (materializedViewName, AUTO, createMaterializedViewStatement),
+    (skippingIndexName, INCREMENTAL, createSkippingIndexStatement),
+    (coveringIndexName, INCREMENTAL, createCoveringIndexStatement),
+    (materializedViewName, INCREMENTAL, createMaterializedViewStatement))
+    .foreach { case (flintIndexName, refreshMode, statement) =>
+      test(
+        s"should succeed to create $refreshMode refresh Flint index even if checkpoint sub-folder doesn't exist: $statement") {
+        withTable(testTable) {
+          sql(s"CREATE TABLE $testTable (name STRING) USING JSON")
+          sql(s"INSERT INTO $testTable VALUES ('test')")
+
+          withTempDir { checkpointDir =>
+            // Specify nonexistent sub-folder and expect pre-validation to pass
+            val nonExistCheckpointDir = s"$checkpointDir/${UUID.randomUUID().toString}"
+            sql(s"""
+                 | $statement
+                 | WITH (
+                 |   ${optionName(refreshMode)} = true,
+                 |   checkpoint_location = '$nonExistCheckpointDir'
+                 | )
+                 |""".stripMargin)
+
+            deleteTestIndex(flintIndexName)
+          }
+        }
+      }
+    }
 
   private def lowercase(mode: RefreshMode): String = mode.toString.toLowerCase(Locale.ROOT)
 
