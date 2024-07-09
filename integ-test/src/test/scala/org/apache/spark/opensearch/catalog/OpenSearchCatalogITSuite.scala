@@ -5,30 +5,10 @@
 
 package org.apache.spark.opensearch.catalog
 
-import org.opensearch.flint.OpenSearchSuite
-import org.opensearch.flint.spark.FlintSparkSuite
+import org.apache.spark.opensearch.table.OpenSearchCatalogSuite
+import org.apache.spark.sql.{AnalysisException, Row}
 
-import org.apache.spark.FlintSuite
-import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
-import org.apache.spark.sql.streaming.StreamTest
-
-class OpenSearchCatalogITSuite extends FlintSparkSuite {
-
-  private val catalogName = "dev"
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-
-    spark.conf.set(
-      s"spark.sql.catalog.${catalogName}",
-      "org.apache.spark.opensearch.catalog.OpenSearchCatalog")
-    spark.conf.set(s"spark.sql.catalog.${catalogName}.opensearch.port", s"$openSearchPort")
-    spark.conf.set(s"spark.sql.catalog.${catalogName}.opensearch.host", openSearchHost)
-    spark.conf.set(
-      s"spark.sql.catalog.${catalogName}.opensearch.write.refresh_policy",
-      "wait_for")
-  }
-
+class OpenSearchCatalogITSuite extends OpenSearchCatalogSuite {
   test("Load single index as table") {
     val indexName = "t0001"
     withIndexName(indexName) {
@@ -101,20 +81,23 @@ class OpenSearchCatalogITSuite extends FlintSparkSuite {
   }
 
   test("Load index wildcard expression as table") {
-    val indexName = "t0001"
-    withIndexName(indexName) {
-      simpleIndex(indexName)
-      val df = spark.sql(s"""
+    val indexName1 = "t0001"
+    val indexName2 = "t0002"
+    withIndexName(indexName1) {
+      withIndexName(indexName2) {
+        simpleIndex(indexName1)
+        simpleIndex(indexName2)
+        val df = spark.sql(s"""
         SELECT accountId, eventName, eventSource
         FROM ${catalogName}.default.`t*`""")
 
-      assert(df.count() == 1)
-      checkAnswer(df, Row("123", "event", "source"))
+        assert(df.count() == 2)
+        checkAnswer(df, Seq(Row("123", "event", "source"), Row("123", "event", "source")))
+      }
     }
   }
 
-  // FIXME, enable it when add partition info into OpenSearchTable.
-  ignore("Load comma seperated index expression as table") {
+  test("Load comma seperated index expression as table") {
     val indexName1 = "t0001"
     val indexName2 = "t0002"
     withIndexName(indexName1) {

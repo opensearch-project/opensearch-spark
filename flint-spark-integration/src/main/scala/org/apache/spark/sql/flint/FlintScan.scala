@@ -5,13 +5,14 @@
 
 package org.apache.spark.sql.flint
 
+import org.apache.spark.opensearch.table.{OpenSearchTable, ShardInfo}
 import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory, Scan}
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types.StructType
 
 case class FlintScan(
-    tableName: String,
+    table: OpenSearchTable,
     schema: StructType,
     options: FlintSparkConf,
     pushedPredicates: Array[Predicate])
@@ -21,11 +22,11 @@ case class FlintScan(
   override def readSchema(): StructType = schema
 
   override def planInputPartitions(): Array[InputPartition] = {
-    Array(OpenSearchInputPartition())
+    table.partitions.flatMap(p => p.shards.map(s => OpenSearchSplit(s))).toArray
   }
 
   override def createReaderFactory(): PartitionReaderFactory = {
-    FlintPartitionReaderFactory(tableName, schema, options, pushedPredicates)
+    FlintPartitionReaderFactory(schema, options, pushedPredicates)
   }
 
   override def toBatch: Batch = this
@@ -40,5 +41,10 @@ case class FlintScan(
   private def seqToString(seq: Seq[Any]): String = seq.mkString("[", ", ", "]")
 }
 
-// todo. add partition support.
-private[spark] case class OpenSearchInputPartition() extends InputPartition {}
+/**
+ * Each OpenSearchSplit is backed by an OpenSearch shard.
+ *
+ * @param shardInfo
+ *   shardInfo
+ */
+private[spark] case class OpenSearchSplit(shardInfo: ShardInfo) extends InputPartition {}
