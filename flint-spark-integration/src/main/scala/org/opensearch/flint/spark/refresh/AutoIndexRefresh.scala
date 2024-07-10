@@ -10,6 +10,7 @@ import java.util.Collections
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkIndexOptions, FlintSparkValidationHelper}
 import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, StreamingRefresh}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{AUTO, RefreshMode}
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
@@ -43,10 +44,11 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
       !isTableProviderSupported(spark, index),
       "Index auto refresh doesn't support Hive table")
 
-    // Checkpoint location is required if mandatory option set
+    // Checkpoint location is required if mandatory option set or external scheduler is used
     val flintSparkConf = new FlintSparkConf(Collections.emptyMap[String, String])
     val checkpointLocation = options.checkpointLocation()
-    if (flintSparkConf.isCheckpointMandatory) {
+    if (flintSparkConf.isCheckpointMandatory || SchedulerMode.EXTERNAL ==
+        options.schedulerMode()) {
       require(
         checkpointLocation.isDefined,
         s"Checkpoint location is required if ${CHECKPOINT_MANDATORY.key} option enabled")
@@ -63,6 +65,8 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {
     val options = index.options
     val tableName = index.metadata().source
+    var jobId: Option[String] = None // Store the job ID here to use later
+
     index match {
       // Flint index has specialized logic and capability for incremental refresh
       case refresh: StreamingRefresh =>
@@ -76,7 +80,7 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
             .options(flintSparkConf.properties)
             .addSinkOptions(options, flintSparkConf)
             .start(indexName)
-        Some(job.id.toString)
+        jobId = Some(job.id.toString)
 
       // Otherwise, fall back to foreachBatch + batch refresh
       case _ =>
@@ -90,10 +94,20 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
           .foreachBatch { (batchDF: DataFrame, _: Long) =>
             new FullIndexRefresh(indexName, index, Some(batchDF))
               .start(spark, flintSparkConf)
-            () // discard return value above and return unit to use right overridden method
+            () // discard return value above and return unit to use the right overridden method
           }
           .start()
-        Some(job.id.toString)
+        jobId = Some(job.id.toString)
+    }
+
+    // If EXTERNAL scheduling is set, await termination and return None
+    if (SchedulerMode.EXTERNAL == options.schedulerMode() && jobId.isDefined) {
+      spark.streams
+        .get(jobId.get)
+        .awaitTermination()
+      None
+    } else {
+      jobId
     }
   }
 
@@ -103,10 +117,12 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
     def addSinkOptions(
         options: FlintSparkIndexOptions,
         flintSparkConf: FlintSparkConf): DataStreamWriter[Row] = {
+      // For incremental refresh, the refresh_interval option is overridden by Trigger.AvailableNow().
       dataStream
         .addCheckpointLocation(options.checkpointLocation(), flintSparkConf.isCheckpointMandatory)
         .addRefreshInterval(options.refreshInterval())
-        .addAvailableNowTrigger(options.incrementalRefresh())
+        .addAvailableNowTrigger(
+          SchedulerMode.EXTERNAL == options.schedulerMode() || options.incrementalRefresh())
         .addOutputMode(options.outputMode())
         .options(options.extraSinkOptions())
     }
@@ -129,8 +145,8 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
         .getOrElse(dataStream)
     }
 
-    def addAvailableNowTrigger(incrementalRefresh: Boolean): DataStreamWriter[Row] = {
-      if (incrementalRefresh) {
+    def addAvailableNowTrigger(setAvailableNow: Boolean): DataStreamWriter[Row] = {
+      if (setAvailableNow) {
         dataStream.trigger(Trigger.AvailableNow())
       } else {
         dataStream

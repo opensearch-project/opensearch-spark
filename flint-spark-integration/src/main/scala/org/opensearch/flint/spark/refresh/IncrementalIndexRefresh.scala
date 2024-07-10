@@ -50,6 +50,7 @@ class IncrementalIndexRefresh(indexName: String, index: FlintSparkIndex)
       new AutoIndexRefresh(indexName, index)
         .start(spark, flintSparkConf)
 
+    // Blocks the calling thread until the streaming query finishes
     spark.streams
       .get(jobId.get)
       .awaitTermination()

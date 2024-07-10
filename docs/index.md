@@ -30,7 +30,13 @@ Please see the following example in which Index Building Logic and Query Rewrite
 ### Flint Index Refresh
 
 - **Auto Refresh:**
-  - This feature allows the Flint Index to automatically refresh. Users can configure such as frequency of auto-refresh based on their preferences.
+  - This feature allows the Flint Index to automatically refresh. Users can configure such as frequency of auto-refresh based on their preferences. There are two modes available for scheduling the auto-refresh:
+  - **Internal Scheduler:**
+    - Description: The data refresh is executed in micro-batch mode using the internal scheduler. 
+    - Recommended Use-Case: This mode is ideal for low-latency use-cases where data needs to be refreshed frequently and quickly.    
+  - **External Scheduler:**
+    - Description: The data refresh is executed using an external scheduler. 
+    - Recommended Use-Case: This mode is suitable for scenarios where data responsiveness is less critical, helping to reduce the cost of maintaining a long-running Spark cluster.
 - **Manual Refresh:**
   - Users have the option to manually trigger a refresh for the Flint Index. This provides flexibility and control over when the refresh occurs.
     - **Full Refresh:**
@@ -369,7 +375,8 @@ fetched rows / total rows = 5/5
 
 User can provide the following options in `WITH` clause of create statement:
 
-+ `auto_refresh`: default value is false. Automatically refresh the index if set to true. Otherwise, user has to trigger refresh by `REFRESH` statement manually.
++ `auto_refresh`: default value is false. Automatically refresh the index if set to true. Otherwise, user has to trigger refresh by `REFRESH` statement manually. 
++ `scheduler_mode`: A mode string (`internal` or `external`) that describes how `auto_refresh` is scheduled. `checkpoint_location` is required for the external scheduler.
 + `refresh_interval`: a string as the time interval for incremental refresh, e.g. 1 minute, 10 seconds. This is only applicable when auto refresh enabled. Please check `org.apache.spark.unsafe.types.CalendarInterval` for valid duration identifiers. By default, next micro batch will be generated as soon as the previous one complete processing.
 + `incremental_refresh`: default value is false. incrementally refresh the index if set to true. Otherwise, fully refresh the entire index. This only applicable when auto refresh disabled.
 + `checkpoint_location`: a string as the location path for refresh job checkpoint (auto or incremental). The location has to be a path in an HDFS compatible file system and only applicable when auto refresh enabled. If unspecified, temporary checkpoint directory will be used and may result in checkpoint data lost upon restart.

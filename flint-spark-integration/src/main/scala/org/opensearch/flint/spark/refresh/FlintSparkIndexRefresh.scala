@@ -59,6 +59,20 @@ object FlintSparkIndexRefresh {
     val AUTO, FULL, INCREMENTAL = Value
   }
 
+  /** Index scheduler mode for auto refresh */
+  object SchedulerMode extends Enumeration {
+    type SchedulerMode = Value
+    val INTERNAL: SchedulerMode.Value = Value("internal")
+    val EXTERNAL: SchedulerMode.Value = Value("external")
+
+    def fromString(s: String): SchedulerMode.Value = {
+      require(
+        SchedulerMode.values.exists(_.toString.equalsIgnoreCase(s)),
+        s"Scheduler mode $s is invalid. Must be 'internal' or 'external'.")
+      SchedulerMode.values.find(_.toString.equalsIgnoreCase(s)).get
+    }
+  }
+
   /**
    * Create concrete index refresh implementation for the given index.
    *

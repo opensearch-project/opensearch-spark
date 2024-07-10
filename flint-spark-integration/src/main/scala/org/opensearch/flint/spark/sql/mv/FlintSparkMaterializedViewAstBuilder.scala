@@ -10,6 +10,7 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText, IndexBelongsTo}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
@@ -42,8 +43,9 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
         .options(indexOptions)
         .create(ignoreIfExists)
 
-      // Trigger auto refresh if enabled
-      if (indexOptions.autoRefresh()) {
+      // Trigger auto refresh if enabled and not using external scheduler
+      if (indexOptions
+          .autoRefresh() && SchedulerMode.INTERNAL == indexOptions.schedulerMode()) {
         val flintIndexName = getFlintIndexName(flint, ctx.mvName)
         flint.refreshIndex(flintIndexName)
       }
