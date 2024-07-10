@@ -5,7 +5,6 @@
 
 package org.opensearch.flint.spark
 
-import java.io.IOException
 import java.util.UUID
 
 import org.apache.hadoop.fs.Path
@@ -18,6 +17,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.execution.command.DDLUtils
 import org.apache.spark.sql.execution.streaming.CheckpointFileManager
+import org.apache.spark.sql.execution.streaming.CheckpointFileManager.RenameHelperMethods
 import org.apache.spark.sql.flint.{loadTable, parseTableName, qualifyTableName}
 
 /**
@@ -79,27 +79,35 @@ trait FlintSparkValidationHelper extends Logging {
 
       /*
        * Read permission check: The primary intent here is to catch any exceptions
-       * during the accessibility check. The actual result is ignored, as Spark can
-       * create any necessary sub-folders when the streaming job starts.
+       * during the accessibility check. The actual result is ignored, as the write
+       * permission check below will create any necessary sub-folders.
        */
       checkpointManager.exists(new Path(checkpointLocation))
 
       /*
        * Write permission check: Attempt to create a temporary file to verify write access.
-       * The temporary file is left in place in case additional delete permissions are required
-       * for some file systems.
+       * The temporary file is left in place in case additional delete permissions required.
        */
-      val tempFilePath =
-        new Path(
-          checkpointManager.createCheckpointDirectory(),
-          s"${UUID.randomUUID().toString}.tmp")
-      val outputStream = checkpointManager.createAtomic(tempFilePath, overwriteIfPossible = true)
-      outputStream.close()
+      checkpointManager match {
+        case manager: RenameHelperMethods =>
+          val tempFilePath =
+            new Path(
+              checkpointManager
+                .createCheckpointDirectory(), // create all parent folders if needed
+              s"${UUID.randomUUID().toString}.tmp")
+
+          manager.createTempFile(tempFilePath).close()
+        case _ =>
+          logInfo(
+            s"Bypass checkpoint location write permission check: ${checkpointManager.getClass}")
+      }
 
       true
     } catch {
-      case e: IOException =>
-        logWarning(s"Failed to check if checkpoint location $checkpointLocation accessible", e)
+      case e: Exception =>
+        logWarning(
+          s"Exception occurred while verifying access to checkpoint location $checkpointLocation",
+          e)
         false
     }
   }
