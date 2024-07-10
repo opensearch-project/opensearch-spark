@@ -91,6 +91,27 @@ class FlintSparkIndexValidationITSuite extends FlintSparkSuite with SparkHiveSup
   Seq(createSkippingIndexStatement, createCoveringIndexStatement, createMaterializedViewStatement)
     .foreach { statement =>
       test(
+        s"should fail to create auto refresh Flint index if scheduler_mode is external and no checkpoint location: $statement") {
+        withTable(testTable) {
+          sql(s"CREATE TABLE $testTable (name STRING) USING JSON")
+
+          the[IllegalArgumentException] thrownBy {
+            sql(s"""
+                 | $statement
+                 | WITH (
+                 |   auto_refresh = true,
+                 |   scheduler_mode = 'external'
+                 | )
+                 |""".stripMargin)
+          } should have message
+            "requirement failed: Checkpoint location is required for external scheduler"
+        }
+      }
+    }
+
+  Seq(createSkippingIndexStatement, createCoveringIndexStatement, createMaterializedViewStatement)
+    .foreach { statement =>
+      test(
         s"should fail to create incremental refresh Flint index without checkpoint location: $statement") {
         withTable(testTable) {
           sql(s"CREATE TABLE $testTable (name STRING) USING JSON")

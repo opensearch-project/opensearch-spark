@@ -22,6 +22,7 @@ import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 import org.opensearch.flint.spark.skipping.recommendations.DataTypeSkippingStrategy
@@ -140,7 +141,8 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           latest.copy(state = REFRESHING, createTime = System.currentTimeMillis()))
         .finalLog(latest => {
           // Change state to active if full, otherwise update index state regularly
-          if (indexRefresh.refreshMode == AUTO) {
+          if (indexRefresh.refreshMode == AUTO && SchedulerMode.INTERNAL == index.options
+              .schedulerMode()) {
             logInfo("Scheduling index state monitor")
             flintIndexMonitor.startMonitor(indexName)
             latest

@@ -47,8 +47,12 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
     // Checkpoint location is required if mandatory option set or external scheduler is used
     val flintSparkConf = new FlintSparkConf(Collections.emptyMap[String, String])
     val checkpointLocation = options.checkpointLocation()
-    if (flintSparkConf.isCheckpointMandatory || SchedulerMode.EXTERNAL ==
-        options.schedulerMode()) {
+    if (SchedulerMode.EXTERNAL == options.schedulerMode()) {
+      require(
+        checkpointLocation.isDefined,
+        "Checkpoint location is required for external scheduler")
+    }
+    if (flintSparkConf.isCheckpointMandatory) {
       require(
         checkpointLocation.isDefined,
         s"Checkpoint location is required if ${CHECKPOINT_MANDATORY.key} option enabled")

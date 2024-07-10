@@ -266,6 +266,39 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     indexData should have size 2
   }
 
+  test("auto refresh skipping index successfully with external scheduler") {
+    withTempDir { checkpointDir =>
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "scheduler_mode" -> "external",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+        .create()
+
+      flint.refreshIndex(testIndex) shouldBe empty
+      flint.queryIndex(testIndex).collect().toSet should have size 2
+
+      // Delete all index data intentionally and generate a new source file
+      openSearchClient.deleteByQuery(
+        new DeleteByQueryRequest(testIndex).setQuery(QueryBuilders.matchAllQuery()),
+        RequestOptions.DEFAULT)
+      sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=4)
+           | VALUES ('Hello', 35, 'Vancouver')
+           | """.stripMargin)
+
+      // Expect to only refresh the new file
+      flint.refreshIndex(testIndex) shouldBe empty
+      flint.queryIndex(testIndex).collect().toSet should have size 1
+    }
+  }
+
   test("update skipping index successfully") {
     // Create full refresh Flint index
     flint
