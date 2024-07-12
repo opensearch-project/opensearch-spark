@@ -243,7 +243,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         .addPartitions("year", "month")
         .options(FlintSparkIndexOptions(Map("incremental_refresh" -> "true")))
         .create()
-    } should have message "requirement failed: Checkpoint location is required by incremental refresh"
+    } should have message "requirement failed: Checkpoint location is required"
   }
 
   test("auto refresh skipping index successfully") {
