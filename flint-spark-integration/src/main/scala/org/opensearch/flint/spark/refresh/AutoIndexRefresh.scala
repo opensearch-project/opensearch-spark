@@ -56,7 +56,7 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
     if (checkpointLocation.isDefined) {
       require(
         isCheckpointLocationAccessible(spark, checkpointLocation.get),
-        s"No permission to access the checkpoint location ${checkpointLocation.get}")
+        s"No sufficient permission to access the checkpoint location ${checkpointLocation.get}")
     }
   }
 
