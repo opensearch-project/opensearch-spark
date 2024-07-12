@@ -104,7 +104,7 @@ class FlintSparkIndexValidationITSuite extends FlintSparkSuite with SparkHiveSup
                  | )
                  |""".stripMargin)
           } should have message
-            "requirement failed: Checkpoint location is required for external scheduler"
+            "requirement failed: Checkpoint location is required"
         }
       }
     }
@@ -124,7 +124,7 @@ class FlintSparkIndexValidationITSuite extends FlintSparkSuite with SparkHiveSup
                  | )
                  |""".stripMargin)
           } should have message
-            "requirement failed: Checkpoint location is required by incremental refresh"
+            "requirement failed: Checkpoint location is required"
         }
       }
     }

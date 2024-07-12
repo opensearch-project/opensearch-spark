@@ -47,11 +47,6 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
     // Checkpoint location is required if mandatory option set or external scheduler is used
     val flintSparkConf = new FlintSparkConf(Collections.emptyMap[String, String])
     val checkpointLocation = options.checkpointLocation()
-    if (SchedulerMode.EXTERNAL == options.schedulerMode()) {
-      require(
-        checkpointLocation.isDefined,
-        "Checkpoint location is required for external scheduler")
-    }
     if (flintSparkConf.isCheckpointMandatory) {
       require(
         checkpointLocation.isDefined,
@@ -69,8 +64,6 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {
     val options = index.options
     val tableName = index.metadata().source
-    var jobId: Option[String] = None // Store the job ID here to use later
-
     index match {
       // Flint index has specialized logic and capability for incremental refresh
       case refresh: StreamingRefresh =>
@@ -84,7 +77,7 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
             .options(flintSparkConf.properties)
             .addSinkOptions(options, flintSparkConf)
             .start(indexName)
-        jobId = Some(job.id.toString)
+        Some(job.id.toString)
 
       // Otherwise, fall back to foreachBatch + batch refresh
       case _ =>
@@ -101,17 +94,7 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
             () // discard return value above and return unit to use the right overridden method
           }
           .start()
-        jobId = Some(job.id.toString)
-    }
-
-    // If EXTERNAL scheduling is set, await termination and return None
-    if (SchedulerMode.EXTERNAL == options.schedulerMode() && jobId.isDefined) {
-      spark.streams
-        .get(jobId.get)
-        .awaitTermination()
-      None
-    } else {
-      jobId
+        Some(job.id.toString)
     }
   }
 

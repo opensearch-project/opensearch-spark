@@ -34,9 +34,7 @@ class IncrementalIndexRefresh(indexName: String, index: FlintSparkIndex)
     // Checkpoint location is required regardless of mandatory option
     val options = index.options
     val checkpointLocation = options.checkpointLocation()
-    require(
-      options.checkpointLocation().nonEmpty,
-      "Checkpoint location is required by incremental refresh")
+    require(options.checkpointLocation().nonEmpty, "Checkpoint location is required")
     require(
       isCheckpointLocationAccessible(spark, checkpointLocation.get),
       s"No sufficient permission to access the checkpoint location ${checkpointLocation.get}")

@@ -85,7 +85,10 @@ object FlintSparkIndexRefresh {
    */
   def create(indexName: String, index: FlintSparkIndex): FlintSparkIndexRefresh = {
     val options = index.options
-    if (options.autoRefresh()) {
+    // TODO: Refactor the refresh class names and RefreshMode enum to distinguish Spark side physical trigger setup from the logical Flint index option.
+    if (SchedulerMode.EXTERNAL == options.schedulerMode()) {
+      new IncrementalIndexRefresh(indexName, index)
+    } else if (options.autoRefresh()) {
       new AutoIndexRefresh(indexName, index)
     } else if (options.incrementalRefresh()) {
       new IncrementalIndexRefresh(indexName, index)
