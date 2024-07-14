@@ -5,6 +5,9 @@
 
 package org.opensearch.flint.core.storage;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry;
 
 import java.util.Map;
@@ -90,32 +93,26 @@ public class FlintMetadataLogEntryOpenSearchConverter {
    * @return
    *   json string representation of the log entry
    */
-  public static String toJson(FlintMetadataLogEntry logEntry) {
+  public static String toJson(FlintMetadataLogEntry logEntry) throws JsonProcessingException {
     String applicationId = System.getenv().getOrDefault("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown");
     String jobId = System.getenv().getOrDefault("SERVERLESS_EMR_JOB_ID", "unknown");
     long lastUpdateTime = System.currentTimeMillis();
 
-    return String.format(
-        "{\n" +
-            "  \"version\": \"1.0\",\n" +
-            "  \"latestId\": \"%s\",\n" +
-            "  \"type\": \"flintindexstate\",\n" +
-            "  \"state\": \"%s\",\n" +
-            "  \"applicationId\": \"%s\",\n" +
-            "  \"jobId\": \"%s\",\n" +
-            "  \"dataSourceName\": \"%s\",\n" +
-            "  \"jobStartTime\": %d,\n" +
-            "  \"lastUpdateTime\": %d,\n" +
-            "  \"error\": \"%s\"\n" +
-            "}",
-        logEntry.id(),
-        logEntry.state(),
-        applicationId,
-        jobId,
-        logEntry.storageContext().get("dataSourceName").get(),
-        logEntry.createTime(),
-        lastUpdateTime,
-        logEntry.error());
+    ObjectMapper mapper = new ObjectMapper();
+    ObjectNode json = mapper.createObjectNode();
+
+    json.put("version", "1.0");
+    json.put("latestId", logEntry.id());
+    json.put("type", "flintindexstate");
+    json.put("state", logEntry.state().toString());
+    json.put("applicationId", applicationId);
+    json.put("jobId", jobId);
+    json.put("dataSourceName", logEntry.properties().get("dataSourceName").get().toString());
+    json.put("jobStartTime", logEntry.createTime());
+    json.put("lastUpdateTime", lastUpdateTime);
+    json.put("error", logEntry.error());
+
+    return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(json);
   }
 
   /**
