@@ -37,7 +37,7 @@ class FlintMetadataLogEntryOpenSearchConverterTest
     when(mockLogEntry.state).thenReturn(FlintMetadataLogEntry.IndexState.ACTIVE)
     when(mockLogEntry.createTime).thenReturn(1234567890123L)
     when(mockLogEntry.error).thenReturn("")
-    when(mockLogEntry.storageContext).thenReturn(Map("dataSourceName" -> "testDataSource"))
+    when(mockLogEntry.properties).thenReturn(Map("dataSourceName" -> "testDataSource"))
   }
 
   it should "convert to json" in {
@@ -69,7 +69,7 @@ class FlintMetadataLogEntryOpenSearchConverterTest
     logEntry.createTime shouldBe 1234567890123L
     logEntry.state shouldBe FlintMetadataLogEntry.IndexState.ACTIVE
     logEntry.error shouldBe ""
-    logEntry.storageContext.get("dataSourceName").get shouldBe "testDataSource"
+    logEntry.properties.get("dataSourceName").get shouldBe "testDataSource"
   }
 
   it should "construct log entry with integer jobStartTime value" in {
@@ -89,7 +89,7 @@ class FlintMetadataLogEntryOpenSearchConverterTest
     logEntry.createTime shouldBe 1234567890
     logEntry.state shouldBe FlintMetadataLogEntry.IndexState.ACTIVE
     logEntry.error shouldBe ""
-    logEntry.storageContext.get("dataSourceName").get shouldBe "testDataSource"
+    logEntry.properties.get("dataSourceName").get shouldBe "testDataSource"
   }
 
   private def removeJsonField(json: String, field: String): String = {

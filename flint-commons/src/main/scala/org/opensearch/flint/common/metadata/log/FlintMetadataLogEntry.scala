@@ -22,8 +22,8 @@ import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
  *   entry version fields for consistency control
  * @param error
  *   error details if in error state
- * @param storageContext
- *   extra context fields required for storage
+ * @param properties
+ *   extra properties fields
  */
 case class FlintMetadataLogEntry(
     id: String,
@@ -35,7 +35,7 @@ case class FlintMetadataLogEntry(
     state: IndexState,
     entryVersion: Map[String, Any],
     error: String,
-    storageContext: Map[String, Any]) {
+    properties: Map[String, Any]) {
 
   def this(
       id: String,

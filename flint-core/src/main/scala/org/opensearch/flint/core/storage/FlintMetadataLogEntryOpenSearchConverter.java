@@ -82,7 +82,7 @@ public class FlintMetadataLogEntryOpenSearchConverter {
 
   /**
    * Convert a log entry to json string for persisting to OpenSearch.
-   * Expects the following field in storage context:
+   * Expects the following field in properties:
    * - dataSourceName: data source name
    *
    * @param logEntry

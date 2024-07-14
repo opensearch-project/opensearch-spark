@@ -87,7 +87,7 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
     latest.get.id shouldBe testLatestId
     latest.get.createTime shouldBe testCreateTime
     latest.get.error shouldBe ""
-    latest.get.storageContext.get("dataSourceName").get shouldBe testDataSourceName
+    latest.get.properties.get("dataSourceName").get shouldBe testDataSourceName
   }
 
   test("should not get index metadata log if not exist") {

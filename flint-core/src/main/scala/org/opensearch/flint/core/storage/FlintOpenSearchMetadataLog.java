@@ -158,7 +158,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
             logEntry.state(),
             logEntry.entryVersion(),
             logEntry.error(),
-            logEntry.storageContext());
+            logEntry.properties());
 
     return writeLogEntry(logEntryWithId,
         client -> client.index(
@@ -196,7 +196,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
           logEntry.state(),
           Map.of("seqNo", response.getSeqNo(), "primaryTerm", response.getPrimaryTerm()),
           logEntry.error(),
-          logEntry.storageContext());
+          logEntry.properties());
 
       LOG.info("Log entry written as " + logEntry);
       return logEntry;

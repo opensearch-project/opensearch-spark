@@ -41,7 +41,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         latest.state shouldBe EMPTY
         latest.createTime shouldBe 0L
         latest.error shouldBe ""
-        latest.storageContext.get("dataSourceName").get shouldBe testDataSourceName
+        latest.properties.get("dataSourceName").get shouldBe testDataSourceName
         true
       })
       .finalLog(latest => latest)
@@ -65,7 +65,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         latest.id shouldBe testLatestId
         latest.createTime shouldBe testCreateTime
         latest.error shouldBe ""
-        latest.storageContext.get("dataSourceName").get shouldBe testDataSourceName
+        latest.properties.get("dataSourceName").get shouldBe testDataSourceName
         true
       })
       .transientLog(latest => latest.copy(state = DELETING))
@@ -74,7 +74,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         latest.id shouldBe testLatestId
         latest.createTime shouldBe testCreateTime
         latest.error shouldBe ""
-        latest.storageContext.get("dataSourceName").get shouldBe testDataSourceName
+        latest.properties.get("dataSourceName").get shouldBe testDataSourceName
       })
 
     latestLogEntry(testLatestId) should (contain("latestId" -> testLatestId) and
@@ -241,7 +241,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         latest.state shouldBe EMPTY
         latest.createTime shouldBe 0L
         latest.error shouldBe ""
-        latest.storageContext.get("dataSourceName").get shouldBe testDataSourceName
+        latest.properties.get("dataSourceName").get shouldBe testDataSourceName
         true
       })
       .finalLog(latest => latest)
