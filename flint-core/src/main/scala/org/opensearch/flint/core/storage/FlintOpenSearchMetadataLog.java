@@ -138,16 +138,6 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
         Map.of("dataSourceName", dataSourceName));
   }
 
-  public FlintMetadataLogEntry failLogEntry(String error) {
-    return new FlintMetadataLogEntry(
-        "",
-        0L,
-        FlintMetadataLogEntry.IndexState$.MODULE$.FAILED(),
-        Map.of("seqNo", UNASSIGNED_SEQ_NO, "primaryTerm", UNASSIGNED_PRIMARY_TERM),
-        error,
-        Map.of("dataSourceName", dataSourceName));
-  }
-
   private FlintMetadataLogEntry createLogEntry(FlintMetadataLogEntry logEntry) {
     LOG.info("Creating log entry " + logEntry);
     // Assign doc ID here
