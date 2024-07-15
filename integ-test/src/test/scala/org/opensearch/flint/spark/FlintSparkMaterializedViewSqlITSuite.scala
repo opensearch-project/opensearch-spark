@@ -82,6 +82,36 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     }
   }
 
+  test("create materialized view with auto refresh and external scheduler") {
+    withTempDir { checkpointDir =>
+      sql(s"""
+           | CREATE MATERIALIZED VIEW $testMvName
+           | AS $testQuery
+           | WITH (
+           |   auto_refresh = true,
+           |   scheduler_mode = 'external',
+           |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+           |   watermark_delay = '1 Second'
+           | )
+           | """.stripMargin)
+
+      // Refresh all present source data as of now
+      sql(s"REFRESH MATERIALIZED VIEW $testMvName")
+      flint.queryIndex(testFlintIndex).count() shouldBe 3
+
+      // New data won't be refreshed until refresh statement triggered
+      sql(s"""
+           | INSERT INTO $testTable VALUES
+           | (TIMESTAMP '2023-10-01 04:00:00', 'F', 25, 'Vancouver')
+           | """.stripMargin)
+      flint.queryIndex(testFlintIndex).count() shouldBe 3
+
+      // New data is refreshed incrementally
+      sql(s"REFRESH MATERIALIZED VIEW $testMvName")
+      flint.queryIndex(testFlintIndex).count() shouldBe 4
+    }
+  }
+
   test("create materialized view with streaming job options") {
     withTempDir { checkpointDir =>
       sql(s"""

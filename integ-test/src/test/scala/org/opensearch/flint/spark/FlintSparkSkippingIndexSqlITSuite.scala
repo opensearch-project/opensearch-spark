@@ -62,6 +62,35 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
     indexData.count() shouldBe 2
   }
 
+  test("create skipping index with auto refresh and external scheduler") {
+    withTempDir { checkpointDir =>
+      sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | ( year PARTITION )
+           | WITH (
+           |   auto_refresh = true,
+           |   scheduler_mode = 'external',
+           |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+           | )
+           | """.stripMargin)
+
+      // Refresh all present source data as of now
+      sql(s"REFRESH SKIPPING INDEX ON $testTable")
+      flint.queryIndex(testIndex).count() shouldBe 2
+
+      // New data won't be refreshed until refresh statement triggered
+      sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=5)
+           | VALUES ('Hello', 50, 'Vancouver')
+           |""".stripMargin)
+      flint.queryIndex(testIndex).count() shouldBe 2
+
+      sql(s"REFRESH SKIPPING INDEX ON $testTable")
+      flint.queryIndex(testIndex).count() shouldBe 3
+    }
+  }
+
   test("create skipping index with max size value set") {
     sql(s"""
            | CREATE SKIPPING INDEX ON $testTable

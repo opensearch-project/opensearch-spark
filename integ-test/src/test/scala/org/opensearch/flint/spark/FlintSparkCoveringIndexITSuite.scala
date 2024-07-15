@@ -118,6 +118,29 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
     checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
   }
 
+  test("auto refresh covering index successfully with external scheduler") {
+    withTempDir { checkpointDir =>
+      flint
+        .coveringIndex()
+        .name(testIndex)
+        .onTable(testTable)
+        .addIndexColumns("name", "age")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "scheduler_mode" -> "external",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+        .create()
+
+      val jobId = flint.refreshIndex(testFlintIndex)
+      jobId shouldBe None
+
+      val indexData = flint.queryIndex(testFlintIndex)
+      checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
+    }
+  }
+
   test("update covering index successfully") {
     // Create full refresh Flint index
     flint

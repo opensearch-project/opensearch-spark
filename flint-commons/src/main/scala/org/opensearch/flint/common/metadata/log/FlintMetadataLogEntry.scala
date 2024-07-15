@@ -5,67 +5,56 @@
 
 package org.opensearch.flint.common.metadata.log
 
-import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
+import java.util.{Map => JMap}
+
+import scala.collection.JavaConverters._
+
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
 
 /**
- * Flint metadata log entry. This is temporary and will merge field in FlintMetadata here and move
- * implementation specific field, such as seqNo, primaryTerm, dataSource to properties.
+ * Flint metadata log entry. This is temporary and will merge field in FlintMetadata here.
  *
  * @param id
  *   log entry id
- * @param seqNo
- *   OpenSearch sequence number
- * @param primaryTerm
- *   OpenSearch primary term
  * @param state
  *   Flint index state
- * @param dataSource
- *   OpenSearch data source associated //TODO: remove?
+ * @param entryVersion
+ *   entry version fields for consistency control
  * @param error
  *   error details if in error state
+ * @param properties
+ *   extra properties fields
  */
 case class FlintMetadataLogEntry(
     id: String,
-    seqNo: Long,
-    primaryTerm: Long,
     /**
      * This is currently used as streaming job start time. In future, this should represent the
      * create timestamp of the log entry
      */
     createTime: Long,
     state: IndexState,
-    dataSource: String,
-    error: String) {
+    entryVersion: Map[String, Any],
+    error: String,
+    properties: Map[String, Any]) {
 
-  def this(id: String, seqNo: Long, primaryTerm: Long, map: java.util.Map[String, AnyRef]) {
-    this(
-      id,
-      seqNo,
-      primaryTerm,
-      /* getSourceAsMap() may use Integer or Long even though it's always long in index mapping */
-      map.get("jobStartTime").asInstanceOf[Number].longValue(),
-      IndexState.from(map.get("state").asInstanceOf[String]),
-      map.get("dataSourceName").asInstanceOf[String],
-      map.get("error").asInstanceOf[String])
+  def this(
+      id: String,
+      createTime: Long,
+      state: IndexState,
+      entryVersion: JMap[String, Any],
+      error: String,
+      storageContext: JMap[String, Any]) = {
+    this(id, createTime, state, entryVersion.asScala.toMap, error, storageContext.asScala.toMap)
   }
 
-  def toJson: String = {
-    // Implicitly populate latest appId, jobId and timestamp whenever persist
-    s"""
-       |{
-       |  "version": "1.0",
-       |  "latestId": "$id",
-       |  "type": "flintindexstate",
-       |  "state": "$state",
-       |  "applicationId": "${sys.env.getOrElse("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown")}",
-       |  "jobId": "${sys.env.getOrElse("SERVERLESS_EMR_JOB_ID", "unknown")}",
-       |  "dataSourceName": "$dataSource",
-       |  "jobStartTime": $createTime,
-       |  "lastUpdateTime": ${System.currentTimeMillis()},
-       |  "error": "$error"
-       |}
-       |""".stripMargin
+  def this(
+      id: String,
+      createTime: Long,
+      state: IndexState,
+      entryVersion: JMap[String, Any],
+      error: String,
+      storageContext: Map[String, Any]) = {
+    this(id, createTime, state, entryVersion.asScala.toMap, error, storageContext)
   }
 }
 
@@ -94,70 +83,4 @@ object FlintMetadataLogEntry {
         .getOrElse(IndexState.UNKNOWN)
     }
   }
-
-  val QUERY_EXECUTION_REQUEST_MAPPING: String =
-    """{
-      |  "dynamic": false,
-      |  "properties": {
-      |    "version": {
-      |      "type": "keyword"
-      |    },
-      |    "type": {
-      |      "type": "keyword"
-      |    },
-      |    "state": {
-      |      "type": "keyword"
-      |    },
-      |    "statementId": {
-      |      "type": "keyword"
-      |    },
-      |    "applicationId": {
-      |      "type": "keyword"
-      |    },
-      |    "sessionId": {
-      |      "type": "keyword"
-      |    },
-      |    "sessionType": {
-      |      "type": "keyword"
-      |    },
-      |    "error": {
-      |      "type": "text"
-      |    },
-      |    "lang": {
-      |      "type": "keyword"
-      |    },
-      |    "query": {
-      |      "type": "text"
-      |    },
-      |    "dataSourceName": {
-      |      "type": "keyword"
-      |    },
-      |    "submitTime": {
-      |      "type": "date",
-      |      "format": "strict_date_time||epoch_millis"
-      |    },
-      |    "jobId": {
-      |      "type": "keyword"
-      |    },
-      |    "lastUpdateTime": {
-      |      "type": "date",
-      |      "format": "strict_date_time||epoch_millis"
-      |    },
-      |    "queryId": {
-      |      "type": "keyword"
-      |    },
-      |    "excludeJobIds": {
-      |      "type": "keyword"
-      |    }
-      |  }
-      |}""".stripMargin
-
-  val QUERY_EXECUTION_REQUEST_SETTINGS: String =
-    """{
-      |  "index": {
-      |    "number_of_shards": "1",
-      |    "auto_expand_replicas": "0-2",
-      |    "number_of_replicas": "0"
-      |  }
-      |}""".stripMargin
 }

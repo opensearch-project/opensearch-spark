@@ -141,6 +141,36 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     indexData.count() shouldBe 2
   }
 
+  test("create covering index with external scheduler") {
+    withTempDir { checkpointDir =>
+      sql(s"""
+           | CREATE INDEX $testIndex ON $testTable
+           | (name, age)
+           | WITH (
+           |   auto_refresh = true,
+           |   scheduler_mode = 'external',
+           |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+           | )
+           | """.stripMargin)
+
+      // Refresh all present source data as of now
+      sql(s"REFRESH INDEX $testIndex ON $testTable")
+      flint.queryIndex(testFlintIndex).count() shouldBe 2
+
+      // New data won't be refreshed until refresh statement triggered
+      sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=5)
+           | VALUES ('Hello', 50, 'Vancouver')
+           |""".stripMargin)
+      flint.queryIndex(testFlintIndex).count() shouldBe 2
+
+      // New data is refreshed incrementally
+      sql(s"REFRESH INDEX $testIndex ON $testTable")
+      flint.queryIndex(testFlintIndex).count() shouldBe 3
+    }
+  }
+
   test("create covering index with incremental refresh") {
     withTempDir { checkpointDir =>
       sql(s"""

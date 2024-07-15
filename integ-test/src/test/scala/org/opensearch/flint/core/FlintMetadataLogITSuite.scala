@@ -28,13 +28,12 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
   val testLatestId: String = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
   val testCreateTime = 1234567890123L
   val flintMetadataLogEntry = FlintMetadataLogEntry(
-    id = testLatestId,
-    seqNo = UNASSIGNED_SEQ_NO,
-    primaryTerm = UNASSIGNED_PRIMARY_TERM,
-    createTime = testCreateTime,
-    state = ACTIVE,
-    dataSource = testDataSourceName,
-    error = "")
+    testLatestId,
+    testCreateTime,
+    ACTIVE,
+    Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
+    "",
+    Map("dataSourceName" -> testDataSourceName))
 
   var flintMetadataLogService: FlintMetadataLogService = _
 
@@ -87,8 +86,8 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
     latest.isPresent shouldBe true
     latest.get.id shouldBe testLatestId
     latest.get.createTime shouldBe testCreateTime
-    latest.get.dataSource shouldBe testDataSourceName
     latest.get.error shouldBe ""
+    latest.get.properties.get("dataSourceName").get shouldBe testDataSourceName
   }
 
   test("should not get index metadata log if not exist") {
@@ -125,7 +124,7 @@ case class TestMetadataLogService(sparkConf: SparkConf) extends FlintMetadataLog
       forceInit: Boolean): OptimisticTransaction[T] = {
     val flintOptions = new FlintOptions(Map[String, String]().asJava)
     val metadataLog = new FlintOpenSearchMetadataLog(flintOptions, "", "")
-    new DefaultOptimisticTransaction("", metadataLog)
+    new DefaultOptimisticTransaction(metadataLog)
   }
 
   override def startTransaction[T](indexName: String): OptimisticTransaction[T] = {

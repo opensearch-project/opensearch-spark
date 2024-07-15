@@ -31,4 +31,6 @@ public interface FlintMetadataLog<T> {
    * Remove all log entries.
    */
   void purge();
+
+  T emptyLogEntry();
 }
