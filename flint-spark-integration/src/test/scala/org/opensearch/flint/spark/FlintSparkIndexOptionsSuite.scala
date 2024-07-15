@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark
 
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.FlintSuite
@@ -14,6 +15,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
 
   test("should return lowercase name as option name") {
     AUTO_REFRESH.toString shouldBe "auto_refresh"
+    SCHEDULER_MODE.toString shouldBe "scheduler_mode"
     REFRESH_INTERVAL.toString shouldBe "refresh_interval"
     INCREMENTAL_REFRESH.toString shouldBe "incremental_refresh"
     CHECKPOINT_LOCATION.toString shouldBe "checkpoint_location"
@@ -27,6 +29,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     val options = FlintSparkIndexOptions(
       Map(
         "auto_refresh" -> "true",
+        "scheduler_mode" -> "external",
         "refresh_interval" -> "1 Minute",
         "incremental_refresh" -> "true",
         "checkpoint_location" -> "s3://test/",
@@ -45,6 +48,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
             | }""".stripMargin))
 
     options.autoRefresh() shouldBe true
+    options.schedulerMode() shouldBe SchedulerMode.EXTERNAL
     options.refreshInterval() shouldBe Some("1 Minute")
     options.incrementalRefresh() shouldBe true
     options.checkpointLocation() shouldBe Some("s3://test/")
@@ -73,6 +77,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     val options = FlintSparkIndexOptions(Map.empty)
 
     options.autoRefresh() shouldBe false
+    options.schedulerMode() shouldBe SchedulerMode.INTERNAL
     options.refreshInterval() shouldBe empty
     options.checkpointLocation() shouldBe empty
     options.watermarkDelay() shouldBe empty
@@ -92,6 +97,27 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
       "refresh_interval" -> "1 Minute")
   }
 
+  test("should return include default scheduler_mode option when auto refresh is set to true") {
+    val options = FlintSparkIndexOptions(Map("auto_refresh" -> "true"))
+
+    options.optionsWithDefault shouldBe Map(
+      "auto_refresh" -> "true",
+      "scheduler_mode" -> "internal",
+      "incremental_refresh" -> "false")
+  }
+
+  test(
+    "should return include default refresh_interval option with auto_refresh=true and scheduler_mode=external") {
+    val options =
+      FlintSparkIndexOptions(Map("auto_refresh" -> "true", "scheduler_mode" -> "external"))
+
+    options.optionsWithDefault shouldBe Map(
+      "auto_refresh" -> "true",
+      "scheduler_mode" -> "external",
+      "refresh_interval" -> "15 minutes",
+      "incremental_refresh" -> "false")
+  }
+
   test("should report error if any unknown option name") {
     the[IllegalArgumentException] thrownBy
       FlintSparkIndexOptions(Map("autoRefresh" -> "true"))
@@ -102,5 +128,9 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     the[IllegalArgumentException] thrownBy {
       FlintSparkIndexOptions(Map("auto_refresh" -> "true", "indexSetting" -> "test"))
     } should have message "requirement failed: option name indexSetting is invalid"
+
+    the[IllegalArgumentException] thrownBy {
+      FlintSparkIndexOptions(Map("scheduler_mode" -> "invalid_mode"))
+    } should have message "requirement failed: Scheduler mode invalid_mode is invalid. Must be 'internal' or 'external'."
   }
 }

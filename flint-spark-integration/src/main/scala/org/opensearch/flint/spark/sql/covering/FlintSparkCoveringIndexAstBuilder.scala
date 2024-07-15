@@ -8,6 +8,7 @@ package org.opensearch.flint.spark.sql.covering
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
@@ -49,8 +50,9 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
         .options(indexOptions)
         .create(ignoreIfExists)
 
-      // Trigger auto refresh if enabled
-      if (indexOptions.autoRefresh()) {
+      // Trigger auto refresh if enabled and not using external scheduler
+      if (indexOptions
+          .autoRefresh() && SchedulerMode.INTERNAL == indexOptions.schedulerMode()) {
         val flintIndexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
         flint.refreshIndex(flintIndexName)
       }

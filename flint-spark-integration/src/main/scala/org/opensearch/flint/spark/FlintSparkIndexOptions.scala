@@ -8,8 +8,9 @@ package org.opensearch.flint.spark
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
-import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, INCREMENTAL_REFRESH, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, WATERMARK_DELAY}
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, INCREMENTAL_REFRESH, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, SCHEDULER_MODE, WATERMARK_DELAY}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 
 /**
  * Flint Spark index configurable options.
@@ -22,6 +23,7 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
   implicit val formats: Formats = Serialization.formats(NoTypeHints)
 
   validateOptionNames(options)
+  validateOptionSchedulerModeValue()
 
   /**
    * Is Flint index auto refreshed or manual refreshed.
@@ -30,6 +32,19 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
    *   auto refresh option value
    */
   def autoRefresh(): Boolean = getOptionValue(AUTO_REFRESH).getOrElse("false").toBoolean
+
+  /**
+   * The scheduler mode for the Flint index refresh.
+   *
+   * @return
+   *   scheduler mode option value
+   */
+  def schedulerMode(): SchedulerMode.Value = {
+    // TODO: Change default value to external once the external scheduler is enabled
+    val defaultMode = "internal"
+    val modeStr = getOptionValue(SCHEDULER_MODE).getOrElse(defaultMode)
+    SchedulerMode.fromString(modeStr)
+  }
 
   /**
    * The refresh interval (only valid if auto refresh enabled).
@@ -112,6 +127,21 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
     if (!options.contains(AUTO_REFRESH.toString)) {
       map += (AUTO_REFRESH.toString -> autoRefresh().toString)
     }
+
+    // Add default option only when auto refresh is TRUE
+    if (autoRefresh() == true) {
+      if (!options.contains(SCHEDULER_MODE.toString)) {
+        map += (SCHEDULER_MODE.toString -> schedulerMode().toString)
+      }
+
+      // The query will be executed in micro-batch mode using the internal scheduler
+      // The default interval for the external scheduler is 15 minutes.
+      if (SchedulerMode.EXTERNAL == schedulerMode() && !options.contains(
+          REFRESH_INTERVAL.toString)) {
+        map += (REFRESH_INTERVAL.toString -> "15 minutes")
+      }
+    }
+
     if (!options.contains(INCREMENTAL_REFRESH.toString)) {
       map += (INCREMENTAL_REFRESH.toString -> incrementalRefresh().toString)
     }
@@ -126,6 +156,14 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
     getOptionValue(EXTRA_OPTIONS)
       .map(opt => (parse(opt) \ key).extract[Map[String, String]])
       .getOrElse(Map.empty)
+  }
+
+  private def validateOptionSchedulerModeValue(): Unit = {
+    getOptionValue(SCHEDULER_MODE) match {
+      case Some(modeStr) =>
+        SchedulerMode.fromString(modeStr) // Will throw an exception if the mode is invalid
+      case None => // no action needed if modeStr is empty
+    }
   }
 }
 
@@ -142,6 +180,7 @@ object FlintSparkIndexOptions {
   object OptionName extends Enumeration {
     type OptionName = Value
     val AUTO_REFRESH: OptionName.Value = Value("auto_refresh")
+    val SCHEDULER_MODE: OptionName.Value = Value("scheduler_mode")
     val REFRESH_INTERVAL: OptionName.Value = Value("refresh_interval")
     val INCREMENTAL_REFRESH: OptionName.Value = Value("incremental_refresh")
     val CHECKPOINT_LOCATION: OptionName.Value = Value("checkpoint_location")
