@@ -40,8 +40,8 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         latest.id shouldBe testLatestId
         latest.state shouldBe EMPTY
         latest.createTime shouldBe 0L
-        latest.dataSource shouldBe testDataSourceName
         latest.error shouldBe ""
+        latest.properties.get("dataSourceName").get shouldBe testDataSourceName
         true
       })
       .finalLog(latest => latest)
@@ -53,20 +53,19 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     createLatestLogEntry(
       FlintMetadataLogEntry(
         id = testLatestId,
-        seqNo = UNASSIGNED_SEQ_NO,
-        primaryTerm = UNASSIGNED_PRIMARY_TERM,
         createTime = testCreateTime,
         state = ACTIVE,
-        dataSource = testDataSourceName,
-        error = ""))
+        Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
+        error = "",
+        Map("dataSourceName" -> testDataSourceName)))
 
     flintMetadataLogService
       .startTransaction(testFlintIndex)
       .initialLog(latest => {
         latest.id shouldBe testLatestId
         latest.createTime shouldBe testCreateTime
-        latest.dataSource shouldBe testDataSourceName
         latest.error shouldBe ""
+        latest.properties.get("dataSourceName").get shouldBe testDataSourceName
         true
       })
       .transientLog(latest => latest.copy(state = DELETING))
@@ -74,8 +73,8 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       .commit(latest => {
         latest.id shouldBe testLatestId
         latest.createTime shouldBe testCreateTime
-        latest.dataSource shouldBe testDataSourceName
         latest.error shouldBe ""
+        latest.properties.get("dataSourceName").get shouldBe testDataSourceName
       })
 
     latestLogEntry(testLatestId) should (contain("latestId" -> testLatestId) and
@@ -113,12 +112,11 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     createLatestLogEntry(
       FlintMetadataLogEntry(
         id = testLatestId,
-        seqNo = UNASSIGNED_SEQ_NO,
-        primaryTerm = UNASSIGNED_PRIMARY_TERM,
         createTime = 1234567890123L,
         state = ACTIVE,
-        dataSource = testDataSourceName,
-        error = ""))
+        Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
+        error = "",
+        Map("dataSourceName" -> testDataSourceName)))
 
     flintMetadataLogService
       .startTransaction(testFlintIndex)
@@ -200,12 +198,11 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     createLatestLogEntry(
       FlintMetadataLogEntry(
         id = testLatestId,
-        seqNo = UNASSIGNED_SEQ_NO,
-        primaryTerm = UNASSIGNED_PRIMARY_TERM,
         createTime = 1234567890123L,
         state = ACTIVE,
-        dataSource = testDataSourceName,
-        error = ""))
+        Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
+        error = "",
+        Map("dataSourceName" -> testDataSourceName)))
 
     the[IllegalStateException] thrownBy {
       flintMetadataLogService
@@ -243,8 +240,8 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         latest.id shouldBe testLatestId
         latest.state shouldBe EMPTY
         latest.createTime shouldBe 0L
-        latest.dataSource shouldBe testDataSourceName
         latest.error shouldBe ""
+        latest.properties.get("dataSourceName").get shouldBe testDataSourceName
         true
       })
       .finalLog(latest => latest)

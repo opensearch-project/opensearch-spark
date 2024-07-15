@@ -173,8 +173,14 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
 
     def withIndex(index: FlintSparkCoveringIndex, state: IndexState = ACTIVE): AssertionHelper = {
       this.indexes = indexes :+
-        index.copy(latestLogEntry =
-          Some(new FlintMetadataLogEntry("id", 0, 0, 0, state, "spark_catalog", "")))
+        index.copy(latestLogEntry = Some(
+          new FlintMetadataLogEntry(
+            "id",
+            0,
+            state,
+            Map("seqNo" -> 0, "primaryTerm" -> 0),
+            "",
+            Map("dataSourceName" -> "dataSource"))))
       this
     }
 
