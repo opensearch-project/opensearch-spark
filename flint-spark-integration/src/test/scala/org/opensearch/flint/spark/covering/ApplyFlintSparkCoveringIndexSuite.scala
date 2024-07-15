@@ -43,6 +43,12 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     super.beforeAll()
     sql(s"CREATE TABLE $testTable (name STRING, age INT) USING JSON")
     sql(s"CREATE TABLE $testTable2 (name STRING) USING JSON")
+    sql(s"""
+         | INSERT INTO $testTable
+         | VALUES
+         |  ('A', 10), ('B', 15), ('C', 20), ('D', 25), ('E', 30),
+         |  ('F', 35), ('G', 40), ('H', 45), ('I', 50), ('J', 55)
+         | """.stripMargin)
 
     // Mock static create method in FlintClientBuilder used by Flint data source
     clientBuilder
@@ -63,15 +69,66 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       .assertIndexNotUsed(testTable)
   }
 
-  test("should not apply if covering index is partial") {
+  // Comprehensive test by cartesian product of the following condition
+  private val conditions = Seq(
+    null,
+    "age = 20",
+    "age > 20",
+    "age >= 20",
+    "age < 20",
+    "age <= 20",
+    "age = 50",
+    "age > 50",
+    "age >= 50",
+    "age < 50",
+    "age <= 50",
+    "age > 20 AND age < 50",
+    "age >= 20 AND age < 50",
+    "age > 20 AND age <= 50",
+    "age >=20 AND age <= 50")
+  (for {
+    indexFilter <- conditions
+    queryFilter <- conditions
+  } yield (indexFilter, queryFilter)).distinct
+    .foreach { case (indexFilter, queryFilter) =>
+      test(s"apply partial covering index with [$indexFilter] to query filter [$queryFilter]") {
+        def queryWithFilter(condition: String): String =
+          Option(condition) match {
+            case None => s"SELECT name FROM $testTable"
+            case Some(cond) => s"SELECT name FROM $testTable WHERE $cond"
+          }
+
+        // Expect index applied if query result is subset of index data (index filter result)
+        val queryData = sql(queryWithFilter(queryFilter)).collect().toSet
+        val indexData = sql(queryWithFilter(indexFilter)).collect().toSet
+        val expectedResult = queryData.subsetOf(indexData)
+
+        val assertion = assertFlintQueryRewriter
+          .withQuery(queryWithFilter(queryFilter))
+          .withIndex(
+            new FlintSparkCoveringIndex(
+              indexName = "partial",
+              tableName = testTable,
+              indexedColumns = Map("name" -> "string", "age" -> "int"),
+              filterCondition = Option(indexFilter)))
+
+        if (expectedResult) {
+          assertion.assertIndexUsed(getFlintIndexName("partial", testTable))
+        } else {
+          assertion.assertIndexNotUsed(testTable)
+        }
+      }
+    }
+
+  test("should not apply if covering index with disjunction filtering condition") {
     assertFlintQueryRewriter
-      .withQuery(s"SELECT name FROM $testTable")
+      .withQuery(s"SELECT name FROM $testTable WHERE name = 'A' AND age > 30")
       .withIndex(
         new FlintSparkCoveringIndex(
-          indexName = "name",
+          indexName = "partial",
           tableName = testTable,
-          indexedColumns = Map("name" -> "string"),
-          filterCondition = Some("age > 30")))
+          indexedColumns = Map("name" -> "string", "age" -> "int"),
+          filterCondition = Some("name = 'A' OR age > 30")))
       .assertIndexNotUsed(testTable)
   }
 
@@ -111,6 +168,8 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     s"SELECT name, age FROM $testTable",
     s"SELECT age, name FROM $testTable",
     s"SELECT name FROM $testTable WHERE age = 30",
+    s"SELECT name FROM $testTable WHERE name = 'A' AND age = 30",
+    s"SELECT name FROM $testTable WHERE name = 'A' OR age = 30",
     s"SELECT SUBSTR(name, 1) FROM $testTable WHERE ABS(age) = 30",
     s"SELECT COUNT(*) FROM $testTable GROUP BY age",
     s"SELECT name, COUNT(*) FROM $testTable WHERE age > 30 GROUP BY name",
@@ -167,7 +226,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     private var indexes: Seq[FlintSparkCoveringIndex] = Seq()
 
     def withQuery(query: String): AssertionHelper = {
-      this.plan = sql(query).queryExecution.analyzed
+      this.plan = sql(query).queryExecution.optimizedPlan
       this
     }
 
