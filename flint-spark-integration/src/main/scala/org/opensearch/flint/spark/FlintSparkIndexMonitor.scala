@@ -18,6 +18,7 @@ import dev.failsafe.event.ExecutionAttemptedEvent
 import dev.failsafe.function.CheckedRunnable
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{FAILED, REFRESHING}
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogService
+import org.opensearch.flint.core.logging.ExceptionMessages.extractRootCause
 import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 
 import org.apache.spark.internal.Logging
@@ -235,21 +236,6 @@ class FlintSparkIndexMonitor(
       .run(new CheckedRunnable {
         override def run(): Unit = operation
       })
-  }
-
-  private def extractRootCause(e: Throwable): String = {
-    var cause = e
-    while (cause.getCause != null && cause.getCause != cause) {
-      cause = cause.getCause
-    }
-
-    if (cause.getLocalizedMessage != null) {
-      return cause.getLocalizedMessage
-    }
-    if (cause.getMessage != null) {
-      return cause.getMessage
-    }
-    cause.toString
   }
 }
 
