@@ -210,7 +210,7 @@ class FlintSparkIndexMonitor(
         .finalLog(latest =>
           exception match {
             case Some(ex) =>
-              latest.copy(state = FAILED, error = extractRootCause(ex))
+              latest.copy(state = FAILED, error = extractRootCause(ex, 1000))
             case None =>
               latest.copy(state = FAILED)
           })
