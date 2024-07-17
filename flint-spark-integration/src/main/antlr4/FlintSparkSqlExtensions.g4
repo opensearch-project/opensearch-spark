@@ -156,7 +156,7 @@ indexManagementStatement
     ;
 
 showFlintIndexStatement
-    : SHOW FLINT (INDEX | INDEXES) IN catalogDb=multipartIdentifier
+    : SHOW FLINT (INDEX | INDEXES) EXTENDED? IN catalogDb=multipartIdentifier
     ;
 
 indexJobManagementStatement
