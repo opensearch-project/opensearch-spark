@@ -11,8 +11,8 @@ import org.opensearch.action.bulk.BulkRequest;
 import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.core.rest.RestStatus;
 import org.opensearch.flint.core.IRestHighLevelClient;
-import org.opensearch.rest.RestStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

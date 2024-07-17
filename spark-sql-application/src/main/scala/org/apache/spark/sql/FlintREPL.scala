@@ -17,7 +17,7 @@ import scala.util.control.NonFatal
 import com.codahale.metrics.Timer
 import org.json4s.native.Serialization
 import org.opensearch.action.get.GetResponse
-import org.opensearch.common.Strings
+import org.opensearch.core.common.Strings
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.MetricConstants

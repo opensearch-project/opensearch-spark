@@ -6,7 +6,7 @@ import Dependencies._
 
 lazy val scala212 = "2.12.14"
 lazy val sparkVersion = "3.3.2"
-lazy val opensearchVersion = "2.6.0"
+lazy val opensearchVersion = "2.11.1"
 lazy val icebergVersion = "1.5.0"
 
 val scalaMinorVersion = scala212.split("\\.").take(2).mkString(".")
@@ -36,6 +36,8 @@ lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")
 // Run as part of test task.
 lazy val testScalastyle = taskKey[Unit]("testScalastyle")
 
+
+
 lazy val commonSettings = Seq(
   javacOptions ++= Seq("-source", "11"),
   Compile / compile / javacOptions ++= Seq("-target", "11"),
@@ -63,6 +65,10 @@ lazy val flintCore = (project in file("flint-core"))
       "org.opensearch.client" % "opensearch-rest-client" % opensearchVersion,
       "org.opensearch.client" % "opensearch-rest-high-level-client" % opensearchVersion
         exclude ("org.apache.logging.log4j", "log4j-api"),
+      "org.opensearch.client" % "opensearch-java" % opensearchVersion
+        exclude ("com.fasterxml.jackson.core", "jackson-databind")
+        exclude ("com.fasterxml.jackson.core", "jackson-core")
+        exclude ("org.apache.httpcomponents.client5", "httpclient5"),
       "dev.failsafe" % "failsafe" % "3.3.2",
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
@@ -85,6 +91,7 @@ lazy val flintCore = (project in file("flint-core"))
     ),
     libraryDependencies ++= deps(sparkVersion),
     publish / skip := true)
+
 
 lazy val flintCommons = (project in file("flint-commons"))
   .settings(
@@ -197,6 +204,8 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
     },
     assembly / test := (Test / test).value)
 
+lazy val IntegrationTest = config("it") extend Test
+
 // Test assembly package with integration test.
 lazy val integtest = (project in file("integ-test"))
   .dependsOn(flintCommons % "test->test", flintSparkIntegration % "test->test", pplSparkIntegration % "test->test", sparkSqlApplication % "test->test")
@@ -204,6 +213,9 @@ lazy val integtest = (project in file("integ-test"))
     commonSettings,
     name := "integ-test",
     scalaVersion := scala212,
+    inConfig(IntegrationTest)(Defaults.testSettings),
+    IntegrationTest / scalaSource := baseDirectory.value / "src/integration/scala",
+    IntegrationTest / parallelExecution := false,
     libraryDependencies ++= Seq(
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
@@ -219,7 +231,11 @@ lazy val integtest = (project in file("integ-test"))
     libraryDependencies ++= deps(sparkVersion),
     Test / fullClasspath ++= Seq((flintSparkIntegration / assembly).value, (pplSparkIntegration / assembly).value,
       (sparkSqlApplication / assembly).value
-    ))
+    ),
+    IntegrationTest / dependencyClasspath ++= (Test / dependencyClasspath).value,
+    integration := (IntegrationTest / test).value,
+  )
+lazy val integration = taskKey[Unit]("Run integration tests")
 
 lazy val standaloneCosmetic = project
   .settings(

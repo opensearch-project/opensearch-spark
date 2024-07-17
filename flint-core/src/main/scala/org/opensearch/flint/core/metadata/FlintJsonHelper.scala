@@ -7,9 +7,10 @@ package org.opensearch.flint.core.metadata
 
 import java.nio.charset.StandardCharsets.UTF_8
 
-import org.opensearch.common.bytes.BytesReference
 import org.opensearch.common.xcontent._
 import org.opensearch.common.xcontent.json.JsonXContent
+import org.opensearch.core.common.bytes.BytesReference
+import org.opensearch.core.xcontent.{DeprecationHandler, NamedXContentRegistry, XContentBuilder, XContentParser}
 
 /**
  * JSON parsing and building helper.

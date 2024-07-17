@@ -18,7 +18,7 @@ import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
 import org.opensearch.client.RestHighLevelClient;
-import org.opensearch.common.Strings;
+import org.opensearch.core.common.Strings;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.flint.core.RestHighLevelClientWrapper;
@@ -37,7 +37,10 @@ public class OpenSearchClientUtils {
    */
   public final static String META_LOG_NAME_PREFIX = ".query_execution_request";
 
-  public static IRestHighLevelClient createClient(FlintOptions options) {
+  /**
+   * Used in IT.
+   */
+  public static RestHighLevelClient createRestHighLevelClient(FlintOptions options) {
     RestClientBuilder
         restClientBuilder =
         RestClient.builder(new HttpHost(options.getHost(), options.getPort(), options.getScheme()));
@@ -53,7 +56,11 @@ public class OpenSearchClientUtils {
     final RequestConfigurator callback = new RequestConfigurator(options);
     restClientBuilder.setRequestConfigCallback(callback);
 
-    return new RestHighLevelClientWrapper(new RestHighLevelClient(restClientBuilder));
+    return new RestHighLevelClient(restClientBuilder);
+  }
+
+  public static IRestHighLevelClient createClient(FlintOptions options) {
+    return new RestHighLevelClientWrapper(createRestHighLevelClient(options));
   }
 
   private static RestClientBuilder configureSigV4Auth(RestClientBuilder restClientBuilder, FlintOptions options) {
