@@ -163,7 +163,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     latestLog should contain("state" -> "refreshing")
   }
 
-  test("await monitor terminated with exception should update index state to failed") {
+  test("await monitor terminated with exception should update index state to failed with error") {
     new Thread(() => {
       Thread.sleep(3000L)
 
@@ -186,6 +186,8 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     // Assert index state is active now
     val latestLog = latestLogEntry(testLatestId)
     latestLog should contain("state" -> "failed")
+    latestLog("error").asInstanceOf[String] should (include("OpenSearchException") and
+      include("type=cluster_block_exception"))
   }
 
   test(
@@ -199,6 +201,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     // Assert index state is active now
     val latestLog = latestLogEntry(testLatestId)
     latestLog should contain("state" -> "failed")
+    latestLog should not contain "error"
   }
 
   private def getLatestTimestamp: (Long, Long) = {

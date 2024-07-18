@@ -18,6 +18,7 @@ import dev.failsafe.event.ExecutionAttemptedEvent
 import dev.failsafe.function.CheckedRunnable
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{FAILED, REFRESHING}
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogService
+import org.opensearch.flint.core.logging.ExceptionMessages.extractRootCause
 import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 
 import org.apache.spark.internal.Logging
@@ -118,7 +119,7 @@ class FlintSparkIndexMonitor(
       } catch {
         case e: Throwable =>
           logError(s"Streaming job $name terminated with exception: ${e.getMessage}")
-          retryUpdateIndexStateToFailed(name)
+          retryUpdateIndexStateToFailed(name, exception = Some(e))
       }
     } else {
       logInfo(s"Index monitor for [$indexName] not found.")
@@ -132,7 +133,7 @@ class FlintSparkIndexMonitor(
       val name = FlintSparkIndexMonitor.indexMonitorTracker.keys.headOption
       if (name.isDefined) {
         logInfo(s"Found index name in index monitor task list: ${name.get}")
-        retryUpdateIndexStateToFailed(name.get)
+        retryUpdateIndexStateToFailed(name.get, exception = None)
       } else {
         logInfo(s"Index monitor task list is empty")
       }
@@ -195,19 +196,24 @@ class FlintSparkIndexMonitor(
   /**
    * Transition the index state to FAILED upon encountering an exception. Retry in case conflicts
    * with final transaction in scheduled task.
-   * ```
-   * TODO:
-   * 1) Determine the appropriate state code based on the type of exception encountered
-   * 2) Record and persist the error message of the root cause for further diagnostics.
-   * ```
+   *
+   * TODO: Determine the appropriate state code based on the type of exception encountered
    */
-  private def retryUpdateIndexStateToFailed(indexName: String): Unit = {
+  private def retryUpdateIndexStateToFailed(
+      indexName: String,
+      exception: Option[Throwable]): Unit = {
     logInfo(s"Updating index state to failed for $indexName")
     retry {
       flintMetadataLogService
         .startTransaction(indexName)
         .initialLog(latest => latest.state == REFRESHING)
-        .finalLog(latest => latest.copy(state = FAILED))
+        .finalLog(latest =>
+          exception match {
+            case Some(ex) =>
+              latest.copy(state = FAILED, error = extractRootCause(ex, 1000))
+            case None =>
+              latest.copy(state = FAILED)
+          })
         .commit(_ => {})
     }
   }
