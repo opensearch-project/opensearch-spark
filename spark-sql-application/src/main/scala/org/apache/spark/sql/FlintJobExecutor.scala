@@ -90,11 +90,19 @@ trait FlintJobExecutor {
     }""".stripMargin
 
   def createSparkConf(): SparkConf = {
-    new SparkConf()
-      .setAppName(getClass.getSimpleName)
-      .set(
-        "spark.sql.extensions",
-        "org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions")
+    val conf = new SparkConf().setAppName(getClass.getSimpleName)
+
+    val sqlExtensionsKey = "spark.sql.extensions"
+    val defaultExtensions =
+      "org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions"
+
+    if (!conf.contains(sqlExtensionsKey)) {
+      conf.set(sqlExtensionsKey, defaultExtensions)
+    }
+
+    logDebug(s"Value of $sqlExtensionsKey: ${conf.get(sqlExtensionsKey)}")
+
+    conf
   }
 
   /*

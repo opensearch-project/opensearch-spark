@@ -129,6 +129,28 @@ class FlintREPLTest
     query shouldBe ""
   }
 
+  test("createSparkConf should set the app name and default SQL extensions") {
+    val conf = FlintREPL.createSparkConf()
+
+    // Assert that the app name is set correctly
+    assert(conf.get("spark.app.name") === "FlintREPL")
+
+    // Assert that the default SQL extensions are set correctly
+    val defaultExtensions =
+      "org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions"
+    assert(conf.get("spark.sql.extensions") === defaultExtensions)
+  }
+
+  test("createSparkConf should not override existing SQL extensions") {
+    val existingExtensions = "com.example.CustomExtension"
+    val conf = new SparkConf().set("spark.sql.extensions", existingExtensions)
+
+    val resultConf = FlintREPL.createSparkConf(conf)
+
+    // Assert that the existing SQL extensions are not overridden
+    assert(resultConf.get("spark.sql.extensions") === existingExtensions)
+  }
+
   test("createHeartBeatUpdater should update heartbeat correctly") {
     // Mocks
     val flintSessionUpdater = mock[OpenSearchUpdater]
