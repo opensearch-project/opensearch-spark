@@ -12,14 +12,13 @@ import java.util.Locale
 import scala.util.{Failure, Success, Try}
 
 import org.opensearch.action.get.{GetRequest, GetResponse}
-import org.opensearch.action.search.{SearchRequest, SearchResponse}
-import org.opensearch.client.{RequestOptions, RestHighLevelClient}
-import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest, GetIndexResponse}
-import org.opensearch.client.indices.CreateIndexRequest
-import org.opensearch.common.Strings
+import org.opensearch.client.RequestOptions
+import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest}
 import org.opensearch.common.settings.Settings
-import org.opensearch.common.xcontent.{NamedXContentRegistry, XContentParser, XContentType}
-import org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS
+import org.opensearch.common.xcontent.XContentType
+import org.opensearch.core.common.Strings
+import org.opensearch.core.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS
+import org.opensearch.core.xcontent.NamedXContentRegistry
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions, IRestHighLevelClient}
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchQueryReader, OpenSearchScrollReader, OpenSearchUpdater}
@@ -35,8 +34,8 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
   val flintClient: FlintClient = FlintClientBuilder.build(flintOptions)
 
   /**
-   * {@link NamedXContentRegistry} from {@link SearchModule} used for construct {@link
-   * QueryBuilder} from DSL query string.
+   * {@link org.opensearch.core.xcontent.NamedXContentRegistry} from {@link SearchModule} used for
+   * construct {@link QueryBuilder} from DSL query string.
    */
   private val xContentRegistry: NamedXContentRegistry = new NamedXContentRegistry(
     new SearchModule(Settings.builder.build, new ArrayList[SearchPlugin]).getNamedXContents)

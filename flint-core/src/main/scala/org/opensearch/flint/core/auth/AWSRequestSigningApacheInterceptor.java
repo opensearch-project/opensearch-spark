@@ -11,6 +11,8 @@ import com.amazonaws.DefaultRequest;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.Signer;
 import com.amazonaws.http.HttpMethodName;
+
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -100,6 +102,9 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
           (HttpEntityEnclosingRequest) request;
       if (httpEntityEnclosingRequest.getEntity() != null) {
         signableRequest.setContent(httpEntityEnclosingRequest.getEntity().getContent());
+      } else {
+        // known issue of AWS Sigv4 signer. https://github.com/aws/aws-sdk-java/issues/2078
+        signableRequest.setContent(new ByteArrayInputStream(new byte[0]));
       }
     }
     signableRequest.setParameters(nvpToMapParams(uriBuilder.getQueryParams()));

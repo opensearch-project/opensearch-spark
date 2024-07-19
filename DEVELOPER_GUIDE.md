@@ -12,6 +12,24 @@ can do so by running the following command:
 ```
 sbt integtest/test
 ```
+### AWS Integration Test
+The integration folder contains tests for cloud server providers. For instance, test against AWS OpenSearch domain, configure the following settings. The client will use the default credential provider to access the AWS OpenSearch domain.
+```
+export AWS_OPENSEARCH_HOST=search-xxx.aos.us-west-2.on.aws
+export AWS_REGION=us-west-2
+```
+And run the 
+```
+sbt integtest/integration
+
+[info] AWSOpenSearchAccessTestSuite:
+[info] - should Create Pit on AWS OpenSearch
+[info] Run completed in 3 seconds, 116 milliseconds.
+[info] Total number of tests run: 1
+[info] Suites: completed 1, aborted 0
+[info] Tests: succeeded 1, failed 0, canceled 0, ignored 0, pending 0
+[info] All tests passed.
+```
 
 ## Scala Formatting Guidelines
 
