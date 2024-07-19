@@ -5,8 +5,9 @@
 
 package org.opensearch.flint.core.aws
 
-import org.opensearch.flint.core.model.CreatePitReq
-import org.opensearch.flint.core.storage.FlintOpenSearchClient
+import org.opensearch.client.opensearch._types.Time
+import org.opensearch.client.opensearch.core.pit.CreatePitRequest
+import org.opensearch.flint.core.storage.OpenSearchClientUtils
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -22,9 +23,14 @@ class AWSOpenSearchAccessTestSuite
     withIndexName(indexName) {
       simpleIndex(indexName)
 
-      val pitResp = new FlintOpenSearchClient(options)
-        .createPit(CreatePitReq(indexName, "5m"))
-      pitResp.pit should not be ""
+      val pit = OpenSearchClientUtils
+        .createClient(options)
+        .createPit(
+          new CreatePitRequest.Builder()
+            .targetIndexes(indexName)
+            .keepAlive(new Time.Builder().time("10s").build())
+            .build())
+      pit.pitId() should not be ""
     }
   }
 }

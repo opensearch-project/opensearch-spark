@@ -12,9 +12,6 @@ import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.client.indices.PutMappingRequest;
-import org.opensearch.client.opensearch._types.Time;
-import org.opensearch.client.opensearch.core.pit.CreatePitRequest;
-import org.opensearch.client.opensearch.core.pit.CreatePitResponse;
 import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentType;
@@ -24,8 +21,6 @@ import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.flint.core.metadata.FlintMetadata;
-import org.opensearch.flint.core.model.CreatePitReq;
-import org.opensearch.flint.core.model.CreatePitResp;
 import org.opensearch.index.query.AbstractQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
@@ -212,23 +207,6 @@ public class FlintOpenSearchClient implements FlintClient {
           SHARD_ID_PREFERENCE.apply(shardId));
     } catch (IOException e) {
       throw new RuntimeException(e);
-    }
-  }
-
-  @Override public CreatePitResp createPit(CreatePitReq req) {
-    try (IRestHighLevelClient client = createClient()) {
-      CreatePitRequest
-          request =
-          new CreatePitRequest.Builder().targetIndexes(req.indexName())
-              .keepAlive(new Time.Builder().time(req.keepAlive()).build())
-              .build();
-      CreatePitResponse response = client.createPit(request);
-      return new CreatePitResp(response.pitId());
-    } catch (Exception e) {
-      String msg = String.format("Failed to create pit for index %s", req.indexName());
-      LOG.warning(msg);
-      LOG.warning(e.getMessage());
-      throw new IllegalStateException(msg, e);
     }
   }
 

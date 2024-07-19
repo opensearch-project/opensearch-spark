@@ -8,8 +8,6 @@ package org.opensearch.flint.core;
 import java.util.Map;
 
 import org.opensearch.flint.core.metadata.FlintMetadata;
-import org.opensearch.flint.core.model.CreatePitReq;
-import org.opensearch.flint.core.model.CreatePitResp;
 import org.opensearch.flint.core.storage.FlintReader;
 import org.opensearch.flint.core.storage.FlintWriter;
 
@@ -99,11 +97,4 @@ public interface FlintClient {
    * @return {@link IRestHighLevelClient}
    */
   IRestHighLevelClient createClient();
-
-  /**
-   * Create Pit
-   * @param req {@link CreatePitReq}.
-   * @return resp {@link CreatePitResp}.
-   */
-  CreatePitResp createPit(CreatePitReq req);
 }
