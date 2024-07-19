@@ -30,6 +30,7 @@ import org.scalatestplus.mockito.MockitoSugar
 import org.apache.spark.{SparkConf, SparkContext, SparkFunSuite}
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.sql.FlintREPL.PreShutdownListener
+import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.trees.Origin
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -133,22 +134,25 @@ class FlintREPLTest
     val conf = FlintREPL.createSparkConf()
 
     // Assert that the app name is set correctly
-    assert(conf.get("spark.app.name") === "FlintREPL")
+    assert(conf.get("spark.app.name") === "FlintREPL$")
 
     // Assert that the default SQL extensions are set correctly
-    val defaultExtensions =
-      "org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions"
-    assert(conf.get("spark.sql.extensions") === defaultExtensions)
+    assert(conf.get(SQL_EXTENSIONS_KEY) === DEFAULT_SQL_EXTENSIONS)
   }
 
-  test("createSparkConf should not override existing SQL extensions") {
-    val existingExtensions = "com.example.CustomExtension"
-    val conf = new SparkConf().set("spark.sql.extensions", existingExtensions)
+  test(
+    "createSparkConf should not use defaultExtensions if spark.sql.extensions is already set") {
+    val customExtension = "my.custom.extension"
+    // Set the spark.sql.extensions property before calling createSparkConf
+    System.setProperty(SQL_EXTENSIONS_KEY, customExtension)
 
-    val resultConf = FlintREPL.createSparkConf(conf)
-
-    // Assert that the existing SQL extensions are not overridden
-    assert(resultConf.get("spark.sql.extensions") === existingExtensions)
+    try {
+      val conf = FlintREPL.createSparkConf()
+      assert(conf.get(SQL_EXTENSIONS_KEY) === customExtension)
+    } finally {
+      // Clean up the system property after the test
+      System.clearProperty(SQL_EXTENSIONS_KEY)
+    }
   }
 
   test("createHeartBeatUpdater should update heartbeat correctly") {

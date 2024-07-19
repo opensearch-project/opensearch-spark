@@ -20,11 +20,18 @@ import play.api.libs.json._
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util._
+
+object SparkConfConstants {
+  val SQL_EXTENSIONS_KEY = "spark.sql.extensions"
+  val DEFAULT_SQL_EXTENSIONS =
+    "org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions"
+}
 
 trait FlintJobExecutor {
   this: Logging =>
@@ -92,15 +99,11 @@ trait FlintJobExecutor {
   def createSparkConf(): SparkConf = {
     val conf = new SparkConf().setAppName(getClass.getSimpleName)
 
-    val sqlExtensionsKey = "spark.sql.extensions"
-    val defaultExtensions =
-      "org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions"
-
-    if (!conf.contains(sqlExtensionsKey)) {
-      conf.set(sqlExtensionsKey, defaultExtensions)
+    if (!conf.contains(SQL_EXTENSIONS_KEY)) {
+      conf.set(SQL_EXTENSIONS_KEY, DEFAULT_SQL_EXTENSIONS)
     }
 
-    logDebug(s"Value of $sqlExtensionsKey: ${conf.get(sqlExtensionsKey)}")
+    logInfo(s"Value of $SQL_EXTENSIONS_KEY: ${conf.get(SQL_EXTENSIONS_KEY)}")
 
     conf
   }
