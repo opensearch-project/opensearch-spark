@@ -37,18 +37,8 @@ commands
    | fieldsCommand
    | renameCommand
    | statsCommand
-   | dedupCommand
    | sortCommand
-   | evalCommand
    | headCommand
-   | topCommand
-   | rareCommand
-   | grokCommand
-   | parseCommand
-   | patternsCommand
-   | kmeansCommand
-   | adCommand
-   | mlCommand
    ;
 
 searchCommand
@@ -190,8 +180,6 @@ mlArg
 fromClause
    : SOURCE EQUAL tableSourceClause
    | INDEX EQUAL tableSourceClause
-   | SOURCE EQUAL tableFunction
-   | INDEX EQUAL tableFunction
    ;
 
 tableSourceClause
@@ -281,24 +269,17 @@ logicalExpression
 
 comparisonExpression
    : left = valueExpression comparisonOperator right = valueExpression  # compareExpr
-   | valueExpression IN valueList                                       # inExpr
    ;
 
 valueExpression
    : left = valueExpression binaryOperator = (STAR | DIVIDE | MODULE) right = valueExpression   # binaryArithmetic
    | left = valueExpression binaryOperator = (PLUS | MINUS) right = valueExpression             # binaryArithmetic
    | primaryExpression                                                                          # valueExpressionDefault
-   | positionFunction                                                                           # positionFunctionCall
-   | extractFunction                                                                            # extractFunctionCall
-   | getFormatFunction                                                                          # getFormatFunctionCall
-   | timestampFunction                                                                          # timestampFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    ;
 
 primaryExpression
-   : evalFunctionCall
-   | dataTypeFunctionCall
-   | fieldExpression
+   : fieldExpression
    | literalValue
    ;
 
@@ -700,8 +681,7 @@ multiFieldRelevanceFunctionName
 
 // literals and values
 literalValue
-   : intervalLiteral
-   | stringLiteral
+   : stringLiteral
    | integerLiteral
    | decimalLiteral
    | booleanLiteral
@@ -830,13 +810,8 @@ keywordsCanBeId
    : D // OD SQL and ODBC special
    | timespanUnit
    | SPAN
-   | evalFunctionName
    | relevanceArgName
    | intervalUnit
-   | dateTimeFunctionName
-   | textFunctionName
-   | mathematicalFunctionName
-   | positionFunctionName
    // commands
    | SEARCH
    | DESCRIBE
