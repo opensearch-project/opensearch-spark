@@ -30,6 +30,7 @@ import org.scalatestplus.mockito.MockitoSugar
 import org.apache.spark.{SparkConf, SparkContext, SparkFunSuite}
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.sql.FlintREPL.PreShutdownListener
+import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.trees.Origin
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -127,6 +128,31 @@ class FlintREPLTest
 
     val query = FlintREPL.getQuery(queryOption, jobType, conf)
     query shouldBe ""
+  }
+
+  test("createSparkConf should set the app name and default SQL extensions") {
+    val conf = FlintREPL.createSparkConf()
+
+    // Assert that the app name is set correctly
+    assert(conf.get("spark.app.name") === "FlintREPL$")
+
+    // Assert that the default SQL extensions are set correctly
+    assert(conf.get(SQL_EXTENSIONS_KEY) === DEFAULT_SQL_EXTENSIONS)
+  }
+
+  test(
+    "createSparkConf should not use defaultExtensions if spark.sql.extensions is already set") {
+    val customExtension = "my.custom.extension"
+    // Set the spark.sql.extensions property before calling createSparkConf
+    System.setProperty(SQL_EXTENSIONS_KEY, customExtension)
+
+    try {
+      val conf = FlintREPL.createSparkConf()
+      assert(conf.get(SQL_EXTENSIONS_KEY) === customExtension)
+    } finally {
+      // Clean up the system property after the test
+      System.clearProperty(SQL_EXTENSIONS_KEY)
+    }
   }
 
   test("createHeartBeatUpdater should update heartbeat correctly") {
