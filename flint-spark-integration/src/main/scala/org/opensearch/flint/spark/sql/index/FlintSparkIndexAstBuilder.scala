@@ -13,7 +13,7 @@ import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.IndexBelongsTo
-import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.{MultipartIdentifierContext, ShowFlintIndexStatementContext}
+import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser.{MultipartIdentifierContext, ShowFlintIndexContext, ShowFlintIndexExtendedContext}
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
@@ -55,20 +55,20 @@ trait FlintSparkIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
   private val extendedOutputSchema = Seq(
     AttributeReference("error", StringType, nullable = true)())
 
-  override def visitShowFlintIndexStatement(ctx: ShowFlintIndexStatementContext): Command = {
-    if (ctx.EXTENDED() == null) {
-      new ShowFlintIndexCommandBuilder()
-        .withSchema(baseOutputSchema)
-        .forCatalog(ctx.catalogDb)
-        .constructRows(baseRowData)
-        .build()
-    } else {
-      new ShowFlintIndexCommandBuilder()
-        .withSchema(baseOutputSchema ++ extendedOutputSchema)
-        .forCatalog(ctx.catalogDb)
-        .constructRows(index => baseRowData(index) ++ extendedRowData(index))
-        .build()
-    }
+  override def visitShowFlintIndex(ctx: ShowFlintIndexContext): Command = {
+    new ShowFlintIndexCommandBuilder()
+      .withSchema(baseOutputSchema)
+      .forCatalog(ctx.catalogDb)
+      .constructRows(baseRowData)
+      .build()
+  }
+
+  override def visitShowFlintIndexExtended(ctx: ShowFlintIndexExtendedContext): Command = {
+    new ShowFlintIndexCommandBuilder()
+      .withSchema(baseOutputSchema ++ extendedOutputSchema)
+      .forCatalog(ctx.catalogDb)
+      .constructRows(index => baseRowData(index) ++ extendedRowData(index))
+      .build()
   }
 
   /**
