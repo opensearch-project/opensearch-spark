@@ -5,9 +5,10 @@
 
 package org.opensearch.flint.spark
 
+import java.util.concurrent.Executors
+
 import scala.collection.JavaConverters._
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 import org.opensearch.action.admin.indices.settings.put.UpdateSettingsRequest
 import org.opensearch.client.RequestOptions
@@ -36,6 +37,13 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite with Matchers {
     FlintSparkCoveringIndex.getFlintIndexName(testCoveringIndex, testTableQualifiedName)
   private val testMvIndex = s"spark_catalog.default.$testMvIndexShortName"
   private val testMvFlintIndex = FlintSparkMaterializedView.getFlintIndexName(testMvIndex)
+
+  /**
+   * Creates a custom `ExecutionContext` with a fixed thread pool for handling asynchronous
+   * operations in tests. TODO: move to base class if more tests require this.
+   */
+  implicit val executionContext: ExecutionContext =
+    ExecutionContext.fromExecutor(Executors.newFixedThreadPool(1))
 
   override def beforeAll(): Unit = {
     super.beforeAll()
