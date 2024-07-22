@@ -126,6 +126,14 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite with Matchers {
     val activeJob = spark.streams.active.find(_.name == testSkippingFlintIndex)
     awaitStreamingComplete(activeJob.get.id.toString)
 
+    // Assert output contains empty error message
+    def outputError: String = {
+      val df = sql("SHOW FLINT INDEX EXTENDED IN spark_catalog")
+      df.columns should contain("error")
+      df.collect().head.getAs[String]("error")
+    }
+    outputError shouldBe empty
+
     // Trigger next micro batch after 5 seconds with index readonly
     Future {
       Thread.sleep(5000)
@@ -139,13 +147,9 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite with Matchers {
         s"INSERT INTO $testTableQualifiedName VALUES (TIMESTAMP '2023-10-01 04:00:00', 'F', 25, 'Vancouver')")
     }
 
-    // Await and store exception as expected
+    // Await to store exception and verify if it's as expected
     flint.flintIndexMonitor.awaitMonitor(Some(testSkippingFlintIndex))
-
-    // Assert output contains error message
-    val df = sql("SHOW FLINT INDEX EXTENDED IN spark_catalog")
-    df.columns should contain("error")
-    df.select(col("error")).collect().head.getString(0) should include("OpenSearchException")
+    outputError should include("OpenSearchException")
 
     deleteTestIndex(testSkippingFlintIndex)
   }

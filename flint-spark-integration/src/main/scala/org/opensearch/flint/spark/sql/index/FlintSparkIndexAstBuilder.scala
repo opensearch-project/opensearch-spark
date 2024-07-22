@@ -28,14 +28,7 @@ trait FlintSparkIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
 
   /**
    * Represents the basic output schema for the FlintSparkSqlCommand. This schema includes
-   * essential information about each index, such as:
-   *   - Index Name (`flint_index_name`)
-   *   - Index Kind (`kind`)
-   *   - Associated Database (`database`)
-   *   - Table the index is associated with (`table`), which can be nullable
-   *   - Specific Index Name (`index_name`), which can be nullable
-   *   - Auto-refresh status (`auto_refresh`)
-   *   - Current status of the index (`status`)
+   * essential information about each index.
    */
   private val baseOutputSchema = Seq(
     AttributeReference("flint_index_name", StringType, nullable = false)(),
@@ -48,9 +41,7 @@ trait FlintSparkIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
 
   /**
    * Extends the base output schema with additional information. This schema is used when the
-   * EXTENDED keyword is present which includes:
-   *   - Error information (`error`), detailing any errors associated with the index, which can be
-   *     nullable.
+   * EXTENDED keyword is present.
    */
   private val extendedOutputSchema = Seq(
     AttributeReference("error", StringType, nullable = true)())
