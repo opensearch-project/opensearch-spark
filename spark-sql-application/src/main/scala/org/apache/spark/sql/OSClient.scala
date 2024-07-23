@@ -14,11 +14,10 @@ import scala.util.{Failure, Success, Try}
 import org.opensearch.action.get.{GetRequest, GetResponse}
 import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest}
+import org.opensearch.common.Strings
 import org.opensearch.common.settings.Settings
-import org.opensearch.common.xcontent.XContentType
-import org.opensearch.core.common.Strings
-import org.opensearch.core.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS
-import org.opensearch.core.xcontent.NamedXContentRegistry
+import org.opensearch.common.xcontent.{NamedXContentRegistry, XContentType}
+import org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions, IRestHighLevelClient}
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchQueryReader, OpenSearchScrollReader, OpenSearchUpdater}

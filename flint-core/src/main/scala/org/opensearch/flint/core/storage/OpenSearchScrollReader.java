@@ -12,7 +12,7 @@ import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.search.SearchScrollRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.core.common.Strings;
+import org.opensearch.common.Strings;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.search.builder.SearchSourceBuilder;
