@@ -27,8 +27,6 @@ queryStatement
 // commands
 pplCommands
    : searchCommand
-   | describeCommand
-   | showDataSourcesCommand
    ;
 
 commands
