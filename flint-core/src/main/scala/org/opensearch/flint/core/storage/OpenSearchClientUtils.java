@@ -18,7 +18,7 @@ import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
 import org.opensearch.client.RestHighLevelClient;
-import org.opensearch.core.common.Strings;
+import org.opensearch.common.Strings;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.flint.core.RestHighLevelClientWrapper;

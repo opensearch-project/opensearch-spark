@@ -6,7 +6,7 @@ import Dependencies._
 
 lazy val scala212 = "2.12.14"
 lazy val sparkVersion = "3.3.2"
-lazy val opensearchVersion = "2.11.1"
+lazy val opensearchVersion = "2.6.0"
 lazy val icebergVersion = "1.5.0"
 
 val scalaMinorVersion = scala212.split("\\.").take(2).mkString(".")

@@ -14,9 +14,9 @@ import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.client.indices.PutMappingRequest;
 import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.core.xcontent.NamedXContentRegistry;
-import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
@@ -39,7 +39,7 @@ import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import static org.opensearch.core.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
+import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
 
 /**
  * Flint client implementation for OpenSearch storage.
