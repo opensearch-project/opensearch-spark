@@ -27,8 +27,6 @@ queryStatement
 // commands
 pplCommands
    : searchCommand
-   | describeCommand
-   | showDataSourcesCommand
    ;
 
 commands
@@ -37,18 +35,8 @@ commands
    | fieldsCommand
    | renameCommand
    | statsCommand
-   | dedupCommand
    | sortCommand
-   | evalCommand
    | headCommand
-   | topCommand
-   | rareCommand
-   | grokCommand
-   | parseCommand
-   | patternsCommand
-   | kmeansCommand
-   | adCommand
-   | mlCommand
    ;
 
 searchCommand
@@ -190,8 +178,6 @@ mlArg
 fromClause
    : SOURCE EQUAL tableSourceClause
    | INDEX EQUAL tableSourceClause
-   | SOURCE EQUAL tableFunction
-   | INDEX EQUAL tableFunction
    ;
 
 tableSourceClause
@@ -248,10 +234,6 @@ statsFunctionName
    | SUM
    | MIN
    | MAX
-   | VAR_SAMP
-   | VAR_POP
-   | STDDEV_SAMP
-   | STDDEV_POP
    ;
 
 takeAggFunction
@@ -281,24 +263,17 @@ logicalExpression
 
 comparisonExpression
    : left = valueExpression comparisonOperator right = valueExpression  # compareExpr
-   | valueExpression IN valueList                                       # inExpr
    ;
 
 valueExpression
    : left = valueExpression binaryOperator = (STAR | DIVIDE | MODULE) right = valueExpression   # binaryArithmetic
    | left = valueExpression binaryOperator = (PLUS | MINUS) right = valueExpression             # binaryArithmetic
    | primaryExpression                                                                          # valueExpressionDefault
-   | positionFunction                                                                           # positionFunctionCall
-   | extractFunction                                                                            # extractFunctionCall
-   | getFormatFunction                                                                          # getFormatFunctionCall
-   | timestampFunction                                                                          # timestampFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    ;
 
 primaryExpression
-   : evalFunctionCall
-   | dataTypeFunctionCall
-   | fieldExpression
+   : fieldExpression
    | literalValue
    ;
 
@@ -700,8 +675,7 @@ multiFieldRelevanceFunctionName
 
 // literals and values
 literalValue
-   : intervalLiteral
-   | stringLiteral
+   : stringLiteral
    | integerLiteral
    | decimalLiteral
    | booleanLiteral

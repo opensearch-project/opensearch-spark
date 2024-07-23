@@ -287,11 +287,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   /** From clause. */
   @Override
   public UnresolvedPlan visitFromClause(OpenSearchPPLParser.FromClauseContext ctx) {
-    if (ctx.tableFunction() != null) {
-      return visitTableFunction(ctx.tableFunction());
-    } else {
-      return visitTableSourceClause(ctx.tableSourceClause());
-    }
+    return visitTableSourceClause(ctx.tableSourceClause());
   }
 
   @Override
