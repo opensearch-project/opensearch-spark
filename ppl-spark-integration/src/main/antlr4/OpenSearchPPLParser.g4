@@ -811,7 +811,7 @@ keywordsCanBeId
    | textFunctionName
    | mathematicalFunctionName
    | positionFunctionName
-// commands
+   // commands
    | SEARCH
    | DESCRIBE
    | SHOW
