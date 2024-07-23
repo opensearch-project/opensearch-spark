@@ -6,6 +6,9 @@ import Dependencies._
 
 lazy val scala212 = "2.12.14"
 lazy val sparkVersion = "3.3.2"
+
+// The transitive opensearch jackson-databind dependency version should align with Spark jackson databind dependency version.
+// Issue: https://github.com/opensearch-project/opensearch-spark/issues/442
 lazy val opensearchVersion = "2.6.0"
 lazy val icebergVersion = "1.5.0"
 
@@ -66,6 +69,8 @@ lazy val flintCore = (project in file("flint-core"))
       "org.opensearch.client" % "opensearch-rest-high-level-client" % opensearchVersion
         exclude ("org.apache.logging.log4j", "log4j-api"),
       "org.opensearch.client" % "opensearch-java" % opensearchVersion
+        // error: Scala module 2.13.4 requires Jackson Databind version >= 2.13.0 and < 2.14.0 -
+        // Found jackson-databind version 2.14.
         exclude ("com.fasterxml.jackson.core", "jackson-databind")
         exclude ("com.fasterxml.jackson.core", "jackson-core")
         exclude ("org.apache.httpcomponents.client5", "httpclient5"),
