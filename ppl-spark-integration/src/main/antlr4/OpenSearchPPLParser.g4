@@ -236,10 +236,6 @@ statsFunctionName
    | SUM
    | MIN
    | MAX
-   | VAR_SAMP
-   | VAR_POP
-   | STDDEV_SAMP
-   | STDDEV_POP
    ;
 
 takeAggFunction
@@ -810,9 +806,14 @@ keywordsCanBeId
    : D // OD SQL and ODBC special
    | timespanUnit
    | SPAN
+   | evalFunctionName
    | relevanceArgName
    | intervalUnit
-   // commands
+   | dateTimeFunctionName
+   | textFunctionName
+   | mathematicalFunctionName
+   | positionFunctionName
+// commands
    | SEARCH
    | DESCRIBE
    | SHOW
