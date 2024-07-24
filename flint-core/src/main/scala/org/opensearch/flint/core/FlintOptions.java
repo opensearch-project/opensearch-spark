@@ -33,16 +33,15 @@ public class FlintOptions implements Serializable {
 
   public static final String SCHEME = "scheme";
 
+  public static final String INDEX_TYPE = "index.type";
+  public static final String INDEX_TYPE_AOS = "aos";
+  public static final String INDEX_TYPE_AOSS = "aoss";
+
   public static final String AUTH = "auth";
-
   public static final String NONE_AUTH = "noauth";
-
   public static final String SIGV4_AUTH = "sigv4";
-
   public static final String BASIC_AUTH = "basic";
-
   public static final String USERNAME = "auth.username";
-
   public static final String PASSWORD = "auth.password";
 
   public static final String CUSTOM_AWS_CREDENTIALS_PROVIDER = "customAWSCredentialsProvider";
@@ -129,6 +128,10 @@ public class FlintOptions implements Serializable {
 
   public String getAuth() {
     return options.getOrDefault(AUTH, NONE_AUTH);
+  }
+
+  public String getIndexType() {
+    return options.getOrDefault(INDEX_TYPE, INDEX_TYPE_AOS);
   }
 
   public String getCustomAwsCredentialsProvider() {

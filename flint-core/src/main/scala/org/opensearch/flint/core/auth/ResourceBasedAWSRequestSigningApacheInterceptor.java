@@ -14,6 +14,7 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.protocol.HttpContext;
 import org.jetbrains.annotations.TestOnly;
 import org.opensearch.common.Strings;
+import org.opensearch.flint.core.storage.OpenSearchClientUtils;
 import software.amazon.awssdk.authcrt.signer.AwsCrtV4aSigner;
 
 import java.io.IOException;
@@ -84,7 +85,7 @@ public class ResourceBasedAWSRequestSigningApacheInterceptor implements HttpRequ
     @Override
     public void process(HttpRequest request, HttpContext context) throws HttpException, IOException {
         String resourcePath = parseUriToPath(request);
-        if ("es".equals(this.service) && isMetadataAccess(resourcePath)) {
+        if (OpenSearchClientUtils.AOS_SIGV4_SERVICE_NAME.equals(this.service) && isMetadataAccess(resourcePath)) {
             metadataAccessInterceptor.process(request, context);
         } else {
             primaryInterceptor.process(request, context);

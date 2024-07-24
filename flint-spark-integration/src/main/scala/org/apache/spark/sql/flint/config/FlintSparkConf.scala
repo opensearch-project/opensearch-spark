@@ -57,6 +57,12 @@ object FlintSparkConf {
       "noauth(no auth), sigv4(sigv4 auth), basic(basic auth)")
     .createWithDefault(FlintOptions.NONE_AUTH)
 
+  val INDEX_TYPE = FlintConfig("spark.datasource.flint.index.type")
+    .datasourceOption()
+    .doc("type of index storage. supported value: " +
+      "aos (AWS OpenSearch Service), aoss (Amazon OpenSearch Serverless)")
+    .createWithDefault(FlintOptions.INDEX_TYPE_AOS)
+
   val USERNAME = FlintConfig("spark.datasource.flint.auth.username")
     .datasourceOption()
     .doc("basic auth username")
@@ -267,6 +273,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       RETRYABLE_HTTP_STATUS_CODES,
       REGION,
       CUSTOM_AWS_CREDENTIALS_PROVIDER,
+      INDEX_TYPE,
       USERNAME,
       PASSWORD,
       SOCKET_TIMEOUT_MILLIS,
