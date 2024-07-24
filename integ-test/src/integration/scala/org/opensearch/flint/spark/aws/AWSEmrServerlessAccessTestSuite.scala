@@ -18,7 +18,11 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.internal.Logging
 
-class AWSEmrServerlessAccessTestSuite extends AnyFlatSpec with BeforeAndAfter with Matchers with Logging {
+class AWSEmrServerlessAccessTestSuite
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with Matchers
+    with Logging {
 
   lazy val testHost: String = System.getenv("AWS_OPENSEARCH_HOST")
   lazy val testPort: Int = -1
