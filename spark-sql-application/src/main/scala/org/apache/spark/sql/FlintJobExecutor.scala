@@ -446,8 +446,14 @@ trait FlintJobExecutor {
 
     val errorJson = mapper.writeValueAsString(errorDetails)
 
-    statusCode.foreach { code =>
-      CustomLogging.logError(new OperationMessage("", code), e)
+    (errorSource, statusCode) match {
+      case (Some(source), Some(code)) =>
+        val sourceMsg = s"Error source is ${source}"
+        CustomLogging.logError(new OperationMessage(sourceMsg, code), e)
+      case (None, Some(code)) =>
+        CustomLogging.logError(new OperationMessage("", code), e)
+      case _ =>
+        CustomLogging.logError(e)
     }
 
     errorJson
@@ -491,16 +497,16 @@ trait FlintJobExecutor {
       case r: SparkException =>
         handleQueryException(r, ExceptionMessages.SparkExceptionErrorPrefix)
       case r: Exception =>
-        val rootCauseClassName = ex.getClass.getName
-        val errMsg = ex.getMessage
-        logDebug(s"Root cause class name: $rootCauseClassName")
-        logDebug(s"Root cause error message: $errMsg")
+        val rootCauseClassName = r.getClass.getName
+        val errMsg = r.getMessage
+        logError(s"Root cause class name: $rootCauseClassName")
+        logError(s"Root cause error message: $errMsg")
         if (rootCauseClassName == "org.apache.hadoop.hive.metastore.api.MetaException" &&
           errMsg.contains("com.amazonaws.services.glue.model.AccessDeniedException")) {
           val e = new SecurityException(ExceptionMessages.GlueAccessDeniedMessage)
           handleQueryException(e, ExceptionMessages.QueryRunErrorPrefix)
         } else {
-          handleQueryException(ex, ExceptionMessages.QueryRunErrorPrefix)
+          handleQueryException(r, ExceptionMessages.QueryRunErrorPrefix)
         }
     }
   }
