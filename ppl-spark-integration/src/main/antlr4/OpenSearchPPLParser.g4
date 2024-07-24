@@ -263,17 +263,20 @@ logicalExpression
 
 comparisonExpression
    : left = valueExpression comparisonOperator right = valueExpression  # compareExpr
+   | valueExpression IN valueList                                       # inExpr
    ;
 
 valueExpression
    : left = valueExpression binaryOperator = (STAR | DIVIDE | MODULE) right = valueExpression   # binaryArithmetic
    | left = valueExpression binaryOperator = (PLUS | MINUS) right = valueExpression             # binaryArithmetic
    | primaryExpression                                                                          # valueExpressionDefault
+   | positionFunction                                                                           # positionFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    ;
 
 primaryExpression
-   : fieldExpression
+   : evalFunctionCall
+   | fieldExpression
    | literalValue
    ;
 
