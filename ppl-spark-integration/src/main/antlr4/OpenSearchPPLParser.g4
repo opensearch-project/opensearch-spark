@@ -224,8 +224,6 @@ statsFunction
    : statsFunctionName LT_PRTHS valueExpression RT_PRTHS        # statsFunctionCall
    | COUNT LT_PRTHS RT_PRTHS                                    # countAllFunctionCall
    | (DISTINCT_COUNT | DC) LT_PRTHS valueExpression RT_PRTHS    # distinctCountFunctionCall
-   | percentileAggFunction                                      # percentileAggFunctionCall
-   | takeAggFunction                                            # takeAggFunctionCall
    ;
 
 statsFunctionName
@@ -257,8 +255,6 @@ logicalExpression
    | left = logicalExpression OR right = logicalExpression      # logicalOr
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
    | left = logicalExpression XOR right = logicalExpression     # logicalXor
-   | booleanExpression                                          # booleanExpr
-   | relevanceExpression                                        # relevanceExpr
    ;
 
 comparisonExpression
@@ -266,9 +262,7 @@ comparisonExpression
    ;
 
 valueExpression
-   : left = valueExpression binaryOperator = (STAR | DIVIDE | MODULE) right = valueExpression   # binaryArithmetic
-   | left = valueExpression binaryOperator = (PLUS | MINUS) right = valueExpression             # binaryArithmetic
-   | primaryExpression                                                                          # valueExpressionDefault
+   : primaryExpression                                                                          # valueExpressionDefault
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    ;
 
