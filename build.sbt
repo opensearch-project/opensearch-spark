@@ -6,6 +6,9 @@ import Dependencies._
 
 lazy val scala212 = "2.12.14"
 lazy val sparkVersion = "3.3.2"
+// Spark jackson version. Spark jackson-module-scala strictly check the jackson-databind version hould compatbile
+// https://github.com/FasterXML/jackson-module-scala/blob/2.18/src/main/scala/com/fasterxml/jackson/module/scala/JacksonModule.scala#L59
+lazy val jacksonVersion = "2.13.4"
 
 // The transitive opensearch jackson-databind dependency version should align with Spark jackson databind dependency version.
 // Issue: https://github.com/opensearch-project/opensearch-spark/issues/442
@@ -49,7 +52,11 @@ lazy val commonSettings = Seq(
   compileScalastyle := (Compile / scalastyle).toTask("").value,
   Compile / compile := ((Compile / compile) dependsOn compileScalastyle).value,
   testScalastyle := (Test / scalastyle).toTask("").value,
-  Test / test := ((Test / test) dependsOn testScalastyle).value)
+  Test / test := ((Test / test) dependsOn testScalastyle).value,
+  dependencyOverrides ++= Seq(
+    "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
+    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion
+  ))
 
 // running `scalafmtAll` includes all subprojects under root
 lazy val root = (project in file("."))
@@ -218,9 +225,16 @@ lazy val integtest = (project in file("integ-test"))
     commonSettings,
     name := "integ-test",
     scalaVersion := scala212,
-    inConfig(IntegrationTest)(Defaults.testSettings),
-    IntegrationTest / scalaSource := baseDirectory.value / "src/integration/scala",
-    IntegrationTest / parallelExecution := false,
+    javaOptions ++= Seq(
+      s"-DappJar=${(sparkSqlApplication / assembly).value.getAbsolutePath}",
+      s"-DextensionJar=${(flintSparkIntegration / assembly).value.getAbsolutePath}",
+      s"-DpplJar=${(pplSparkIntegration / assembly).value.getAbsolutePath}",
+    ),
+    inConfig(IntegrationTest)(Defaults.testSettings ++ Seq(
+      IntegrationTest / scalaSource := baseDirectory.value / "src/integration/scala",
+      IntegrationTest / parallelExecution := false,
+      IntegrationTest / fork := true,
+      )),
     libraryDependencies ++= Seq(
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
@@ -229,10 +243,7 @@ lazy val integtest = (project in file("integ-test"))
       "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
       "org.testcontainers" % "testcontainers" % "1.18.0" % "test",
       "org.apache.iceberg" %% s"iceberg-spark-runtime-$sparkMinorVersion" % icebergVersion % "test",
-      "org.scala-lang.modules" %% "scala-collection-compat" % "2.11.0" % "test",
-      // add opensearch-java client to get node stats
-      "org.opensearch.client" % "opensearch-java" % "2.6.0" % "test"
-        exclude ("com.fasterxml.jackson.core", "jackson-databind")),
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.11.0" % "test"),
     libraryDependencies ++= deps(sparkVersion),
     Test / fullClasspath ++= Seq((flintSparkIntegration / assembly).value, (pplSparkIntegration / assembly).value,
       (sparkSqlApplication / assembly).value
