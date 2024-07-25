@@ -428,8 +428,8 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
       threadLocalFuture.set(startREPL())
 
       val dummyLocation = "s3://path/to/dummy/location"
-      val testQueryId = "99"
-      val createStatement =
+      val testQueryId = "110"
+      val createTableStatement =
         s"""
            | CREATE TABLE $testTable
            | (
@@ -443,13 +443,28 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
            |  delimiter '\\t'
            | )
            |""".stripMargin
-      submitQuery(s"${makeJsonCompliant(createStatement)}", testQueryId)
+      val createTableStatementId =
+        submitQuery(s"${makeJsonCompliant(createTableStatement)}", testQueryId)
 
-      val selectQueryValidation: REPLResult => Boolean = result => {
-        failureValidation(result)
+      val createTableStatementValidation: REPLResult => Boolean = result => {
+        successValidation(result)
         true
       }
-      pollForResultAndAssert(selectQueryValidation, testQueryId)
+      pollForResultAndAssert(createTableStatementValidation, testQueryId)
+      assert(
+        !awaitConditionForStatementOrTimeout(
+          statement => {
+            statement.error match {
+              case Some(error)
+                  if error == """{"Message":"Fail to run query. Cause: No FileSystem for scheme \"s3\""}""" =>
+              // Assertion passed
+              case _ =>
+                fail(s"Statement error is: ${statement.error}")
+            }
+            statement.state == "failed"
+          },
+          createTableStatementId),
+        s"Fail to verify for $createTableStatementId.")
       // clean up
       val dropStatement =
         s"""DROP TABLE $testTable""".stripMargin
