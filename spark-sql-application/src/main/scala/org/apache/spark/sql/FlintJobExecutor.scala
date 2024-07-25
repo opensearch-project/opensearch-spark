@@ -439,21 +439,18 @@ trait FlintJobExecutor {
       message: String,
       errorSource: Option[String] = None,
       statusCode: Option[Int] = None): String = {
-
     val errorDetails = Map("Message" -> s"$message: ${e.getMessage}") ++
       errorSource.map("ErrorSource" -> _) ++
       statusCode.map(code => "StatusCode" -> code.toString)
 
     val errorJson = mapper.writeValueAsString(errorDetails)
 
-    (errorSource, statusCode) match {
-      case (Some(source), Some(code)) =>
-        val sourceMsg = s"Error source is ${source}"
-        CustomLogging.logError(new OperationMessage(sourceMsg, code), e)
-      case (None, Some(code)) =>
-        CustomLogging.logError(new OperationMessage("", code), e)
-      case _ =>
-        CustomLogging.logError(e)
+    // CustomLogging will call log4j logger.error() underneath
+    statusCode match {
+      case Some(code) =>
+        CustomLogging.logError(new OperationMessage(message, code), e)
+      case None =>
+        CustomLogging.logError(message, e)
     }
 
     errorJson
@@ -499,8 +496,6 @@ trait FlintJobExecutor {
       case r: Exception =>
         val rootCauseClassName = r.getClass.getName
         val errMsg = r.getMessage
-        logError(s"Root cause class name: $rootCauseClassName")
-        logError(s"Root cause error message: $errMsg")
         if (rootCauseClassName == "org.apache.hadoop.hive.metastore.api.MetaException" &&
           errMsg.contains("com.amazonaws.services.glue.model.AccessDeniedException")) {
           val e = new SecurityException(ExceptionMessages.GlueAccessDeniedMessage)
