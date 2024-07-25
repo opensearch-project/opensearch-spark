@@ -14,11 +14,12 @@ import java.util.Optional;
 import java.util.logging.Logger;
 import org.opensearch.flint.core.http.handler.ExceptionClassNameFailurePredicate;
 import org.opensearch.flint.core.http.handler.HttpStatusCodeResultPredicate;
+import java.io.Serializable;
 
 /**
  * Flint options related to HTTP request retry.
  */
-public class FlintRetryOptions {
+public class FlintRetryOptions implements Serializable {
 
   private static final Logger LOG = Logger.getLogger(FlintRetryOptions.class.getName());
 

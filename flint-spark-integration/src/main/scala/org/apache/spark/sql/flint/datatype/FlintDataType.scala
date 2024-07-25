@@ -39,9 +39,11 @@ object FlintDataType {
 
   def deserializeJValue(json: JValue): StructType = {
     val properties = (json \ "properties").extract[Map[String, JValue]]
-    val fields = properties.map { case (fieldName, fieldProperties) =>
-      deserializeFiled(fieldName, fieldProperties)
-    }
+    val fields = properties
+      .map { case (fieldName, fieldProperties) =>
+        deserializeFiled(fieldName, fieldProperties)
+      }
+      .filter(f => f != null)
 
     StructType(fields.toSeq)
   }
@@ -81,9 +83,13 @@ object FlintDataType {
       case JString("binary") => BinaryType
 
       // not supported
-      case unknown => throw new IllegalStateException(s"unsupported data type: $unknown")
+      case unknown => null
     }
-    DataTypes.createStructField(fieldName, dataType, true, metadataBuilder.build())
+    if (dataType != null) {
+      DataTypes.createStructField(fieldName, dataType, true, metadataBuilder.build())
+    } else {
+      null
+    }
   }
 
   /**
@@ -100,7 +106,8 @@ object FlintDataType {
       case (Some("date"), None) | (Some("strict_date"), None) => DateType
       case (Some("strict_date_optional_time_nanos"), None) |
           (Some("strict_date_optional_time"), None) | (None, Some("epoch_millis")) |
-          (Some("strict_date_optional_time"), Some("epoch_millis")) =>
+          (Some("strict_date_optional_time"), Some("epoch_millis")) |
+          (Some("strict_date_optional_time"), Some("epoch_second")) =>
         TimestampType
       case _ => throw new IllegalStateException(s"unsupported date type format: $format")
     }

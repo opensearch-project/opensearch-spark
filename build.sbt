@@ -49,7 +49,8 @@ lazy val commonSettings = Seq(
   compileScalastyle := (Compile / scalastyle).toTask("").value,
   Compile / compile := ((Compile / compile) dependsOn compileScalastyle).value,
   testScalastyle := (Test / scalastyle).toTask("").value,
-  Test / test := ((Test / test) dependsOn testScalastyle).value)
+  Test / test := ((Test / test) dependsOn testScalastyle).value,
+  Test / testOptions += Tests.Argument("-oD"))
 
 // running `scalafmtAll` includes all subprojects under root
 lazy val root = (project in file("."))

@@ -112,8 +112,8 @@ object FlintSparkConf {
 
   val SCROLL_SIZE = FlintConfig("spark.datasource.flint.read.scroll_size")
     .datasourceOption()
-    .doc("scroll read size")
-    .createWithDefault("100")
+    .doc("scroll read page size")
+    .createOptional()
 
   val SCROLL_DURATION = FlintConfig(s"spark.datasource.flint.${FlintOptions.SCROLL_DURATION}")
     .datasourceOption()
@@ -259,7 +259,6 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       HOST_ENDPOINT,
       HOST_PORT,
       REFRESH_POLICY,
-      SCROLL_SIZE,
       SCROLL_DURATION,
       SCHEME,
       AUTH,
@@ -283,7 +282,8 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       SESSION_ID,
       REQUEST_INDEX,
       METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER,
-      EXCLUDE_JOB_IDS)
+      EXCLUDE_JOB_IDS,
+      SCROLL_SIZE)
       .map(conf => (conf.optionKey, conf.readFrom(reader)))
       .flatMap {
         case (_, None) => None

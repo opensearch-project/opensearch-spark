@@ -25,7 +25,6 @@ import org.opensearch.index.query.AbstractQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.search.SearchModule;
-import org.opensearch.search.builder.SearchSourceBuilder;
 import scala.Option;
 
 import java.io.IOException;
@@ -35,7 +34,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -52,7 +50,7 @@ public class FlintOpenSearchClient implements FlintClient {
   /**
    * {@link NamedXContentRegistry} from {@link SearchModule} used for construct {@link QueryBuilder} from DSL query string.
    */
-  private final static NamedXContentRegistry
+  public final static NamedXContentRegistry
       xContentRegistry =
       new NamedXContentRegistry(new SearchModule(Settings.builder().build(),
           new ArrayList<>()).getNamedXContents());
@@ -64,13 +62,22 @@ public class FlintOpenSearchClient implements FlintClient {
   private final static Set<Character> INVALID_INDEX_NAME_CHARS =
       Set.of(' ', ',', ':', '"', '+', '/', '\\', '|', '?', '#', '>', '<');
 
-  private final static Function<String, String> SHARD_ID_PREFERENCE =
-      shardId -> shardId == null ? shardId : "_shards:"+shardId;
 
   private final FlintOptions options;
 
   public FlintOpenSearchClient(FlintOptions options) {
     this.options = options;
+  }
+
+  public static QueryBuilder queryBuilder(String query) throws IOException {
+    QueryBuilder queryBuilder = new MatchAllQueryBuilder();
+    if (!Strings.isNullOrEmpty(query)) {
+      XContentParser
+          parser =
+          XContentType.JSON.xContent().createParser(xContentRegistry, IGNORE_DEPRECATIONS, query);
+      queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
+    }
+    return queryBuilder;
   }
 
   @Override
@@ -166,47 +173,6 @@ public class FlintOpenSearchClient implements FlintClient {
       client.deleteIndex(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to delete Flint index " + osIndexName, e);
-    }
-  }
-
-  /**
-   * Create {@link FlintReader}.
-   *
-   * @param indexName index name.
-   * @param query     DSL query. DSL query is null means match_all.
-   * @return {@link FlintReader}.
-   */
-  @Override
-  public FlintReader createReader(String indexName, String query) {
-    return createReader(indexName, query, null);
-  }
-
-  /**
-   * Create {@link FlintReader}.
-   *
-   * @param indexName index name.
-   * @param query DSL query. DSL query is null means match_all
-   * @param shardId shardId
-   * @return
-   */
-  @Override
-  public FlintReader createReader(String indexName, String query, String shardId) {
-    LOG.info("Creating Flint index reader for " + indexName + " with query " + query + " shardId " + shardId);
-    try {
-      QueryBuilder queryBuilder = new MatchAllQueryBuilder();
-      if (!Strings.isNullOrEmpty(query)) {
-        XContentParser
-            parser =
-            XContentType.JSON.xContent().createParser(xContentRegistry, IGNORE_DEPRECATIONS, query);
-        queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
-      }
-      return new OpenSearchScrollReader(createClient(),
-          sanitizeIndexName(indexName),
-          new SearchSourceBuilder().query(queryBuilder),
-          options,
-          SHARD_ID_PREFERENCE.apply(shardId));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
     }
   }
 

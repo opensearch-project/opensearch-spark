@@ -7,6 +7,7 @@ package org.opensearch.flint.core;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.spark.network.util.ByteUnit;
 import org.opensearch.flint.core.http.FlintRetryOptions;
@@ -105,8 +106,12 @@ public class FlintOptions implements Serializable {
     return Integer.parseInt(options.getOrDefault(PORT, "9200"));
   }
 
-  public int getScrollSize() {
-    return Integer.parseInt(options.getOrDefault(SCROLL_SIZE, String.valueOf(DEFAULT_SCROLL_SIZE)));
+  public Optional<Integer> getScrollSize() {
+    if (options.containsKey(SCROLL_SIZE)) {
+      return Optional.of(Integer.parseInt(options.get(SCROLL_SIZE)));
+    } else {
+      return Optional.empty();
+    }
   }
 
   public int getScrollDuration() {

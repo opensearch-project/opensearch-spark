@@ -278,7 +278,7 @@ class FlintJacksonParser(
             }
 
           case VALUE_NUMBER_INT =>
-            parser.getLongValue * 1000L
+            parser.getLongValue * 1000000L
         }
 
     case TimestampNTZType =>

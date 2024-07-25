@@ -23,7 +23,7 @@ class FlintSparkConfSuite extends FlintSuite {
 
       val flintOptions = FlintSparkConf().flintOptions()
       assert(flintOptions.getHost == "127.0.0.1")
-      assert(flintOptions.getScrollSize == 10)
+      assert(flintOptions.getScrollSize.get() == 10)
 
       // default value
       assert(flintOptions.getPort == 9200)
