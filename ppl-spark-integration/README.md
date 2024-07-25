@@ -261,7 +261,6 @@ The next samples of PPL queries are currently supported:
  - `search` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/search.rst)  
  - `where`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/where.rst)  
  - `fields` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/fields.rst)  
- - `rename` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/rename.rst)
  - `head`   - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/head.rst)
  - `stats`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/stats.rst) (supports AVG, COUNT, DISTINCT_COUNT, MAX, MIN and SUM aggregation functions)
  - `sort` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst)

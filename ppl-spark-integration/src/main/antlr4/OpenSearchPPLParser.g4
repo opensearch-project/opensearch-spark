@@ -33,7 +33,6 @@ commands
    : whereCommand
    | correlateCommand
    | fieldsCommand
-   | renameCommand
    | statsCommand
    | sortCommand
    | headCommand
