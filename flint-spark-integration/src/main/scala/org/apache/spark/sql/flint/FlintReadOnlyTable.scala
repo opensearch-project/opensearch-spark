@@ -7,15 +7,11 @@ package org.apache.spark.sql.flint
 
 import java.util
 
-import scala.collection.JavaConverters._
+import org.opensearch.flint.table.OpenSearchCluster
 
-import org.opensearch.flint.core.FlintClientBuilder
-
-import org.apache.spark.opensearch.catalog.OpenSearchCatalog
-import org.apache.spark.opensearch.table.OpenSearchTable
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.catalog.{SupportsRead, Table, TableCapability}
-import org.apache.spark.sql.connector.catalog.TableCapability.{BATCH_READ, BATCH_WRITE, STREAMING_WRITE, TRUNCATE}
+import org.apache.spark.sql.connector.catalog.TableCapability.BATCH_READ
 import org.apache.spark.sql.connector.read.ScanBuilder
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.datatype.FlintDataType
@@ -42,17 +38,21 @@ class FlintReadOnlyTable(
 
   lazy val name: String = flintSparkConf.tableName()
 
-  lazy val openSearchTable: OpenSearchTable =
-    OpenSearchTable.apply(name, flintSparkConf.flintOptions())
+  lazy val tables: Seq[org.opensearch.flint.table.Table] =
+    OpenSearchCluster.apply(name, flintSparkConf.flintOptions())
+
+  lazy val resolvedTablesSchema: StructType = tables.headOption
+    .map(tbl => FlintDataType.deserialize(tbl.schema().asJson()))
+    .getOrElse(StructType(Nil))
 
   lazy val schema: StructType = {
-    userSpecifiedSchema.getOrElse { openSearchTable.schema }
+    userSpecifiedSchema.getOrElse { resolvedTablesSchema }
   }
 
   override def capabilities(): util.Set[TableCapability] =
     util.EnumSet.of(BATCH_READ)
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
-    FlintScanBuilder(openSearchTable, schema, flintSparkConf)
+    FlintScanBuilder(tables, schema, flintSparkConf)
   }
 }

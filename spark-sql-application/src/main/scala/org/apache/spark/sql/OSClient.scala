@@ -20,7 +20,7 @@ import org.opensearch.common.xcontent.{NamedXContentRegistry, XContentType}
 import org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions, IRestHighLevelClient}
 import org.opensearch.flint.core.metrics.MetricConstants
-import org.opensearch.flint.core.storage.{FlintReader, OpenSearchQueryReader, OpenSearchScrollReader, OpenSearchUpdater}
+import org.opensearch.flint.core.storage.{FlintReader, OpenSearchQueryReader, OpenSearchUpdater}
 import org.opensearch.index.query.{AbstractQueryBuilder, MatchAllQueryBuilder, QueryBuilder}
 import org.opensearch.plugins.SearchPlugin
 import org.opensearch.search.SearchModule
@@ -135,23 +135,6 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
             e)
       }
     }
-  }
-
-  def createScrollReader(indexName: String, query: String, sort: String): FlintReader = try {
-    var queryBuilder: QueryBuilder = new MatchAllQueryBuilder
-    if (!Strings.isNullOrEmpty(query)) {
-      val parser =
-        XContentType.JSON.xContent.createParser(xContentRegistry, IGNORE_DEPRECATIONS, query)
-      queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser)
-    }
-    new OpenSearchScrollReader(
-      flintClient.createClient(),
-      indexName,
-      new SearchSourceBuilder().query(queryBuilder).sort(sort, SortOrder.ASC),
-      flintOptions)
-  } catch {
-    case e: IOException =>
-      throw new RuntimeException(e)
   }
 
   def doesIndexExist(indexName: String): Boolean = {
