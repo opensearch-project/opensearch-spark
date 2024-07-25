@@ -128,26 +128,33 @@ class PPLLogicalPlanMathFunctionsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t a = b % 2 + 1 * 5 + 10 / 2", false),
+        plan(
+          pplParser,
+          "source=t | where sqrt(pow(a, 2)) + sqrt(pow(a, 2)) / 1 - sqrt(pow(a, 2)) * 1 = sqrt(pow(a, 2)) % 1",
+          false),
         context)
-
     val table = UnresolvedRelation(Seq("t"))
-    val filterExpr = EqualTo(
-      UnresolvedAttribute("a"),
+    // sqrt(pow(a, 2))
+    val sqrtPow =
       UnresolvedFunction(
-        "add",
+        "sqrt",
         seq(
           UnresolvedFunction(
-            "add",
-            seq(
-              UnresolvedFunction(
-                "modulus",
-                seq(UnresolvedAttribute("b"), Literal(2)),
-                isDistinct = false),
-              UnresolvedFunction("multiply", seq(Literal(1), Literal(5)), isDistinct = false)),
-            isDistinct = false),
-          UnresolvedFunction("divide", seq(Literal(10), Literal(2)), isDistinct = false)),
-        isDistinct = false))
+            "pow",
+            seq(UnresolvedAttribute("a"), Literal(2)),
+            isDistinct = false)),
+        isDistinct = false)
+    // sqrt(pow(a, 2)) / 1
+    val sqrtPowDivide = UnresolvedFunction("divide", seq(sqrtPow, Literal(1)), isDistinct = false)
+    // sqrt(pow(a, 2)) * 1
+    val sqrtPowMultiply =
+      UnresolvedFunction("multiply", seq(sqrtPow, Literal(1)), isDistinct = false)
+    // sqrt(pow(a, 2)) % 1
+    val sqrtPowMod = UnresolvedFunction("modulus", seq(sqrtPow, Literal(1)), isDistinct = false)
+    // sqrt(pow(a, 2)) + sqrt(pow(a, 2)) / 1
+    val add = UnresolvedFunction("add", seq(sqrtPow, sqrtPowDivide), isDistinct = false)
+    val sub = UnresolvedFunction("subtract", seq(add, sqrtPowMultiply), isDistinct = false)
+    val filterExpr = EqualTo(sub, sqrtPowMod)
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)

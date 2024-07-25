@@ -5,14 +5,13 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.apache.spark.sql.catalyst.analysis.AnalysisTest
 import org.apache.spark.sql.catalyst.expressions.{Alias, ExprId}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Project}
 
 /**
  * general utility functions for ppl to spark transformation test
  */
-trait LogicalPlanTestUtils extends AnalysisTest {
+trait LogicalPlanTestUtils {
 
   /**
    * utility function to compare two logical plans while ignoring the auto-generated expressionId

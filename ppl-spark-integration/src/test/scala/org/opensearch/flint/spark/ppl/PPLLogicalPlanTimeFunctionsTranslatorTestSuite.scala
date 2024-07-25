@@ -19,16 +19,15 @@ import org.apache.spark.sql.catalyst.plans.logical.{Filter, Project}
 class PPLLogicalPlanTimeFunctionsTranslatorTestSuite
     extends SparkFunSuite
     with LogicalPlanTestUtils
-    with Matchers{
+    with Matchers {
 
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
 
   test("test from_unixtime") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(
-      plan(pplParser, "source=t a = from_unixtime(b)", false),
-      context)
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=t a = from_unixtime(b)", false), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -42,9 +41,8 @@ class PPLLogicalPlanTimeFunctionsTranslatorTestSuite
 
   test("test unix_timestamp") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(
-      plan(pplParser, "source=t a = unix_timestamp(b)", false),
-      context)
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=t a = unix_timestamp(b)", false), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
