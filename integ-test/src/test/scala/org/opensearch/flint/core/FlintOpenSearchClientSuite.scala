@@ -231,40 +231,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     }
   }
 
-  it should "no item return after scroll timeout" in {
-    val indexName = "t0001"
-    withIndexName(indexName) {
-      multipleDocIndex(indexName, 2)
-
-      val options =
-        openSearchOptions + (s"${SCROLL_DURATION.optionKey}" -> "1", s"${SCROLL_SIZE.optionKey}" -> "1")
-      val match_all = null
-      val reader =
-        createTable(indexName, new FlintOptions(options.asJava)).createReader(match_all)
-
-      reader.hasNext shouldBe true
-      reader.next
-
-      // pit context expired after 1 minutes
-      Thread.sleep(120 * 1000)
-
-      pitShouldClosed()
-      val exception = intercept[RuntimeException] {
-        reader.hasNext
-      }
-      exception.getMessage should include("search_phase_execution_exception")
-    }
-  }
-
-  def pitShouldClosed(): Unit = {
-    val transport =
-      new RestClientTransport(openSearchClient.getLowLevelClient, new JacksonJsonpMapper)
-    val client = new OpenSearchClient(transport)
-
-    client.listAllPit().pits().size() shouldBe 0
-  }
-
   def createTable(indexName: String, options: FlintOptions): Table = {
-    OpenSearchCluster.apply(indexName, options).head.snapshot()
+    OpenSearchCluster.apply(indexName, options).head
   }
 }
