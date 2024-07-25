@@ -447,7 +447,13 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
         submitQuery(s"${makeJsonCompliant(createTableStatement)}", testQueryId)
 
       val createTableStatementValidation: REPLResult => Boolean = result => {
-        successValidation(result)
+        assert(
+          result.results.size == 0,
+          s"expected result size is 0, but got ${result.results.size}")
+        assert(
+          result.schemas.size == 0,
+          s"expected schema size is 0, but got ${result.schemas.size}")
+        failureValidation(result)
         true
       }
       pollForResultAndAssert(createTableStatementValidation, testQueryId)
