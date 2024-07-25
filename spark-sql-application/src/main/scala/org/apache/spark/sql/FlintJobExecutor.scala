@@ -436,10 +436,11 @@ trait FlintJobExecutor {
 
   private def handleQueryException(
       e: Exception,
-      message: String,
+      messagePrefix: String,
       errorSource: Option[String] = None,
       statusCode: Option[Int] = None): String = {
-    val errorDetails = Map("Message" -> s"$message: ${e.getMessage}") ++
+    val errorMessage = s"$messagePrefix: ${e.getMessage}"
+    val errorDetails = Map("Message" -> errorMessage) ++
       errorSource.map("ErrorSource" -> _) ++
       statusCode.map(code => "StatusCode" -> code.toString)
 
@@ -448,9 +449,9 @@ trait FlintJobExecutor {
     // CustomLogging will call log4j logger.error() underneath
     statusCode match {
       case Some(code) =>
-        CustomLogging.logError(new OperationMessage(message, code), e)
+        CustomLogging.logError(new OperationMessage(errorMessage, code), e)
       case None =>
-        CustomLogging.logError(message, e)
+        CustomLogging.logError(errorMessage, e)
     }
 
     errorJson
