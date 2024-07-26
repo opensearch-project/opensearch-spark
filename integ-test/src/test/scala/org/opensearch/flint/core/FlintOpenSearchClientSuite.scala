@@ -11,19 +11,15 @@ import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 import org.mockito.Mockito.when
-import org.opensearch.OpenSearchStatusException
-import org.opensearch.client.json.jackson.JacksonJsonpMapper
-import org.opensearch.client.opensearch.OpenSearchClient
-import org.opensearch.client.transport.rest_client.RestClientTransport
 import org.opensearch.flint.OpenSearchSuite
 import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
-import org.opensearch.flint.table.{OpenSearchCluster, Table}
+import org.opensearch.flint.core.table.OpenSearchCluster
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
 
-import org.apache.spark.sql.flint.config.FlintSparkConf.{REFRESH_POLICY, SCROLL_DURATION, SCROLL_SIZE}
+import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 
 class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with Matchers {
 
@@ -195,6 +191,46 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
       reader.next shouldBe """{"accountId":"123","eventName":"event","eventSource":"source"}"""
       reader.hasNext shouldBe false
       reader.close()
+    }
+  }
+
+  it should "read docs from index with multiple shard successfully" in {
+    val indexName = "t0001"
+    val expectedCount = 5
+    withIndexName(indexName) {
+      multipleShardAndDocIndex(indexName, expectedCount)
+      val match_all = null
+      val reader = createTable(indexName, options).createReader(match_all)
+
+      var totalCount = 0
+      while (reader.hasNext) {
+        reader.next()
+        totalCount += 1
+      }
+      totalCount shouldBe expectedCount
+    }
+  }
+
+  it should "read docs from shard table successfully" in {
+    val indexName = "t0001"
+    val expectedCount = 5
+    withIndexName(indexName) {
+      multipleShardAndDocIndex(indexName, expectedCount)
+      val match_all = null
+      val totalCount = createTable(indexName, options)
+        .slice()
+        .map(shardTable => {
+          val reader = shardTable.createReader(match_all)
+          var count = 0
+          while (reader.hasNext) {
+            reader.next()
+            count += 1
+          }
+          count
+        })
+        .sum
+
+      totalCount shouldBe expectedCount
     }
   }
 

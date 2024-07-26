@@ -123,7 +123,7 @@ object FlintSparkConf {
   val SUPPORT_SHARD = FlintConfig(s"spark.datasource.flint.${FlintOptions.SUPPORT_SHARD}")
     .datasourceOption()
     .doc("indicate does index support shard or not")
-    .createWithDefault(String.valueOf(FlintOptions.SUPPORT_SHARD_DEFAULT))
+    .createWithDefault(String.valueOf(FlintOptions.DEFAULT_SUPPORT_SHARD))
 
   val MAX_RETRIES = FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.MAX_RETRIES}")
     .datasourceOption()

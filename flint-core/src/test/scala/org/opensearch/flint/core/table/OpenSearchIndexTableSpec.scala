@@ -9,11 +9,10 @@ import java.util.Optional
 
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
-import org.opensearch.client.opensearch.core.pit.{CreatePitRequest, CreatePitResponse}
-import org.opensearch.client.opensearch.indices.stats.IndicesStats
-import org.opensearch.flint.core.{FlintOptions, IRestHighLevelClient}
+import org.opensearch.client.opensearch.indices.{IndicesStatsRequest, IndicesStatsResponse}
+import org.opensearch.flint.core.{FlintOptions, IRestHighLevelClient, JsonSchema, MetaData}
 import org.opensearch.flint.core.storage.{OpenSearchClientUtils, OpenSearchSearchAfterQueryReader}
-import org.opensearch.flint.table.{JsonSchema, MetaData, OpenSearchIndexTable}
+import org.opensearch.search.builder.SearchSourceBuilder
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -27,15 +26,11 @@ class OpenSearchIndexTableSpec
 
   private val clientUtils = mockStatic(classOf[OpenSearchClientUtils])
   private val openSearchClient = mock[IRestHighLevelClient](RETURNS_DEEP_STUBS)
-  private val pitResponse = mock[CreatePitResponse]
 
   before {
     clientUtils
       .when(() => OpenSearchClientUtils.createClient(any(classOf[FlintOptions])))
       .thenReturn(openSearchClient)
-    when(openSearchClient.createPit(any[CreatePitRequest]))
-      .thenReturn(pitResponse)
-    when(pitResponse.pitId()).thenReturn("")
   }
 
   def mockTable(
@@ -46,7 +41,7 @@ class OpenSearchIndexTableSpec
       numberOfShards: Int = 1): OpenSearchIndexTable = {
     val metaData = mock[MetaData]
     val options = mock[FlintOptions]
-    val mockIndexStats = mock[IndicesStats](RETURNS_DEEP_STUBS)
+    val mockIndicesStatsResp = mock[IndicesStatsResponse](RETURNS_DEEP_STUBS)
 
     when(metaData.name).thenReturn("test-index")
     when(metaData.setting).thenReturn(s"""{"index.number_of_shards":"$numberOfShards"}""")
@@ -56,11 +51,14 @@ class OpenSearchIndexTableSpec
       case None => when(options.getScrollSize).thenReturn(Optional.empty[Integer]())
     }
     when(options.supportShard()).thenReturn(supportShard)
-    when(mockIndexStats.total().docs().count()).thenReturn(docCount)
-    when(mockIndexStats.total().store().sizeInBytes).thenReturn(storeSizeInBytes)
+
+    when(openSearchClient.stats(any[IndicesStatsRequest])).thenReturn(mockIndicesStatsResp)
+    when(mockIndicesStatsResp.indices().get(any[String]).total().docs().count())
+      .thenReturn(docCount)
+    when(mockIndicesStatsResp.indices().get(any[String]).total().store().sizeInBytes)
+      .thenReturn(storeSizeInBytes)
 
     new OpenSearchIndexTable(metaData, options) {
-      override lazy val indexStats: IndicesStats = mockIndexStats
       override lazy val maxResultWindow: Int = 10000
     }
   }
@@ -142,5 +140,38 @@ class OpenSearchIndexTableSpec
     val table = mockTable(None, 1000L, 10000000L, numberOfShards = 1)
     val reader = table.createReader(query)
     reader shouldBe a[OpenSearchSearchAfterQueryReader]
+
+    val searchRequest = reader.asInstanceOf[OpenSearchSearchAfterQueryReader].searchRequest
+    searchRequest.indices() should contain("test-index")
+
+    val sourceBuilder = searchRequest.source().asInstanceOf[SearchSourceBuilder]
+    sourceBuilder.query() should not be null
+    sourceBuilder.size() shouldBe table.pageSize
+
+    val sorts = sourceBuilder.sorts()
+    sorts.size() shouldBe 2
+    sorts.get(0).toString should include("{\n  \"_doc\" : {\n    \"order\" : \"asc\"\n  }\n}")
+    sorts.get(1).toString should include("{\n  \"_id\" : {\n    \"order\" : \"asc\"\n  }\n}")
+  }
+
+  "OpenSearchIndexShardTable" should "create reader correctly" in {
+    val query = ""
+    val indexTable = mockTable(None, 1000L, 10000000L, numberOfShards = 3)
+    val table = indexTable.slice().head
+    val reader = table.createReader(query)
+    reader shouldBe a[OpenSearchSearchAfterQueryReader]
+
+    val searchRequest = reader.asInstanceOf[OpenSearchSearchAfterQueryReader].searchRequest
+    searchRequest.indices() should contain("test-index")
+
+    searchRequest.preference() shouldBe "_shards:0"
+
+    val sourceBuilder = searchRequest.source()
+    sourceBuilder.query() should not be null
+    sourceBuilder.size() shouldBe indexTable.pageSize
+
+    val sorts = sourceBuilder.sorts()
+    sorts.size() shouldBe 1
+    sorts.get(0).toString should include("{\n  \"_doc\" : {\n    \"order\" : \"asc\"\n  }\n}")
   }
 }

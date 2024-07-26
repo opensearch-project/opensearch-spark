@@ -12,7 +12,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types.StructType
 
 case class FlintScan(
-    tables: Seq[org.opensearch.flint.table.Table],
+    tables: Seq[org.opensearch.flint.core.Table],
     schema: StructType,
     options: FlintSparkConf,
     pushedPredicates: Array[Predicate])
@@ -54,7 +54,7 @@ case class FlintScan(
  * Each OpenSearchSplit is backed by an OpenSearch index table.
  *
  * @param table
- *   {@link org.opensearch.flint.table.Table}
+ *   {@link org.opensearch.flint.core.Table}
  */
-private[spark] case class OpenSearchSplit(table: org.opensearch.flint.table.Table)
+private[spark] case class OpenSearchSplit(table: org.opensearch.flint.core.Table)
     extends InputPartition {}

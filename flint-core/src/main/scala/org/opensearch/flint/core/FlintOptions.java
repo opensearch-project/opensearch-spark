@@ -95,7 +95,7 @@ public class FlintOptions implements Serializable {
 
   public static final String SUPPORT_SHARD = "read.support_shard";
 
-  public static final String SUPPORT_SHARD_DEFAULT = "true";
+  public static final String DEFAULT_SUPPORT_SHARD = "true";
 
   public FlintOptions(Map<String, String> options) {
     this.options = options;
@@ -179,6 +179,7 @@ public class FlintOptions implements Serializable {
   }
 
   public boolean supportShard() {
-    return options.getOrDefault(SUPPORT_SHARD, SUPPORT_SHARD_DEFAULT).equalsIgnoreCase(SUPPORT_SHARD_DEFAULT);
+    return options.getOrDefault(SUPPORT_SHARD, DEFAULT_SUPPORT_SHARD).equalsIgnoreCase(
+        DEFAULT_SUPPORT_SHARD);
   }
 }

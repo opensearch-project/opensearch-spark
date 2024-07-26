@@ -13,7 +13,7 @@ import org.apache.spark.sql.flint.storage.FlintQueryCompiler
 import org.apache.spark.sql.types.StructType
 
 case class FlintScanBuilder(
-    tables: Seq[org.opensearch.flint.table.Table],
+    tables: Seq[org.opensearch.flint.core.Table],
     schema: StructType,
     options: FlintSparkConf)
     extends ScanBuilder

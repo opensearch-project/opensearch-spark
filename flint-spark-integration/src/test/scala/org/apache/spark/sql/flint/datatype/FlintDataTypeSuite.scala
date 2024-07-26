@@ -70,7 +70,7 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
     FlintDataType.deserialize(flintDataType) should contain theSameElementsAs sparkStructType
   }
 
-  ignore("deserialize unsupported flint data type throw exception") {
+  test("deserialize unsupported flint data type throw exception") {
     val unsupportedField = """{
       "properties": {
         "rangeField": {

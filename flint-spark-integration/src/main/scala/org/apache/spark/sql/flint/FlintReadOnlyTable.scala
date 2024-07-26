@@ -7,7 +7,7 @@ package org.apache.spark.sql.flint
 
 import java.util
 
-import org.opensearch.flint.table.OpenSearchCluster
+import org.opensearch.flint.core.table.OpenSearchCluster
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.catalog.{SupportsRead, Table, TableCapability}
@@ -38,7 +38,7 @@ class FlintReadOnlyTable(
 
   lazy val name: String = flintSparkConf.tableName()
 
-  lazy val tables: Seq[org.opensearch.flint.table.Table] =
+  lazy val tables: Seq[org.opensearch.flint.core.Table] =
     OpenSearchCluster.apply(name, flintSparkConf.flintOptions())
 
   lazy val resolvedTablesSchema: StructType = tables.headOption
