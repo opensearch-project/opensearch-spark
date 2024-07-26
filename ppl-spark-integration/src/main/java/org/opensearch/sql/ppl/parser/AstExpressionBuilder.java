@@ -112,15 +112,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         return new Compare(ctx.comparisonOperator().getText(), visit(ctx.left), visit(ctx.right));
     }
 
-    /**
-     * Value Expression.
-     */
-    @Override
-    public UnresolvedExpression visitBinaryArithmetic(OpenSearchPPLParser.BinaryArithmeticContext ctx) {
-        return new Function(
-                ctx.binaryOperator.getText(), Arrays.asList(visit(ctx.left), visit(ctx.right)));
-    }
-
     @Override
     public UnresolvedExpression visitParentheticValueExpr(OpenSearchPPLParser.ParentheticValueExprContext ctx) {
         return visit(ctx.valueExpression()); // Discard parenthesis around
@@ -170,20 +161,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                 ctx.PERCENTILE().getText(),
                 visit(ctx.aggField),
                 Collections.singletonList(new Argument("rank", (Literal) visit(ctx.value))));
-    }
-
-    @Override
-    public UnresolvedExpression visitTakeAggFunctionCall(
-            OpenSearchPPLParser.TakeAggFunctionCallContext ctx) {
-        ImmutableList.Builder<UnresolvedExpression> builder = ImmutableList.builder();
-        builder.add(
-                new UnresolvedArgument(
-                        "size",
-                        ctx.takeAggFunction().size != null
-                                ? visit(ctx.takeAggFunction().size)
-                                : new Literal(DEFAULT_TAKE_FUNCTION_SIZE_VALUE, DataType.INTEGER)));
-        return new AggregateFunction(
-                "take", visit(ctx.takeAggFunction().fieldExpression()), builder.build());
     }
 
     /**
