@@ -33,7 +33,6 @@ commands
    : whereCommand
    | correlateCommand
    | fieldsCommand
-   | renameCommand
    | statsCommand
    | sortCommand
    | headCommand
@@ -224,8 +223,6 @@ statsFunction
    : statsFunctionName LT_PRTHS valueExpression RT_PRTHS        # statsFunctionCall
    | COUNT LT_PRTHS RT_PRTHS                                    # countAllFunctionCall
    | (DISTINCT_COUNT | DC) LT_PRTHS valueExpression RT_PRTHS    # distinctCountFunctionCall
-   | percentileAggFunction                                      # percentileAggFunctionCall
-   | takeAggFunction                                            # takeAggFunctionCall
    ;
 
 statsFunctionName
@@ -258,7 +255,6 @@ logicalExpression
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
    | left = logicalExpression XOR right = logicalExpression     # logicalXor
    | booleanExpression                                          # booleanExpr
-   | relevanceExpression                                        # relevanceExpr
    ;
 
 comparisonExpression
