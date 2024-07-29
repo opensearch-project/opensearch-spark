@@ -18,6 +18,7 @@ import dev.failsafe.event.ExecutionAttemptedEvent
 import dev.failsafe.function.CheckedRunnable
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{FAILED, REFRESHING}
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogService
+import org.opensearch.flint.core.FlintClient
 import org.opensearch.flint.core.logging.ExceptionMessages.extractRootCause
 import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 
@@ -36,6 +37,7 @@ import org.apache.spark.sql.flint.newDaemonThreadPoolScheduledExecutor
  */
 class FlintSparkIndexMonitor(
     spark: SparkSession,
+    flintClient: FlintClient,
     flintMetadataLogService: FlintMetadataLogService)
     extends Logging {
 
@@ -157,7 +159,13 @@ class FlintSparkIndexMonitor(
       try {
         if (isStreamingJobActive(indexName)) {
           logInfo("Streaming job is still active")
-          flintMetadataLogService.recordHeartbeat(indexName)
+
+          if (flintClient.exists(indexName)) {
+            flintMetadataLogService.recordHeartbeat(indexName)
+          } else {
+            logInfo("Streaming job is active but data is deleted")
+            stopStreamingJobAndMonitor(indexName)
+          }
         } else {
           logError("Streaming job is not active. Cancelling monitor task")
           stopMonitor(indexName)
@@ -172,10 +180,7 @@ class FlintSparkIndexMonitor(
 
           // Stop streaming job and its monitor if max retry limit reached
           if (errorCnt >= MAX_ERROR_COUNT) {
-            logInfo(s"Terminating streaming job and index monitor for $indexName")
-            stopStreamingJob(indexName)
-            stopMonitor(indexName)
-            logInfo(s"Streaming job and index monitor terminated")
+            stopStreamingJobAndMonitor(indexName)
           }
       }
     }
@@ -183,6 +188,13 @@ class FlintSparkIndexMonitor(
 
   private def isStreamingJobActive(indexName: String): Boolean =
     spark.streams.active.exists(_.name == indexName)
+
+  private def stopStreamingJobAndMonitor(indexName: String): Unit = {
+    logInfo(s"Terminating streaming job and index monitor for $indexName")
+    stopStreamingJob(indexName)
+    stopMonitor(indexName)
+    logInfo(s"Streaming job and index monitor terminated")
+  }
 
   private def stopStreamingJob(indexName: String): Unit = {
     val job = spark.streams.active.find(_.name == indexName)

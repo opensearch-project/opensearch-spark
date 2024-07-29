@@ -9,9 +9,11 @@ import java.util.Base64
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{doAnswer, spy}
+import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
 import org.opensearch.action.admin.indices.settings.put.UpdateSettingsRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.flint.OpenSearchTransactionSuite
@@ -148,12 +150,25 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     spark.streams.active.exists(_.name == testFlintIndex) shouldBe false
   }
 
+  test("monitor task and streaming job should terminate if data index is deleted") {
+    val task = FlintSparkIndexMonitor.indexMonitorTracker(testFlintIndex)
+    async {
+      openSearchClient
+        .indices()
+        .delete(new DeleteIndexRequest(testFlintIndex), RequestOptions.DEFAULT)
+    }
+
+    // Wait for index monitor execution and assert
+    Thread.sleep(5000)
+    task.isCancelled shouldBe true
+    spark.streams.active.exists(_.name == testFlintIndex) shouldBe false
+  }
+
   test("await monitor terminated without exception should stay refreshing state") {
     // Setup a timer to terminate the streaming job
-    new Thread(() => {
-      Thread.sleep(3000L)
+    asyncAfter(3.seconds) {
       spark.streams.active.find(_.name == testFlintIndex).get.stop()
-    }).start()
+    }
 
     // Await until streaming job terminated
     flint.flintIndexMonitor.awaitMonitor()
@@ -164,9 +179,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
   }
 
   test("await monitor terminated with exception should update index state to failed with error") {
-    new Thread(() => {
-      Thread.sleep(3000L)
-
+    asyncAfter(3.seconds) {
       // Set Flint index readonly to simulate streaming job exception
       val settings = Map("index.blocks.write" -> true)
       val request = new UpdateSettingsRequest(testFlintIndex).settings(settings.asJava)
@@ -178,7 +191,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
            | PARTITION (year=2023, month=6)
            | VALUES ('Test', 35, 'Vancouver')
            | """.stripMargin)
-    }).start()
+    }
 
     // Await until streaming job terminated
     flint.flintIndexMonitor.awaitMonitor()
@@ -202,6 +215,19 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     val latestLog = latestLogEntry(testLatestId)
     latestLog should contain("state" -> "failed")
     latestLog should not contain "error"
+  }
+
+  private def async(block: => Unit): Unit = {
+    new Thread(() => {
+      block
+    }).start()
+  }
+
+  private def asyncAfter(delay: FiniteDuration)(block: => Unit): Unit = {
+    new Thread(() => {
+      Thread.sleep(delay.toMillis)
+      block
+    }).start()
   }
 
   private def getLatestTimestamp: (Long, Long) = {
