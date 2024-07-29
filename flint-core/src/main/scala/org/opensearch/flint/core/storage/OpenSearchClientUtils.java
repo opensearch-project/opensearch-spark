@@ -7,11 +7,7 @@ package org.opensearch.flint.core.storage;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.Constructor;
-import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
@@ -38,14 +34,6 @@ public class OpenSearchClientUtils {
    * Metadata log index name prefix
    */
   public final static String META_LOG_NAME_PREFIX = ".query_execution_request";
-
-  public static final String AOS_SIGV4_SERVICE_NAME = "es";
-  public static final String AOSS_SIGV4_SERVICE_NAME = "aoss";
-
-  private static final Map<String, String> INDEX_TYPE_SERVICE_NAME_MAPPING = ImmutableMap.<String, String>builder()
-      .put(FlintOptions.INDEX_TYPE_AOS, AOS_SIGV4_SERVICE_NAME)
-      .put(FlintOptions.INDEX_TYPE_AOSS, AOSS_SIGV4_SERVICE_NAME)
-      .build();
 
   /**
    * Used in IT.
@@ -97,22 +85,15 @@ public class OpenSearchClientUtils {
       instantiateProvider(metadataAccessProviderClass, metadataAccessAWSCredentialsProvider);
     }
 
-    String serviceName = getServiceNameForSigV4(options);
     restClientBuilder.setHttpClientConfigCallback(builder -> {
           HttpAsyncClientBuilder delegate = builder.addInterceptorLast(
               new ResourceBasedAWSRequestSigningApacheInterceptor(
-                  serviceName, options.getRegion(), customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), systemIndexName));
+                  options.getServiceName(), options.getRegion(), customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), systemIndexName));
           return RetryableHttpAsyncClient.builder(delegate, options);
         }
     );
 
     return restClientBuilder;
-  }
-
-  @VisibleForTesting
-  static String getServiceNameForSigV4(FlintOptions options) {
-    String indexType = options.getIndexType();
-    return Objects.requireNonNull(INDEX_TYPE_SERVICE_NAME_MAPPING.get(indexType), "Unknown index type was specified: " + indexType);
   }
 
   private static RestClientBuilder configureBasicAuth(RestClientBuilder restClientBuilder, FlintOptions options) {

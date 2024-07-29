@@ -33,9 +33,14 @@ public class FlintOptions implements Serializable {
 
   public static final String SCHEME = "scheme";
 
-  public static final String INDEX_TYPE = "index.type";
-  public static final String INDEX_TYPE_AOS = "aos";
-  public static final String INDEX_TYPE_AOSS = "aoss";
+  /**
+   * Service name used for SigV4 signature.
+   * `es`: Amazon OpenSearch Service
+   * `aoss`: Amazon OpenSearch Serverless
+   */
+  public static final String SERVICE_NAME = "auth.servicename";
+  public static final String SERVICE_NAME_ES = "es";
+  public static final String SERVICE_NAME_AOSS = "aoss";
 
   public static final String AUTH = "auth";
   public static final String NONE_AUTH = "noauth";
@@ -130,8 +135,8 @@ public class FlintOptions implements Serializable {
     return options.getOrDefault(AUTH, NONE_AUTH);
   }
 
-  public String getIndexType() {
-    return options.getOrDefault(INDEX_TYPE, INDEX_TYPE_AOS);
+  public String getServiceName() {
+    return options.getOrDefault(SERVICE_NAME, SERVICE_NAME_ES);
   }
 
   public String getCustomAwsCredentialsProvider() {
