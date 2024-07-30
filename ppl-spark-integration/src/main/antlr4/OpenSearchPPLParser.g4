@@ -37,6 +37,7 @@ commands
    | statsCommand
    | sortCommand
    | headCommand
+   | evalCommand
    ;
 
 searchCommand

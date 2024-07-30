@@ -13,8 +13,7 @@ import java.util.List;
 /** Argument. */
 public class Argument extends UnresolvedExpression {
   private final String name;
-  private String argName;
-  private Literal value;
+  private final Literal value;
 
   public Argument(String name, Literal value) {
     this.name = name;
@@ -27,8 +26,8 @@ public class Argument extends UnresolvedExpression {
     return Arrays.asList(value);
   }
 
-  public String getArgName() {
-    return argName;
+  public String getName() {
+    return name;
   }
 
   public Literal getValue() {

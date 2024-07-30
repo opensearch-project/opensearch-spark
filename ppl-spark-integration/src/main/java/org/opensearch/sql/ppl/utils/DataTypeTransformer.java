@@ -33,8 +33,8 @@ import static scala.collection.JavaConverters.asScalaBufferConverter;
  * translate the PPL ast expressions data-types into catalyst data-types 
  */
 public interface DataTypeTransformer {
-    static <T> Seq<T> seq(T element) {
-        return seq(List.of(element));
+    static <T> Seq<T> seq(T... elements) {
+        return seq(List.of(elements));
     }
     static <T> Seq<T> seq(List<T> list) {
         return asScalaBufferConverter(list).asScala().seq();
