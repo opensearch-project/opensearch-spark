@@ -254,19 +254,25 @@ logicalExpression
    | left = logicalExpression OR right = logicalExpression      # logicalOr
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
    | left = logicalExpression XOR right = logicalExpression     # logicalXor
+   | booleanExpression                                          # booleanExpr
    ;
 
 comparisonExpression
    : left = valueExpression comparisonOperator right = valueExpression  # compareExpr
+   | valueExpression IN valueList                                       # inExpr
    ;
 
 valueExpression
-   : primaryExpression                                                                          # valueExpressionDefault
+   : left = valueExpression binaryOperator = (STAR | DIVIDE | MODULE) right = valueExpression   # binaryArithmetic
+   | left = valueExpression binaryOperator = (PLUS | MINUS) right = valueExpression             # binaryArithmetic
+   | primaryExpression                                                                          # valueExpressionDefault
+   | positionFunction                                                                           # positionFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    ;
 
 primaryExpression
-   : fieldExpression
+   : evalFunctionCall
+   | fieldExpression
    | literalValue
    ;
 

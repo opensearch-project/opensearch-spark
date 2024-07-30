@@ -112,6 +112,15 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         return new Compare(ctx.comparisonOperator().getText(), visit(ctx.left), visit(ctx.right));
     }
 
+    /**
+     * Value Expression.
+     */
+    @Override
+    public UnresolvedExpression visitBinaryArithmetic(OpenSearchPPLParser.BinaryArithmeticContext ctx) {
+        return new Function(
+            ctx.binaryOperator.getText(), Arrays.asList(visit(ctx.left), visit(ctx.right)));
+    }
+
     @Override
     public UnresolvedExpression visitParentheticValueExpr(OpenSearchPPLParser.ParentheticValueExprContext ctx) {
         return visit(ctx.valueExpression()); // Discard parenthesis around
