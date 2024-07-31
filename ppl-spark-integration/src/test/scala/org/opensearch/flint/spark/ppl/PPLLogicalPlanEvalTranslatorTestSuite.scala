@@ -31,10 +31,8 @@ class PPLLogicalPlanEvalTranslatorTestSuite
       planTransformer.visit(
         plan(pplParser, "source=t | eval a = 1, b = 1 | fields c", false),
         context)
-    val evalProjectList: Seq[NamedExpression] = Seq(
-      UnresolvedStar(None),
-      Alias(Literal(1), "a")(exprId = ExprId(0), qualifier = Seq.empty),
-      Alias(Literal(1), "b")(exprId = ExprId(1), qualifier = Seq.empty))
+    val evalProjectList: Seq[NamedExpression] =
+      Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(1), "b")())
     val expectedPlan = Project(
       seq(UnresolvedAttribute("c")),
       Project(evalProjectList, UnresolvedRelation(Seq("t"))))
@@ -48,10 +46,8 @@ class PPLLogicalPlanEvalTranslatorTestSuite
         plan(pplParser, "source=t | eval a = 1, c = 1 | fields a, b, c", false),
         context)
 
-    val evalProjectList: Seq[NamedExpression] = Seq(
-      UnresolvedStar(None),
-      Alias(Literal(1), "a")(exprId = ExprId(0), qualifier = Seq.empty),
-      Alias(Literal(1), "c")(exprId = ExprId(1), qualifier = Seq.empty))
+    val evalProjectList: Seq[NamedExpression] =
+      Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(1), "c")())
     val expectedPlan = Project(
       seq(UnresolvedAttribute("a"), UnresolvedAttribute("b"), UnresolvedAttribute("c")),
       Project(evalProjectList, UnresolvedRelation(Seq("t"))))
@@ -63,10 +59,8 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val logPlan =
       planTransformer.visit(plan(pplParser, "source=t | eval a = 1, b = 1", false), context)
 
-    val evalProjectList: Seq[NamedExpression] = Seq(
-      UnresolvedStar(None),
-      Alias(Literal(1), "a")(exprId = ExprId(0), qualifier = Seq.empty),
-      Alias(Literal(1), "b")(exprId = ExprId(1), qualifier = Seq.empty))
+    val evalProjectList: Seq[NamedExpression] =
+      Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(1), "b")())
     val expectedPlan =
       Project(seq(UnresolvedStar(None)), Project(evalProjectList, UnresolvedRelation(Seq("t"))))
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
@@ -79,10 +73,8 @@ class PPLLogicalPlanEvalTranslatorTestSuite
         plan(pplParser, "source=t | eval a = 1, b = 1 | sort - a | fields b", false),
         context)
 
-    val evalProjectList: Seq[NamedExpression] = Seq(
-      UnresolvedStar(None),
-      Alias(Literal(1), "a")(exprId = ExprId(0), qualifier = Seq.empty),
-      Alias(Literal(1), "b")(exprId = ExprId(1), qualifier = Seq.empty))
+    val evalProjectList: Seq[NamedExpression] =
+      Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(1), "b")())
     val evalProject = Project(evalProjectList, UnresolvedRelation(Seq("t")))
     val sortOrder = SortOrder(UnresolvedAttribute("a"), Descending, Seq.empty)
     val sort = Sort(seq(sortOrder), global = true, evalProject)
@@ -97,10 +89,8 @@ class PPLLogicalPlanEvalTranslatorTestSuite
         plan(pplParser, "source=t | eval a = 1, a = a | sort - a | fields b", false),
         context)
 
-    val evalProjectList: Seq[NamedExpression] = Seq(
-      UnresolvedStar(None),
-      Alias(Literal(1), "a")(exprId = ExprId(0), qualifier = Seq.empty),
-      Alias(UnresolvedAttribute("a"), "a")(exprId = ExprId(1), qualifier = Seq.empty))
+    val evalProjectList: Seq[NamedExpression] =
+      Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(UnresolvedAttribute("a"), "a")())
     val evalProject = Project(evalProjectList, UnresolvedRelation(Seq("t")))
     val sortOrder = SortOrder(UnresolvedAttribute("a"), Descending, Seq.empty)
     val sort = Sort(seq(sortOrder), global = true, evalProject)
@@ -118,10 +108,8 @@ class PPLLogicalPlanEvalTranslatorTestSuite
           false),
         context)
 
-    val evalProjectList1: Seq[NamedExpression] = Seq(
-      UnresolvedStar(None),
-      Alias(Literal(1), "a")(exprId = ExprId(0), qualifier = Seq.empty),
-      Alias(Literal("hello"), "b")(exprId = ExprId(1), qualifier = Seq.empty))
+    val evalProjectList1: Seq[NamedExpression] =
+      Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal("hello"), "b")())
     val evalProjectList2: Seq[NamedExpression] = Seq(
       UnresolvedStar(None),
       Alias(UnresolvedAttribute("a"), "b")(exprId = ExprId(2), qualifier = Seq.empty))
@@ -133,19 +121,66 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
-  // Todo function should work when the PR #448 merged.
-  ignore("test complex eval expressions") {
+  test("test complex eval expressions - date function") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = avg(b) | fields a", false),
+        plan(pplParser, "source=t | eval a = TIMESTAMP('2020-09-16 17:30:00') | fields a", false),
         context)
 
     val evalProjectList: Seq[NamedExpression] = Seq(
       UnresolvedStar(None),
-      Alias(UnresolvedFunction("avg", seq(UnresolvedAttribute("b")), isDistinct = false), "a")(
+      Alias(
+        UnresolvedFunction("timestamp", seq(Literal("2020-09-16 17:30:00")), isDistinct = false),
+        "a")())
+    val expectedPlan = Project(
+      seq(UnresolvedAttribute("a")),
+      Project(evalProjectList, UnresolvedRelation(Seq("t"))))
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test complex eval expressions - math function") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=t | eval a = RAND() | fields a", false),
+        context)
+
+    val evalProjectList: Seq[NamedExpression] = Seq(
+      UnresolvedStar(None),
+      Alias(UnresolvedFunction("rand", Seq.empty, isDistinct = false), "a")(
         exprId = ExprId(0),
         qualifier = Seq.empty))
+    val expectedPlan = Project(
+      seq(UnresolvedAttribute("a")),
+      Project(evalProjectList, UnresolvedRelation(Seq("t"))))
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test complex eval expressions - compound function") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source=t | eval a = if(like(b, '%Hello%'), 'World', 'Hi') | fields a",
+          false),
+        context)
+
+    val evalProjectList: Seq[NamedExpression] = Seq(
+      UnresolvedStar(None),
+      Alias(
+        UnresolvedFunction(
+          "if",
+          seq(
+            UnresolvedFunction(
+              "like",
+              seq(UnresolvedAttribute("b"), Literal("%Hello%")),
+              isDistinct = false),
+            Literal("World"),
+            Literal("Hi")),
+          isDistinct = false),
+        "a")())
     val expectedPlan = Project(
       seq(UnresolvedAttribute("a")),
       Project(evalProjectList, UnresolvedRelation(Seq("t"))))
@@ -157,13 +192,11 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = 1, b = 1 | fields - b", false),
+        plan(pplParser, "source=t | eval a = 1, b = 2 | fields - b", false),
         context)
 
-    val projectList: Seq[NamedExpression] = Seq(
-      UnresolvedStar(None),
-      Alias(Literal(1), "a")(exprId = ExprId(0), qualifier = Seq.empty),
-      Alias(Literal(1), "b")(exprId = ExprId(1), qualifier = Seq.empty))
+    val projectList: Seq[NamedExpression] =
+      Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(2), "b")())
     val expectedPlan = Project(projectList, UnresolvedRelation(Seq("t")))
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
@@ -173,13 +206,11 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = 1, b = 1 | fields + b", false),
+        plan(pplParser, "source=t | eval a = 1, b = 2 | fields + b", false),
         context)
 
-    val projectList: Seq[NamedExpression] = Seq(
-      UnresolvedStar(None),
-      Alias(Literal(1), "a")(exprId = ExprId(0), qualifier = Seq.empty),
-      Alias(Literal(1), "b")(exprId = ExprId(1), qualifier = Seq.empty))
+    val projectList: Seq[NamedExpression] =
+      Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(2), "b")())
     val expectedPlan = Project(projectList, UnresolvedRelation(Seq("t")))
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
