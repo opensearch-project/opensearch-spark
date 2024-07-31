@@ -31,6 +31,7 @@ import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
+import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
@@ -60,6 +61,7 @@ import org.opensearch.sql.ppl.utils.SortUtils;
 import scala.Option;
 import scala.collection.Seq;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -224,7 +226,22 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitEval(Eval node, CatalystPlanContext context) {
-        throw new IllegalStateException("Not Supported operation : Eval");
+        LogicalPlan child = node.getChild().get(0).accept(this, context);
+        List<UnresolvedExpression> aliases = new ArrayList<>();
+        List<Let> letExpressions = node.getExpressionList();
+        for(Let let : letExpressions) {
+            Alias alias = new Alias(let.getVar().getField().toString(), let.getExpression());
+            aliases.add(alias);
+        }
+        if (context.getNamedParseExpressions().isEmpty()) {
+            // Create an UnresolvedStar for all-fields projection
+            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+        }
+        List<Expression> expressionList = visitExpressionList(aliases, context);
+        Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+        // build the plan with the projection step
+        child = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+        return child;
     }
 
     @Override
