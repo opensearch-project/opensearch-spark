@@ -5,6 +5,9 @@
 
 package org.opensearch.flint.spark
 
+import scala.collection.JavaConverters._
+
+import org.opensearch.action.admin.indices.settings.put.UpdateSettingsRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.CreateIndexRequest
 import org.opensearch.common.xcontent.XContentType
@@ -12,10 +15,11 @@ import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.AUTO_REFRESH
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
+import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.sql.Row
 
-class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
+class FlintSparkIndexSqlITSuite extends FlintSparkSuite with Matchers {
 
   private val testTableName = "index_test"
   private val testTableQualifiedName = s"spark_catalog.default.$testTableName"
@@ -97,6 +101,46 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
       testCoveringFlintIndex,
       testSkippingFlintIndex,
       FlintSparkMaterializedView.getFlintIndexName("spark_catalog.other.mv2"))
+  }
+
+  test("show flint indexes with extended information") {
+    // Create and refresh with all existing data
+    flint
+      .skippingIndex()
+      .onTable(testTableQualifiedName)
+      .addValueSet("name")
+      .options(FlintSparkIndexOptions(Map(AUTO_REFRESH.toString -> "true")))
+      .create()
+    flint.refreshIndex(testSkippingFlintIndex)
+    val activeJob = spark.streams.active.find(_.name == testSkippingFlintIndex)
+    awaitStreamingComplete(activeJob.get.id.toString)
+
+    // Assert output contains empty error message
+    def outputError: String = {
+      val df = sql("SHOW FLINT INDEX EXTENDED IN spark_catalog")
+      df.columns should contain("error")
+      df.collect().head.getAs[String]("error")
+    }
+    outputError shouldBe empty
+
+    // Trigger next micro batch after 5 seconds with index readonly
+    new Thread(() => {
+      Thread.sleep(5000)
+      openSearchClient
+        .indices()
+        .putSettings(
+          new UpdateSettingsRequest(testSkippingFlintIndex).settings(
+            Map("index.blocks.write" -> true).asJava),
+          RequestOptions.DEFAULT)
+      sql(
+        s"INSERT INTO $testTableQualifiedName VALUES (TIMESTAMP '2023-10-01 04:00:00', 'F', 25, 'Vancouver')")
+    }).start()
+
+    // Await to store exception and verify if it's as expected
+    flint.flintIndexMonitor.awaitMonitor(Some(testSkippingFlintIndex))
+    outputError should include("OpenSearchException")
+
+    deleteTestIndex(testSkippingFlintIndex)
   }
 
   test("should return empty when show flint index in empty database") {

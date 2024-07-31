@@ -55,6 +55,7 @@ import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
+import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import scala.Option;
@@ -414,7 +415,21 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         @Override
         public Expression visitFunction(Function node, CatalystPlanContext context) {
-            throw new IllegalStateException("Not Supported operation : Function");
+            List<Expression> arguments =
+                node.getFuncArgs().stream()
+                    .map(
+                        unresolvedExpression -> {
+                            var ret = analyze(unresolvedExpression, context);
+                            if (ret == null) {
+                                throw new UnsupportedOperationException(
+                                    String.format("Invalid use of expression %s", unresolvedExpression));
+                            } else {
+                                return context.popNamedParseExpressions().get();
+                            }
+                        })
+                    .collect(Collectors.toList());
+            Expression function = BuiltinFunctionTranslator.builtinFunction(node, arguments);
+            return context.getNamedParseExpressions().push(function);
         }
 
         @Override
