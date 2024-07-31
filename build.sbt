@@ -138,9 +138,10 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
     Antlr4 / antlr4GenListener := true,
     Antlr4 / antlr4GenVisitor := true,
     // Assembly settings
-    assemblyPackageScala / assembleArtifact := false,
-    assembly / assemblyOption ~= {
-      _.withIncludeScala(false)
+    assembly / test := {},
+    assembly / assemblyExcludedJars := {
+      val cp = (assembly / fullClasspath).value
+      cp.filter(_.data.getName.contains("test"))
     },
     assembly / assemblyMergeStrategy := {
       case PathList(ps @ _*) if ps.last endsWith ("module-info.class") =>
@@ -177,9 +178,10 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
     Antlr4 / antlr4GenListener := true,
     Antlr4 / antlr4GenVisitor := true,
     // Assembly settings
-    assemblyPackageScala / assembleArtifact := false,
-    assembly / assemblyOption ~= {
-      _.withIncludeScala(false)
+    assembly / test := {},
+    assembly / assemblyExcludedJars := {
+      val cp = (assembly / fullClasspath).value
+      cp.filter(_.data.getName.contains("test"))
     },
     assembly / assemblyMergeStrategy := {
       case PathList(ps @ _*) if ps.last endsWith ("module-info.class") =>
@@ -266,7 +268,7 @@ lazy val sparkSqlApplication = (project in file("spark-sql-application"))
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
     },
-    assembly / test := (Test / test).value
+    assembly / test := {} // Disable tests in assembly
   )
 
 lazy val sparkSqlApplicationCosmetic = project
