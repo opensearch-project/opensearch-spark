@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.core.auth;
 
+import static org.opensearch.flint.core.FlintOptions.SERVICE_NAME_ES;
+
 import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import org.apache.http.HttpException;
@@ -85,7 +87,7 @@ public class ResourceBasedAWSRequestSigningApacheInterceptor implements HttpRequ
     @Override
     public void process(HttpRequest request, HttpContext context) throws HttpException, IOException {
         String resourcePath = parseUriToPath(request);
-        if (OpenSearchClientUtils.AOS_SIGV4_SERVICE_NAME.equals(this.service) && isMetadataAccess(resourcePath)) {
+        if (SERVICE_NAME_ES.equals(this.service) && isMetadataAccess(resourcePath)) {
             metadataAccessInterceptor.process(request, context);
         } else {
             primaryInterceptor.process(request, context);
