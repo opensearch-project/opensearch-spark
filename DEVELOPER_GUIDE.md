@@ -6,11 +6,17 @@ If you want to package the single jar for, you can do so by running the followin
 sbt assembly
 ```
 
+## Unit Test
+To execute the unit tests, run the following command:
+```
+sbt test
+```
+
 ## Integration Test
-The integration test is defined in the integ-test directory of the project. If you want to run the integration test for the project, you 
+The integration test is defined in the `integration` directory of the project. If you want to run the integration test for the project, you 
 can do so by running the following command:
 ```
-sbt integtest/test
+sbt integtest/integration
 ```
 If you get integration test failures with error message "Previous attempts to find a Docker environment failed" in macOS, fix the issue by following the checklist:
 1. Check you've installed Docker in your dev host. If not, install Docker first.
@@ -19,7 +25,7 @@ If you get integration test failures with error message "Previous attempts to fi
 4. If you use Docker Desktop, as an alternative of `3`, check mark the "Allow the default Docker socket to be used (requires password)" in advanced settings of Docker Desktop.
 
 ### AWS Integration Test
-The integration folder contains tests for cloud server providers. For instance, test against AWS OpenSearch domain, configure the following settings. The client will use the default credential provider to access the AWS OpenSearch domain.
+The `aws-integration` folder contains tests for cloud server providers. For instance, test against AWS OpenSearch domain, configure the following settings. The client will use the default credential provider to access the AWS OpenSearch domain.
 ```
 export AWS_OPENSEARCH_HOST=search-xxx.us-west-2.on.aws
 export AWS_REGION=us-west-2
@@ -29,9 +35,9 @@ export AWS_S3_CODE_BUCKET=xxx
 export AWS_S3_CODE_PREFIX=xxx
 export AWS_OPENSEARCH_RESULT_INDEX=query_execution_result_glue
 ```
-And run the 
+And run the following command:
 ```
-sbt integtest/integration
+sbt integtest/awsIntegration
 
 [info] AWSOpenSearchAccessTestSuite:
 [info] - should Create Pit on AWS OpenSearch
