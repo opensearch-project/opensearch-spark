@@ -188,6 +188,28 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            | """.stripMargin)
   }
 
+  protected def createNullableStateCountryTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   name STRING,
+           |   age INT,
+           |   state STRING,
+           |   country STRING
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES ('Jake', 70, 'California', 'USA'),
+           |        ('Hello', 30, 'New York', 'USA'),
+           |        ('John', 25, 'Ontario', 'Canada'),
+           |        ('Jane', 20, 'Quebec', 'Canada'),
+           |        (null, 10, null, 'Canada')
+           | """.stripMargin)
+  }
+
   protected def createOccupationTable(testTable: String): Unit = {
     sql(s"""
       | CREATE TABLE $testTable
