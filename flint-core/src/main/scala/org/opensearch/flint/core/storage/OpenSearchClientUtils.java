@@ -30,8 +30,6 @@ import org.opensearch.flint.core.http.RetryableHttpAsyncClient;
  */
 public class OpenSearchClientUtils {
 
-  private static final String SERVICE_NAME = "es";
-
   /**
    * Metadata log index name prefix
    */
@@ -83,7 +81,7 @@ public class OpenSearchClientUtils {
     restClientBuilder.setHttpClientConfigCallback(builder -> {
           HttpAsyncClientBuilder delegate = builder.addInterceptorLast(
               new ResourceBasedAWSRequestSigningApacheInterceptor(
-                  SERVICE_NAME, options.getRegion(), customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), systemIndexName));
+                  options.getServiceName(), options.getRegion(), customAWSCredentialsProvider.get(), metadataAccessAWSCredentialsProvider.get(), systemIndexName));
           return RetryableHttpAsyncClient.builder(delegate, options);
         }
     );
