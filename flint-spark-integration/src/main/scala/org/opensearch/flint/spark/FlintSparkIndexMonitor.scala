@@ -32,6 +32,8 @@ import org.apache.spark.sql.flint.newDaemonThreadPoolScheduledExecutor
  *
  * @param spark
  *   Spark session
+ * @param flintClient
+ *   Flint client
  * @param flintMetadataLogService
  *   Flint metadata log service
  */
@@ -159,10 +161,9 @@ class FlintSparkIndexMonitor(
       try {
         if (isStreamingJobActive(indexName)) {
           logInfo("Streaming job is still active")
+          flintMetadataLogService.recordHeartbeat(indexName)
 
-          if (flintClient.exists(indexName)) {
-            flintMetadataLogService.recordHeartbeat(indexName)
-          } else {
+          if (!flintClient.exists(indexName)) {
             logInfo("Streaming job is active but data is deleted")
             stopStreamingJobAndMonitor(indexName)
           }

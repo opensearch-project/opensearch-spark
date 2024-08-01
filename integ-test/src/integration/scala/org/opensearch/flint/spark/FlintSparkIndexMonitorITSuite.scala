@@ -162,6 +162,10 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     Thread.sleep(5000)
     task.isCancelled shouldBe true
     spark.streams.active.exists(_.name == testFlintIndex) shouldBe false
+
+    // Assert index state is still refreshing
+    val latestLog = latestLogEntry(testLatestId)
+    latestLog should contain("state" -> "refreshing")
   }
 
   test("await monitor terminated without exception should stay refreshing state") {
@@ -173,7 +177,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     // Await until streaming job terminated
     flint.flintIndexMonitor.awaitMonitor()
 
-    // Assert index state is active now
+    // Assert index state is still refreshing
     val latestLog = latestLogEntry(testLatestId)
     latestLog should contain("state" -> "refreshing")
   }
