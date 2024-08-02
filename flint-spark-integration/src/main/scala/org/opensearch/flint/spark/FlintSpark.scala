@@ -9,13 +9,15 @@ import scala.collection.JavaConverters._
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
-import org.opensearch.flint.common.metadata.FlintMetadata
+import org.opensearch.flint.common.metadata.{FlintIndexMetadataService, FlintMetadata}
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogService
 import org.opensearch.flint.common.metadata.log.OptimisticTransaction
 import org.opensearch.flint.common.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
+import org.opensearch.flint.core.metadata.FlintIndexMetadataServiceBuilder
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogServiceBuilder
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
@@ -46,6 +48,12 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
 
   /** Flint client for low-level index operation */
   private val flintClient: FlintClient = FlintClientBuilder.build(flintSparkConf.flintOptions())
+
+  private val flintIndexMetadataService: FlintIndexMetadataService = {
+    FlintIndexMetadataServiceBuilder.build(
+      flintSparkConf.flintOptions(),
+      spark.sparkContext.getConf)
+  }
 
   override protected val flintMetadataLogService: FlintMetadataLogService = {
     FlintMetadataLogServiceBuilder.build(
@@ -112,6 +120,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           .transientLog(latest => latest.copy(state = CREATING))
           .finalLog(latest => latest.copy(state = ACTIVE))
           .commit(latest =>
+            // TODO: update index metadata
             if (latest == null) { // in case transaction capability is disabled
               flintClient.createIndex(indexName, metadata)
             } else {
@@ -163,7 +172,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   def describeIndexes(indexNamePattern: String): Seq[FlintSparkIndex] = {
     logInfo(s"Describing indexes with pattern $indexNamePattern")
     if (flintClient.exists(indexNamePattern)) {
-      flintClient
+      flintIndexMetadataService
         .getAllIndexMetadata(indexNamePattern)
         .asScala
         .map { case (indexName, metadata) =>
@@ -187,7 +196,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   def describeIndex(indexName: String): Option[FlintSparkIndex] = {
     logInfo(s"Describing index name $indexName")
     if (flintClient.exists(indexName)) {
-      val metadata = flintClient.getIndexMetadata(indexName)
+      val metadata = flintIndexMetadataService.getIndexMetadata(indexName)
       val metadataWithEntry = attachLatestLogEntry(indexName, metadata)
       FlintSparkIndexFactory.create(metadataWithEntry)
     } else {
@@ -267,6 +276,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           .finalLog(_ => NO_LOG_ENTRY)
           .commit(_ => {
             flintClient.deleteIndex(indexName)
+            // TODO: delete index metadata
             true
           })
       } else {

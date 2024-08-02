@@ -35,8 +35,9 @@ case class FlintMetadata(
     /** Optional latest metadata log entry id */
     latestId: Option[String] = None,
     /**
-     * Optional latest metadata log entry. TODO: remove. Now describeIndex uses metadata log
-     * service to fetch log entry.
+     * Optional latest metadata log entry. TODO: remove. This was added for SHOW command to be
+     * fetched during get(All)IndexMetadata. Now describeIndex uses metadata log service to fetch
+     * log entry.
      */
     latestLogEntry: Option[FlintMetadataLogEntry] = None,
     /** Optional Flint index settings. TODO: move elsewhere? */

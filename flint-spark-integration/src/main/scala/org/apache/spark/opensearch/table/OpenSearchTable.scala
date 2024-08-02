@@ -8,9 +8,11 @@ package org.apache.spark.opensearch.table
 import scala.collection.JavaConverters._
 
 import org.opensearch.flint.common.metadata.FlintMetadata
-import org.opensearch.flint.core.{FlintClientBuilder, FlintOptions}
+import org.opensearch.flint.core.FlintOptions
+import org.opensearch.flint.core.metadata.FlintIndexMetadataServiceBuilder
 import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.flint.datatype.FlintDataType
 import org.apache.spark.sql.types.StructType
 
@@ -48,14 +50,16 @@ object OpenSearchTable {
    *   tableName support (1) single index name. (2) wildcard index name. (3) comma sep index name.
    * @param options
    *   The options for Flint.
+   * @param conf
+   *   Configurations for Spark application.
    * @return
    *   An instance of OpenSearchTable.
    */
-  def apply(tableName: String, options: FlintOptions): OpenSearchTable = {
+  def apply(tableName: String, options: FlintOptions, conf: SparkConf): OpenSearchTable = {
     OpenSearchTable(
       tableName,
-      FlintClientBuilder
-        .build(options)
+      FlintIndexMetadataServiceBuilder
+        .build(options, conf)
         .getAllIndexMetadata(tableName.split(","): _*)
         .asScala
         .toMap)

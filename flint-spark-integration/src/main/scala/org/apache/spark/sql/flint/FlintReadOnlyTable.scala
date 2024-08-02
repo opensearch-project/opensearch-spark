@@ -43,7 +43,7 @@ class FlintReadOnlyTable(
   lazy val name: String = flintSparkConf.tableName()
 
   lazy val openSearchTable: OpenSearchTable =
-    OpenSearchTable.apply(name, flintSparkConf.flintOptions())
+    OpenSearchTable.apply(name, flintSparkConf.flintOptions(), sparkSession.sparkContext.getConf)
 
   lazy val schema: StructType = {
     userSpecifiedSchema.getOrElse { openSearchTable.schema }

@@ -105,52 +105,13 @@ public class FlintOpenSearchClient implements FlintClient {
     }
   }
 
-  @Override
-  public Map<String, FlintMetadata> getAllIndexMetadata(String... indexNamePattern) {
-    LOG.info("Fetching all Flint index metadata for pattern " + String.join(",", indexNamePattern));
-    String[] indexNames =
-        Arrays.stream(indexNamePattern).map(this::sanitizeIndexName).toArray(String[]::new);
-    try (IRestHighLevelClient client = createClient()) {
-      GetIndexRequest request = new GetIndexRequest(indexNames);
-      GetIndexResponse response = client.getIndex(request, RequestOptions.DEFAULT);
-
-      return Arrays.stream(response.getIndices())
-          .collect(Collectors.toMap(
-              index -> index,
-              index -> FlintOpenSearchIndexMetadataService.deserialize(
-                  response.getMappings().get(index).source().toString(),
-                  response.getSettings().get(index).toString()
-              )
-          ));
-    } catch (Exception e) {
-      throw new IllegalStateException("Failed to get Flint index metadata for " +
-          String.join(",", indexNames), e);
-    }
-  }
-
-  @Override
-  public FlintMetadata getIndexMetadata(String indexName) {
-    LOG.info("Fetching Flint index metadata for " + indexName);
-    String osIndexName = sanitizeIndexName(indexName);
-    try (IRestHighLevelClient client = createClient()) {
-      GetIndexRequest request = new GetIndexRequest(osIndexName);
-      GetIndexResponse response = client.getIndex(request, RequestOptions.DEFAULT);
-
-      MappingMetadata mapping = response.getMappings().get(osIndexName);
-      Settings settings = response.getSettings().get(osIndexName);
-      return FlintOpenSearchIndexMetadataService.deserialize(mapping.source().string(), settings.toString());
-    } catch (Exception e) {
-      throw new IllegalStateException("Failed to get Flint index metadata for " + osIndexName, e);
-    }
-  }
-
+  // TODO: remove this interface? update index should be handled by index metadata service
   @Override
   public void updateIndex(String indexName, FlintMetadata metadata) {
     LOG.info("Updating Flint index " + indexName + " with metadata " + metadata);
     String osIndexName = sanitizeIndexName(indexName);
     try (IRestHighLevelClient client = createClient()) {
       PutMappingRequest request = new PutMappingRequest(osIndexName);
-      // TODO: use generic index metadata service
       request.source(FlintOpenSearchIndexMetadataService.serialize(metadata), XContentType.JSON);
       client.updateIndexMapping(request, RequestOptions.DEFAULT);
     } catch (Exception e) {

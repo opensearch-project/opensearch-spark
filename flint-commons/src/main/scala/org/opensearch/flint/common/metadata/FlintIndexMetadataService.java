@@ -15,7 +15,7 @@ public interface FlintIndexMetadataService {
   // TODO: createIndexMetadata?
 
   /**
-   * Retrieve metadata in a Flint index.
+   * Retrieve metadata for a Flint index.
    *
    * @param indexName index name
    * @return index metadata
@@ -32,10 +32,17 @@ public interface FlintIndexMetadataService {
   Map<String, FlintMetadata> getAllIndexMetadata(String... indexNamePattern);
 
   /**
-   * Update metadata in a Flint index.
+   * Update metadata for a Flint index.
    *
    * @param indexName index name
    * @param metadata index metadata to update
    */
   void updateIndexMetadata(String indexName, FlintMetadata metadata);
+
+  /**
+   * Delete metadata for a Flint index.
+   *
+   * @param indexName index name
+   */
+  void deleteIndexMetadata(String indexName);
 }

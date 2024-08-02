@@ -23,7 +23,9 @@ import org.apache.spark.sql.flint.config.FlintSparkConf.{REFRESH_POLICY, SCROLL_
 class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with Matchers {
 
   /** Lazy initialize after container started. */
-  lazy val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
+  lazy val options = new FlintOptions(openSearchOptions.asJava)
+  lazy val flintClient = new FlintOpenSearchClient(options)
+  lazy val flintIndexMetadataService = new FlintOpenSearchIndexMetadataService(options)
 
   behavior of "Flint OpenSearch client"
 
@@ -46,7 +48,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     flintClient.createIndex(indexName, metadata)
 
     flintClient.exists(indexName) shouldBe true
-    flintClient.getIndexMetadata(indexName).kind shouldBe "test_kind"
+    flintIndexMetadataService.getIndexMetadata(indexName).kind shouldBe "test_kind"
   }
 
   it should "create index with settings" in {
@@ -59,7 +61,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
 
     // OS uses full setting name ("index" prefix) and store as string
     implicit val formats: Formats = Serialization.formats(NoTypeHints)
-    val settings = parse(flintClient.getIndexMetadata(indexName).indexSettings.get)
+    val settings = parse(flintIndexMetadataService.getIndexMetadata(indexName).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "3"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
@@ -100,8 +102,9 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     flintClient.updateIndex(indexName, newMetadata)
 
     flintClient.exists(indexName) shouldBe true
-    flintClient.getIndexMetadata(indexName).kind shouldBe "test_kind"
-    flintClient.getIndexMetadata(indexName).name shouldBe "test_name"
+    val checkMetadata = flintIndexMetadataService.getIndexMetadata(indexName)
+    checkMetadata.kind shouldBe "test_kind"
+    checkMetadata.name shouldBe "test_name"
   }
 
   it should "get all index metadata with the given index name pattern" in {
@@ -109,7 +112,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     flintClient.createIndex("flint_test_1_index", metadata)
     flintClient.createIndex("flint_test_2_index", metadata)
 
-    val allMetadata = flintClient.getAllIndexMetadata("flint_*_index")
+    val allMetadata = flintIndexMetadataService.getAllIndexMetadata("flint_*_index")
     allMetadata should have size 2
     allMetadata.values.forEach(metadata =>
       FlintOpenSearchIndexMetadataService.serialize(metadata) should not be empty)
@@ -124,8 +127,8 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
         """{"properties": {"test": { "type": "integer" } } }"""))
 
     flintClient.exists(indexName) shouldBe true
-    flintClient.getIndexMetadata(indexName) should not be null
-    flintClient.getAllIndexMetadata("flint_ELB_*") should not be empty
+    flintIndexMetadataService.getIndexMetadata(indexName) should not be null
+    flintIndexMetadataService.getAllIndexMetadata("flint_ELB_*") should not be empty
 
     // Read write test
     val writer = flintClient.createWriter(indexName)
@@ -149,8 +152,8 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
         """{"properties": {"test": { "type": "integer" } } }"""))
 
     flintClient.exists(indexName) shouldBe true
-    flintClient.getIndexMetadata(indexName) should not be null
-    flintClient.getAllIndexMetadata("test *") should not be empty
+    flintIndexMetadataService.getIndexMetadata(indexName) should not be null
+    flintIndexMetadataService.getAllIndexMetadata("test *") should not be empty
 
     // Read write test
     val writer = flintClient.createWriter(indexName)

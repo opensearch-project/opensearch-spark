@@ -7,6 +7,10 @@ package org.opensearch.flint.core.storage
 
 import java.util
 
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+
+import org.opensearch.client.RequestOptions
+import org.opensearch.client.indices.{GetIndexRequest, GetIndexResponse}
 import org.opensearch.flint.common.FlintVersion
 import org.opensearch.flint.common.metadata.{FlintIndexMetadataService, FlintMetadata}
 import org.opensearch.flint.core.FlintOptions
@@ -19,25 +23,57 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
     with Logging {
 
   override def getIndexMetadata(indexName: String): FlintMetadata = {
-    FlintMetadata(
-      FlintVersion.current,
-      "",
-      "",
-      "",
-      Array(),
-      util.Map.of(),
-      util.Map.of(),
-      util.Map.of(),
-      None,
-      None,
-      None)
+    logInfo(s"Fetching Flint index metadata for $indexName")
+    // TODO: sanitize
+    // val osIndexName = sanitizeIndexName(indexName)
+    val osIndexName = indexName
+    val client = OpenSearchClientUtils.createClient(options)
+    try {
+      val request = new GetIndexRequest(osIndexName)
+      val response = client.getIndex(request, RequestOptions.DEFAULT)
+      val mapping = response.getMappings.get(osIndexName)
+      val settings = response.getSettings.get(osIndexName)
+      FlintOpenSearchIndexMetadataService.deserialize(mapping.source.string, settings.toString)
+    } catch {
+      case e: Exception =>
+        throw new IllegalStateException(
+          "Failed to get Flint index metadata for " + osIndexName,
+          e)
+    } finally {
+      client.close()
+    }
   }
 
   override def getAllIndexMetadata(indexNamePattern: String*): util.Map[String, FlintMetadata] = {
-    util.Map.of()
+    logInfo(s"Fetching all Flint index metadata for pattern ${indexNamePattern.mkString(",")}");
+    // TODO: sanitize
+    // val indexNames = indexNamePattern.map(sanitizeIndexName)
+    val indexNames = indexNamePattern
+    val client = OpenSearchClientUtils.createClient(options)
+    try {
+      val request = new GetIndexRequest(indexNames: _*)
+      val response: GetIndexResponse = client.getIndex(request, RequestOptions.DEFAULT)
+
+      response.getIndices
+        .map(index =>
+          index -> FlintOpenSearchIndexMetadataService.deserialize(
+            response.getMappings.get(index).source().string(),
+            response.getSettings.get(index).toString))
+        .toMap
+        .asJava
+    } catch {
+      case e: Exception =>
+        throw new IllegalStateException(
+          s"Failed to get Flint index metadata for ${indexNames.mkString(",")}",
+          e)
+    } finally {
+      client.close()
+    }
   }
 
   override def updateIndexMetadata(indexName: String, metadata: FlintMetadata): Unit = {}
+
+  override def deleteIndexMetadata(indexName: String): Unit = {}
 }
 
 object FlintOpenSearchIndexMetadataService {
