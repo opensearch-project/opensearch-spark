@@ -5,7 +5,6 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.apache.hadoop.conf.Configuration
 import org.junit.Assert.assertEquals
 import org.mockito.Mockito.when
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
@@ -20,11 +19,13 @@ import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Descending, Divide, EqualTo, Floor, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Like, Literal, NamedExpression, Not, Or, SortOrder, UnixTimestamp}
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.parser.ParserInterface
+import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 
 class PPLLogicalPlanFiltersTranslatorTestSuite
     extends SparkFunSuite
+    with PlanTest
     with LogicalPlanTestUtils
     with Matchers {
 
@@ -40,7 +41,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test simple search with only one table with two field with 'and' filtered ") {
@@ -54,7 +55,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(And(filterAExpr, filterBExpr), table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test simple search with only one table with two field with 'or' filtered ") {
@@ -68,7 +69,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(Or(filterAExpr, filterBExpr), table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test simple search with only one table with two field with 'not' filtered ") {
@@ -82,7 +83,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(Or(filterAExpr, filterBExpr), table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test(
@@ -96,7 +97,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test(
@@ -111,7 +112,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
 
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test(
@@ -127,7 +128,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
 
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test(
@@ -141,7 +142,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test(
@@ -155,7 +156,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test(
@@ -169,7 +170,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test(
@@ -183,7 +184,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test(
@@ -197,7 +198,7 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("a"))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test(
@@ -218,6 +219,6 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
         Project(projectList, filterPlan))
     val expectedPlan = Project(Seq(UnresolvedStar(None)), sortedPlan)
 
-    assertEquals(compareByString(expectedPlan), compareByString(logPlan))
+    comparePlans(expectedPlan, logPlan, false)
   }
 }

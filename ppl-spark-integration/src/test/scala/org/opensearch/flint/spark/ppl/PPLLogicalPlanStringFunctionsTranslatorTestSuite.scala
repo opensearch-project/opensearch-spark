@@ -5,7 +5,6 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.junit.Assert.assertEquals
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.common.antlr.SyntaxCheckException
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
@@ -14,11 +13,13 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{EqualTo, Like, Literal, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{EqualTo, Like, Literal}
+import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, Project}
 
 class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     extends SparkFunSuite
+    with PlanTest
     with LogicalPlanTestUtils
     with Matchers {
 
@@ -45,7 +46,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test concat with field") {
@@ -63,7 +64,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test length") {
@@ -77,7 +78,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test lower") {
@@ -91,7 +92,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test upper - case insensitive") {
@@ -105,7 +106,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test trim") {
@@ -119,7 +120,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test ltrim") {
@@ -133,7 +134,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test rtrim") {
@@ -147,7 +148,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test substring") {
@@ -162,7 +163,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test like") {
@@ -181,7 +182,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test position") {
@@ -200,7 +201,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test replace") {
@@ -219,6 +220,6 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, filterPlan)
-    assertEquals(expectedPlan, logPlan)
+    comparePlans(expectedPlan, logPlan, false)
   }
 }
