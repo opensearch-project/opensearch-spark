@@ -7,7 +7,7 @@ package org.opensearch.flint.core;
 
 import java.util.Map;
 
-import org.opensearch.flint.core.metadata.FlintMetadata;
+import org.opensearch.flint.common.metadata.FlintMetadata;
 import org.opensearch.flint.core.storage.FlintReader;
 import org.opensearch.flint.core.storage.FlintWriter;
 

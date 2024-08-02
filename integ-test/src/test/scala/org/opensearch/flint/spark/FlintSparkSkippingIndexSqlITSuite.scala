@@ -13,7 +13,7 @@ import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.{compact, parse, render}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
-import org.opensearch.flint.core.storage.FlintOpenSearchClient
+import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintOpenSearchIndexMetadataService}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
@@ -150,7 +150,8 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
         |""".stripMargin)).foreach { case (query, expectedParamJson) =>
     test(s"create skipping index with bloom filter parameters $expectedParamJson") {
       sql(query)
-      val metadata = flint.describeIndex(testIndex).get.metadata().getContent
+      val metadata = FlintOpenSearchIndexMetadataService.serialize(
+        flint.describeIndex(testIndex).get.metadata())
       val parameters = compact(render(parse(metadata) \\ "parameters"))
       parameters should matchJson(expectedParamJson)
     }

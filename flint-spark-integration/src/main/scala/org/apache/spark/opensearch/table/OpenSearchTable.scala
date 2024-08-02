@@ -7,8 +7,9 @@ package org.apache.spark.opensearch.table
 
 import scala.collection.JavaConverters._
 
+import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.core.{FlintClientBuilder, FlintOptions}
-import org.opensearch.flint.core.metadata.FlintMetadata
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
 
 import org.apache.spark.sql.flint.datatype.FlintDataType
 import org.apache.spark.sql.types.StructType
@@ -27,7 +28,7 @@ case class OpenSearchTable(tableName: String, metadata: Map[String, FlintMetadat
    */
   lazy val schema: StructType = {
     metadata.values.headOption
-      .map(m => FlintDataType.deserialize(m.getContent))
+      .map(m => FlintDataType.deserialize(FlintOpenSearchIndexMetadataService.serialize(m)))
       .getOrElse(StructType(Nil))
   }
 

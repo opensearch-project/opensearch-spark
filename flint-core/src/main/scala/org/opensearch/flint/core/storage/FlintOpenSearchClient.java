@@ -17,10 +17,10 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.flint.common.metadata.FlintMetadata;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
-import org.opensearch.flint.core.metadata.FlintMetadata;
 import org.opensearch.index.query.AbstractQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
@@ -76,7 +76,7 @@ public class FlintOpenSearchClient implements FlintClient {
   @Override
   public void createIndex(String indexName, FlintMetadata metadata) {
     LOG.info("Creating Flint index " + indexName + " with metadata " + metadata);
-    createIndex(indexName, metadata.getContent(), metadata.indexSettings());
+    createIndex(indexName, FlintOpenSearchIndexMetadataService.serialize(metadata), metadata.indexSettings());
   }
 
   protected void createIndex(String indexName, String mapping, Option<String> settings) {
@@ -117,7 +117,7 @@ public class FlintOpenSearchClient implements FlintClient {
       return Arrays.stream(response.getIndices())
           .collect(Collectors.toMap(
               index -> index,
-              index -> FlintMetadata.apply(
+              index -> FlintOpenSearchIndexMetadataService.deserialize(
                   response.getMappings().get(index).source().toString(),
                   response.getSettings().get(index).toString()
               )
@@ -138,7 +138,7 @@ public class FlintOpenSearchClient implements FlintClient {
 
       MappingMetadata mapping = response.getMappings().get(osIndexName);
       Settings settings = response.getSettings().get(osIndexName);
-      return FlintMetadata.apply(mapping.source().string(), settings.toString());
+      return FlintOpenSearchIndexMetadataService.deserialize(mapping.source().string(), settings.toString());
     } catch (Exception e) {
       throw new IllegalStateException("Failed to get Flint index metadata for " + osIndexName, e);
     }
@@ -150,7 +150,8 @@ public class FlintOpenSearchClient implements FlintClient {
     String osIndexName = sanitizeIndexName(indexName);
     try (IRestHighLevelClient client = createClient()) {
       PutMappingRequest request = new PutMappingRequest(osIndexName);
-      request.source(metadata.getContent(), XContentType.JSON);
+      // TODO: use generic index metadata service
+      request.source(FlintOpenSearchIndexMetadataService.serialize(metadata), XContentType.JSON);
       client.updateIndexMapping(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to update Flint index " + osIndexName, e);
