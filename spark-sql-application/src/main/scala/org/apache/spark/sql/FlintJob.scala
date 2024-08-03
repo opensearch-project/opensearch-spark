@@ -58,7 +58,7 @@ object FlintJob extends Logging with FlintJobExecutor {
         createSparkSession(conf),
         query,
         dataSource,
-        resultIndex,
+        resultIndex.get,
         jobType.equalsIgnoreCase("streaming"),
         streamingRunningCount)
     registerGauge(MetricConstants.STREAMING_RUNNING_METRIC, streamingRunningCount)
