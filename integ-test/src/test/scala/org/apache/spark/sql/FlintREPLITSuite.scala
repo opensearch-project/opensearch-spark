@@ -422,6 +422,69 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
     }
   }
 
+  test("create table with dummy location should fail with excepted error message") {
+    try {
+      createSession(jobRunId, "")
+      threadLocalFuture.set(startREPL())
+
+      val dummyLocation = "s3://path/to/dummy/location"
+      val testQueryId = "110"
+      val createTableStatement =
+        s"""
+           | CREATE TABLE $testTable
+           | (
+           |   name STRING,
+           |   age INT
+           | )
+           | USING CSV
+           | LOCATION '$dummyLocation'
+           | OPTIONS (
+           |  header 'false',
+           |  delimiter '\\t'
+           | )
+           |""".stripMargin
+      val createTableStatementId =
+        submitQuery(s"${makeJsonCompliant(createTableStatement)}", testQueryId)
+
+      val createTableStatementValidation: REPLResult => Boolean = result => {
+        assert(
+          result.results.size == 0,
+          s"expected result size is 0, but got ${result.results.size}")
+        assert(
+          result.schemas.size == 0,
+          s"expected schema size is 0, but got ${result.schemas.size}")
+        failureValidation(result)
+        true
+      }
+      pollForResultAndAssert(createTableStatementValidation, testQueryId)
+      assert(
+        !awaitConditionForStatementOrTimeout(
+          statement => {
+            statement.error match {
+              case Some(error)
+                  if error == """{"Message":"Fail to run query. Cause: No FileSystem for scheme \"s3\""}""" =>
+              // Assertion passed
+              case _ =>
+                fail(s"Statement error is: ${statement.error}")
+            }
+            statement.state == "failed"
+          },
+          createTableStatementId),
+        s"Fail to verify for $createTableStatementId.")
+      // clean up
+      val dropStatement =
+        s"""DROP TABLE $testTable""".stripMargin
+      submitQuery(s"${makeJsonCompliant(dropStatement)}", "999")
+    } catch {
+      case e: Exception =>
+        logError("Unexpected exception", e)
+        assert(false, "Unexpected exception")
+    } finally {
+      waitREPLStop(threadLocalFuture.get())
+      threadLocalFuture.remove()
+    }
+  }
+
   /**
    * JSON does not support raw newlines (\n) in string values. All newlines must be escaped or
    * removed when inside a JSON string. The same goes for tab characters, which should be

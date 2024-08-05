@@ -5,11 +5,10 @@
 
 package org.opensearch.flint.spark
 
-import java.nio.file.{Files, Path, Paths, StandardCopyOption}
+import java.nio.file.{Files, Paths}
 import java.util.Comparator
 import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture}
 
-import scala.collection.immutable.Map
 import scala.concurrent.duration.TimeUnit
 import scala.util.Try
 
@@ -20,11 +19,9 @@ import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.OpenSearchSuite
-import org.scalatest.prop.TableDrivenPropertyChecks.forAll
 import org.scalatestplus.mockito.MockitoSugar.mock
 
-import org.apache.spark.FlintSuite
-import org.apache.spark.SparkConf
+import org.apache.spark.{FlintSuite, SparkConf}
 import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
 import org.apache.spark.sql.streaming.StreamTest
@@ -311,6 +308,30 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
       | ('txn007', CAST('2023-05-03 19:30:00' AS TIMESTAMP), 'prod3', 2, 'cust3'),
       | ('txn008', CAST('2023-05-04 14:15:00' AS TIMESTAMP), 'prod1', 4, 'cust1')
       |  """.stripMargin)
+  }
+
+  protected def createStructTable(testTable: String): Unit = {
+    // CSV doesn't support struct field
+    sql(s"""
+         | CREATE TABLE $testTable
+         | (
+         |   int_col INT,
+         |   struct_col STRUCT<field1: STRUCT<subfield:STRING>, field2: INT>
+         | )
+         | USING JSON
+         |""".stripMargin)
+
+    sql(s"""
+         | INSERT INTO $testTable
+         | SELECT /*+ COALESCE(1) */ *
+         | FROM VALUES
+         | ( 30, STRUCT(STRUCT("value1"),123) ),
+         | ( 40, STRUCT(STRUCT("value2"),456) )
+         |""".stripMargin)
+    sql(s"""
+         | INSERT INTO $testTable
+         | VALUES ( 50, STRUCT(STRUCT("value3"),789) )
+         |""".stripMargin)
   }
 
   protected def createTableIssue112(testTable: String): Unit = {

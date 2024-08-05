@@ -12,13 +12,13 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{doAnswer, spy}
-import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
 import org.opensearch.action.admin.indices.settings.put.UpdateSettingsRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.flint.OpenSearchTransactionSuite
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.should.Matchers
 
+import org.apache.spark.sql.flint.config.FlintSparkConf.MONITOR_MAX_ERROR_COUNT
 import org.apache.spark.sql.flint.newDaemonThreadPoolScheduledExecutor
 
 class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matchers {
@@ -40,6 +40,9 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
       realExecutor.scheduleWithFixedDelay(invocation.getArgument(0), 5, 1, TimeUnit.SECONDS)
     }).when(FlintSparkIndexMonitor.executor)
       .scheduleWithFixedDelay(any[Runnable], any[Long], any[Long], any[TimeUnit])
+
+    // Set max error count higher to avoid impact on transient error test case
+    setFlintSparkConf(MONITOR_MAX_ERROR_COUNT, 10)
   }
 
   override def beforeEach(): Unit = {
@@ -101,8 +104,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
     spark.streams.active.find(_.name == testFlintIndex).get.stop()
     waitForMonitorTaskRun()
 
-    // Index state transit to failed and task is cancelled
-    latestLogEntry(testLatestId) should contain("state" -> "failed")
+    // Monitor task should be cancelled
     task.isCancelled shouldBe true
   }
 
@@ -126,6 +128,77 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
       lastUpdateTime should be > prevLastUpdateTime
       prevLastUpdateTime = lastUpdateTime
     }
+  }
+
+  test("monitor task and streaming job should terminate if exception occurred consistently") {
+    val task = FlintSparkIndexMonitor.indexMonitorTracker(testFlintIndex)
+
+    // Block write on metadata log index
+    setWriteBlockOnMetadataLogIndex(true)
+    waitForMonitorTaskRun()
+
+    // Both monitor task and streaming job should stop after 10 times
+    10 times { (_, _) =>
+      {
+        // assert nothing. just wait enough times of task execution
+      }
+    }
+
+    task.isCancelled shouldBe true
+    spark.streams.active.exists(_.name == testFlintIndex) shouldBe false
+  }
+
+  test("await monitor terminated without exception should stay refreshing state") {
+    // Setup a timer to terminate the streaming job
+    new Thread(() => {
+      Thread.sleep(3000L)
+      spark.streams.active.find(_.name == testFlintIndex).get.stop()
+    }).start()
+
+    // Await until streaming job terminated
+    flint.flintIndexMonitor.awaitMonitor()
+
+    // Assert index state is active now
+    val latestLog = latestLogEntry(testLatestId)
+    latestLog should contain("state" -> "refreshing")
+  }
+
+  test("await monitor terminated with exception should update index state to failed") {
+    new Thread(() => {
+      Thread.sleep(3000L)
+
+      // Set Flint index readonly to simulate streaming job exception
+      val settings = Map("index.blocks.write" -> true)
+      val request = new UpdateSettingsRequest(testFlintIndex).settings(settings.asJava)
+      openSearchClient.indices().putSettings(request, RequestOptions.DEFAULT)
+
+      // Trigger a new micro batch execution
+      sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=6)
+           | VALUES ('Test', 35, 'Vancouver')
+           | """.stripMargin)
+    }).start()
+
+    // Await until streaming job terminated
+    flint.flintIndexMonitor.awaitMonitor()
+
+    // Assert index state is active now
+    val latestLog = latestLogEntry(testLatestId)
+    latestLog should contain("state" -> "failed")
+  }
+
+  test(
+    "await monitor terminated with streaming job exit early should update index state to failed") {
+    // Terminate streaming job intentionally before await
+    spark.streams.active.find(_.name == testFlintIndex).get.stop()
+
+    // Await until streaming job terminated
+    flint.flintIndexMonitor.awaitMonitor()
+
+    // Assert index state is active now
+    val latestLog = latestLogEntry(testLatestId)
+    latestLog should contain("state" -> "failed")
   }
 
   private def getLatestTimestamp: (Long, Long) = {

@@ -13,7 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.apache.commons.text.StringEscapeUtils.unescapeJava
 import org.opensearch.flint.core.IRestHighLevelClient
-import org.opensearch.flint.core.logging.{CustomLogging, OperationMessage}
+import org.opensearch.flint.core.logging.{CustomLogging, ExceptionMessages, OperationMessage}
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
 import play.api.libs.json._
@@ -425,18 +425,22 @@ trait FlintJobExecutor {
 
   private def handleQueryException(
       e: Exception,
-      message: String,
+      messagePrefix: String,
       errorSource: Option[String] = None,
       statusCode: Option[Int] = None): String = {
-
-    val errorDetails = Map("Message" -> s"$message: ${e.getMessage}") ++
+    val errorMessage = s"$messagePrefix: ${e.getMessage}"
+    val errorDetails = Map("Message" -> errorMessage) ++
       errorSource.map("ErrorSource" -> _) ++
       statusCode.map(code => "StatusCode" -> code.toString)
 
     val errorJson = mapper.writeValueAsString(errorDetails)
 
-    statusCode.foreach { code =>
-      CustomLogging.logError(new OperationMessage("", code), e)
+    // CustomLogging will call log4j logger.error() underneath
+    statusCode match {
+      case Some(code) =>
+        CustomLogging.logError(new OperationMessage(errorMessage, code), e)
+      case None =>
+        CustomLogging.logError(errorMessage, e)
     }
 
     errorJson
@@ -454,12 +458,12 @@ trait FlintJobExecutor {
   def processQueryException(ex: Exception): String = {
     getRootCause(ex) match {
       case r: ParseException =>
-        handleQueryException(r, "Syntax error")
+        handleQueryException(r, ExceptionMessages.SyntaxErrorPrefix)
       case r: AmazonS3Exception =>
         incrementCounter(MetricConstants.S3_ERR_CNT_METRIC)
         handleQueryException(
           r,
-          "Fail to read data from S3. Cause",
+          ExceptionMessages.S3ErrorPrefix,
           Some(r.getServiceName),
           Some(r.getStatusCode))
       case r: AWSGlueException =>
@@ -467,21 +471,28 @@ trait FlintJobExecutor {
         // Redact Access denied in AWS Glue service
         r match {
           case accessDenied: AccessDeniedException =>
-            accessDenied.setErrorMessage(
-              "Access denied in AWS Glue service. Please check permissions.")
+            accessDenied.setErrorMessage(ExceptionMessages.GlueAccessDeniedMessage)
           case _ => // No additional action for other types of AWSGlueException
         }
         handleQueryException(
           r,
-          "Fail to read data from Glue. Cause",
+          ExceptionMessages.GlueErrorPrefix,
           Some(r.getServiceName),
           Some(r.getStatusCode))
       case r: AnalysisException =>
-        handleQueryException(r, "Fail to analyze query. Cause")
+        handleQueryException(r, ExceptionMessages.QueryAnalysisErrorPrefix)
       case r: SparkException =>
-        handleQueryException(r, "Spark exception. Cause")
+        handleQueryException(r, ExceptionMessages.SparkExceptionErrorPrefix)
       case r: Exception =>
-        handleQueryException(r, "Fail to run query. Cause")
+        val rootCauseClassName = r.getClass.getName
+        val errMsg = r.getMessage
+        if (rootCauseClassName == "org.apache.hadoop.hive.metastore.api.MetaException" &&
+          errMsg.contains("com.amazonaws.services.glue.model.AccessDeniedException")) {
+          val e = new SecurityException(ExceptionMessages.GlueAccessDeniedMessage)
+          handleQueryException(e, ExceptionMessages.QueryRunErrorPrefix)
+        } else {
+          handleQueryException(r, ExceptionMessages.QueryRunErrorPrefix)
+        }
     }
   }
 

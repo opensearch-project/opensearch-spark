@@ -111,15 +111,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         return new Compare(ctx.comparisonOperator().getText(), visit(ctx.left), visit(ctx.right));
     }
 
-    /**
-     * Value Expression.
-     */
-    @Override
-    public UnresolvedExpression visitBinaryArithmetic(OpenSearchPPLParser.BinaryArithmeticContext ctx) {
-        return new Function(
-                ctx.binaryOperator.getText(), Arrays.asList(visit(ctx.left), visit(ctx.right)));
-    }
-
     @Override
     public UnresolvedExpression visitParentheticValueExpr(OpenSearchPPLParser.ParentheticValueExprContext ctx) {
         return visit(ctx.valueExpression()); // Discard parenthesis around
@@ -169,20 +160,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                 ctx.PERCENTILE().getText(),
                 visit(ctx.aggField),
                 Collections.singletonList(new Argument("rank", (Literal) visit(ctx.value))));
-    }
-
-    @Override
-    public UnresolvedExpression visitTakeAggFunctionCall(
-            OpenSearchPPLParser.TakeAggFunctionCallContext ctx) {
-        ImmutableList.Builder<UnresolvedExpression> builder = ImmutableList.builder();
-        builder.add(
-                new UnresolvedArgument(
-                        "size",
-                        ctx.takeAggFunction().size != null
-                                ? visit(ctx.takeAggFunction().size)
-                                : new Literal(DEFAULT_TAKE_FUNCTION_SIZE_VALUE, DataType.INTEGER)));
-        return new AggregateFunction(
-                "take", visit(ctx.takeAggFunction().fieldExpression()), builder.build());
     }
 
     /**
@@ -241,55 +218,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         return new Function(
                 POSITION.getName().getFunctionName(),
                 Arrays.asList(visitFunctionArg(ctx.functionArg(0)), visitFunctionArg(ctx.functionArg(1))));
-    }
-
-    @Override
-    public UnresolvedExpression visitExtractFunctionCall(
-            OpenSearchPPLParser.ExtractFunctionCallContext ctx) {
-        return new Function(
-                ctx.extractFunction().EXTRACT().toString(), getExtractFunctionArguments(ctx));
-    }
-
-    private List<UnresolvedExpression> getExtractFunctionArguments(
-            OpenSearchPPLParser.ExtractFunctionCallContext ctx) {
-        List<UnresolvedExpression> args =
-                Arrays.asList(
-                        new Literal(ctx.extractFunction().datetimePart().getText(), DataType.STRING),
-                        visitFunctionArg(ctx.extractFunction().functionArg()));
-        return args;
-    }
-
-    @Override
-    public UnresolvedExpression visitGetFormatFunctionCall(
-            OpenSearchPPLParser.GetFormatFunctionCallContext ctx) {
-        return new Function(
-                ctx.getFormatFunction().GET_FORMAT().toString(), getFormatFunctionArguments(ctx));
-    }
-
-    private List<UnresolvedExpression> getFormatFunctionArguments(
-            OpenSearchPPLParser.GetFormatFunctionCallContext ctx) {
-        List<UnresolvedExpression> args =
-                Arrays.asList(
-                        new Literal(ctx.getFormatFunction().getFormatType().getText(), DataType.STRING),
-                        visitFunctionArg(ctx.getFormatFunction().functionArg()));
-        return args;
-    }
-
-    @Override
-    public UnresolvedExpression visitTimestampFunctionCall(
-            OpenSearchPPLParser.TimestampFunctionCallContext ctx) {
-        return new Function(
-                ctx.timestampFunction().timestampFunctionName().getText(), timestampFunctionArguments(ctx));
-    }
-
-    private List<UnresolvedExpression> timestampFunctionArguments(
-            OpenSearchPPLParser.TimestampFunctionCallContext ctx) {
-        List<UnresolvedExpression> args =
-                Arrays.asList(
-                        new Literal(ctx.timestampFunction().simpleDateTimePart().getText(), DataType.STRING),
-                        visitFunctionArg(ctx.timestampFunction().firstArg),
-                        visitFunctionArg(ctx.timestampFunction().secondArg));
-        return args;
     }
 
     /**

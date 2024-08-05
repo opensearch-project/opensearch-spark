@@ -5,21 +5,27 @@
 
 package org.apache.spark.sql
 
+import java.util.{Base64, Collections}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.{Duration, MINUTES}
 import scala.util.{Failure, Success}
-import scala.util.control.Breaks.{break, breakable}
 
+import org.opensearch.action.admin.indices.settings.put.UpdateSettingsRequest
+import org.opensearch.action.get.GetRequest
+import org.opensearch.client.RequestOptions
 import org.opensearch.flint.core.FlintOptions
-import org.opensearch.flint.spark.FlintSparkSuite
+import org.opensearch.flint.spark.{FlintSparkIndexMonitor, FlintSparkSuite}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
-import org.scalatest.matchers.must.Matchers.{defined, have}
-import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
+import org.scalatest.matchers.must.Matchers.{contain, defined}
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
+import org.apache.spark.sql.flint.config.FlintSparkConf._
+import org.apache.spark.sql.streaming.StreamingQueryListener
+import org.apache.spark.sql.streaming.StreamingQueryListener._
 import org.apache.spark.sql.util.MockEnvironment
 import org.apache.spark.util.ThreadUtils
 
@@ -38,6 +44,15 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     super.beforeAll()
     // initialized after the container is started
     osClient = new OSClient(new FlintOptions(openSearchOptions.asJava))
+  }
+
+  protected override def beforeEach(): Unit = {
+    super.beforeEach()
+
+    // Clear up because awaitMonitor will assume single name in tracker
+    FlintSparkIndexMonitor.indexMonitorTracker.values.foreach(_.cancel(true))
+    FlintSparkIndexMonitor.indexMonitorTracker.clear()
+
     createPartitionedMultiRowAddressTable(testTable)
   }
 
@@ -45,8 +60,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     super.afterEach()
 
     deleteTestIndex(testIndex)
-
-    waitJobStop(threadLocalFuture.get())
+    sql(s"DROP TABLE $testTable")
 
     threadLocalFuture.remove()
   }
@@ -72,6 +86,17 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     val streamingRunningCount = new AtomicInteger(0)
 
     val futureResult = Future {
+      /*
+       * Because we cannot test from FlintJob.main() for the reason below, we have to configure
+       * all Spark conf required by Flint code underlying manually.
+       */
+      spark.conf.set(DATA_SOURCE_NAME.key, dataSourceName)
+      spark.conf.set(JOB_TYPE.key, "streaming")
+
+      /**
+       * FlintJob.main() is not called because we need to manually set these variables within a
+       * JobOperator instance to accommodate specific runtime requirements.
+       */
       val job =
         JobOperator(spark, query, dataSourceName, resultIndex, true, streamingRunningCount)
       job.envinromentProvider = new MockEnvironment(
@@ -128,6 +153,89 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     val indexData = spark.read.format(FLINT_DATASOURCE).load(testIndex)
     flint.describeIndex(testIndex) shouldBe defined
     indexData.count() shouldBe 2
+  }
+
+  test("create skipping index with auto refresh and streaming job failure") {
+    val query =
+      s"""
+         | CREATE SKIPPING INDEX ON $testTable
+         | ( year PARTITION )
+         | WITH (auto_refresh = true)
+         | """.stripMargin
+    val jobRunId = "00ff4o3b5091080q"
+    threadLocalFuture.set(startJob(query, jobRunId))
+
+    // Waiting from streaming job start and complete current batch in Future thread in startJob
+    // Otherwise, active job will be None here
+    Thread.sleep(5000L)
+    pollForResultAndAssert(_ => true, jobRunId)
+    val activeJob = spark.streams.active.find(_.name == testIndex)
+    activeJob shouldBe defined
+    awaitStreamingComplete(activeJob.get.id.toString)
+
+    // Wait in case JobOperator has not reached condition check before awaitTermination
+    Thread.sleep(5000L)
+    try {
+      // Set Flint index readonly to simulate streaming job exception
+      setFlintIndexReadOnly(true)
+
+      // Trigger a new micro batch execution
+      sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=6)
+           | SELECT *
+           | FROM VALUES ('Test', 35, 'Seattle')
+           |""".stripMargin)
+      try {
+        awaitStreamingComplete(activeJob.get.id.toString)
+      } catch {
+        case _: Exception => // expected
+      }
+
+      // Assert Flint index transitioned to FAILED state after waiting seconds
+      Thread.sleep(2000L)
+      val latestId = Base64.getEncoder.encodeToString(testIndex.getBytes)
+      latestLogEntry(latestId) should contain("state" -> "failed")
+    } finally {
+      // Reset so Flint index can be cleaned up in afterEach
+      setFlintIndexReadOnly(false)
+    }
+  }
+
+  test("create skipping index with auto refresh and streaming job early exit") {
+    // Custom listener to force streaming job to fail at the beginning
+    val listener = new StreamingQueryListener {
+      override def onQueryStarted(event: QueryStartedEvent): Unit = {
+        logInfo("Stopping streaming job intentionally")
+        spark.streams.active.find(_.name == event.name).get.stop()
+      }
+      override def onQueryProgress(event: QueryProgressEvent): Unit = {}
+      override def onQueryTerminated(event: QueryTerminatedEvent): Unit = {}
+    }
+
+    try {
+      spark.streams.addListener(listener)
+      val query =
+        s"""
+             | CREATE SKIPPING INDEX ON $testTable
+             | (name VALUE_SET)
+             | WITH (auto_refresh = true)
+             | """.stripMargin
+      val jobRunId = "00ff4o3b5091080q"
+      threadLocalFuture.set(startJob(query, jobRunId))
+
+      // Assert streaming job must exit
+      Thread.sleep(5000)
+      pollForResultAndAssert(_ => true, jobRunId)
+      spark.streams.active.exists(_.name == testIndex) shouldBe false
+
+      // Assert Flint index transitioned to FAILED state after waiting seconds
+      Thread.sleep(2000L)
+      val latestId = Base64.getEncoder.encodeToString(testIndex.getBytes)
+      latestLogEntry(latestId) should contain("state" -> "failed")
+    } finally {
+      spark.streams.removeListener(listener)
+    }
   }
 
   test("create skipping index with non-existent table") {
@@ -259,5 +367,24 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
       jobId,
       streamingTimeout.toMillis,
       resultIndex)
+  }
+
+  private def setFlintIndexReadOnly(readonly: Boolean): Unit = {
+    logInfo(s"Updating index $testIndex setting with readonly [$readonly]")
+    openSearchClient
+      .indices()
+      .putSettings(
+        new UpdateSettingsRequest(testIndex).settings(
+          Map("index.blocks.write" -> readonly).asJava),
+        RequestOptions.DEFAULT)
+  }
+
+  private def latestLogEntry(latestId: String): Map[String, AnyRef] = {
+    val response = openSearchClient
+      .get(
+        new GetRequest(s".query_execution_request_$dataSourceName", latestId),
+        RequestOptions.DEFAULT)
+
+    Option(response.getSourceAsMap).getOrElse(Collections.emptyMap()).asScala.toMap
   }
 }

@@ -14,8 +14,7 @@ val sparkMinorVersion = sparkVersion.split("\\.").take(2).mkString(".")
 
 ThisBuild / organization := "org.opensearch"
 
-// TODO: Bump to 0.4.1 ?
-ThisBuild / version := "0.4.0-SNAPSHOT"
+ThisBuild / version := "0.4.1-SNAPSHOT"
 
 ThisBuild / scalaVersion := scala212
 
