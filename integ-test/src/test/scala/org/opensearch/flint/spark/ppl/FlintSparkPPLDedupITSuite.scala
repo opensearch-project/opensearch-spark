@@ -177,14 +177,14 @@ class FlintSparkPPLDedupITSuite
     val ex = intercept[UnsupportedOperationException](sql(s"""
              | source = $testTable | dedup 1 name CONSECUTIVE=true | fields name
              | """.stripMargin))
-    assert(ex.getMessage.contains("Consecutive duplicate events are not supported"))
+    assert(ex.getMessage.contains("Consecutive deduplication is not supported"))
   }
 
   test("test 1 name KEEPEMPTY=true CONSECUTIVE=true") {
     val ex = intercept[UnsupportedOperationException](sql(s"""
              | source = $testTable | dedup 1 name KEEPEMPTY=true CONSECUTIVE=true | fields name
              | """.stripMargin))
-    assert(ex.getMessage.contains("Consecutive duplicate events are not supported"))
+    assert(ex.getMessage.contains("Consecutive deduplication is not supported"))
   }
 
   ignore("test dedupe 2 name") {
@@ -298,13 +298,13 @@ class FlintSparkPPLDedupITSuite
     val ex = intercept[UnsupportedOperationException](sql(s"""
              | source = $testTable | dedup 2 name CONSECUTIVE=true | fields name
              | """.stripMargin))
-    assert(ex.getMessage.contains("Consecutive duplicate events are not supported"))
+    assert(ex.getMessage.contains("Consecutive deduplication is not supported"))
   }
 
   test("test 2 name KEEPEMPTY=true CONSECUTIVE=true") {
     val ex = intercept[UnsupportedOperationException](sql(s"""
              | source = $testTable | dedup 2 name KEEPEMPTY=true CONSECUTIVE=true | fields name
              | """.stripMargin))
-    assert(ex.getMessage.contains("Consecutive duplicate events are not supported"))
+    assert(ex.getMessage.contains("Consecutive deduplication is not supported"))
   }
 }

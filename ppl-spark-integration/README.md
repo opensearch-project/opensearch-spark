@@ -274,6 +274,21 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 
 > For additional details, review [FlintSparkPPLTimeWindowITSuite.scala](../integ-test/src/test/scala/org/opensearch/flint/spark/ppl/FlintSparkPPLTimeWindowITSuite.scala)
 
+**Dedup**
+
+- `source = table | dedup a | fields a,b,c`
+- `source = table | dedup a,b | fields a,b,c`
+- `source = table | dedup a keepempty=true | fields a,b,c`
+- `source = table | dedup a,b keepempty=true | fields a,b,c`
+- `source = table | dedup 1 a | fields a,b,c`
+- `source = table | dedup 1 a,b | fields a,b,c`
+- `source = table | dedup 1 a keepempty=true | fields a,b,c`
+- `source = table | dedup 1 a,b keepempty=true | fields a,b,c`
+- `source = table | dedup 1 a consecutive=true| fields a,b,c` (Unsupported)
+- `source = table | dedup 2 a | fields a,b,c` (Unsupported)
+
+> For additional details, review [FlintSparkPPLDedupITSuite.scala](../integ-test/src/test/scala/org/opensearch/flint/spark/ppl/FlintSparkPPLDedupITSuite.scala)
+
 #### Supported Commands:
  - `search` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/search.rst)  
  - `where`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/where.rst)  
@@ -283,6 +298,7 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
  - `stats`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/stats.rst) (supports AVG, COUNT, DISTINCT_COUNT, MAX, MIN and SUM aggregation functions)
  - `sort` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst)
  - `correlation` - [See details](../docs/PPL-Correlation-command.md)
+ - `dedup`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/dedup.rst)
 
 > For additional details, review [Integration Tests](../integ-test/src/test/scala/org/opensearch/flint/spark/)
  
@@ -298,5 +314,3 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
  - add [conditions](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/condition.rst) support
  - add [top](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/top.rst) support
  - add [cast](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/conversion.rst) support
- - add [math](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/math.rst) support
- - add [deduplicate](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/dedup.rst) support

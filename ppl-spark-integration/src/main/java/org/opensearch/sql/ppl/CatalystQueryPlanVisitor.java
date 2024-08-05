@@ -283,7 +283,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         }
         if (consecutive) {
             // Spark is not able to remove only consecutive events
-            throw new UnsupportedOperationException("Consecutive duplicate events are not supported");
+            throw new UnsupportedOperationException("Consecutive deduplication is not supported");
         }
         visitFieldList(node.getFields(), context);
         // Columns to deduplicate
@@ -315,7 +315,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 return context.getPlan();
             } else {
                 // Deduplicate ['a, 'b]
-                // +- Filter (isnotnull('a) AND isnotnull('b)
+                // +- Filter (isnotnull('a) AND isnotnull('b))
                 //    +- Project
                 //       +- UnresolvedRelation
 

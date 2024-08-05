@@ -105,7 +105,7 @@ class PPLLogicalPlanDedupTranslatorTestSuite
         plan(pplParser, "source=table | dedup a consecutive=true | fields a", false),
         context)
     }
-    assert(ex.getMessage === "Consecutive duplicate events are not supported")
+    assert(ex.getMessage === "Consecutive deduplication is not supported")
   }
 
   test("test dedup a keepempty=true consecutive=true") {
@@ -118,7 +118,7 @@ class PPLLogicalPlanDedupTranslatorTestSuite
           false),
         context)
     }
-    assert(ex.getMessage === "Consecutive duplicate events are not supported")
+    assert(ex.getMessage === "Consecutive deduplication is not supported")
   }
 
   test("test dedup 1 a") {
@@ -203,7 +203,7 @@ class PPLLogicalPlanDedupTranslatorTestSuite
         plan(pplParser, "source=table | dedup 1 a consecutive=true | fields a", false),
         context)
     }
-    assert(ex.getMessage === "Consecutive duplicate events are not supported")
+    assert(ex.getMessage === "Consecutive deduplication is not supported")
   }
 
   test("test dedup 1 a keepempty=true consecutive=true") {
@@ -216,7 +216,7 @@ class PPLLogicalPlanDedupTranslatorTestSuite
           false),
         context)
     }
-    assert(ex.getMessage === "Consecutive duplicate events are not supported")
+    assert(ex.getMessage === "Consecutive deduplication is not supported")
   }
 
   test("test dedup 0") {
@@ -272,7 +272,7 @@ class PPLLogicalPlanDedupTranslatorTestSuite
         plan(pplParser, "source=table | dedup 2 a consecutive=true | fields a | fields a", false),
         context)
     }
-    assert(ex.getMessage === "Consecutive duplicate events are not supported")
+    assert(ex.getMessage === "Consecutive deduplication is not supported")
   }
 
   test("test dedup 2 a keepempty=true consecutive=true") {
@@ -285,6 +285,6 @@ class PPLLogicalPlanDedupTranslatorTestSuite
           false),
         context)
     }
-    assert(ex.getMessage === "Consecutive duplicate events are not supported")
+    assert(ex.getMessage === "Consecutive deduplication is not supported")
   }
 }
