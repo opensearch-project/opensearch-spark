@@ -270,6 +270,40 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
       | """.stripMargin)
   }
 
+  protected def createDuplicationNullableTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   id INT,
+           |   name STRING,
+           |   category STRING
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES   (1, "A", "X"),
+           |          (2, "A", "Y"),
+           |          (3, "A", "Y"),
+           |          (4, "B", "Z"),
+           |          (5, "B", "Z"),
+           |          (6, "B", "Z"),
+           |          (7, "C", "X"),
+           |          (8, null, "Y"),
+           |          (9, "D", "Z"),
+           |          (10, "E", null),
+           |          (11, "A", "X"),
+           |          (12, "A", "Y"),
+           |          (13, null, "X"),
+           |          (14, "B", null),
+           |          (15, "B", "Y"),
+           |          (16, null, "Z"),
+           |          (17, "C", "X"),
+           |          (18, null, null)
+           | """.stripMargin)
+  }
+
   protected def createTimeSeriesTable(testTable: String): Unit = {
     sql(s"""
       | CREATE TABLE $testTable

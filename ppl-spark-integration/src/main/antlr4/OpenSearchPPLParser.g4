@@ -34,6 +34,7 @@ commands
    | correlateCommand
    | fieldsCommand
    | statsCommand
+   | dedupCommand
    | sortCommand
    | headCommand
    | evalCommand
