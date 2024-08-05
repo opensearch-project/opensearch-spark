@@ -99,7 +99,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
         |""".stripMargin
 
     val newMetadata = FlintOpenSearchIndexMetadataService.deserialize(newContent)
-    flintClient.updateIndex(indexName, newMetadata)
+    flintIndexMetadataService.updateIndexMetadata(indexName, newMetadata)
 
     flintClient.exists(indexName) shouldBe true
     val checkMetadata = flintIndexMetadataService.getIndexMetadata(indexName)

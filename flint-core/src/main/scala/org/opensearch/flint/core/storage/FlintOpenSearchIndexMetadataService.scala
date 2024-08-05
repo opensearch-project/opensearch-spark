@@ -10,7 +10,8 @@ import java.util
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.client.RequestOptions
-import org.opensearch.client.indices.{GetIndexRequest, GetIndexResponse}
+import org.opensearch.client.indices.{GetIndexRequest, GetIndexResponse, PutMappingRequest}
+import org.opensearch.common.xcontent.XContentType
 import org.opensearch.flint.common.FlintVersion
 import org.opensearch.flint.common.metadata.{FlintIndexMetadataService, FlintMetadata}
 import org.opensearch.flint.core.FlintOptions
@@ -71,7 +72,23 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
     }
   }
 
-  override def updateIndexMetadata(indexName: String, metadata: FlintMetadata): Unit = {}
+  override def updateIndexMetadata(indexName: String, metadata: FlintMetadata): Unit = {
+    logInfo(s"Updating Flint index $indexName with metadata $metadata");
+    // TODO: sanitize
+    // val osIndexName = sanitizeIndexName(indexName)
+    val osIndexName = indexName
+    val client = OpenSearchClientUtils.createClient(options)
+    try {
+      val request = new PutMappingRequest(osIndexName)
+      request.source(FlintOpenSearchIndexMetadataService.serialize(metadata), XContentType.JSON)
+      client.updateIndexMapping(request, RequestOptions.DEFAULT)
+    } catch {
+      case e: Exception =>
+        throw new IllegalStateException(s"Failed to update Flint index $osIndexName", e)
+    } finally {
+      client.close()
+    }
+  }
 
   override def deleteIndexMetadata(indexName: String): Unit = {}
 }

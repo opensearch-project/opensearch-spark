@@ -120,12 +120,14 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           .transientLog(latest => latest.copy(state = CREATING))
           .finalLog(latest => latest.copy(state = ACTIVE))
           .commit(latest =>
-            // TODO: update index metadata
             if (latest == null) { // in case transaction capability is disabled
               flintClient.createIndex(indexName, metadata)
+              flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
             } else {
               logInfo(s"Creating index with metadata log entry ID ${latest.id}")
               flintClient.createIndex(indexName, metadata.copy(latestId = Some(latest.id)))
+              flintIndexMetadataService
+                .updateIndexMetadata(indexName, metadata.copy(latestId = Some(latest.id)))
             })
       }
     }
@@ -438,7 +440,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       .transientLog(latest => latest.copy(state = UPDATING))
       .finalLog(latest => latest.copy(state = ACTIVE))
       .commit(_ => {
-        flintClient.updateIndex(indexName, index.metadata)
+        flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
         logInfo("Update index options complete")
         flintIndexMonitor.stopMonitor(indexName)
         stopRefreshingJob(indexName)
@@ -463,7 +465,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         latest.copy(state = REFRESHING)
       })
       .commit(_ => {
-        flintClient.updateIndex(indexName, index.metadata)
+        flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
         logInfo("Update index options complete")
         indexRefresh.start(spark, flintSparkConf)
       })

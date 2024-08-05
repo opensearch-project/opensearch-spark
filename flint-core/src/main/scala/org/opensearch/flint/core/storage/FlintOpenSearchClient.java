@@ -105,20 +105,6 @@ public class FlintOpenSearchClient implements FlintClient {
     }
   }
 
-  // TODO: remove this interface? update index should be handled by index metadata service
-  @Override
-  public void updateIndex(String indexName, FlintMetadata metadata) {
-    LOG.info("Updating Flint index " + indexName + " with metadata " + metadata);
-    String osIndexName = sanitizeIndexName(indexName);
-    try (IRestHighLevelClient client = createClient()) {
-      PutMappingRequest request = new PutMappingRequest(osIndexName);
-      request.source(FlintOpenSearchIndexMetadataService.serialize(metadata), XContentType.JSON);
-      client.updateIndexMapping(request, RequestOptions.DEFAULT);
-    } catch (Exception e) {
-      throw new IllegalStateException("Failed to update Flint index " + osIndexName, e);
-    }
-  }
-
   @Override
   public void deleteIndex(String indexName) {
     LOG.info("Deleting Flint index " + indexName);
