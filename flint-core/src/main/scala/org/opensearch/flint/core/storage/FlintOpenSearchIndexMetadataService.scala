@@ -90,6 +90,7 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
     }
   }
 
+  // Do nothing. For OpenSearch, deleting the index will also delete its metadata
   override def deleteIndexMetadata(indexName: String): Unit = {}
 }
 

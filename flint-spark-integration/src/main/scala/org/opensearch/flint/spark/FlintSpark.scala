@@ -17,7 +17,6 @@ import org.opensearch.flint.common.metadata.log.OptimisticTransaction.NO_LOG_ENT
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.FlintIndexMetadataServiceBuilder
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogServiceBuilder
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
@@ -278,7 +277,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           .finalLog(_ => NO_LOG_ENTRY)
           .commit(_ => {
             flintClient.deleteIndex(indexName)
-            // TODO: delete index metadata
+            flintIndexMetadataService.deleteIndexMetadata(indexName)
             true
           })
       } else {
