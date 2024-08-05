@@ -5,7 +5,17 @@
 
 package org.opensearch.flint.core
 
+import java.io.IOException
+import java.util
+
+import com.google.common.base.Strings
+import org.opensearch.common.settings.Settings
+import org.opensearch.common.xcontent.{NamedXContentRegistry, XContentType}
+import org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS
 import org.opensearch.flint.core.storage.FlintReader
+import org.opensearch.index.query.{AbstractQueryBuilder, MatchAllQueryBuilder, QueryBuilder}
+import org.opensearch.plugins.SearchPlugin
+import org.opensearch.search.SearchModule
 
 /**
  * A OpenSearch Table.
@@ -51,4 +61,25 @@ trait Table extends Serializable {
    *   {@link Schema}
    */
   def schema(): Schema
+}
+
+object Table {
+
+  /**
+   * {@link NamedXContentRegistry} from {@link SearchModule} used for construct {@link
+   * QueryBuilder} from DSL query string.
+   */
+  val xContentRegistry = new NamedXContentRegistry(
+    new SearchModule(Settings.builder.build, new util.ArrayList[SearchPlugin]).getNamedXContents)
+
+  @throws[IOException]
+  def queryBuilder(query: String): QueryBuilder = {
+    if (!Strings.isNullOrEmpty(query)) {
+      val parser =
+        XContentType.JSON.xContent.createParser(xContentRegistry, IGNORE_DEPRECATIONS, query)
+      AbstractQueryBuilder.parseInnerQueryBuilder(parser)
+    } else {
+      new MatchAllQueryBuilder
+    }
+  }
 }

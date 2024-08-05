@@ -5,7 +5,6 @@
 
 package org.opensearch.flint.core.storage;
 
-import com.google.common.base.Strings;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.indices.CreateIndexRequest;
@@ -14,21 +13,14 @@ import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.client.indices.PutMappingRequest;
 import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.common.settings.Settings;
-import org.opensearch.common.xcontent.NamedXContentRegistry;
-import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.flint.core.metadata.FlintMetadata;
-import org.opensearch.index.query.AbstractQueryBuilder;
-import org.opensearch.index.query.MatchAllQueryBuilder;
-import org.opensearch.index.query.QueryBuilder;
-import org.opensearch.search.SearchModule;
 import scala.Option;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
@@ -37,22 +29,12 @@ import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
-
 /**
  * Flint client implementation for OpenSearch storage.
  */
 public class FlintOpenSearchClient implements FlintClient {
 
   private static final Logger LOG = Logger.getLogger(FlintOpenSearchClient.class.getName());
-
-  /**
-   * {@link NamedXContentRegistry} from {@link SearchModule} used for construct {@link QueryBuilder} from DSL query string.
-   */
-  public final static NamedXContentRegistry
-      xContentRegistry =
-      new NamedXContentRegistry(new SearchModule(Settings.builder().build(),
-          new ArrayList<>()).getNamedXContents());
 
   /**
    * Invalid index name characters to percent-encode,
@@ -65,17 +47,6 @@ public class FlintOpenSearchClient implements FlintClient {
 
   public FlintOpenSearchClient(FlintOptions options) {
     this.options = options;
-  }
-
-  public static QueryBuilder queryBuilder(String query) throws IOException {
-    QueryBuilder queryBuilder = new MatchAllQueryBuilder();
-    if (!Strings.isNullOrEmpty(query)) {
-      XContentParser
-          parser =
-          XContentType.JSON.xContent().createParser(xContentRegistry, IGNORE_DEPRECATIONS, query);
-      queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
-    }
-    return queryBuilder;
   }
 
   @Override

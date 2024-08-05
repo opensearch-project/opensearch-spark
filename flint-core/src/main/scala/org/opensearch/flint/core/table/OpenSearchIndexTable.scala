@@ -5,8 +5,6 @@
 
 package org.opensearch.flint.core.table
 
-import java.util.logging.Logger
-
 import scala.collection.JavaConverters._
 
 import org.json4s.{Formats, NoTypeHints}
@@ -16,8 +14,8 @@ import org.json4s.native.Serialization
 import org.opensearch.action.search.SearchRequest
 import org.opensearch.client.opensearch.indices.IndicesStatsRequest
 import org.opensearch.client.opensearch.indices.stats.IndicesStats
-import org.opensearch.flint.core.{FlintClientBuilder, FlintOptions, JsonSchema, MetaData, Schema, Table}
-import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintReader, OpenSearchClientUtils, OpenSearchSearchAfterQueryReader}
+import org.opensearch.flint.core._
+import org.opensearch.flint.core.storage.{FlintReader, OpenSearchClientUtils, OpenSearchSearchAfterQueryReader}
 import org.opensearch.flint.core.table.OpenSearchIndexTable.maxSplitSizeBytes
 import org.opensearch.search.builder.SearchSourceBuilder
 import org.opensearch.search.sort.SortOrder
@@ -55,7 +53,7 @@ class OpenSearchIndexTable(metaData: MetaData, option: FlintOptions) extends Tab
     if (option.getScrollSize.isPresent) {
       option.getScrollSize.get()
     } else {
-      val docCount = indexStats.total().docs().count()
+      val docCount = indexStats.primaries().docs().count()
       if (docCount == 0) {
         maxResultWindow
       } else {
@@ -102,8 +100,6 @@ class OpenSearchIndexTable(metaData: MetaData, option: FlintOptions) extends Tab
    *   The query string.
    * @return
    *   A FlintReader instance.
-   * @throws UnsupportedOperationException
-   *   if this method is called.
    */
   override def createReader(query: String): FlintReader = {
     new OpenSearchSearchAfterQueryReader(
@@ -112,8 +108,8 @@ class OpenSearchIndexTable(metaData: MetaData, option: FlintOptions) extends Tab
         .indices(name)
         .source(
           new SearchSourceBuilder()
-            .query(FlintOpenSearchClient.queryBuilder(query))
-            .size(pageSize)
+            .query(Table.queryBuilder(query))
+            .size((pageSize))
             .sort("_doc", SortOrder.ASC)
             .sort("_id", SortOrder.ASC)))
   }
@@ -144,7 +140,6 @@ class OpenSearchIndexTable(metaData: MetaData, option: FlintOptions) extends Tab
 }
 
 object OpenSearchIndexTable {
-  private val LOG = Logger.getLogger(classOf[OpenSearchIndexTable].getName)
 
   /**
    * Max OpenSearch Request Page size is 10MB.

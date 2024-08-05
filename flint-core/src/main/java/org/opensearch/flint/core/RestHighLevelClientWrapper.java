@@ -126,7 +126,7 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
 
   @Override
   public IndicesStatsResponse stats(IndicesStatsRequest request) throws IOException {
-    return execute(OS_WRITE_OP_METRIC_PREFIX,
+    return execute(OS_READ_OP_METRIC_PREFIX,
         () -> {
           OpenSearchClient openSearchClient =
               new OpenSearchClient(new RestClientTransport(client.getLowLevelClient(),

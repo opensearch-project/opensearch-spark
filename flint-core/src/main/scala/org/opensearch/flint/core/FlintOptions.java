@@ -186,6 +186,13 @@ public class FlintOptions implements Serializable {
     return options.getOrDefault(CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS, "");
   }
 
+  /**
+   * FIXME, This is workaround for AWS OpenSearch Serverless (AOSS). AOSS does not support shard
+   * operation, but shard info is exposed in index settings. Remove this setting when AOSS fix
+   * the bug.
+   *
+   * @return
+   */
   public boolean supportShard() {
     return options.getOrDefault(SUPPORT_SHARD, DEFAULT_SUPPORT_SHARD).equalsIgnoreCase(
         DEFAULT_SUPPORT_SHARD);

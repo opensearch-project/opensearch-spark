@@ -22,10 +22,8 @@ case class FlintScanBuilder(
 
   private var pushedPredicate = Array.empty[Predicate]
 
-  lazy val scan = FlintScan(tables, schema, options, pushedPredicate)
-
   override def build(): Scan = {
-    scan
+    FlintScan(tables, schema, options, pushedPredicate)
   }
 
   override def pushPredicates(predicates: Array[Predicate]): Array[Predicate] = {

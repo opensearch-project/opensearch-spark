@@ -9,7 +9,6 @@ import scala.collection.JavaConverters._
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{mockStatic, when, RETURNS_DEEP_STUBS}
-import org.opensearch.client.opensearch.core.pit.{CreatePitRequest, CreatePitResponse}
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{ACTIVE, DELETED, IndexState}
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions, IRestHighLevelClient}
@@ -38,7 +37,6 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
   /** Mock IRestHighLevelClient to avoid looking for real OpenSearch cluster */
   private val clientUtils = mockStatic(classOf[OpenSearchClientUtils])
   private val openSearchClient = mock[IRestHighLevelClient](RETURNS_DEEP_STUBS)
-  private val pitResponse = mock[CreatePitResponse]
 
   /** Mock FlintSpark which is required by the rule. Deep stub required to replace spark val. */
   private val flint = mock[FlintSpark](RETURNS_DEEP_STUBS)
@@ -278,9 +276,6 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       indexes.foreach { index =>
         when(client.getAllIndexMetadata(index.name()))
           .thenReturn(Map.apply(index.name() -> index.metadata()).asJava)
-        when(openSearchClient.createPit(any[CreatePitRequest]))
-          .thenReturn(pitResponse)
-        when(pitResponse.pitId()).thenReturn("")
       }
       rule.apply(plan)
     }

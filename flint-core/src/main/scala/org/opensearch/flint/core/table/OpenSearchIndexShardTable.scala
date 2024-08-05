@@ -7,7 +7,7 @@ package org.opensearch.flint.core.table
 
 import org.opensearch.action.search.SearchRequest
 import org.opensearch.flint.core.{FlintOptions, MetaData, Table}
-import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintReader, OpenSearchClientUtils, OpenSearchSearchAfterQueryReader}
+import org.opensearch.flint.core.storage.{FlintReader, OpenSearchClientUtils, OpenSearchSearchAfterQueryReader}
 import org.opensearch.search.builder.SearchSourceBuilder
 import org.opensearch.search.sort.SortOrder
 
@@ -35,7 +35,7 @@ class OpenSearchIndexShardTable(metaData: MetaData, option: FlintOptions, shardI
         .indices(name)
         .source(
           new SearchSourceBuilder()
-            .query(FlintOpenSearchClient.queryBuilder(query))
+            .query(Table.queryBuilder(query))
             .size(pageSize)
             .sort("_doc", SortOrder.ASC))
         .preference(s"_shards:$shardId"))
