@@ -5,7 +5,6 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.junit.Assert.assertEquals
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
@@ -13,17 +12,19 @@ import org.scalatest.matchers.should.Matchers
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Divide, EqualTo, Floor, GreaterThanOrEqual, Literal, Multiply, SortOrder, TimeWindow}
+import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
 
 class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     extends SparkFunSuite
+    with PlanTest
     with LogicalPlanTestUtils
     with Matchers {
 
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
 
-  test("test average price  ") {
+  test("test average price") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan =
@@ -38,10 +39,10 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     val aggregatePlan = Aggregate(Seq(), aggregateExpressions, tableRelation)
     val expectedPlan = Project(star, aggregatePlan)
 
-    assertEquals(compareByString(expectedPlan), compareByString(logPlan))
+    comparePlans(expectedPlan, logPlan, false)
   }
 
-  ignore("test average price with Alias") {
+  test("test average price with Alias") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
@@ -57,7 +58,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     val aggregatePlan = Aggregate(Seq(), aggregateExpressions, tableRelation)
     val expectedPlan = Project(star, aggregatePlan)
 
-    assertEquals(compareByString(expectedPlan), compareByString(logPlan))
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test average price group by product ") {
@@ -81,7 +82,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
       Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), tableRelation)
     val expectedPlan = Project(star, aggregatePlan)
 
-    assertEquals(compareByString(expectedPlan), compareByString(logPlan))
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test average price group by product and filter") {
@@ -109,7 +110,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
       Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), filterPlan)
     val expectedPlan = Project(star, aggregatePlan)
 
-    assertEquals(compareByString(expectedPlan), compareByString(logPlan))
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test average price group by product and filter sorted") {
@@ -144,7 +145,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
         global = true,
         aggregatePlan)
     val expectedPlan = Project(star, sortedPlan)
-    assertEquals(compareByString(expectedPlan), compareByString(logPlan))
+    comparePlans(expectedPlan, logPlan, false)
   }
   test("create ppl simple avg age by span of interval of 10 years query test ") {
     val context = new CatalystPlanContext
@@ -164,7 +165,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), tableRelation)
     val expectedPlan = Project(star, aggregatePlan)
 
-    assert(compareByString(expectedPlan) === compareByString(logPlan))
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("create ppl simple avg age by span of interval of 10 years query with sort test ") {
@@ -190,7 +191,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
       Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, aggregatePlan)
     val expectedPlan = Project(star, sortedPlan)
 
-    assert(compareByString(expectedPlan) === compareByString(logPlan))
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("create ppl simple avg age by span of interval of 10 years by country query test ") {
@@ -219,7 +220,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
       tableRelation)
     val expectedPlan = Project(star, aggregatePlan)
 
-    assert(compareByString(expectedPlan) === compareByString(logPlan))
+    comparePlans(expectedPlan, logPlan, false)
   }
   test("create ppl query count sales by weeks window and productId with sorting test") {
     val context = new CatalystPlanContext
@@ -257,7 +258,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
 
     val expectedPlan = Project(star, sortedPlan)
     // Compare the two plans
-    assert(compareByString(expectedPlan) === compareByString(logPlan))
+    comparePlans(expectedPlan, logPlan, false)
   }
 
   test("create ppl query count sales by days window and productId with sorting test") {
@@ -296,7 +297,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
       aggregatePlan)
     val expectedPlan = Project(star, sortedPlan)
     // Compare the two plans
-    assert(compareByString(expectedPlan) === compareByString(logPlan))
+    comparePlans(expectedPlan, logPlan, false)
   }
   test("create ppl query count status amount by day window and group by status test") {
     val context = new CatalystPlanContext
@@ -331,7 +332,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     val planWithLimit = GlobalLimit(Literal(100), LocalLimit(Literal(100), aggregatePlan))
     val expectedPlan = Project(star, planWithLimit)
     // Compare the two plans
-    assert(compareByString(expectedPlan) === compareByString(logPlan))
+    comparePlans(expectedPlan, logPlan, false)
   }
   test(
     "create ppl query count only error (status >= 400) status amount by day window and group by status test") {
@@ -368,7 +369,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     val planWithLimit = GlobalLimit(Literal(100), LocalLimit(Literal(100), aggregatePlan))
     val expectedPlan = Project(star, planWithLimit)
     // Compare the two plans
-    assert(compareByString(expectedPlan) === compareByString(logPlan))
+    comparePlans(expectedPlan, logPlan, false)
   }
 
 }

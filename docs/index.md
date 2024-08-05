@@ -328,9 +328,11 @@ VACUUM MATERIALIZED VIEW alb_logs_metrics
   - index_name: user defined name for covering index and materialized view
   - auto_refresh: auto refresh option of the index (true / false)
   - status: status of the index
+- **Extended Usage**: Display additional information, including the following output columns:
+  - error: error message if the index is in failed status
 
 ```sql
-SHOW FLINT [INDEX|INDEXES] IN catalog[.database]
+SHOW FLINT [INDEX|INDEXES] [EXTENDED] IN catalog[.database]
 ```
 
 Example:
@@ -344,6 +346,15 @@ fetched rows / total rows = 3/3
 | flint_spark_catalog_default_http_logs_skipping_index        | skipping | default  | http_logs | NULL            | true         | refreshing |
 | flint_spark_catalog_default_http_logs_status_clientip_index | covering | default  | http_logs | status_clientip | false        | active     |
 +-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+
+
+sql> SHOW FLINT INDEXES EXTENDED IN spark_catalog.default;
+fetched rows / total rows = 2/2
++-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+-------------------------------+
+| flint_index_name                                            | kind     | database | table     | index_name      | auto_refresh | status     | error                         |
+|-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+-------------------------------|
+| flint_spark_catalog_default_http_count_view                 | mv       | default  | NULL      | http_count_view | false        | active     | NULL                          |
+| flint_spark_catalog_default_http_logs_skipping_index        | skipping | default  | http_logs | NULL            | true         | failed     | failure in bulk execution:... |
++-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+-------------------------------+
 ```
 
 - **Analyze Skipping Index**: Provides recommendation for creating skipping index. It outputs the following columns:

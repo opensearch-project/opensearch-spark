@@ -33,10 +33,10 @@ commands
    : whereCommand
    | correlateCommand
    | fieldsCommand
-   | renameCommand
    | statsCommand
    | sortCommand
    | headCommand
+   | evalCommand
    ;
 
 searchCommand
@@ -224,8 +224,6 @@ statsFunction
    : statsFunctionName LT_PRTHS valueExpression RT_PRTHS        # statsFunctionCall
    | COUNT LT_PRTHS RT_PRTHS                                    # countAllFunctionCall
    | (DISTINCT_COUNT | DC) LT_PRTHS valueExpression RT_PRTHS    # distinctCountFunctionCall
-   | percentileAggFunction                                      # percentileAggFunctionCall
-   | takeAggFunction                                            # takeAggFunctionCall
    ;
 
 statsFunctionName
@@ -258,22 +256,24 @@ logicalExpression
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
    | left = logicalExpression XOR right = logicalExpression     # logicalXor
    | booleanExpression                                          # booleanExpr
-   | relevanceExpression                                        # relevanceExpr
    ;
 
 comparisonExpression
    : left = valueExpression comparisonOperator right = valueExpression  # compareExpr
+   | valueExpression IN valueList                                       # inExpr
    ;
 
 valueExpression
    : left = valueExpression binaryOperator = (STAR | DIVIDE | MODULE) right = valueExpression   # binaryArithmetic
    | left = valueExpression binaryOperator = (PLUS | MINUS) right = valueExpression             # binaryArithmetic
    | primaryExpression                                                                          # valueExpressionDefault
+   | positionFunction                                                                           # positionFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    ;
 
 primaryExpression
-   : fieldExpression
+   : evalFunctionCall
+   | fieldExpression
    | literalValue
    ;
 

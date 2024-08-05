@@ -52,5 +52,4 @@ trait LogicalPlanTestUtils {
     // Return the string representation of the transformed plan
     transformedPlan.toString
   }
-
 }

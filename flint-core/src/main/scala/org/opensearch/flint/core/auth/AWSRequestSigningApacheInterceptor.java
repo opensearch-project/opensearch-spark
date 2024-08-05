@@ -5,7 +5,9 @@
 
 package org.opensearch.flint.core.auth;
 
+import static com.amazonaws.auth.internal.SignerConstants.X_AMZ_CONTENT_SHA256;
 import static org.apache.http.protocol.HttpCoreContext.HTTP_TARGET_HOST;
+import static org.opensearch.flint.core.FlintOptions.SERVICE_NAME_AOSS;
 
 import com.amazonaws.DefaultRequest;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -31,6 +33,7 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.protocol.HttpContext;
+import org.opensearch.flint.core.storage.OpenSearchClientUtils;
 
 /**
  * From https://github.com/opensearch-project/sql-jdbc/blob/main/src/main/java/org/opensearch/jdbc/transport/http/auth/aws/AWSRequestSigningApacheInterceptor.java
@@ -74,13 +77,6 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
   @Override
   public void process(final HttpRequest request, final HttpContext context)
       throws HttpException, IOException {
-    URIBuilder uriBuilder;
-    try {
-      uriBuilder = new URIBuilder(request.getRequestLine().getUri());
-    } catch (URISyntaxException e) {
-      throw new IOException("Invalid URI" , e);
-    }
-
     // Copy Apache HttpRequest to AWS DefaultRequest
     DefaultRequest<?> signableRequest = new DefaultRequest<>(service);
 
@@ -91,7 +87,10 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
     final HttpMethodName httpMethod =
         HttpMethodName.fromValue(request.getRequestLine().getMethod());
     signableRequest.setHttpMethod(httpMethod);
+
+    URIBuilder uriBuilder;
     try {
+      uriBuilder = new URIBuilder(request.getRequestLine().getUri());
       signableRequest.setResourcePath(uriBuilder.build().getRawPath());
     } catch (URISyntaxException e) {
       throw new IOException("Invalid URI" , e);
@@ -110,6 +109,10 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
     signableRequest.setParameters(nvpToMapParams(uriBuilder.getQueryParams()));
     signableRequest.setHeaders(headerArrayToMap(request.getAllHeaders()));
 
+    if (SERVICE_NAME_AOSS.equals(service)) {
+      enableContentBodySignature(signableRequest);
+    }
+
     // Sign it
     signer.sign(signableRequest, awsCredentialsProvider.getCredentials());
 
@@ -124,6 +127,11 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
         httpEntityEnclosingRequest.setEntity(basicHttpEntity);
       }
     }
+  }
+
+  private void enableContentBodySignature(DefaultRequest<?> signableRequest) {
+    // AWS4Signer will add `x-amz-content-sha256` header when this header is set
+    signableRequest.addHeader(X_AMZ_CONTENT_SHA256, "required");
   }
 
   /**

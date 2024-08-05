@@ -8,25 +8,25 @@ package org.opensearch.sql.ast.expression;
 import com.google.common.collect.ImmutableList;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
 public class Field extends UnresolvedExpression {
-  private final UnresolvedExpression field;
+  private final QualifiedName field;
   private final List<Argument> fieldArgs;
 
   /** Constructor of Field. */
-  public Field(UnresolvedExpression field) {
+  public Field(QualifiedName field) {
     this(field, Collections.emptyList());
   }
 
   /** Constructor of Field. */
-  public Field(UnresolvedExpression field, List<Argument> fieldArgs) {
+  public Field(QualifiedName field, List<Argument> fieldArgs) {
     this.field = field;
     this.fieldArgs = fieldArgs;
   }
 
-  public UnresolvedExpression getField() {
+  public QualifiedName getField() {
     return field;
   }
 
