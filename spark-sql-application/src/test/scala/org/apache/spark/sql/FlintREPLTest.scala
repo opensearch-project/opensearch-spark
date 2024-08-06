@@ -31,6 +31,7 @@ import org.scalatestplus.mockito.MockitoSugar
 import org.apache.spark.{SparkConf, SparkContext, SparkFunSuite}
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.sql.FlintREPL.PreShutdownListener
+import org.apache.spark.sql.FlintREPLConfConstants.DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY
 import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.trees.Origin
@@ -601,7 +602,7 @@ class FlintREPLTest
         Duration(10, MINUTES),
         60,
         60,
-        100)
+        DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY)
 
       intercept[RuntimeException] {
         FlintREPL.exponentialBackoffRetry(maxRetries, 2.seconds) {
@@ -883,7 +884,7 @@ class FlintREPLTest
       Duration(10, MINUTES),
       shortInactivityLimit,
       60,
-      100)
+      DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY)
 
     // Mock processCommands to always allow loop continuation
     val getResponse = mock[GetResponse]
@@ -934,7 +935,7 @@ class FlintREPLTest
       Duration(10, MINUTES),
       longInactivityLimit,
       60,
-      100)
+      DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY)
 
     // Mocking canPickNextStatement to return false
     when(osClient.getDoc(sessionIndex, sessionId)).thenAnswer(_ => {
@@ -991,7 +992,7 @@ class FlintREPLTest
       Duration(10, MINUTES),
       inactivityLimit,
       60,
-      100)
+      DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY)
 
     try {
       // Mocking ThreadUtils to track the shutdown call
@@ -1042,7 +1043,7 @@ class FlintREPLTest
       Duration(10, MINUTES),
       inactivityLimit,
       60,
-      100)
+      DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY)
 
     try {
       // Mocking ThreadUtils to track the shutdown call
@@ -1124,7 +1125,7 @@ class FlintREPLTest
       Duration(10, MINUTES),
       inactivityLimit,
       60,
-      100)
+      DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY)
 
     val startTime = Instant.now().toEpochMilli()
 
@@ -1140,8 +1141,8 @@ class FlintREPLTest
 
   val testCases = Table(
     ("inactivityLimit", "queryLoopExecutionFrequency"),
-    (5000, 100), // 5 seconds, 100 ms
-    (100, 300) // 100 ms, 300 ms
+    (5000, 100L), // 5 seconds, 100 ms
+    (100, 300L) // 100 ms, 300 ms
   )
 
   test(

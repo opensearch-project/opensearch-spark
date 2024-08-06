@@ -30,8 +30,19 @@ import org.opensearch.search.sort.SortOrder
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
+import org.apache.spark.sql.FlintREPLConfConstants._
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.util.ThreadUtils
+
+object FlintREPLConfConstants {
+  val HEARTBEAT_INTERVAL_MILLIS = 60000L
+  val MAPPING_CHECK_TIMEOUT = Duration(1, MINUTES)
+  val DEFAULT_QUERY_EXECUTION_TIMEOUT = Duration(30, MINUTES)
+  val DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS = 10 * 60 * 1000
+  val DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY = 100L
+  val INITIAL_DELAY_MILLIS = 3000L
+  val EARLY_TERMINATION_CHECK_FREQUENCY = 60000L
+}
 
 /**
  * Spark SQL Application entrypoint
@@ -47,14 +58,6 @@ import org.apache.spark.util.ThreadUtils
  *   write sql query result to given opensearch index
  */
 object FlintREPL extends Logging with FlintJobExecutor {
-
-  private val HEARTBEAT_INTERVAL_MILLIS = 60000L
-  private val MAPPING_CHECK_TIMEOUT = Duration(1, MINUTES)
-  private val DEFAULT_QUERY_EXECUTION_TIMEOUT = Duration(30, MINUTES)
-  private val DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS = 10 * 60 * 1000
-  private val DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY = 100L
-  val INITIAL_DELAY_MILLIS = 3000L
-  val EARLY_TERMIANTION_CHECK_FREQUENCY = 60000L
 
   @volatile var earlyExitFlag: Boolean = false
 
@@ -560,8 +563,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
     while (canProceed) {
       val currentTime = currentTimeProvider.currentEpochMillis()
 
-      // Only call canPickNextStatement if EARLY_TERMIANTION_CHECK_FREQUENCY milliseconds have passed
-      if (currentTime - lastCanPickCheckTime > EARLY_TERMIANTION_CHECK_FREQUENCY) {
+      // Only call canPickNextStatement if EARLY_TERMINATION_CHECK_FREQUENCY milliseconds have passed
+      if (currentTime - lastCanPickCheckTime > EARLY_TERMINATION_CHECK_FREQUENCY) {
         canPickNextStatementResult =
           canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
         lastCanPickCheckTime = currentTime
