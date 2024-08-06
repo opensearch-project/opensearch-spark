@@ -110,7 +110,9 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   public UnresolvedPlan visitCorrelateCommand(OpenSearchPPLParser.CorrelateCommandContext ctx) {
     return new Correlation(ctx.correlationType().getText(),
             ctx.fieldList().fieldExpression().stream()
+                    .map(OpenSearchPPLParser.FieldExpressionContext::qualifiedName)
                     .map(this::internalVisitExpression)
+                    .map(u -> (QualifiedName) u)
                     .collect(Collectors.toList()),
             Objects.isNull(ctx.scopeClause()) ? null : new Scope(expressionBuilder.visit(ctx.scopeClause().fieldExpression()),
                      expressionBuilder.visit(ctx.scopeClause().value), 
@@ -287,11 +289,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   /** From clause. */
   @Override
   public UnresolvedPlan visitFromClause(OpenSearchPPLParser.FromClauseContext ctx) {
-    if (ctx.tableFunction() != null) {
-      return visitTableFunction(ctx.tableFunction());
-    } else {
-      return visitTableSourceClause(ctx.tableSourceClause());
-    }
+    return visitTableSourceClause(ctx.tableSourceClause());
   }
 
   @Override

@@ -12,17 +12,15 @@ import java.util.Locale
 import scala.util.{Failure, Success, Try}
 
 import org.opensearch.action.get.{GetRequest, GetResponse}
-import org.opensearch.action.search.{SearchRequest, SearchResponse}
-import org.opensearch.client.{RequestOptions, RestHighLevelClient}
-import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest, GetIndexResponse}
-import org.opensearch.client.indices.CreateIndexRequest
+import org.opensearch.client.RequestOptions
+import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest}
 import org.opensearch.common.Strings
 import org.opensearch.common.settings.Settings
-import org.opensearch.common.xcontent.{NamedXContentRegistry, XContentParser, XContentType}
+import org.opensearch.common.xcontent.{NamedXContentRegistry, XContentType}
 import org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions, IRestHighLevelClient}
 import org.opensearch.flint.core.metrics.MetricConstants
-import org.opensearch.flint.core.storage.{FlintReader, OpenSearchQueryReader, OpenSearchScrollReader, OpenSearchUpdater}
+import org.opensearch.flint.core.storage.{FlintReader, OpenSearchQueryReader, OpenSearchUpdater}
 import org.opensearch.index.query.{AbstractQueryBuilder, MatchAllQueryBuilder, QueryBuilder}
 import org.opensearch.plugins.SearchPlugin
 import org.opensearch.search.SearchModule
@@ -35,8 +33,8 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
   val flintClient: FlintClient = FlintClientBuilder.build(flintOptions)
 
   /**
-   * {@link NamedXContentRegistry} from {@link SearchModule} used for construct {@link
-   * QueryBuilder} from DSL query string.
+   * {@link org.opensearch.core.xcontent.NamedXContentRegistry} from {@link SearchModule} used for
+   * construct {@link QueryBuilder} from DSL query string.
    */
   private val xContentRegistry: NamedXContentRegistry = new NamedXContentRegistry(
     new SearchModule(Settings.builder.build, new ArrayList[SearchPlugin]).getNamedXContents)
@@ -137,23 +135,6 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
             e)
       }
     }
-  }
-
-  def createScrollReader(indexName: String, query: String, sort: String): FlintReader = try {
-    var queryBuilder: QueryBuilder = new MatchAllQueryBuilder
-    if (!Strings.isNullOrEmpty(query)) {
-      val parser =
-        XContentType.JSON.xContent.createParser(xContentRegistry, IGNORE_DEPRECATIONS, query)
-      queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser)
-    }
-    new OpenSearchScrollReader(
-      flintClient.createClient(),
-      indexName,
-      new SearchSourceBuilder().query(queryBuilder).sort(sort, SortOrder.ASC),
-      flintOptions)
-  } catch {
-    case e: IOException =>
-      throw new RuntimeException(e)
   }
 
   def doesIndexExist(indexName: String): Boolean = {

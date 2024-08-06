@@ -240,6 +240,23 @@ The next samples of PPL queries are currently supported:
  - `source = table | where c != 'test' OR a > 1 | fields a,b,c | head 1`
  - `source = table | where c = 'test' NOT a > 1 | fields a,b,c`
 
+
+**Eval**
+
+Assumptions: `a`, `b`, `c` are existing fields in `table`
+ - `source = table | eval f = 1 | fields a,b,c,f`
+ - `source = table | eval f = 1` (output a,b,c,f fields)
+ - `source = table | eval n = now() | eval t = unix_timestamp(a) | fields n,t`
+ - `source = table | eval f = a | where f > 1 | sort f | fields a,b,c | head 5`
+ - `source = table | eval f = a * 2 | eval h = f * 2 | fields a,f,h`
+ - `source = table | eval f = a * 2, h = f * 2 | fields a,f,h` (Spark 3.4.0+ required)
+ - `source = table | eval f = a * 2, h = b | stats avg(f) by h`
+
+Limitation: Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous" 
+ - `source = table | eval a = 10 | fields a,b,c`
+ - `source = table | eval a = a * 2 | stats avg(a)`
+ - `source = table | eval a = abs(a) | where a > 0`
+
 **Aggregations**
  - `source = table | stats avg(a) `
  - `source = table | where a < 50 | stats avg(c) `
@@ -251,20 +268,23 @@ The next samples of PPL queries are currently supported:
 - `source = table  | stats sum(age) by span(age, 5) as age_span | head 2`
 - `source = table  | stats avg(age) by span(age, 20) as age_span, country  | sort - age_span |  head 2`
 
-**Aggregations With TimeWindow Span (tumble windowing function) **
+**Aggregations With TimeWindow Span (tumble windowing function)**
 - `source = table | stats sum(productsAmount) by span(transactionDate, 1d) as age_date | sort age_date`
 - `source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date, productId`
+
+> For additional details, review [FlintSparkPPLTimeWindowITSuite.scala](../integ-test/src/test/scala/org/opensearch/flint/spark/ppl/FlintSparkPPLTimeWindowITSuite.scala)
 
 #### Supported Commands:
  - `search` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/search.rst)  
  - `where`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/where.rst)  
  - `fields` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/fields.rst)  
+ - `eval`   - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/eval.rst)
  - `head`   - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/head.rst)
- - `stats`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/stats.rst)
- - `sort` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) 
+ - `stats`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/stats.rst) (supports AVG, COUNT, DISTINCT_COUNT, MAX, MIN and SUM aggregation functions)
+ - `sort` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst)
+ - `correlation` - [See details](../docs/PPL-Correlation-command.md)
 
-> For additional details review the next [Integration Test ](../integ-test/src/test/scala/org/opensearch/flint/spark/FlintSparkPPLITSuite.scala)
-> For additional details review the next [Integration Time Window Test ](../integ-test/src/test/scala/org/opensearch/flint/spark/FlintSparkPPLTimeWindowITSuite.scala)
+> For additional details, review [Integration Tests](../integ-test/src/test/scala/org/opensearch/flint/spark/)
  
 ---
 

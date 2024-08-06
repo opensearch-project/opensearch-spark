@@ -34,12 +34,10 @@ class IncrementalIndexRefresh(indexName: String, index: FlintSparkIndex)
     // Checkpoint location is required regardless of mandatory option
     val options = index.options
     val checkpointLocation = options.checkpointLocation()
-    require(
-      options.checkpointLocation().nonEmpty,
-      "Checkpoint location is required by incremental refresh")
+    require(options.checkpointLocation().nonEmpty, "Checkpoint location is required")
     require(
       isCheckpointLocationAccessible(spark, checkpointLocation.get),
-      s"No permission to access the checkpoint location ${checkpointLocation.get}")
+      s"No sufficient permission to access the checkpoint location ${checkpointLocation.get}")
   }
 
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {
@@ -50,6 +48,7 @@ class IncrementalIndexRefresh(indexName: String, index: FlintSparkIndex)
       new AutoIndexRefresh(indexName, index)
         .start(spark, flintSparkConf)
 
+    // Blocks the calling thread until the streaming query finishes
     spark.streams
       .get(jobId.get)
       .awaitTermination()

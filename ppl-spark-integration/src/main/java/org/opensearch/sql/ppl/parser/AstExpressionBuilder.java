@@ -32,6 +32,7 @@ import org.opensearch.sql.ast.expression.SpanUnit;
 import org.opensearch.sql.ast.expression.UnresolvedArgument;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.expression.Xor;
+import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
 import java.util.Arrays;
@@ -117,7 +118,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitBinaryArithmetic(OpenSearchPPLParser.BinaryArithmeticContext ctx) {
         return new Function(
-                ctx.binaryOperator.getText(), Arrays.asList(visit(ctx.left), visit(ctx.right)));
+            ctx.binaryOperator.getText(), Arrays.asList(visit(ctx.left), visit(ctx.right)));
     }
 
     @Override
@@ -140,7 +141,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
 
     @Override
     public UnresolvedExpression visitSortField(OpenSearchPPLParser.SortFieldContext ctx) {
-        return new Field(
+        return new Field((QualifiedName)
                 visit(ctx.sortFieldExpression().fieldExpression().qualifiedName()),
                 ArgumentFactory.getArgumentList(ctx));
     }
@@ -169,20 +170,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                 ctx.PERCENTILE().getText(),
                 visit(ctx.aggField),
                 Collections.singletonList(new Argument("rank", (Literal) visit(ctx.value))));
-    }
-
-    @Override
-    public UnresolvedExpression visitTakeAggFunctionCall(
-            OpenSearchPPLParser.TakeAggFunctionCallContext ctx) {
-        ImmutableList.Builder<UnresolvedExpression> builder = ImmutableList.builder();
-        builder.add(
-                new UnresolvedArgument(
-                        "size",
-                        ctx.takeAggFunction().size != null
-                                ? visit(ctx.takeAggFunction().size)
-                                : new Literal(DEFAULT_TAKE_FUNCTION_SIZE_VALUE, DataType.INTEGER)));
-        return new AggregateFunction(
-                "take", visit(ctx.takeAggFunction().fieldExpression()), builder.build());
     }
 
     /**
@@ -243,55 +230,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                 Arrays.asList(visitFunctionArg(ctx.functionArg(0)), visitFunctionArg(ctx.functionArg(1))));
     }
 
-    @Override
-    public UnresolvedExpression visitExtractFunctionCall(
-            OpenSearchPPLParser.ExtractFunctionCallContext ctx) {
-        return new Function(
-                ctx.extractFunction().EXTRACT().toString(), getExtractFunctionArguments(ctx));
-    }
-
-    private List<UnresolvedExpression> getExtractFunctionArguments(
-            OpenSearchPPLParser.ExtractFunctionCallContext ctx) {
-        List<UnresolvedExpression> args =
-                Arrays.asList(
-                        new Literal(ctx.extractFunction().datetimePart().getText(), DataType.STRING),
-                        visitFunctionArg(ctx.extractFunction().functionArg()));
-        return args;
-    }
-
-    @Override
-    public UnresolvedExpression visitGetFormatFunctionCall(
-            OpenSearchPPLParser.GetFormatFunctionCallContext ctx) {
-        return new Function(
-                ctx.getFormatFunction().GET_FORMAT().toString(), getFormatFunctionArguments(ctx));
-    }
-
-    private List<UnresolvedExpression> getFormatFunctionArguments(
-            OpenSearchPPLParser.GetFormatFunctionCallContext ctx) {
-        List<UnresolvedExpression> args =
-                Arrays.asList(
-                        new Literal(ctx.getFormatFunction().getFormatType().getText(), DataType.STRING),
-                        visitFunctionArg(ctx.getFormatFunction().functionArg()));
-        return args;
-    }
-
-    @Override
-    public UnresolvedExpression visitTimestampFunctionCall(
-            OpenSearchPPLParser.TimestampFunctionCallContext ctx) {
-        return new Function(
-                ctx.timestampFunction().timestampFunctionName().getText(), timestampFunctionArguments(ctx));
-    }
-
-    private List<UnresolvedExpression> timestampFunctionArguments(
-            OpenSearchPPLParser.TimestampFunctionCallContext ctx) {
-        List<UnresolvedExpression> args =
-                Arrays.asList(
-                        new Literal(ctx.timestampFunction().simpleDateTimePart().getText(), DataType.STRING),
-                        visitFunctionArg(ctx.timestampFunction().firstArg),
-                        visitFunctionArg(ctx.timestampFunction().secondArg));
-        return args;
-    }
-
     /**
      * Literal and value.
      */
@@ -322,7 +260,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
 
     @Override
     public UnresolvedExpression visitStringLiteral(OpenSearchPPLParser.StringLiteralContext ctx) {
-        return new Literal(ctx.getText(), DataType.STRING);
+        return new Literal(StringUtils.unquoteText(ctx.getText()), DataType.STRING);
     }
 
     @Override
@@ -349,7 +287,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         String name = ctx.spanClause().getText();
         return ctx.alias != null
                 ? new Alias(
-                name, visit(ctx.spanClause()), ctx.alias.getText())
+                name, visit(ctx.spanClause()), StringUtils.unquoteIdentifier(ctx.alias.getText()))
                 : new Alias(name, visit(ctx.spanClause()));
     }
 
@@ -363,6 +301,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         return new QualifiedName(
                 ctx.stream()
                         .map(RuleContext::getText)
+                        .map(StringUtils::unquoteIdentifier)
                         .collect(Collectors.toList()));
     }
 
@@ -373,10 +312,10 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         ImmutableList.Builder<UnresolvedExpression> builder = ImmutableList.builder();
         builder.add(
                 new UnresolvedArgument(
-                        "field", new QualifiedName(ctx.field.getText())));
+                        "field", new QualifiedName(StringUtils.unquoteText(ctx.field.getText()))));
         builder.add(
                 new UnresolvedArgument(
-                        "query", new Literal(ctx.query.getText(), DataType.STRING)));
+                        "query", new Literal(StringUtils.unquoteText(ctx.query.getText()), DataType.STRING)));
         ctx.relevanceArg()
                 .forEach(
                         v ->
@@ -384,7 +323,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                                         new UnresolvedArgument(
                                                 v.relevanceArgName().getText().toLowerCase(),
                                                 new Literal(
-                                                        v.relevanceArgValue().getText(),
+                                                        StringUtils.unquoteText(v.relevanceArgValue().getText()),
                                                         DataType.STRING))));
         return builder.build();
     }

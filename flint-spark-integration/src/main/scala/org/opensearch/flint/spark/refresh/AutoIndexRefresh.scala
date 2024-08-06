@@ -10,6 +10,7 @@ import java.util.Collections
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkIndexOptions, FlintSparkValidationHelper}
 import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, StreamingRefresh}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{AUTO, RefreshMode}
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
@@ -43,7 +44,7 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
       !isTableProviderSupported(spark, index),
       "Index auto refresh doesn't support Hive table")
 
-    // Checkpoint location is required if mandatory option set
+    // Checkpoint location is required if mandatory option set or external scheduler is used
     val flintSparkConf = new FlintSparkConf(Collections.emptyMap[String, String])
     val checkpointLocation = options.checkpointLocation()
     if (flintSparkConf.isCheckpointMandatory) {
@@ -56,7 +57,7 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
     if (checkpointLocation.isDefined) {
       require(
         isCheckpointLocationAccessible(spark, checkpointLocation.get),
-        s"No permission to access the checkpoint location ${checkpointLocation.get}")
+        s"No sufficient permission to access the checkpoint location ${checkpointLocation.get}")
     }
   }
 
@@ -90,7 +91,7 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
           .foreachBatch { (batchDF: DataFrame, _: Long) =>
             new FullIndexRefresh(indexName, index, Some(batchDF))
               .start(spark, flintSparkConf)
-            () // discard return value above and return unit to use right overridden method
+            () // discard return value above and return unit to use the right overridden method
           }
           .start()
         Some(job.id.toString)
@@ -103,10 +104,12 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
     def addSinkOptions(
         options: FlintSparkIndexOptions,
         flintSparkConf: FlintSparkConf): DataStreamWriter[Row] = {
+      // For incremental refresh, the refresh_interval option is overridden by Trigger.AvailableNow().
       dataStream
         .addCheckpointLocation(options.checkpointLocation(), flintSparkConf.isCheckpointMandatory)
         .addRefreshInterval(options.refreshInterval())
-        .addAvailableNowTrigger(options.incrementalRefresh())
+        .addAvailableNowTrigger(
+          SchedulerMode.EXTERNAL == options.schedulerMode() || options.incrementalRefresh())
         .addOutputMode(options.outputMode())
         .options(options.extraSinkOptions())
     }
@@ -129,8 +132,8 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
         .getOrElse(dataStream)
     }
 
-    def addAvailableNowTrigger(incrementalRefresh: Boolean): DataStreamWriter[Row] = {
-      if (incrementalRefresh) {
+    def addAvailableNowTrigger(setAvailableNow: Boolean): DataStreamWriter[Row] = {
+      if (setAvailableNow) {
         dataStream.trigger(Trigger.AvailableNow())
       } else {
         dataStream

@@ -13,6 +13,7 @@ import org.opensearch.flint.core.http.FlintRetryOptions._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
+import org.apache.spark.sql.flint.config.FlintSparkConf.{MONITOR_INITIAL_DELAY_SECONDS, MONITOR_INTERVAL_SECONDS, MONITOR_MAX_ERROR_COUNT}
 
 class FlintSparkConfSuite extends FlintSuite {
   test("test spark conf") {
@@ -22,7 +23,7 @@ class FlintSparkConfSuite extends FlintSuite {
 
       val flintOptions = FlintSparkConf().flintOptions()
       assert(flintOptions.getHost == "127.0.0.1")
-      assert(flintOptions.getScrollSize == 10)
+      assert(flintOptions.getScrollSize.get() == 10)
 
       // default value
       assert(flintOptions.getPort == 9200)
@@ -82,6 +83,24 @@ class FlintSparkConfSuite extends FlintSuite {
     val overrideConf = FlintSparkConf(Map("write.batch_bytes" -> "4mb").asJava)
     overrideConf.batchBytes() shouldBe 4 * 1024 * 1024
     overrideConf.flintOptions().getBatchBytes shouldBe 4 * 1024 * 1024
+  }
+
+  test("test index monitor options") {
+    val defaultConf = FlintSparkConf()
+    defaultConf.monitorInitialDelaySeconds() shouldBe 15
+    defaultConf.monitorIntervalSeconds() shouldBe 60
+    defaultConf.monitorMaxErrorCount() shouldBe 5
+
+    withSparkConf(MONITOR_MAX_ERROR_COUNT.key, MONITOR_INTERVAL_SECONDS.key) {
+      setFlintSparkConf(MONITOR_INITIAL_DELAY_SECONDS, 5)
+      setFlintSparkConf(MONITOR_INTERVAL_SECONDS, 30)
+      setFlintSparkConf(MONITOR_MAX_ERROR_COUNT, 10)
+
+      val overrideConf = FlintSparkConf()
+      defaultConf.monitorInitialDelaySeconds() shouldBe 5
+      overrideConf.monitorIntervalSeconds() shouldBe 30
+      overrideConf.monitorMaxErrorCount() shouldBe 10
+    }
   }
 
   /**

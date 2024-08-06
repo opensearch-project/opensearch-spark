@@ -10,8 +10,8 @@ import java.util.Locale
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.convert.ImplicitConversions.`map AsScala`
 
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.FlintMetadata
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
 import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder, StreamingRefresh}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
@@ -194,6 +194,22 @@ object FlintSparkMaterializedView {
     def query(query: String): Builder = {
       this.query = query
       this
+    }
+
+    override protected def validateIndex(index: FlintSparkIndex): FlintSparkIndex = {
+      /*
+       * Validate if duplicate column names in the output schema.
+       * MV query may be empty in the case of ALTER index statement.
+       */
+      if (query.nonEmpty) {
+        val outputColNames = flint.spark.sql(query).schema.map(_.name)
+        require(
+          outputColNames.distinct.length == outputColNames.length,
+          "Duplicate columns found in materialized view query output")
+      }
+
+      // Continue to perform any additional index validation
+      super.validateIndex(index)
     }
 
     override protected def buildIndex(): FlintSparkIndex = {

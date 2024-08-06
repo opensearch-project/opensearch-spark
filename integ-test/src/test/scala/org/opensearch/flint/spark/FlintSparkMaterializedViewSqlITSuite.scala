@@ -16,7 +16,7 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchClient
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
-import org.scalatest.matchers.must.Matchers.defined
+import org.scalatest.matchers.must.Matchers.{defined, have}
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
@@ -79,6 +79,36 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
            *   Row(timestamp("2023-10-01 02:00:00"), 1)
            */
         ))
+    }
+  }
+
+  test("create materialized view with auto refresh and external scheduler") {
+    withTempDir { checkpointDir =>
+      sql(s"""
+           | CREATE MATERIALIZED VIEW $testMvName
+           | AS $testQuery
+           | WITH (
+           |   auto_refresh = true,
+           |   scheduler_mode = 'external',
+           |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+           |   watermark_delay = '1 Second'
+           | )
+           | """.stripMargin)
+
+      // Refresh all present source data as of now
+      sql(s"REFRESH MATERIALIZED VIEW $testMvName")
+      flint.queryIndex(testFlintIndex).count() shouldBe 3
+
+      // New data won't be refreshed until refresh statement triggered
+      sql(s"""
+           | INSERT INTO $testTable VALUES
+           | (TIMESTAMP '2023-10-01 04:00:00', 'F', 25, 'Vancouver')
+           | """.stripMargin)
+      flint.queryIndex(testFlintIndex).count() shouldBe 3
+
+      // New data is refreshed incrementally
+      sql(s"REFRESH MATERIALIZED VIEW $testMvName")
+      flint.queryIndex(testFlintIndex).count() shouldBe 4
     }
   }
 
@@ -255,6 +285,26 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     metadata.indexedColumns.map(_.asScala("columnName")) shouldBe Seq("start.time", "count")
   }
 
+  Seq(
+    s"SELECT name, name FROM $testTable",
+    s"SELECT name AS dup_col, age AS dup_col FROM $testTable")
+    .foreach { query =>
+      test(s"should fail to create materialized view if duplicate columns in $query") {
+        the[IllegalArgumentException] thrownBy {
+          withTempDir { checkpointDir =>
+            sql(s"""
+               | CREATE MATERIALIZED VIEW $testMvName
+               | AS $query
+               | WITH (
+               |   auto_refresh = true,
+               |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+               | )
+               |""".stripMargin)
+          }
+        } should have message "requirement failed: Duplicate columns found in materialized view query output"
+      }
+    }
+
   test("show all materialized views in catalog and database") {
     // Show in catalog
     flint.materializedView().name(s"$catalogName.default.mv1").query(testQuery).create()
@@ -267,6 +317,20 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       Seq(Row("mv1"), Row("mv2")))
 
     checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN $catalogName.other"), Seq.empty)
+
+    deleteTestIndex(
+      getFlintIndexName(s"$catalogName.default.mv1"),
+      getFlintIndexName(s"$catalogName.default.mv2"))
+  }
+
+  test("show materialized view in database with the same prefix") {
+    flint.materializedView().name(s"$catalogName.default.mv1").query(testQuery).create()
+    flint.materializedView().name(s"$catalogName.default_test.mv2").query(testQuery).create()
+    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN spark_catalog.default"), Seq(Row("mv1")))
+
+    deleteTestIndex(
+      getFlintIndexName(s"$catalogName.default.mv1"),
+      getFlintIndexName(s"$catalogName.default_test.mv2"))
   }
 
   test("should return emtpy when show materialized views in empty database") {

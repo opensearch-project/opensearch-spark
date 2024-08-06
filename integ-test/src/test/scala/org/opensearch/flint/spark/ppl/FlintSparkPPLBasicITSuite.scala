@@ -37,32 +37,34 @@ class FlintSparkPPLBasicITSuite
   }
 
   test("create ppl simple query test") {
-    val frame = sql(s"""
-         | source = $testTable
-         | """.stripMargin)
+    val testTableQuoted = "`spark_catalog`.`default`.`flint_ppl_test`"
+    Seq(testTable, testTableQuoted).foreach { table =>
+      val frame = sql(s"""
+           | source = $table
+           | """.stripMargin)
 
-    // Retrieve the results
-    val results: Array[Row] = frame.collect()
-    // Define the expected results
-    val expectedResults: Array[Row] = Array(
-      Row("Jake", 70, "California", "USA", 2023, 4),
-      Row("Hello", 30, "New York", "USA", 2023, 4),
-      Row("John", 25, "Ontario", "Canada", 2023, 4),
-      Row("Jane", 20, "Quebec", "Canada", 2023, 4))
-    // Compare the results
-    // Compare the results
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
+      // Retrieve the results
+      val results: Array[Row] = frame.collect()
+      // Define the expected results
+      val expectedResults: Array[Row] = Array(
+        Row("Jake", 70, "California", "USA", 2023, 4),
+        Row("Hello", 30, "New York", "USA", 2023, 4),
+        Row("John", 25, "Ontario", "Canada", 2023, 4),
+        Row("Jane", 20, "Quebec", "Canada", 2023, 4))
+      // Compare the results
+      implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+      assert(results.sorted.sameElements(expectedResults.sorted))
 
-    // Retrieve the logical plan
-    val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    // Define the expected logical plan
-    val expectedPlan: LogicalPlan =
-      Project(
-        Seq(UnresolvedStar(None)),
-        UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
-    // Compare the two plans
-    assert(expectedPlan === logicalPlan)
+      // Retrieve the logical plan
+      val logicalPlan: LogicalPlan = frame.queryExecution.logical
+      // Define the expected logical plan
+      val expectedPlan: LogicalPlan =
+        Project(
+          Seq(UnresolvedStar(None)),
+          UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
+      // Compare the two plans
+      assert(expectedPlan === logicalPlan)
+    }
   }
 
   test("create ppl simple query with head (limit) 3 test") {
@@ -90,7 +92,6 @@ class FlintSparkPPLBasicITSuite
          | source = $testTable| sort name | head 2
          | """.stripMargin)
 
-    // Retrieve the results
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     assert(results.length == 2)
@@ -187,27 +188,29 @@ class FlintSparkPPLBasicITSuite
   }
 
   test("create ppl simple query two with fields and head (limit) with sorting test") {
-    val frame = sql(s"""
-         | source = $testTable| fields name, age | head 1 | sort age
-         | """.stripMargin)
+    Seq(("name, age", "age"), ("`name`, `age`", "`age`")).foreach {
+      case (selectFields, sortField) =>
+        val frame = sql(s"""
+             | source = $testTable| fields $selectFields | head 1 | sort $sortField
+             | """.stripMargin)
 
-    // Retrieve the results
-    val results: Array[Row] = frame.collect()
-    assert(results.length == 1)
+        // Retrieve the results
+        val results: Array[Row] = frame.collect()
+        assert(results.length == 1)
 
-    // Retrieve the logical plan
-    val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    val project = Project(
-      Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
-      UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
-    // Define the expected logical plan
-    val limitPlan: LogicalPlan = Limit(Literal(1), project)
-    val sortedPlan: LogicalPlan =
-      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, limitPlan)
+        // Retrieve the logical plan
+        val logicalPlan: LogicalPlan = frame.queryExecution.logical
+        val project = Project(
+          Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
+          UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
+        // Define the expected logical plan
+        val limitPlan: LogicalPlan = Limit(Literal(1), project)
+        val sortedPlan: LogicalPlan =
+          Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, limitPlan)
 
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), sortedPlan);
-    // Compare the two plans
-    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+        val expectedPlan = Project(Seq(UnresolvedStar(None)), sortedPlan);
+        // Compare the two plans
+        assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+    }
   }
-
 }

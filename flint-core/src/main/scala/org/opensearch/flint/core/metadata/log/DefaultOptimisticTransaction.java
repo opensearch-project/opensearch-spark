@@ -7,14 +7,15 @@ package org.opensearch.flint.core.metadata.log;
 
 import static java.util.logging.Level.SEVERE;
 import static java.util.logging.Level.WARNING;
-import static org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState$;
-import static org.opensearch.index.seqno.SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
-import static org.opensearch.index.seqno.SequenceNumbers.UNASSIGNED_SEQ_NO;
 
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
+
+import org.opensearch.flint.common.metadata.log.FlintMetadataLog;
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry;
+import org.opensearch.flint.common.metadata.log.OptimisticTransaction;
 
 /**
  * Default optimistic transaction implementation that captures the basic workflow for
@@ -27,11 +28,6 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
   private static final Logger LOG = Logger.getLogger(DefaultOptimisticTransaction.class.getName());
 
   /**
-   * Data source name. TODO: remove this in future.
-   */
-  private final String dataSourceName;
-
-  /**
    * Flint metadata log
    */
   private final FlintMetadataLog<FlintMetadataLogEntry> metadataLog;
@@ -40,10 +36,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
   private Function<FlintMetadataLogEntry, FlintMetadataLogEntry> transientAction = null;
   private Function<FlintMetadataLogEntry, FlintMetadataLogEntry> finalAction = null;
 
-  public DefaultOptimisticTransaction(
-      String dataSourceName,
-      FlintMetadataLog<FlintMetadataLogEntry> metadataLog) {
-    this.dataSourceName = dataSourceName;
+  public DefaultOptimisticTransaction(FlintMetadataLog<FlintMetadataLogEntry> metadataLog) {
     this.metadataLog = metadataLog;
   }
 
@@ -75,13 +68,13 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
 
     // Get the latest log and create if not exists
     FlintMetadataLogEntry latest =
-        metadataLog.getLatest().orElseGet(() -> metadataLog.add(emptyLogEntry()));
+        metadataLog.getLatest().orElseGet(() -> metadataLog.add(metadataLog.emptyLogEntry()));
 
     // Perform initial log check
     if (!initialCondition.test(latest)) {
       LOG.warning("Initial log entry doesn't satisfy precondition " + latest);
       throw new IllegalStateException(
-          "Transaction failed due to initial log precondition not satisfied");
+          String.format("Index state [%s] doesn't satisfy precondition", latest.state()));
     }
 
     // Append optional transient log
@@ -89,15 +82,14 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
     if (transientAction != null) {
       latest = metadataLog.add(transientAction.apply(latest));
 
-      // Copy latest seqNo and primaryTerm to initialLog for potential rollback use
+      // Copy latest entryVersion to initialLog for potential rollback use
       initialLog = initialLog.copy(
           initialLog.id(),
-          latest.seqNo(),
-          latest.primaryTerm(),
           initialLog.createTime(),
           initialLog.state(),
-          initialLog.dataSource(),
-          initialLog.error());
+          latest.entryVersion(),
+          initialLog.error(),
+          initialLog.properties());
     }
 
     // Perform operation
@@ -122,18 +114,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
       } catch (Exception ex) {
         LOG.log(WARNING, "Failed to rollback transient log", ex);
       }
-      throw new IllegalStateException("Failed to commit transaction operation");
+      throw new IllegalStateException("Failed to commit transaction operation", e);
     }
-  }
-
-  private FlintMetadataLogEntry emptyLogEntry() {
-    return new FlintMetadataLogEntry(
-        "",
-        UNASSIGNED_SEQ_NO,
-        UNASSIGNED_PRIMARY_TERM,
-        0L,
-        IndexState$.MODULE$.EMPTY(),
-        dataSourceName,
-        "");
   }
 }

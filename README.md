@@ -1,8 +1,9 @@
 # OpenSearch Flint
 
-OpenSearch Flint is ... It consists of two modules:
+OpenSearch Flint is ... It consists of four modules:
 
 - `flint-core`: a module that contains Flint specification and client.
+- `flint-commons`: a module that provides a shared library of utilities and common functionalities, designed to easily extend Flint's capabilities.
 - `flint-spark-integration`: a module that provides Spark integration for Flint and derived dataset based on it.
 - `ppl-spark-integration`: a module that provides PPL query execution on top of Spark See [PPL repository](https://github.com/opensearch-project/piped-processing-language).
 
@@ -21,7 +22,7 @@ Version compatibility:
 | 0.2.0         | 11+         | 3.3.1         | 2.12.14       | 2.6+       |
 | 0.3.0         | 11+         | 3.3.2         | 2.12.14       | 2.13+      |
 | 0.4.0         | 11+         | 3.3.2         | 2.12.14       | 2.13+      |
-| 0.5.0         | 11+         | 3.4.1         | 2.12.14       | 2.13+      |
+| 0.5.0         | 11+         | 3.5.1         | 2.12.14       | 2.13+      |
 
 ## Flint Extension Usage 
 
@@ -53,7 +54,7 @@ sbt clean standaloneCosmetic/publishM2
 ```
 then add org.opensearch:opensearch-spark_2.12 when run spark application, for example,
 ```
-bin/spark-shell --packages "org.opensearch:opensearch-spark_2.12:0.4.0-SNAPSHOT"
+bin/spark-shell --packages "org.opensearch:opensearch-spark_2.12:0.5.0-SNAPSHOT"
 ```
 
 ### PPL Build & Run 
@@ -65,7 +66,7 @@ sbt clean sparkPPLCosmetic/publishM2
 ```
 then add org.opensearch:opensearch-spark_2.12 when run spark application, for example,
 ```
-bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.4.0-SNAPSHOT"
+bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.5.0-SNAPSHOT"
 ```
 
 ## Code of Conduct
@@ -74,7 +75,7 @@ This project has adopted an [Open Source Code of Conduct](./CODE_OF_CONDUCT.md).
 
 ## Security
 
-If you discover a potential security issue in this project we ask that you notify AWS/Amazon Security via our [vulnerability reporting page](http://aws.amazon.com/security/vulnerability-reporting/). Please do **not** create a public GitHub issue.
+If you discover a potential security issue in this project we ask that you notify OpenSearch Security directly via email to security@opensearch.org. Please do **not** create a public GitHub issue.
 
 ## License
 

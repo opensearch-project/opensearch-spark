@@ -10,8 +10,8 @@ import java.util.Base64
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.OpenSearchTransactionSuite
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState._
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState._
+import org.opensearch.flint.core.storage.FlintMetadataLogEntryOpenSearchConverter.constructLogEntry
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
 import org.scalatest.matchers.should.Matchers
@@ -69,7 +69,7 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
         .create()
 
       updateLatestLogEntry(
-        new FlintMetadataLogEntry(
+        constructLogEntry(
           latestId,
           UNASSIGNED_SEQ_NO,
           UNASSIGNED_PRIMARY_TERM,
@@ -92,7 +92,7 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
         .create()
 
       updateLatestLogEntry(
-        new FlintMetadataLogEntry(
+        constructLogEntry(
           latestId,
           UNASSIGNED_SEQ_NO,
           UNASSIGNED_PRIMARY_TERM,

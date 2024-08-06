@@ -14,7 +14,10 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.storage.FlintQueryCompiler
 import org.apache.spark.sql.types.StructType
 
-case class FlintScanBuilder(tableName: String, schema: StructType, options: FlintSparkConf)
+case class FlintScanBuilder(
+    tables: Seq[org.opensearch.flint.core.Table],
+    schema: StructType,
+    options: FlintSparkConf)
     extends ScanBuilder
     with SupportsPushDownV2Filters
     with Logging {
@@ -22,7 +25,7 @@ case class FlintScanBuilder(tableName: String, schema: StructType, options: Flin
   private var pushedPredicate = Array.empty[Predicate]
 
   override def build(): Scan = {
-    FlintScan(tableName, schema, options, pushedPredicate)
+    FlintScan(tables, schema, options, pushedPredicate)
   }
 
   override def pushPredicates(predicates: Array[Predicate]): Array[Predicate] = {

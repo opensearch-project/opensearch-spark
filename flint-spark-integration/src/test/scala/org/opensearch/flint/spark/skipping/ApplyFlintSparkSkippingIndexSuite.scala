@@ -8,8 +8,8 @@ package org.opensearch.flint.spark.skipping
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.{DELETED, IndexState, REFRESHING}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{DELETED, IndexState, REFRESHING}
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndexOptions}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.SkippingKind
 import org.scalatest.matchers.{Matcher, MatchResult}

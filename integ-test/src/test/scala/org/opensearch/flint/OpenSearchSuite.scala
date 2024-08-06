@@ -70,6 +70,11 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
                          |  "number_of_replicas": "0"
                          |}""".stripMargin
 
+  val multipleShardSetting = """{
+                         |  "number_of_shards": "2",
+                         |  "number_of_replicas": "0"
+                         |}""".stripMargin
+
   def simpleIndex(indexName: String): Unit = {
     val mappings = """{
                      |  "properties": {
@@ -93,6 +98,19 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
   }
 
   def multipleDocIndex(indexName: String, N: Int): Unit = {
+    val mappings = """{
+                     |  "properties": {
+                     |    "id": {
+                     |      "type": "integer"
+                     |    }
+                     |  }
+                     |}""".stripMargin
+
+    val docs = for (n <- 1 to N) yield s"""{"id": $n}""".stripMargin
+    index(indexName, multipleShardSetting, mappings, docs)
+  }
+
+  def multipleShardAndDocIndex(indexName: String, N: Int): Unit = {
     val mappings = """{
                      |  "properties": {
                      |    "id": {

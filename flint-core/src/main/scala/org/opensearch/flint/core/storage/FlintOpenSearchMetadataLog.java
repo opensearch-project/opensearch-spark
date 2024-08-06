@@ -6,10 +6,15 @@
 package org.opensearch.flint.core.storage;
 
 import static java.util.logging.Level.SEVERE;
+import static org.opensearch.flint.core.storage.FlintMetadataLogEntryOpenSearchConverter.constructLogEntry;
+import static org.opensearch.flint.core.storage.FlintMetadataLogEntryOpenSearchConverter.toJson;
 import static org.opensearch.action.support.WriteRequest.RefreshPolicy;
+import static org.opensearch.index.seqno.SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
+import static org.opensearch.index.seqno.SequenceNumbers.UNASSIGNED_SEQ_NO;
 
 import java.io.IOException;
 import java.util.Base64;
+import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Logger;
 import org.opensearch.OpenSearchException;
@@ -23,37 +28,45 @@ import org.opensearch.action.update.UpdateRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.flint.core.FlintClient;
+import org.opensearch.flint.common.metadata.log.FlintMetadataLog;
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry;
+import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
-import org.opensearch.flint.core.metadata.log.FlintMetadataLog;
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry;
 
 /**
  * Flint metadata log in OpenSearch store. For now use single doc instead of maintaining history
  * of metadata log.
+ * Expects the following fields from maps in FlintMetadataLogEntry:
+ * - entryVersion:
+ *   - seqNo (Long): OpenSearch sequence number
+ *   - primaryTerm (Long): OpenSearch primary term
+ * - storageContext:
+ *   - dataSourceName (String): OpenSearch data source associated
  */
 public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadataLogEntry> {
 
   private static final Logger LOG = Logger.getLogger(FlintOpenSearchMetadataLog.class.getName());
 
   /**
-   * Flint client to create Rest OpenSearch client (This will be refactored later)
+   * Flint options to create Rest OpenSearch client
    */
-  private final FlintClient flintClient;
+  private final FlintOptions options;
 
   /**
    * Reuse query request index as Flint metadata log store
    */
-  private final String metaLogIndexName;
+  private final String metadataLogIndexName;
+  private final String dataSourceName;
 
   /**
    * Doc id for latest log entry (Naming rule is static so no need to query Flint index metadata)
    */
   private final String latestId;
 
-  public FlintOpenSearchMetadataLog(FlintClient flintClient, String flintIndexName, String metaLogIndexName) {
-    this.flintClient = flintClient;
-    this.metaLogIndexName = metaLogIndexName;
+  public FlintOpenSearchMetadataLog(FlintOptions options, String flintIndexName, String metadataLogIndexName) {
+    this.options = options;
+    this.metadataLogIndexName = metadataLogIndexName;
+    this.dataSourceName = options.getDataSourceName();
     this.latestId = Base64.getEncoder().encodeToString(flintIndexName.getBytes());
   }
 
@@ -62,7 +75,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     // TODO: use single doc for now. this will be always append in future.
     FlintMetadataLogEntry latest;
     if (!exists()) {
-      String errorMsg = "Flint Metadata Log index not found " + metaLogIndexName;
+      String errorMsg = "Flint Metadata Log index not found " + metadataLogIndexName;
       LOG.log(SEVERE, errorMsg);
       throw new IllegalStateException(errorMsg);
     }
@@ -77,16 +90,17 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   @Override
   public Optional<FlintMetadataLogEntry> getLatest() {
     LOG.info("Fetching latest log entry with id " + latestId);
-    try (IRestHighLevelClient client = flintClient.createClient()) {
+    try (IRestHighLevelClient client = createOpenSearchClient()) {
       GetResponse response =
-          client.get(new GetRequest(metaLogIndexName, latestId), RequestOptions.DEFAULT);
+          client.get(new GetRequest(metadataLogIndexName, latestId), RequestOptions.DEFAULT);
 
       if (response.isExists()) {
-        FlintMetadataLogEntry latest = new FlintMetadataLogEntry(
+        FlintMetadataLogEntry latest = constructLogEntry(
             response.getId(),
             response.getSeqNo(),
             response.getPrimaryTerm(),
-            response.getSourceAsMap());
+            response.getSourceAsMap()
+        );
 
         LOG.info("Found latest log entry " + latest);
         return Optional.of(latest);
@@ -102,15 +116,26 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   @Override
   public void purge() {
     LOG.info("Purging log entry with id " + latestId);
-    try (IRestHighLevelClient client = flintClient.createClient()) {
+    try (IRestHighLevelClient client = createOpenSearchClient()) {
       DeleteResponse response =
           client.delete(
-              new DeleteRequest(metaLogIndexName, latestId), RequestOptions.DEFAULT);
+              new DeleteRequest(metadataLogIndexName, latestId), RequestOptions.DEFAULT);
 
       LOG.info("Purged log entry with result " + response.getResult());
     } catch (Exception e) {
       throw new IllegalStateException("Failed to purge log entry", e);
     }
+  }
+
+  @Override
+  public FlintMetadataLogEntry emptyLogEntry() {
+    return new FlintMetadataLogEntry(
+        "",
+        0L,
+        FlintMetadataLogEntry.IndexState$.MODULE$.EMPTY(),
+        Map.of("seqNo", UNASSIGNED_SEQ_NO, "primaryTerm", UNASSIGNED_PRIMARY_TERM),
+        "",
+        Map.of("dataSourceName", dataSourceName));
   }
 
   private FlintMetadataLogEntry createLogEntry(FlintMetadataLogEntry logEntry) {
@@ -119,20 +144,19 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     FlintMetadataLogEntry logEntryWithId =
         logEntry.copy(
             latestId,
-            logEntry.seqNo(),
-            logEntry.primaryTerm(),
             logEntry.createTime(),
             logEntry.state(),
-            logEntry.dataSource(),
-            logEntry.error());
+            logEntry.entryVersion(),
+            logEntry.error(),
+            logEntry.properties());
 
     return writeLogEntry(logEntryWithId,
         client -> client.index(
             new IndexRequest()
-                .index(metaLogIndexName)
+                .index(metadataLogIndexName)
                 .id(logEntryWithId.id())
                 .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
-                .source(logEntryWithId.toJson(), XContentType.JSON),
+                .source(toJson(logEntryWithId), XContentType.JSON),
             RequestOptions.DEFAULT));
   }
 
@@ -140,30 +164,29 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     LOG.info("Updating log entry " + logEntry);
     return writeLogEntry(logEntry,
         client -> client.update(
-            new UpdateRequest(metaLogIndexName, logEntry.id())
-                .doc(logEntry.toJson(), XContentType.JSON)
+            new UpdateRequest(metadataLogIndexName, logEntry.id())
+                .doc(toJson(logEntry), XContentType.JSON)
                 .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
-                .setIfSeqNo(logEntry.seqNo())
-                .setIfPrimaryTerm(logEntry.primaryTerm()),
+                .setIfSeqNo((Long) logEntry.entryVersion().get("seqNo").get())
+                .setIfPrimaryTerm((Long) logEntry.entryVersion().get("primaryTerm").get()),
             RequestOptions.DEFAULT));
   }
 
   private FlintMetadataLogEntry writeLogEntry(
       FlintMetadataLogEntry logEntry,
       CheckedFunction<IRestHighLevelClient, DocWriteResponse> write) {
-    try (IRestHighLevelClient client = flintClient.createClient()) {
+    try (IRestHighLevelClient client = createOpenSearchClient()) {
       // Write (create or update) the doc
       DocWriteResponse response = write.apply(client);
 
       // Copy latest seqNo and primaryTerm after write
-      logEntry = logEntry.copy(
+      logEntry = new FlintMetadataLogEntry(
           logEntry.id(),
-          response.getSeqNo(),
-          response.getPrimaryTerm(),
           logEntry.createTime(),
           logEntry.state(),
-          logEntry.dataSource(),
-          logEntry.error());
+          Map.of("seqNo", response.getSeqNo(), "primaryTerm", response.getPrimaryTerm()),
+          logEntry.error(),
+          logEntry.properties());
 
       LOG.info("Log entry written as " + logEntry);
       return logEntry;
@@ -173,12 +196,16 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   }
 
   private boolean exists() {
-    LOG.info("Checking if Flint index exists " + metaLogIndexName);
-    try (IRestHighLevelClient client = flintClient.createClient()) {
-      return client.doesIndexExist(new GetIndexRequest(metaLogIndexName), RequestOptions.DEFAULT);
+    LOG.info("Checking if Flint index exists " + metadataLogIndexName);
+    try (IRestHighLevelClient client = createOpenSearchClient()) {
+      return client.doesIndexExist(new GetIndexRequest(metadataLogIndexName), RequestOptions.DEFAULT);
     } catch (IOException e) {
-      throw new IllegalStateException("Failed to check if Flint index exists " + metaLogIndexName, e);
+      throw new IllegalStateException("Failed to check if Flint index exists " + metadataLogIndexName, e);
     }
+  }
+
+  private IRestHighLevelClient createOpenSearchClient() {
+    return OpenSearchClientUtils.createClient(options);
   }
 
   @FunctionalInterface

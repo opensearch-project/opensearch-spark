@@ -57,6 +57,12 @@ object FlintSparkConf {
       "noauth(no auth), sigv4(sigv4 auth), basic(basic auth)")
     .createWithDefault(FlintOptions.NONE_AUTH)
 
+  val SERVICE_NAME = FlintConfig("spark.datasource.flint.auth.servicename")
+    .datasourceOption()
+    .doc("service name used for SigV4 signature. " +
+      "es (AWS OpenSearch Service), aoss (Amazon OpenSearch Serverless)")
+    .createWithDefault(FlintOptions.SERVICE_NAME_ES)
+
   val USERNAME = FlintConfig("spark.datasource.flint.auth.username")
     .datasourceOption()
     .doc("basic auth username")
@@ -112,13 +118,18 @@ object FlintSparkConf {
 
   val SCROLL_SIZE = FlintConfig("spark.datasource.flint.read.scroll_size")
     .datasourceOption()
-    .doc("scroll read size")
-    .createWithDefault("100")
+    .doc("scroll read page size")
+    .createOptional()
 
   val SCROLL_DURATION = FlintConfig(s"spark.datasource.flint.${FlintOptions.SCROLL_DURATION}")
     .datasourceOption()
     .doc("scroll duration in minutes")
     .createWithDefault(String.valueOf(FlintOptions.DEFAULT_SCROLL_DURATION))
+
+  val SUPPORT_SHARD = FlintConfig(s"spark.datasource.flint.${FlintOptions.SUPPORT_SHARD}")
+    .datasourceOption()
+    .doc("indicate does index support shard or not")
+    .createWithDefault(String.valueOf(FlintOptions.DEFAULT_SUPPORT_SHARD))
 
   val MAX_RETRIES = FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.MAX_RETRIES}")
     .datasourceOption()
@@ -154,6 +165,18 @@ object FlintSparkConf {
     .doc("Checkpoint location for incremental refresh index will be mandatory if enabled")
     .createWithDefault("true")
 
+  val MONITOR_INITIAL_DELAY_SECONDS = FlintConfig("spark.flint.monitor.initialDelaySeconds")
+    .doc("Initial delay in seconds before starting the monitoring task")
+    .createWithDefault("15")
+
+  val MONITOR_INTERVAL_SECONDS = FlintConfig("spark.flint.monitor.intervalSeconds")
+    .doc("Interval in seconds for scheduling the monitoring task")
+    .createWithDefault("60")
+
+  val MONITOR_MAX_ERROR_COUNT = FlintConfig("spark.flint.monitor.maxErrorCount")
+    .doc("Maximum number of consecutive errors allowed in index monitor")
+    .createWithDefault("5")
+
   val SOCKET_TIMEOUT_MILLIS =
     FlintConfig(s"spark.datasource.flint.${FlintOptions.SOCKET_TIMEOUT_MILLIS}")
       .datasourceOption()
@@ -162,6 +185,11 @@ object FlintSparkConf {
   val DATA_SOURCE_NAME =
     FlintConfig(s"spark.flint.datasource.name")
       .doc("data source name")
+      .createOptional()
+  val CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS =
+    FlintConfig(FlintOptions.CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS)
+      .datasourceOption()
+      .doc("custom Flint metadata log service class")
       .createOptional()
   val QUERY =
     FlintConfig("spark.flint.job.query")
@@ -223,6 +251,12 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
 
   def isCheckpointMandatory: Boolean = CHECKPOINT_MANDATORY.readFrom(reader).toBoolean
 
+  def monitorInitialDelaySeconds(): Int = MONITOR_INITIAL_DELAY_SECONDS.readFrom(reader).toInt
+
+  def monitorIntervalSeconds(): Int = MONITOR_INTERVAL_SECONDS.readFrom(reader).toInt
+
+  def monitorMaxErrorCount(): Int = MONITOR_MAX_ERROR_COUNT.readFrom(reader).toInt
+
   /**
    * spark.sql.session.timeZone
    */
@@ -236,7 +270,6 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       HOST_ENDPOINT,
       HOST_PORT,
       REFRESH_POLICY,
-      SCROLL_SIZE,
       SCROLL_DURATION,
       SCHEME,
       AUTH,
@@ -244,6 +277,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       RETRYABLE_HTTP_STATUS_CODES,
       REGION,
       CUSTOM_AWS_CREDENTIALS_PROVIDER,
+      SERVICE_NAME,
       USERNAME,
       PASSWORD,
       SOCKET_TIMEOUT_MILLIS,
@@ -256,10 +290,12 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
     val optionsWithoutDefault = Seq(
       RETRYABLE_EXCEPTION_CLASS_NAMES,
       DATA_SOURCE_NAME,
+      CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS,
       SESSION_ID,
       REQUEST_INDEX,
       METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER,
-      EXCLUDE_JOB_IDS)
+      EXCLUDE_JOB_IDS,
+      SCROLL_SIZE)
       .map(conf => (conf.optionKey, conf.readFrom(reader)))
       .flatMap {
         case (_, None) => None

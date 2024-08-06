@@ -12,6 +12,35 @@ can do so by running the following command:
 ```
 sbt integtest/test
 ```
+If you get integration test failures with error message "Previous attempts to find a Docker environment failed" in macOS, fix the issue by following the checklist:
+1. Check you've installed Docker in your dev host. If not, install Docker first.
+2. Check if the file /var/run/docker.sock exists. If not, go to `3`.
+3. Run `sudo ln -s $HOME/.docker/desktop/docker.sock /var/run/docker.sock` or `sudo ln -s $HOME/.docker/run/docker.sock /var/run/docker.sock`
+4. If you use Docker Desktop, as an alternative of `3`, check mark the "Allow the default Docker socket to be used (requires password)" in advanced settings of Docker Desktop.
+
+### AWS Integration Test
+The integration folder contains tests for cloud server providers. For instance, test against AWS OpenSearch domain, configure the following settings. The client will use the default credential provider to access the AWS OpenSearch domain.
+```
+export AWS_OPENSEARCH_HOST=search-xxx.us-west-2.on.aws
+export AWS_REGION=us-west-2
+export AWS_EMRS_APPID=xxx
+export AWS_EMRS_EXECUTION_ROLE=xxx
+export AWS_S3_CODE_BUCKET=xxx
+export AWS_S3_CODE_PREFIX=xxx
+export AWS_OPENSEARCH_RESULT_INDEX=query_execution_result_glue
+```
+And run the 
+```
+sbt integtest/integration
+
+[info] AWSOpenSearchAccessTestSuite:
+[info] - should Create Pit on AWS OpenSearch
+[info] Run completed in 3 seconds, 116 milliseconds.
+[info] Total number of tests run: 1
+[info] Suites: completed 1, aborted 0
+[info] Tests: succeeded 1, failed 0, canceled 0, ignored 0, pending 0
+[info] All tests passed.
+```
 
 ## Scala Formatting Guidelines
 

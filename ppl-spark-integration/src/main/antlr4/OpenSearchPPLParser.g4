@@ -27,28 +27,16 @@ queryStatement
 // commands
 pplCommands
    : searchCommand
-   | describeCommand
-   | showDataSourcesCommand
    ;
 
 commands
    : whereCommand
    | correlateCommand
    | fieldsCommand
-   | renameCommand
    | statsCommand
-   | dedupCommand
    | sortCommand
-   | evalCommand
    | headCommand
-   | topCommand
-   | rareCommand
-   | grokCommand
-   | parseCommand
-   | patternsCommand
-   | kmeansCommand
-   | adCommand
-   | mlCommand
+   | evalCommand
    ;
 
 searchCommand
@@ -190,8 +178,6 @@ mlArg
 fromClause
    : SOURCE EQUAL tableSourceClause
    | INDEX EQUAL tableSourceClause
-   | SOURCE EQUAL tableFunction
-   | INDEX EQUAL tableFunction
    ;
 
 tableSourceClause
@@ -238,8 +224,6 @@ statsFunction
    : statsFunctionName LT_PRTHS valueExpression RT_PRTHS        # statsFunctionCall
    | COUNT LT_PRTHS RT_PRTHS                                    # countAllFunctionCall
    | (DISTINCT_COUNT | DC) LT_PRTHS valueExpression RT_PRTHS    # distinctCountFunctionCall
-   | percentileAggFunction                                      # percentileAggFunctionCall
-   | takeAggFunction                                            # takeAggFunctionCall
    ;
 
 statsFunctionName
@@ -248,10 +232,6 @@ statsFunctionName
    | SUM
    | MIN
    | MAX
-   | VAR_SAMP
-   | VAR_POP
-   | STDDEV_SAMP
-   | STDDEV_POP
    ;
 
 takeAggFunction
@@ -276,7 +256,6 @@ logicalExpression
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
    | left = logicalExpression XOR right = logicalExpression     # logicalXor
    | booleanExpression                                          # booleanExpr
-   | relevanceExpression                                        # relevanceExpr
    ;
 
 comparisonExpression
@@ -289,15 +268,11 @@ valueExpression
    | left = valueExpression binaryOperator = (PLUS | MINUS) right = valueExpression             # binaryArithmetic
    | primaryExpression                                                                          # valueExpressionDefault
    | positionFunction                                                                           # positionFunctionCall
-   | extractFunction                                                                            # extractFunctionCall
-   | getFormatFunction                                                                          # getFormatFunctionCall
-   | timestampFunction                                                                          # timestampFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    ;
 
 primaryExpression
    : evalFunctionCall
-   | dataTypeFunctionCall
    | fieldExpression
    | literalValue
    ;
@@ -700,8 +675,7 @@ multiFieldRelevanceFunctionName
 
 // literals and values
 literalValue
-   : intervalLiteral
-   | stringLiteral
+   : stringLiteral
    | integerLiteral
    | decimalLiteral
    | booleanLiteral

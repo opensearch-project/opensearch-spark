@@ -141,6 +141,36 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     indexData.count() shouldBe 2
   }
 
+  test("create covering index with external scheduler") {
+    withTempDir { checkpointDir =>
+      sql(s"""
+           | CREATE INDEX $testIndex ON $testTable
+           | (name, age)
+           | WITH (
+           |   auto_refresh = true,
+           |   scheduler_mode = 'external',
+           |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+           | )
+           | """.stripMargin)
+
+      // Refresh all present source data as of now
+      sql(s"REFRESH INDEX $testIndex ON $testTable")
+      flint.queryIndex(testFlintIndex).count() shouldBe 2
+
+      // New data won't be refreshed until refresh statement triggered
+      sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=5)
+           | VALUES ('Hello', 50, 'Vancouver')
+           |""".stripMargin)
+      flint.queryIndex(testFlintIndex).count() shouldBe 2
+
+      // New data is refreshed incrementally
+      sql(s"REFRESH INDEX $testIndex ON $testTable")
+      flint.queryIndex(testFlintIndex).count() shouldBe 3
+    }
+  }
+
   test("create covering index with incremental refresh") {
     withTempDir { checkpointDir =>
       sql(s"""
@@ -257,6 +287,19 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     checkAnswer(sql(query), Seq(Row("Hello", 30), Row("World", 25)))
   }
 
+  test("rewrite applicable simple query with partial covering index") {
+    awaitRefreshComplete(s"""
+           | CREATE INDEX $testIndex ON $testTable
+           | (name, age)
+           | WHERE age > 25
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
+
+    val query = s"SELECT name, age FROM $testTable WHERE age >= 30"
+    checkKeywordsExist(sql(s"EXPLAIN $query"), "FlintScan")
+    checkAnswer(sql(query), Seq(Row("Hello", 30)))
+  }
+
   test("rewrite applicable aggregate query with covering index") {
     awaitRefreshComplete(s"""
             | CREATE INDEX $testIndex ON $testTable
@@ -288,6 +331,19 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     } finally {
       spark.conf.set(OPTIMIZER_RULE_COVERING_INDEX_ENABLED.key, "true")
     }
+  }
+
+  test("should not rewrite with partial covering index if not applicable") {
+    awaitRefreshComplete(s"""
+           | CREATE INDEX $testIndex ON $testTable
+           | (name, age)
+           | WHERE age > 25
+           | WITH (auto_refresh = true)
+           | """.stripMargin)
+
+    val query = s"SELECT name, age FROM $testTable WHERE age > 20"
+    checkKeywordsNotExist(sql(s"EXPLAIN $query"), "FlintScan")
+    checkAnswer(sql(query), Seq(Row("Hello", 30), Row("World", 25)))
   }
 
   test("rewrite applicable query with covering index before skipping index") {
@@ -337,6 +393,33 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     checkAnswer(result, Seq(Row(testIndex), Row("idx_address")))
 
     deleteTestIndex(getFlintIndexName("idx_address", testTable), getSkippingIndexName(testTable))
+  }
+
+  test("show covering index on source table with the same prefix") {
+    flint
+      .coveringIndex()
+      .name(testIndex)
+      .onTable(testTable)
+      .addIndexColumns("name", "age")
+      .create()
+
+    val testTable2 = s"${testTable}_2"
+    withTable(testTable2) {
+      // Create another table with same prefix
+      createPartitionedAddressTable(testTable2)
+      flint
+        .coveringIndex()
+        .name(testIndex)
+        .onTable(testTable2)
+        .addIndexColumns("address")
+        .create()
+
+      // Expect no testTable2 present
+      val result = sql(s"SHOW INDEX ON $testTable")
+      checkAnswer(result, Seq(Row(testIndex)))
+
+      deleteTestIndex(getFlintIndexName(testIndex, testTable2))
+    }
   }
 
   test("describe covering index") {

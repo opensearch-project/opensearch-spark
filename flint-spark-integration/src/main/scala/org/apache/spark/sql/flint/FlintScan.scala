@@ -13,7 +13,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types.StructType
 
 case class FlintScan(
-    tableName: String,
+    tables: Seq[org.opensearch.flint.core.Table],
     schema: StructType,
     options: FlintSparkConf,
     pushedPredicates: Array[Predicate])
@@ -23,11 +23,19 @@ case class FlintScan(
   override def readSchema(): StructType = schema
 
   override def planInputPartitions(): Array[InputPartition] = {
-    Array(OpenSearchInputPartition())
+    tables
+      .flatMap(table => {
+        if (table.isSplittable()) {
+          table.slice().map(table => OpenSearchSplit(table))
+        } else {
+          Seq(OpenSearchSplit(table))
+        }
+      })
+      .toArray
   }
 
   override def createReaderFactory(): PartitionReaderFactory = {
-    FlintPartitionReaderFactory(tableName, schema, options, pushedPredicates)
+    FlintPartitionReaderFactory(schema, options, pushedPredicates)
   }
 
   override def toBatch: Batch = this
@@ -45,5 +53,11 @@ case class FlintScan(
   }
 }
 
-// todo. add partition support.
-private[spark] case class OpenSearchInputPartition() extends InputPartition {}
+/**
+ * Each OpenSearchSplit is backed by an OpenSearch index table.
+ *
+ * @param table
+ *   {@link org.opensearch.flint.core.Table}
+ */
+private[spark] case class OpenSearchSplit(table: org.opensearch.flint.core.Table)
+    extends InputPartition {}

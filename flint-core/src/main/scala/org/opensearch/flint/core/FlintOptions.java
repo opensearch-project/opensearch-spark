@@ -7,6 +7,7 @@ package org.opensearch.flint.core;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.spark.network.util.ByteUnit;
 import org.opensearch.flint.core.http.FlintRetryOptions;
@@ -33,16 +34,20 @@ public class FlintOptions implements Serializable {
 
   public static final String SCHEME = "scheme";
 
+  /**
+   * Service name used for SigV4 signature.
+   * `es`: Amazon OpenSearch Service
+   * `aoss`: Amazon OpenSearch Serverless
+   */
+  public static final String SERVICE_NAME = "auth.servicename";
+  public static final String SERVICE_NAME_ES = "es";
+  public static final String SERVICE_NAME_AOSS = "aoss";
+
   public static final String AUTH = "auth";
-
   public static final String NONE_AUTH = "noauth";
-
   public static final String SIGV4_AUTH = "sigv4";
-
   public static final String BASIC_AUTH = "basic";
-
   public static final String USERNAME = "auth.username";
-
   public static final String PASSWORD = "auth.password";
 
   public static final String CUSTOM_AWS_CREDENTIALS_PROVIDER = "customAWSCredentialsProvider";
@@ -57,7 +62,7 @@ public class FlintOptions implements Serializable {
   public static final String SYSTEM_INDEX_KEY_NAME = "spark.flint.job.requestIndex";
 
   /**
-   * Used by {@link org.opensearch.flint.core.storage.OpenSearchScrollReader}
+   * The page size for OpenSearch Rest Request.
    */
   public static final String SCROLL_SIZE = "read.scroll_size";
   public static final int DEFAULT_SCROLL_SIZE = 100;
@@ -90,6 +95,12 @@ public class FlintOptions implements Serializable {
 
   public static final String DEFAULT_BATCH_BYTES = "1mb";
 
+  public static final String CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS = "spark.datasource.flint.customFlintMetadataLogServiceClass";
+
+  public static final String SUPPORT_SHARD = "read.support_shard";
+
+  public static final String DEFAULT_SUPPORT_SHARD = "true";
+
   public FlintOptions(Map<String, String> options) {
     this.options = options;
     this.retryOptions = new FlintRetryOptions(options);
@@ -103,8 +114,12 @@ public class FlintOptions implements Serializable {
     return Integer.parseInt(options.getOrDefault(PORT, "9200"));
   }
 
-  public int getScrollSize() {
-    return Integer.parseInt(options.getOrDefault(SCROLL_SIZE, String.valueOf(DEFAULT_SCROLL_SIZE)));
+  public Optional<Integer> getScrollSize() {
+    if (options.containsKey(SCROLL_SIZE)) {
+      return Optional.of(Integer.parseInt(options.get(SCROLL_SIZE)));
+    } else {
+      return Optional.empty();
+    }
   }
 
   public int getScrollDuration() {
@@ -127,6 +142,10 @@ public class FlintOptions implements Serializable {
 
   public String getAuth() {
     return options.getOrDefault(AUTH, NONE_AUTH);
+  }
+
+  public String getServiceName() {
+    return options.getOrDefault(SERVICE_NAME, SERVICE_NAME_ES);
   }
 
   public String getCustomAwsCredentialsProvider() {
@@ -161,5 +180,21 @@ public class FlintOptions implements Serializable {
     // we did not expect this value could be large than 10mb = 10 * 1024 * 1024
     return (int) org.apache.spark.network.util.JavaUtils
         .byteStringAs(options.getOrDefault(BATCH_BYTES, DEFAULT_BATCH_BYTES), ByteUnit.BYTE);
+  }
+
+  public String getCustomFlintMetadataLogServiceClass() {
+    return options.getOrDefault(CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS, "");
+  }
+
+  /**
+   * FIXME, This is workaround for AWS OpenSearch Serverless (AOSS). AOSS does not support shard
+   * operation, but shard info is exposed in index settings. Remove this setting when AOSS fix
+   * the bug.
+   *
+   * @return
+   */
+  public boolean supportShard() {
+    return options.getOrDefault(SUPPORT_SHARD, DEFAULT_SUPPORT_SHARD).equalsIgnoreCase(
+        DEFAULT_SUPPORT_SHARD);
   }
 }

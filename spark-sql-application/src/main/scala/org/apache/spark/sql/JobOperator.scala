@@ -14,6 +14,7 @@ import scala.util.{Failure, Success, Try}
 
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
+import org.opensearch.flint.spark.FlintSpark
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -87,18 +88,26 @@ case class JobOperator(
     }
 
     try {
-      // Wait for streaming job complete if no error and there is streaming job running
-      if (!exceptionThrown && streaming && spark.streams.active.nonEmpty) {
+      // Wait for streaming job complete if no error
+      if (!exceptionThrown && streaming) {
         // Clean Spark shuffle data after each microBatch.
         spark.streams.addListener(new ShuffleCleaner(spark))
-        // wait if any child thread to finish before the main thread terminates
-        spark.streams.awaitAnyTermination()
+        // Await index monitor before the main thread terminates
+        new FlintSpark(spark).flintIndexMonitor.awaitMonitor()
+      } else {
+        logInfo(s"""
+           | Skip streaming job await due to conditions not met:
+           |  - exceptionThrown: $exceptionThrown
+           |  - streaming: $streaming
+           |  - activeStreams: ${spark.streams.active.mkString(",")}
+           |""".stripMargin)
       }
     } catch {
       case e: Exception => logError("streaming job failed", e)
     }
 
     try {
+      logInfo("Thread pool is being shut down")
       threadPool.shutdown()
       logInfo("shut down thread threadpool")
     } catch {
@@ -121,8 +130,9 @@ case class JobOperator(
 
   def stop(): Unit = {
     Try {
+      logInfo("Stopping Spark session")
       spark.stop()
-      logInfo("stopped spark session")
+      logInfo("Stopped Spark session")
     } match {
       case Success(_) =>
       case Failure(e) => logError("unexpected error while stopping spark session", e)

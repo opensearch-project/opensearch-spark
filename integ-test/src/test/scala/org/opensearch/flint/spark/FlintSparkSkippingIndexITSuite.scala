@@ -159,6 +159,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       optionJson should matchJson(s"""
            | {
            |   "auto_refresh": "true",
+           |   "scheduler_mode": "internal",
            |   "incremental_refresh": "false",
            |   "refresh_interval": "1 Minute",
            |   "checkpoint_location": "${checkpointDir.getAbsolutePath}",
@@ -242,7 +243,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         .addPartitions("year", "month")
         .options(FlintSparkIndexOptions(Map("incremental_refresh" -> "true")))
         .create()
-    } should have message "requirement failed: Checkpoint location is required by incremental refresh"
+    } should have message "requirement failed: Checkpoint location is required"
   }
 
   test("auto refresh skipping index successfully") {
@@ -264,6 +265,39 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     val indexData = flint.queryIndex(testIndex).collect().toSet
     indexData should have size 2
+  }
+
+  test("auto refresh skipping index successfully with external scheduler") {
+    withTempDir { checkpointDir =>
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "scheduler_mode" -> "external",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+        .create()
+
+      flint.refreshIndex(testIndex) shouldBe empty
+      flint.queryIndex(testIndex).collect().toSet should have size 2
+
+      // Delete all index data intentionally and generate a new source file
+      openSearchClient.deleteByQuery(
+        new DeleteByQueryRequest(testIndex).setQuery(QueryBuilders.matchAllQuery()),
+        RequestOptions.DEFAULT)
+      sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=4)
+           | VALUES ('Hello', 35, 'Vancouver')
+           | """.stripMargin)
+
+      // Expect to only refresh the new file
+      flint.refreshIndex(testIndex) shouldBe empty
+      flint.queryIndex(testIndex).collect().toSet should have size 1
+    }
   }
 
   test("update skipping index successfully") {
@@ -809,25 +843,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     val testTable = "spark_catalog.default.nested_field_table"
     val testIndex = getSkippingIndexName(testTable)
     withTable(testTable) {
-      sql(s"""
-           | CREATE TABLE $testTable
-           | (
-           |   int_col INT,
-           |   struct_col STRUCT<field1: STRUCT<subfield:STRING>, field2: INT>
-           | )
-           | USING JSON
-           |""".stripMargin)
-      sql(s"""
-           | INSERT INTO $testTable
-           | SELECT /*+ COALESCE(1) */ *
-           | FROM VALUES
-           | ( 30, STRUCT(STRUCT("value1"),123) ),
-           | ( 40, STRUCT(STRUCT("value2"),456) )
-           |""".stripMargin)
-      sql(s"""
-           | INSERT INTO $testTable
-           | VALUES ( 50, STRUCT(STRUCT("value3"),789) )
-           |""".stripMargin)
+      createStructTable(testTable)
 
       flint
         .skippingIndex()

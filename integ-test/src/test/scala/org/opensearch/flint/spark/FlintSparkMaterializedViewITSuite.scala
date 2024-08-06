@@ -78,7 +78,8 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
            |      "auto_refresh": "true",
            |      "incremental_refresh": "false",
            |      "checkpoint_location": "${checkpointDir.getAbsolutePath}",
-           |      "watermark_delay": "30 Seconds"
+           |      "watermark_delay": "30 Seconds",
+           |      "scheduler_mode":"internal"
            |    },
            |    "latestId": "$testLatestId",
            |    "properties": {}

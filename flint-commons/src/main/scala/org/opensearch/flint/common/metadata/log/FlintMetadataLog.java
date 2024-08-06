@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.core.metadata.log;
+package org.opensearch.flint.common.metadata.log;
 
 import java.util.Optional;
 
@@ -31,4 +31,6 @@ public interface FlintMetadataLog<T> {
    * Remove all log entries.
    */
   void purge();
+
+  T emptyLogEntry();
 }

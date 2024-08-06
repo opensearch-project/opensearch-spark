@@ -30,7 +30,13 @@ Please see the following example in which Index Building Logic and Query Rewrite
 ### Flint Index Refresh
 
 - **Auto Refresh:**
-  - This feature allows the Flint Index to automatically refresh. Users can configure such as frequency of auto-refresh based on their preferences.
+  - This feature allows the Flint Index to automatically refresh. Users can configure such as frequency of auto-refresh based on their preferences. There are two modes available for scheduling the auto-refresh:
+  - **Internal Scheduler:**
+    - Description: The data refresh is executed in micro-batch mode using the internal scheduler. 
+    - Recommended Use-Case: This mode is ideal for low-latency use-cases where data needs to be refreshed frequently and quickly.    
+  - **External Scheduler:**
+    - Description: The data refresh is executed using an external scheduler. 
+    - Recommended Use-Case: This mode is suitable for scenarios where data responsiveness is less critical, helping to reduce the cost of maintaining a long-running Spark cluster.
 - **Manual Refresh:**
   - Users have the option to manually trigger a refresh for the Flint Index. This provides flexibility and control over when the refresh occurs.
     - **Full Refresh:**
@@ -54,7 +60,7 @@ Currently, Flint metadata is only static configuration without version control a
 
 ```json
 {
-  "version": "0.4.0",
+  "version": "0.5.0",
   "name": "...",
   "kind": "skipping",
   "source": "...",
@@ -322,9 +328,11 @@ VACUUM MATERIALIZED VIEW alb_logs_metrics
   - index_name: user defined name for covering index and materialized view
   - auto_refresh: auto refresh option of the index (true / false)
   - status: status of the index
+- **Extended Usage**: Display additional information, including the following output columns:
+  - error: error message if the index is in failed status
 
 ```sql
-SHOW FLINT [INDEX|INDEXES] IN catalog[.database]
+SHOW FLINT [INDEX|INDEXES] [EXTENDED] IN catalog[.database]
 ```
 
 Example:
@@ -338,6 +346,15 @@ fetched rows / total rows = 3/3
 | flint_spark_catalog_default_http_logs_skipping_index        | skipping | default  | http_logs | NULL            | true         | refreshing |
 | flint_spark_catalog_default_http_logs_status_clientip_index | covering | default  | http_logs | status_clientip | false        | active     |
 +-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+
+
+sql> SHOW FLINT INDEXES EXTENDED IN spark_catalog.default;
+fetched rows / total rows = 2/2
++-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+-------------------------------+
+| flint_index_name                                            | kind     | database | table     | index_name      | auto_refresh | status     | error                         |
+|-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+-------------------------------|
+| flint_spark_catalog_default_http_count_view                 | mv       | default  | NULL      | http_count_view | false        | active     | NULL                          |
+| flint_spark_catalog_default_http_logs_skipping_index        | skipping | default  | http_logs | NULL            | true         | failed     | failure in bulk execution:... |
++-------------------------------------------------------------+----------+----------+-----------+-----------------+--------------+------------+-------------------------------+
 ```
 
 - **Analyze Skipping Index**: Provides recommendation for creating skipping index. It outputs the following columns:
@@ -369,7 +386,8 @@ fetched rows / total rows = 5/5
 
 User can provide the following options in `WITH` clause of create statement:
 
-+ `auto_refresh`: default value is false. Automatically refresh the index if set to true. Otherwise, user has to trigger refresh by `REFRESH` statement manually.
++ `auto_refresh`: default value is false. Automatically refresh the index if set to true. Otherwise, user has to trigger refresh by `REFRESH` statement manually. 
++ `scheduler_mode`: A mode string (`internal` or `external`) that describes how `auto_refresh` is scheduled. `checkpoint_location` is required for the external scheduler.
 + `refresh_interval`: a string as the time interval for incremental refresh, e.g. 1 minute, 10 seconds. This is only applicable when auto refresh enabled. Please check `org.apache.spark.unsafe.types.CalendarInterval` for valid duration identifiers. By default, next micro batch will be generated as soon as the previous one complete processing.
 + `incremental_refresh`: default value is false. incrementally refresh the index if set to true. Otherwise, fully refresh the entire index. This only applicable when auto refresh disabled.
 + `checkpoint_location`: a string as the location path for refresh job checkpoint (auto or incremental). The location has to be a path in an HDFS compatible file system and only applicable when auto refresh enabled. If unspecified, temporary checkpoint directory will be used and may result in checkpoint data lost upon restart.
@@ -514,11 +532,15 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.datasource.flint.retry.max_retries`: max retries on failed HTTP request. default value is 3. Use 0 to disable retry.
 - `spark.datasource.flint.retry.http_status_codes`: retryable HTTP response status code list. default value is "429,502" (429 Too Many Request and 502 Bad Gateway).
 - `spark.datasource.flint.retry.exception_class_names`: retryable exception class name list. by default no retry on any exception thrown.
+- `spark.datasource.flint.read.support_shard`: default is true. set to false if index does not support shard (AWS OpenSearch Serverless collection). Do not use in production, this setting will be removed in later version. 
 - `spark.flint.optimizer.enabled`: default is true. enable the Flint optimizer for improving query performance.
 - `spark.flint.optimizer.covering.enabled`: default is true. enable the Flint covering index optimizer for improving query performance.
 - `spark.flint.index.hybridscan.enabled`: default is false.
 - `spark.flint.index.checkpoint.mandatory`: default is true.
 - `spark.datasource.flint.socket_timeout_millis`: default value is 60000.
+- `spark.flint.monitor.initialDelaySeconds`: Initial delay in seconds before starting the monitoring task. Default value is 15.
+- `spark.flint.monitor.intervalSeconds`: Interval in seconds for scheduling the monitoring task. Default value is 60.
+- `spark.flint.monitor.maxErrorCount`: Maximum number of consecutive errors allowed before stopping the monitoring task. Default value is 5.
 
 #### Data Type Mapping
 
@@ -667,7 +689,7 @@ For now, only single or conjunct conditions (conditions connected by AND) in WHE
 ### AWS EMR Spark Integration - Using execution role
 Flint use [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html). When running in EMR Spark, Flint use executionRole credentials
 ```
---conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.4.0-SNAPSHOT \
+--conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.5.0-SNAPSHOT \
 --conf spark.jars.repositories=https://aws.oss.sonatype.org/content/repositories/snapshots \
 --conf spark.emr-serverless.driverEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
 --conf spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
@@ -709,7 +731,7 @@ Flint use [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJa
 ```
 3. Set the spark.datasource.flint.customAWSCredentialsProvider property with value as com.amazonaws.emr.AssumeRoleAWSCredentialsProvider. Set the environment variable ASSUME_ROLE_CREDENTIALS_ROLE_ARN with the ARN value of CrossAccountRoleB.
 ```
---conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.4.0-SNAPSHOT \
+--conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.5.0-SNAPSHOT \
 --conf spark.jars.repositories=https://aws.oss.sonatype.org/content/repositories/snapshots \
 --conf spark.emr-serverless.driverEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
 --conf spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \

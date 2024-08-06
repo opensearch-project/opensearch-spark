@@ -5,11 +5,14 @@
 
 package org.opensearch.flint.spark.covering
 
+import scala.collection.JavaConverters._
+
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{mockStatic, when, RETURNS_DEEP_STUBS}
-import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.metadata.log.FlintMetadataLogEntry.IndexState.{ACTIVE, DELETED, IndexState}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{ACTIVE, DELETED, IndexState}
+import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions, IRestHighLevelClient}
+import org.opensearch.flint.core.storage.OpenSearchClientUtils
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.scalatest.matchers.{Matcher, MatchResult}
@@ -27,12 +30,16 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
   private val testTable = "spark_catalog.default.apply_covering_index_test"
   private val testTable2 = "spark_catalog.default.apply_covering_index_test_2"
 
-  // Mock FlintClient to avoid looking for real OpenSearch cluster
+  /** Mock FlintClient to avoid looking for real OpenSearch cluster */
   private val clientBuilder = mockStatic(classOf[FlintClientBuilder])
   private val client = mock[FlintClient](RETURNS_DEEP_STUBS)
 
-  /** Mock FlintSpark which is required by the rule */
-  private val flint = mock[FlintSpark]
+  /** Mock IRestHighLevelClient to avoid looking for real OpenSearch cluster */
+  private val clientUtils = mockStatic(classOf[OpenSearchClientUtils])
+  private val openSearchClient = mock[IRestHighLevelClient](RETURNS_DEEP_STUBS)
+
+  /** Mock FlintSpark which is required by the rule. Deep stub required to replace spark val. */
+  private val flint = mock[FlintSpark](RETURNS_DEEP_STUBS)
 
   /** Instantiate the rule once for all tests */
   private val rule = new ApplyFlintSparkCoveringIndex(flint)
@@ -41,12 +48,22 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     super.beforeAll()
     sql(s"CREATE TABLE $testTable (name STRING, age INT) USING JSON")
     sql(s"CREATE TABLE $testTable2 (name STRING) USING JSON")
+    sql(s"""
+         | INSERT INTO $testTable
+         | VALUES
+         |  ('A', 10), ('B', 15), ('C', 20), ('D', 25), ('E', 30),
+         |  ('F', 35), ('G', 40), ('H', 45), ('I', 50), ('J', 55)
+         | """.stripMargin)
 
     // Mock static create method in FlintClientBuilder used by Flint data source
     clientBuilder
       .when(() => FlintClientBuilder.build(any(classOf[FlintOptions])))
       .thenReturn(client)
     when(flint.spark).thenReturn(spark)
+    // Mock static
+    clientUtils
+      .when(() => OpenSearchClientUtils.createClient(any(classOf[FlintOptions])))
+      .thenReturn(openSearchClient)
   }
 
   override protected def afterAll(): Unit = {
@@ -61,15 +78,66 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       .assertIndexNotUsed(testTable)
   }
 
-  test("should not apply if covering index is partial") {
+  // Comprehensive test by cartesian product of the following condition
+  private val conditions = Seq(
+    null,
+    "age = 20",
+    "age > 20",
+    "age >= 20",
+    "age < 20",
+    "age <= 20",
+    "age = 50",
+    "age > 50",
+    "age >= 50",
+    "age < 50",
+    "age <= 50",
+    "age > 20 AND age < 50",
+    "age >= 20 AND age < 50",
+    "age > 20 AND age <= 50",
+    "age >=20 AND age <= 50")
+  (for {
+    indexFilter <- conditions
+    queryFilter <- conditions
+  } yield (indexFilter, queryFilter)).distinct
+    .foreach { case (indexFilter, queryFilter) =>
+      test(s"apply partial covering index with [$indexFilter] to query filter [$queryFilter]") {
+        def queryWithFilter(condition: String): String =
+          Option(condition) match {
+            case None => s"SELECT name FROM $testTable"
+            case Some(cond) => s"SELECT name FROM $testTable WHERE $cond"
+          }
+
+        // Expect index applied if query result is subset of index data (index filter result)
+        val queryData = sql(queryWithFilter(queryFilter)).collect().toSet
+        val indexData = sql(queryWithFilter(indexFilter)).collect().toSet
+        val expectedResult = queryData.subsetOf(indexData)
+
+        val assertion = assertFlintQueryRewriter
+          .withQuery(queryWithFilter(queryFilter))
+          .withIndex(
+            new FlintSparkCoveringIndex(
+              indexName = "partial",
+              tableName = testTable,
+              indexedColumns = Map("name" -> "string", "age" -> "int"),
+              filterCondition = Option(indexFilter)))
+
+        if (expectedResult) {
+          assertion.assertIndexUsed(getFlintIndexName("partial", testTable))
+        } else {
+          assertion.assertIndexNotUsed(testTable)
+        }
+      }
+    }
+
+  test("should not apply if covering index with disjunction filtering condition") {
     assertFlintQueryRewriter
-      .withQuery(s"SELECT name FROM $testTable")
+      .withQuery(s"SELECT name FROM $testTable WHERE name = 'A' AND age > 30")
       .withIndex(
         new FlintSparkCoveringIndex(
-          indexName = "name",
+          indexName = "partial",
           tableName = testTable,
-          indexedColumns = Map("name" -> "string"),
-          filterCondition = Some("age > 30")))
+          indexedColumns = Map("name" -> "string", "age" -> "int"),
+          filterCondition = Some("name = 'A' OR age > 30")))
       .assertIndexNotUsed(testTable)
   }
 
@@ -109,6 +177,8 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     s"SELECT name, age FROM $testTable",
     s"SELECT age, name FROM $testTable",
     s"SELECT name FROM $testTable WHERE age = 30",
+    s"SELECT name FROM $testTable WHERE name = 'A' AND age = 30",
+    s"SELECT name FROM $testTable WHERE name = 'A' OR age = 30",
     s"SELECT SUBSTR(name, 1) FROM $testTable WHERE ABS(age) = 30",
     s"SELECT COUNT(*) FROM $testTable GROUP BY age",
     s"SELECT name, COUNT(*) FROM $testTable WHERE age > 30 GROUP BY name",
@@ -165,14 +235,20 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     private var indexes: Seq[FlintSparkCoveringIndex] = Seq()
 
     def withQuery(query: String): AssertionHelper = {
-      this.plan = sql(query).queryExecution.analyzed
+      this.plan = sql(query).queryExecution.optimizedPlan
       this
     }
 
     def withIndex(index: FlintSparkCoveringIndex, state: IndexState = ACTIVE): AssertionHelper = {
       this.indexes = indexes :+
-        index.copy(latestLogEntry =
-          Some(new FlintMetadataLogEntry("id", 0, 0, 0, state, "spark_catalog", "")))
+        index.copy(latestLogEntry = Some(
+          new FlintMetadataLogEntry(
+            "id",
+            0,
+            state,
+            Map("seqNo" -> 0, "primaryTerm" -> 0),
+            "",
+            Map("dataSourceName" -> "dataSource"))))
       this
     }
 
@@ -198,7 +274,8 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       })
 
       indexes.foreach { index =>
-        when(client.getIndexMetadata(index.name())).thenReturn(index.metadata())
+        when(client.getAllIndexMetadata(index.name()))
+          .thenReturn(Map.apply(index.name() -> index.metadata()).asJava)
       }
       rule.apply(plan)
     }

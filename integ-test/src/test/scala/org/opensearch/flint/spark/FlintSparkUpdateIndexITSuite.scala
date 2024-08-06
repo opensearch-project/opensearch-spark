@@ -61,6 +61,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       optionJson should matchJson(s"""
           | {
           |   "auto_refresh": "true",
+          |   "scheduler_mode": "internal",
           |   "incremental_refresh": "false",
           |   "refresh_interval": "1 Minute",
           |   "checkpoint_location": "${checkpointDir.getAbsolutePath}",

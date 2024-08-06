@@ -18,11 +18,11 @@ import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIn
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.{ExplainSuiteHelper, Row}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
 
-class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
+class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuiteHelper {
 
   /** Test table and index name */
   protected val testTable = s"$catalogName.default.skipping_sql_test"
@@ -60,6 +60,35 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     val indexData = spark.read.format(FLINT_DATASOURCE).load(testIndex)
     flint.describeIndex(testIndex) shouldBe defined
     indexData.count() shouldBe 2
+  }
+
+  test("create skipping index with auto refresh and external scheduler") {
+    withTempDir { checkpointDir =>
+      sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | ( year PARTITION )
+           | WITH (
+           |   auto_refresh = true,
+           |   scheduler_mode = 'external',
+           |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+           | )
+           | """.stripMargin)
+
+      // Refresh all present source data as of now
+      sql(s"REFRESH SKIPPING INDEX ON $testTable")
+      flint.queryIndex(testIndex).count() shouldBe 2
+
+      // New data won't be refreshed until refresh statement triggered
+      sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=2023, month=5)
+           | VALUES ('Hello', 50, 'Vancouver')
+           |""".stripMargin)
+      flint.queryIndex(testIndex).count() shouldBe 2
+
+      sql(s"REFRESH SKIPPING INDEX ON $testTable")
+      flint.queryIndex(testIndex).count() shouldBe 3
+    }
   }
 
   test("create skipping index with max size value set") {
@@ -164,6 +193,43 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
     val settings = parse(flintClient.getIndexMetadata(testIndex).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "3"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
+  }
+
+  Seq(
+    "struct_col.field1.subfield VALUE_SET, struct_col.field2 MIN_MAX",
+    "`struct_col.field1.subfield` VALUE_SET, `struct_col.field2` MIN_MAX", // ensure previous hack still works
+    "`struct_col`.`field1`.`subfield` VALUE_SET, `struct_col`.`field2` MIN_MAX").foreach {
+    columnSkipTypes =>
+      test(s"build skipping index for nested field $columnSkipTypes") {
+        val testTable = "spark_catalog.default.nested_field_table"
+        val testIndex = getSkippingIndexName(testTable)
+        withTable(testTable) {
+          createStructTable(testTable)
+          sql(s"""
+             | CREATE SKIPPING INDEX ON $testTable
+             | ( $columnSkipTypes )
+             | WITH (
+             |   auto_refresh = true
+             | )
+             | """.stripMargin)
+
+          val job = spark.streams.active.find(_.name == testIndex)
+          awaitStreamingComplete(job.get.id.toString)
+
+          // Query rewrite nested field
+          val query1 = sql(s"SELECT int_col FROM $testTable WHERE struct_col.field2 = 456")
+          checkAnswer(query1, Row(40))
+          checkKeywordsExistsInExplain(query1, "FlintSparkSkippingFileIndex")
+
+          // Query rewrite deep nested field
+          val query2 =
+            sql(s"SELECT int_col FROM $testTable WHERE struct_col.field1.subfield = 'value3'")
+          checkAnswer(query2, Row(50))
+          checkKeywordsExistsInExplain(query2, "FlintSparkSkippingFileIndex")
+        }
+
+        deleteTestIndex(testIndex)
+      }
   }
 
   test("create skipping index with invalid option") {
