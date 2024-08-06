@@ -7,9 +7,9 @@ package org.opensearch.flint.spark.skipping
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
-import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{DELETED, IndexState, REFRESHING}
+import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndexOptions}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.SkippingKind
 import org.scalatest.matchers.{Matcher, MatchResult}
@@ -129,7 +129,13 @@ class ApplyFlintSparkSkippingIndexSuite extends FlintSuite with Matchers {
         indexedColumns = indexCols.map(FakeSkippingStrategy),
         options = FlintSparkIndexOptions.empty,
         latestLogEntry = Some(
-          new FlintMetadataLogEntry("id", 0, 0, 0, indexState, "spark_catalog", "")))
+          new FlintMetadataLogEntry(
+            "id",
+            0L,
+            indexState,
+            Map.empty[String, Any],
+            "",
+            Map.empty[String, Any])))
 
       when(flint.describeIndex(any())).thenReturn(Some(skippingIndex))
       this
