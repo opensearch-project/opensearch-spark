@@ -13,7 +13,7 @@ import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.{compact, parse, render}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
-import org.opensearch.flint.core.storage.FlintOpenSearchClient
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
@@ -121,7 +121,8 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
         |""".stripMargin)).foreach { case (query, expectedParamJson) =>
     test(s"create skipping index with bloom filter parameters $expectedParamJson") {
       sql(query)
-      val metadata = flint.describeIndex(testIndex).get.metadata().getContent
+      val metadata = FlintOpenSearchIndexMetadataService.serialize(
+        flint.describeIndex(testIndex).get.metadata())
       val parameters = compact(render(parse(metadata) \\ "parameters"))
       parameters should matchJson(expectedParamJson)
     }
@@ -158,10 +159,11 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite {
            |""".stripMargin)
 
     // Check if the index setting option is set to OS index setting
-    val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
+    val flintIndexMetadataService =
+      new FlintOpenSearchIndexMetadataService(new FlintOptions(openSearchOptions.asJava))
 
     implicit val formats: Formats = Serialization.formats(NoTypeHints)
-    val settings = parse(flintClient.getIndexMetadata(testIndex).indexSettings.get)
+    val settings = parse(flintIndexMetadataService.getIndexMetadata(testIndex).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "3"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }

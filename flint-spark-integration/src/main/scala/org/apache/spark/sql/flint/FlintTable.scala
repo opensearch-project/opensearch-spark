@@ -7,7 +7,8 @@ package org.apache.spark.sql.flint
 
 import java.util
 
-import org.opensearch.flint.core.FlintClientBuilder
+import org.opensearch.flint.core.metadata.FlintIndexMetadataServiceBuilder
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.catalog.{SupportsRead, SupportsWrite, Table, TableCapability}
@@ -43,10 +44,10 @@ case class FlintTable(conf: util.Map[String, String], userSpecifiedSchema: Optio
         userSpecifiedSchema.get
       } else {
         FlintDataType.deserialize(
-          FlintClientBuilder
-            .build(flintSparkConf.flintOptions())
-            .getIndexMetadata(name)
-            .getContent)
+          FlintOpenSearchIndexMetadataService.serialize(
+            FlintIndexMetadataServiceBuilder
+              .build(flintSparkConf.flintOptions(), sparkSession.sparkContext.getConf)
+              .getIndexMetadata(name)))
       }
     }
     schema

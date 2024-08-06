@@ -3,14 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.core.metadata
+package org.opensearch.flint.common.metadata
 
 import java.util
 
+import org.opensearch.flint.common.FlintVersion
+import org.opensearch.flint.common.FlintVersion.current
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.FlintVersion
-import org.opensearch.flint.core.FlintVersion.current
-import org.opensearch.flint.core.metadata.FlintJsonHelper._
 
 /**
  * Flint metadata follows Flint index specification and defines metadata for a Flint index
@@ -35,7 +34,11 @@ case class FlintMetadata(
     schema: util.Map[String, AnyRef] = new util.HashMap[String, AnyRef],
     /** Optional latest metadata log entry id */
     latestId: Option[String] = None,
-    /** Optional latest metadata log entry */
+    /**
+     * Optional latest metadata log entry. TODO: remove. This was added for SHOW command to be
+     * fetched during get(All)IndexMetadata. Now describeIndex uses metadata log service to fetch
+     * log entry.
+     */
     latestLogEntry: Option[FlintMetadataLogEntry] = None,
     /** Optional Flint index settings. TODO: move elsewhere? */
     indexSettings: Option[String]) {
@@ -44,122 +47,9 @@ case class FlintMetadata(
   require(name != null, "name is required")
   require(kind != null, "kind is required")
   require(source != null, "source is required")
-
-  /**
-   * Generate JSON content as index metadata.
-   *
-   * @return
-   *   JSON content
-   */
-  def getContent: String = {
-    try {
-      buildJson(builder => {
-        // Add _meta field
-        objectField(builder, "_meta") {
-          builder
-            .field("version", version.version)
-            .field("name", name)
-            .field("kind", kind)
-            .field("source", source)
-            .field("indexedColumns", indexedColumns)
-
-          if (latestId.isDefined) {
-            builder.field("latestId", latestId.get)
-          }
-          optionalObjectField(builder, "options", options)
-          optionalObjectField(builder, "properties", properties)
-        }
-
-        // Add properties (schema) field
-        builder.field("properties", schema)
-      })
-    } catch {
-      case e: Exception =>
-        throw new IllegalStateException("Failed to jsonify Flint metadata", e)
-    }
-  }
 }
 
 object FlintMetadata {
-
-  /**
-   * Construct Flint metadata with JSON content, index settings, and latest log entry.
-   *
-   * @param content
-   *   JSON content
-   * @param settings
-   *   index settings
-   * @param latestLogEntry
-   *   latest metadata log entry
-   * @return
-   *   Flint metadata
-   */
-  def apply(
-      content: String,
-      settings: String,
-      latestLogEntry: FlintMetadataLogEntry): FlintMetadata = {
-    val metadata = FlintMetadata(content, settings)
-    metadata.copy(latestLogEntry = Option(latestLogEntry))
-  }
-
-  /**
-   * Construct Flint metadata with JSON content and index settings.
-   *
-   * @param content
-   *   JSON content
-   * @param settings
-   *   index settings
-   * @return
-   *   Flint metadata
-   */
-  def apply(content: String, settings: String): FlintMetadata = {
-    val metadata = FlintMetadata(content)
-    metadata.copy(indexSettings = Option(settings))
-  }
-
-  /**
-   * Parse the given JSON content and construct Flint metadata class.
-   *
-   * @param content
-   *   JSON content
-   * @return
-   *   Flint metadata
-   */
-  def apply(content: String): FlintMetadata = {
-    try {
-      val builder = new FlintMetadata.Builder()
-      parseJson(content) { (parser, fieldName) =>
-        {
-          fieldName match {
-            case "_meta" =>
-              parseObjectField(parser) { (parser, innerFieldName) =>
-                {
-                  innerFieldName match {
-                    case "version" => builder.version(FlintVersion.apply(parser.text()))
-                    case "name" => builder.name(parser.text())
-                    case "kind" => builder.kind(parser.text())
-                    case "source" => builder.source(parser.text())
-                    case "indexedColumns" =>
-                      parseArrayField(parser) {
-                        builder.addIndexedColumn(parser.map())
-                      }
-                    case "options" => builder.options(parser.map())
-                    case "properties" => builder.properties(parser.map())
-                    case _ => // Handle other fields as needed
-                  }
-                }
-              }
-            case "properties" =>
-              builder.schema(parser.map())
-          }
-        }
-      }
-      builder.build()
-    } catch {
-      case e: Exception =>
-        throw new IllegalStateException("Failed to parse metadata JSON", e)
-    }
-  }
 
   def builder(): FlintMetadata.Builder = new Builder
 
@@ -227,16 +117,6 @@ object FlintMetadata {
 
     def schema(schema: util.Map[String, AnyRef]): this.type = {
       this.schema = schema
-      this
-    }
-
-    def schema(schema: String): this.type = {
-      parseJson(schema) { (parser, fieldName) =>
-        fieldName match {
-          case "properties" => this.schema = parser.map()
-          case _ => // do nothing
-        }
-      }
       this
     }
 

@@ -10,7 +10,8 @@ import java.util.Base64
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.native.JsonMethods._
 import org.opensearch.client.RequestOptions
-import org.opensearch.flint.core.FlintVersion.current
+import org.opensearch.flint.common.FlintVersion.current
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
@@ -60,7 +61,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex(testIndex)
     index shouldBe defined
-    index.get.metadata().getContent should matchJson(s"""{
+    FlintOpenSearchIndexMetadataService.serialize(index.get.metadata()) should matchJson(s"""{
         |   "_meta": {
         |     "name": "flint_spark_catalog_default_skipping_test_skipping_index",
         |     "version": "${current()}",
@@ -155,7 +156,11 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       val index = flint.describeIndex(testIndex)
       index shouldBe defined
       val optionJson =
-        compact(render(parse(index.get.metadata().getContent) \ "_meta" \ "options"))
+        compact(
+          render(
+            parse(
+              FlintOpenSearchIndexMetadataService.serialize(
+                index.get.metadata())) \ "_meta" \ "options"))
       optionJson should matchJson(s"""
            | {
            |   "auto_refresh": "true",
@@ -610,7 +615,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex(testIndex)
     index shouldBe defined
-    index.get.metadata().getContent should matchJson(s"""{
+    FlintOpenSearchIndexMetadataService.serialize(index.get.metadata()) should matchJson(s"""{
          |   "_meta": {
          |     "name": "flint_spark_catalog_default_data_type_table_skipping_index",
          |     "version": "${current()}",

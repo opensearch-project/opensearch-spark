@@ -5,18 +5,22 @@
 
 package org.opensearch.flint.spark.covering
 
+import scala.collection.JavaConverters._
+
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{mockStatic, when, RETURNS_DEEP_STUBS}
+import org.opensearch.flint.common.metadata.FlintIndexMetadataService
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{ACTIVE, DELETED, IndexState}
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
+import org.opensearch.flint.core.metadata.FlintIndexMetadataServiceBuilder
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.scalatest.matchers.{Matcher, MatchResult}
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
 
-import org.apache.spark.FlintSuite
+import org.apache.spark.{FlintSuite, SparkConf}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
@@ -27,12 +31,16 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
   private val testTable = "spark_catalog.default.apply_covering_index_test"
   private val testTable2 = "spark_catalog.default.apply_covering_index_test_2"
 
-  // Mock FlintClient to avoid looking for real OpenSearch cluster
+  /**
+   * Mock FlintClient and FlintIndexMetadataService to avoid looking for real OpenSearch cluster
+   */
   private val clientBuilder = mockStatic(classOf[FlintClientBuilder])
   private val client = mock[FlintClient](RETURNS_DEEP_STUBS)
+  private val indexMetadataServiceBuilder = mockStatic(classOf[FlintIndexMetadataServiceBuilder])
+  private val indexMetadataService = mock[FlintIndexMetadataService](RETURNS_DEEP_STUBS)
 
-  /** Mock FlintSpark which is required by the rule */
-  private val flint = mock[FlintSpark]
+  /** Mock FlintSpark which is required by the rule. Deep stub required to replace spark val. */
+  private val flint = mock[FlintSpark](RETURNS_DEEP_STUBS)
 
   /** Instantiate the rule once for all tests */
   private val rule = new ApplyFlintSparkCoveringIndex(flint)
@@ -42,16 +50,24 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     sql(s"CREATE TABLE $testTable (name STRING, age INT) USING JSON")
     sql(s"CREATE TABLE $testTable2 (name STRING) USING JSON")
 
-    // Mock static create method in FlintClientBuilder used by Flint data source
+    // Mock static create method in FlintClientBuilder and FlintIndexMetadataServiceBuilder used by Flint data source
     clientBuilder
-      .when(() => FlintClientBuilder.build(any(classOf[FlintOptions])))
+      .when(() =>
+        FlintClientBuilder
+          .build(any(classOf[FlintOptions])))
       .thenReturn(client)
+    indexMetadataServiceBuilder
+      .when(() =>
+        FlintIndexMetadataServiceBuilder
+          .build(any(classOf[FlintOptions]), any(classOf[SparkConf])))
+      .thenReturn(indexMetadataService)
     when(flint.spark).thenReturn(spark)
   }
 
   override protected def afterAll(): Unit = {
     sql(s"DROP TABLE $testTable")
     clientBuilder.close()
+    indexMetadataServiceBuilder.close()
     super.afterAll()
   }
 
@@ -204,7 +220,8 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       })
 
       indexes.foreach { index =>
-        when(client.getIndexMetadata(index.name())).thenReturn(index.metadata())
+        when(indexMetadataService.getAllIndexMetadata(index.name()))
+          .thenReturn(Map.apply(index.name() -> index.metadata()).asJava)
       }
       rule.apply(plan)
     }

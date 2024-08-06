@@ -10,10 +10,10 @@ import java.util.Locale
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.convert.ImplicitConversions.`map AsScala`
 
+import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
-import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder, StreamingRefresh}
+import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchema, metadataBuilder, StreamingRefresh}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getFlintIndexName, MV_INDEX_TYPE}
@@ -59,13 +59,13 @@ case class FlintSparkMaterializedView(
       outputSchema.map { case (colName, colType) =>
         Map[String, AnyRef]("columnName" -> colName, "columnType" -> colType).asJava
       }.toArray
-    val schemaJson = generateSchemaJSON(outputSchema)
+    val schema = generateSchema(outputSchema).asJava
 
     metadataBuilder(this)
       .name(mvName)
       .source(query)
       .indexedColumns(indexColumnMaps)
-      .schema(schemaJson)
+      .schema(schema)
       .build()
   }
 

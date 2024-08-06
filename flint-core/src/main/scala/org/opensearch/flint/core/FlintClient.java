@@ -7,7 +7,7 @@ package org.opensearch.flint.core;
 
 import java.util.Map;
 
-import org.opensearch.flint.core.metadata.FlintMetadata;
+import org.opensearch.flint.common.metadata.FlintMetadata;
 import org.opensearch.flint.core.storage.FlintReader;
 import org.opensearch.flint.core.storage.FlintWriter;
 
@@ -32,31 +32,6 @@ public interface FlintClient {
    * @return true if the index exists, otherwise false
    */
   boolean exists(String indexName);
-
-  /**
-   * Retrieve all metadata for Flint index whose name matches the given pattern.
-   *
-   * @param indexNamePattern index name pattern
-   * @return map where the keys are the matched index names, and the values are
-   *         corresponding index metadata
-   */
-  Map<String, FlintMetadata> getAllIndexMetadata(String indexNamePattern);
-
-  /**
-   * Retrieve metadata in a Flint index.
-   *
-   * @param indexName index name
-   * @return index metadata
-   */
-  FlintMetadata getIndexMetadata(String indexName);
-
-  /**
-   * Update a Flint index with the metadata given.
-   *
-   * @param indexName index name
-   * @param metadata  index metadata
-   */
-  void updateIndex(String indexName, FlintMetadata metadata);
 
   /**
    * Delete a Flint index.
