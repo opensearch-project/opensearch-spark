@@ -57,7 +57,7 @@ class OpenSearchIndexTable(metaData: MetaData, option: FlintOptions) extends Tab
       if (docCount == 0) {
         maxResultWindow
       } else {
-        val totalSizeBytes = indexStats.total().store().sizeInBytes
+        val totalSizeBytes = indexStats.primaries().store().sizeInBytes
         val docSize = Math.ceil(totalSizeBytes / docCount).toLong
         Math.max(Math.min(maxSplitSizeBytes / docSize, maxResultWindow), 1).toInt
       }

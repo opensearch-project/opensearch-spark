@@ -53,9 +53,9 @@ class OpenSearchIndexTableSpec
     when(options.supportShard()).thenReturn(supportShard)
 
     when(openSearchClient.stats(any[IndicesStatsRequest])).thenReturn(mockIndicesStatsResp)
-    when(mockIndicesStatsResp.indices().get(any[String]).total().docs().count())
+    when(mockIndicesStatsResp.indices().get(any[String]).primaries().docs().count())
       .thenReturn(docCount)
-    when(mockIndicesStatsResp.indices().get(any[String]).total().store().sizeInBytes)
+    when(mockIndicesStatsResp.indices().get(any[String]).primaries().store().sizeInBytes)
       .thenReturn(storeSizeInBytes)
 
     new OpenSearchIndexTable(metaData, options) {
