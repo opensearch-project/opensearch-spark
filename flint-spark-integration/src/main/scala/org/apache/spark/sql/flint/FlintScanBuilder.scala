@@ -6,14 +6,16 @@
 package org.apache.spark.sql.flint
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.opensearch.table.OpenSearchTable
 import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.connector.read.{Scan, ScanBuilder, SupportsPushDownV2Filters}
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.storage.FlintQueryCompiler
 import org.apache.spark.sql.types.StructType
 
-case class FlintScanBuilder(table: OpenSearchTable, schema: StructType, options: FlintSparkConf)
+case class FlintScanBuilder(
+    tables: Seq[org.opensearch.flint.core.Table],
+    schema: StructType,
+    options: FlintSparkConf)
     extends ScanBuilder
     with SupportsPushDownV2Filters
     with Logging {
@@ -21,7 +23,7 @@ case class FlintScanBuilder(table: OpenSearchTable, schema: StructType, options:
   private var pushedPredicate = Array.empty[Predicate]
 
   override def build(): Scan = {
-    FlintScan(table, schema, options, pushedPredicate)
+    FlintScan(tables, schema, options, pushedPredicate)
   }
 
   override def pushPredicates(predicates: Array[Predicate]): Array[Predicate] = {

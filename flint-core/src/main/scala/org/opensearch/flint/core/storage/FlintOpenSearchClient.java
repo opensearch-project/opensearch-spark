@@ -5,7 +5,6 @@
 
 package org.opensearch.flint.core.storage;
 
-import com.google.common.base.Strings;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.indices.CreateIndexRequest;
@@ -14,32 +13,21 @@ import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.client.indices.PutMappingRequest;
 import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.common.settings.Settings;
-import org.opensearch.common.xcontent.NamedXContentRegistry;
-import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.flint.core.metadata.FlintMetadata;
-import org.opensearch.index.query.AbstractQueryBuilder;
-import org.opensearch.index.query.MatchAllQueryBuilder;
-import org.opensearch.index.query.QueryBuilder;
-import org.opensearch.search.SearchModule;
-import org.opensearch.search.builder.SearchSourceBuilder;
 import scala.Option;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
-import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
 
 /**
  * Flint client implementation for OpenSearch storage.
@@ -48,24 +36,12 @@ public class FlintOpenSearchClient implements FlintClient {
 
   private static final Logger LOG = Logger.getLogger(FlintOpenSearchClient.class.getName());
 
-
-  /**
-   * {@link NamedXContentRegistry} from {@link SearchModule} used for construct {@link QueryBuilder} from DSL query string.
-   */
-  private final static NamedXContentRegistry
-      xContentRegistry =
-      new NamedXContentRegistry(new SearchModule(Settings.builder().build(),
-          new ArrayList<>()).getNamedXContents());
-
   /**
    * Invalid index name characters to percent-encode,
    * excluding '*' because it's reserved for pattern matching.
    */
   private final static Set<Character> INVALID_INDEX_NAME_CHARS =
       Set.of(' ', ',', ':', '"', '+', '/', '\\', '|', '?', '#', '>', '<');
-
-  private final static Function<String, String> SHARD_ID_PREFERENCE =
-      shardId -> shardId == null ? shardId : "_shards:"+shardId;
 
   private final FlintOptions options;
 
@@ -166,47 +142,6 @@ public class FlintOpenSearchClient implements FlintClient {
       client.deleteIndex(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to delete Flint index " + osIndexName, e);
-    }
-  }
-
-  /**
-   * Create {@link FlintReader}.
-   *
-   * @param indexName index name.
-   * @param query     DSL query. DSL query is null means match_all.
-   * @return {@link FlintReader}.
-   */
-  @Override
-  public FlintReader createReader(String indexName, String query) {
-    return createReader(indexName, query, null);
-  }
-
-  /**
-   * Create {@link FlintReader}.
-   *
-   * @param indexName index name.
-   * @param query DSL query. DSL query is null means match_all
-   * @param shardId shardId
-   * @return
-   */
-  @Override
-  public FlintReader createReader(String indexName, String query, String shardId) {
-    LOG.info("Creating Flint index reader for " + indexName + " with query " + query + " shardId " + shardId);
-    try {
-      QueryBuilder queryBuilder = new MatchAllQueryBuilder();
-      if (!Strings.isNullOrEmpty(query)) {
-        XContentParser
-            parser =
-            XContentType.JSON.xContent().createParser(xContentRegistry, IGNORE_DEPRECATIONS, query);
-        queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
-      }
-      return new OpenSearchScrollReader(createClient(),
-          sanitizeIndexName(indexName),
-          new SearchSourceBuilder().query(queryBuilder),
-          options,
-          SHARD_ID_PREFERENCE.apply(shardId));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
     }
   }
 

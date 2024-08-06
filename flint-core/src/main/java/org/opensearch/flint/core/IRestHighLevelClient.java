@@ -7,7 +7,6 @@ package org.opensearch.flint.core;
 
 import org.opensearch.OpenSearchException;
 import org.opensearch.action.DocWriteResponse;
-import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.bulk.BulkRequest;
 import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.action.delete.DeleteRequest;
@@ -30,6 +29,9 @@ import org.opensearch.client.opensearch.core.pit.CreatePitRequest;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.client.indices.PutMappingRequest;
+import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.opensearch.client.opensearch.indices.IndicesStatsRequest;
+import org.opensearch.client.opensearch.indices.IndicesStatsResponse;
 import org.opensearch.flint.core.logging.CustomLogging;
 import org.opensearch.flint.core.logging.OperationMessage;
 import org.opensearch.flint.core.metrics.MetricsUtil;
@@ -68,6 +70,8 @@ public interface IRestHighLevelClient extends Closeable {
     SearchResponse scroll(SearchScrollRequest searchScrollRequest, RequestOptions options) throws IOException;
 
     DocWriteResponse update(UpdateRequest updateRequest, RequestOptions options) throws IOException;
+
+    IndicesStatsResponse stats(IndicesStatsRequest request) throws IOException;
 
     CreatePitResponse createPit(CreatePitRequest request) throws IOException;
 

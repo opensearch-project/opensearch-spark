@@ -151,6 +151,7 @@ object FlintMetadata {
               }
             case "properties" =>
               builder.schema(parser.map())
+            case _ => // Ignore other fields, for instance, dynamic.
           }
         }
       }
