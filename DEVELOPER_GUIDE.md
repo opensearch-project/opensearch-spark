@@ -13,8 +13,7 @@ sbt test
 ```
 
 ## Integration Test
-The integration test is defined in the `integration` directory of the project. If you want to run the integration test for the project, you 
-can do so by running the following command:
+The integration test is defined in the `integration` directory of the project. The integration tests will automatically trigger unit tests and will only run if all unit tests pass. If you want to run the integration test for the project, you can do so by running the following command:
 ```
 sbt integtest/integration
 ```
