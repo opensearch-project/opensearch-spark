@@ -326,7 +326,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
   test("show materialized view in database with the same prefix") {
     flint.materializedView().name(s"$catalogName.default.mv1").query(testQuery).create()
     flint.materializedView().name(s"$catalogName.default_test.mv2").query(testQuery).create()
-    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN spark_catalog.default"), Seq(Row("mv1")))
+    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN $catalogName.default"), Seq(Row("mv1")))
 
     deleteTestIndex(
       getFlintIndexName(s"$catalogName.default.mv1"),

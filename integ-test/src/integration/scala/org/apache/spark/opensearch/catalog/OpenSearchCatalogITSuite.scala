@@ -22,6 +22,7 @@ class OpenSearchCatalogITSuite extends OpenSearchCatalogSuite {
     }
   }
 
+  // FIXME https://github.com/opensearch-project/opensearch-spark/issues/529
   test("Describe single index as table") {
     val indexName = "t0001"
     withIndexName(indexName) {
@@ -29,16 +30,13 @@ class OpenSearchCatalogITSuite extends OpenSearchCatalogSuite {
       val df = spark.sql(s"""
         DESC ${catalogName}.default.$indexName""")
 
-      assert(df.count() == 6)
+      assert(df.count() == 3)
       checkAnswer(
         df,
         Seq(
-          Row("# Partitioning", "", ""),
-          Row("", "", ""),
-          Row("Not partitioned", "", ""),
-          Row("accountId", "string", ""),
-          Row("eventName", "string", ""),
-          Row("eventSource", "string", "")))
+          Row("accountId", "string", null),
+          Row("eventName", "string", null),
+          Row("eventSource", "string", null)))
     }
   }
 

@@ -201,7 +201,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
     "`struct_col`.`field1`.`subfield` VALUE_SET, `struct_col`.`field2` MIN_MAX").foreach {
     columnSkipTypes =>
       test(s"build skipping index for nested field $columnSkipTypes") {
-        val testTable = "spark_catalog.default.nested_field_table"
+        val testTable = s"$catalogName.default.nested_field_table"
         val testIndex = getSkippingIndexName(testTable)
         withTable(testTable) {
           createStructTable(testTable)
