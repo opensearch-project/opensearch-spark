@@ -27,6 +27,7 @@ If you get integration test failures with error message "Previous attempts to fi
 The `aws-integration` folder contains tests for cloud server providers. For instance, test against AWS OpenSearch domain, configure the following settings. The client will use the default credential provider to access the AWS OpenSearch domain.
 ```
 export AWS_OPENSEARCH_HOST=search-xxx.us-west-2.on.aws
+export AWS_OPENSEARCH_SERVERLESS_HOST=xxx.us-west-2.aoss.amazonaws.com
 export AWS_REGION=us-west-2
 export AWS_EMRS_APPID=xxx
 export AWS_EMRS_EXECUTION_ROLE=xxx
