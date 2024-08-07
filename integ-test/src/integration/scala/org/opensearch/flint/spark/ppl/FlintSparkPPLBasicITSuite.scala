@@ -6,9 +6,11 @@
 package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.sql.{QueryTest, Row}
+import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Literal, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.execution.command.DescribeTableCommand
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLBasicITSuite
@@ -36,7 +38,29 @@ class FlintSparkPPLBasicITSuite
     }
   }
 
-  test("create ppl simple query test") {
+  test("describe table query test") {
+    val testTableQuoted = "`spark_catalog`.`default`.`flint_ppl_test`"
+    Seq(testTable, testTableQuoted).foreach { table =>
+      val frame = sql(s"""
+           describe $table
+           """.stripMargin)
+
+      // Retrieve the results
+      val results: Array[Row] = frame.collect()
+      assert(results.length == 2)
+      // Retrieve the logical plan
+      val logicalPlan: LogicalPlan = frame.queryExecution.logical
+      // Define the expected logical plan
+      val expectedPlan: LogicalPlan =
+        Project(
+          Seq(UnresolvedStar(None)),
+          DescribeTableCommand(TableIdentifier("table"), null, isExtended = false, Seq.empty))
+      // Compare the two plans
+      assert(expectedPlan === logicalPlan)
+    }
+  }
+  
+ test("create ppl simple query test") {
     val testTableQuoted = "`spark_catalog`.`default`.`flint_ppl_test`"
     Seq(testTable, testTableQuoted).foreach { table =>
       val frame = sql(s"""

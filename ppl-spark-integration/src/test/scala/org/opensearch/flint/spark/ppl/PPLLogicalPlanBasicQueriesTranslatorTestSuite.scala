@@ -10,10 +10,12 @@ import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, Descending, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.execution.command.DescribeTableCommand
 
 class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     extends SparkFunSuite
@@ -23,6 +25,27 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
+
+  test("test simple describe clause") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(plan(pplParser, "describe table", false), context)
+
+    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, DescribeTableCommand(TableIdentifier("table"), null, isExtended = false, Seq.empty))
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+
+test("test FQN table describe clause") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(plan(pplParser, "describe catalog.schema.table", false), context)
+
+    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, DescribeTableCommand(TableIdentifier("catalog.schema.table"), null, isExtended = false, Seq.empty))
+    comparePlans(expectedPlan, logPlan, false)
+  }
 
   test("test simple search with only one table and no explicit fields (defaults to all fields)") {
     // if successful build ppl logical plan and translate to catalyst logical plan
