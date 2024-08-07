@@ -31,8 +31,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(plan(pplParser, "describe t", false), context)
 
-    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
-    val expectedPlan = Project(projectList, DescribeTableCommand(TableIdentifier("t"), null, isExtended = false, Seq.empty))
+    val expectedPlan = DescribeTableCommand(TableIdentifier("t"), null, isExtended = false, Seq.empty)
     comparePlans(expectedPlan, logPlan, false)
   }
 
