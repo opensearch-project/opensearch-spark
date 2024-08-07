@@ -14,6 +14,7 @@ import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
+import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
@@ -111,7 +112,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitRelation(Relation node, CatalystPlanContext context) {
         if (node instanceof DescribeRelation) {
-            return context.with(new DescribeTableCommand(new TableIdentifier(node.getTableQualifiedName().toString()), null, false, seq()));
+            return context.with(
+                    new DescribeTableCommand(
+                            new TableIdentifier(node.getTableQualifiedName().toString()),
+                            scala.collection.immutable.Map$.MODULE$.<String, String>empty(),
+                            false,
+                            DescribeRelation$.MODULE$.getOutputAttrs()));
         }
         //regular sql algebraic relations 
         node.getTableName().forEach(t ->
