@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.data
+package org.opensearch.flint.common.model
 
 import java.util.{HashMap => JavaHashMap}
 

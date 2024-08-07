@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.data
+package org.opensearch.flint.common.model
 
 import java.util.{Map => JavaMap}
 
@@ -16,9 +16,8 @@ import org.json4s.native.Serialization
 
 object SessionStates {
   val RUNNING = "running"
-  val COMPLETE = "complete"
-  val FAILED = "failed"
-  val WAITING = "waiting"
+  val DEAD = "dead"
+  val FAIL = "fail"
 }
 
 /**
@@ -56,10 +55,13 @@ class InteractiveSession(
     extends ContextualDataStore {
   context = sessionContext // Initialize the context from the constructor
 
+  def running(): Unit = state = SessionStates.RUNNING
+  def complete(): Unit = state = SessionStates.DEAD
+  def fail(): Unit = state = SessionStates.FAIL
+
   def isRunning: Boolean = state == SessionStates.RUNNING
-  def isComplete: Boolean = state == SessionStates.COMPLETE
-  def isFailed: Boolean = state == SessionStates.FAILED
-  def isWaiting: Boolean = state == SessionStates.WAITING
+  def isComplete: Boolean = state == SessionStates.DEAD
+  def isFail: Boolean = state == SessionStates.FAIL
 
   override def toString: String = {
     val excludedJobIdsStr = excludedJobIds.mkString("[", ", ", "]")

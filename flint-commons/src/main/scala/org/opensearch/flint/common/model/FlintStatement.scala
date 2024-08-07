@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.data
+package org.opensearch.flint.common.model
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.JsonAST.JString
@@ -14,6 +14,7 @@ object StatementStates {
   val RUNNING = "running"
   val SUCCESS = "success"
   val FAILED = "failed"
+  val TIMEOUT = "timeout"
   val WAITING = "waiting"
 }
 
@@ -50,6 +51,8 @@ class FlintStatement(
   def running(): Unit = state = StatementStates.RUNNING
   def complete(): Unit = state = StatementStates.SUCCESS
   def fail(): Unit = state = StatementStates.FAILED
+  def timeout(): Unit = state = StatementStates.TIMEOUT
+
   def isRunning: Boolean = state == StatementStates.RUNNING
   def isComplete: Boolean = state == StatementStates.SUCCESS
   def isFailed: Boolean = state == StatementStates.FAILED
