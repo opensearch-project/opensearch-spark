@@ -164,7 +164,7 @@ class FlintSparkIndexMonitor(
           flintMetadataLogService.recordHeartbeat(indexName)
 
           if (!flintClient.exists(indexName)) {
-            logInfo("Streaming job is active but data is deleted")
+            logWarning("Streaming job is active but data is deleted")
             stopStreamingJobAndMonitor(indexName)
           }
         } else {

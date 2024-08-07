@@ -69,7 +69,8 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
         flint.deleteIndex(testIndex)
         flint.vacuumIndex(testIndex)
       } catch {
-        case _: IllegalStateException =>
+        // Forcefully delete index data and log entry in case of any errors, such as version conflict
+        case _: Exception =>
           if (openSearchClient
               .indices()
               .exists(new GetIndexRequest(testIndex), RequestOptions.DEFAULT)) {

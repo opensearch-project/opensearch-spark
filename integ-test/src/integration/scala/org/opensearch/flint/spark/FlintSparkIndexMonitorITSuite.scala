@@ -152,14 +152,12 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
 
   test("monitor task and streaming job should terminate if data index is deleted") {
     val task = FlintSparkIndexMonitor.indexMonitorTracker(testFlintIndex)
-    async {
-      openSearchClient
-        .indices()
-        .delete(new DeleteIndexRequest(testFlintIndex), RequestOptions.DEFAULT)
-    }
+    openSearchClient
+      .indices()
+      .delete(new DeleteIndexRequest(testFlintIndex), RequestOptions.DEFAULT)
 
     // Wait for index monitor execution and assert
-    Thread.sleep(5000)
+    waitForMonitorTaskRun()
     task.isCancelled shouldBe true
     spark.streams.active.exists(_.name == testFlintIndex) shouldBe false
 
