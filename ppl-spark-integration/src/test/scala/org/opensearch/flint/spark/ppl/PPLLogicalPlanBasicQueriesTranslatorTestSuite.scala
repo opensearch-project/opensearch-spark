@@ -29,10 +29,9 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   test("test simple describe clause") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "describe table", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "describe t", false), context)
 
-    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
-    val expectedPlan = Project(projectList, DescribeTableCommand(TableIdentifier("table"), null, isExtended = false, Seq.empty))
+    val expectedPlan = DescribeTableCommand(TableIdentifier("table"), null, isExtended = false, Seq.empty)
     comparePlans(expectedPlan, logPlan, false)
   }
 
@@ -40,10 +39,9 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 test("test FQN table describe clause") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "describe catalog.schema.table", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "describe catalog.schema.t", false), context)
 
-    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
-    val expectedPlan = Project(projectList, DescribeTableCommand(TableIdentifier("catalog.schema.table"), null, isExtended = false, Seq.empty))
+    val expectedPlan = DescribeTableCommand(TableIdentifier("catalog.schema.table"), null, isExtended = false, Seq.empty)
     comparePlans(expectedPlan, logPlan, false)
   }
 

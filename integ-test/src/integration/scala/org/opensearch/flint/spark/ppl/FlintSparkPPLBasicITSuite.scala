@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar, UnresolvedTableOrView}
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Literal, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.command.DescribeTableCommand
@@ -47,16 +47,29 @@ class FlintSparkPPLBasicITSuite
 
       // Retrieve the results
       val results: Array[Row] = frame.collect()
-      assert(results.length == 2)
+      // Define the expected results
+      val expectedResults: Array[Row] = Array(
+        Row("name", "string", null),
+        Row("age", "int", null),
+        Row("state", "string", null),
+        Row("country", "string", null),
+        Row("year", "int", null),
+        Row("month", "int", null),
+        Row("# Partition Information", "", ""),
+        Row("# col_name", "data_type", "comment"),
+        Row("year", "int", null),
+        Row("month", "int", null)
+      )
+      // Compare the results
+      implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+      assert(results.sorted.sameElements(expectedResults.sorted))
       // Retrieve the logical plan
-      val logicalPlan: LogicalPlan = frame.queryExecution.logical
+      val logicalPlan: LogicalPlan = frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
       // Define the expected logical plan
       val expectedPlan: LogicalPlan =
-        Project(
-          Seq(UnresolvedStar(None)),
-          DescribeTableCommand(TableIdentifier("table"), null, isExtended = false, Seq.empty))
+          DescribeTableCommand(TableIdentifier("default.flint_ppl_test"), null, isExtended = false, output = Seq())
       // Compare the two plans
-      assert(expectedPlan === logicalPlan)
+      comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
     }
   }
   
@@ -232,7 +245,7 @@ class FlintSparkPPLBasicITSuite
         val sortedPlan: LogicalPlan =
           Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, limitPlan)
 
-        val expectedPlan = Project(Seq(UnresolvedStar(None)), sortedPlan);
+        val expectedPlan = Project(Seq(UnresolvedStar(None)), sortedPlan)
         // Compare the two plans
         assert(compareByString(expectedPlan) === compareByString(logicalPlan))
     }
