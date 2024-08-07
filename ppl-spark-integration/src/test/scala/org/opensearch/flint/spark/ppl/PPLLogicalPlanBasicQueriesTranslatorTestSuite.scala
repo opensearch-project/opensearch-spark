@@ -26,7 +26,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
 
-  test("test simple describe clause") {
+  test("test simple describe table clause") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(plan(pplParser, "describe t", false), context)
@@ -36,7 +36,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   }
 
 
-test("test FQN table describe clause") {
+test("test FQN table describe table clause") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(plan(pplParser, "describe catalog.schema.t", false), context)
