@@ -63,6 +63,7 @@ import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import scala.Option;
+import scala.Option$;
 import scala.collection.Seq;
 
 import java.util.ArrayList;
@@ -112,9 +113,20 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitRelation(Relation node, CatalystPlanContext context) {
         if (node instanceof DescribeRelation) {
+            TableIdentifier identifier;
+            if (node.getTableQualifiedName().getParts().size() == 1) {
+                identifier = new TableIdentifier(node.getTableQualifiedName().getParts().get(0));
+            } else if (node.getTableQualifiedName().getParts().size() == 2) {
+                identifier = new TableIdentifier(
+                        node.getTableQualifiedName().getParts().get(1),
+                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(0)));
+            } else {
+                throw new IllegalArgumentException("Invalid table name: " + node.getTableQualifiedName()
+                        + " Syntax: [ database_name. ] table_name");
+            }
             return context.with(
                     new DescribeTableCommand(
-                            new TableIdentifier(node.getTableQualifiedName().toString()),
+                            identifier,
                             scala.collection.immutable.Map$.MODULE$.<String, String>empty(),
                             false,
                             DescribeRelation$.MODULE$.getOutputAttrs()));
