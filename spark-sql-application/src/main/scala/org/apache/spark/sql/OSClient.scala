@@ -113,7 +113,7 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
   }
 
   def createUpdater(indexName: String): OpenSearchUpdater =
-    new OpenSearchUpdater(indexName, flintClient)
+    new OpenSearchUpdater(indexName, flintClient, flintOptions)
 
   def getDoc(osIndexName: String, id: String): GetResponse = {
     using(flintClient.createClient()) { client =>

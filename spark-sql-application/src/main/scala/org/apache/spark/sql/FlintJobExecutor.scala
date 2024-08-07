@@ -127,11 +127,14 @@ trait FlintJobExecutor {
     builder.getOrCreate()
   }
 
-  private def writeData(resultData: DataFrame, resultIndex: String): Unit = {
+  private def writeData(
+      resultData: DataFrame,
+      resultIndex: String,
+      refreshPolicy: String): Unit = {
     try {
       resultData.write
         .format("flint")
-        .option(REFRESH_POLICY.optionKey, "wait_for")
+        .option(REFRESH_POLICY.optionKey, refreshPolicy)
         .mode("append")
         .save(resultIndex)
       IRestHighLevelClient.recordOperationSuccess(
@@ -158,11 +161,12 @@ trait FlintJobExecutor {
       resultData: DataFrame,
       resultIndex: String,
       osClient: OSClient): Unit = {
+    val refreshPolicy = osClient.flintOptions.getRefreshPolicy;
     if (osClient.doesIndexExist(resultIndex)) {
-      writeData(resultData, resultIndex)
+      writeData(resultData, resultIndex, refreshPolicy)
     } else {
       createResultIndex(osClient, resultIndex, resultIndexMapping)
-      writeData(resultData, resultIndex)
+      writeData(resultData, resultIndex, refreshPolicy)
     }
   }
 

@@ -32,9 +32,8 @@ class OpenSearchUpdaterSuite extends OpenSearchTransactionSuite with Matchers {
   override def beforeAll(): Unit = {
     super.beforeAll()
     flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava));
-    updater = new OpenSearchUpdater(
-      testMetaLogIndex,
-      new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava)))
+    val options = new FlintOptions(openSearchOptions.asJava)
+    updater = new OpenSearchUpdater(testMetaLogIndex, new FlintOpenSearchClient(options), options)
   }
 
   test("upsert flintJob should success") {
