@@ -221,8 +221,8 @@ Next tasks ahead will resolve this:
 
 This section describes the next steps planned for enabling additional commands and gamer translation.
 
-#### Supported
-The next samples of PPL queries are currently supported:
+#### Example PPL Queries
+See the next samples of PPL queries :
 
 **Fields**
  - `source = table`
@@ -272,31 +272,13 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source = table | stats sum(productsAmount) by span(transactionDate, 1d) as age_date | sort age_date`
 - `source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date, productId`
 
-> For additional details, review [FlintSparkPPLTimeWindowITSuite.scala](../integ-test/src/test/scala/org/opensearch/flint/spark/ppl/FlintSparkPPLTimeWindowITSuite.scala)
-
-#### Supported Commands:
- - `search` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/search.rst)  
- - `where`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/where.rst)  
- - `fields` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/fields.rst)  
- - `eval`   - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/eval.rst)
- - `head`   - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/head.rst)
- - `stats`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/stats.rst) (supports AVG, COUNT, DISTINCT_COUNT, MAX, MIN and SUM aggregation functions)
- - `sort` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst)
- - `correlation` - [See details](../docs/PPL-Correlation-command.md)
-
-> For additional details, review [Integration Tests](../integ-test/src/test/scala/org/opensearch/flint/spark/)
- 
 ---
 
-#### Planned Support
+For additional details, view [PPL Commands](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
+For additional details on Spark PPL available support campaign, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
 
- - support the `explain` command to return the explained PPL query logical plan and expected execution plan
+#### Experimental Commands:
+ - `correlation` - [See details](../docs/PPL-Correlation-command.md)
 
- - attend [sort](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) partially supported, missing capability to sort by alias field (span like or aggregation)
- - attend `alias` - partially supported, missing capability to sort by / group-by alias field name 
+> This is an experimental command - it may be removed in future versions
 
- - add [conditions](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/condition.rst) support
- - add [top](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/top.rst) support
- - add [cast](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/conversion.rst) support
- - add [math](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/math.rst) support
- - add [deduplicate](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/dedup.rst) support
