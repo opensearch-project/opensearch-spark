@@ -31,7 +31,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(plan(pplParser, "describe t", false), context)
 
-    val expectedPlan = DescribeTableCommand(TableIdentifier("t"), Map.empty, isExtended = false, output = DescribeRelation.getOutputAttrs)
+    val expectedPlan = DescribeTableCommand(TableIdentifier("t"), Map.empty[String, String], isExtended = false, output = DescribeRelation.getOutputAttrs)
     comparePlans(expectedPlan, logPlan, false)
   }
 
@@ -41,7 +41,7 @@ test("test FQN table describe table clause") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(plan(pplParser, "describe catalog.schema.t", false), context)
 
-    val expectedPlan = DescribeTableCommand(TableIdentifier("describe catalog.schema.t"), Map.empty, isExtended = false, output = DescribeRelation.getOutputAttrs)
+    val expectedPlan = DescribeTableCommand(TableIdentifier("describe catalog.schema.t"), Map.empty[String, String].empty, isExtended = false, output = DescribeRelation.getOutputAttrs)
     comparePlans(expectedPlan, logPlan, false)
   }
 

@@ -67,8 +67,11 @@ class FlintSparkPPLBasicITSuite
       val logicalPlan: LogicalPlan = frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
       // Define the expected logical plan
       val expectedPlan: LogicalPlan =
-           DescribeTableCommand(TableIdentifier("default.flint_ppl_test"), Map.empty, isExtended = false, output = DescribeRelation.getOutputAttrs
-      );
+        DescribeTableCommand(
+          TableIdentifier("flint_ppl_test"),
+          Map.empty[String, String],
+          isExtended = false,
+          output = DescribeRelation.getOutputAttrs)
       // Compare the two plans
       comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
     }
