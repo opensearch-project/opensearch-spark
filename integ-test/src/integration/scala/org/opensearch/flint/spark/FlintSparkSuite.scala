@@ -98,6 +98,44 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     }
   }
 
+  protected def createPartitionedGrokEmailTable(testTable: String): Unit = {
+    spark.sql(
+      s"""
+         | CREATE TABLE $testTable
+         | (
+         |   name STRING,
+         |   email STRING,
+         |   street_address STRING
+         | )
+         | USING $tableType $tableOptions
+         | PARTITIONED BY (
+         |    year INT,
+         |    month INT
+         | )
+         |""".stripMargin)
+
+    val data = Seq(
+      ("Alice", "alice@example.com", "123 Main St, Seattle", 2023, 4),
+      ("Bob", "bob@test.org", "456 Elm St, Portland", 2023, 5),
+      ("Charlie", "charlie@domain.net", "789 Pine St, San Francisco", 2023, 4),
+      ("David", "david@anotherdomain.com", "101 Maple St, New York", 2023, 5),
+      ("Eve", "eve@examples.com", "202 Oak St, Boston", 2023, 4),
+      ("Frank", "frank@sample.org", "303 Cedar St, Austin", 2023, 5),
+      ("Grace", "grace@demo.net", "404 Birch St, Chicago", 2023, 4),
+      ("Hank", "hank@demonstration.com", "505 Spruce St, Miami", 2023, 5),
+      ("Ivy", "ivy@examples.org", "606 Fir St, Denver", 2023, 4),
+      ("Jack", "jack@sample.net", "707 Ash St, Seattle", 2023, 5)
+    )
+
+    data.foreach { case (name, email, street_address, year, month) =>
+      spark.sql(
+        s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=$year, month=$month)
+           | VALUES ('$name', '$email', '$street_address')
+           | """.stripMargin)
+    }
+  }
   protected def createPartitionedAddressTable(testTable: String): Unit = {
     sql(s"""
          | CREATE TABLE $testTable

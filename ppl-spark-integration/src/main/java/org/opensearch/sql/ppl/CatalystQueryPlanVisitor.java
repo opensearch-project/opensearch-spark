@@ -11,6 +11,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
+import org.apache.spark.sql.catalyst.expressions.RegExpExtract;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
@@ -50,6 +51,7 @@ import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Kmeans;
+import org.opensearch.sql.ast.tree.Parse;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
@@ -222,6 +224,33 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     private Expression visitExpression(UnresolvedExpression expression, CatalystPlanContext context) {
         return expressionAnalyzer.analyze(expression, context);
+    }
+
+    @Override
+    public LogicalPlan visitParse(Parse node, CatalystPlanContext context) {
+        LogicalPlan child = node.getChild().get(0).accept(this, context);
+        List<UnresolvedExpression> aliases = new ArrayList<>();
+        switch (node.getParseMethod()) {
+            case GROK:
+                throw new IllegalStateException("Not Supported operation : GROK");
+            case PATTERNS:
+                throw new IllegalStateException("Not Supported operation : PATTERNS");
+            case REGEX:
+                //todo
+        }
+        UnresolvedExpression sourceField = node.getSourceField();
+        Literal pattern = node.getPattern();
+        Alias alias = new Alias(sourceField.toString(), let.getExpression());
+        aliases.add(alias);
+        if (context.getNamedParseExpressions().isEmpty()) {
+            // Create an UnresolvedStar for all-fields projection
+            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+        }
+        List<Expression> expressionList = visitExpressionList(aliases, context);
+        Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+        // build the plan with the projection step
+        child = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+        return child;
     }
 
     @Override
