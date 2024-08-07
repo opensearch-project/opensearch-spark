@@ -274,8 +274,10 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 
 ---
 
-For additional details, view [PPL Commands](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
-For additional details on Spark PPL available support campaign, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
+For additional details on PPL commands - view [PPL Commands](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
+
+For additional details on Spark PPL commands project, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
+For additional details on Spark PPL commands support campaign, see [PPL Commands Campaign](https://github.com/opensearch-project/opensearch-spark/issues/408)
 
 #### Experimental Commands:
  - `correlation` - [See details](../docs/PPL-Correlation-command.md)
