@@ -27,6 +27,7 @@ queryStatement
 // commands
 pplCommands
    : searchCommand
+   | describeCommand
    ;
 
 commands

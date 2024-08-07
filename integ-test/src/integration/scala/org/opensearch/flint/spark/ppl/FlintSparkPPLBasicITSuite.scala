@@ -42,7 +42,7 @@ class FlintSparkPPLBasicITSuite
     val testTableQuoted = "`spark_catalog`.`default`.`flint_ppl_test`"
     Seq(testTable, testTableQuoted).foreach { table =>
       val frame = sql(s"""
-           describe $table
+           describe flint_ppl_test
            """.stripMargin)
 
       // Retrieve the results
