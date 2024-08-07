@@ -11,19 +11,19 @@ import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 import org.mockito.Mockito.when
-import org.opensearch.client.json.jackson.JacksonJsonpMapper
-import org.opensearch.client.opensearch.OpenSearchClient
-import org.opensearch.client.transport.rest_client.RestClientTransport
 import org.opensearch.flint.OpenSearchSuite
 import org.opensearch.flint.core.metadata.FlintMetadata
-import org.opensearch.flint.core.storage.{FlintOpenSearchClient, OpenSearchScrollReader}
+import org.opensearch.flint.core.storage.FlintOpenSearchClient
+import org.opensearch.flint.core.table.OpenSearchCluster
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
 
-import org.apache.spark.sql.flint.config.FlintSparkConf.{DATA_SOURCE_NAME, REFRESH_POLICY, SCROLL_DURATION, SCROLL_SIZE}
+import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 
 class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with Matchers {
+
+  lazy val options = new FlintOptions(openSearchOptions.asJava)
 
   /** Lazy initialize after container started. */
   lazy val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
@@ -146,14 +146,14 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     writer.write("\n")
     writer.flush()
     writer.close()
-    flintClient.createReader(indexName, "").hasNext shouldBe true
+    createTable(indexName, options).createReader("").hasNext shouldBe true
 
     flintClient.deleteIndex(indexName)
     flintClient.exists(indexName) shouldBe false
   }
 
   it should "percent-encode invalid index name characters" in {
-    val indexName = "test ,:\"+/\\|?#><"
+    val indexName = "test :\"+/\\|?#><"
     flintClient.createIndex(
       indexName,
       FlintMetadata("""{"properties": {"test": { "type": "integer" } } }"""))
@@ -170,7 +170,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     writer.write("\n")
     writer.flush()
     writer.close()
-    flintClient.createReader(indexName, "").hasNext shouldBe true
+    createTable(indexName, options).createReader("").hasNext shouldBe true
 
     flintClient.deleteIndex(indexName)
     flintClient.exists(indexName) shouldBe false
@@ -185,12 +185,52 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     withIndexName(indexName) {
       simpleIndex(indexName)
       val match_all = null
-      val reader = flintClient.createReader(indexName, match_all)
+      val reader = createTable(indexName, options).createReader(match_all)
 
       reader.hasNext shouldBe true
       reader.next shouldBe """{"accountId":"123","eventName":"event","eventSource":"source"}"""
       reader.hasNext shouldBe false
       reader.close()
+    }
+  }
+
+  it should "read docs from index with multiple shard successfully" in {
+    val indexName = "t0001"
+    val expectedCount = 5
+    withIndexName(indexName) {
+      multipleShardAndDocIndex(indexName, expectedCount)
+      val match_all = null
+      val reader = createTable(indexName, options).createReader(match_all)
+
+      var totalCount = 0
+      while (reader.hasNext) {
+        reader.next()
+        totalCount += 1
+      }
+      totalCount shouldBe expectedCount
+    }
+  }
+
+  it should "read docs from shard table successfully" in {
+    val indexName = "t0001"
+    val expectedCount = 5
+    withIndexName(indexName) {
+      multipleShardAndDocIndex(indexName, expectedCount)
+      val match_all = null
+      val totalCount = createTable(indexName, options)
+        .slice()
+        .map(shardTable => {
+          val reader = shardTable.createReader(match_all)
+          var count = 0
+          while (reader.hasNext) {
+            reader.next()
+            count += 1
+          }
+          count
+        })
+        .sum
+
+      totalCount shouldBe expectedCount
     }
   }
 
@@ -218,7 +258,8 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
       writer.close()
 
       val match_all = null
-      val reader = flintClient.createReader(indexName, match_all)
+      val reader =
+        createTable(indexName, new FlintOptions(options.asJava)).createReader(match_all)
       reader.hasNext shouldBe true
       reader.next shouldBe """{"aInt":1}"""
       reader.hasNext shouldBe false
@@ -226,53 +267,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     }
   }
 
-  it should "scroll context close properly after read" in {
-    val indexName = "t0001"
-    withIndexName(indexName) {
-      simpleIndex(indexName)
-      val match_all = null
-      val reader = flintClient.createReader(indexName, match_all)
-
-      reader.hasNext shouldBe true
-      reader.next shouldBe """{"accountId":"123","eventName":"event","eventSource":"source"}"""
-      reader.hasNext shouldBe false
-      reader.close()
-
-      reader.asInstanceOf[OpenSearchScrollReader].getScrollId shouldBe null
-      scrollShouldClosed()
-    }
-  }
-
-  it should "no item return after scroll timeout" in {
-    val indexName = "t0001"
-    withIndexName(indexName) {
-      multipleDocIndex(indexName, 2)
-
-      val options =
-        openSearchOptions + (s"${SCROLL_DURATION.optionKey}" -> "1", s"${SCROLL_SIZE.optionKey}" -> "1")
-      val flintClient = new FlintOpenSearchClient(new FlintOptions(options.asJava))
-      val match_all = null
-      val reader = flintClient.createReader(indexName, match_all)
-
-      reader.hasNext shouldBe true
-      reader.next
-      // scroll context expired after 1 minutes
-      Thread.sleep(60 * 1000 * 2)
-      reader.hasNext shouldBe false
-      reader.close()
-
-      reader.asInstanceOf[OpenSearchScrollReader].getScrollId shouldBe null
-      scrollShouldClosed()
-    }
-  }
-
-  def scrollShouldClosed(): Unit = {
-    val transport =
-      new RestClientTransport(openSearchClient.getLowLevelClient, new JacksonJsonpMapper)
-    val client = new OpenSearchClient(transport)
-
-    val response = client.nodes().stats()
-    response.nodes().size() should be > 0
-    response.nodes().forEach((_, stats) => stats.indices().search().scrollCurrent() shouldBe 0)
+  def createTable(indexName: String, options: FlintOptions): Table = {
+    OpenSearchCluster.apply(indexName, options).head
   }
 }

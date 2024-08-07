@@ -8,7 +8,6 @@ package org.opensearch.flint.core;
 import java.util.Map;
 
 import org.opensearch.flint.core.metadata.FlintMetadata;
-import org.opensearch.flint.core.storage.FlintReader;
 import org.opensearch.flint.core.storage.FlintWriter;
 
 /**
@@ -64,25 +63,6 @@ public interface FlintClient {
    * @param indexName index name
    */
   void deleteIndex(String indexName);
-
-  /**
-   * Create {@link FlintReader}.
-   *
-   * @param indexName index name.
-   * @param query DSL query. DSL query is null means match_all
-   * @return {@link FlintReader}.
-   */
-  FlintReader createReader(String indexName, String query);
-
-  /**
-   * Create {@link FlintReader}.
-   *
-   * @param indexName index name.
-   * @param shardId shard id.
-   * @param query DSL query. DSL query is null means match_all
-   * @return {@link FlintReader}.
-   */
-  FlintReader createReader(String indexName, String shardId, String query);
 
   /**
    * Create {@link FlintWriter}.

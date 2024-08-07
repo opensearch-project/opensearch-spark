@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.core.storage;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.opensearch.OpenSearchStatusException;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
@@ -22,8 +23,9 @@ import java.util.Optional;
  */
 public abstract class OpenSearchReader implements FlintReader {
 
+  @VisibleForTesting
   /** Search request source builder. */
-  private final SearchRequest searchRequest;
+  public final SearchRequest searchRequest;
 
   protected final IRestHighLevelClient client;
 
