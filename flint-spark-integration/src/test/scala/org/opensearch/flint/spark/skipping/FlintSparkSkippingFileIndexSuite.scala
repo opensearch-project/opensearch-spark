@@ -16,7 +16,7 @@ import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Literal, Predicate}
-import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{FileIndex, FileStatusWithMetadata, PartitionDirectory}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types._
 
@@ -118,7 +118,8 @@ class FlintSparkSkippingFileIndexSuite extends FlintSuite with Matchers {
 
     private def mockPartitions(partitions: Map[String, Seq[String]]): Seq[PartitionDirectory] = {
       partitions.map { case (partitionName, filePaths) =>
-        val files = filePaths.map(path => new FileStatus(0, false, 0, 0, 0, new Path(path)))
+        val files = filePaths.map(path =>
+          FileStatusWithMetadata(new FileStatus(0, false, 0, 0, 0, new Path(path))))
         PartitionDirectory(InternalRow(Literal(partitionName)), files)
       }.toSeq
     }

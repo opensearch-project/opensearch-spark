@@ -35,6 +35,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
   lazy protected val flint: FlintSpark = new FlintSpark(spark)
   lazy protected val tableType: String = "CSV"
   lazy protected val tableOptions: String = "OPTIONS (header 'false', delimiter '\t')"
+  lazy protected val catalogName: String = "spark_catalog"
 
   override protected def sparkConf: SparkConf = {
     val conf = super.sparkConf

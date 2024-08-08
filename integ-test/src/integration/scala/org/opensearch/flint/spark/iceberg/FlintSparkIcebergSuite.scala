@@ -22,13 +22,20 @@ trait FlintSparkIcebergSuite extends FlintSparkSuite {
   // You can also override tableOptions if Iceberg requires different options
   override lazy protected val tableOptions: String = ""
 
+  override lazy protected val catalogName: String = "local"
+
   // Override the sparkConf method to include Iceberg-specific configurations
   override protected def sparkConf: SparkConf = {
     val conf = super.sparkConf
       // Set Iceberg-specific Spark configurations
       .set("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkSessionCatalog")
-      .set("spark.sql.catalog.spark_catalog.type", "hadoop")
-      .set("spark.sql.catalog.spark_catalog.warehouse", s"spark-warehouse/${suiteName}")
+      .set("spark.sql.catalog.spark_catalog.type", "hive")
+      .set(s"spark.sql.catalog.$catalogName", "org.apache.iceberg.spark.SparkCatalog")
+      .set(s"spark.sql.catalog.$catalogName.type", "hadoop")
+      // Required by IT(create skipping index on table without database name)
+      .set(s"spark.sql.catalog.$catalogName.default-namespace", "default")
+      .set(s"spark.sql.catalog.$catalogName.warehouse", s"spark-warehouse/${suiteName}")
+      .set(s"spark.sql.defaultCatalog", s"$catalogName")
       .set(
         "spark.sql.extensions",
         List(

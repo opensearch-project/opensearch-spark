@@ -171,14 +171,14 @@ class FlintSparkPPLEvalITSuite
     val ex = intercept[AnalysisException](sql(s"""
          | source = $testTable | eval age = 40 | eval name = upper(name) | sort name | fields name, age, state
          | """.stripMargin))
-    assert(ex.getMessage().contains("Reference 'name' is ambiguous"))
+    assert(ex.getMessage().contains("Reference `name` is ambiguous"))
   }
 
   test("test overriding existing fields: throw exception when specify the new field in where") {
     val ex = intercept[AnalysisException](sql(s"""
          | source = $testTable | eval age = abs(age) | where age < 50
          | """.stripMargin))
-    assert(ex.getMessage().contains("Reference 'age' is ambiguous"))
+    assert(ex.getMessage().contains("Reference `age` is ambiguous"))
   }
 
   test(
@@ -186,7 +186,7 @@ class FlintSparkPPLEvalITSuite
     val ex = intercept[AnalysisException](sql(s"""
          | source = $testTable | eval age = abs(age) | stats avg(age)
          | """.stripMargin))
-    assert(ex.getMessage().contains("Reference 'age' is ambiguous"))
+    assert(ex.getMessage().contains("Reference `age` is ambiguous"))
   }
 
   test(
@@ -194,7 +194,7 @@ class FlintSparkPPLEvalITSuite
     val ex = intercept[AnalysisException](sql(s"""
          | source = $testTable | eval country = upper(country) | stats avg(age) by country
          | """.stripMargin))
-    assert(ex.getMessage().contains("Reference 'country' is ambiguous"))
+    assert(ex.getMessage().contains("Reference `country` is ambiguous"))
   }
 
   test("test override existing fields: the eval field doesn't appear in fields command") {
