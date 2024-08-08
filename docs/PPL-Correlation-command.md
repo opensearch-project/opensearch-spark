@@ -1,5 +1,8 @@
 ## PPL Correlation Command
 
+> This is an experimental command - it may be removed in future versions
+
+
 ## Overview
 
 In the past year OpenSearch Observability & security teams have been busy with many aspects of improving data monitoring and visibility.
@@ -261,6 +264,8 @@ The new correlation command is actually a ‘hidden’ join command therefore th
 ```
 
 Catalyst engine will optimize this query according to the most efficient join ordering.
+
+> This is an experimental command - it may be removed in future versions
 
 * * *
 
