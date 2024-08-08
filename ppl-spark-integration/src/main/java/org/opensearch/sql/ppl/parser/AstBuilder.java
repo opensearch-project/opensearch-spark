@@ -28,6 +28,7 @@ import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.tree.Aggregation;
 import org.opensearch.sql.ast.tree.Correlation;
 import org.opensearch.sql.ast.tree.Dedupe;
+import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
@@ -97,7 +98,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     final Relation table = (Relation) visitTableSourceClause(ctx.tableSourceClause());
     QualifiedName tableQualifiedName = table.getTableQualifiedName();
     ArrayList<String> parts = new ArrayList<>(tableQualifiedName.getParts());
-    return new Relation(new QualifiedName(parts));
+    return new DescribeRelation(new QualifiedName(parts));
   }
 
   /** Where command. */
