@@ -665,7 +665,7 @@ class FlintREPLTest
 
       verify(mockSparkSession, times(1)).sql(any[String])
       verify(sparkContext, times(1)).cancelJobGroup(any[String])
-      assert("timeout" == flintStatement.state)
+      assert("TIMEOUT" == flintStatement.state)
       assert(s"Executing ${flintStatement.query} timed out" == flintStatement.error.get)
       result should not be None
     } finally threadPool.shutdown()

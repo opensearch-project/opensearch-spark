@@ -304,7 +304,7 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
       assert(
         !awaitConditionForStatementOrTimeout(
           statement => {
-            statement.state == "success"
+            statement.isComplete
           },
           selectStatementId),
         s"Fail to verify for $selectStatementId.")
@@ -344,7 +344,7 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
       assert(
         !awaitConditionForStatementOrTimeout(
           statement => {
-            statement.state == "success"
+            statement.isComplete
           },
           descStatementId),
         s"Fail to verify for $descStatementId.")
@@ -381,7 +381,7 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
       assert(
         !awaitConditionForStatementOrTimeout(
           statement => {
-            statement.state == "success"
+            statement.isComplete
           },
           showTableStatementId),
         s"Fail to verify for $showTableStatementId.")
@@ -401,7 +401,7 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
       assert(
         !awaitConditionForStatementOrTimeout(
           statement => {
-            statement.state == "failed"
+            statement.isFailed
           },
           wrongSelectStatementId),
         s"Fail to verify for $wrongSelectStatementId.")
@@ -410,7 +410,7 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
       assert(
         awaitConditionForStatementOrTimeout(
           statement => {
-            statement.state != "waiting"
+            !statement.isWaiting
           },
           lateSelectStatementId),
         s"Fail to verify for $lateSelectStatementId.")
@@ -471,7 +471,7 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
               case _ =>
                 fail(s"Statement error is: ${statement.error}")
             }
-            statement.state == "failed"
+            statement.isFailed
           },
           createTableStatementId),
         s"Fail to verify for $createTableStatementId.")
@@ -558,7 +558,7 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
       assert(
         !awaitConditionForStatementOrTimeout(
           statement => {
-            statement.state == "success"
+            statement.isComplete
           },
           selectStatementId),
         s"Fail to verify for $selectStatementId.")
@@ -566,7 +566,7 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
       assert(
         awaitConditionForStatementOrTimeout(
           statement => {
-            statement.state != "waiting"
+            !statement.isWaiting
           },
           lateSelectStatementId),
         s"Fail to verify for $lateSelectStatementId.")

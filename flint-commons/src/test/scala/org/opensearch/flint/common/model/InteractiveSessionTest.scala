@@ -15,7 +15,7 @@ class InteractiveSessionTest extends SparkFunSuite with Matchers {
 
   test("deserialize should correctly parse a FlintInstance with excludedJobIds from JSON") {
     val json =
-      """{"applicationId":"app-123","jobId":"job-456","sessionId":"session-789","state":"RUNNING","lastUpdateTime":1620000000000,"jobStartTime":1620000001000,"excludeJobIds":["job-101","job-202"]}"""
+      """{"applicationId":"app-123","jobId":"job-456","sessionId":"session-789","state":"running","lastUpdateTime":1620000000000,"jobStartTime":1620000001000,"excludeJobIds":["job-101","job-202"]}"""
     val instance = InteractiveSession.deserialize(json)
 
     instance.applicationId shouldBe "app-123"
@@ -101,7 +101,7 @@ class InteractiveSessionTest extends SparkFunSuite with Matchers {
     assert(result.applicationId == "app1")
     assert(result.jobId == "job1")
     assert(result.sessionId == "session1")
-    assert(result.state == "running")
+    assert(result.state == "RUNNING")
     assert(result.lastUpdateTime == 1234567890L)
     assert(result.jobStartTime == 9876543210L)
     assert(result.excludedJobIds == Seq("job2", "job3"))
@@ -134,7 +134,7 @@ class InteractiveSessionTest extends SparkFunSuite with Matchers {
     assert(result.applicationId == "app1")
     assert(result.jobId == "job1")
     assert(result.sessionId == "session1")
-    assert(result.state == "running")
+    assert(result.state == "RUNNING")
     assert(result.lastUpdateTime == 1234567890L)
     assert(result.jobStartTime == 0L) // Default value for missing jobStartTime
     assert(result.excludedJobIds == Seq("job2", "job3"))
