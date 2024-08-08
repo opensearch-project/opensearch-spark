@@ -58,13 +58,13 @@ class FlintSparkPPLBasicITSuite
         Row("# Partition Information", "", ""),
         Row("# col_name", "data_type", "comment"),
         Row("year", "int", null),
-        Row("month", "int", null)
-      )
+        Row("month", "int", null))
       // Compare the results
       implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
       assert(results.sorted.sameElements(expectedResults.sorted))
       // Retrieve the logical plan
-      val logicalPlan: LogicalPlan = frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
+      val logicalPlan: LogicalPlan =
+        frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
       // Define the expected logical plan
       val expectedPlan: LogicalPlan =
         DescribeTableCommand(
@@ -76,8 +76,8 @@ class FlintSparkPPLBasicITSuite
       comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
     }
   }
-  
- test("create ppl simple query test") {
+
+  test("create ppl simple query test") {
     val testTableQuoted = "`spark_catalog`.`default`.`flint_ppl_test`"
     Seq(testTable, testTableQuoted).foreach { table =>
       val frame = sql(s"""

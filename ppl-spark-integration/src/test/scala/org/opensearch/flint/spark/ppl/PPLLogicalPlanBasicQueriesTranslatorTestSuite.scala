@@ -35,7 +35,8 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     }
 
     // Verify the exception message
-    assert(thrown.getMessage === "Invalid table name: t.b.c.d Syntax: [ database_name. ] table_name")
+    assert(
+      thrown.getMessage === "Invalid table name: t.b.c.d Syntax: [ database_name. ] table_name")
   }
 
   test("test simple describe clause") {
@@ -43,17 +44,24 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(plan(pplParser, "describe t", false), context)
 
-    val expectedPlan = DescribeTableCommand(TableIdentifier("t"), Map.empty[String, String], isExtended = false, output = DescribeRelation.getOutputAttrs)
+    val expectedPlan = DescribeTableCommand(
+      TableIdentifier("t"),
+      Map.empty[String, String],
+      isExtended = false,
+      output = DescribeRelation.getOutputAttrs)
     comparePlans(expectedPlan, logPlan, false)
   }
 
-
-test("test FQN table describe table clause") {
+  test("test FQN table describe table clause") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(plan(pplParser, "describe catalog.t", false), context)
 
-    val expectedPlan = DescribeTableCommand(TableIdentifier("t", Option("catalog")), Map.empty[String, String].empty, isExtended = false, output = DescribeRelation.getOutputAttrs)
+    val expectedPlan = DescribeTableCommand(
+      TableIdentifier("t", Option("catalog")),
+      Map.empty[String, String].empty,
+      isExtended = false,
+      output = DescribeRelation.getOutputAttrs)
     comparePlans(expectedPlan, logPlan, false)
   }
 
