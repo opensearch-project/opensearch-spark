@@ -63,6 +63,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
 
   @Override
   public T commit(Function<FlintMetadataLogEntry, T> operation) {
+    LOG.info("Committing transaction");
     Objects.requireNonNull(initialCondition);
     Objects.requireNonNull(finalAction);
 

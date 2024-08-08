@@ -176,9 +176,15 @@ object FlintSparkConf {
       .doc("data source name")
       .createOptional()
   val CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS =
-    FlintConfig(FlintOptions.CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS)
+    FlintConfig(s"spark.datasource.flint.${FlintOptions.CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS}")
       .datasourceOption()
       .doc("custom Flint metadata log service class")
+      .createOptional()
+  val CUSTOM_FLINT_INDEX_METADATA_SERVICE_CLASS =
+    FlintConfig(
+      s"spark.datasource.flint.${FlintOptions.CUSTOM_FLINT_INDEX_METADATA_SERVICE_CLASS}")
+      .datasourceOption()
+      .doc("custom Flint index metadata service class")
       .createOptional()
   val QUERY =
     FlintConfig("spark.flint.job.query")
@@ -296,6 +302,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       RETRYABLE_EXCEPTION_CLASS_NAMES,
       DATA_SOURCE_NAME,
       CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS,
+      CUSTOM_FLINT_INDEX_METADATA_SERVICE_CLASS,
       SESSION_ID,
       REQUEST_INDEX,
       METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER,

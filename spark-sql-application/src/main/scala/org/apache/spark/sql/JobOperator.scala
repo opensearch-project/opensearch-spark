@@ -34,6 +34,12 @@ case class JobOperator(
   sys.addShutdownHook(stop())
 
   def start(): Unit = {
+    logInfo("Execute query and collect data in driver")
+    val data = executeQuery(spark, query, dataSource, "", "", streaming)
+    data.collect()
+    logInfo("Subsequent OSClient calls are all removed so error is expected")
+
+    /*
     val threadPool = ThreadUtils.newDaemonFixedThreadPool(1, "check-create-index")
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
 
@@ -72,6 +78,7 @@ case class JobOperator(
     } finally {
       cleanUpResources(exceptionThrown, threadPool, dataToWrite, resultIndex, osClient)
     }
+     */
   }
 
   def cleanUpResources(

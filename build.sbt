@@ -92,8 +92,6 @@ lazy val flintData = (project in file("flint-data"))
     name := "flint-data",
     scalaVersion := scala212,
     libraryDependencies ++= Seq(
-      "org.json4s" %% "json4s-jackson" % "4.0.5",
-      "org.json4s" %% "json4s-native" % "4.0.5",
       "org.scalactic" %% "scalactic" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test"
