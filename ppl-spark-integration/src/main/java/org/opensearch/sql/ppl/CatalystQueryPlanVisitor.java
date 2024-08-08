@@ -5,6 +5,7 @@
 
 package org.opensearch.sql.ppl;
 
+import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
@@ -14,9 +15,11 @@ import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
 import org.apache.spark.sql.catalyst.plans.logical.Deduplicate;
+import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
+import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
@@ -48,6 +51,7 @@ import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.Aggregation;
 import org.opensearch.sql.ast.tree.Correlation;
 import org.opensearch.sql.ast.tree.Dedupe;
+import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
@@ -61,6 +65,7 @@ import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import scala.Option;
+import scala.Option$;
 import scala.collection.Seq;
 
 import java.util.ArrayList;
@@ -109,6 +114,26 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitRelation(Relation node, CatalystPlanContext context) {
+        if (node instanceof DescribeRelation) {
+            TableIdentifier identifier;
+            if (node.getTableQualifiedName().getParts().size() == 1) {
+                identifier = new TableIdentifier(node.getTableQualifiedName().getParts().get(0));
+            } else if (node.getTableQualifiedName().getParts().size() == 2) {
+                identifier = new TableIdentifier(
+                        node.getTableQualifiedName().getParts().get(1),
+                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(0)));
+            } else {
+                throw new IllegalArgumentException("Invalid table name: " + node.getTableQualifiedName()
+                        + " Syntax: [ database_name. ] table_name");
+            }
+            return context.with(
+                    new DescribeTableCommand(
+                            identifier,
+                            scala.collection.immutable.Map$.MODULE$.<String, String>empty(),
+                            false,
+                            DescribeRelation$.MODULE$.getOutputAttrs()));
+        }
+        //regular sql algebraic relations 
         node.getTableName().forEach(t ->
                 // Resolving the qualifiedName which is composed of a datasource.schema.table
                 context.with(new UnresolvedRelation(seq(of(t.split("\\."))), CaseInsensitiveStringMap.empty(), false))
