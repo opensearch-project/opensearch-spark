@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.data
+package org.opensearch.flint.common.model
 
 /**
  * Provides a mutable map to store and retrieve contextual data using key-value pairs.

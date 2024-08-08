@@ -57,7 +57,7 @@ case class JobOperator(
       dataToWrite = Some(mappingCheckResult match {
         case Right(_) => data
         case Left(error) =>
-          getFailedData(spark, dataSource, error, "", query, "", startTime, currentTimeProvider)
+          constructErrorDF(spark, dataSource, "FAILED", error, "", query, "", startTime)
       })
       exceptionThrown = false
     } catch {
@@ -65,11 +65,11 @@ case class JobOperator(
         val error = s"Getting the mapping of index $resultIndex timed out"
         logError(error, e)
         dataToWrite = Some(
-          getFailedData(spark, dataSource, error, "", query, "", startTime, currentTimeProvider))
+          constructErrorDF(spark, dataSource, "TIMEOUT", error, "", query, "", startTime))
       case e: Exception =>
         val error = processQueryException(e)
         dataToWrite = Some(
-          getFailedData(spark, dataSource, error, "", query, "", startTime, currentTimeProvider))
+          constructErrorDF(spark, dataSource, "FAILED", error, "", query, "", startTime))
     } finally {
       cleanUpResources(exceptionThrown, threadPool, dataToWrite, resultIndex, osClient)
     }

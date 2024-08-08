@@ -18,13 +18,13 @@ import com.codahale.metrics.Timer
 import org.json4s.native.Serialization
 import org.opensearch.action.get.GetResponse
 import org.opensearch.common.Strings
+import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession}
+import org.opensearch.flint.common.model.InteractiveSession.formats
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
-import org.opensearch.flint.data.{FlintStatement, InteractiveSession}
-import org.opensearch.flint.data.InteractiveSession.formats
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.SparkConf
@@ -456,7 +456,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       .getOrElse(createFailedFlintInstance(applicationId, jobId, sessionId, jobStartTime, error))
 
     updateFlintInstance(flintInstance, flintSessionIndexUpdater, sessionId)
-    if (flintInstance.state.equals("fail")) {
+    if (flintInstance.isFail) {
       recordSessionFailed(sessionTimerContext)
     }
   }
@@ -530,15 +530,15 @@ object FlintREPL extends Logging with FlintJobExecutor {
       startTime: Long): DataFrame = {
     flintStatement.fail()
     flintStatement.error = Some(error)
-    super.getFailedData(
+    super.constructErrorDF(
       spark,
       dataSource,
+      flintStatement.state,
       error,
       flintStatement.queryId,
       flintStatement.query,
       sessionId,
-      startTime,
-      currentTimeProvider)
+      startTime)
   }
 
   def processQueryException(ex: Exception, flintStatement: FlintStatement): String = {
@@ -654,7 +654,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       error: String,
       flintStatement: FlintStatement,
       sessionId: String,
-      startTime: Long): Option[DataFrame] = {
+      startTime: Long): DataFrame = {
     /*
      * https://tinyurl.com/2ezs5xj9
      *
@@ -668,14 +668,17 @@ object FlintREPL extends Logging with FlintJobExecutor {
      * actions that require the computation of results that need to be collected or stored.
      */
     spark.sparkContext.cancelJobGroup(flintStatement.queryId)
-    Some(
-      handleCommandFailureAndGetFailedData(
-        spark,
-        dataSource,
-        error,
-        flintStatement,
-        sessionId,
-        startTime))
+    flintStatement.timeout()
+    flintStatement.error = Some(error)
+    super.constructErrorDF(
+      spark,
+      dataSource,
+      flintStatement.state,
+      error,
+      flintStatement.queryId,
+      flintStatement.query,
+      sessionId,
+      startTime)
   }
 
   def executeAndHandle(
@@ -702,7 +705,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       case e: TimeoutException =>
         val error = s"Executing ${flintStatement.query} timed out"
         CustomLogging.logError(error, e)
-        handleCommandTimeout(spark, dataSource, error, flintStatement, sessionId, startTime)
+        Some(handleCommandTimeout(spark, dataSource, error, flintStatement, sessionId, startTime))
       case e: Exception =>
         val error = processQueryException(e, flintStatement)
         Some(
@@ -761,8 +764,14 @@ object FlintREPL extends Logging with FlintJobExecutor {
           case e: TimeoutException =>
             val error = s"Getting the mapping of index $resultIndex timed out"
             CustomLogging.logError(error, e)
-            dataToWrite =
-              handleCommandTimeout(spark, dataSource, error, flintStatement, sessionId, startTime)
+            dataToWrite = Some(
+              handleCommandTimeout(
+                spark,
+                dataSource,
+                error,
+                flintStatement,
+                sessionId,
+                startTime))
           case NonFatal(e) =>
             val error = s"An unexpected error occurred: ${e.getMessage}"
             CustomLogging.logError(error, e)
@@ -941,7 +950,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       sessionId: String,
       sessionTimerContext: Timer.Context): Unit = {
     val flintInstance = InteractiveSession.deserializeFromMap(source)
-    flintInstance.state = "dead"
+    flintInstance.complete()
     flintSessionIndexUpdater.updateIf(
       sessionId,
       InteractiveSession.serializeWithoutJobId(

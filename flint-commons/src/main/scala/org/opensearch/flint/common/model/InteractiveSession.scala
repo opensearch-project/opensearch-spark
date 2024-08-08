@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.data
+package org.opensearch.flint.common.model
 
-import java.util.{Map => JavaMap}
+import java.util.{Locale, Map => JavaMap}
 
 import scala.collection.JavaConverters._
 
@@ -15,10 +15,9 @@ import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 
 object SessionStates {
-  val RUNNING = "running"
-  val COMPLETE = "complete"
-  val FAILED = "failed"
-  val WAITING = "waiting"
+  val RUNNING = "RUNNING"
+  val DEAD = "DEAD"
+  val FAIL = "FAIL"
 }
 
 /**
@@ -56,10 +55,13 @@ class InteractiveSession(
     extends ContextualDataStore {
   context = sessionContext // Initialize the context from the constructor
 
-  def isRunning: Boolean = state == SessionStates.RUNNING
-  def isComplete: Boolean = state == SessionStates.COMPLETE
-  def isFailed: Boolean = state == SessionStates.FAILED
-  def isWaiting: Boolean = state == SessionStates.WAITING
+  def running(): Unit = state = SessionStates.RUNNING
+  def complete(): Unit = state = SessionStates.DEAD
+  def fail(): Unit = state = SessionStates.FAIL
+
+  def isRunning: Boolean = state.equalsIgnoreCase(SessionStates.RUNNING)
+  def isComplete: Boolean = state.equalsIgnoreCase(SessionStates.DEAD)
+  def isFail: Boolean = state.equalsIgnoreCase(SessionStates.FAIL)
 
   override def toString: String = {
     val excludedJobIdsStr = excludedJobIds.mkString("[", ", ", "]")
@@ -77,7 +79,7 @@ object InteractiveSession {
   def deserialize(job: String): InteractiveSession = {
     val meta = parse(job)
     val applicationId = (meta \ "applicationId").extract[String]
-    val state = (meta \ "state").extract[String]
+    val state = (meta \ "state").extract[String].toUpperCase(Locale.ROOT)
     val jobId = (meta \ "jobId").extract[String]
     val sessionId = (meta \ "sessionId").extract[String]
     val lastUpdateTime = (meta \ "lastUpdateTime").extract[Long]
@@ -116,7 +118,7 @@ object InteractiveSession {
     val scalaSource = source.asScala
 
     val applicationId = scalaSource("applicationId").asInstanceOf[String]
-    val state = scalaSource("state").asInstanceOf[String]
+    val state = scalaSource("state").asInstanceOf[String].toUpperCase(Locale.ROOT)
     val jobId = scalaSource("jobId").asInstanceOf[String]
     val sessionId = scalaSource("sessionId").asInstanceOf[String]
     val lastUpdateTime = scalaSource("lastUpdateTime").asInstanceOf[Long]
