@@ -10,10 +10,12 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
+import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns;
 import org.apache.spark.sql.catalyst.plans.logical.Deduplicate;
 import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
@@ -64,6 +66,7 @@ import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
+import org.opensearch.sql.ppl.utils.WindowSpecTransformer;
 import scala.Option;
 import scala.Option$;
 import scala.collection.Seq;
@@ -318,13 +321,14 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         // adding Aggregate operator could achieve better performance.
         if (allowedDuplication == 1) {
             if (keepEmpty) {
+                // | dedup a, b keepempty=true
                 // Union
                 // :- Deduplicate ['a, 'b]
                 // :  +- Filter (isnotnull('a) AND isnotnull('b)
-                // :     +- Project
+                // :     +- ...
                 // :        +- UnresolvedRelation
                 // +- Filter (isnull('a) OR isnull('a))
-                //    +- Project
+                //    +- ...
                 //       +- UnresolvedRelation
 
                 context.apply(p -> {
@@ -339,9 +343,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 });
                 return context.getPlan();
             } else {
+                // | dedup a, b keepempty=false
                 // Deduplicate ['a, 'b]
                 // +- Filter (isnotnull('a) AND isnotnull('b))
-                //    +- Project
+                //    +- ...
                 //       +- UnresolvedRelation
 
                 Expression isNotNullExpr = buildIsNotNullFilterExpression(node, context);
@@ -350,8 +355,86 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 return context.apply(p -> new Deduplicate(dedupFields, p));
             }
         } else {
-            // TODO
-            throw new UnsupportedOperationException("Number of duplicate events greater than 1 is not supported");
+            if (keepEmpty) {
+                // | dedup 2 a, b keepempty=true
+                // Union
+                //:- DataFrameDropColumns('_row_number_)
+                //:  +- Filter ('_row_number_ <= 2)
+                //:     +- Window [row_number() windowspecdefinition('a, 'b, 'a ASC NULLS FIRST, 'b ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_], ['a, 'b], ['a ASC NULLS FIRST, 'b ASC NULLS FIRST]
+                //:        +- Filter (isnotnull('a) AND isnotnull('b))
+                //:           +- ...
+                //:              +- UnresolvedRelation
+                //+- Filter (isnull('a) OR isnull('b))
+                //   +- ...
+                //      +- UnresolvedRelation
+
+                context.apply(p -> {
+                    // Build isnull Filter for right
+                    Expression isNullExpr = buildIsNullFilterExpression(node, context);
+                    LogicalPlan right = new org.apache.spark.sql.catalyst.plans.logical.Filter(isNullExpr, p);
+
+                    // Build isnotnull Filter
+                    Expression isNotNullExpr = buildIsNotNullFilterExpression(node, context);
+                    LogicalPlan isNotNullFilter = new org.apache.spark.sql.catalyst.plans.logical.Filter(isNotNullExpr, p);
+
+                    // Build Window
+                    visitFieldList(node.getFields(), context);
+                    Seq<Expression> partitionSpec = context.retainAllNamedParseExpressions(exp -> exp);
+                    visitFieldList(node.getFields(), context);
+                    Seq<SortOrder> orderSpec = context.retainAllNamedParseExpressions(exp -> SortUtils.sortOrder(exp, true));
+                    NamedExpression rowNumber = WindowSpecTransformer.buildRowNumber(partitionSpec, orderSpec);
+                    LogicalPlan window = new org.apache.spark.sql.catalyst.plans.logical.Window(
+                        seq(rowNumber),
+                        partitionSpec,
+                        orderSpec,
+                        isNotNullFilter);
+
+                    // Build deduplication Filter ('_row_number_ <= n)
+                    Expression filterExpr = new LessThanOrEqual(
+                        rowNumber.toAttribute(),
+                        new org.apache.spark.sql.catalyst.expressions.Literal(allowedDuplication, DataTypes.IntegerType));
+                    LogicalPlan deduplicationFilter = new org.apache.spark.sql.catalyst.plans.logical.Filter(filterExpr, window);
+
+                    // Build DataFrameDropColumns('_row_number_) for left
+                    LogicalPlan left = new DataFrameDropColumns(seq(rowNumber.toAttribute()), deduplicationFilter);
+
+                    // Build Union
+                    return new Union(seq(left, right), false, false);
+                });
+                return context.getPlan();
+            } else {
+                // | dedup 2 a, b keepempty=false
+                // DataFrameDropColumns('row_number_col)
+                // +- Filter ('_row_number_ <= n)
+                //    +- Window [row_number() windowspecdefinition('a, 'b, 'a ASC NULLS FIRST, 'b ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_], ['a, 'b], ['a ASC NULLS FIRST, 'b ASC NULLS FIRST]
+                //       +- Filter (isnotnull('a) AND isnotnull('b))
+                //          +- ...
+                //             +- UnresolvedRelation
+
+                // Build isnotnull Filter
+                Expression isNotNullExpr = buildIsNotNullFilterExpression(node, context);
+                context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(isNotNullExpr, p));
+
+                // Build Window
+                visitFieldList(node.getFields(), context);
+                Seq<Expression> partitionSpec = context.retainAllNamedParseExpressions(exp -> exp);
+                visitFieldList(node.getFields(), context);
+                Seq<SortOrder> orderSpec = context.retainAllNamedParseExpressions(exp -> SortUtils.sortOrder(exp, true));
+                NamedExpression rowNumber = WindowSpecTransformer.buildRowNumber(partitionSpec, orderSpec);
+                context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Window(
+                    seq(rowNumber),
+                    partitionSpec,
+                    orderSpec, p));
+
+                // Build deduplication Filter ('_row_number_ <= n)
+                Expression filterExpr = new LessThanOrEqual(
+                    rowNumber.toAttribute(),
+                    new org.apache.spark.sql.catalyst.expressions.Literal(allowedDuplication, DataTypes.IntegerType));
+                context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(filterExpr, p));
+
+                // Build DataFrameDropColumns('_row_number_) Spark 3.5.1+ required
+                return context.apply(p -> new DataFrameDropColumns(seq(rowNumber.toAttribute()), p));
+            }
         }
     }
 
