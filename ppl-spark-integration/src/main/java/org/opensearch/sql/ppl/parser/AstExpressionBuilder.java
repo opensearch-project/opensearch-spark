@@ -172,6 +172,14 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                 Collections.singletonList(new Argument("rank", (Literal) visit(ctx.value))));
     }
 
+    @Override
+    public UnresolvedExpression visitPercentileFunctionCall(OpenSearchPPLParser.PercentileFunctionCallContext ctx) {
+        return new AggregateFunction(
+                ctx.PERCENTILE().getText(),
+                visit(ctx.valueExpression()),
+                Collections.singletonList(new Argument("percent", (Literal) visit(ctx.percent))));
+    }
+
     /**
      * Eval function.
      */
