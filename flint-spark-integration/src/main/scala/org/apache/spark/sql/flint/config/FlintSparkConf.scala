@@ -231,6 +231,15 @@ object FlintSparkConf {
     FlintConfig("spark.metadata.accessAWSCredentialsProvider")
       .doc("AWS credentials provider for metadata access permission")
       .createOptional()
+  val CUSTOM_SESSION_MANAGER =
+    FlintConfig("spark.flint.job.customSessionManager")
+      .createOptional()
+  val CUSTOM_STATEMENT_MANAGER =
+    FlintConfig("spark.flint.job.customStatementManager")
+      .createOptional()
+  val CUSTOM_QUERY_RESULT_WRITER =
+    FlintConfig("spark.flint.job.customQueryResultWriter")
+      .createOptional()
 }
 
 /**

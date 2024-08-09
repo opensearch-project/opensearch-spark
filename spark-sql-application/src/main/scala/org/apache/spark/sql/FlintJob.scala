@@ -29,7 +29,7 @@ import org.apache.spark.sql.types._
  */
 object FlintJob extends Logging with FlintJobExecutor {
   def main(args: Array[String]): Unit = {
-    val (queryOption, resultIndex) = parseArgs(args)
+    val (queryOption, resultIndexOption) = parseArgs(args)
 
     val conf = createSparkConf()
     val jobType = conf.get("spark.flint.job.type", "batch")
@@ -40,6 +40,9 @@ object FlintJob extends Logging with FlintJobExecutor {
     val query = queryOption.getOrElse(unescapeQuery(conf.get(FlintSparkConf.QUERY.key, "")))
     if (query.isEmpty) {
       logAndThrow(s"Query undefined for the ${jobType} job.")
+    }
+    if (resultIndexOption.isEmpty) {
+      logAndThrow("resultIndex is not set")
     }
     // https://github.com/opensearch-project/opensearch-spark/issues/138
     /*
@@ -58,7 +61,7 @@ object FlintJob extends Logging with FlintJobExecutor {
         createSparkSession(conf),
         query,
         dataSource,
-        resultIndex,
+        resultIndexOption.get,
         jobType.equalsIgnoreCase("streaming"),
         streamingRunningCount)
     registerGauge(MetricConstants.STREAMING_RUNNING_METRIC, streamingRunningCount)

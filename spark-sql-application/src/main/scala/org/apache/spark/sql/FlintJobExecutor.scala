@@ -493,16 +493,21 @@ trait FlintJobExecutor {
     }
   }
 
-  def parseArgs(args: Array[String]): (Option[String], String) = {
+  /**
+   * Before OS 2.13, there are two arguments from entry point: query and result index Starting
+   * from OS 2.13, query is optional for FlintREPL And since Flint 0.5, result index is also
+   * optional for non-OpenSearch result persist
+   */
+  def parseArgs(args: Array[String]): (Option[String], Option[String]) = {
     args match {
+      case Array() =>
+        (None, None)
       case Array(resultIndex) =>
-        (None, resultIndex) // Starting from OS 2.13, resultIndex is the only argument
+        (None, Some(resultIndex))
       case Array(query, resultIndex) =>
-        (
-          Some(query),
-          resultIndex
-        ) // Before OS 2.13, there are two arguments, the second one is resultIndex
-      case _ => logAndThrow("Unsupported number of arguments. Expected 1 or 2 arguments.")
+        (Some(query), Some(resultIndex))
+      case _ =>
+        logAndThrow("Unsupported number of arguments. Expected no more than two arguments.")
     }
   }
 
