@@ -35,8 +35,8 @@ public class FlintMetadataLogServiceBuilder {
     try {
       LOG.info("Building flint custom metadata log service with " + className);
       Class<?> flintMetadataLogServiceClass = Class.forName(className);
-      Constructor<?> constructor = flintMetadataLogServiceClass.getConstructor(SparkConf.class);
-      return (FlintMetadataLogService) constructor.newInstance(sparkConf);
+      Constructor<?> constructor = flintMetadataLogServiceClass.getConstructor();
+      return (FlintMetadataLogService) constructor.newInstance();
     } catch (Exception e) {
       throw new RuntimeException("Failed to instantiate FlintMetadataLogService: " + className, e);
     }
