@@ -64,58 +64,6 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
 
-  it should "update index successfully" in {
-    val indexName = "test_update"
-    val content =
-      """ {
-        |   "_meta": {
-        |     "kind": "test_kind"
-        |   },
-        |   "properties": {
-        |     "age": {
-        |       "type": "integer"
-        |     }
-        |   }
-        | }
-        |""".stripMargin
-
-    val metadata = FlintOpenSearchIndexMetadataService.deserialize(content)
-    flintClient.createIndex(indexName, metadata)
-
-    val newContent =
-      """ {
-        |   "_meta": {
-        |     "kind": "test_kind",
-        |     "name": "test_name"
-        |   },
-        |   "properties": {
-        |     "age": {
-        |       "type": "integer"
-        |     }
-        |   }
-        | }
-        |""".stripMargin
-
-    val newMetadata = FlintOpenSearchIndexMetadataService.deserialize(newContent)
-    flintIndexMetadataService.updateIndexMetadata(indexName, newMetadata)
-
-    flintClient.exists(indexName) shouldBe true
-    flintIndexMetadataService.getIndexMetadata(indexName).kind shouldBe "test_kind"
-    flintIndexMetadataService.getIndexMetadata(indexName).name shouldBe "test_name"
-  }
-
-  it should "get all index metadata with the given index name pattern" in {
-    val metadata = FlintOpenSearchIndexMetadataService.deserialize("{}")
-    flintClient.createIndex("flint_test_1_index", metadata)
-    flintClient.createIndex("flint_test_2_index", metadata)
-
-    val allMetadata = flintIndexMetadataService.getAllIndexMetadata("flint_*_index")
-    allMetadata should have size 2
-    allMetadata.values.forEach(metadata =>
-      FlintOpenSearchIndexMetadataService.serialize(metadata) should not be empty)
-    allMetadata.values.forEach(metadata => metadata.indexSettings should not be empty)
-  }
-
   it should "convert index name to all lowercase" in {
     val indexName = "flint_ELB_logs_index"
     flintClient.createIndex(

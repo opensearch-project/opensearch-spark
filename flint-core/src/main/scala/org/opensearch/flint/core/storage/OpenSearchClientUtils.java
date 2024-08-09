@@ -75,7 +75,6 @@ public class OpenSearchClientUtils {
    * Sanitize index name to comply with OpenSearch index name restrictions.
    */
   public static String sanitizeIndexName(String indexName) {
-    // TODO: test. Reference: test case for index name with special character
     Objects.requireNonNull(indexName);
 
     String encoded = percentEncode(indexName);

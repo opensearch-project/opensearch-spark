@@ -14,7 +14,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers {
-  // TODO: test cases for getIndexMetadata, etc.
 
   /** Test Flint index meta JSON string */
   val testMetadataJson: String = s"""
