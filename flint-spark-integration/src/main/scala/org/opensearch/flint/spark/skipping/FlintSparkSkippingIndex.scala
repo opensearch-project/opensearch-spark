@@ -7,8 +7,8 @@ package org.opensearch.flint.spark.skipping
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
+import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark._
 import org.opensearch.flint.spark.FlintSparkIndex._
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
@@ -65,13 +65,13 @@ case class FlintSparkSkippingIndex(
       indexedColumns
         .flatMap(_.outputSchema())
         .toMap + (FILE_PATH_COLUMN -> "string")
-    val schemaJson = generateSchemaJSON(fieldTypes)
+    val schema = generateSchema(fieldTypes).asJava
 
     metadataBuilder(this)
       .name(name())
       .source(tableName)
       .indexedColumns(indexColumnMaps)
-      .schema(schemaJson)
+      .schema(schema)
       .build()
   }
 

@@ -9,7 +9,8 @@ import java.sql.Timestamp
 import java.util.Base64
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
-import org.opensearch.flint.core.FlintVersion.current
+import org.opensearch.flint.common.FlintVersion.current
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -59,7 +60,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
       val index = flint.describeIndex(testFlintIndex)
       index shouldBe defined
-      index.get.metadata().getContent should matchJson(s"""
+      FlintOpenSearchIndexMetadataService.serialize(index.get.metadata()) should matchJson(s"""
            | {
            |  "_meta": {
            |    "version": "${current()}",

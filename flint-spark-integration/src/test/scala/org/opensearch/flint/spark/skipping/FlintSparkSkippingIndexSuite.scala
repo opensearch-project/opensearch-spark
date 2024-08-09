@@ -11,7 +11,8 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.json4s.native.JsonMethods.parse
 import org.mockito.Mockito.when
-import org.opensearch.flint.core.metadata.FlintMetadata
+import org.opensearch.flint.common.metadata.FlintMetadata
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{FILE_PATH_COLUMN, SKIPPING_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
@@ -263,7 +264,7 @@ class FlintSparkSkippingIndexSuite extends FlintSuite {
   }
 
   private def schemaShouldMatch(metadata: FlintMetadata, expected: String): Unit = {
-    val actual = parse(metadata.getContent) \ "properties"
+    val actual = parse(FlintOpenSearchIndexMetadataService.serialize(metadata)) \ "properties"
     assert(actual == parse(expected))
   }
 }

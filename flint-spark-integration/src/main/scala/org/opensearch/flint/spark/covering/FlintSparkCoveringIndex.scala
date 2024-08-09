@@ -7,10 +7,10 @@ package org.opensearch.flint.spark.covering
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
+import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.metadata.FlintMetadata
 import org.opensearch.flint.spark._
-import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchemaJSON, metadataBuilder, quotedTableName}
+import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchema, metadataBuilder, quotedTableName}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.{getFlintIndexName, COVERING_INDEX_TYPE}
 
@@ -53,13 +53,13 @@ case class FlintSparkCoveringIndex(
         Map[String, AnyRef]("columnName" -> colName, "columnType" -> colType).asJava
       }.toArray
     }
-    val schemaJson = generateSchemaJSON(indexedColumns)
+    val schema = generateSchema(indexedColumns).asJava
 
     val builder = metadataBuilder(this)
       .name(indexName)
       .source(tableName)
       .indexedColumns(indexColumnMaps)
-      .schema(schemaJson)
+      .schema(schema)
 
     // Add optional index properties
     filterCondition.map(builder.addProperty("filterCondition", _))
