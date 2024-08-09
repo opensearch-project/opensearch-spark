@@ -43,31 +43,36 @@ spark-sql --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintPPLSparkE
 
 ### Running With both Extension 
 ```
-spark-sql --conf "spark.sql.extensions='org.opensearch.flint.spark.FlintPPLSparkExtensions, org.opensearch.flint.spark.FlintSparkExtensions'"
+spark-sql --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions"
 ```
 
 ## Build
 
-To build and run this application with Spark, you can run:
+To build and run this application with Spark, you can run (requires Java 11):
 
 ```
 sbt clean standaloneCosmetic/publishM2
 ```
-then add org.opensearch:opensearch-spark_2.12 when run spark application, for example,
+then add org.opensearch:opensearch-spark-standalone_2.12 when run spark application, for example,
 ```
-bin/spark-shell --packages "org.opensearch:opensearch-spark_2.12:0.5.0-SNAPSHOT"
+bin/spark-shell --packages "org.opensearch:opensearch-spark-standalone_2.12:0.6.0-SNAPSHOT" \
+                --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintSparkExtensions" \
+                --conf "spark.sql.catalog.dev=org.apache.spark.opensearch.catalog.OpenSearchCatalog"
 ```
 
 ### PPL Build & Run 
 
-To build and run this PPL in Spark, you can run:
+To build and run this PPL in Spark, you can run (requires Java 11):
 
 ```
 sbt clean sparkPPLCosmetic/publishM2
 ```
-then add org.opensearch:opensearch-spark_2.12 when run spark application, for example,
+then add org.opensearch:opensearch-spark-ppl_2.12 when run spark application, for example,
 ```
-bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.5.0-SNAPSHOT"
+bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.6.0-SNAPSHOT" \
+                --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintPPLSparkExtensions" \
+                --conf "spark.sql.catalog.dev=org.apache.spark.opensearch.catalog.OpenSearchCatalog"
+
 ```
 
 ## Code of Conduct
