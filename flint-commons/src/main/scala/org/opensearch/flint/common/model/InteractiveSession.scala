@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.common.model
 
-import java.util.{Map => JavaMap}
+import java.util.{Locale, Map => JavaMap}
 
 import scala.collection.JavaConverters._
 
@@ -59,9 +59,11 @@ class InteractiveSession(
   def complete(): Unit = state = SessionStates.DEAD
   def fail(): Unit = state = SessionStates.FAIL
 
-  def isRunning: Boolean = state == SessionStates.RUNNING
-  def isComplete: Boolean = state == SessionStates.DEAD
-  def isFail: Boolean = state == SessionStates.FAIL
+  def isRunning: Boolean = state.equalsIgnoreCase(SessionStates.RUNNING)
+
+  def isComplete: Boolean = state.equalsIgnoreCase(SessionStates.DEAD)
+
+  def isFail: Boolean = state.equalsIgnoreCase(SessionStates.FAIL)
 
   override def toString: String = {
     val excludedJobIdsStr = excludedJobIds.mkString("[", ", ", "]")
@@ -79,7 +81,7 @@ object InteractiveSession {
   def deserialize(job: String): InteractiveSession = {
     val meta = parse(job)
     val applicationId = (meta \ "applicationId").extract[String]
-    val state = (meta \ "state").extract[String]
+    val state = (meta \ "state").extract[String].toLowerCase(Locale.ROOT)
     val jobId = (meta \ "jobId").extract[String]
     val sessionId = (meta \ "sessionId").extract[String]
     val lastUpdateTime = (meta \ "lastUpdateTime").extract[Long]
@@ -118,7 +120,7 @@ object InteractiveSession {
     val scalaSource = source.asScala
 
     val applicationId = scalaSource("applicationId").asInstanceOf[String]
-    val state = scalaSource("state").asInstanceOf[String]
+    val state = scalaSource("state").asInstanceOf[String].toLowerCase(Locale.ROOT)
     val jobId = scalaSource("jobId").asInstanceOf[String]
     val sessionId = scalaSource("sessionId").asInstanceOf[String]
     val lastUpdateTime = scalaSource("lastUpdateTime").asInstanceOf[Long]
@@ -180,7 +182,7 @@ object InteractiveSession {
       "sessionId" -> job.sessionId,
       "error" -> job.error.getOrElse(""),
       "applicationId" -> job.applicationId,
-      "state" -> job.state,
+      "state" -> job.state.toLowerCase(Locale.ROOT),
       // update last update time
       "lastUpdateTime" -> currentTime,
       // Convert a Seq[String] into a comma-separated string, such as "id1,id2".

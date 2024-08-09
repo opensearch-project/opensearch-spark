@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.common.model
 
+import java.util.Locale
+
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.JsonAST.JString
 import org.json4s.native.JsonMethods.parse
@@ -53,10 +55,13 @@ class FlintStatement(
   def fail(): Unit = state = StatementStates.FAILED
   def timeout(): Unit = state = StatementStates.TIMEOUT
 
-  def isRunning: Boolean = state == StatementStates.RUNNING
-  def isComplete: Boolean = state == StatementStates.SUCCESS
-  def isFailed: Boolean = state == StatementStates.FAILED
-  def isWaiting: Boolean = state == StatementStates.WAITING
+  def isRunning: Boolean = state.equalsIgnoreCase(StatementStates.RUNNING)
+
+  def isComplete: Boolean = state.equalsIgnoreCase(StatementStates.SUCCESS)
+
+  def isFailed: Boolean = state.equalsIgnoreCase(StatementStates.FAILED)
+
+  def isWaiting: Boolean = state.equalsIgnoreCase(StatementStates.WAITING)
 
   // Does not include context, which could contain sensitive information.
   override def toString: String =
@@ -69,7 +74,7 @@ object FlintStatement {
 
   def deserialize(statement: String): FlintStatement = {
     val meta = parse(statement)
-    val state = (meta \ "state").extract[String]
+    val state = (meta \ "state").extract[String].toLowerCase(Locale.ROOT)
     val query = (meta \ "query").extract[String]
     val statementId = (meta \ "statementId").extract[String]
     val queryId = (meta \ "queryId").extract[String]
@@ -85,6 +90,8 @@ object FlintStatement {
   def serialize(flintStatement: FlintStatement): String = {
     // we only need to modify state and error
     Serialization.write(
-      Map("state" -> flintStatement.state, "error" -> flintStatement.error.getOrElse("")))
+      Map(
+        "state" -> flintStatement.state.toLowerCase(Locale.ROOT),
+        "error" -> flintStatement.error.getOrElse("")))
   }
 }

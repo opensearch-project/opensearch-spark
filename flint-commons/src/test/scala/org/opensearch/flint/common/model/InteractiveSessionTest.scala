@@ -21,7 +21,7 @@ class InteractiveSessionTest extends SparkFunSuite with Matchers {
     instance.applicationId shouldBe "app-123"
     instance.jobId shouldBe "job-456"
     instance.sessionId shouldBe "session-789"
-    instance.state shouldBe "RUNNING"
+    instance.state shouldBe "running"
     instance.lastUpdateTime shouldBe 1620000000000L
     instance.jobStartTime shouldBe 1620000001000L
     instance.excludedJobIds should contain allOf ("job-101", "job-202")
@@ -44,7 +44,7 @@ class InteractiveSessionTest extends SparkFunSuite with Matchers {
     json should include(""""applicationId":"app-123"""")
     json should not include (""""jobId":"job-456"""")
     json should include(""""sessionId":"session-789"""")
-    json should include(""""state":"RUNNING"""")
+    json should include(""""state":"running"""")
     json should include(s""""lastUpdateTime":$currentTime""")
     json should include(
       """"excludeJobIds":"job-101,job-202""""
@@ -149,7 +149,7 @@ class InteractiveSessionTest extends SparkFunSuite with Matchers {
     instance.applicationId shouldBe "app-123"
     instance.jobId shouldBe "job-456"
     instance.sessionId shouldBe "session-789"
-    instance.state shouldBe "RUNNING"
+    instance.state shouldBe "running"
     instance.lastUpdateTime shouldBe 1620000000000L
     instance.jobStartTime shouldBe 0L // Default or expected value for missing jobStartTime
     instance.excludedJobIds should contain allOf ("job-101", "job-202")
