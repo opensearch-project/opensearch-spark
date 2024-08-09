@@ -67,7 +67,8 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     this.options = options;
     this.metadataLogIndexName = metadataLogIndexName;
     this.dataSourceName = options.getDataSourceName();
-    this.latestId = Base64.getEncoder().encodeToString(flintIndexName.getBytes());
+    String osIndexName = OpenSearchClientUtils.sanitizeIndexName(flintIndexName);
+    this.latestId = Base64.getEncoder().encodeToString(osIndexName.getBytes());
   }
 
   @Override

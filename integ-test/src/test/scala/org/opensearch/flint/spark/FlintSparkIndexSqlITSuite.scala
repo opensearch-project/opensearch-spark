@@ -173,4 +173,32 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
       deleteTestIndex(testSkippingFlintIndex)
     }
   }
+
+  test("show flint index with special characters") {
+    val testCoveringIndexSpecial = "test :\"+/\\|?#><"
+    val testCoveringFlintIndexSpecial =
+      FlintSparkCoveringIndex.getFlintIndexName(testCoveringIndexSpecial, testTableQualifiedName)
+
+    flint
+      .coveringIndex()
+      .name(testCoveringIndexSpecial)
+      .onTable(testTableQualifiedName)
+      .addIndexColumns("name", "age")
+      .options(FlintSparkIndexOptions(Map(AUTO_REFRESH.toString -> "true")))
+      .create()
+    flint.refreshIndex(testCoveringFlintIndexSpecial)
+
+    checkAnswer(
+      sql(s"SHOW FLINT INDEX IN spark_catalog"),
+      Seq(
+        Row(
+          testCoveringFlintIndexSpecial,
+          "covering",
+          "default",
+          testTableName,
+          testCoveringIndexSpecial,
+          true,
+          "refreshing")))
+    deleteTestIndex(testCoveringFlintIndexSpecial)
+  }
 }
