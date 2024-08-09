@@ -187,7 +187,7 @@ class FlintSparkPPLDedupITSuite
     assert(ex.getMessage.contains("Consecutive deduplication is not supported"))
   }
 
-  ignore("test dedupe 2 name") {
+  test("test dedupe 2 name") {
     val frame = sql(s"""
          | source = $testTable| dedup 2 name | fields name
          | """.stripMargin)
@@ -200,7 +200,7 @@ class FlintSparkPPLDedupITSuite
     assert(results.sorted.sameElements(expectedResults.sorted))
   }
 
-  ignore("test dedupe 2 name, category") {
+  test("test dedupe 2 name, category") {
     val frame = sql(s"""
          | source = $testTable| dedup 2 name, category | fields name, category
          | """.stripMargin)
@@ -225,7 +225,7 @@ class FlintSparkPPLDedupITSuite
     assert(results.sorted.sameElements(expectedResults.sorted))
   }
 
-  ignore("test dedupe 2 name KEEPEMPTY=true") {
+  test("test dedupe 2 name KEEPEMPTY=true") {
     val frame = sql(s"""
          | source = $testTable| dedup 2 name KEEPEMPTY=true | fields name, category
          | """.stripMargin)
@@ -259,7 +259,7 @@ class FlintSparkPPLDedupITSuite
         .sameElements(expectedResults.sorted.map(_.getAs[String](0))))
   }
 
-  ignore("test dedupe 2 name, category KEEPEMPTY=true") {
+  test("test dedupe 2 name, category KEEPEMPTY=true") {
     val frame = sql(s"""
          | source = $testTable| dedup 2 name, category KEEPEMPTY=true | fields name, category
          | """.stripMargin)
