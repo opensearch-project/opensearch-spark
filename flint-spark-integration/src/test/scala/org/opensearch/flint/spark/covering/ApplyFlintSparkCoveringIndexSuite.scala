@@ -21,7 +21,7 @@ import org.scalatest.matchers.{Matcher, MatchResult}
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
 
-import org.apache.spark.{FlintSuite, SparkConf}
+import org.apache.spark.FlintSuite
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
@@ -69,7 +69,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     indexMetadataServiceBuilder
       .when(() =>
         FlintIndexMetadataServiceBuilder
-          .build(any(classOf[FlintOptions]), any(classOf[SparkConf])))
+          .build(any(classOf[FlintOptions])))
       .thenReturn(indexMetadataService)
     clientUtils
       .when(() => OpenSearchClientUtils.createClient(any(classOf[FlintOptions])))

@@ -21,8 +21,6 @@ import org.opensearch.flint.core.table.OpenSearchIndexTable.maxSplitSizeBytes
 import org.opensearch.search.builder.SearchSourceBuilder
 import org.opensearch.search.sort.SortOrder
 
-import org.apache.spark.SparkConf
-
 /**
  * Represents an OpenSearch index.
  *
@@ -159,16 +157,11 @@ object OpenSearchCluster {
    *   tableName support (1) single index name. (2) wildcard index name. (3) comma sep index name.
    * @param options
    *   The options for Flint.
-   * @param conf
-   *   Configurations for Spark application.
    * @return
    *   An list of OpenSearchIndexTable instance.
    */
-  def apply(
-      indexName: String,
-      options: FlintOptions,
-      conf: SparkConf): Seq[OpenSearchIndexTable] = {
-    val indexMetadataService = FlintIndexMetadataServiceBuilder.build(options, conf)
+  def apply(indexName: String, options: FlintOptions): Seq[OpenSearchIndexTable] = {
+    val indexMetadataService = FlintIndexMetadataServiceBuilder.build(options)
     indexMetadataService
       .getAllIndexMetadata(indexName.split(","): _*)
       .asScala
@@ -177,12 +170,5 @@ object OpenSearchCluster {
         new OpenSearchIndexTable(MetaData.apply(entry._1, entry._2), options)
       })
       .toSeq
-  }
-
-  /**
-   * Use for testing only.
-   */
-  def apply(indexName: String, options: FlintOptions): Seq[OpenSearchIndexTable] = {
-    apply(indexName, options, new SparkConf())
   }
 }

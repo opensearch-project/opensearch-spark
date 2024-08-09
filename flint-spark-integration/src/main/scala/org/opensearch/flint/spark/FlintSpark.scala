@@ -49,15 +49,11 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   private val flintClient: FlintClient = FlintClientBuilder.build(flintSparkConf.flintOptions())
 
   private val flintIndexMetadataService: FlintIndexMetadataService = {
-    FlintIndexMetadataServiceBuilder.build(
-      flintSparkConf.flintOptions(),
-      spark.sparkContext.getConf)
+    FlintIndexMetadataServiceBuilder.build(flintSparkConf.flintOptions())
   }
 
   override protected val flintMetadataLogService: FlintMetadataLogService = {
-    FlintMetadataLogServiceBuilder.build(
-      flintSparkConf.flintOptions(),
-      spark.sparkContext.getConf)
+    FlintMetadataLogServiceBuilder.build(flintSparkConf.flintOptions())
   }
 
   /** Required by json4s parse function */

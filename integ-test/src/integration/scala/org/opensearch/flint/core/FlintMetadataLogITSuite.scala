@@ -49,7 +49,7 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
       openSearchOptions + (CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS.key -> "org.opensearch.flint.core.TestMetadataLogService")
     val customFlintOptions = new FlintOptions(customOptions.asJava)
     val customFlintMetadataLogService =
-      FlintMetadataLogServiceBuilder.build(customFlintOptions, sparkConf)
+      FlintMetadataLogServiceBuilder.build(customFlintOptions)
     customFlintMetadataLogService shouldBe a[TestMetadataLogService]
   }
 
@@ -57,7 +57,7 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
     val options = openSearchOptions + (CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS.key -> "dummy")
     val flintOptions = new FlintOptions(options.asJava)
     the[RuntimeException] thrownBy {
-      FlintMetadataLogServiceBuilder.build(flintOptions, sparkConf)
+      FlintMetadataLogServiceBuilder.build(flintOptions)
     }
   }
 

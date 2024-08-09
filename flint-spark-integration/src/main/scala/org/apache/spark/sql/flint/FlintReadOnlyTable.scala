@@ -39,10 +39,7 @@ class FlintReadOnlyTable(
   lazy val name: String = flintSparkConf.tableName()
 
   lazy val tables: Seq[org.opensearch.flint.core.Table] =
-    OpenSearchCluster.apply(
-      name,
-      flintSparkConf.flintOptions(),
-      sparkSession.sparkContext.getConf)
+    OpenSearchCluster.apply(name, flintSparkConf.flintOptions())
 
   lazy val resolvedTablesSchema: StructType = tables.headOption
     .map(tbl => FlintDataType.deserialize(tbl.schema().asJson()))
