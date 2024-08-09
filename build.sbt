@@ -5,10 +5,10 @@
 import Dependencies._
 
 lazy val scala212 = "2.12.14"
-lazy val sparkVersion = "3.3.2"
-// Spark jackson version. Spark jackson-module-scala strictly check the jackson-databind version hould compatbile
+lazy val sparkVersion = "3.5.1"
+// Spark jackson version. Spark jackson-module-scala strictly check the jackson-databind version should compatible
 // https://github.com/FasterXML/jackson-module-scala/blob/2.18/src/main/scala/com/fasterxml/jackson/module/scala/JacksonModule.scala#L59
-lazy val jacksonVersion = "2.13.4"
+lazy val jacksonVersion = "2.15.2"
 
 // The transitive opensearch jackson-databind dependency version should align with Spark jackson databind dependency version.
 // Issue: https://github.com/opensearch-project/opensearch-spark/issues/442
@@ -20,7 +20,7 @@ val sparkMinorVersion = sparkVersion.split("\\.").take(2).mkString(".")
 
 ThisBuild / organization := "org.opensearch"
 
-ThisBuild / version := "0.5.0-SNAPSHOT"
+ThisBuild / version := "0.6.0-SNAPSHOT"
 
 ThisBuild / scalaVersion := scala212
 
@@ -217,10 +217,12 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
     assembly / test := (Test / test).value)
 
 lazy val IntegrationTest = config("it") extend Test
+lazy val AwsIntegrationTest = config("aws-it") extend Test
 
 // Test assembly package with integration test.
 lazy val integtest = (project in file("integ-test"))
   .dependsOn(flintCommons % "test->test", flintSparkIntegration % "test->test", pplSparkIntegration % "test->test", sparkSqlApplication % "test->test")
+  .configs(IntegrationTest, AwsIntegrationTest)
   .settings(
     commonSettings,
     name := "integ-test",
@@ -231,10 +233,17 @@ lazy val integtest = (project in file("integ-test"))
       s"-DpplJar=${(pplSparkIntegration / assembly).value.getAbsolutePath}",
     ),
     inConfig(IntegrationTest)(Defaults.testSettings ++ Seq(
+      IntegrationTest / javaSource := baseDirectory.value / "src/integration/java",
       IntegrationTest / scalaSource := baseDirectory.value / "src/integration/scala",
       IntegrationTest / parallelExecution := false,
       IntegrationTest / fork := true,
-      )),
+    )),
+    inConfig(AwsIntegrationTest)(Defaults.testSettings ++ Seq(
+      AwsIntegrationTest / javaSource := baseDirectory.value / "src/aws-integration/java",
+      AwsIntegrationTest / scalaSource := baseDirectory.value / "src/aws-integration/scala",
+      AwsIntegrationTest / parallelExecution := false,
+      AwsIntegrationTest / fork := true,
+    )),
     libraryDependencies ++= Seq(
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
@@ -249,9 +258,12 @@ lazy val integtest = (project in file("integ-test"))
       (sparkSqlApplication / assembly).value
     ),
     IntegrationTest / dependencyClasspath ++= (Test / dependencyClasspath).value,
+    AwsIntegrationTest / dependencyClasspath ++= (Test / dependencyClasspath).value,
     integration := (IntegrationTest / test).value,
+    awsIntegration := (AwsIntegrationTest / test).value
   )
 lazy val integration = taskKey[Unit]("Run integration tests")
+lazy val awsIntegration = taskKey[Unit]("Run AWS integration tests")
 
 lazy val standaloneCosmetic = project
   .settings(

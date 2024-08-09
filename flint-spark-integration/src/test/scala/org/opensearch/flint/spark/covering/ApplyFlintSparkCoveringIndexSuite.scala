@@ -12,8 +12,9 @@ import org.mockito.Mockito.{mockStatic, when, RETURNS_DEEP_STUBS}
 import org.opensearch.flint.common.metadata.FlintIndexMetadataService
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{ACTIVE, DELETED, IndexState}
-import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions}
+import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions, IRestHighLevelClient}
 import org.opensearch.flint.core.metadata.FlintIndexMetadataServiceBuilder
+import org.opensearch.flint.core.storage.OpenSearchClientUtils
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.scalatest.matchers.{Matcher, MatchResult}
@@ -31,13 +32,17 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
   private val testTable = "spark_catalog.default.apply_covering_index_test"
   private val testTable2 = "spark_catalog.default.apply_covering_index_test_2"
 
-  /**
-   * Mock FlintClient and FlintIndexMetadataService to avoid looking for real OpenSearch cluster
-   */
+  /** Mock FlintClient to avoid looking for real OpenSearch cluster */
   private val clientBuilder = mockStatic(classOf[FlintClientBuilder])
   private val client = mock[FlintClient](RETURNS_DEEP_STUBS)
+
+  /** Mock FlintIndexMetadataService to avoid looking for real OpenSearch cluster */
   private val indexMetadataServiceBuilder = mockStatic(classOf[FlintIndexMetadataServiceBuilder])
   private val indexMetadataService = mock[FlintIndexMetadataService](RETURNS_DEEP_STUBS)
+
+  /** Mock IRestHighLevelClient to avoid looking for real OpenSearch cluster */
+  private val clientUtils = mockStatic(classOf[OpenSearchClientUtils])
+  private val openSearchClient = mock[IRestHighLevelClient](RETURNS_DEEP_STUBS)
 
   /** Mock FlintSpark which is required by the rule. Deep stub required to replace spark val. */
   private val flint = mock[FlintSpark](RETURNS_DEEP_STUBS)
@@ -56,17 +61,19 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
          |  ('F', 35), ('G', 40), ('H', 45), ('I', 50), ('J', 55)
          | """.stripMargin)
 
-    // Mock static create method in FlintClientBuilder and FlintIndexMetadataServiceBuilder used by Flint data source
+    // Mock static create method in FlintClientBuilder used by Flint data source
     clientBuilder
-      .when(() =>
-        FlintClientBuilder
-          .build(any(classOf[FlintOptions])))
+      .when(() => FlintClientBuilder.build(any(classOf[FlintOptions])))
       .thenReturn(client)
+    // Mock static
     indexMetadataServiceBuilder
       .when(() =>
         FlintIndexMetadataServiceBuilder
           .build(any(classOf[FlintOptions]), any(classOf[SparkConf])))
       .thenReturn(indexMetadataService)
+    clientUtils
+      .when(() => OpenSearchClientUtils.createClient(any(classOf[FlintOptions])))
+      .thenReturn(openSearchClient)
     when(flint.spark).thenReturn(spark)
   }
 
@@ -289,8 +296,8 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       Matcher { (plan: LogicalPlan) =>
         val result = plan.exists {
           case LogicalRelation(_, _, Some(table), _) =>
-            // Table name in logical relation doesn't have catalog name
-            table.qualifiedName == expectedTableName.split('.').drop(1).mkString(".")
+            // Since Spark 3.4, Table name in logical relation have catalog name
+            table.qualifiedName == expectedTableName
           case _ => false
         }
 

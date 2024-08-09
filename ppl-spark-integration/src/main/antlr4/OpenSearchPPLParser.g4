@@ -27,6 +27,7 @@ queryStatement
 // commands
 pplCommands
    : searchCommand
+   | describeCommand
    ;
 
 commands
@@ -34,6 +35,7 @@ commands
    | correlateCommand
    | fieldsCommand
    | statsCommand
+   | dedupCommand
    | sortCommand
    | headCommand
    | evalCommand

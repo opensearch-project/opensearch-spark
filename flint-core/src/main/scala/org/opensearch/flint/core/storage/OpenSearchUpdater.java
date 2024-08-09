@@ -6,6 +6,7 @@ import org.opensearch.client.RequestOptions;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.core.FlintClient;
+import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
 
 import java.io.IOException;
@@ -25,10 +26,12 @@ public class OpenSearchUpdater {
 
     private final String indexName;
     private final FlintClient flintClient;
+    private final FlintOptions options;
 
-    public OpenSearchUpdater(String indexName, FlintClient flintClient) {
+    public OpenSearchUpdater(String indexName, FlintClient flintClient, FlintOptions options) {
         this.indexName = indexName;
         this.flintClient = flintClient;
+        this.options = options;
     }
 
     public void upsert(String id, String doc) {
@@ -61,7 +64,7 @@ public class OpenSearchUpdater {
             assertIndexExist(client, indexName);
             UpdateRequest updateRequest = new UpdateRequest(indexName, id)
                     .doc(doc, XContentType.JSON)
-                    .setRefreshPolicy(WriteRequest.RefreshPolicy.WAIT_UNTIL);
+                    .setRefreshPolicy(options.getRefreshPolicy());
 
             if (upsert) {
                 updateRequest.docAsUpsert(true);

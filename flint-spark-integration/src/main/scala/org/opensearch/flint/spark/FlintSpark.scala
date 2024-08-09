@@ -65,7 +65,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
 
   /** Flint Spark index monitor */
   val flintIndexMonitor: FlintSparkIndexMonitor =
-    new FlintSparkIndexMonitor(spark, flintMetadataLogService)
+    new FlintSparkIndexMonitor(spark, flintClient, flintMetadataLogService)
 
   /**
    * Create index builder for creating index with fluent API.

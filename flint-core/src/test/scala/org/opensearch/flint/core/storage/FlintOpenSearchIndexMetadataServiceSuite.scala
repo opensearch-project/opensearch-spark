@@ -39,21 +39,45 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
                 | }
                 |""".stripMargin
 
+  val testDynamic: String = s"""
+                | {
+                |   "dynamic": "strict",
+                |   "_meta": {
+                |     "version": "${current()}",
+                |     "name": "test_index",
+                |     "kind": "test_kind",
+                |     "source": "test_source_table",
+                |     "indexedColumns": [
+                |     {
+                |       "test_field": "spark_type"
+                |     }],
+                |     "options": {},
+                |     "properties": {}
+                |   },
+                |   "properties": {
+                |     "test_field": {
+                |       "type": "os_type"
+                |     }
+                |   }
+                | }
+                |""".stripMargin
+
   val testIndexSettingsJson: String =
     """
       | { "number_of_shards": 3 }
       |""".stripMargin
 
-  "deserialize" should "deserialize the given JSON and assign parsed value to field" in {
-    val metadata =
-      FlintOpenSearchIndexMetadataService.deserialize(testMetadataJson, testIndexSettingsJson)
-
-    metadata.version shouldBe current()
-    metadata.name shouldBe "test_index"
-    metadata.kind shouldBe "test_kind"
-    metadata.source shouldBe "test_source_table"
-    metadata.indexedColumns shouldBe Array(Map("test_field" -> "spark_type").asJava)
-    metadata.schema shouldBe Map("test_field" -> Map("type" -> "os_type").asJava).asJava
+  "constructor" should "deserialize the given JSON and assign parsed value to field" in {
+    Seq(testMetadataJson, testDynamic).foreach(mapping => {
+      val metadata =
+        FlintOpenSearchIndexMetadataService.deserialize(mapping, testIndexSettingsJson)
+      metadata.version shouldBe current()
+      metadata.name shouldBe "test_index"
+      metadata.kind shouldBe "test_kind"
+      metadata.source shouldBe "test_source_table"
+      metadata.indexedColumns shouldBe Array(Map("test_field" -> "spark_type").asJava)
+      metadata.schema shouldBe Map("test_field" -> Map("type" -> "os_type").asJava).asJava
+    })
   }
 
   "serialize" should "serialize all fields to JSON" in {

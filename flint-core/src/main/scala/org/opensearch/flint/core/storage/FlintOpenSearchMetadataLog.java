@@ -155,7 +155,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
             new IndexRequest()
                 .index(metadataLogIndexName)
                 .id(logEntryWithId.id())
-                .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
+                .setRefreshPolicy(options.getRefreshPolicy())
                 .source(toJson(logEntryWithId), XContentType.JSON),
             RequestOptions.DEFAULT));
   }
@@ -166,7 +166,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
         client -> client.update(
             new UpdateRequest(metadataLogIndexName, logEntry.id())
                 .doc(toJson(logEntry), XContentType.JSON)
-                .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
+                .setRefreshPolicy(options.getRefreshPolicy())
                 .setIfSeqNo((Long) logEntry.entryVersion().get("seqNo").get())
                 .setIfPrimaryTerm((Long) logEntry.entryVersion().get("primaryTerm").get()),
             RequestOptions.DEFAULT));
