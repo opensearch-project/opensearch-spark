@@ -35,6 +35,10 @@ public interface AggregatorTranslator {
                 return new UnresolvedFunction(seq("COUNT"), seq(arg),false, empty(),false);
             case SUM:
                 return new UnresolvedFunction(seq("SUM"), seq(arg),false, empty(),false);
+            case STDDEV_POP:
+                return new UnresolvedFunction(seq("STDDEV_POP"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
+            case STDDEV_SAMP:
+                return new UnresolvedFunction(seq("STDDEV_SAMP"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
         }
         throw new IllegalStateException("Not Supported value: " + aggregateFunction.getFuncName());
     }
