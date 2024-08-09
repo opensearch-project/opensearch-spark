@@ -380,4 +380,43 @@ class FlintSparkPPLAggregationsITSuite
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
+
+  test("create ppl simple country distinct_count ") {
+    val frame = sql(s"""
+                       | source = $testTable| stats distinct_count(country)
+                       | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(Row(2L))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](1))
+    assert(
+      results.sorted.sameElements(expectedResults.sorted),
+      s"Expected: ${expectedResults.mkString(", ")}, but got: ${results.mkString(", ")}")
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val countryField = UnresolvedAttribute("country")
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(countryField), isDistinct = true),
+        "distinct_count(country)")()
+
+    val aggregatePlan =
+      Aggregate(Seq.empty, Seq(aggregateExpressions), table)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    // Compare the two plans
+    assert(
+      compareByString(expectedPlan) === compareByString(logicalPlan),
+      s"Expected plan: ${compareByString(expectedPlan)}, but got: ${compareByString(logicalPlan)}")
+  }
 }

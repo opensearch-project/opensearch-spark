@@ -26,15 +26,15 @@ public interface AggregatorTranslator {
         // Additional aggregation function operators will be added here
         switch (BuiltinFunctionName.ofAggregation(aggregateFunction.getFuncName()).get()) {
             case MAX:
-                return new UnresolvedFunction(seq("MAX"), seq(arg),false, empty(),false);
+                return new UnresolvedFunction(seq("MAX"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
             case MIN:
-                return new UnresolvedFunction(seq("MIN"), seq(arg),false, empty(),false);
+                return new UnresolvedFunction(seq("MIN"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
             case AVG:
-                return new UnresolvedFunction(seq("AVG"), seq(arg),false, empty(),false);
+                return new UnresolvedFunction(seq("AVG"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
             case COUNT:
-                return new UnresolvedFunction(seq("COUNT"), seq(arg),false, empty(),false);
+                return new UnresolvedFunction(seq("COUNT"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
             case SUM:
-                return new UnresolvedFunction(seq("SUM"), seq(arg),false, empty(),false);
+                return new UnresolvedFunction(seq("SUM"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
         }
         throw new IllegalStateException("Not Supported value: " + aggregateFunction.getFuncName());
     }
