@@ -210,10 +210,6 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
     },
-    assembly / assemblyExcludedJars := {
-      val cp = (assembly / fullClasspath).value
-      cp filter { file => file.data.getName.contains("LogsConnectorSpark")}
-    },
     assembly / test := (Test / test).value)
 
 lazy val IntegrationTest = config("it") extend Test
