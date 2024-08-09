@@ -48,7 +48,8 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         IGNORE_DOC_ID_COLUMN.optionKey -> "true").asJava)
 
   /** Flint client for low-level index operation */
-  private val flintClient: FlintClient = FlintClientBuilder.build(flintSparkConf.flintOptions())
+  override protected val flintClient: FlintClient =
+    FlintClientBuilder.build(flintSparkConf.flintOptions())
 
   private val flintIndexMetadataService: FlintIndexMetadataService = {
     FlintIndexMetadataServiceBuilder.build(flintSparkConf.flintOptions())
@@ -170,7 +171,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           }
         })
         .commit(_ => indexRefresh.start(spark, flintSparkConf))
-    }
+    }.flatten
 
   /**
    * Describe all Flint indexes whose name matches the given pattern.
@@ -242,7 +243,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         case (true, false) => updateIndexManualToAuto(index, tx)
         case (false, false) => updateIndexAutoToManual(index, tx)
       }
-    }
+    }.flatten
   }
 
   /**
@@ -276,7 +277,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         logInfo("Flint index to be deleted doesn't exist")
         false
       }
-    }
+    }.getOrElse(false)
 
   /**
    * Delete a Flint index physically.
@@ -319,7 +320,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         logInfo("Flint index to vacuum doesn't exist")
         false
       }
-    }
+    }.getOrElse(false)
 
   /**
    * Recover index job.
@@ -356,24 +357,10 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
             true
           })
       } else {
-        logInfo("Index to be recovered either doesn't exist or not auto refreshed")
-        if (index.isEmpty) {
-          /*
-           * If execution reaches this point, it indicates that the Flint index is corrupted.
-           * In such cases, clean up the metadata log, as the index data no longer exists.
-           * There is a very small possibility that users may recreate the index in the
-           * interim, but metadata log get deleted by this cleanup process.
-           */
-          logWarning("Cleaning up metadata log as index data has been deleted")
-          tx
-            .initialLog(_ => true)
-            .finalLog(_ => NO_LOG_ENTRY)
-            .commit(_ => { false })
-        } else {
-          false
-        }
+        logInfo("Index to be recovered is not auto refreshed")
+        false
       }
-    }
+    }.getOrElse(false)
 
   /**
    * Build data frame for querying the given index. This is mostly for unit test convenience.
