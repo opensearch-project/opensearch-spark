@@ -8,11 +8,14 @@ package org.opensearch.flint.common.metadata;
 import java.util.Map;
 
 /**
- * TODO: comment
+ * Flint index metadata service provides API for index metadata related operations on a Flint index
+ * regardless of underlying storage.
+ * <p>
+ * Custom implementations of this interface are expected to provide a public constructor with
+ * the signature {@code public MyCustomService(SparkConf sparkConf)} to be instantiated by
+ * the FlintIndexMetadataServiceBuilder.
  */
 public interface FlintIndexMetadataService {
-
-  // TODO: createIndexMetadata?
 
   /**
    * Retrieve metadata for a Flint index.

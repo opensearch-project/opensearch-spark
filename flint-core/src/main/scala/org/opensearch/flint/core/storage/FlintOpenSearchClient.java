@@ -10,9 +10,6 @@ import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.GetIndexRequest;
-import org.opensearch.client.indices.GetIndexResponse;
-import org.opensearch.client.indices.PutMappingRequest;
-import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentParser;
@@ -30,14 +27,8 @@ import scala.Option;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 import static org.opensearch.common.xcontent.DeprecationHandler.IGNORE_DEPRECATIONS;
 
@@ -56,13 +47,6 @@ public class FlintOpenSearchClient implements FlintClient {
       xContentRegistry =
       new NamedXContentRegistry(new SearchModule(Settings.builder().build(),
           new ArrayList<>()).getNamedXContents());
-
-  /**
-   * Invalid index name characters to percent-encode,
-   * excluding '*' because it's reserved for pattern matching.
-   */
-  private final static Set<Character> INVALID_INDEX_NAME_CHARS =
-      Set.of(' ', ',', ':', '"', '+', '/', '\\', '|', '?', '#', '>', '<');
 
   private final static Function<String, String> SHARD_ID_PREFERENCE =
       shardId -> shardId == null ? shardId : "_shards:"+shardId;
@@ -170,40 +154,7 @@ public class FlintOpenSearchClient implements FlintClient {
     return OpenSearchClientUtils.createClient(options);
   }
 
-  /*
-   * Because OpenSearch requires all lowercase letters in index name, we have to
-   * lowercase all letters in the given Flint index name.
-   */
-  private String toLowercase(String indexName) {
-    Objects.requireNonNull(indexName);
-
-    return indexName.toLowerCase(Locale.ROOT);
-  }
-
-  /*
-   * Percent-encode invalid OpenSearch index name characters.
-   */
-  private String percentEncode(String indexName) {
-    Objects.requireNonNull(indexName);
-
-    StringBuilder builder = new StringBuilder(indexName.length());
-    for (char ch : indexName.toCharArray()) {
-      if (INVALID_INDEX_NAME_CHARS.contains(ch)) {
-        builder.append(String.format("%%%02X", (int) ch));
-      } else {
-        builder.append(ch);
-      }
-    }
-    return builder.toString();
-  }
-
-  /*
-   * Sanitize index name to comply with OpenSearch index name restrictions.
-   */
   private String sanitizeIndexName(String indexName) {
-    Objects.requireNonNull(indexName);
-
-    String encoded = percentEncode(indexName);
-    return toLowercase(encoded);
+    return OpenSearchClientUtils.sanitizeIndexName(indexName);
   }
 }

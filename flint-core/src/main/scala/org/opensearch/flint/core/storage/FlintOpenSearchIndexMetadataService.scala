@@ -25,9 +25,7 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
 
   override def getIndexMetadata(indexName: String): FlintMetadata = {
     logInfo(s"Fetching Flint index metadata for $indexName")
-    // TODO: sanitize
-    // val osIndexName = sanitizeIndexName(indexName)
-    val osIndexName = indexName
+    val osIndexName = OpenSearchClientUtils.sanitizeIndexName(indexName)
     val client = OpenSearchClientUtils.createClient(options)
     try {
       val request = new GetIndexRequest(osIndexName)
@@ -47,9 +45,7 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
 
   override def getAllIndexMetadata(indexNamePattern: String*): util.Map[String, FlintMetadata] = {
     logInfo(s"Fetching all Flint index metadata for pattern ${indexNamePattern.mkString(",")}");
-    // TODO: sanitize
-    // val indexNames = indexNamePattern.map(sanitizeIndexName)
-    val indexNames = indexNamePattern
+    val indexNames = indexNamePattern.map(OpenSearchClientUtils.sanitizeIndexName)
     val client = OpenSearchClientUtils.createClient(options)
     try {
       val request = new GetIndexRequest(indexNames: _*)
@@ -74,9 +70,7 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
 
   override def updateIndexMetadata(indexName: String, metadata: FlintMetadata): Unit = {
     logInfo(s"Updating Flint index $indexName with metadata $metadata");
-    // TODO: sanitize
-    // val osIndexName = sanitizeIndexName(indexName)
-    val osIndexName = indexName
+    val osIndexName = OpenSearchClientUtils.sanitizeIndexName(indexName)
     val client = OpenSearchClientUtils.createClient(options)
     try {
       val request = new PutMappingRequest(osIndexName)
