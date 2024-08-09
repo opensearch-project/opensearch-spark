@@ -22,8 +22,8 @@ import org.mockito.Mockito.{atLeastOnce, never, times, verify, when}
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.opensearch.action.get.GetResponse
+import org.opensearch.flint.common.model.FlintStatement
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchReader, OpenSearchUpdater}
-import org.opensearch.flint.data.FlintStatement
 import org.opensearch.search.sort.SortOrder
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatestplus.mockito.MockitoSugar
@@ -230,7 +230,7 @@ class FlintREPLTest
     verify(flintSessionIndexUpdater).updateIf(*, *, *, *)
   }
 
-  test("Test getFailedData method") {
+  test("Test super.constructErrorDF should construct dataframe properly") {
     // Define expected dataframe
     val dataSourceName = "myGlueS3"
     val expectedSchema = StructType(
@@ -288,7 +288,7 @@ class FlintREPLTest
           "20",
           currentTime - queryRunTime)
       assertEqualDataframe(expected, result)
-      assert("failed" == flintStatement.state)
+      assert(flintStatement.isFailed)
       assert(error == flintStatement.error.get)
     } finally {
       spark.close()
@@ -492,7 +492,7 @@ class FlintREPLTest
     assert(result == expectedError)
   }
 
-  test("handleGeneralException should handle MetaException with AccessDeniedException properly") {
+  test("processQueryException should handle MetaException with AccessDeniedException properly") {
     val mockFlintCommand = mock[FlintStatement]
 
     // Simulate the root cause being MetaException
@@ -620,7 +620,6 @@ class FlintREPLTest
 
   test("executeAndHandle should handle TimeoutException properly") {
     val mockSparkSession = mock[SparkSession]
-    val mockFlintStatement = mock[FlintStatement]
     val mockConf = mock[RuntimeConfig]
     when(mockSparkSession.conf).thenReturn(mockConf)
     when(mockSparkSession.conf.get(FlintSparkConf.JOB_TYPE.key))
@@ -633,9 +632,8 @@ class FlintREPLTest
       val sessionId = "someSessionId"
       val startTime = System.currentTimeMillis()
       val expectedDataFrame = mock[DataFrame]
-
-      when(mockFlintStatement.query).thenReturn("SELECT 1")
-      when(mockFlintStatement.submitTime).thenReturn(Instant.now().toEpochMilli())
+      val flintStatement =
+        new FlintStatement("running", "select 1", "30", "10", Instant.now().toEpochMilli(), None)
       // When the `sql` method is called, execute the custom Answer that introduces a delay
       when(mockSparkSession.sql(any[String])).thenAnswer(new Answer[DataFrame] {
         override def answer(invocation: InvocationOnMock): DataFrame = {
@@ -656,7 +654,7 @@ class FlintREPLTest
 
       val result = FlintREPL.executeAndHandle(
         mockSparkSession,
-        mockFlintStatement,
+        flintStatement,
         dataSource,
         sessionId,
         executionContext,
@@ -667,6 +665,8 @@ class FlintREPLTest
 
       verify(mockSparkSession, times(1)).sql(any[String])
       verify(sparkContext, times(1)).cancelJobGroup(any[String])
+      assert("timeout" == flintStatement.state)
+      assert(s"Executing ${flintStatement.query} timed out" == flintStatement.error.get)
       result should not be None
     } finally threadPool.shutdown()
   }
