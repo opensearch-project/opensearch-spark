@@ -81,6 +81,7 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     sql(s"DROP TABLE $testTable")
     clientBuilder.close()
     indexMetadataServiceBuilder.close()
+    clientUtils.close()
     super.afterAll()
   }
 

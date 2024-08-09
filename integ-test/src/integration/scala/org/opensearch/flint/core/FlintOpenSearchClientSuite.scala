@@ -10,14 +10,11 @@ import scala.collection.JavaConverters._
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
-import org.mockito.Mockito.when
 import org.opensearch.flint.OpenSearchSuite
-import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintOpenSearchIndexMetadataService}
 import org.opensearch.flint.core.table.OpenSearchCluster
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 
@@ -45,9 +42,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
         | }
         |""".stripMargin
 
-    val metadata = mock[FlintMetadata]
-    when(metadata.getContent).thenReturn(content)
-    when(metadata.indexSettings).thenReturn(None)
+    val metadata = FlintOpenSearchIndexMetadataService.deserialize(content)
     flintClient.createIndex(indexName, metadata)
 
     flintClient.exists(indexName) shouldBe true
@@ -57,9 +52,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
   it should "create index with settings" in {
     val indexName = "flint_test_with_settings"
     val indexSettings = "{\"number_of_shards\": 3,\"number_of_replicas\": 2}"
-    val metadata = mock[FlintMetadata]
-    when(metadata.getContent).thenReturn("{}")
-    when(metadata.indexSettings).thenReturn(Some(indexSettings))
+    val metadata = FlintOpenSearchIndexMetadataService.deserialize("{}", indexSettings)
 
     flintClient.createIndex(indexName, metadata)
     flintClient.exists(indexName) shouldBe true
@@ -86,9 +79,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
         | }
         |""".stripMargin
 
-    val metadata = mock[FlintMetadata]
-    when(metadata.getContent).thenReturn(content)
-    when(metadata.indexSettings).thenReturn(None)
+    val metadata = FlintOpenSearchIndexMetadataService.deserialize(content)
     flintClient.createIndex(indexName, metadata)
 
     val newContent =
@@ -105,10 +96,8 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
         | }
         |""".stripMargin
 
-    val newMetadata = mock[FlintMetadata]
-    when(newMetadata.getContent).thenReturn(newContent)
-    when(newMetadata.indexSettings).thenReturn(None)
-    flintClient.updateIndex(indexName, newMetadata)
+    val newMetadata = FlintOpenSearchIndexMetadataService.deserialize(newContent)
+    flintIndexMetadataService.updateIndexMetadata(indexName, newMetadata)
 
     flintClient.exists(indexName) shouldBe true
     flintIndexMetadataService.getIndexMetadata(indexName).kind shouldBe "test_kind"
@@ -116,9 +105,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
   }
 
   it should "get all index metadata with the given index name pattern" in {
-    val metadata = mock[FlintMetadata]
-    when(metadata.getContent).thenReturn("{}")
-    when(metadata.indexSettings).thenReturn(None)
+    val metadata = FlintOpenSearchIndexMetadataService.deserialize("{}")
     flintClient.createIndex("flint_test_1_index", metadata)
     flintClient.createIndex("flint_test_2_index", metadata)
 
