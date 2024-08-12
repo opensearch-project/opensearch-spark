@@ -117,8 +117,9 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
 
     flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava));
     osClient = new OSClient(new FlintOptions(openSearchOptions.asJava))
-    val options = new FlintOptions(openSearchOptions.asJava)
-    updater = new OpenSearchUpdater(requestIndex, new FlintOpenSearchClient(options), options)
+    updater = new OpenSearchUpdater(
+      requestIndex,
+      new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava)))
   }
 
   override def afterEach(): Unit = {
