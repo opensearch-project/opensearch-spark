@@ -390,6 +390,31 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          | VALUES ( 50, STRUCT(STRUCT("value3"),789) )
          |""".stripMargin)
   }
+  
+  protected def createStructNestedTable(testTable: String): Unit = {
+    sql(s"""
+         | CREATE TABLE $testTable
+         | (
+         |   int_col INT,
+         |   struct_col STRUCT<field1: STRUCT<subfield:STRING>, field2: INT>
+         | )
+         | USING JSON
+         |""".stripMargin)
+
+    sql(s"""
+         | INSERT INTO $testTable
+         | SELECT /*+ COALESCE(1) */ *
+         | FROM VALUES
+         | ( 30, STRUCT(STRUCT("value1"),123) ),
+         | ( 40, STRUCT(STRUCT("value5"),123) ),
+         | ( 30, STRUCT(STRUCT("value4"),823) ),
+         | ( 40, STRUCT(STRUCT("value2"),456) )
+         |""".stripMargin)
+    sql(s"""
+         | INSERT INTO $testTable
+         | VALUES ( 50, STRUCT(STRUCT("value3"),789) )
+         |""".stripMargin)
+  }
 
   protected def createTableIssue112(testTable: String): Unit = {
     sql(s"""
