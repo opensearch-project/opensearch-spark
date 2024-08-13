@@ -28,8 +28,8 @@ public class FlintIndexMetadataServiceBuilder {
     // Attempts to instantiate Flint index metadata service with sparkConf using reflection
     try {
       Class<?> flintIndexMetadataServiceClass = Class.forName(className);
-      Constructor<?> constructor = flintIndexMetadataServiceClass.getConstructor(SparkConf.class);
-      return (FlintIndexMetadataService) constructor.newInstance(sparkConf);
+      Constructor<?> constructor = flintIndexMetadataServiceClass.getConstructor();
+      return (FlintIndexMetadataService) constructor.newInstance();
     } catch (Exception e) {
       throw new RuntimeException("Failed to instantiate FlintIndexMetadataService: " + className, e);
     }
