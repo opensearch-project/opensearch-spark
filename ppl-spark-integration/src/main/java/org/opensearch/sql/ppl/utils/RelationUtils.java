@@ -17,6 +17,7 @@ public interface RelationUtils {
      * @return
      */
     static Optional<QualifiedName> resolveField(List<UnresolvedRelation> relations, QualifiedName node) {
+        if (relations.size() == 1) return Optional.of(node);
         return relations.stream()
                 .map(rel -> {
                     //if name doesnt contain table prefix - add the current relation prefix to the fields name - returns true
