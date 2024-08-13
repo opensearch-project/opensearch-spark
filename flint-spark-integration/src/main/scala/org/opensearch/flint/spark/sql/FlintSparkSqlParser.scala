@@ -31,7 +31,9 @@ import org.antlr.v4.runtime._
 import org.antlr.v4.runtime.atn.PredictionMode
 import org.antlr.v4.runtime.misc.{Interval, ParseCancellationException}
 import org.antlr.v4.runtime.tree.TerminalNodeImpl
+import org.opensearch.flint.core.logging.CustomLogging.{logError, logInfo}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
+
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -40,7 +42,6 @@ import org.apache.spark.sql.catalyst.parser.ParserUtils.withOrigin
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.trees.Origin
 import org.apache.spark.sql.types.{DataType, StructType}
-import org.opensearch.flint.core.logging.CustomLogging.{logError, logInfo}
 
 /**
  * Flint SQL parser that extends Spark SQL parser with Flint SQL statements.
@@ -63,7 +64,9 @@ class FlintSparkSqlParser(sparkParser: ParserInterface) extends ParserInterface 
       // Fall back to Spark parse plan logic if flint cannot parse
       case e: ParseException =>
         // Log the issue
-        logInfo(s"Failed to parse PPL with PPL parser. Falling back to Spark parser. PPL: $sqlText", e)
+        logInfo(
+          s"Failed to parse PPL with PPL parser. Falling back to Spark parser. PPL: $sqlText",
+          e)
         // Fall back to Spark parse plan logic
         sparkParser.parsePlan(sqlText)
 

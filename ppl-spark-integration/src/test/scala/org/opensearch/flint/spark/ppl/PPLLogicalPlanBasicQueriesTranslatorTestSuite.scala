@@ -109,7 +109,9 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   test("test simple search with schema.table and one nested field projected") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=schema.table | fields A.nested", false), context)
+      planTransformer.visit(
+        plan(pplParser, "source=schema.table | fields A.nested", false),
+        context)
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("A.nested"))
     val expectedPlan = Project(projectList, UnresolvedRelation(Seq("schema", "table")))
@@ -150,11 +152,13 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
     comparePlans(expectedPlan, logPlan, false)
   }
-  
- test("test simple search with one table with two fields projected sorted by one nested field") {
+
+  test("test simple search with one table with two fields projected sorted by one nested field") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=t | sort A.nested | fields A.nested, B", false), context)
+      planTransformer.visit(
+        plan(pplParser, "source=t | sort A.nested | fields A.nested, B", false),
+        context)
 
     val table = UnresolvedRelation(Seq("t"))
     val projectList = Seq(UnresolvedAttribute("A.nested"), UnresolvedAttribute("B"))

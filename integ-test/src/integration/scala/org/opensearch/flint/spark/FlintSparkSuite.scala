@@ -390,7 +390,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          | VALUES ( 50, STRUCT(STRUCT("value3"),789) )
          |""".stripMargin)
   }
-  
+
   protected def createStructNestedTable(testTable: String): Unit = {
     sql(s"""
          | CREATE TABLE $testTable
