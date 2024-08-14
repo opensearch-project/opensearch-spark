@@ -273,7 +273,37 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   /** Top command. */
   @Override
   public UnresolvedPlan visitTopCommand(OpenSearchPPLParser.TopCommandContext ctx) {
-    
+    ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
+    ctx.fieldList().fieldExpression().forEach(field -> {
+      UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field));
+      String name = field.qualifiedName().getText();
+      Alias alias = new Alias(name, aggExpression);
+      aggListBuilder.add(alias);
+    });
+    List<UnresolvedExpression> groupList =
+            Optional.ofNullable(ctx.byClause())
+                    .map(OpenSearchPPLParser.ByClauseContext::fieldList)
+                    .map(
+                            expr ->
+                                    expr.fieldExpression().stream()
+                                            .map(
+                                                    groupCtx ->
+                                                            (UnresolvedExpression)
+                                                                    new Alias(
+                                                                            getTextInQuery(groupCtx),
+                                                                            internalVisitExpression(groupCtx)))
+                                            .collect(Collectors.toList()))
+                    .orElse(emptyList());
+
+    Aggregation aggregation =
+            new Aggregation(
+                    aggListBuilder.build(),
+                    emptyList(),
+                    groupList,
+                    null,
+                    ArgumentFactory.getArgumentList(ctx));
+    return aggregation;
+
   }
   
   /** Rare command. */
