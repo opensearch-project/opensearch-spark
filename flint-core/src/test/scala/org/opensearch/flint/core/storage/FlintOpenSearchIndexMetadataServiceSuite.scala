@@ -14,7 +14,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers {
-  // TODO: test cases for getIndexMetadata, etc.
 
   /** Test Flint index meta JSON string */
   val testMetadataJson: String = s"""
@@ -31,6 +30,16 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
                 |     "options": {},
                 |     "properties": {}
                 |   },
+                |   "properties": {
+                |     "test_field": {
+                |       "type": "os_type"
+                |     }
+                |   }
+                | }
+                |""".stripMargin
+
+  val testNoSpec: String = s"""
+                | {
                 |   "properties": {
                 |     "test_field": {
                 |       "type": "os_type"
@@ -66,5 +75,17 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
 
     val metadata = builder.build()
     FlintOpenSearchIndexMetadataService.serialize(metadata) should matchJson(testMetadataJson)
+  }
+
+  "serialize without spec" should "serialize all fields to JSON without adding _meta field" in {
+    val builder = new FlintMetadata.Builder
+    builder.name("test_index")
+    builder.kind("test_kind")
+    builder.source("test_source_table")
+    builder.addIndexedColumn(Map[String, AnyRef]("test_field" -> "spark_type").asJava)
+    builder.schema(Map[String, AnyRef]("test_field" -> Map("type" -> "os_type").asJava).asJava)
+
+    val metadata = builder.build()
+    FlintOpenSearchIndexMetadataService.serialize(metadata, false) should matchJson(testNoSpec)
   }
 }

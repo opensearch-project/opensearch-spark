@@ -42,8 +42,7 @@ class FullIndexRefresh(
     logInfo(s"[FullRefresh] DataFrame size: ${df.count()}")
     logInfo(s"[FullRefresh] Writing to index $indexName:")
     df.collect().foreach(data => logInfo(data.toString()))
-    df
-      .write
+    df.write
       .format(FLINT_DATASOURCE)
       .options(flintSparkConf.properties)
       .mode(Overwrite)

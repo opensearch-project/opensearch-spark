@@ -71,7 +71,7 @@ public class FlintOpenSearchClient implements FlintClient {
   @Override
   public void createIndex(String indexName, FlintMetadata metadata) {
     LOG.info("Creating Flint index " + indexName + " with metadata " + metadata);
-    createIndex(indexName, FlintOpenSearchIndexMetadataService.serialize(metadata), metadata.indexSettings());
+    createIndex(indexName, FlintOpenSearchIndexMetadataService.serialize(metadata, false), metadata.indexSettings());
   }
 
   protected void createIndex(String indexName, String mapping, Option<String> settings) {
