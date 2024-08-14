@@ -14,6 +14,7 @@ import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParserBaseVisitor;
 import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Alias;
+import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldsMapping;
@@ -36,11 +37,13 @@ import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Parse;
 import org.opensearch.sql.ast.tree.Project;
+import org.opensearch.sql.ast.tree.RareAggregation;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.TableFunction;
+import org.opensearch.sql.ast.tree.TopAggregation;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
@@ -275,7 +278,8 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   public UnresolvedPlan visitTopCommand(OpenSearchPPLParser.TopCommandContext ctx) {
     ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
     ctx.fieldList().fieldExpression().forEach(field -> {
-      UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field));
+      UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field),
+              Collections.singletonList(new Argument("countParam", new Literal(1, DataType.INTEGER))));
       String name = field.qualifiedName().getText();
       Alias alias = new Alias(name, aggExpression);
       aggListBuilder.add(alias);
@@ -295,23 +299,24 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                                             .collect(Collectors.toList()))
                     .orElse(emptyList());
 
-    Aggregation aggregation =
-            new Aggregation(
+    
+    
+    TopAggregation aggregation =
+            new TopAggregation(
                     aggListBuilder.build(),
                     emptyList(),
-                    groupList,
-                    null,
-                    ArgumentFactory.getArgumentList(ctx));
+                    groupList);
     return aggregation;
-
   }
   
   /** Rare command. */
   @Override
   public UnresolvedPlan visitRareCommand(OpenSearchPPLParser.RareCommandContext ctx) {
     ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
+    ImmutableList.Builder<UnresolvedExpression> sortListBuilder = new ImmutableList.Builder<>();
     ctx.fieldList().fieldExpression().forEach(field -> {
-      UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field));
+      UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field),
+              Collections.singletonList(new Argument("countParam", new Literal(1, DataType.INTEGER))));
       String name = field.qualifiedName().getText();
       Alias alias = new Alias(name, aggExpression);
       aggListBuilder.add(alias);
@@ -330,15 +335,17 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                                                                             internalVisitExpression(groupCtx)))
                                             .collect(Collectors.toList()))
                     .orElse(emptyList());
-
-    Aggregation aggregation =
-            new Aggregation(
+    //build the sort fields
+    ctx.fieldList().fieldExpression().forEach(field -> {
+      sortListBuilder.add(internalVisitExpression(field));
+    });
+    RareAggregation aggregation =
+            new RareAggregation(
                     aggListBuilder.build(),
-                    emptyList(),
-                    groupList,
-                    null,
-                    ArgumentFactory.getArgumentList(ctx));
+                    sortListBuilder.build(),
+                    groupList);
     return aggregation;
+
   }
 
   /** From clause. */
