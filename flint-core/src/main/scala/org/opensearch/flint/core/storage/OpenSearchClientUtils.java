@@ -33,7 +33,7 @@ public class OpenSearchClientUtils {
   /**
    * Metadata log index name prefix
    */
-  public final static String META_LOG_NAME_PREFIX = ".query_execution_request";
+  public final static String META_LOG_NAME_PREFIX = "query_execution_request";
 
   /**
    * Used in IT.
@@ -58,7 +58,8 @@ public class OpenSearchClientUtils {
   }
 
   public static IRestHighLevelClient createClient(FlintOptions options) {
-    return new RestHighLevelClientWrapper(createRestHighLevelClient(options));
+    return new RestHighLevelClientWrapper(createRestHighLevelClient(options),
+        BulkRequestRateLimiterHolder.getBulkRequestRateLimiter(options));
   }
 
   private static RestClientBuilder configureSigV4Auth(RestClientBuilder restClientBuilder, FlintOptions options) {

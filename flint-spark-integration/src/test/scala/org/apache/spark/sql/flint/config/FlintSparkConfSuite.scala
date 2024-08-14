@@ -9,6 +9,7 @@ import java.util.Optional
 
 import scala.collection.JavaConverters._
 
+import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.http.FlintRetryOptions._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
@@ -61,6 +62,17 @@ class FlintSparkConfSuite extends FlintSuite {
     retryOptions.getMaxRetries shouldBe 5
     retryOptions.getRetryableHttpStatusCodes shouldBe "429,502,503,504"
     retryOptions.getRetryableExceptionClassNames.get() shouldBe "java.net.ConnectException"
+  }
+
+  test("test bulkRequestRateLimitPerNode default value") {
+    val options = FlintSparkConf().flintOptions()
+    options.getBulkRequestRateLimitPerNode shouldBe 0
+  }
+
+  test("test specified bulkRequestRateLimitPerNode") {
+    val options = FlintSparkConf(
+      Map("bulkRequestRateLimitPerNode" -> "5").asJava).flintOptions()
+    options.getBulkRequestRateLimitPerNode shouldBe 5
   }
 
   test("test metadata access AWS credentials provider option") {

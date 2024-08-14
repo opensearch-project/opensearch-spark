@@ -37,6 +37,7 @@ import org.opensearch.client.opensearch.indices.IndicesStatsResponse;
 import org.opensearch.client.transport.rest_client.RestClientTransport;
 
 import java.io.IOException;
+import org.opensearch.flint.core.storage.BulkRequestRateLimiter;
 
 import static org.opensearch.flint.core.metrics.MetricConstants.OS_READ_OP_METRIC_PREFIX;
 import static org.opensearch.flint.core.metrics.MetricConstants.OS_WRITE_OP_METRIC_PREFIX;
@@ -47,6 +48,7 @@ import static org.opensearch.flint.core.metrics.MetricConstants.OS_WRITE_OP_METR
  */
 public class RestHighLevelClientWrapper implements IRestHighLevelClient {
     private final RestHighLevelClient client;
+    private final BulkRequestRateLimiter rateLimiter;
 
     private final static JacksonJsonpMapper JACKSON_MAPPER = new JacksonJsonpMapper();
 
@@ -55,13 +57,21 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
      *
      * @param client the RestHighLevelClient instance to wrap
      */
-    public RestHighLevelClientWrapper(RestHighLevelClient client) {
+    public RestHighLevelClientWrapper(RestHighLevelClient client, BulkRequestRateLimiter rateLimiter) {
         this.client = client;
+        this.rateLimiter = rateLimiter;
     }
 
     @Override
     public BulkResponse bulk(BulkRequest bulkRequest, RequestOptions options) throws IOException {
-        return execute(OS_WRITE_OP_METRIC_PREFIX, () -> client.bulk(bulkRequest, options));
+      return execute(OS_WRITE_OP_METRIC_PREFIX, () -> {
+        try {
+          rateLimiter.acquirePermit();
+          return client.bulk(bulkRequest, options);
+        } catch (InterruptedException e) {
+          throw new RuntimeException("rateLimiter.acquirePermit was interrupted.", e);
+        }
+      });
     }
 
     @Override

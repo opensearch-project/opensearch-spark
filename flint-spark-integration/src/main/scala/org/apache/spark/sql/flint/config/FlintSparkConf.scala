@@ -136,6 +136,12 @@ object FlintSparkConf {
     .doc("max retries on failed HTTP request, 0 means retry is disabled, default is 3")
     .createWithDefault(String.valueOf(FlintRetryOptions.DEFAULT_MAX_RETRIES))
 
+  val BULK_REQUEST_RATE_LIMIT_PER_NODE =
+    FlintConfig(s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE}")
+      .datasourceOption()
+      .doc("Rate limit (requests/sec) for bulk request per worker node. Rate won't be limited by default")
+      .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE)
+
   val RETRYABLE_HTTP_STATUS_CODES =
     FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.RETRYABLE_HTTP_STATUS_CODES}")
       .datasourceOption()
@@ -187,7 +193,7 @@ object FlintSparkConf {
       .doc("data source name")
       .createOptional()
   val CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS =
-    FlintConfig(FlintOptions.CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS)
+    FlintConfig(s"spark.datasource.flint.${FlintOptions.CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS}")
       .datasourceOption()
       .doc("custom Flint metadata log service class")
       .createOptional()
@@ -275,6 +281,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       AUTH,
       MAX_RETRIES,
       RETRYABLE_HTTP_STATUS_CODES,
+      BULK_REQUEST_RATE_LIMIT_PER_NODE,
       REGION,
       CUSTOM_AWS_CREDENTIALS_PROVIDER,
       SERVICE_NAME,
