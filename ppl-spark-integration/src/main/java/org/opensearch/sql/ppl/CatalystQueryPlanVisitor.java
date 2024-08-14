@@ -14,9 +14,11 @@ import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
+import org.apache.spark.sql.catalyst.plans.logical.Deduplicate;
 import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.Union;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
@@ -296,7 +298,105 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitDedupe(Dedupe node, CatalystPlanContext context) {
-        throw new IllegalStateException("Not Supported operation : dedupe ");
+        node.getChild().get(0).accept(this, context);
+        List<Argument> options = node.getOptions();
+        Integer allowedDuplication = (Integer) options.get(0).getValue().getValue();
+        Boolean keepEmpty = (Boolean) options.get(1).getValue().getValue();
+        Boolean consecutive = (Boolean) options.get(2).getValue().getValue();
+        if (allowedDuplication <= 0) {
+            throw new IllegalArgumentException("Number of duplicate events must be greater than 0");
+        }
+        if (consecutive) {
+            // Spark is not able to remove only consecutive events
+            throw new UnsupportedOperationException("Consecutive deduplication is not supported");
+        }
+        visitFieldList(node.getFields(), context);
+        // Columns to deduplicate
+        Seq<org.apache.spark.sql.catalyst.expressions.Attribute> dedupFields
+            = context.retainAllNamedParseExpressions(e -> (org.apache.spark.sql.catalyst.expressions.Attribute) e);
+        // Although we can also use the Window operator to translate this as allowedDuplication > 1 did,
+        // adding Aggregate operator could achieve better performance.
+        if (allowedDuplication == 1) {
+            if (keepEmpty) {
+                // Union
+                // :- Deduplicate ['a, 'b]
+                // :  +- Filter (isnotnull('a) AND isnotnull('b)
+                // :     +- Project
+                // :        +- UnresolvedRelation
+                // +- Filter (isnull('a) OR isnull('a))
+                //    +- Project
+                //       +- UnresolvedRelation
+
+                context.apply(p -> {
+                    Expression isNullExpr = buildIsNullFilterExpression(node, context);
+                    LogicalPlan right = new org.apache.spark.sql.catalyst.plans.logical.Filter(isNullExpr, p);
+
+                    Expression isNotNullExpr = buildIsNotNullFilterExpression(node, context);
+                    LogicalPlan left =
+                        new Deduplicate(dedupFields,
+                            new org.apache.spark.sql.catalyst.plans.logical.Filter(isNotNullExpr, p));
+                    return new Union(seq(left, right), false, false);
+                });
+                return context.getPlan();
+            } else {
+                // Deduplicate ['a, 'b]
+                // +- Filter (isnotnull('a) AND isnotnull('b))
+                //    +- Project
+                //       +- UnresolvedRelation
+
+                Expression isNotNullExpr = buildIsNotNullFilterExpression(node, context);
+                context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(isNotNullExpr, p));
+                // Todo DeduplicateWithinWatermark in streaming dataset?
+                return context.apply(p -> new Deduplicate(dedupFields, p));
+            }
+        } else {
+            // TODO
+            throw new UnsupportedOperationException("Number of duplicate events greater than 1 is not supported");
+        }
+    }
+
+    private Expression buildIsNotNullFilterExpression(Dedupe node, CatalystPlanContext context) {
+        visitFieldList(node.getFields(), context);
+        Seq<Expression> isNotNullExpressions =
+            context.retainAllNamedParseExpressions(
+                org.apache.spark.sql.catalyst.expressions.IsNotNull$.MODULE$::apply);
+
+        Expression isNotNullExpr;
+        if (isNotNullExpressions.size() == 1) {
+            isNotNullExpr = isNotNullExpressions.apply(0);
+        } else {
+            isNotNullExpr = isNotNullExpressions.reduce(
+                new scala.Function2<Expression, Expression, Expression>() {
+                    @Override
+                    public Expression apply(Expression e1, Expression e2) {
+                        return new org.apache.spark.sql.catalyst.expressions.And(e1, e2);
+                    }
+                }
+            );
+        }
+        return isNotNullExpr;
+    }
+
+    private Expression buildIsNullFilterExpression(Dedupe node, CatalystPlanContext context) {
+        visitFieldList(node.getFields(), context);
+        Seq<Expression> isNullExpressions =
+            context.retainAllNamedParseExpressions(
+                org.apache.spark.sql.catalyst.expressions.IsNull$.MODULE$::apply);
+
+        Expression isNullExpr;
+        if (isNullExpressions.size() == 1) {
+            isNullExpr = isNullExpressions.apply(0);
+        } else {
+            isNullExpr = isNullExpressions.reduce(
+                new scala.Function2<Expression, Expression, Expression>() {
+                    @Override
+                    public Expression apply(Expression e1, Expression e2) {
+                        return new org.apache.spark.sql.catalyst.expressions.Or(e1, e2);
+                    }
+                }
+            );
+        }
+        return isNullExpr;
     }
 
     /**
