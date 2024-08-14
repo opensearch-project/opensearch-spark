@@ -107,7 +107,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
   def createIndex(index: FlintSparkIndex, ignoreIfExists: Boolean = false): Unit = {
     logInfo(s"Creating Flint index $index with ignoreIfExists $ignoreIfExists")
     val indexName = index.name()
-    if (false) {
+    if (flintClient.exists(indexName)) {
       if (!ignoreIfExists) {
         throw new IllegalStateException(s"Flint index $indexName already exists")
       }
@@ -123,11 +123,11 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           .finalLog(latest => latest.copy(state = ACTIVE))
           .commit(latest =>
             if (latest == null) { // in case transaction capability is disabled
-              // flintClient.createIndex(indexName, metadata)
+              flintClient.createIndex(indexName, metadata)
               flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
             } else {
               logInfo(s"Creating index with metadata log entry ID ${latest.id}")
-              // flintClient.createIndex(indexName, metadata.copy(latestId = Some(latest.id)))
+              flintClient.createIndex(indexName, metadata.copy(latestId = Some(latest.id)))
               flintIndexMetadataService
                 .updateIndexMetadata(indexName, metadata.copy(latestId = Some(latest.id)))
             })
@@ -189,7 +189,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    */
   def describeIndexes(indexNamePattern: String): Seq[FlintSparkIndex] = {
     logInfo(s"Describing indexes with pattern $indexNamePattern")
-    if (true) {
+    if (flintClient.exists(indexNamePattern)) {
       flintIndexMetadataService
         .getAllIndexMetadata(indexNamePattern)
         .asScala
@@ -213,7 +213,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    */
   def describeIndex(indexName: String): Option[FlintSparkIndex] = {
     logInfo(s"Describing index name $indexName")
-    if (true) {
+    if (flintClient.exists(indexName)) {
       val metadata = flintIndexMetadataService.getIndexMetadata(indexName)
       val metadataWithEntry = attachLatestLogEntry(indexName, metadata)
       FlintSparkIndexFactory.create(metadataWithEntry)
@@ -265,7 +265,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    */
   def deleteIndex(indexName: String): Boolean = {
     logInfo(s"Deleting Flint index $indexName")
-    if (true) {
+    if (flintClient.exists(indexName)) {
       try {
         flintMetadataLogService
           .startTransaction(indexName)
