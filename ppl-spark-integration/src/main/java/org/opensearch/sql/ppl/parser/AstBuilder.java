@@ -12,6 +12,7 @@ import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParserBaseVisitor;
+import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.Field;
@@ -236,12 +237,6 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
         .collect(Collectors.toList());
   }
 
-  /** Rare command. */
-  @Override
-  public UnresolvedPlan visitRareCommand(OpenSearchPPLParser.RareCommandContext ctx) {
-    throw new RuntimeException("Rare Command is not supported ");
-  }
-
   @Override
   public UnresolvedPlan visitGrokCommand(OpenSearchPPLParser.GrokCommandContext ctx) {
     UnresolvedExpression sourceField = internalVisitExpression(ctx.source_field);
@@ -278,13 +273,42 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   /** Top command. */
   @Override
   public UnresolvedPlan visitTopCommand(OpenSearchPPLParser.TopCommandContext ctx) {
+    
+  }
+  
+  /** Rare command. */
+  @Override
+  public UnresolvedPlan visitRareCommand(OpenSearchPPLParser.RareCommandContext ctx) {
+    ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
+    ctx.fieldList().fieldExpression().forEach(field -> {
+      UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field));
+      String name = field.qualifiedName().getText();
+      Alias alias = new Alias(name, aggExpression);
+      aggListBuilder.add(alias);
+    });
     List<UnresolvedExpression> groupList =
-        ctx.byClause() == null ? emptyList() : getGroupByList(ctx.byClause());
-    return new RareTopN(
-        RareTopN.CommandType.TOP,
-        ArgumentFactory.getArgumentList(ctx),
-        getFieldList(ctx.fieldList()),
-        groupList);
+            Optional.ofNullable(ctx.byClause())
+                    .map(OpenSearchPPLParser.ByClauseContext::fieldList)
+                    .map(
+                            expr ->
+                                    expr.fieldExpression().stream()
+                                            .map(
+                                                    groupCtx ->
+                                                            (UnresolvedExpression)
+                                                                    new Alias(
+                                                                            getTextInQuery(groupCtx),
+                                                                            internalVisitExpression(groupCtx)))
+                                            .collect(Collectors.toList()))
+                    .orElse(emptyList());
+
+    Aggregation aggregation =
+            new Aggregation(
+                    aggListBuilder.build(),
+                    emptyList(),
+                    groupList,
+                    null,
+                    ArgumentFactory.getArgumentList(ctx));
+    return aggregation;
   }
 
   /** From clause. */

@@ -38,6 +38,8 @@ commands
    | dedupCommand
    | sortCommand
    | headCommand
+   | topCommand
+   | rareCommand
    | evalCommand
    ;
 
