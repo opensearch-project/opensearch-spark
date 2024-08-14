@@ -44,6 +44,7 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
 
     val metadata = FlintOpenSearchIndexMetadataService.deserialize(content)
     flintClient.createIndex(indexName, metadata)
+    flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
 
     flintClient.exists(indexName) shouldBe true
     flintIndexMetadataService.getIndexMetadata(indexName).kind shouldBe "test_kind"

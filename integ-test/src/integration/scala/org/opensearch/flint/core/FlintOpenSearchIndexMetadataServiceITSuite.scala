@@ -78,6 +78,13 @@ class FlintOpenSearchIndexMetadataServiceITSuite
     val metadata = FlintOpenSearchIndexMetadataService.deserialize(content)
     flintClient.createIndex(indexName, metadata)
 
+    flintIndexMetadataService.getIndexMetadata(indexName).kind shouldBe empty
+
+    flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
+
+    flintIndexMetadataService.getIndexMetadata(indexName).kind shouldBe "test_kind"
+    flintIndexMetadataService.getIndexMetadata(indexName).name shouldBe empty
+
     val newContent =
       """ {
         |   "_meta": {

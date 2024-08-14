@@ -90,29 +90,39 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
 
 object FlintOpenSearchIndexMetadataService {
 
+  def serialize(metadata: FlintMetadata): String = {
+    serialize(metadata, true)
+  }
+
   /**
    * Generate JSON content as index metadata.
    *
+   * @param metadata
+   *   Flint index metadata
+   * @param includeSpec
+   *   Whether to include _meta field in the JSON content for Flint index specification
    * @return
    *   JSON content
    */
-  def serialize(metadata: FlintMetadata): String = {
+  def serialize(metadata: FlintMetadata, includeSpec: Boolean): String = {
     try {
       buildJson(builder => {
-        // Add _meta field
-        objectField(builder, "_meta") {
-          builder
-            .field("version", metadata.version.version)
-            .field("name", metadata.name)
-            .field("kind", metadata.kind)
-            .field("source", metadata.source)
-            .field("indexedColumns", metadata.indexedColumns)
+        if (includeSpec) {
+          // Add _meta field
+          objectField(builder, "_meta") {
+            builder
+              .field("version", metadata.version.version)
+              .field("name", metadata.name)
+              .field("kind", metadata.kind)
+              .field("source", metadata.source)
+              .field("indexedColumns", metadata.indexedColumns)
 
-          if (metadata.latestId.isDefined) {
-            builder.field("latestId", metadata.latestId.get)
+            if (metadata.latestId.isDefined) {
+              builder.field("latestId", metadata.latestId.get)
+            }
+            optionalObjectField(builder, "options", metadata.options)
+            optionalObjectField(builder, "properties", metadata.properties)
           }
-          optionalObjectField(builder, "options", metadata.options)
-          optionalObjectField(builder, "properties", metadata.properties)
         }
 
         // Add properties (schema) field
