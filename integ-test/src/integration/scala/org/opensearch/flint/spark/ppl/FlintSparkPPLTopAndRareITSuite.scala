@@ -77,6 +77,50 @@ class FlintSparkPPLTopAndRareITSuite
     comparePlans(expectedPlan, logicalPlan, false)
   }
 
+  test("create ppl rare address by age field query test") {
+    val frame = sql(s"""
+         | source = $testTable| rare address by age
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 5)
+
+    val expectedRow = Row(1, "Vancouver", 60)
+    assert(
+      results.head == expectedRow,
+      s"Expected least frequent result to be $expectedRow, but got ${results.head}")
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val addressField = UnresolvedAttribute("address")
+    val ageField = UnresolvedAttribute("age")
+    val ageAlias = Alias(ageField, "age")()
+
+    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
+
+    val countExpr = Alias(UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false), "count(address)")()
+
+    val aggregateExpressions = Seq(
+      countExpr,
+      addressField,
+      ageAlias)
+    val aggregatePlan =
+      Aggregate(
+        Seq(addressField, ageAlias),
+        aggregateExpressions,
+        UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
+
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(SortOrder(UnresolvedAttribute("address"), Descending)),
+        global = true,
+        aggregatePlan)
+
+    val expectedPlan = Project(projectList, sortedPlan)
+    comparePlans(expectedPlan, logicalPlan, false)
+  }
+
   test("create ppl top address field query test") {
     val frame = sql(s"""
          | source = $testTable| top address
