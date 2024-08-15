@@ -17,11 +17,13 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 /**
  * Abstract OpenSearch Reader.
  */
 public abstract class OpenSearchReader implements FlintReader {
+  private static final Logger LOG = Logger.getLogger(OpenSearchReader.class.getName());
 
   @VisibleForTesting
   /** Search request source builder. */
@@ -48,6 +50,7 @@ public abstract class OpenSearchReader implements FlintReader {
           return false;
         }
         List<SearchHit> searchHits = Arrays.asList(response.get().getHits().getHits());
+        LOG.info("Result sets: " + searchHits.size());
         iterator = searchHits.iterator();
       }
       return iterator.hasNext();

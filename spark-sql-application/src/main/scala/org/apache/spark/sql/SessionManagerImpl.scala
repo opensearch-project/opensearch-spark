@@ -18,20 +18,22 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SessionUpdateMode.SessionUpdateMode
 import org.apache.spark.sql.flint.config.FlintSparkConf
 
-class SessionManagerImpl(spark: SparkSession, resultIndex: Option[String])
+class SessionManagerImpl(
+    spark: SparkSession,
+    sessionId: String,
+    resultIndexOption: Option[String])
     extends SessionManager
     with FlintJobExecutor
     with Logging {
 
   // we don't allow default value for sessionIndex, sessionId and datasource. Throw exception if key not found.
   val sessionIndex: String = spark.conf.get(FlintSparkConf.REQUEST_INDEX.key)
-  val sessionId: String = spark.conf.get(FlintSparkConf.SESSION_ID.key)
   val dataSource: String = spark.conf.get(FlintSparkConf.DATA_SOURCE_NAME.key)
 
   if (sessionIndex.isEmpty) {
     logAndThrow(FlintSparkConf.REQUEST_INDEX.key + " is not set")
   }
-  if (resultIndex.isEmpty) {
+  if (resultIndexOption.isEmpty) {
     logAndThrow("resultIndex is not set")
   }
   if (sessionId.isEmpty) {
@@ -47,7 +49,7 @@ class SessionManagerImpl(spark: SparkSession, resultIndex: Option[String])
 
   override def getSessionContext: Map[String, Any] = {
     Map(
-      "resultIndex" -> resultIndex.get,
+      "resultIndex" -> resultIndexOption.get,
       "osClient" -> osClient,
       "flintSessionIndexUpdater" -> flintSessionIndexUpdater,
       "flintReader" -> flintReader)
@@ -56,13 +58,27 @@ class SessionManagerImpl(spark: SparkSession, resultIndex: Option[String])
   override def getSessionDetails(sessionId: String): Option[InteractiveSession] = {
     Try(osClient.getDoc(sessionIndex, sessionId)) match {
       case Success(getResponse) if getResponse.isExists =>
-        Option(getResponse.getSourceAsMap)
+        // Retrieve the source map and create session
+        val sessionOption = Option(getResponse.getSourceAsMap)
           .map(InteractiveSession.deserializeFromMap)
+
+        // Retrieve sequence number and primary term from the response
+        val seqNo = getResponse.getSeqNo
+        val primaryTerm = getResponse.getPrimaryTerm
+
+        // Add seqNo and primaryTerm to the session context
+        sessionOption.foreach { session =>
+          session.setContextValue("seqNo", seqNo)
+          session.setContextValue("primaryTerm", primaryTerm)
+        }
+
+        sessionOption
       case Failure(exception) =>
         CustomLogging.logError(
           s"Failed to retrieve existing InteractiveSession: ${exception.getMessage}",
           exception)
         None
+
       case _ => None
     }
   }
@@ -92,13 +108,13 @@ class SessionManagerImpl(spark: SparkSession, resultIndex: Option[String])
         flintSessionIndexUpdater.upsert(sessionDetails.sessionId, serializedSession)
       case SessionUpdateMode.UPDATE_IF =>
         val seqNo = sessionDetails
-          .getContextValue("_seq_no")
-          .getOrElse(throw new IllegalArgumentException("Missing _seq_no for conditional update"))
+          .getContextValue("seqNo")
+          .getOrElse(throw new IllegalArgumentException("Missing seqNo for conditional update"))
           .asInstanceOf[Long]
         val primaryTerm = sessionDetails
-          .getContextValue("_primary_term")
+          .getContextValue("primaryTerm")
           .getOrElse(
-            throw new IllegalArgumentException("Missing _primary_term for conditional update"))
+            throw new IllegalArgumentException("Missing primaryTerm for conditional update"))
           .asInstanceOf[Long]
         flintSessionIndexUpdater.updateIf(
           sessionDetails.sessionId,
@@ -116,9 +132,9 @@ class SessionManagerImpl(spark: SparkSession, resultIndex: Option[String])
   override def getNextStatement(sessionId: String): Option[FlintStatement] = {
     if (flintReader.hasNext) {
       val rawStatement = flintReader.next()
-      logDebug(s"raw statement: $rawStatement")
+      logInfo(s"raw statement: $rawStatement")
       val flintStatement = FlintStatement.deserialize(rawStatement)
-      logDebug(s"statement: $flintStatement")
+      logInfo(s"statement: $flintStatement")
       Some(flintStatement)
     } else {
       None

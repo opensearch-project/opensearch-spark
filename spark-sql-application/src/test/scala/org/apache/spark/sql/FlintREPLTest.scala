@@ -41,7 +41,6 @@ import org.apache.spark.sql.types.{LongType, NullType, StringType, StructField, 
 import org.apache.spark.sql.util.{DefaultThreadPoolFactory, MockThreadPoolFactory, MockTimeProvider, RealTimeProvider, ShutdownHookManagerTrait}
 import org.apache.spark.util.ThreadUtils
 
-@Ignore
 class FlintREPLTest
     extends SparkFunSuite
     with MockitoSugar

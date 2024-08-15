@@ -11,27 +11,21 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, TimeoutException}
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
 import com.codahale.metrics.Timer
-import org.json4s.native.Serialization
-import org.opensearch.action.get.GetResponse
-import org.opensearch.common.Strings
 import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession, SessionStates}
-import org.opensearch.flint.common.model.InteractiveSession.formats
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
-import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
 import org.apache.spark.sql.FlintREPLConfConstants._
-import org.apache.spark.sql.SessionUpdateMode.UPDATE_IF
+import org.apache.spark.sql.SessionUpdateMode._
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.util.{ThreadUtils, Utils}
 
@@ -108,7 +102,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       val sessionId = getSessionId(conf)
       logInfo(s"sessionId: ${sessionId}")
       val spark = createSparkSession(conf)
-      val sessionManager = instantiateSessionManager(spark, resultIndexOption)
+      val sessionManager = instantiateSessionManager(spark, sessionId, resultIndexOption)
 
       val jobId = envinromentProvider.getEnvVar("SERVERLESS_EMR_JOB_ID", "unknown")
       val applicationId =
@@ -410,7 +404,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     logInfo(s"State is: ${sessionDetails.state}")
     sessionDetails.state = state
     logInfo(s"State is: ${sessionDetails.state}")
-    sessionManager.updateSessionDetails(sessionDetails, updateMode = SessionUpdateMode.UPSERT)
+    sessionManager.updateSessionDetails(sessionDetails, updateMode = UPSERT)
     sessionDetails
   }
 
@@ -434,16 +428,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
       SessionStates.FAIL,
       Some(e.getMessage))
     recordSessionFailed(sessionTimerContext)
-  }
-
-  private def updateFlintInstance(
-      flintInstance: InteractiveSession,
-      flintSessionIndexUpdater: OpenSearchUpdater,
-      sessionId: String): Unit = {
-    val currentTime = currentTimeProvider.currentEpochMillis()
-    flintSessionIndexUpdater.upsert(
-      sessionId,
-      InteractiveSession.serializeWithoutJobId(flintInstance, currentTime))
   }
 
   /**
@@ -534,7 +518,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
             finalizeCommand(context, dataToWrite, flintStatement, statementTimerContext)
             // last query finish time is last activity time
             lastActivityTime = currentTimeProvider.currentEpochMillis()
-          case None =>
+          case _ =>
             canProceed = false
         }
       }
@@ -790,7 +774,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           // processing.
           if (!earlyExitFlag && !sessionDetails.isComplete && !sessionDetails.isFail) {
             sessionDetails.complete()
-            sessionManager.updateSessionDetails(sessionDetails, UPDATE_IF)
+            sessionManager.updateSessionDetails(sessionDetails, updateMode = UPDATE_IF)
             recordSessionSuccess(sessionTimerContext)
           }
         }
@@ -955,9 +939,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
   private def instantiateSessionManager(
       spark: SparkSession,
-      resultIndex: Option[String]): SessionManager = {
+      sessionId: String,
+      resultIndexOption: Option[String]): SessionManager = {
     instantiate(
-      new SessionManagerImpl(spark, resultIndex),
+      new SessionManagerImpl(spark, sessionId, resultIndexOption),
       spark.sparkContext.getConf.get(FlintSparkConf.CUSTOM_SESSION_MANAGER.key, ""))
   }
 
