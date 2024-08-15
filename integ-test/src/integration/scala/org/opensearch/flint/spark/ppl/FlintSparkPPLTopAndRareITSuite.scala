@@ -5,13 +5,13 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.command.DescribeTableCommand
 import org.apache.spark.sql.streaming.StreamTest
-import org.apache.spark.sql.{QueryTest, Row}
 
 class FlintSparkPPLTopAndRareITSuite
     extends QueryTest
@@ -37,7 +37,7 @@ class FlintSparkPPLTopAndRareITSuite
       job.awaitTermination()
     }
   }
-  
+
   test("create ppl rare address field query test") {
     val frame = sql(s"""
          | source = $testTable| rare address
@@ -46,10 +46,12 @@ class FlintSparkPPLTopAndRareITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     assert(results.length == 3)
-    
+
     val expectedRow = Row(1, "Vancouver")
-    assert(results.head == expectedRow, s"Expected least frequent result to be $expectedRow, but got ${results.head}")
-    
+    assert(
+      results.head == expectedRow,
+      s"Expected least frequent result to be $expectedRow, but got ${results.head}")
+
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
@@ -57,9 +59,15 @@ class FlintSparkPPLTopAndRareITSuite
     val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
 
     val aggregateExpressions = Seq(
-      Alias(UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false), "count(address)")(), addressField)
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
+        "count(address)")(),
+      addressField)
     val aggregatePlan =
-      Aggregate(Seq(addressField), aggregateExpressions, UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
+      Aggregate(
+        Seq(addressField),
+        aggregateExpressions,
+        UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
     val sortedPlan: LogicalPlan =
       Sort(
         Seq(SortOrder(UnresolvedAttribute("address"), Descending)),
@@ -68,7 +76,7 @@ class FlintSparkPPLTopAndRareITSuite
     val expectedPlan = Project(projectList, sortedPlan)
     comparePlans(expectedPlan, logicalPlan, false)
   }
-  
+
   test("create ppl top address field query test") {
     val frame = sql(s"""
          | source = $testTable| top address
@@ -77,15 +85,13 @@ class FlintSparkPPLTopAndRareITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     assert(results.length == 3)
-   
-    val expectedRows = Set(
-      Row(2, "Portland"),
-      Row(2, "Seattle")
-    )
+
+    val expectedRows = Set(Row(2, "Portland"), Row(2, "Seattle"))
     val actualRows = results.take(2).toSet
 
     // Compare the sets
-    assert(actualRows == expectedRows,
+    assert(
+      actualRows == expectedRows,
       s"The first two results do not match the expected rows. Expected: $expectedRows, Actual: $actualRows")
 
     // Retrieve the logical plan
@@ -95,9 +101,15 @@ class FlintSparkPPLTopAndRareITSuite
     val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
 
     val aggregateExpressions = Seq(
-      Alias(UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false), "count(address)")(), addressField)
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
+        "count(address)")(),
+      addressField)
     val aggregatePlan =
-      Aggregate(Seq(addressField), aggregateExpressions, UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
+      Aggregate(
+        Seq(addressField),
+        aggregateExpressions,
+        UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
     val sortedPlan: LogicalPlan =
       Sort(
         Seq(SortOrder(UnresolvedAttribute("address"), Ascending)),
