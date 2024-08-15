@@ -407,7 +407,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
           jobStartTime,
           error = error,
           excludedJobIds = excludedJobIds))
+    logInfo(s"State is: ${sessionDetails.state}")
     sessionDetails.state = state
+    logInfo(s"State is: ${sessionDetails.state}")
     sessionManager.updateSessionDetails(sessionDetails, updateMode = SessionUpdateMode.UPSERT)
     sessionDetails
   }
@@ -518,6 +520,11 @@ object FlintREPL extends Logging with FlintJobExecutor {
       } else {
         sessionManager.getNextStatement(sessionId) match {
           case Some(flintStatement) =>
+            flintStatement.running()
+            logDebug(s"command running: $flintStatement")
+            statementLifecycleManager.updateStatement(flintStatement)
+            statementRunningCount.incrementAndGet()
+
             val statementTimerContext = getTimerContext(
               MetricConstants.STATEMENT_PROCESSING_TIME_METRIC)
             val (dataToWrite, returnedVerificationResult) =

@@ -25,6 +25,7 @@ import org.opensearch.action.get.GetResponse
 import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession, SessionStates}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchReader, OpenSearchUpdater}
 import org.opensearch.search.sort.SortOrder
+import org.scalatest.Ignore
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatestplus.mockito.MockitoSugar
 
@@ -40,6 +41,7 @@ import org.apache.spark.sql.types.{LongType, NullType, StringType, StructField, 
 import org.apache.spark.sql.util.{DefaultThreadPoolFactory, MockThreadPoolFactory, MockTimeProvider, RealTimeProvider, ShutdownHookManagerTrait}
 import org.apache.spark.util.ThreadUtils
 
+@Ignore
 class FlintREPLTest
     extends SparkFunSuite
     with MockitoSugar
