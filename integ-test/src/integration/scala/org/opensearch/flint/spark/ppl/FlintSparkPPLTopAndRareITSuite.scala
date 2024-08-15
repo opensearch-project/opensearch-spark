@@ -40,7 +40,7 @@ class FlintSparkPPLTopAndRareITSuite
   
   test("create ppl rare address field query test") {
     val frame = sql(s"""
-         | source = $testTable| rare address"
+         | source = $testTable| rare address
          | """.stripMargin)
 
     // Retrieve the results

@@ -41,6 +41,47 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
 
     comparePlans(expectedPlan, logPlan, false)
   }
+  
+  test("test count price") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source = table | stats count(price) ", false), context)
+    // SQL: SELECT avg(price) as avg_price FROM table
+    val star = Seq(UnresolvedStar(None))
+
+    val priceField = UnresolvedAttribute("price")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+    val aggregateExpressions = Seq(
+      Alias(UnresolvedFunction(Seq("COUNT"), Seq(priceField), isDistinct = false), "count(price)")())
+    val aggregatePlan = Aggregate(Seq(), aggregateExpressions, tableRelation)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+  
+  test("test count price by country") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source = table | stats count(price) by product ", false), context)
+    // SQL: SELECT count(price) AS count_price FROM table GROUP BY product
+    val star = Seq(UnresolvedStar(None))
+    val productField = UnresolvedAttribute("product")
+    val priceField = UnresolvedAttribute("price")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+    
+    val groupByAttributes = Seq(Alias(productField, "product")())
+    val aggregateExpressions =
+      Alias(UnresolvedFunction(Seq("COUNT"), Seq(priceField), isDistinct = false), "count(price)")()
+    val productAlias = Alias(productField, "product")()
+
+    val aggregatePlan =
+      Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), tableRelation)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
 
   test("test average price with Alias") {
     // if successful build ppl logical plan and translate to catalyst logical plan

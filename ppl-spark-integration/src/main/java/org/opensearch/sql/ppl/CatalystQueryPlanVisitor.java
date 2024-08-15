@@ -179,7 +179,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         node.getChild().get(0).accept(this, context);
         List<Expression> aggsExpList = visitExpressionList(node.getAggExprList(), context);
         List<Expression> groupExpList = visitExpressionList(node.getGroupExprList(), context);
-        List<Expression> sortExpList = visitExpressionList(node.getSortExprList(), context);
         if (!groupExpList.isEmpty()) {
             //add group by fields to context
             context.getGroupingParseExpressions().addAll(groupExpList);
@@ -199,7 +198,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         List<SortDirection> sortDirections = new ArrayList<>();
         sortDirections.add(node instanceof RareAggregation ? Ascending$.MODULE$ : node instanceof TopAggregation ? Descending$.MODULE$ : Ascending$.MODULE$);
 
-        if (!sortExpList.isEmpty()) {
+        if (!node.getSortExprList().isEmpty()) {
             visitExpressionList(node.getSortExprList(), context);
             Seq<SortOrder> sortElements = context.retainAllNamedParseExpressions(exp ->
                     new SortOrder(exp,

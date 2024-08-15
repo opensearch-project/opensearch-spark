@@ -277,14 +277,20 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   @Override
   public UnresolvedPlan visitTopCommand(OpenSearchPPLParser.TopCommandContext ctx) {
     ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
+    ImmutableList.Builder<UnresolvedExpression> groupListBuilder = new ImmutableList.Builder<>();
+    ImmutableList.Builder<UnresolvedExpression> sortListBuilder = new ImmutableList.Builder<>();
     ctx.fieldList().fieldExpression().forEach(field -> {
       UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field),
               Collections.singletonList(new Argument("countParam", new Literal(1, DataType.INTEGER))));
       String name = field.qualifiedName().getText();
-      Alias alias = new Alias(name, aggExpression);
+      Alias alias = new Alias("count("+name+")", aggExpression);
       aggListBuilder.add(alias);
+      // group by the `field-list` as the mandatory groupBy fields
+      groupListBuilder.add(internalVisitExpression(field));
     });
-    List<UnresolvedExpression> groupList =
+
+    // group by the `by-clause` as the optional groupBy fields
+    groupListBuilder.addAll(
             Optional.ofNullable(ctx.byClause())
                     .map(OpenSearchPPLParser.ByClauseContext::fieldList)
                     .map(
@@ -297,15 +303,17 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                                                                             getTextInQuery(groupCtx),
                                                                             internalVisitExpression(groupCtx)))
                                             .collect(Collectors.toList()))
-                    .orElse(emptyList());
-
-    
-    
+                    .orElse(emptyList())
+    );
+    //build the sort fields
+    ctx.fieldList().fieldExpression().forEach(field -> {
+      sortListBuilder.add(internalVisitExpression(field));
+    });
     TopAggregation aggregation =
             new TopAggregation(
                     aggListBuilder.build(),
-                    emptyList(),
-                    groupList);
+                    sortListBuilder.build(),
+                    groupListBuilder.build());
     return aggregation;
   }
   
@@ -313,15 +321,20 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   @Override
   public UnresolvedPlan visitRareCommand(OpenSearchPPLParser.RareCommandContext ctx) {
     ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
+    ImmutableList.Builder<UnresolvedExpression> groupListBuilder = new ImmutableList.Builder<>();
     ImmutableList.Builder<UnresolvedExpression> sortListBuilder = new ImmutableList.Builder<>();
     ctx.fieldList().fieldExpression().forEach(field -> {
       UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field),
               Collections.singletonList(new Argument("countParam", new Literal(1, DataType.INTEGER))));
       String name = field.qualifiedName().getText();
-      Alias alias = new Alias(name, aggExpression);
+      Alias alias = new Alias("count("+name+")", aggExpression);
       aggListBuilder.add(alias);
+      // group by the `field-list` as the mandatory groupBy fields
+      groupListBuilder.add(internalVisitExpression(field));
     });
-    List<UnresolvedExpression> groupList =
+
+    // group by the `by-clause` as the optional groupBy fields
+    groupListBuilder.addAll(
             Optional.ofNullable(ctx.byClause())
                     .map(OpenSearchPPLParser.ByClauseContext::fieldList)
                     .map(
@@ -334,7 +347,8 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                                                                             getTextInQuery(groupCtx),
                                                                             internalVisitExpression(groupCtx)))
                                             .collect(Collectors.toList()))
-                    .orElse(emptyList());
+                    .orElse(emptyList())
+    );
     //build the sort fields
     ctx.fieldList().fieldExpression().forEach(field -> {
       sortListBuilder.add(internalVisitExpression(field));
@@ -343,9 +357,8 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
             new RareAggregation(
                     aggListBuilder.build(),
                     sortListBuilder.build(),
-                    groupList);
+                    groupListBuilder.build());
     return aggregation;
-
   }
 
   /** From clause. */
