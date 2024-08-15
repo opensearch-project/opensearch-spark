@@ -46,7 +46,7 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
 
   test("should build metadata log service") {
     val customOptions =
-      openSearchOptions + (CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS.key -> "org.opensearch.flint.core.TestMetadataLogService")
+      openSearchOptions + (FlintOptions.CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS -> "org.opensearch.flint.core.TestMetadataLogService")
     val customFlintOptions = new FlintOptions(customOptions.asJava)
     val customFlintMetadataLogService =
       FlintMetadataLogServiceBuilder.build(customFlintOptions, sparkConf)
@@ -54,7 +54,7 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
   }
 
   test("should fail to build metadata log service if class name doesn't exist") {
-    val options = openSearchOptions + (CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS.key -> "dummy")
+    val options = openSearchOptions + (FlintOptions.CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS -> "dummy")
     val flintOptions = new FlintOptions(options.asJava)
     the[RuntimeException] thrownBy {
       FlintMetadataLogServiceBuilder.build(flintOptions, sparkConf)
