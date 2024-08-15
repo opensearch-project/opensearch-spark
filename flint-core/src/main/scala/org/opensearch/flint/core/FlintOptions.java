@@ -202,8 +202,6 @@ public class FlintOptions implements Serializable {
   }
 
   public long getBulkRequestRateLimitPerNode() {
-    System.out.println("####### BULK_REQUEST_RATE_LIMIT_PER_NODE" + options.get(BULK_REQUEST_RATE_LIMIT_PER_NODE));
-    System.out.println("############### options: " + options);
     return Long.parseLong(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE));
   }
 }
