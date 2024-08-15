@@ -70,8 +70,7 @@ class FlintSparkConfSuite extends FlintSuite {
   }
 
   test("test specified bulkRequestRateLimitPerNode") {
-    val options = FlintSparkConf(
-      Map("bulkRequestRateLimitPerNode" -> "5").asJava).flintOptions()
+    val options = FlintSparkConf(Map("bulkRequestRateLimitPerNode" -> "5").asJava).flintOptions()
     options.getBulkRequestRateLimitPerNode shouldBe 5
   }
 
