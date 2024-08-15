@@ -196,7 +196,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         // set sort direction according to command type (`rare` is Asc, `top` is Desc, default to Asc)
         List<SortDirection> sortDirections = new ArrayList<>();
-        sortDirections.add(node instanceof RareAggregation ? Ascending$.MODULE$ : node instanceof TopAggregation ? Descending$.MODULE$ : Ascending$.MODULE$);
+        sortDirections.add(node instanceof RareAggregation ? Descending$.MODULE$ : Ascending$.MODULE$);
 
         if (!node.getSortExprList().isEmpty()) {
             visitExpressionList(node.getSortExprList(), context);

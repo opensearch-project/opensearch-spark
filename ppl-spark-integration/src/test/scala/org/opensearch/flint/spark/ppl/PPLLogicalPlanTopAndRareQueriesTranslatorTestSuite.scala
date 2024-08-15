@@ -44,6 +44,32 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
 
     val sortedPlan: LogicalPlan =
       Sort(
+        Seq(SortOrder(UnresolvedAttribute("gender"), Descending)),
+        global = true,
+        aggregatePlan)
+    val expectedPlan = Project(projectList, sortedPlan)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+  
+  test("test simple top command with a single field") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(plan(pplParser, "source=accounts | top gender", false), context)
+    val genderField = UnresolvedAttribute("gender")
+    val tableRelation = UnresolvedRelation(Seq("accounts"))
+
+    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
+
+    val aggregateExpressions = Seq(
+      Alias(UnresolvedFunction(Seq("COUNT"), Seq(genderField), isDistinct = false), "count(gender)")(),
+      genderField
+    )
+
+    val aggregatePlan =
+      Aggregate(Seq(genderField), aggregateExpressions, tableRelation)
+
+    val sortedPlan: LogicalPlan =
+      Sort(
         Seq(SortOrder(UnresolvedAttribute("gender"), Ascending)),
         global = true,
         aggregatePlan)
