@@ -65,6 +65,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
     // init SparkContext
     val conf: SparkConf = createSparkConf()
     val dataSource = conf.get(FlintSparkConf.DATA_SOURCE_NAME.key, "unknown")
+
+    if (dataSource == "unknown") {
+      logInfo(FlintSparkConf.DATA_SOURCE_NAME.key + " is not set")
+    }
     // https://github.com/opensearch-project/opensearch-spark/issues/138
     /*
      * To execute queries such as `CREATE SKIPPING INDEX ON my_glue1.default.http_logs_plain (`@timestamp` VALUE_SET) WITH (auto_refresh = true)`,
@@ -102,7 +106,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       val sessionId = getSessionId(conf)
       logInfo(s"sessionId: ${sessionId}")
       val spark = createSparkSession(conf)
-      val sessionManager = instantiateSessionManager(spark, sessionId, resultIndexOption)
+      val sessionManager = instantiateSessionManager(spark, resultIndexOption)
 
       val jobId = envinromentProvider.getEnvVar("SERVERLESS_EMR_JOB_ID", "unknown")
       val applicationId =
@@ -162,8 +166,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
           return
         }
 
-        val statementLifecycleManager =
-          instantiateStatementLifecycleManager(conf, sessionManager.getSessionContext)
         val queryResultWriter =
           instantiateQueryResultWriter(conf, sessionManager.getSessionContext)
         val commandContext = CommandContext(
@@ -172,7 +174,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           sessionId,
           sessionManager,
           jobId,
-          statementLifecycleManager,
+          null, // StatementLifecycleManager will be instantiated inside query loop
           queryResultWriter,
           queryExecutionTimeoutSecs,
           inactivityLimitMillis,
@@ -313,10 +315,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
     var futurePrepareQueryExecution: Future[Either[String, Unit]] = null
     try {
-      futurePrepareQueryExecution = Future {
-        statementLifecycleManager.prepareStatementLifecycle()
-      }
-
       var lastActivityTime = currentTimeProvider.currentEpochMillis()
       var verificationResult: VerificationResult = NotVerified
       var canPickUpNextStatement = true
@@ -324,7 +322,18 @@ object FlintREPL extends Logging with FlintJobExecutor {
       while (currentTimeProvider
           .currentEpochMillis() - lastActivityTime <= commandContext.inactivityLimitMillis && canPickUpNextStatement) {
         logInfo(s"""Executing session with sessionId: ${sessionId}""")
+        val statementsExecutionManager =
+          instantiateStatementsExecutionManager(
+            spark.sparkContext.getConf,
+            sessionId,
+            dataSource,
+            sessionManager.getSessionContext)
 
+        futurePrepareQueryExecution = Future {
+          statementsExecutionManager.prepareStatementExecution()
+        }
+
+        commandContext.statementsExecutionManager = statementsExecutionManager
         try {
           val commandState = CommandState(
             lastActivityTime,
@@ -346,7 +355,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           canPickUpNextStatement = updatedCanPickUpNextStatement
           lastCanPickCheckTime = updatedLastCanPickCheckTime
         } finally {
-          statementLifecycleManager.terminateStatementLifecycle()
+          statementsExecutionManager.terminateStatementsExecution()
         }
 
         Thread.sleep(commandContext.queryLoopExecutionFrequency)
@@ -502,11 +511,11 @@ object FlintREPL extends Logging with FlintJobExecutor {
         earlyExitFlag = true
         canProceed = false
       } else {
-        sessionManager.getNextStatement(sessionId) match {
+        statementsExecutionManager.getNextStatement() match {
           case Some(flintStatement) =>
             flintStatement.running()
             logDebug(s"command running: $flintStatement")
-            statementLifecycleManager.updateStatement(flintStatement)
+            statementsExecutionManager.updateStatement(flintStatement)
             statementRunningCount.incrementAndGet()
 
             val statementTimerContext = getTimerContext(
@@ -556,7 +565,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         CustomLogging.logError(error, e)
         flintStatement.fail()
     } finally {
-      statementLifecycleManager.updateStatement(flintStatement)
+      statementsExecutionManager.updateStatement(flintStatement)
       recordStatementStateChange(flintStatement, statementTimerContext)
     }
   }
@@ -746,7 +755,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
           sessionId,
           false)
       }(executionContext)
-
       // time out after 10 minutes
       ThreadUtils.awaitResult(futureQueryExecution, queryExecutionTimeOut)
     }
@@ -920,16 +928,20 @@ object FlintREPL extends Logging with FlintJobExecutor {
     sessionIdOption.get
   }
 
-  private def instantiate[T](defaultConstructor: => T, className: String): T = {
+  private def instantiate[T](defaultConstructor: => T, className: String, args: Any*): T = {
     if (className.isEmpty) {
       logInfo("Using default constructor")
       defaultConstructor
     } else {
       try {
         val classObject = Utils.classForName(className)
-        val ctor = classObject.getDeclaredConstructor()
+        val ctor = if (args.isEmpty) {
+          classObject.getDeclaredConstructor()
+        } else {
+          classObject.getDeclaredConstructor(args.map(_.getClass.asInstanceOf[Class[_]]): _*)
+        }
         ctor.setAccessible(true)
-        ctor.newInstance().asInstanceOf[T]
+        ctor.newInstance(args.map(_.asInstanceOf[Object]): _*).asInstanceOf[T]
       } catch {
         case e: Exception =>
           throw new RuntimeException(s"Failed to instantiate provider: $className", e)
@@ -939,19 +951,21 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
   private def instantiateSessionManager(
       spark: SparkSession,
-      sessionId: String,
       resultIndexOption: Option[String]): SessionManager = {
     instantiate(
-      new SessionManagerImpl(spark, sessionId, resultIndexOption),
+      new SessionManagerImpl(spark, resultIndexOption),
       spark.sparkContext.getConf.get(FlintSparkConf.CUSTOM_SESSION_MANAGER.key, ""))
   }
 
-  private def instantiateStatementLifecycleManager(
+  private def instantiateStatementsExecutionManager(
       sparkConf: SparkConf,
-      context: Map[String, Any]): StatementLifecycleManager = {
+      sessionId: String,
+      dataSource: String,
+      context: Map[String, Any]): StatementsExecutionManager = {
     instantiate(
-      new StatementLifecycleManagerImpl(context),
-      sparkConf.get(FlintSparkConf.CUSTOM_STATEMENT_MANAGER.key, ""))
+      new StatementsExecutionManagerImpl(sessionId, dataSource, context),
+      sparkConf.get(FlintSparkConf.CUSTOM_STATEMENT_MANAGER.key, ""),
+      sessionId)
   }
 
   private def instantiateQueryResultWriter(

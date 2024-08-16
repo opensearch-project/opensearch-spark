@@ -32,11 +32,6 @@ trait SessionManager {
       updateMode: SessionUpdateMode): Unit
 
   /**
-   * Retrieves the next statement to be executed in a specific session.
-   */
-  def getNextStatement(sessionId: String): Option[FlintStatement]
-
-  /**
    * Records a heartbeat for a specific session to indicate it is still active.
    */
   def recordHeartbeat(sessionId: String): Unit

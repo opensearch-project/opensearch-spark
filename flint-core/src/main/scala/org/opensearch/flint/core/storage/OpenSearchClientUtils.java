@@ -27,11 +27,15 @@ import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.flint.core.RestHighLevelClientWrapper;
 import org.opensearch.flint.core.auth.ResourceBasedAWSRequestSigningApacheInterceptor;
 import org.opensearch.flint.core.http.RetryableHttpAsyncClient;
+import java.util.logging.Logger;
+
 
 /**
  * Utility functions to create {@link IRestHighLevelClient}.
  */
 public class OpenSearchClientUtils {
+  private static final Logger LOG = Logger.getLogger(OpenSearchClientUtils.class.getName());
+
 
   /**
    * Metadata log index name prefix

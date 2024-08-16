@@ -8,16 +8,22 @@ package org.apache.spark.sql
 import org.opensearch.flint.common.model.FlintStatement
 
 /**
- * Trait defining the interface for managing the lifecycle of executing a FlintStatement.
+ * Trait defining the interface for managing FlintStatements executing in a micro-batch within
+ * same session.
  */
-trait StatementLifecycleManager {
+trait StatementsExecutionManager {
 
   /**
-   * Prepares the statement lifecycle.
+   * Prepares execution of each individual statement
    */
-  def prepareStatementLifecycle(): Either[String, Unit]
+  def prepareStatementExecution(): Either[String, Unit]
 
 //  def executeStatement(statement: FlintStatement): DataFrame
+
+  /**
+   * Retrieves the next statement to be executed.
+   */
+  def getNextStatement(): Option[FlintStatement]
 
   /**
    * Updates a specific statement.
@@ -27,5 +33,5 @@ trait StatementLifecycleManager {
   /**
    * Terminates the statement lifecycle.
    */
-  def terminateStatementLifecycle(): Unit
+  def terminateStatementsExecution(): Unit
 }

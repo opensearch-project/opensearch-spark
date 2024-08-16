@@ -12,47 +12,36 @@ import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession}
 import org.opensearch.flint.common.model.InteractiveSession.formats
 import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.storage.FlintReader
-import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SessionUpdateMode.SessionUpdateMode
 import org.apache.spark.sql.flint.config.FlintSparkConf
 
-class SessionManagerImpl(
-    spark: SparkSession,
-    sessionId: String,
-    resultIndexOption: Option[String])
+class SessionManagerImpl(spark: SparkSession, resultIndexOption: Option[String])
     extends SessionManager
     with FlintJobExecutor
     with Logging {
 
   // we don't allow default value for sessionIndex, sessionId and datasource. Throw exception if key not found.
-  val sessionIndex: String = spark.conf.get(FlintSparkConf.REQUEST_INDEX.key)
-  val dataSource: String = spark.conf.get(FlintSparkConf.DATA_SOURCE_NAME.key)
+  val sessionIndex: String = spark.conf.get(FlintSparkConf.REQUEST_INDEX.key, "")
 
   if (sessionIndex.isEmpty) {
     logAndThrow(FlintSparkConf.REQUEST_INDEX.key + " is not set")
   }
+
   if (resultIndexOption.isEmpty) {
     logAndThrow("resultIndex is not set")
-  }
-  if (sessionId.isEmpty) {
-    logAndThrow(FlintSparkConf.SESSION_ID.key + " is not set")
-  }
-  if (dataSource.isEmpty) {
-    logAndThrow(FlintSparkConf.DATA_SOURCE_NAME.key + " is not set")
   }
 
   val osClient = new OSClient(FlintSparkConf().flintOptions())
   val flintSessionIndexUpdater = osClient.createUpdater(sessionIndex)
-  val flintReader: FlintReader = createOpenSearchQueryReader()
 
   override def getSessionContext: Map[String, Any] = {
     Map(
+      "sessionIndex" -> sessionIndex,
       "resultIndex" -> resultIndexOption.get,
       "osClient" -> osClient,
-      "flintSessionIndexUpdater" -> flintSessionIndexUpdater,
-      "flintReader" -> flintReader)
+      "flintSessionIndexUpdater" -> flintSessionIndexUpdater)
   }
 
   override def getSessionDetails(sessionId: String): Option[InteractiveSession] = {
@@ -129,63 +118,10 @@ class SessionManagerImpl(
       s"""Updated job: {"jobid": ${sessionDetails.jobId}, "sessionId": ${sessionDetails.sessionId}} from $sessionIndex""")
   }
 
-  override def getNextStatement(sessionId: String): Option[FlintStatement] = {
-    if (flintReader.hasNext) {
-      val rawStatement = flintReader.next()
-      logInfo(s"raw statement: $rawStatement")
-      val flintStatement = FlintStatement.deserialize(rawStatement)
-      logInfo(s"statement: $flintStatement")
-      Some(flintStatement)
-    } else {
-      None
-    }
-  }
-
   override def recordHeartbeat(sessionId: String): Unit = {
     flintSessionIndexUpdater.upsert(
       sessionId,
       Serialization.write(
         Map("lastUpdateTime" -> currentTimeProvider.currentEpochMillis(), "state" -> "running")))
-  }
-
-  private def createOpenSearchQueryReader() = {
-    // all state in index are in lower case
-    // we only search for statement submitted in the last hour in case of unexpected bugs causing infinite loop in the
-    // same doc
-    val dsl =
-      s"""{
-       |  "bool": {
-       |    "must": [
-       |    {
-       |        "term": {
-       |          "type": "statement"
-       |        }
-       |      },
-       |      {
-       |        "term": {
-       |          "state": "waiting"
-       |        }
-       |      },
-       |      {
-       |        "term": {
-       |          "sessionId": "$sessionId"
-       |        }
-       |      },
-       |      {
-       |        "term": {
-       |          "dataSourceName": "$dataSource"
-       |        }
-       |      },
-       |      {
-       |        "range": {
-       |          "submitTime": { "gte": "now-1h" }
-       |        }
-       |      }
-       |    ]
-       |  }
-       |}""".stripMargin
-
-    val flintReader = osClient.createQueryReader(sessionIndex, dsl, "submitTime", SortOrder.ASC)
-    flintReader
   }
 }
