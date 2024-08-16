@@ -522,6 +522,8 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.datasource.flint.auth.password`: basic auth password.
 - `spark.datasource.flint.region`: default is us-west-2. only been used when auth=sigv4
 - `spark.datasource.flint.customAWSCredentialsProvider`: default is empty.   
+- `spark.datasource.flint.customFlintMetadataLogServiceClass`: default is empty.
+- `spark.datasource.flint.customFlintIndexMetadataServiceClass`: default is empty.
 - `spark.datasource.flint.write.id_name`: no default value.
 - `spark.datasource.flint.ignore.id_column` : default value is true.
 - `spark.datasource.flint.write.batch_size`: "The number of documents written to Flint in a single batch request. Default value is Integer.MAX_VALUE.
