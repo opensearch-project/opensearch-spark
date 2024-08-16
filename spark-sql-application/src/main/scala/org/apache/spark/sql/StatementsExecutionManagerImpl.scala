@@ -14,6 +14,7 @@ import org.apache.spark.sql.FlintJob.{createResultIndex, isSuperset, resultIndex
 import org.apache.spark.sql.FlintREPL.executeQuery
 
 class StatementsExecutionManagerImpl(
+    spark: SparkSession,
     sessionId: String,
     dataSource: String,
     context: Map[String, Any])
@@ -73,9 +74,9 @@ class StatementsExecutionManagerImpl(
     }
   }
 
-  //  override def executeStatement(statement: FlintStatement): DataFrame = {
-//    executeQuery()
-//  }
+  override def executeStatement(statement: FlintStatement): DataFrame = {
+    executeQuery(spark, statement.query, dataSource, statement.queryId, sessionId, false)
+  }
 
   private def createOpenSearchQueryReader() = {
     // all state in index are in lower case

@@ -645,6 +645,8 @@ class FlintREPLTest
     when(mockSparkSession.conf).thenReturn(mockConf)
     when(mockSparkSession.conf.get(FlintSparkConf.JOB_TYPE.key))
       .thenReturn(FlintSparkConf.JOB_TYPE.defaultValue.get)
+
+    val mockStatementsExecutionManager = mock[StatementsExecutionManager]
     // val mockExecutionContextExecutor: ExecutionContextExecutor = mock[ExecutionContextExecutor]
     val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor("flint-repl", 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
@@ -676,6 +678,7 @@ class FlintREPLTest
       val result = FlintREPL.executeAndHandle(
         mockSparkSession,
         flintStatement,
+        mockStatementsExecutionManager,
         dataSource,
         sessionId,
         executionContext,
@@ -698,6 +701,8 @@ class FlintREPLTest
     when(mockSparkSession.conf).thenReturn(mockConf)
     when(mockSparkSession.conf.get(FlintSparkConf.JOB_TYPE.key))
       .thenReturn(FlintSparkConf.JOB_TYPE.defaultValue.get)
+    val mockStatementsExecutionManager = mock[StatementsExecutionManager]
+
     val flintStatement =
       new FlintStatement(
         "Running",
@@ -729,6 +734,7 @@ class FlintREPLTest
       val result = FlintREPL.executeAndHandle(
         mockSparkSession,
         flintStatement,
+        mockStatementsExecutionManager,
         dataSource,
         sessionId,
         executionContext,

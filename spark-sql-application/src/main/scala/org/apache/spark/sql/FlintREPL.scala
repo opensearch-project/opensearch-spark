@@ -324,7 +324,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         logInfo(s"""Executing session with sessionId: ${sessionId}""")
         val statementsExecutionManager =
           instantiateStatementsExecutionManager(
-            spark.sparkContext.getConf,
+            spark,
             sessionId,
             dataSource,
             sessionManager.getSessionContext)
@@ -606,6 +606,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
   def executeAndHandle(
       spark: SparkSession,
       flintStatement: FlintStatement,
+      statementsExecutionManager: StatementsExecutionManager,
       dataSource: String,
       sessionId: String,
       executionContext: ExecutionContextExecutor,
@@ -617,6 +618,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         executeQueryAsync(
           spark,
           flintStatement,
+          statementsExecutionManager: StatementsExecutionManager,
           dataSource,
           sessionId,
           executionContext,
@@ -660,6 +662,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
               dataToWrite = executeAndHandle(
                 spark,
                 flintStatement,
+                statementsExecutionManager,
                 dataSource,
                 sessionId,
                 executionContext,
@@ -715,6 +718,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         dataToWrite = executeAndHandle(
           spark,
           flintStatement,
+          statementsExecutionManager,
           dataSource,
           sessionId,
           executionContext,
@@ -730,6 +734,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
   def executeQueryAsync(
       spark: SparkSession,
       flintStatement: FlintStatement,
+      statementsExecutionManager: StatementsExecutionManager,
       dataSource: String,
       sessionId: String,
       executionContext: ExecutionContextExecutor,
@@ -747,13 +752,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         startTime)
     } else {
       val futureQueryExecution = Future {
-        executeQuery(
-          spark,
-          flintStatement.query,
-          dataSource,
-          flintStatement.queryId,
-          sessionId,
-          false)
+        statementsExecutionManager.executeStatement(flintStatement)
       }(executionContext)
       // time out after 10 minutes
       ThreadUtils.awaitResult(futureQueryExecution, queryExecutionTimeOut)
@@ -958,13 +957,14 @@ object FlintREPL extends Logging with FlintJobExecutor {
   }
 
   private def instantiateStatementsExecutionManager(
-      sparkConf: SparkConf,
+      spark: SparkSession,
       sessionId: String,
       dataSource: String,
       context: Map[String, Any]): StatementsExecutionManager = {
     instantiate(
-      new StatementsExecutionManagerImpl(sessionId, dataSource, context),
-      sparkConf.get(FlintSparkConf.CUSTOM_STATEMENT_MANAGER.key, ""),
+      new StatementsExecutionManagerImpl(spark, sessionId, dataSource, context),
+      spark.sparkContext.getConf.get(FlintSparkConf.CUSTOM_STATEMENT_MANAGER.key, ""),
+      spark,
       sessionId)
   }
 

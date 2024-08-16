@@ -18,7 +18,10 @@ trait StatementsExecutionManager {
    */
   def prepareStatementExecution(): Either[String, Unit]
 
-//  def executeStatement(statement: FlintStatement): DataFrame
+  /**
+   * Executes a specific statement and returns the spark dataframe
+   */
+  def executeStatement(statement: FlintStatement): DataFrame
 
   /**
    * Retrieves the next statement to be executed.
