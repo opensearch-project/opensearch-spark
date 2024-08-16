@@ -33,7 +33,7 @@ public class OpenSearchClientUtils {
   /**
    * Metadata log index name prefix
    */
-  public final static String META_LOG_NAME_PREFIX = "query_execution_request";
+  public final static String META_LOG_NAME_PREFIX = ".query_execution_request";
 
   /**
    * Used in IT.
