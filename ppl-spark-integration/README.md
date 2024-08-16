@@ -252,7 +252,7 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
  - `source = table | eval n = now() | eval t = unix_timestamp(a) | fields n,t`
  - `source = table | eval f = a | where f > 1 | sort f | fields a,b,c | head 5`
  - `source = table | eval f = a * 2 | eval h = f * 2 | fields a,f,h`
- - `source = table | eval f = a * 2, h = f * 2 | fields a,f,h` (Spark 3.4.0+ required)
+ - `source = table | eval f = a * 2, h = f * 2 | fields a,f,h`
  - `source = table | eval f = a * 2, h = b | stats avg(f) by h`
 
 Limitation: Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous" 
@@ -275,9 +275,23 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source = table | stats sum(productsAmount) by span(transactionDate, 1d) as age_date | sort age_date`
 - `source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date, productId`
 
----
+**Dedup**
+
+- `source = table | dedup a | fields a,b,c`
+- `source = table | dedup a,b | fields a,b,c`
+- `source = table | dedup a keepempty=true | fields a,b,c`
+- `source = table | dedup a,b keepempty=true | fields a,b,c`
+- `source = table | dedup 1 a | fields a,b,c`
+- `source = table | dedup 1 a,b | fields a,b,c`
+- `source = table | dedup 1 a keepempty=true | fields a,b,c`
+- `source = table | dedup 1 a,b keepempty=true | fields a,b,c`
+- `source = table | dedup 1 a consecutive=true| fields a,b,c` (Unsupported)
+- `source = table | dedup 2 a | fields a,b,c` (Unsupported)
+
 
 For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
+
+---
 
 For additional details on Spark PPL commands project, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
 For additional details on Spark PPL commands support campaign, see [PPL Commands Campaign](https://github.com/opensearch-project/opensearch-spark/issues/408)
@@ -287,3 +301,5 @@ For additional details on Spark PPL commands support campaign, see [PPL Commands
 
 > This is an experimental command - it may be removed in future versions
 
+
+ 

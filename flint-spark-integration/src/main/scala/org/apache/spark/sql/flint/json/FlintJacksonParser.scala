@@ -118,7 +118,8 @@ class FlintJacksonParser(
             array.toArray[InternalRow](schema)
           }
         case START_ARRAY =>
-          throw QueryExecutionErrors.cannotParseJsonArraysAsStructsError()
+          throw QueryExecutionErrors.cannotParseJsonArraysAsStructsError(
+            parser.currentToken().asString())
       }
   }
 
@@ -420,17 +421,17 @@ class FlintJacksonParser(
     case VALUE_STRING if parser.getTextLength < 1 && allowEmptyString =>
       dataType match {
         case FloatType | DoubleType | TimestampType | DateType =>
-          throw QueryExecutionErrors.failToParseEmptyStringForDataTypeError(dataType)
+          throw QueryExecutionErrors.emptyJsonFieldValueError(dataType)
         case _ => null
       }
 
     case VALUE_STRING if parser.getTextLength < 1 =>
-      throw QueryExecutionErrors.failToParseEmptyStringForDataTypeError(dataType)
+      throw QueryExecutionErrors.emptyJsonFieldValueError(dataType)
 
     case token =>
       // We cannot parse this token based on the given data type. So, we throw a
       // RuntimeException and this exception will be caught by `parse` method.
-      throw QueryExecutionErrors.failToParseValueForDataTypeError(parser, token, dataType)
+      throw QueryExecutionErrors.cannotParseJSONFieldError(parser, token, dataType)
   }
 
   /**
@@ -537,7 +538,7 @@ class FlintJacksonParser(
         // JSON parser currently doesn't support partial results for corrupted records.
         // For such records, all fields other than the field configured by
         // `columnNameOfCorruptRecord` are set to `null`.
-        throw BadRecordException(() => recordLiteral(record), () => None, e)
+        throw BadRecordException(() => recordLiteral(record), cause = e)
       case e: CharConversionException if options.encoding.isEmpty =>
         val msg =
           """JSON parser cannot handle a character in its input.
@@ -545,11 +546,11 @@ class FlintJacksonParser(
             |""".stripMargin + e.getMessage
         val wrappedCharException = new CharConversionException(msg)
         wrappedCharException.initCause(e)
-        throw BadRecordException(() => recordLiteral(record), () => None, wrappedCharException)
+        throw BadRecordException(() => recordLiteral(record), cause = wrappedCharException)
       case PartialResultException(row, cause) =>
         throw BadRecordException(
           record = () => recordLiteral(record),
-          partialResult = () => Some(row),
+          partialResults = () => Array(row),
           cause)
     }
   }
