@@ -6,6 +6,7 @@ import dev.failsafe.RetryPolicy;
 import dev.failsafe.function.CheckedPredicate;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import org.opensearch.action.DocWriteRequest;
 import org.opensearch.action.bulk.BulkItemResponse;
@@ -26,10 +27,18 @@ public class OpenSearchBulkRetryWrapper {
     this.retryPolicy = retryOptions.getBulkRetryPolicy(bulkItemErrorResultPredicate);
   }
 
+  /**
+   * Delegate bulk request to the client, and retry the request if the response contains retryable
+   * failure. It won't retry when bulk call thrown exception.
+   * @param client used to call bulk API
+   * @param bulkRequest requests passed to bulk method
+   * @param options options passed to bulk method
+   * @return Last result
+   */
   public BulkResponse bulkWithPartialRetry(RestHighLevelClient client, BulkRequest bulkRequest,
       RequestOptions options) {
     try {
-      final Holder<BulkRequest> nextRequest = new Holder<>(bulkRequest);
+      final AtomicReference<BulkRequest> nextRequest = new AtomicReference<>(bulkRequest);
       return Failsafe
           .with(retryPolicy)
           .get(() -> {
@@ -44,26 +53,7 @@ public class OpenSearchBulkRetryWrapper {
       LOG.severe("Request failed permanently. Re-throwing original exception.");
 
       // unwrap original exception and throw
-      Throwable cause = ex.getCause();
-      throw new RuntimeException(cause);
-    }
-  }
-
-  // Holder class to let lambda expression update next BulkRequest
-  private static class Holder<T> {
-
-    private T item;
-
-    public Holder(T item) {
-      this.item = item;
-    }
-
-    public T get() {
-      return item;
-    }
-
-    public void set(T item) {
-      this.item = item;
+      throw new RuntimeException(ex.getCause());
     }
   }
 
