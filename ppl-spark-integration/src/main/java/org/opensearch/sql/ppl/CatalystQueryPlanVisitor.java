@@ -130,7 +130,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     new DescribeTableCommand(
                             identifier,
                             scala.collection.immutable.Map$.MODULE$.<String, String>empty(),
-                            false,
+                            true,
                             DescribeRelation$.MODULE$.getOutputAttrs()));
         }
         //regular sql algebraic relations 

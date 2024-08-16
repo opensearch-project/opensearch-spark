@@ -47,7 +47,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val expectedPlan = DescribeTableCommand(
       TableIdentifier("t"),
       Map.empty[String, String],
-      isExtended = false,
+      isExtended = true,
       output = DescribeRelation.getOutputAttrs)
     comparePlans(expectedPlan, logPlan, false)
   }
@@ -60,7 +60,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val expectedPlan = DescribeTableCommand(
       TableIdentifier("t", Option("catalog")),
       Map.empty[String, String].empty,
-      isExtended = false,
+      isExtended = true,
       output = DescribeRelation.getOutputAttrs)
     comparePlans(expectedPlan, logPlan, false)
   }
