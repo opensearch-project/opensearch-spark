@@ -193,7 +193,7 @@ object FlintSparkConf {
       .doc("data source name")
       .createOptional()
   val CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS =
-    FlintConfig(s"spark.datasource.flint.${FlintOptions.CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS}")
+    FlintConfig(FlintOptions.CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS)
       .datasourceOption()
       .doc("custom Flint metadata log service class")
       .createOptional()

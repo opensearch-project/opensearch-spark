@@ -95,7 +95,7 @@ public class FlintOptions implements Serializable {
 
   public static final String DEFAULT_BATCH_BYTES = "1mb";
 
-  public static final String CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS = "customFlintMetadataLogServiceClass";
+  public static final String CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS = "spark.datasource.flint.customFlintMetadataLogServiceClass";
 
   public static final String SUPPORT_SHARD = "read.support_shard";
 
