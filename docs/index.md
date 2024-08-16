@@ -521,13 +521,13 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.datasource.flint.auth.username`: basic auth username.
 - `spark.datasource.flint.auth.password`: basic auth password.
 - `spark.datasource.flint.region`: default is us-west-2. only been used when auth=sigv4
-- `spark.datasource.flint.customAWSCredentialsProvider`: default is empty.   
+- `spark.datasource.flint.customAWSCredentialsProvider`: default is empty.
 - `spark.datasource.flint.write.id_name`: no default value.
 - `spark.datasource.flint.ignore.id_column` : default value is true.
 - `spark.datasource.flint.write.batch_size`: "The number of documents written to Flint in a single batch request. Default value is Integer.MAX_VALUE.
 - `spark.datasource.flint.write.batch_bytes`: The approximately amount of data in bytes written to Flint in a single batch request. The actual data write to OpenSearch may more than it. Default value is 1mb. The writing process checks after each document whether the total number of documents (docCount) has reached batch_size or the buffer size has surpassed batch_bytes. If either condition is met, the current batch is flushed and the document count resets to zero.
 - `spark.datasource.flint.write.refresh_policy`: default value is false. valid values [NONE(false), IMMEDIATE(true), WAIT_UNTIL(wait_for)]
-- `spark.datasource.flint.write.bulkRequestRateLimitPerNode`: default value is 0, which disables rate limit.
+- `spark.datasource.flint.write.bulkRequestRateLimitPerNode`: Rate limit(request/sec) for bulk request per worker node. Only accept integer value. To reduce the traffic less than 1 req/sec, batch_bytes or batch_size should be reduced. Default value is 0, which disables rate limit.
 - `spark.datasource.flint.read.scroll_size`: default value is 100.
 - `spark.datasource.flint.read.scroll_duration`: default value is 5 minutes. scroll context keep alive duration.
 - `spark.datasource.flint.retry.max_retries`: max retries on failed HTTP request. default value is 3. Use 0 to disable retry.
