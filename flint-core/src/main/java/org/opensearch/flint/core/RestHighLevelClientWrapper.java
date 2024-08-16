@@ -38,6 +38,7 @@ import org.opensearch.client.transport.rest_client.RestClientTransport;
 
 import java.io.IOException;
 import org.opensearch.flint.core.storage.BulkRequestRateLimiter;
+import org.opensearch.flint.core.storage.OpenSearchBulkRetryWrapper;
 
 import static org.opensearch.flint.core.metrics.MetricConstants.OS_READ_OP_METRIC_PREFIX;
 import static org.opensearch.flint.core.metrics.MetricConstants.OS_WRITE_OP_METRIC_PREFIX;
@@ -49,6 +50,7 @@ import static org.opensearch.flint.core.metrics.MetricConstants.OS_WRITE_OP_METR
 public class RestHighLevelClientWrapper implements IRestHighLevelClient {
     private final RestHighLevelClient client;
     private final BulkRequestRateLimiter rateLimiter;
+    private final OpenSearchBulkRetryWrapper bulkRetryWrapper;
 
     private final static JacksonJsonpMapper JACKSON_MAPPER = new JacksonJsonpMapper();
 
@@ -57,9 +59,10 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
      *
      * @param client the RestHighLevelClient instance to wrap
      */
-    public RestHighLevelClientWrapper(RestHighLevelClient client, BulkRequestRateLimiter rateLimiter) {
+    public RestHighLevelClientWrapper(RestHighLevelClient client, BulkRequestRateLimiter rateLimiter, OpenSearchBulkRetryWrapper bulkRetryWrapper) {
         this.client = client;
         this.rateLimiter = rateLimiter;
+        this.bulkRetryWrapper = bulkRetryWrapper;
     }
 
     @Override
@@ -67,7 +70,7 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
       return execute(OS_WRITE_OP_METRIC_PREFIX, () -> {
         try {
           rateLimiter.acquirePermit();
-          return client.bulk(bulkRequest, options);
+          return bulkRetryWrapper.withRetry(() -> client.bulk(bulkRequest, options));
         } catch (InterruptedException e) {
           throw new RuntimeException("rateLimiter.acquirePermit was interrupted.", e);
         }
