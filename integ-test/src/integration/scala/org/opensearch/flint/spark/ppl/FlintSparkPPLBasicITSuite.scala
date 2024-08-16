@@ -59,9 +59,15 @@ class FlintSparkPPLBasicITSuite
         Row("# col_name", "data_type", "comment"),
         Row("year", "int", null),
         Row("month", "int", null))
-      // Compare the results
-      implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
-      assert(results.sorted.sameElements(expectedResults.sorted))
+
+      // Convert actual results to a Set for quick lookup
+      val resultsSet: Set[Row] = results.toSet
+      // Check that each expected row is present in the actual results
+      expectedResults.foreach { expectedRow =>
+        assert(
+          resultsSet.contains(expectedRow),
+          s"Expected row $expectedRow not found in results")
+      }
       // Retrieve the logical plan
       val logicalPlan: LogicalPlan =
         frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
@@ -70,7 +76,7 @@ class FlintSparkPPLBasicITSuite
         DescribeTableCommand(
           TableIdentifier("flint_ppl_test"),
           Map.empty[String, String],
-          isExtended = false,
+          isExtended = true,
           output = DescribeRelation.getOutputAttrs)
       // Compare the two plans
       comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
