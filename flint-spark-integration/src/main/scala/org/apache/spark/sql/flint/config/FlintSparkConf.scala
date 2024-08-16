@@ -139,7 +139,7 @@ object FlintSparkConf {
   val BULK_REQUEST_RATE_LIMIT_PER_NODE =
     FlintConfig(s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE}")
       .datasourceOption()
-      .doc("Rate limit (requests/sec) for bulk request per worker node. Rate won't be limited by default")
+      .doc("[Experimental] Rate limit (requests/sec) for bulk request per worker node. Rate won't be limited by default")
       .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE)
 
   val RETRYABLE_HTTP_STATUS_CODES =
