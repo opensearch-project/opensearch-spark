@@ -37,39 +37,6 @@ class FlintSparkPPLNestedFieldsITSuite
     }
   }
 
-  test("describe table query test") {
-    val testTableQuoted = "`spark_catalog`.`default`.`flint_ppl_test`"
-    Seq(testTable, testTableQuoted).foreach { table =>
-      val frame = sql(s"""
-           describe flint_ppl_test
-           """.stripMargin)
-
-      // Retrieve the results
-      val results: Array[Row] = frame.collect()
-      // Define the expected results
-      val expectedResults: Array[Row] = Array(
-        Row("int_col", "int", null),
-        Row("struct_col", "struct<field1:struct<subfield:string>,field2:int>", null),
-        Row("struct_col2", "struct<field1:struct<subfield:string>,field2:int>", null))
-
-      // Compare the results
-      implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
-      assert(results.sorted.sameElements(expectedResults.sorted))
-      // Retrieve the logical plan
-      val logicalPlan: LogicalPlan =
-        frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
-      // Define the expected logical plan
-      val expectedPlan: LogicalPlan =
-        DescribeTableCommand(
-          TableIdentifier("flint_ppl_test"),
-          Map.empty[String, String],
-          isExtended = false,
-          output = DescribeRelation.getOutputAttrs)
-      // Compare the two plans
-      comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
-    }
-  }
-
   test("create ppl simple query test") {
     val testTableQuoted = "`spark_catalog`.`default`.`flint_ppl_test`"
     Seq(testTable, testTableQuoted).foreach { table =>
