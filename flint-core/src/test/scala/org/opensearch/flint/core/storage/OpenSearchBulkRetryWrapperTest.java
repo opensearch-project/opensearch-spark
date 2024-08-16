@@ -2,12 +2,13 @@ package org.opensearch.flint.core.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Map;
-import java.util.concurrent.Callable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -16,7 +17,10 @@ import org.opensearch.action.DocWriteRequest.OpType;
 import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.bulk.BulkItemResponse;
 import org.opensearch.action.bulk.BulkItemResponse.Failure;
+import org.opensearch.action.bulk.BulkRequest;
 import org.opensearch.action.bulk.BulkResponse;
+import org.opensearch.client.RequestOptions;
+import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.flint.core.http.FlintRetryOptions;
 import org.opensearch.rest.RestStatus;
 
@@ -24,9 +28,15 @@ import org.opensearch.rest.RestStatus;
 class OpenSearchBulkRetryWrapperTest {
 
   @Mock
-  BulkResponse bulkResponse;
+  BulkRequest bulkRequest;
   @Mock
-  Callable<BulkResponse> callable;
+  RequestOptions options;
+  @Mock
+  BulkResponse successResponse;
+  @Mock
+  BulkResponse failureResponse;
+  @Mock
+  RestHighLevelClient client;
   @Mock
   DocWriteResponse docWriteResponse;
   BulkItemResponse successItem = new BulkItemResponse(0, OpType.CREATE, docWriteResponse);
@@ -42,58 +52,73 @@ class OpenSearchBulkRetryWrapperTest {
   public void withRetryWhenCallSucceed() throws Exception {
     OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
         retryOptionsWithRetry);
-    when(callable.call()).thenReturn(bulkResponse);
-    when(bulkResponse.hasFailures()).thenReturn(false);
+    when(client.bulk(bulkRequest, options)).thenReturn(successResponse);
+    when(successResponse.hasFailures()).thenReturn(false);
 
-    BulkResponse response = bulkRetryWrapper.withRetry(callable);
+    BulkResponse response = bulkRetryWrapper.bulkWithPartialRetry(client, bulkRequest, options);
 
-    assertEquals(response, bulkResponse);
-    verify(callable).call();
+    assertEquals(response, successResponse);
+    verify(client).bulk(bulkRequest, options);
   }
 
   @Test
   public void withRetryWhenCallFailOnce() throws Exception {
     OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
         retryOptionsWithRetry);
-    when(callable.call())
-        .thenReturn(bulkResponse)
-        .thenReturn(bulkResponse);
-    when(bulkResponse.hasFailures())
-        .thenReturn(true)
-        .thenReturn(false);
-    when(bulkResponse.getItems())
-        .thenReturn(new BulkItemResponse[]{successItem, failureItem})
-        .thenReturn(new BulkItemResponse[]{successItem, successItem});
+    when(client.bulk(any(), eq(options)))
+        .thenReturn(failureResponse)
+        .thenReturn(successResponse);
+    mockFailureResponse();
+    when(successResponse.hasFailures()).thenReturn(false);
 
-    BulkResponse response = bulkRetryWrapper.withRetry(callable);
+    BulkResponse response = bulkRetryWrapper.bulkWithPartialRetry(client, bulkRequest, options);
 
-    assertEquals(response, bulkResponse);
-    verify(callable, times(2)).call();
+    assertEquals(response, successResponse);
+    verify(client, times(2)).bulk(any(), eq(options));
+  }
+
+  @Test
+  public void withRetryWhenAllCallFail() throws Exception {
+    OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
+        retryOptionsWithRetry);
+    when(client.bulk(any(), eq(options)))
+        .thenReturn(failureResponse);
+    mockFailureResponse();
+
+    BulkResponse response = bulkRetryWrapper.bulkWithPartialRetry(client, bulkRequest, options);
+
+    assertEquals(response, failureResponse);
+    verify(client, times(3)).bulk(any(), eq(options));
   }
 
   @Test
   public void withRetryWhenCallThrowsShouldNotRetry() throws Exception {
     OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
         retryOptionsWithRetry);
-    when(callable.call()).thenThrow(new RuntimeException("test"));
+    when(client.bulk(bulkRequest, options)).thenThrow(new RuntimeException("test"));
 
-    assertThrows(RuntimeException.class, () -> bulkRetryWrapper.withRetry(callable));
+    assertThrows(RuntimeException.class,
+        () -> bulkRetryWrapper.bulkWithPartialRetry(client, bulkRequest, options));
 
-    verify(callable, times(1)).call();
+    verify(client).bulk(bulkRequest, options);
   }
 
   @Test
   public void withoutRetryWhenCallFail() throws Exception {
     OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
         retryOptionsWithoutRetry);
-    when(callable.call()).thenReturn(bulkResponse);
-    when(bulkResponse.hasFailures()).thenReturn(true);
-    when(bulkResponse.getItems())
-        .thenReturn(new BulkItemResponse[]{successItem, failureItem});
+    when(client.bulk(bulkRequest, options))
+        .thenReturn(failureResponse);
+    mockFailureResponse();
 
-    BulkResponse response = bulkRetryWrapper.withRetry(callable);
+    BulkResponse response = bulkRetryWrapper.bulkWithPartialRetry(client, bulkRequest, options);
 
-    assertEquals(response, bulkResponse);
-    verify(callable).call();
+    assertEquals(response, failureResponse);
+    verify(client).bulk(bulkRequest, options);
+  }
+
+  private void mockFailureResponse() {
+    when(failureResponse.hasFailures()).thenReturn(true);
+    when(failureResponse.getItems()).thenReturn(new BulkItemResponse[]{successItem, failureItem});
   }
 }

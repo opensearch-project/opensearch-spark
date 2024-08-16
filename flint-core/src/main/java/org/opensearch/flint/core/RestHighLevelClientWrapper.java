@@ -70,7 +70,7 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
       return execute(OS_WRITE_OP_METRIC_PREFIX, () -> {
         try {
           rateLimiter.acquirePermit();
-          return bulkRetryWrapper.withRetry(() -> client.bulk(bulkRequest, options));
+          return bulkRetryWrapper.bulkWithPartialRetry(client, bulkRequest, options);
         } catch (InterruptedException e) {
           throw new RuntimeException("rateLimiter.acquirePermit was interrupted.", e);
         }

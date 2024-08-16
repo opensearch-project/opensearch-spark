@@ -5,11 +5,14 @@ import dev.failsafe.FailsafeException;
 import dev.failsafe.RetryPolicy;
 import dev.failsafe.function.CheckedPredicate;
 import java.util.Arrays;
-import java.util.concurrent.Callable;
+import java.util.List;
 import java.util.logging.Logger;
 import org.opensearch.action.DocWriteRequest;
 import org.opensearch.action.bulk.BulkItemResponse;
+import org.opensearch.action.bulk.BulkRequest;
 import org.opensearch.action.bulk.BulkResponse;
+import org.opensearch.client.RequestOptions;
+import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.flint.core.http.FlintRetryOptions;
 import org.opensearch.rest.RestStatus;
 
@@ -23,40 +26,91 @@ public class OpenSearchBulkRetryWrapper {
     this.retryPolicy = retryOptions.getBulkRetryPolicy(bulkItemErrorResultPredicate);
   }
 
-  public BulkResponse withRetry(Callable<BulkResponse> operation) {
+  public BulkResponse bulkWithPartialRetry(RestHighLevelClient client, BulkRequest bulkRequest,
+      RequestOptions options) {
     try {
+      final Holder<BulkRequest> nextRequest = new Holder<>(bulkRequest);
       return Failsafe
           .with(retryPolicy)
-          .get(operation::call);
+          .get(() -> {
+            BulkResponse response = client.bulk(nextRequest.get(), options);
+            if (retryPolicy.getConfig().allowsRetries() && bulkItemErrorResultPredicate.test(
+                response)) {
+              nextRequest.set(getRetryableRequest(nextRequest.get(), response));
+            }
+            return response;
+          });
     } catch (FailsafeException ex) {
       LOG.severe("Request failed permanently. Re-throwing original exception.");
 
-      // Failsafe will wrap checked exception, such as ExecutionException
-      // So here we have to unwrap failsafe exception and rethrow it
+      // unwrap original exception and throw
       Throwable cause = ex.getCause();
       throw new RuntimeException(cause);
     }
   }
 
-  /** A predicate to decide if a BulkResponse is retryable or not. */
-  private static final CheckedPredicate<BulkResponse> bulkItemErrorResultPredicate = new CheckedPredicate<>() {
-    public boolean test(BulkResponse bulkResponse) {
-      return bulkResponse.hasFailures() && isRetryable(bulkResponse);
+  // Holder class to let lambda expression update next BulkRequest
+  private static class Holder<T> {
+
+    private T item;
+
+    public Holder(T item) {
+      this.item = item;
     }
 
-    private boolean isRetryable(BulkResponse bulkResponse) {
-      if (Arrays.stream(bulkResponse.getItems())
-          .anyMatch(itemResp -> !isCreateConflict(itemResp))) {
-        LOG.info("Found retryable failure in the bulk response");
-        return true;
+    public T get() {
+      return item;
+    }
+
+    public void set(T item) {
+      this.item = item;
+    }
+  }
+
+  private BulkRequest getRetryableRequest(BulkRequest request, BulkResponse response) {
+    List<DocWriteRequest<?>> bulkItemRequests = request.requests();
+    BulkItemResponse[] bulkItemResponses = response.getItems();
+    BulkRequest nextRequest = new BulkRequest()
+        .setRefreshPolicy(request.getRefreshPolicy());
+    nextRequest.setParentTask(request.getParentTask());
+    for (int i = 0; i < bulkItemRequests.size(); i++) {
+      if (isItemRetryable(bulkItemResponses[i])) {
+        verifyIdMatch(bulkItemRequests.get(i), bulkItemResponses[i]);
+        nextRequest.add(bulkItemRequests.get(i));
       }
-      return false;
     }
+    LOG.info(String.format("Added %d requests to nextRequest", nextRequest.requests().size()));
+    return nextRequest;
+  }
 
-    private boolean isCreateConflict(BulkItemResponse itemResp) {
-      return itemResp.getOpType() == DocWriteRequest.OpType.CREATE && (itemResp.getFailure() == null
-          || itemResp.getFailure()
-          .getStatus() == RestStatus.CONFLICT);
+  private static void verifyIdMatch(DocWriteRequest<?> request, BulkItemResponse response) {
+    if (request.id() != null && !request.id().equals(response.getId())) {
+      throw new RuntimeException("id doesn't match: " + request.id() + " / " + response.getId());
     }
-  };
+  }
+
+  private static boolean isRetryable(BulkResponse bulkResponse) {
+    if (Arrays.stream(bulkResponse.getItems())
+        .anyMatch(itemResp -> !isCreateConflict(itemResp))) {
+      LOG.info("Found retryable failure in the bulk response");
+      return true;
+    }
+    return false;
+  }
+
+  private static boolean isItemRetryable(BulkItemResponse itemResponse) {
+    return itemResponse.isFailed() && !isCreateConflict(itemResponse);
+  }
+
+  private static boolean isCreateConflict(BulkItemResponse itemResp) {
+    return itemResp.getOpType() == DocWriteRequest.OpType.CREATE && (itemResp.getFailure() == null
+        || itemResp.getFailure()
+        .getStatus() == RestStatus.CONFLICT);
+  }
+
+  /**
+   * A predicate to decide if a BulkResponse is retryable or not.
+   */
+  private static final CheckedPredicate<BulkResponse> bulkItemErrorResultPredicate = bulkResponse ->
+      bulkResponse.hasFailures() && isRetryable(bulkResponse);
 }
