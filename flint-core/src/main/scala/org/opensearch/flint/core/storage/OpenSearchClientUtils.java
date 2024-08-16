@@ -68,7 +68,8 @@ public class OpenSearchClientUtils {
   }
 
   public static IRestHighLevelClient createClient(FlintOptions options) {
-    return new RestHighLevelClientWrapper(createRestHighLevelClient(options));
+    return new RestHighLevelClientWrapper(createRestHighLevelClient(options),
+        BulkRequestRateLimiterHolder.getBulkRequestRateLimiter(options));
   }
 
   /**
