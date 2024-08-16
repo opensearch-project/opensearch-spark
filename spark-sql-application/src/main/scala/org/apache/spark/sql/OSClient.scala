@@ -121,7 +121,6 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
         case Success(response) =>
           IRestHighLevelClient.recordOperationSuccess(
             MetricConstants.REQUEST_METADATA_READ_METRIC_PREFIX)
-          logInfo(response.toString)
           response
         case Failure(e: Exception) =>
           IRestHighLevelClient.recordOperationFailure(

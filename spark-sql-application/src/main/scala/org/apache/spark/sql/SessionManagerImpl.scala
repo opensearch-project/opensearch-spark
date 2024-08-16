@@ -22,19 +22,19 @@ class SessionManagerImpl(spark: SparkSession, resultIndexOption: Option[String])
     with FlintJobExecutor
     with Logging {
 
-  // we don't allow default value for sessionIndex, sessionId and datasource. Throw exception if key not found.
-  val sessionIndex: String = spark.conf.get(FlintSparkConf.REQUEST_INDEX.key, "")
+  if (resultIndexOption.isEmpty) {
+    logAndThrow("resultIndex is not set")
+  }
+
+  // we don't allow default value for sessionIndex. Throw exception if key not found.
+  private val sessionIndex: String = spark.conf.get(FlintSparkConf.REQUEST_INDEX.key, "")
 
   if (sessionIndex.isEmpty) {
     logAndThrow(FlintSparkConf.REQUEST_INDEX.key + " is not set")
   }
 
-  if (resultIndexOption.isEmpty) {
-    logAndThrow("resultIndex is not set")
-  }
-
-  val osClient = new OSClient(FlintSparkConf().flintOptions())
-  val flintSessionIndexUpdater = osClient.createUpdater(sessionIndex)
+  private val osClient = new OSClient(FlintSparkConf().flintOptions())
+  private val flintSessionIndexUpdater = osClient.createUpdater(sessionIndex)
 
   override def getSessionContext: Map[String, Any] = {
     Map(

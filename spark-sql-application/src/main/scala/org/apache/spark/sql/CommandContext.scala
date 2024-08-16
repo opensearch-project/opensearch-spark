@@ -16,7 +16,7 @@ case class CommandContext(
     val sessionId: String,
     val sessionManager: SessionManager,
     val jobId: String,
-    var statementsExecutionManager: StatementsExecutionManager,
+    var statementsExecutionManager: StatementExecutionManager,
     val queryResultWriter: QueryResultWriter,
     val queryExecutionTimeout: Duration,
     val inactivityLimitMillis: Long,

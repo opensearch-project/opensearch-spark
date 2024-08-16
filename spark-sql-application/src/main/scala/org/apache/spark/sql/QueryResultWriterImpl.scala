@@ -12,8 +12,8 @@ import org.apache.spark.sql.FlintJob.writeDataFrameToOpensearch
 
 class QueryResultWriterImpl(context: Map[String, Any]) extends QueryResultWriter with Logging {
 
-  val resultIndex = context("resultIndex").asInstanceOf[String]
-  val osClient = context("osClient").asInstanceOf[OSClient]
+  private val resultIndex = context("resultIndex").asInstanceOf[String]
+  private val osClient = context("osClient").asInstanceOf[OSClient]
 
   override def writeDataFrame(dataFrame: DataFrame, flintStatement: FlintStatement): Unit = {
     writeDataFrameToOpensearch(dataFrame, resultIndex, osClient)

@@ -16,13 +16,12 @@ import org.opensearch.common.xcontent.XContentType
 import org.opensearch.testcontainers.OpenSearchContainer
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.flint.config.FlintSparkConf.{HOST_ENDPOINT, HOST_PORT, IGNORE_DOC_ID_COLUMN, REFRESH_POLICY}
 
 /**
  * Test required OpenSearch domain should extend OpenSearchSuite.
  */
-trait OpenSearchSuite extends BeforeAndAfterAll with Logging {
+trait OpenSearchSuite extends BeforeAndAfterAll {
   self: Suite =>
 
   protected lazy val container = new OpenSearchContainer()
@@ -146,7 +145,6 @@ trait OpenSearchSuite extends BeforeAndAfterAll with Logging {
 
       val response =
         openSearchClient.bulk(request, RequestOptions.DEFAULT)
-      logInfo(response.toString)
       assume(
         !response.hasFailures,
         s"bulk index docs to $index failed: ${response.buildFailureMessage()}")

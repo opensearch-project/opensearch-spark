@@ -8,10 +8,12 @@ package org.apache.spark.sql
 import org.opensearch.flint.common.model.FlintStatement
 
 /**
- * Trait defining the interface for managing FlintStatements executing in a micro-batch within
- * same session.
+ * Trait defining the interface for managing FlintStatement execution. For example, in FlintREPL,
+ * multiple FlintStatements are running in a micro-batch within same session.
+ *
+ * This interface can also apply to other spark entry point like FlintJob.
  */
-trait StatementsExecutionManager {
+trait StatementExecutionManager {
 
   /**
    * Prepares execution of each individual statement

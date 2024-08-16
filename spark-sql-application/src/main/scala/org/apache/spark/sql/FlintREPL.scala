@@ -64,10 +64,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
     // init SparkContext
     val conf: SparkConf = createSparkConf()
-    val dataSource = conf.get(FlintSparkConf.DATA_SOURCE_NAME.key, "unknown")
+    val dataSource = conf.get(FlintSparkConf.DATA_SOURCE_NAME.key, "")
 
-    if (dataSource == "unknown") {
-      logInfo(FlintSparkConf.DATA_SOURCE_NAME.key + " is not set")
+    if (dataSource.trim.isEmpty) {
+      logAndThrow(FlintSparkConf.DATA_SOURCE_NAME.key + " is not set or is empty")
     }
     // https://github.com/opensearch-project/opensearch-spark/issues/138
     /*
@@ -323,7 +323,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           .currentEpochMillis() - lastActivityTime <= commandContext.inactivityLimitMillis && canPickUpNextStatement) {
         logInfo(s"""Executing session with sessionId: ${sessionId}""")
         val statementsExecutionManager =
-          instantiateStatementsExecutionManager(
+          instantiateStatementExecutionManager(
             spark,
             sessionId,
             dataSource,
@@ -514,7 +514,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
         statementsExecutionManager.getNextStatement() match {
           case Some(flintStatement) =>
             flintStatement.running()
-            logDebug(s"command running: $flintStatement")
             statementsExecutionManager.updateStatement(flintStatement)
             statementRunningCount.incrementAndGet()
 
@@ -606,7 +605,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
   def executeAndHandle(
       spark: SparkSession,
       flintStatement: FlintStatement,
-      statementsExecutionManager: StatementsExecutionManager,
+      statementsExecutionManager: StatementExecutionManager,
       dataSource: String,
       sessionId: String,
       executionContext: ExecutionContextExecutor,
@@ -618,7 +617,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
         executeQueryAsync(
           spark,
           flintStatement,
-          statementsExecutionManager: StatementsExecutionManager,
+          statementsExecutionManager: StatementExecutionManager,
           dataSource,
           sessionId,
           executionContext,
@@ -734,7 +733,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
   def executeQueryAsync(
       spark: SparkSession,
       flintStatement: FlintStatement,
-      statementsExecutionManager: StatementsExecutionManager,
+      statementsExecutionManager: StatementExecutionManager,
       dataSource: String,
       sessionId: String,
       executionContext: ExecutionContextExecutor,
@@ -919,12 +918,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
     result.getOrElse(throw new RuntimeException("Failed after retries"))
   }
 
-  private def getSessionId(conf: SparkConf): String = {
-    val sessionIdOption: Option[String] = Option(conf.get(FlintSparkConf.SESSION_ID.key, null))
-    if (sessionIdOption.isEmpty) {
-      logAndThrow(FlintSparkConf.SESSION_ID.key + " is not set")
+  def getSessionId(conf: SparkConf): String = {
+    conf.getOption(FlintSparkConf.SESSION_ID.key) match {
+      case Some(sessionId) if sessionId.nonEmpty =>
+        sessionId
+      case _ =>
+        logAndThrow(s"${FlintSparkConf.SESSION_ID.key} is not set or is empty")
     }
-    sessionIdOption.get
   }
 
   private def instantiate[T](defaultConstructor: => T, className: String, args: Any*): T = {
@@ -956,13 +956,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
       spark.sparkContext.getConf.get(FlintSparkConf.CUSTOM_SESSION_MANAGER.key, ""))
   }
 
-  private def instantiateStatementsExecutionManager(
+  private def instantiateStatementExecutionManager(
       spark: SparkSession,
       sessionId: String,
       dataSource: String,
-      context: Map[String, Any]): StatementsExecutionManager = {
+      context: Map[String, Any]): StatementExecutionManager = {
     instantiate(
-      new StatementsExecutionManagerImpl(spark, sessionId, dataSource, context),
+      new StatementExecutionManagerImpl(spark, sessionId, dataSource, context),
       spark.sparkContext.getConf.get(FlintSparkConf.CUSTOM_STATEMENT_MANAGER.key, ""),
       spark,
       sessionId)

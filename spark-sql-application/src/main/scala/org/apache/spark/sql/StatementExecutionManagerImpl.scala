@@ -10,50 +10,29 @@ import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.FlintJob.{createResultIndex, isSuperset, resultIndexMapping}
+import org.apache.spark.sql.FlintJob.{checkAndCreateIndex, createResultIndex, isSuperset, resultIndexMapping}
 import org.apache.spark.sql.FlintREPL.executeQuery
 
-class StatementsExecutionManagerImpl(
+class StatementExecutionManagerImpl(
     spark: SparkSession,
     sessionId: String,
     dataSource: String,
     context: Map[String, Any])
-    extends StatementsExecutionManager
+    extends StatementExecutionManager
     with Logging {
 
-  val sessionIndex = context("sessionIndex").asInstanceOf[String]
-  val resultIndex = context("resultIndex").asInstanceOf[String]
-  val osClient = context("osClient").asInstanceOf[OSClient]
-  val flintSessionIndexUpdater =
+  private val sessionIndex = context("sessionIndex").asInstanceOf[String]
+  private val resultIndex = context("resultIndex").asInstanceOf[String]
+  private val osClient = context("osClient").asInstanceOf[OSClient]
+  private val flintSessionIndexUpdater =
     context("flintSessionIndexUpdater").asInstanceOf[OpenSearchUpdater]
 
   // Using one reader client within same session will cause concurrency issue.
   // To resolve this move the reader creation and getNextStatement method to mirco-batch level
-  val flintReader = createOpenSearchQueryReader()
+  private val flintReader = createOpenSearchQueryReader()
 
   override def prepareStatementExecution(): Either[String, Unit] = {
-    try {
-      val existingSchema = osClient.getIndexMetadata(resultIndex)
-      if (!isSuperset(existingSchema, resultIndexMapping)) {
-        Left(s"The mapping of $resultIndex is incorrect.")
-      } else {
-        Right(())
-      }
-    } catch {
-      case e: IllegalStateException
-          if e.getCause != null &&
-            e.getCause.getMessage.contains("index_not_found_exception") =>
-        createResultIndex(osClient, resultIndex, resultIndexMapping)
-      case e: InterruptedException =>
-        val error = s"Interrupted by the main thread: ${e.getMessage}"
-        Thread.currentThread().interrupt() // Preserve the interrupt status
-        logError(error, e)
-        Left(error)
-      case e: Exception =>
-        val error = s"Failed to verify existing mapping: ${e.getMessage}"
-        logError(error, e)
-        Left(error)
-    }
+    checkAndCreateIndex(osClient, resultIndex)
   }
   override def updateStatement(statement: FlintStatement): Unit = {
     flintSessionIndexUpdater.update(statement.statementId, FlintStatement.serialize(statement))
@@ -65,9 +44,8 @@ class StatementsExecutionManagerImpl(
   override def getNextStatement(): Option[FlintStatement] = {
     if (flintReader.hasNext) {
       val rawStatement = flintReader.next()
-      logInfo(s"raw statement: $rawStatement")
       val flintStatement = FlintStatement.deserialize(rawStatement)
-      logInfo(s"statement: $flintStatement")
+      logInfo(s"Next statement to execute: $flintStatement")
       Some(flintStatement)
     } else {
       None
@@ -114,7 +92,6 @@ class StatementsExecutionManagerImpl(
        |    ]
        |  }
        |}""".stripMargin
-
     val flintReader = osClient.createQueryReader(sessionIndex, dsl, "submitTime", SortOrder.ASC)
     flintReader
   }
