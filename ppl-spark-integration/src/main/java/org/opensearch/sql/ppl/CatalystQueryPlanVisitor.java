@@ -191,7 +191,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.getGroupingParseExpressions().add(context.getNamedParseExpressions().peek());
         }
         // build the aggregation logical step
-//        context.apply(p -> extractedAggregation(context)); TODO remove 
         LogicalPlan logicalPlan = extractedAggregation(context);
 
         // set sort direction according to command type (`rare` is Asc, `top` is Desc, default to Asc)
@@ -206,6 +205,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                             sortDirections.get(0).defaultNullOrdering(),
                             seq(new ArrayList<Expression>())));
             context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Sort(sortElements, true, logicalPlan));
+        }
+        //visit TopAggregation results limit 
+        if((node instanceof TopAggregation) && ((TopAggregation) node).getResults().isPresent()) {
+            context.apply(p ->(LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
+                    ((TopAggregation) node).getResults().get().getValue(), org.apache.spark.sql.types.DataTypes.IntegerType), p));
         }
         return logicalPlan;
     }

@@ -8,13 +8,12 @@ package org.opensearch.flint.spark.ppl
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
-
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
-import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, _}
 import org.apache.spark.sql.execution.command.DescribeTableCommand
 
 class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
@@ -112,6 +111,39 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     val sortedPlan: LogicalPlan =
       Sort(Seq(SortOrder(UnresolvedAttribute("address"), Ascending)), global = true, aggregatePlan)
     val expectedPlan = Project(projectList, sortedPlan)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test simple top 1 command by age field") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=accounts | top 1 address by age", false), context)
+
+    val addressField = UnresolvedAttribute("address")
+    val ageField = UnresolvedAttribute("age")
+    val ageAlias = Alias(ageField, "age")()
+
+    val countExpr = Alias(UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false), "count(address)")()
+    val aggregateExpressions = Seq(
+      countExpr,
+      addressField,
+      ageAlias)
+    val aggregatePlan =
+      Aggregate(
+        Seq(addressField, ageAlias),
+        aggregateExpressions,
+        UnresolvedRelation(Seq("accounts")))
+
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(SortOrder(UnresolvedAttribute("address"), Ascending)),
+        global = true,
+        aggregatePlan)
+
+    val planWithLimit =
+      GlobalLimit(Literal(1), LocalLimit(Literal(1), sortedPlan))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
     comparePlans(expectedPlan, logPlan, false)
   }
 }

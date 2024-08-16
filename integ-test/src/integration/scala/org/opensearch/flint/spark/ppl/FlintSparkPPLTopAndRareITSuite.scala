@@ -162,4 +162,54 @@ class FlintSparkPPLTopAndRareITSuite
     val expectedPlan = Project(projectList, sortedPlan)
     comparePlans(expectedPlan, logicalPlan, false)
   }
+  
+  test("create ppl top 3 countries by occupation field query test") {
+    val newTestTable = "spark_catalog.default.new_flint_ppl_test"
+    createOccupationTable(newTestTable)
+    
+    val frame = sql(s"""
+         | source = $newTestTable| top 3 country by occupation
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 3)
+
+    val expectedRows = Set(Row(1, "Canada", "Doctor"), Row(1, "Canada", "Scientist"), Row(1, "Canada", "Unemployed"))
+    val actualRows = results.take(3).toSet
+
+    // Compare the sets
+    assert(
+      actualRows == expectedRows,
+      s"The first two results do not match the expected rows. Expected: $expectedRows, Actual: $actualRows")
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val countryField = UnresolvedAttribute("country")
+    val occupationField = UnresolvedAttribute("occupation")
+    val occupationFieldAlias = Alias(occupationField, "occupation")()
+
+    val countExpr = Alias(UnresolvedFunction(Seq("COUNT"), Seq(countryField), isDistinct = false), "count(country)")()
+    val aggregateExpressions = Seq(
+      countExpr,
+      countryField,
+      occupationFieldAlias)
+    val aggregatePlan =
+      Aggregate(
+        Seq(countryField, occupationFieldAlias),
+        aggregateExpressions,
+        UnresolvedRelation(Seq("spark_catalog", "default", "new_flint_ppl_test")))
+
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(SortOrder(UnresolvedAttribute("country"), Ascending)),
+        global = true,
+        aggregatePlan)
+
+    val planWithLimit =
+      GlobalLimit(Literal(3), LocalLimit(Literal(3), sortedPlan))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
+    comparePlans(expectedPlan, logicalPlan, false)
+  }
 }

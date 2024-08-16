@@ -309,8 +309,10 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     ctx.fieldList().fieldExpression().forEach(field -> {
       sortListBuilder.add(internalVisitExpression(field));
     });
+    UnresolvedExpression unresolvedPlan = (ctx.number != null ? internalVisitExpression(ctx.number) : null);
     TopAggregation aggregation =
             new TopAggregation(
+                    Optional.ofNullable((Literal) unresolvedPlan),
                     aggListBuilder.build(),
                     sortListBuilder.build(),
                     groupListBuilder.build());
