@@ -40,9 +40,10 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
         throw new IllegalStateException(
           "Failed to get Flint index metadata for " + osIndexName,
           e)
-    } finally if (client != null) {
-      client.close()
-    }
+    } finally
+      if (client != null) {
+        client.close()
+      }
   }
 
   override def getAllIndexMetadata(indexNamePattern: String*): util.Map[String, FlintMetadata] = {
@@ -66,9 +67,10 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
         throw new IllegalStateException(
           s"Failed to get Flint index metadata for ${indexNames.mkString(",")}",
           e)
-    } finally if (client != null) {
-      client.close()
-    }
+    } finally
+      if (client != null) {
+        client.close()
+      }
   }
 
   override def updateIndexMetadata(indexName: String, metadata: FlintMetadata): Unit = {
@@ -83,9 +85,10 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
     } catch {
       case e: Exception =>
         throw new IllegalStateException(s"Failed to update Flint index $osIndexName", e)
-    } finally if (client != null) {
-      client.close()
-    }
+    } finally
+      if (client != null) {
+        client.close()
+      }
   }
 
   // Do nothing. For OpenSearch, deleting the index will also delete its metadata

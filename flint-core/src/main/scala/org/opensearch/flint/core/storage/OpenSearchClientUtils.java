@@ -71,7 +71,7 @@ public class OpenSearchClientUtils {
     return new RestHighLevelClientWrapper(createRestHighLevelClient(options));
   }
 
-  /*
+  /**
    * Sanitize index name to comply with OpenSearch index name restrictions.
    */
   public static String sanitizeIndexName(String indexName) {
@@ -81,7 +81,7 @@ public class OpenSearchClientUtils {
     return toLowercase(encoded);
   }
 
-  /*
+  /**
    * Because OpenSearch requires all lowercase letters in index name, we have to
    * lowercase all letters in the given Flint index name.
    */
@@ -91,7 +91,7 @@ public class OpenSearchClientUtils {
     return indexName.toLowerCase(Locale.ROOT);
   }
 
-  /*
+  /**
    * Percent-encode invalid OpenSearch index name characters.
    */
   private static String percentEncode(String indexName) {

@@ -5,9 +5,6 @@
 
 package org.opensearch.flint.core
 
-import org.opensearch.flint.common.metadata.FlintMetadata
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
-
 /**
  * OpenSearch Table metadata.
  *
@@ -19,11 +16,3 @@ import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
  *   setting
  */
 case class MetaData(name: String, properties: String, setting: String)
-
-object MetaData {
-  def apply(name: String, flintMetadata: FlintMetadata): MetaData = {
-    val properties = FlintOpenSearchIndexMetadataService.serialize(flintMetadata)
-    val setting = flintMetadata.indexSettings.getOrElse("")
-    MetaData(name, properties, setting)
-  }
-}

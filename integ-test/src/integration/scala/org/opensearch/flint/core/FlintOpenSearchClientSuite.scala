@@ -207,6 +207,6 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
   }
 
   def createTable(indexName: String, options: FlintOptions): Table = {
-    OpenSearchCluster.apply(indexName, options).head
+    OpenSearchCluster.apply(indexName, options).asScala.head
   }
 }
