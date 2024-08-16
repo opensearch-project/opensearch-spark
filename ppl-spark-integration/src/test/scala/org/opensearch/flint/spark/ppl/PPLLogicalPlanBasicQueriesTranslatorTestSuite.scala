@@ -27,20 +27,16 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   private val pplParser = new PPLSyntaxParser()
 
   test("test error describe clause") {
-    // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
-    // Intercept the exception and check the message
     val thrown = intercept[IllegalArgumentException] {
       planTransformer.visit(plan(pplParser, "describe t.b.c.d", false), context)
     }
 
-    // Verify the exception message
     assert(
       thrown.getMessage === "Invalid table name: t.b.c.d Syntax: [ database_name. ] table_name")
   }
 
   test("test simple describe clause") {
-    // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(plan(pplParser, "describe t", false), context)
 
@@ -53,7 +49,6 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   }
 
   test("test FQN table describe table clause") {
-    // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(plan(pplParser, "describe catalog.t", false), context)
 

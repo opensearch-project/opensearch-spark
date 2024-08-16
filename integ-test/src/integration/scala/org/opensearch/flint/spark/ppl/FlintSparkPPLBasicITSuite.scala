@@ -38,7 +38,7 @@ class FlintSparkPPLBasicITSuite
     }
   }
 
-  test("describe table query test") {
+  test("describe (extended) table query test") {
     val testTableQuoted = "`spark_catalog`.`default`.`flint_ppl_test`"
     Seq(testTable, testTableQuoted).foreach { table =>
       val frame = sql(s"""
