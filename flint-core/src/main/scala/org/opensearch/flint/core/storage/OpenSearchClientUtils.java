@@ -8,6 +8,9 @@ package org.opensearch.flint.core.storage;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import java.lang.reflect.Constructor;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
@@ -36,6 +39,13 @@ public class OpenSearchClientUtils {
   public final static String META_LOG_NAME_PREFIX = ".query_execution_request";
 
   /**
+   * Invalid index name characters to percent-encode,
+   * excluding '*' because it's reserved for pattern matching.
+   */
+  private final static Set<Character> INVALID_INDEX_NAME_CHARS =
+      Set.of(' ', ',', ':', '"', '+', '/', '\\', '|', '?', '#', '>', '<');
+
+  /**
    * Used in IT.
    */
   public static RestHighLevelClient createRestHighLevelClient(FlintOptions options) {
@@ -60,6 +70,43 @@ public class OpenSearchClientUtils {
   public static IRestHighLevelClient createClient(FlintOptions options) {
     return new RestHighLevelClientWrapper(createRestHighLevelClient(options),
         BulkRequestRateLimiterHolder.getBulkRequestRateLimiter(options));
+  }
+
+  /**
+   * Sanitize index name to comply with OpenSearch index name restrictions.
+   */
+  public static String sanitizeIndexName(String indexName) {
+    Objects.requireNonNull(indexName);
+
+    String encoded = percentEncode(indexName);
+    return toLowercase(encoded);
+  }
+
+  /**
+   * Because OpenSearch requires all lowercase letters in index name, we have to
+   * lowercase all letters in the given Flint index name.
+   */
+  private static String toLowercase(String indexName) {
+    Objects.requireNonNull(indexName);
+
+    return indexName.toLowerCase(Locale.ROOT);
+  }
+
+  /**
+   * Percent-encode invalid OpenSearch index name characters.
+   */
+  private static String percentEncode(String indexName) {
+    Objects.requireNonNull(indexName);
+
+    StringBuilder builder = new StringBuilder(indexName.length());
+    for (char ch : indexName.toCharArray()) {
+      if (INVALID_INDEX_NAME_CHARS.contains(ch)) {
+        builder.append(String.format("%%%02X", (int) ch));
+      } else {
+        builder.append(ch);
+      }
+    }
+    return builder.toString();
   }
 
   private static RestClientBuilder configureSigV4Auth(RestClientBuilder restClientBuilder, FlintOptions options) {
