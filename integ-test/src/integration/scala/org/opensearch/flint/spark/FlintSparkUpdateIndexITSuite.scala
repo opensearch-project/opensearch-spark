@@ -8,6 +8,7 @@ package org.opensearch.flint.spark
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.native.JsonMethods._
 import org.opensearch.client.RequestOptions
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.opensearch.index.query.QueryBuilders
 import org.opensearch.index.reindex.DeleteByQueryRequest
@@ -57,7 +58,11 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       // Verify index after update
       val indexFinal = flint.describeIndex(testIndex).get
       val optionJson =
-        compact(render(parse(indexFinal.metadata().getContent) \ "_meta" \ "options"))
+        compact(
+          render(
+            parse(
+              FlintOpenSearchIndexMetadataService.serialize(
+                indexFinal.metadata())) \ "_meta" \ "options"))
       optionJson should matchJson(s"""
           | {
           |   "auto_refresh": "true",
