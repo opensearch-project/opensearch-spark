@@ -249,7 +249,7 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
  - `source = table | eval n = now() | eval t = unix_timestamp(a) | fields n,t`
  - `source = table | eval f = a | where f > 1 | sort f | fields a,b,c | head 5`
  - `source = table | eval f = a * 2 | eval h = f * 2 | fields a,f,h`
- - `source = table | eval f = a * 2, h = f * 2 | fields a,f,h`
+ - `source = table | eval f = a * 2, h = f * 2 | fields a,f,h` (Spark 3.4.0+ required)
  - `source = table | eval f = a * 2, h = b | stats avg(f) by h`
 
 Limitation: Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous" 
