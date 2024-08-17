@@ -72,6 +72,12 @@ case class FlintSparkMaterializedView(
   override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
     require(df.isEmpty, "materialized view doesn't support reading from other data frame")
 
+    // FIXME: set local property here as well
+    spark.sparkContext.setLocalProperty(
+      "spark.sql.local.query",
+      query
+    ) // spark.sql.local.query was originally CREATE MV ... set in FlintJobExecutor executeQuery()
+    spark.sparkContext.setLocalProperty("spark.sql.local.queryLanguage", "SQL")
     spark.sql(query)
   }
 
@@ -198,8 +204,16 @@ object FlintSparkMaterializedView {
 
     override protected def buildIndex(): FlintSparkIndex = {
       // TODO: change here and FlintDS class to support complex field type in future
+
+      // FIXME: remove. This is poc. Long term as CWL team to parse CREATE MV ...
+      flint.spark.sparkContext.setLocalProperty(
+        "spark.sql.local.query",
+        query
+      ) // spark.sql.local.query was originally CREATE MV ... set in FlintJobExecutor executeQuery()
+      flint.spark.sparkContext.setLocalProperty("spark.sql.local.queryLanguage", "SQL")
+
       val outputSchema = flint.spark
-        .sql(query)
+        .sql(query) // SELECT ...
         .schema
         .map { field =>
           field.name -> field.dataType.simpleString

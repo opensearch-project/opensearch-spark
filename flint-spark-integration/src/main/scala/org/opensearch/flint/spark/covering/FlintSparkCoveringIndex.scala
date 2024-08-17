@@ -66,9 +66,25 @@ case class FlintSparkCoveringIndex(
     builder.build()
   }
 
+  /**
+   * create mv ... as select ... with ()
+   *
+   * refresh: spark.sql(select...)
+   *
+   * create index on ... (column1, column2)
+   *
+   * refresh: spark.df.filter.select => cannot convert to query string for CWL. And during
+   * refresh, create index query is not available
+   *
+   * cwl need to come up with new design for infer schema
+   */
+
   override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
     val colNames = indexedColumns.keys.toSeq
-    val job = df.getOrElse(spark.read.table(quotedTableName(tableName)))
+    val job =
+      df.getOrElse(spark.read.table(quotedTableName(tableName))) // LogsTable(.., schema, ..)
+
+    // FIXME: but no query string to pass to local property
 
     // Add optional filtering condition
     filterCondition
