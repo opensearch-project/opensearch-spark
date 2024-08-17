@@ -19,16 +19,10 @@ public interface RelationUtils {
     static Optional<QualifiedName> resolveField(List<UnresolvedRelation> relations, QualifiedName node) {
         if (relations.size() == 1) return Optional.of(node);
         return relations.stream()
-                .map(rel -> {
-                    //if name doesnt contain table prefix - add the current relation prefix to the fields name - returns true
-                    if (node.getPrefix().isEmpty())
-//                return Optional.of(QualifiedName.of(relation.tableName(), node.getParts().toArray(new String[]{})));
-                        return Optional.of(node);
-                    if (node.getPrefix().get().toString().equals(rel.tableName()))
-                        return Optional.of(node);
-                    return Optional.empty();
-                }).filter(Optional::isPresent)
-                .map(field -> (QualifiedName) field.get())
-                .findFirst();
+                .filter(rel -> node.getPrefix().isEmpty() ||
+                        node.getPrefix().map(prefix -> prefix.toString().equals(rel.tableName()))
+                                .orElse(false))
+                .findFirst()
+                .map(rel -> node);
     }
 }

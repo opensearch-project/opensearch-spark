@@ -224,9 +224,6 @@ This section describes the next steps planned for enabling additional commands a
 #### Example PPL Queries
 See the next samples of PPL queries :
 
-**Describe**
- - `describe table`  This command is equal to the `DESCRIBE EXTENDED table` SQL command
-
 **Fields**
  - `source = table`
  - `source = table | fields a,b,c`
