@@ -7,13 +7,14 @@ package org.opensearch.flint.spark.covering
 
 import scala.collection.JavaConverters._
 
-import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.{any, eq => mockitoEq}
 import org.mockito.Mockito.{mockStatic, when, RETURNS_DEEP_STUBS}
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{ACTIVE, DELETED, IndexState}
-import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions, IRestHighLevelClient}
-import org.opensearch.flint.core.storage.OpenSearchClientUtils
+import org.opensearch.flint.core.{FlintClient, FlintClientBuilder, FlintOptions, MetaData}
+import org.opensearch.flint.core.table.OpenSearchCluster
 import org.opensearch.flint.spark.FlintSpark
+import org.opensearch.flint.spark.FlintSparkIndex.generateSchemaJSON
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.scalatest.matchers.{Matcher, MatchResult}
 import org.scalatest.matchers.should.Matchers
@@ -34,9 +35,8 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
   private val clientBuilder = mockStatic(classOf[FlintClientBuilder])
   private val client = mock[FlintClient](RETURNS_DEEP_STUBS)
 
-  /** Mock IRestHighLevelClient to avoid looking for real OpenSearch cluster */
-  private val clientUtils = mockStatic(classOf[OpenSearchClientUtils])
-  private val openSearchClient = mock[IRestHighLevelClient](RETURNS_DEEP_STUBS)
+  /** Mock OpenSearchCluster to avoid looking for real OpenSearch cluster */
+  private val openSearchCluster = mockStatic(classOf[OpenSearchCluster])
 
   /** Mock FlintSpark which is required by the rule. Deep stub required to replace spark val. */
   private val flint = mock[FlintSpark](RETURNS_DEEP_STUBS)
@@ -59,16 +59,17 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
     clientBuilder
       .when(() => FlintClientBuilder.build(any(classOf[FlintOptions])))
       .thenReturn(client)
-    when(flint.spark).thenReturn(spark)
     // Mock static
-    clientUtils
-      .when(() => OpenSearchClientUtils.createClient(any(classOf[FlintOptions])))
-      .thenReturn(openSearchClient)
+    openSearchCluster
+      .when(() => OpenSearchCluster.apply(any(classOf[String]), any(classOf[FlintOptions])))
+      .thenCallRealMethod()
+    when(flint.spark).thenReturn(spark)
   }
 
   override protected def afterAll(): Unit = {
     sql(s"DROP TABLE $testTable")
     clientBuilder.close()
+    openSearchCluster.close()
     super.afterAll()
   }
 
@@ -274,8 +275,18 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       })
 
       indexes.foreach { index =>
-        when(client.getAllIndexMetadata(index.name()))
-          .thenReturn(Map.apply(index.name() -> index.metadata()).asJava)
+        {
+          openSearchCluster
+            .when(() =>
+              OpenSearchCluster
+                .getAllOpenSearchTableMetadata(any(classOf[FlintOptions]), mockitoEq(index.name)))
+            .thenReturn(
+              Seq(
+                MetaData(
+                  index.name,
+                  generateSchemaJSON(index.indexedColumns),
+                  index.metadata.indexSettings.getOrElse(""))).asJava)
+        }
       }
       rule.apply(plan)
     }

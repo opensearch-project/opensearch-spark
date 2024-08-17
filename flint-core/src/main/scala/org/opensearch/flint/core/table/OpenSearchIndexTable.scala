@@ -5,8 +5,6 @@
 
 package org.opensearch.flint.core.table
 
-import scala.collection.JavaConverters._
-
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.JsonAST.JString
 import org.json4s.jackson.JsonMethods
@@ -145,29 +143,4 @@ object OpenSearchIndexTable {
    * Max OpenSearch Request Page size is 10MB.
    */
   val maxSplitSizeBytes = 10 * 1024 * 1024
-}
-
-object OpenSearchCluster {
-
-  /**
-   * Creates list of OpenSearchIndexTable instance of indices in OpenSearch domain.
-   *
-   * @param indexName
-   *   tableName support (1) single index name. (2) wildcard index name. (3) comma sep index name.
-   * @param options
-   *   The options for Flint.
-   * @return
-   *   An list of OpenSearchIndexTable instance.
-   */
-  def apply(indexName: String, options: FlintOptions): Seq[OpenSearchIndexTable] = {
-    val client = FlintClientBuilder.build(options)
-    client
-      .getAllIndexMetadata(indexName.split(","): _*)
-      .asScala
-      .toMap
-      .map(entry => {
-        new OpenSearchIndexTable(MetaData.apply(entry._1, entry._2), options)
-      })
-      .toSeq
-  }
 }
