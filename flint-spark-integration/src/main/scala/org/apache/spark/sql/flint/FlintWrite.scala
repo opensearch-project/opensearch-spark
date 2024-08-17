@@ -48,6 +48,4 @@ case class FlintWrite(
   override def toBatch: BatchWrite = this
 
   override def toStreaming: StreamingWrite = this
-
-  override def useCommitCoordinator(): Boolean = false
 }

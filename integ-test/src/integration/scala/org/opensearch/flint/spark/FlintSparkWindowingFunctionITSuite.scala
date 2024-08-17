@@ -7,12 +7,11 @@ package org.opensearch.flint.spark
 
 import java.sql.Timestamp
 
-import org.scalatest.Ignore
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{QueryTest, Row}
-import org.apache.spark.sql.types.{MetadataBuilder, StructField, StructType}
+import org.apache.spark.sql.types.StructType
 
 class FlintSparkWindowingFunctionITSuite extends QueryTest with FlintSuite {
 
@@ -27,21 +26,8 @@ class FlintSparkWindowingFunctionITSuite extends QueryTest with FlintSuite {
 
     val resultDF = inputDF.selectExpr("TUMBLE(timestamp, '10 minutes')")
 
-    // Since Spark 3.4. https://issues.apache.org/jira/browse/SPARK-40821
-    val expected =
-      StructType(StructType.fromDDL("window struct<start:timestamp,end:timestamp> NOT NULL").map {
-        case StructField(name, dataType: StructType, nullable, _) if name == "window" =>
-          StructField(
-            name,
-            dataType,
-            nullable,
-            metadata = new MetadataBuilder()
-              .putBoolean("spark.timeWindow", true)
-              .build())
-        case other => other
-      })
-
-    resultDF.schema shouldBe expected
+    resultDF.schema shouldBe StructType.fromDDL(
+      "window struct<start:timestamp,end:timestamp> NOT NULL")
     checkAnswer(
       resultDF,
       Seq(

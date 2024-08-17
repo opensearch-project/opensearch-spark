@@ -45,10 +45,7 @@ class FlintDelegatingSessionCatalogTest extends QueryTest with SharedSparkSessio
 
   test("query without catalog name") {
     sql("use mycatalog")
-    // Since Spark 3.4.0. https://issues.apache.org/jira/browse/SPARK-40055, listCatalogs should
-    // also return spark_catalog even spark_catalog implementation is defaultSessionCatalog
-    assert(
-      sql("SHOW CATALOGS").collect.toSet === Array(Row("mycatalog"), Row("spark_catalog")).toSet)
+    assert(sql("SHOW CATALOGS").collect === Array(Row("mycatalog")))
 
     checkAnswer(sql(s"SELECT name, age FROM $testTableWithoutCatalog"), Seq(Row("Hello", 30)))
   }

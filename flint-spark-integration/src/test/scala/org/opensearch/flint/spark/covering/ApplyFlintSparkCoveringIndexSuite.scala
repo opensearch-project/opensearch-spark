@@ -284,8 +284,8 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
       Matcher { (plan: LogicalPlan) =>
         val result = plan.exists {
           case LogicalRelation(_, _, Some(table), _) =>
-            // Since Spark 3.4, Table name in logical relation have catalog name
-            table.qualifiedName == expectedTableName
+            // Table name in logical relation doesn't have catalog name
+            table.qualifiedName == expectedTableName.split('.').drop(1).mkString(".")
           case _ => false
         }
 

@@ -5,10 +5,10 @@
 import Dependencies._
 
 lazy val scala212 = "2.12.14"
-lazy val sparkVersion = "3.5.1"
-// Spark jackson version. Spark jackson-module-scala strictly check the jackson-databind version should compatible
+lazy val sparkVersion = "3.3.2"
+// Spark jackson version. Spark jackson-module-scala strictly check the jackson-databind version hould compatbile
 // https://github.com/FasterXML/jackson-module-scala/blob/2.18/src/main/scala/com/fasterxml/jackson/module/scala/JacksonModule.scala#L59
-lazy val jacksonVersion = "2.15.2"
+lazy val jacksonVersion = "2.13.4"
 
 // The transitive opensearch jackson-databind dependency version should align with Spark jackson databind dependency version.
 // Issue: https://github.com/opensearch-project/opensearch-spark/issues/442

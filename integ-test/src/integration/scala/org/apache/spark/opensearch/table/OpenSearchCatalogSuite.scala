@@ -8,7 +8,7 @@ package org.apache.spark.opensearch.table
 import org.opensearch.flint.spark.FlintSparkSuite
 
 trait OpenSearchCatalogSuite extends FlintSparkSuite {
-  override lazy val catalogName = "dev"
+  val catalogName = "dev"
 
   override def beforeAll(): Unit = {
     super.beforeAll()

@@ -11,10 +11,7 @@ import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKi
 
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, GetStructField}
-import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
-import org.apache.spark.sql.catalyst.util.CharVarcharCodegenUtils
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.types.StringType
 
 /**
  * Skipping index strategy that defines skipping data structure building and reading logic.
@@ -118,17 +115,6 @@ object FlintSparkSkippingStrategy {
           Seq(attr.name)
         case GetStructField(child, _, Some(name)) =>
           extractColumnName(child) :+ name
-        /**
-         * Since Spark 3.4 add read-side padding, char_col = "sample char" became
-         * (staticinvoke(class org.apache.spark.sql.catalyst.util.CharVarcharCodegenUtils,
-         * StringType, readSidePadding, char_col#47, 20, true, false, true) = sample char )
-         *
-         * When create skipping index, Spark did write-side padding. So read-side push down can be
-         * ignored. More reading, https://issues.apache.org/jira/browse/SPARK-40697
-         */
-        case StaticInvoke(staticObject, StringType, "readSidePadding", arguments, _, _, _, _)
-            if classOf[CharVarcharCodegenUtils].isAssignableFrom(staticObject) =>
-          extractColumnName(arguments.head)
         case _ => Seq.empty
       }
     }

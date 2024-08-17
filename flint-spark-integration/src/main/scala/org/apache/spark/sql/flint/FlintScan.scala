@@ -5,8 +5,7 @@
 
 package org.apache.spark.sql.flint
 
-import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilterMightContain
-
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory, Scan}
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -18,7 +17,8 @@ case class FlintScan(
     options: FlintSparkConf,
     pushedPredicates: Array[Predicate])
     extends Scan
-    with Batch {
+    with Batch
+    with Logging {
 
   override def readSchema(): StructType = schema
 
@@ -44,13 +44,10 @@ case class FlintScan(
    * Print pushedPredicates when explain(mode="extended"). Learn from SPARK JDBCScan.
    */
   override def description(): String = {
-    super.description() + ", PushedPredicates: " + pushedPredicates
-      .map {
-        case p if p.name().equalsIgnoreCase(BloomFilterMightContain.NAME) => p.name()
-        case p => p.toString()
-      }
-      .mkString("[", ", ", "]")
+    super.description() + ", PushedPredicates: " + seqToString(pushedPredicates)
   }
+
+  private def seqToString(seq: Seq[Any]): String = seq.mkString("[", ", ", "]")
 }
 
 /**

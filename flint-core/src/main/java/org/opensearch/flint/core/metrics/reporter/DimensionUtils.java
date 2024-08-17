@@ -10,9 +10,9 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang.StringUtils;
 
 import com.amazonaws.services.cloudwatch.model.Dimension;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.SparkEnv;
 
 /**

@@ -46,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
+import org.apache.commons.lang.StringUtils;
 import org.apache.spark.metrics.sink.CloudWatchSink.DimensionNameGroups;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -10,7 +10,7 @@ import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.FILE_PATH_COL
 
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.execution.datasources.{FileIndex, FileStatusWithMetadata, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.functions.isnull
 import org.apache.spark.sql.types.StructType
@@ -96,7 +96,7 @@ case class FlintSparkSkippingFileIndex(
       .toSet
   }
 
-  private def isFileNotSkipped(selectedFiles: Set[String], f: FileStatusWithMetadata) = {
+  private def isFileNotSkipped(selectedFiles: Set[String], f: FileStatus) = {
     selectedFiles.contains(f.getPath.toUri.toString)
   }
 }

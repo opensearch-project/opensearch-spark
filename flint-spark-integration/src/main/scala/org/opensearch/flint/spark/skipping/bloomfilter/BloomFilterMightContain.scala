@@ -8,7 +8,6 @@ package org.opensearch.flint.spark.skipping.bloomfilter
 import java.io.ByteArrayInputStream
 
 import org.opensearch.flint.core.field.bloomfilter.classic.ClassicBloomFilter
-import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilterMightContain.NAME
 
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.InternalRow
@@ -41,7 +40,7 @@ case class BloomFilterMightContain(bloomFilterExpression: Expression, valueExpre
 
   override def dataType: DataType = BooleanType
 
-  override def symbol: String = NAME
+  override def symbol: String = "BLOOM_FILTER_MIGHT_CONTAIN"
 
   override def checkInputDataTypes(): TypeCheckResult = {
     (left.dataType, right.dataType) match {
@@ -109,8 +108,6 @@ case class BloomFilterMightContain(bloomFilterExpression: Expression, valueExpre
 }
 
 object BloomFilterMightContain {
-
-  val NAME = "BLOOM_FILTER_MIGHT_CONTAIN"
 
   /**
    * Generate bloom filter might contain function given the bloom filter column and value.
