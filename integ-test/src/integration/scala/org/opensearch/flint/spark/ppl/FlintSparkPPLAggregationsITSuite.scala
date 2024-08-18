@@ -745,7 +745,7 @@ class FlintSparkPPLAggregationsITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     // Define the expected results
-    val expectedResults: Array[Row] = Array(Row(20d, "Canada"), Row(46d, "USA"))
+    val expectedResults: Array[Row] = Array(Row(20d, "Canada"), Row(30d, "USA"))
 
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](1))
@@ -778,5 +778,23 @@ class FlintSparkPPLAggregationsITSuite
 
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+
+  test("create failing ppl percentile approx - due to too high percentage value test") {
+    val thrown = intercept[IllegalStateException] {
+      val frame = sql(s"""
+                         | source = $testTable | stats percentile_approx(age, 200) by country
+                         | """.stripMargin)
+    }
+    assert(thrown.getMessage === "Unsupported value 'percent': 200 (expected: >= 0 <= 100))")
+  }
+
+  test("create failing ppl percentile approx - due to too low percentage value test") {
+    val thrown = intercept[IllegalStateException] {
+      val frame = sql(s"""
+                         | source = $testTable | stats percentile_approx(age, -4) by country
+                         | """.stripMargin)
+    }
+    assert(thrown.getMessage === "Unsupported value 'percent': -4 (expected: >= 0 <= 100))")
   }
 }
