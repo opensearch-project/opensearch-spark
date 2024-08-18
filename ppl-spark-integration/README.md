@@ -262,6 +262,8 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
  - `source = table | where a < 50 | stats avg(c) `
  - `source = table | stats max(c) by b`
  - `source = table | stats count(c) by b | head 5`
+ - `source = table | stats stddev_samp(c)`
+ - `source = table | stats stddev_pop(c)`
 
 **Aggregations With Span**
 - `source = table  | stats count(a) by span(a, 10) as a_span`
