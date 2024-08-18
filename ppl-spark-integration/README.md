@@ -267,6 +267,8 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
  - `source = table | stats count(c) by b | head 5`
  - `source = table | stats stddev_samp(c)`
  - `source = table | stats stddev_pop(c)`
+ - `source = table | stats percentile(c, 90)`
+ - `source = table | stats percentile_approx(c, 99)`
 
 **Aggregations With Span**
 - `source = table  | stats count(a) by span(a, 10) as a_span`
