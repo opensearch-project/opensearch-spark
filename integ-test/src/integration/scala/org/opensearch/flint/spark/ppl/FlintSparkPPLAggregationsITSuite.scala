@@ -832,9 +832,7 @@ class FlintSparkPPLAggregationsITSuite
     val expectedPlan = Project(star, aggregatePlan)
 
     // Compare the two plans
-    assert(
-      compareByString(expectedPlan) === compareByString(logicalPlan),
-      s"Expected plan: ${compareByString(expectedPlan)}, but got: ${compareByString(logicalPlan)}")
+    comparePlans(expectedPlan, logicalPlan, false)
   }
 
   test("create ppl simple age distinct_count group by country query test with sort") {

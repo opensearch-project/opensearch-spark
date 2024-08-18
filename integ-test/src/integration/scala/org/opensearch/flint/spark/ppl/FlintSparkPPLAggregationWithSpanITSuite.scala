@@ -492,6 +492,6 @@ class FlintSparkPPLAggregationWithSpanITSuite
     val expectedPlan = Project(star, aggregatePlan)
 
     // Compare the two plans
-    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+    comparePlans(expectedPlan, logicalPlan, false)
   }
 }
