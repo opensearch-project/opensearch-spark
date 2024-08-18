@@ -332,7 +332,8 @@ class FlintSparkPPLCorrelationITSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
-  test("create ppl correlation query with two tables correlating on a two fields and disjoint filters test") {
+  test(
+    "create ppl correlation query with two tables correlating on a two fields and disjoint filters test") {
     val frame = sql(s"""
          | source = $testTable1, $testTable2| where year = 2023 AND month = 4 AND $testTable2.salary > 100000 | correlate exact fields(name, country) scope(month, 1W)
          | mapping($testTable1.name = $testTable2.name, $testTable1.country = $testTable2.country)

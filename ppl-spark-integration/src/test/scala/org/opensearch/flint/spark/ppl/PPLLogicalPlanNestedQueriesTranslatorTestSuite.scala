@@ -5,15 +5,16 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
+import org.scalatest.matchers.should.Matchers
+
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Descending, GreaterThan, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.opensearch.flint.spark.ppl.PlaneUtils.plan
-import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
-import org.scalatest.matchers.should.Matchers
 
 class PPLLogicalPlanNestedQueriesTranslatorTestSuite
     extends SparkFunSuite
@@ -23,12 +24,16 @@ class PPLLogicalPlanNestedQueriesTranslatorTestSuite
 
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
-  
 
   test("create ppl simple query with nested field 1 range filter test") {
     val context = new CatalystPlanContext
     val logicalPlan =
-      planTransformer.visit(plan(pplParser, "source=schema.table | where struct_col.field2 > 200 | sort  - struct_col.field2 | fields  int_col, struct_col.field2", false), context)
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source=schema.table | where struct_col.field2 > 200 | sort  - struct_col.field2 | fields  int_col, struct_col.field2",
+          false),
+        context)
 
     // Define the expected logical plan
     val table = UnresolvedRelation(Seq("schema", "table"))
@@ -52,7 +57,11 @@ class PPLLogicalPlanNestedQueriesTranslatorTestSuite
   test("create ppl simple query with nested field string filter and 2 parts table name test") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=catalog.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield", false), context)
+      plan(
+        pplParser,
+        "source=catalog.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield",
+        false),
+      context)
 
     // Define the expected logical plan
     val table = UnresolvedRelation(Seq("catalog", "table"))
@@ -73,12 +82,15 @@ class PPLLogicalPlanNestedQueriesTranslatorTestSuite
     // Compare the two plans
     comparePlans(expectedPlan, logPlan, false)
   }
-  
- test("create ppl simple query with nested field string filter and 3 parts table FQN test") {
+
+  test("create ppl simple query with nested field string filter and 3 parts table FQN test") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=catalog.schema.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield",
-        isExplain = false), context)
+      plan(
+        pplParser,
+        "source=catalog.schema.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield",
+        isExplain = false),
+      context)
 
     // Define the expected logical plan
     val table = UnresolvedRelation(Seq("catalog", "schema", "table"))
@@ -99,7 +111,7 @@ class PPLLogicalPlanNestedQueriesTranslatorTestSuite
     // Compare the two plans
     comparePlans(expectedPlan, logPlan, false)
   }
-  
+
   test("test simple search with schema.table and one nested field projected") {
     val context = new CatalystPlanContext
     val logPlan =
@@ -111,7 +123,6 @@ class PPLLogicalPlanNestedQueriesTranslatorTestSuite
     val expectedPlan = Project(projectList, UnresolvedRelation(Seq("schema", "table")))
     comparePlans(expectedPlan, logPlan, false)
   }
-  
 
   test("test simple search with one table with two fields projected sorted by one nested field") {
     val context = new CatalystPlanContext
@@ -129,7 +140,7 @@ class PPLLogicalPlanNestedQueriesTranslatorTestSuite
 
     comparePlans(expectedPlan, logPlan, false)
   }
-  
+
   test(
     "Search multiple tables - translated into union call - nested fields expected to exist in both tables ") {
     val context = new CatalystPlanContext
@@ -151,12 +162,15 @@ class PPLLogicalPlanNestedQueriesTranslatorTestSuite
 
     comparePlans(expectedPlan, logPlan, false)
   }
- 
+
   test(
     "Search multiple tables with FQN - translated into union call - nested fields expected to exist in both tables ") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "search source=catalog.schema.table1, catalog.schema.table2 | fields A.nested1, B.nested1", false),
+      plan(
+        pplParser,
+        "search source=catalog.schema.table1, catalog.schema.table2 | fields A.nested1, B.nested1",
+        false),
       context)
 
     val table1 = UnresolvedRelation(Seq("catalog", "schema", "table1"))

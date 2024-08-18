@@ -12,6 +12,7 @@ import org.apache.spark.sql.catalyst.plans.logical.Union;
 import scala.collection.Iterator;
 import scala.collection.Seq;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +30,10 @@ import static scala.collection.JavaConverters.asScalaBuffer;
  * The context used for Catalyst logical plan.
  */
 public class CatalystPlanContext {
+    /**
+     * Catalyst relations list
+     **/
+    private List<LogicalPlan> relations = new ArrayList<>();
     /**
      * Catalyst evolving logical plan
      **/
@@ -50,6 +55,10 @@ public class CatalystPlanContext {
 
     public Stack<LogicalPlan> getPlanBranches() {
         return planBranches;
+    }
+
+    public List<LogicalPlan> getRelations() {
+        return relations;
     }
 
     public LogicalPlan getPlan() {
@@ -79,6 +88,17 @@ public class CatalystPlanContext {
 
     public Stack<Expression> getGroupingParseExpressions() {
         return groupingParseExpressions;
+    }
+
+    /**
+     * append relation to relations list
+     *
+     * @param relation
+     * @return
+     */
+    public LogicalPlan withRelation(UnresolvedRelation relation) {
+        this.relations.add(relation);
+        return with(relation);
     }
 
     /**
@@ -113,12 +133,12 @@ public class CatalystPlanContext {
         // in case it is a self join - single table - apply the same plan
         if (logicalPlans.size() < 2) {
             return with(logicalPlans.stream().map(plan -> {
-                planTraversalContext.push(plan);
-                LogicalPlan result = transformFunction.apply(plan, plan);
-                planTraversalContext.pop();
-                return result;
-            }).findAny()
-                    .orElse(getPlan()));            
+                        planTraversalContext.push(plan);
+                        LogicalPlan result = transformFunction.apply(plan, plan);
+                        planTraversalContext.pop();
+                        return result;
+                    }).findAny()
+                    .orElse(getPlan()));
         }
         // in case there are multiple join tables - reduce the tables
         return with(logicalPlans.stream().reduce((left, right) -> {

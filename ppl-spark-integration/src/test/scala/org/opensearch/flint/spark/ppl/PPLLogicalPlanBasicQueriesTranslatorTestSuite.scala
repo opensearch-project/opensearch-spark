@@ -8,6 +8,7 @@ package org.opensearch.flint.spark.ppl
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
+
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
@@ -24,7 +25,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
-  
+
   test("test simple search with only one table and no explicit fields (defaults to all fields)") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
@@ -69,7 +70,12 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   test("create ppl simple query with nested field 1 range filter test") {
     val context = new CatalystPlanContext
     val logicalPlan =
-      planTransformer.visit(plan(pplParser, "source = schema.table | where struct_col.field2 > 200 | sort  - struct_col.field2 | fields  int_col, struct_col.field2", false), context)
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source = spark_catalog.default.flint_ppl_test | where struct_col.field2 > 200 | sort  - struct_col.field2 | fields  int_col, struct_col.field2",
+          isExplain = false),
+        context)
 
     // Define the expected logical plan
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
@@ -89,7 +95,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
-  
+
   test("test simple search with schema.table and one nested field projected") {
     val context = new CatalystPlanContext
     val logPlan =

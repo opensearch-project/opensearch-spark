@@ -5,14 +5,15 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
+import org.scalatest.matchers.should.Matchers
+
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Descending, Divide, EqualTo, Floor, GreaterThan, Literal, Multiply, NamedExpression, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.{FullOuter, Inner, PlanTest}
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.opensearch.flint.spark.ppl.PlaneUtils.plan
-import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
-import org.scalatest.matchers.should.Matchers
 
 class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     extends SparkFunSuite
@@ -22,30 +23,39 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
 
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
-  
+
   /** Test table and index name */
   private val testTable1 = "spark_catalog.default.flint_ppl_test1"
   private val testTable2 = "spark_catalog.default.flint_ppl_test2"
 
-  
   test("create failing ppl correlation query - due to mismatch fields to mappings test") {
     val context = new CatalystPlanContext
     val thrown = intercept[IllegalStateException] {
-      planTransformer.visit(plan(pplParser, s"""
+      planTransformer.visit(
+        plan(
+          pplParser,
+          s"""
                                              | source = $testTable1, $testTable2| correlate exact fields(name, country) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
-                                             | """.stripMargin, isExplain = false), context)
+                                             | """.stripMargin,
+          isExplain = false),
+        context)
     }
     assert(
       thrown.getMessage === "Correlation command was called with `fields` attribute having different elements from the 'mapping' attributes ")
   }
-  
+
   test(
     "create failing ppl correlation query with no scope - due to mismatch fields to mappings test") {
-      val context = new CatalystPlanContext
-      val thrown = intercept[IllegalStateException] {
-        planTransformer.visit(plan(pplParser, s"""
+    val context = new CatalystPlanContext
+    val thrown = intercept[IllegalStateException] {
+      planTransformer.visit(
+        plan(
+          pplParser,
+          s"""
            | source = $testTable1, $testTable2| correlate exact fields(name, country) mapping($testTable1.name = $testTable2.name)
-           | """.stripMargin, isExplain = false), context)
+           | """.stripMargin,
+          isExplain = false),
+        context)
     }
     assert(
       thrown.getMessage === "Correlation command was called with `fields` attribute having different elements from the 'mapping' attributes ")
@@ -55,9 +65,14 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     "create failing ppl correlation query - due to mismatch correlation self type and source amount test") {
     val context = new CatalystPlanContext
     val thrown = intercept[IllegalStateException] {
-      planTransformer.visit(plan(pplParser, s"""
+      planTransformer.visit(
+        plan(
+          pplParser,
+          s"""
            | source = $testTable1, $testTable2| correlate self fields(name, country) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
-           | """.stripMargin, isExplain = false), context)
+           | """.stripMargin,
+          isExplain = false),
+        context)
     }
     assert(
       thrown.getMessage === "Correlation command with `inner` type must have exactly on source table ")
@@ -65,11 +80,16 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
 
   test(
     "create failing ppl correlation query - due to mismatch correlation exact type and source amount test") {
-      val context = new CatalystPlanContext
-      val thrown = intercept[IllegalStateException] {
-        planTransformer.visit(plan(pplParser, s"""
+    val context = new CatalystPlanContext
+    val thrown = intercept[IllegalStateException] {
+      planTransformer.visit(
+        plan(
+          pplParser,
+          s"""
            | source = $testTable1| correlate approximate fields(name) scope(month, 1W) mapping($testTable1.name = $testTable1.inner_name)
-           | """.stripMargin, isExplain = false), context)
+           | """.stripMargin,
+          isExplain = false),
+        context)
     }
     assert(
       thrown.getMessage === "Correlation command with `approximate` type must at least two different source tables ")
@@ -78,11 +98,14 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
   test(
     "create ppl correlation exact query with filters and two tables correlating on a single field test") {
     val context = new CatalystPlanContext
-    val logicalPlan = planTransformer.visit(plan(pplParser,
+    val logicalPlan = planTransformer.visit(
+      plan(
+        pplParser,
         s"""
            | source = $testTable1, $testTable2| where year = 2023 AND month = 4 | correlate exact fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
-           | """.stripMargin, isExplain = false), context)
-
+           | """.stripMargin,
+        isExplain = false),
+      context)
 
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
@@ -116,10 +139,14 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
   test(
     "create ppl correlation approximate query with filters and two tables correlating on a single field test") {
     val context = new CatalystPlanContext
-    val logicalPlan = planTransformer.visit(plan(pplParser,
-      s"""
+    val logicalPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        s"""
          | source = $testTable1, $testTable2| correlate approximate fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
-         | """.stripMargin, isExplain = false), context)
+         | """.stripMargin,
+        isExplain = false),
+      context)
 
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
@@ -137,15 +164,19 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
-  
+
   test(
     "create ppl correlation approximate query with two tables correlating on a single field and not scope test") {
     val context = new CatalystPlanContext
-    val logicalPlan = planTransformer.visit(plan(pplParser,
-      s"""
+    val logicalPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        s"""
          | source = $testTable1, $testTable2| correlate approximate fields(name) mapping($testTable1.name = $testTable2.name)
-         | """.stripMargin, isExplain = false), context)
-     // Define unresolved relations
+         | """.stripMargin,
+        isExplain = false),
+      context)
+    // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
     // Define join condition
@@ -165,12 +196,16 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
   test(
     "create ppl correlation query with with filters and two tables correlating on a two fields test") {
     val context = new CatalystPlanContext
-    val logicalPlan = planTransformer.visit(plan(pplParser,
-      s"""
+    val logicalPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        s"""
          | source = $testTable1, $testTable2| where year = 2023 AND month = 4 | correlate exact fields(name, country) scope(month, 1W)
          | mapping($testTable1.name = $testTable2.name, $testTable1.country = $testTable2.country)
-         | """.stripMargin, isExplain = false), context)
-       // Define unresolved relations
+         | """.stripMargin,
+        isExplain = false),
+      context)
+    // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
 
@@ -205,13 +240,18 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
-  test("create ppl correlation query with two tables correlating on a two fields and disjoint filters test") {
+  test(
+    "create ppl correlation query with two tables correlating on a two fields and disjoint filters test") {
     val context = new CatalystPlanContext
-    val logicalPlan = planTransformer.visit(plan(pplParser,
-      s"""
+    val logicalPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        s"""
          | source = $testTable1, $testTable2| where year = 2023 AND month = 4 AND $testTable2.salary > 100000 | correlate exact fields(name, country) scope(month, 1W)
          | mapping($testTable1.name = $testTable2.name, $testTable1.country = $testTable2.country)
-         | """.stripMargin, isExplain = false), context)
+         | """.stripMargin,
+        isExplain = false),
+      context)
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -252,12 +292,16 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
   test(
     "create ppl correlation (exact) query with two tables correlating by name and group by avg salary by age span (10 years bucket) test") {
     val context = new CatalystPlanContext
-    val logicalPlan = planTransformer.visit(plan(pplParser,
-      s"""
+    val logicalPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        s"""
          | source = $testTable1, $testTable2| correlate exact fields(name) scope(month, 1W)
          | mapping($testTable1.name = $testTable2.name) |
          | stats avg(salary) by span(age, 10) as age_span
-         | """.stripMargin, isExplain = false), context)
+         | """.stripMargin,
+        isExplain = false),
+      context)
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -288,12 +332,16 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
   test(
     "create ppl correlation (exact) query with two tables correlating by name and group by avg salary by age span (10 years bucket) and country test") {
     val context = new CatalystPlanContext
-    val logicalPlan = planTransformer.visit(plan(pplParser,
-      s"""
+    val logicalPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        s"""
          | source = $testTable1, $testTable2| correlate exact fields(name) scope(month, 1W)
          | mapping($testTable1.name = $testTable2.name) |
          | stats avg(salary) by span(age, 10) as age_span, $testTable2.country
-         | """.stripMargin, isExplain = false), context)
+         | """.stripMargin,
+        isExplain = false),
+      context)
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -326,12 +374,16 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
   test(
     "create ppl correlation (exact) query with two tables correlating by name,country and group by avg salary by age span (10 years bucket) with country filter test") {
     val context = new CatalystPlanContext
-    val logicalPlan = planTransformer.visit(plan(pplParser,
-      s"""
+    val logicalPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        s"""
          | source = $testTable1, $testTable2| where country = 'USA' OR country = 'England' |
          | correlate exact fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name) |
          | stats avg(salary) by span(age, 10) as age_span, $testTable2.country
-         | """.stripMargin, isExplain = false), context)
+         | """.stripMargin,
+        isExplain = false),
+      context)
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -375,12 +427,16 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
   test(
     "create ppl correlation (exact) query with two tables correlating by name,country and group by avg salary by age span (10 years bucket) with country filter without scope test") {
     val context = new CatalystPlanContext
-    val logicalPlan = planTransformer.visit(plan(pplParser,
-      s"""
+    val logicalPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        s"""
          | source = $testTable1, $testTable2| where country = 'USA' OR country = 'England' |
          | correlate exact fields(name) mapping($testTable1.name = $testTable2.name) |
          | stats avg(salary) by span(age, 10) as age_span, $testTable2.country
-         | """.stripMargin, isExplain = false), context)
+         | """.stripMargin,
+        isExplain = false),
+      context)
 
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
@@ -425,12 +481,16 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
   test(
     "create ppl correlation (approximate) query with two tables correlating by name,country and group by avg salary by age span (10 years bucket) test") {
     val context = new CatalystPlanContext
-    val logicalPlan = planTransformer.visit(plan(pplParser,
-      s"""
+    val logicalPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        s"""
          | source = $testTable1, $testTable2| correlate approximate fields(name, country) scope(month, 1W)
          | mapping($testTable1.name = $testTable2.name, $testTable1.country = $testTable2.country) |
          | stats avg(salary) by span(age, 10) as age_span, $testTable2.country | sort - age_span | head 5
-         | """.stripMargin, isExplain = false), context)
+         | """.stripMargin,
+        isExplain = false),
+      context)
 
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
