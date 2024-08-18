@@ -735,4 +735,48 @@ class FlintSparkPPLAggregationsITSuite
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
+
+  test(
+    "create ppl simple age 40th percentile approx group by country with state filter query test") {
+    val frame = sql(s"""
+                       | source = $testTable | where state != 'Ontario' | stats percentile_approx(age, 40) by country
+                       | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(Row(20d, "Canada"), Row(46d, "USA"))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](1))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val stateField = UnresolvedAttribute("state")
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val percentage = Literal("0.4")
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+
+    val groupByAttributes = Seq(Alias(countryField, "country")())
+    val filterExpr = Not(EqualTo(stateField, Literal("Ontario")))
+    val filterPlan = Filter(filterExpr, table)
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(
+          Seq("PERCENTILE_APPROX"),
+          Seq(ageField, percentage),
+          isDistinct = false),
+        "percentile_approx(age, 40)")()
+    val productAlias = Alias(countryField, "country")()
+    val aggregatePlan =
+      Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), filterPlan)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
 }

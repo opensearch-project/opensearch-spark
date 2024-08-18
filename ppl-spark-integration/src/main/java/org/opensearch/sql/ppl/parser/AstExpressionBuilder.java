@@ -175,7 +175,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitPercentileFunctionCall(OpenSearchPPLParser.PercentileFunctionCallContext ctx) {
         return new AggregateFunction(
-                ctx.PERCENTILE().getText(),
+                ctx.percentileFunctionName.getText(),
                 visit(ctx.valueExpression()),
                 Collections.singletonList(new Argument("percent", (Literal) visit(ctx.percent))));
     }

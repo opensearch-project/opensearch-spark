@@ -175,6 +175,7 @@ public enum BuiltinFunctionName {
   // Not always an aggregation query
   NESTED(FunctionName.of("nested")),
   PERCENTILE(FunctionName.of("percentile")),
+  PERCENTILE_APPROX(FunctionName.of("percentile_approx")),
 
   /** Text Functions. */
   ASCII(FunctionName.of("ascii")),
@@ -287,6 +288,7 @@ public enum BuiltinFunctionName {
           .put("stddev_samp", BuiltinFunctionName.STDDEV_SAMP)
           .put("take", BuiltinFunctionName.TAKE)
           .put("percentile", BuiltinFunctionName.PERCENTILE)
+          .put("percentile_approx", BuiltinFunctionName.PERCENTILE_APPROX)
           .build();
 
   public static Optional<BuiltinFunctionName> of(String str) {

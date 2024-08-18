@@ -718,4 +718,44 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
+  test(
+    "test sum number of flights by airport and calculate 30th percentile approx with aliases") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats sum(no_of_flights) as flights_count by airport | stats percentile_approx(flights_count, 30) as percentile_approx_30",
+        false),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val numberOfFlightsField = UnresolvedAttribute("no_of_flights")
+    val airportField = UnresolvedAttribute("airport")
+    val percentage = Literal(0.3)
+    val flightsCountField = UnresolvedAttribute("flights_count")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val airportAlias = Alias(airportField, "airport")()
+    val sumAggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(numberOfFlightsField), isDistinct = false),
+        "flights_count")()
+    val sumGroupByAttributes = Seq(Alias(airportField, "airport")())
+    val sumAggregatePlan =
+      Aggregate(sumGroupByAttributes, Seq(sumAggregateExpressions, airportAlias), tableRelation)
+
+    val percentileAggregateExpressions =
+      Alias(
+        UnresolvedFunction(
+          Seq("PERCENTILE_APPROX"),
+          Seq(flightsCountField, percentage),
+          isDistinct = false),
+        "percentile_approx_30")()
+    val percentileAggregatePlan =
+      Aggregate(Seq(), Seq(percentileAggregateExpressions), sumAggregatePlan)
+    val expectedPlan = Project(star, percentileAggregatePlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
 }
