@@ -12,7 +12,10 @@ import org.apache.spark.sql.types.DataTypes;
 import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.DataType;
+import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
+
+import java.util.List;
 
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static scala.Option.empty;
@@ -53,6 +56,12 @@ public interface AggregatorTranslator {
     }
 
     private static double getPercentDoubleValue(AggregateFunction aggregateFunction) {
+
+        List<UnresolvedExpression> arguments = aggregateFunction.getArgList();
+
+        if (arguments == null || arguments.size() != 1) {
+            throw new IllegalStateException("Missing 'percent' argument");
+        }
 
         org.opensearch.sql.ast.expression.Literal percentIntValue = ((Argument) aggregateFunction.getArgList().get(0)).getValue();
 
