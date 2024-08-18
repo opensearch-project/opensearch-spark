@@ -421,7 +421,8 @@ class FlintSparkPPLAggregationsITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     // Define the expected results
-    val expectedResults: Array[Row] = Array(Row(3.5355339059327378d, "Canada"), Row(28.284271247461902d, "USA"))
+    val expectedResults: Array[Row] =
+      Array(Row(3.5355339059327378d, "Canada"), Row(28.284271247461902d, "USA"))
 
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](1))

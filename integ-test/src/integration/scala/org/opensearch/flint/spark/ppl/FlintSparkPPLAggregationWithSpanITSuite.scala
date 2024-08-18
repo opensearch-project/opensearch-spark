@@ -264,7 +264,7 @@ class FlintSparkPPLAggregationWithSpanITSuite
   }
 
   /**
-   * | age_span | age_stddev_samp    |
+   * | age_span |    age_stddev_samp |
    * |:---------|-------------------:|
    * | 20       | 3.5355339059327378 |
    */
@@ -308,10 +308,10 @@ class FlintSparkPPLAggregationWithSpanITSuite
   }
 
   /**
-   * | age_span | age_stddev_pop    |
-   * |:---------|------------------:|
-   * | 20       | 2.5               |
-   * | 30       | 0                 |
+   * | age_span | age_stddev_pop |
+   * |:---------|---------------:|
+   * | 20       |            2.5 |
+   * | 30       |              0 |
    */
   test(
     "create ppl age population stddev by span of interval of 10 years query with state filter test ") {
