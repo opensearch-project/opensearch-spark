@@ -539,6 +539,7 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.flint.optimizer.enabled`: default is true. enable the Flint optimizer for improving query performance.
 - `spark.flint.optimizer.covering.enabled`: default is true. enable the Flint covering index optimizer for improving query performance.
 - `spark.flint.index.hybridscan.enabled`: default is false.
+- `spark.flint.index.checkpointLocation.rootDir`: default is None.
 - `spark.flint.index.checkpoint.mandatory`: default is true.
 - `spark.datasource.flint.socket_timeout_millis`: default value is 60000.
 - `spark.flint.monitor.initialDelaySeconds`: Initial delay in seconds before starting the monitoring task. Default value is 15.

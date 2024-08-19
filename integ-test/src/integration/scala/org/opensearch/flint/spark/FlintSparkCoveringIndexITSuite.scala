@@ -104,7 +104,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
       .name(testIndex)
       .onTable(testTable)
       .addIndexColumns("name", "age")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testIndex)
       .create()
 
     val jobId = flint.refreshIndex(testFlintIndex)
@@ -131,7 +131,8 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
             Map(
               "auto_refresh" -> "true",
               "scheduler_mode" -> "external",
-              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testIndex)
         .create()
 
       val jobId = flint.refreshIndex(testFlintIndex)
