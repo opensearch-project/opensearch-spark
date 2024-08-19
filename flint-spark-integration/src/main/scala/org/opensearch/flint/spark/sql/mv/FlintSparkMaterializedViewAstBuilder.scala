@@ -38,8 +38,10 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
 
       val ignoreIfExists = ctx.EXISTS() != null
       val indexOptions = visitPropertyList(ctx.propertyList())
+      val flintIndexName = getFlintIndexName(flint, ctx.mvName)
+
       mvBuilder
-        .options(indexOptions)
+        .options(indexOptions, flintIndexName)
         .create(ignoreIfExists)
 
       // Trigger auto refresh if enabled

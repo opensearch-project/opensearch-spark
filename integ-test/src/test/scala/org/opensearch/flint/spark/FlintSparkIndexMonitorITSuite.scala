@@ -52,7 +52,7 @@ class FlintSparkIndexMonitorITSuite extends OpenSearchTransactionSuite with Matc
       .skippingIndex()
       .onTable(testTable)
       .addValueSet("name")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testFlintIndex)
       .create()
     flint.refreshIndex(testFlintIndex)
 

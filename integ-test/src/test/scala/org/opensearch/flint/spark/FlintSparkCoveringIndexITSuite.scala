@@ -104,7 +104,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
       .name(testIndex)
       .onTable(testTable)
       .addIndexColumns("name", "age")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testIndex)
       .create()
 
     val jobId = flint.refreshIndex(testFlintIndex)

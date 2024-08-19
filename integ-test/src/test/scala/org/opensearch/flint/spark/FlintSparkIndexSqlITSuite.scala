@@ -109,7 +109,7 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
       .name(testCoveringIndex)
       .onTable(testTableQualifiedName)
       .addIndexColumns("name", "age")
-      .options(FlintSparkIndexOptions(Map(AUTO_REFRESH.toString -> "true")))
+      .options(FlintSparkIndexOptions(Map(AUTO_REFRESH.toString -> "true")), testCoveringIndex)
       .create()
     flint.refreshIndex(testCoveringFlintIndex)
 
@@ -184,7 +184,7 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite {
       .name(testCoveringIndexSpecial)
       .onTable(testTableQualifiedName)
       .addIndexColumns("name", "age")
-      .options(FlintSparkIndexOptions(Map(AUTO_REFRESH.toString -> "true")))
+      .options(FlintSparkIndexOptions(Map(AUTO_REFRESH.toString -> "true")), testCoveringIndex)
       .create()
     flint.refreshIndex(testCoveringFlintIndexSpecial)
 

@@ -87,7 +87,8 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
           FlintSparkIndexOptions(
             Map(
               "incremental_refresh" -> "true",
-              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testFlintIndex)
         .create()
       flint.refreshIndex(testFlintIndex)
 
@@ -102,7 +103,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .skippingIndex()
       .onTable(testTable)
       .addPartitions("year", "month")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testFlintIndex)
       .create()
     flint.refreshIndex(testFlintIndex)
 
@@ -143,7 +144,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .skippingIndex()
       .onTable(testTable)
       .addPartitions("year", "month")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testFlintIndex)
       .create()
     flint.refreshIndex(testFlintIndex)
 
@@ -203,7 +204,7 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .skippingIndex()
       .onTable(testTable)
       .addPartitions("year", "month")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testFlintIndex)
       .create()
     flint.refreshIndex(testFlintIndex)
 

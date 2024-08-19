@@ -40,12 +40,14 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
         .skippingIndex()
         .onTable(testTable)
         .addValueSet("address")
-        .options(FlintSparkIndexOptions(Map(
-          "auto_refresh" -> "false",
-          "incremental_refresh" -> "true",
-          "refresh_interval" -> "1 Minute",
-          "checkpoint_location" -> checkpointDir.getAbsolutePath,
-          "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")))
+        .options(
+          FlintSparkIndexOptions(Map(
+            "auto_refresh" -> "false",
+            "incremental_refresh" -> "true",
+            "refresh_interval" -> "1 Minute",
+            "checkpoint_location" -> checkpointDir.getAbsolutePath,
+            "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")),
+          testIndex)
         .create()
       val indexInitial = flint.describeIndex(testIndex).get
 
@@ -147,7 +149,8 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
                 .get("checkpoint_location")
                 .map(_ =>
                   initialOptionsMap.updated("checkpoint_location", checkpointDir.getAbsolutePath))
-                .getOrElse(initialOptionsMap)))
+                .getOrElse(initialOptionsMap)),
+              testIndex)
             .create()
           flint.refreshIndex(testIndex)
 
@@ -279,7 +282,8 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
                 .get("checkpoint_location")
                 .map(_ =>
                   initialOptionsMap.updated("checkpoint_location", checkpointDir.getAbsolutePath))
-                .getOrElse(initialOptionsMap)))
+                .getOrElse(initialOptionsMap)),
+              testIndex)
             .create()
           flint.refreshIndex(testIndex)
 
@@ -396,7 +400,8 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
           FlintSparkIndexOptions(
             Map(
               "incremental_refresh" -> "true",
-              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testIndex)
         .create()
 
       flint.refreshIndex(testIndex) shouldBe empty
@@ -439,7 +444,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       .skippingIndex()
       .onTable(testTable)
       .addPartitions("year", "month")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testIndex)
       .create()
 
     val jobId = flint.refreshIndex(testIndex)
@@ -483,8 +488,12 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
         .skippingIndex()
         .onTable(testTable)
         .addPartitions("year", "month")
-        .options(FlintSparkIndexOptions(
-          Map("auto_refresh" -> "true", "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testIndex)
         .create()
 
       val jobId = flint.refreshIndex(testIndex)

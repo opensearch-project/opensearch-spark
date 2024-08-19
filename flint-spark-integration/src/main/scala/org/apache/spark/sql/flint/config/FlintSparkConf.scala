@@ -156,6 +156,10 @@ object FlintSparkConf {
     .doc("Enable hybrid scan to include latest source data not refreshed to index yet")
     .createWithDefault("false")
 
+  val CHECKPOINT_LOCATION_ROOT_DIR = FlintConfig("spark.flint.index.checkpointLocation.rootDir")
+    .doc("Root directory of a user specified checkpoint location for index refresh")
+    .createOptional()
+
   val CHECKPOINT_MANDATORY = FlintConfig("spark.flint.index.checkpoint.mandatory")
     .doc("Checkpoint location for incremental refresh index will be mandatory if enabled")
     .createWithDefault("true")
@@ -263,6 +267,8 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
     OPTIMIZER_RULE_COVERING_INDEX_ENABLED.readFrom(reader).toBoolean
 
   def isHybridScanEnabled: Boolean = HYBRID_SCAN_ENABLED.readFrom(reader).toBoolean
+
+  def checkpointLocationRootDir: Option[String] = CHECKPOINT_LOCATION_ROOT_DIR.readFrom(reader)
 
   def isCheckpointMandatory: Boolean = CHECKPOINT_MANDATORY.readFrom(reader).toBoolean
 

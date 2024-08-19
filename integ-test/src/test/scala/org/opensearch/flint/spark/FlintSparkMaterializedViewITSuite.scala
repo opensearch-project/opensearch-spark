@@ -55,7 +55,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
         .materializedView()
         .name(testMvName)
         .query(testQuery)
-        .options(indexOptions)
+        .options(indexOptions, testMvName)
         .create()
 
       val index = flint.describeIndex(testFlintIndex)
@@ -254,7 +254,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
         .materializedView()
         .name(testMvName)
         .query(query)
-        .options(indexOptions)
+        .options(indexOptions, testMvName)
         .create()
 
       flint
