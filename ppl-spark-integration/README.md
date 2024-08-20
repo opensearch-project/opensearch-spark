@@ -283,7 +283,6 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date, productId`
 
 **Dedup**
-
 - `source = table | dedup a | fields a,b,c`
 - `source = table | dedup a,b | fields a,b,c`
 - `source = table | dedup a keepempty=true | fields a,b,c`
@@ -295,8 +294,17 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source = table | dedup 1 a consecutive=true| fields a,b,c` (Unsupported)
 - `source = table | dedup 2 a | fields a,b,c` (Unsupported)
 
+**Rare**
+- `source=accounts | rare gender`
+- `source=accounts | rare age by gender`
 
-For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
+**Top**
+- `source=accounts | top gender`
+- `source=accounts | top 1 gender`
+- `source=accounts | top 1 age by gender`
+
+
+> For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
 
 ---
 

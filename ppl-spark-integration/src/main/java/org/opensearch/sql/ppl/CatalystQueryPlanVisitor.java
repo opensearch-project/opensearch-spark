@@ -9,9 +9,12 @@ import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
+import org.apache.spark.sql.catalyst.expressions.Ascending$;
+import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
+import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
 import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
@@ -59,9 +62,11 @@ import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Project;
+import org.opensearch.sql.ast.tree.RareAggregation;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Sort;
+import org.opensearch.sql.ast.tree.TopAggregation;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
@@ -176,12 +181,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         node.getChild().get(0).accept(this, context);
         List<Expression> aggsExpList = visitExpressionList(node.getAggExprList(), context);
         List<Expression> groupExpList = visitExpressionList(node.getGroupExprList(), context);
-
         if (!groupExpList.isEmpty()) {
             //add group by fields to context
             context.getGroupingParseExpressions().addAll(groupExpList);
         }
-
+        
         UnresolvedExpression span = node.getSpan();
         if (!Objects.isNull(span)) {
             span.accept(this, context);
@@ -189,7 +193,27 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.getGroupingParseExpressions().add(context.getNamedParseExpressions().peek());
         }
         // build the aggregation logical step
-        return extractedAggregation(context);
+        LogicalPlan logicalPlan = extractedAggregation(context);
+
+        // set sort direction according to command type (`rare` is Asc, `top` is Desc, default to Asc)
+        List<SortDirection> sortDirections = new ArrayList<>();
+        sortDirections.add(node instanceof RareAggregation ? Descending$.MODULE$ : Ascending$.MODULE$);
+
+        if (!node.getSortExprList().isEmpty()) {
+            visitExpressionList(node.getSortExprList(), context);
+            Seq<SortOrder> sortElements = context.retainAllNamedParseExpressions(exp ->
+                    new SortOrder(exp,
+                            sortDirections.get(0),
+                            sortDirections.get(0).defaultNullOrdering(),
+                            seq(new ArrayList<Expression>())));
+            context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Sort(sortElements, true, logicalPlan));
+        }
+        //visit TopAggregation results limit 
+        if((node instanceof TopAggregation) && ((TopAggregation) node).getResults().isPresent()) {
+            context.apply(p ->(LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
+                    ((TopAggregation) node).getResults().get().getValue(), org.apache.spark.sql.types.DataTypes.IntegerType), p));
+        }
+        return logicalPlan;
     }
 
     private static LogicalPlan extractedAggregation(CatalystPlanContext context) {
