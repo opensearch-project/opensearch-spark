@@ -236,6 +236,8 @@ statsFunctionName
    | SUM
    | MIN
    | MAX
+   | STDDEV_SAMP
+   | STDDEV_POP
    ;
 
 takeAggFunction
