@@ -231,6 +231,11 @@ See the next samples of PPL queries :
  - `source = table`
  - `source = table | fields a,b,c`
 
+**Nested-Fields**
+ - `source = catalog.schema.table1, catalog.schema.table2 | fields A.nested1, B.nested1`
+ - `source = catalog.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield`
+ - `source = catalog.schema.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield`
+
 **Filters**
  - `source = table | where a = 1 | fields a,b,c`
  - `source = table | where a >= 1 | fields a,b,c`

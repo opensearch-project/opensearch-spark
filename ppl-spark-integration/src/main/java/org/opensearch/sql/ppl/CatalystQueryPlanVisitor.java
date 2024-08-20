@@ -138,7 +138,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         //regular sql algebraic relations 
         node.getTableName().forEach(t ->
                 // Resolving the qualifiedName which is composed of a datasource.schema.table
-                context.with(new UnresolvedRelation(seq(of(t.split("\\."))), CaseInsensitiveStringMap.empty(), false))
+                context.withRelation(new UnresolvedRelation(seq(of(t.split("\\."))), CaseInsensitiveStringMap.empty(), false))
         );
         return context.getPlan();
     }
@@ -498,7 +498,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         public Expression visitQualifiedName(QualifiedName node, CatalystPlanContext context) {
             List<UnresolvedRelation> relation = findRelation(context.traversalContext());
             if (!relation.isEmpty()) {
-                Optional<QualifiedName> resolveField = resolveField(relation, node);
+                Optional<QualifiedName> resolveField = resolveField(relation, node, context.getRelations());
                 return resolveField.map(qualifiedName -> context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(qualifiedName.getParts()))))
                         .orElse(null);
             }
