@@ -38,8 +38,11 @@ class FullIndexRefresh(
 
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {
     logInfo(s"Start refreshing index $indexName in full mode")
-    index
-      .build(spark, source)
+    val df = index.build(spark, source) // spark.sql("select ...").collect() // 20 rows
+    logInfo(s"[FullRefresh] DataFrame size: ${df.count()}")
+    logInfo(s"[FullRefresh] Writing to index $indexName:")
+    df.collect().foreach(data => logInfo(data.toString()))
+    df
       .write
       .format(FLINT_DATASOURCE)
       .options(flintSparkConf.properties)

@@ -149,6 +149,7 @@ class FlintSpark(val spark: SparkSession) extends Logging {
    *   refreshing job ID (empty if batch job for now)
    */
   def refreshIndex(indexName: String): Option[String] = {
+    logInfo("seankao commit: add logs to RestHighLevelClientWrapper")
     logInfo(s"Refreshing Flint index $indexName")
     val index = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))

@@ -30,6 +30,7 @@ import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.client.indices.PutMappingRequest;
 
 import java.io.IOException;
+import java.util.logging.Logger;
 
 import static org.opensearch.flint.core.metrics.MetricConstants.*;
 
@@ -39,6 +40,7 @@ import static org.opensearch.flint.core.metrics.MetricConstants.*;
  */
 public class RestHighLevelClientWrapper implements IRestHighLevelClient {
     private final RestHighLevelClient client;
+    private static final Logger LOG = Logger.getLogger(RestHighLevelClientWrapper.class.getName());
 
     /**
      * Constructs a new RestHighLevelClientWrapper.
@@ -47,10 +49,13 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
      */
     public RestHighLevelClientWrapper(RestHighLevelClient client) {
         this.client = client;
+        LOG.info("seankao add log in RestHighLevelClientWrapper");
     }
 
     @Override
     public BulkResponse bulk(BulkRequest bulkRequest, RequestOptions options) throws IOException {
+        LOG.info("Bulk request size: " + bulkRequest.requests().size());
+        LOG.info("Bulk request requests: " + bulkRequest.requests());
         return execute(OS_WRITE_OP_METRIC_PREFIX, () -> client.bulk(bulkRequest, options));
     }
 
@@ -91,6 +96,7 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
 
     @Override
     public IndexResponse index(IndexRequest indexRequest, RequestOptions options) throws IOException {
+        LOG.info("Index request: " + indexRequest);
         return execute(OS_WRITE_OP_METRIC_PREFIX, () -> client.index(indexRequest, options));
     }
 

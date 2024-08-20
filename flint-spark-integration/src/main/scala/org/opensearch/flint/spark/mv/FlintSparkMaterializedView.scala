@@ -82,6 +82,12 @@ case class FlintSparkMaterializedView(
   }
 
   override def buildStream(spark: SparkSession): DataFrame = {
+    // FIXME: set local property here as well
+    spark.sparkContext.setLocalProperty(
+      "spark.sql.local.query",
+      query
+    ) // spark.sql.local.query was originally CREATE MV ... set in FlintJobExecutor executeQuery()
+    spark.sparkContext.setLocalProperty("spark.sql.local.queryLanguage", "SQL")
     val batchPlan = spark.sql(query).queryExecution.logical
 
     /*
