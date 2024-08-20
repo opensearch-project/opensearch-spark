@@ -47,7 +47,7 @@ import org.apache.spark.sql.types.{DataType, StructType}
 class FlintSparkPPLParser(sparkParser: ParserInterface) extends ParserInterface {
 
   /** OpenSearch (PPL) AST builder. */
-  private val planTrnasormer = new CatalystQueryPlanVisitor()
+  private val planTransformer = new CatalystQueryPlanVisitor()
 
   private val pplParser = new PPLSyntaxParser()
 
@@ -55,7 +55,7 @@ class FlintSparkPPLParser(sparkParser: ParserInterface) extends ParserInterface 
     try {
       // if successful build ppl logical plan and translate to catalyst logical plan
       val context = new CatalystPlanContext
-      planTrnasormer.visit(plan(pplParser, sqlText, false), context)
+      planTransformer.visit(plan(pplParser, sqlText, false), context)
       context.getPlan
     } catch {
       // Fall back to Spark parse plan logic if flint cannot parse

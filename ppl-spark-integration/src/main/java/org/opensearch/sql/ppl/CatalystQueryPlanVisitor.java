@@ -17,10 +17,12 @@ import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
+import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Deduplicate;
 import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.types.DataTypes;
@@ -135,7 +137,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     new DescribeTableCommand(
                             identifier,
                             scala.collection.immutable.Map$.MODULE$.<String, String>empty(),
-                            false,
+                            true,
                             DescribeRelation$.MODULE$.getOutputAttrs()));
         }
         //regular sql algebraic relations 
