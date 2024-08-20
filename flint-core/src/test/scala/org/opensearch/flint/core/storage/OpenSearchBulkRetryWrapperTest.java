@@ -8,6 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableList;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +20,7 @@ import org.opensearch.action.bulk.BulkItemResponse;
 import org.opensearch.action.bulk.BulkItemResponse.Failure;
 import org.opensearch.action.bulk.BulkRequest;
 import org.opensearch.action.bulk.BulkResponse;
+import org.opensearch.action.index.IndexRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.flint.core.http.FlintRetryOptions;
@@ -36,13 +38,26 @@ class OpenSearchBulkRetryWrapperTest {
   @Mock
   BulkResponse failureResponse;
   @Mock
+  BulkResponse conflictResponse;
+  @Mock
   RestHighLevelClient client;
   @Mock
   DocWriteResponse docWriteResponse;
+  @Mock
+  IndexRequest indexRequest0, indexRequest1;
+  @Mock IndexRequest docWriteRequest2;
+//  BulkItemRequest[] bulkItemRequests = new BulkItemRequest[] {
+//      new BulkItemRequest(0, docWriteRequest0),
+//      new BulkItemRequest(1, docWriteRequest1),
+//      new BulkItemRequest(2, docWriteRequest2),
+//  };
   BulkItemResponse successItem = new BulkItemResponse(0, OpType.CREATE, docWriteResponse);
   BulkItemResponse failureItem = new BulkItemResponse(0, OpType.CREATE,
       new Failure("index", "id", null,
           RestStatus.TOO_MANY_REQUESTS));
+  BulkItemResponse conflictItem = new BulkItemResponse(0, OpType.CREATE,
+      new Failure("index", "id", null,
+          RestStatus.CONFLICT));
 
   FlintRetryOptions retryOptionsWithRetry = new FlintRetryOptions(Map.of("retry.max_retries", "2"));
   FlintRetryOptions retryOptionsWithoutRetry = new FlintRetryOptions(
@@ -62,6 +77,21 @@ class OpenSearchBulkRetryWrapperTest {
   }
 
   @Test
+  public void withRetryWhenCallConflict() throws Exception {
+    OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
+        retryOptionsWithRetry);
+    when(client.bulk(any(), eq(options)))
+        .thenReturn(conflictResponse);
+    mockConflictResponse();
+    when(conflictResponse.hasFailures()).thenReturn(true);
+
+    BulkResponse response = bulkRetryWrapper.bulkWithPartialRetry(client, bulkRequest, options);
+
+    assertEquals(response, conflictResponse);
+    verify(client).bulk(bulkRequest, options);
+  }
+
+  @Test
   public void withRetryWhenCallFailOnce() throws Exception {
     OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
         retryOptionsWithRetry);
@@ -70,6 +100,7 @@ class OpenSearchBulkRetryWrapperTest {
         .thenReturn(successResponse);
     mockFailureResponse();
     when(successResponse.hasFailures()).thenReturn(false);
+    when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
 
     BulkResponse response = bulkRetryWrapper.bulkWithPartialRetry(client, bulkRequest, options);
 
@@ -120,5 +151,10 @@ class OpenSearchBulkRetryWrapperTest {
   private void mockFailureResponse() {
     when(failureResponse.hasFailures()).thenReturn(true);
     when(failureResponse.getItems()).thenReturn(new BulkItemResponse[]{successItem, failureItem});
+  }
+
+  private void mockConflictResponse() {
+    when(conflictResponse.hasFailures()).thenReturn(true);
+    when(conflictResponse.getItems()).thenReturn(new BulkItemResponse[]{successItem, conflictItem});
   }
 }

@@ -24,7 +24,7 @@ public class OpenSearchBulkRetryWrapper {
   private final RetryPolicy<BulkResponse> retryPolicy;
 
   public OpenSearchBulkRetryWrapper(FlintRetryOptions retryOptions) {
-    this.retryPolicy = retryOptions.getBulkRetryPolicy(bulkItemErrorResultPredicate);
+    this.retryPolicy = retryOptions.getBulkRetryPolicy(bulkItemRetryableResultPredicate);
   }
 
   /**
@@ -43,7 +43,7 @@ public class OpenSearchBulkRetryWrapper {
           .with(retryPolicy)
           .get(() -> {
             BulkResponse response = client.bulk(nextRequest.get(), options);
-            if (retryPolicy.getConfig().allowsRetries() && bulkItemErrorResultPredicate.test(
+            if (retryPolicy.getConfig().allowsRetries() && bulkItemRetryableResultPredicate.test(
                 response)) {
               nextRequest.set(getRetryableRequest(nextRequest.get(), response));
             }
@@ -82,12 +82,12 @@ public class OpenSearchBulkRetryWrapper {
   /**
    * A predicate to decide if a BulkResponse is retryable or not.
    */
-  private static final CheckedPredicate<BulkResponse> bulkItemErrorResultPredicate = bulkResponse ->
+  private static final CheckedPredicate<BulkResponse> bulkItemRetryableResultPredicate = bulkResponse ->
       bulkResponse.hasFailures() && isRetryable(bulkResponse);
 
   private static boolean isRetryable(BulkResponse bulkResponse) {
     if (Arrays.stream(bulkResponse.getItems())
-        .anyMatch(itemResp -> !isItemRetryable(itemResp))) {
+        .anyMatch(itemResp -> isItemRetryable(itemResp))) {
       LOG.info("Found retryable failure in the bulk response");
       return true;
     }
