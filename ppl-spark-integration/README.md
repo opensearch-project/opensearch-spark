@@ -224,6 +224,9 @@ This section describes the next steps planned for enabling additional commands a
 #### Example PPL Queries
 See the next samples of PPL queries :
 
+**Describe**
+ - `describe table`  This command is equal to the `DESCRIBE EXTENDED table` SQL command
+
 **Fields**
  - `source = table`
  - `source = table | fields a,b,c`
@@ -305,5 +308,6 @@ For additional details on Spark PPL commands support campaign, see [PPL Commands
  - `correlation` - [See details](../docs/PPL-Correlation-command.md)
 
 > This is an experimental command - it may be removed in future versions
+
 
  

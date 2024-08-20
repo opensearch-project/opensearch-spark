@@ -43,8 +43,8 @@ case class FlintMetadataLogEntry(
       state: IndexState,
       entryVersion: JMap[String, Any],
       error: String,
-      storageContext: JMap[String, Any]) = {
-    this(id, createTime, state, entryVersion.asScala.toMap, error, storageContext.asScala.toMap)
+      properties: JMap[String, Any]) = {
+    this(id, createTime, state, entryVersion.asScala.toMap, error, properties.asScala.toMap)
   }
 
   def this(
@@ -53,8 +53,8 @@ case class FlintMetadataLogEntry(
       state: IndexState,
       entryVersion: JMap[String, Any],
       error: String,
-      storageContext: Map[String, Any]) = {
-    this(id, createTime, state, entryVersion.asScala.toMap, error, storageContext)
+      properties: Map[String, Any]) = {
+    this(id, createTime, state, entryVersion.asScala.toMap, error, properties)
   }
 }
 
