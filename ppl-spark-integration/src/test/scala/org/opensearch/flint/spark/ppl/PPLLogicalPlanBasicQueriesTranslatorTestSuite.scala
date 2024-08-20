@@ -10,10 +10,12 @@ import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, Descending, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.execution.command.DescribeTableCommand
 
 class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     extends SparkFunSuite
@@ -23,6 +25,40 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
+
+  test("test error describe clause") {
+    val context = new CatalystPlanContext
+    val thrown = intercept[IllegalArgumentException] {
+      planTransformer.visit(plan(pplParser, "describe t.b.c.d", false), context)
+    }
+
+    assert(
+      thrown.getMessage === "Invalid table name: t.b.c.d Syntax: [ database_name. ] table_name")
+  }
+
+  test("test simple describe clause") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(plan(pplParser, "describe t", false), context)
+
+    val expectedPlan = DescribeTableCommand(
+      TableIdentifier("t"),
+      Map.empty[String, String],
+      isExtended = true,
+      output = DescribeRelation.getOutputAttrs)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test FQN table describe table clause") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(plan(pplParser, "describe catalog.t", false), context)
+
+    val expectedPlan = DescribeTableCommand(
+      TableIdentifier("t", Option("catalog")),
+      Map.empty[String, String].empty,
+      isExtended = true,
+      output = DescribeRelation.getOutputAttrs)
+    comparePlans(expectedPlan, logPlan, false)
+  }
 
   test("test simple search with only one table and no explicit fields (defaults to all fields)") {
     // if successful build ppl logical plan and translate to catalyst logical plan

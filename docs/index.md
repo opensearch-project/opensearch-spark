@@ -60,7 +60,7 @@ Currently, Flint metadata is only static configuration without version control a
 
 ```json
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "name": "...",
   "kind": "skipping",
   "source": "...",
@@ -521,12 +521,15 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.datasource.flint.auth.username`: basic auth username.
 - `spark.datasource.flint.auth.password`: basic auth password.
 - `spark.datasource.flint.region`: default is us-west-2. only been used when auth=sigv4
-- `spark.datasource.flint.customAWSCredentialsProvider`: default is empty.   
+- `spark.datasource.flint.customAWSCredentialsProvider`: default is empty.
+- `spark.datasource.flint.customFlintMetadataLogServiceClass`: default is empty.
+- `spark.datasource.flint.customFlintIndexMetadataServiceClass`: default is empty.
 - `spark.datasource.flint.write.id_name`: no default value.
 - `spark.datasource.flint.ignore.id_column` : default value is true.
 - `spark.datasource.flint.write.batch_size`: "The number of documents written to Flint in a single batch request. Default value is Integer.MAX_VALUE.
 - `spark.datasource.flint.write.batch_bytes`: The approximately amount of data in bytes written to Flint in a single batch request. The actual data write to OpenSearch may more than it. Default value is 1mb. The writing process checks after each document whether the total number of documents (docCount) has reached batch_size or the buffer size has surpassed batch_bytes. If either condition is met, the current batch is flushed and the document count resets to zero.
 - `spark.datasource.flint.write.refresh_policy`: default value is false. valid values [NONE(false), IMMEDIATE(true), WAIT_UNTIL(wait_for)]
+- `spark.datasource.flint.write.bulkRequestRateLimitPerNode`: [Experimental] Rate limit(request/sec) for bulk request per worker node. Only accept integer value. To reduce the traffic less than 1 req/sec, batch_bytes or batch_size should be reduced. Default value is 0, which disables rate limit.
 - `spark.datasource.flint.read.scroll_size`: default value is 100.
 - `spark.datasource.flint.read.scroll_duration`: default value is 5 minutes. scroll context keep alive duration.
 - `spark.datasource.flint.retry.max_retries`: max retries on failed HTTP request. default value is 3. Use 0 to disable retry.
@@ -689,7 +692,7 @@ For now, only single or conjunct conditions (conditions connected by AND) in WHE
 ### AWS EMR Spark Integration - Using execution role
 Flint use [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html). When running in EMR Spark, Flint use executionRole credentials
 ```
---conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.5.0-SNAPSHOT \
+--conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.6.0-SNAPSHOT \
 --conf spark.jars.repositories=https://aws.oss.sonatype.org/content/repositories/snapshots \
 --conf spark.emr-serverless.driverEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
 --conf spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
@@ -731,7 +734,7 @@ Flint use [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJa
 ```
 3. Set the spark.datasource.flint.customAWSCredentialsProvider property with value as com.amazonaws.emr.AssumeRoleAWSCredentialsProvider. Set the environment variable ASSUME_ROLE_CREDENTIALS_ROLE_ARN with the ARN value of CrossAccountRoleB.
 ```
---conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.5.0-SNAPSHOT \
+--conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.6.0-SNAPSHOT \
 --conf spark.jars.repositories=https://aws.oss.sonatype.org/content/repositories/snapshots \
 --conf spark.emr-serverless.driverEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
 --conf spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \

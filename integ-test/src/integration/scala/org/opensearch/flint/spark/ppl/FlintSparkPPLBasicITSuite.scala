@@ -6,9 +6,11 @@
 package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.sql.{QueryTest, Row}
-import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
+import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar, UnresolvedTableOrView}
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Literal, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.execution.command.DescribeTableCommand
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLBasicITSuite
@@ -33,6 +35,51 @@ class FlintSparkPPLBasicITSuite
     spark.streams.active.foreach { job =>
       job.stop()
       job.awaitTermination()
+    }
+  }
+
+  test("describe (extended) table query test") {
+    val testTableQuoted = "`spark_catalog`.`default`.`flint_ppl_test`"
+    Seq(testTable, testTableQuoted).foreach { table =>
+      val frame = sql(s"""
+           describe flint_ppl_test
+           """.stripMargin)
+
+      // Retrieve the results
+      val results: Array[Row] = frame.collect()
+      // Define the expected results
+      val expectedResults: Array[Row] = Array(
+        Row("name", "string", null),
+        Row("age", "int", null),
+        Row("state", "string", null),
+        Row("country", "string", null),
+        Row("year", "int", null),
+        Row("month", "int", null),
+        Row("# Partition Information", "", ""),
+        Row("# col_name", "data_type", "comment"),
+        Row("year", "int", null),
+        Row("month", "int", null))
+
+      // Convert actual results to a Set for quick lookup
+      val resultsSet: Set[Row] = results.toSet
+      // Check that each expected row is present in the actual results
+      expectedResults.foreach { expectedRow =>
+        assert(
+          resultsSet.contains(expectedRow),
+          s"Expected row $expectedRow not found in results")
+      }
+      // Retrieve the logical plan
+      val logicalPlan: LogicalPlan =
+        frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
+      // Define the expected logical plan
+      val expectedPlan: LogicalPlan =
+        DescribeTableCommand(
+          TableIdentifier("flint_ppl_test"),
+          Map.empty[String, String],
+          isExtended = true,
+          output = DescribeRelation.getOutputAttrs)
+      // Compare the two plans
+      comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
     }
   }
 
@@ -208,7 +255,7 @@ class FlintSparkPPLBasicITSuite
         val sortedPlan: LogicalPlan =
           Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, limitPlan)
 
-        val expectedPlan = Project(Seq(UnresolvedStar(None)), sortedPlan);
+        val expectedPlan = Project(Seq(UnresolvedStar(None)), sortedPlan)
         // Compare the two plans
         assert(compareByString(expectedPlan) === compareByString(logicalPlan))
     }

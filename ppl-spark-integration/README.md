@@ -221,8 +221,11 @@ Next tasks ahead will resolve this:
 
 This section describes the next steps planned for enabling additional commands and gamer translation.
 
-#### Supported
-The next samples of PPL queries are currently supported:
+#### Example PPL Queries
+See the next samples of PPL queries :
+
+**Describe**
+ - `describe table`  This command is equal to the `DESCRIBE EXTENDED table` SQL command
 
 **Fields**
  - `source = table`
@@ -249,7 +252,7 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
  - `source = table | eval n = now() | eval t = unix_timestamp(a) | fields n,t`
  - `source = table | eval f = a | where f > 1 | sort f | fields a,b,c | head 5`
  - `source = table | eval f = a * 2 | eval h = f * 2 | fields a,f,h`
- - `source = table | eval f = a * 2, h = f * 2 | fields a,f,h` (Spark 3.4.0+ required)
+ - `source = table | eval f = a * 2, h = f * 2 | fields a,f,h`
  - `source = table | eval f = a * 2, h = b | stats avg(f) by h`
 
 Limitation: Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous" 
@@ -262,6 +265,8 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
  - `source = table | where a < 50 | stats avg(c) `
  - `source = table | stats max(c) by b`
  - `source = table | stats count(c) by b | head 5`
+ - `source = table | stats stddev_samp(c)`
+ - `source = table | stats stddev_pop(c)`
 
 **Aggregations With Span**
 - `source = table  | stats count(a) by span(a, 10) as a_span`
@@ -272,31 +277,31 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source = table | stats sum(productsAmount) by span(transactionDate, 1d) as age_date | sort age_date`
 - `source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date, productId`
 
-> For additional details, review [FlintSparkPPLTimeWindowITSuite.scala](../integ-test/src/test/scala/org/opensearch/flint/spark/ppl/FlintSparkPPLTimeWindowITSuite.scala)
+**Dedup**
 
-#### Supported Commands:
- - `search` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/search.rst)  
- - `where`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/where.rst)  
- - `fields` - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/fields.rst)  
- - `eval`   - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/eval.rst)
- - `head`   - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/head.rst)
- - `stats`  - [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/stats.rst) (supports AVG, COUNT, DISTINCT_COUNT, MAX, MIN and SUM aggregation functions)
- - `sort` -   [See details](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst)
- - `correlation` - [See details](../docs/PPL-Correlation-command.md)
+- `source = table | dedup a | fields a,b,c`
+- `source = table | dedup a,b | fields a,b,c`
+- `source = table | dedup a keepempty=true | fields a,b,c`
+- `source = table | dedup a,b keepempty=true | fields a,b,c`
+- `source = table | dedup 1 a | fields a,b,c`
+- `source = table | dedup 1 a,b | fields a,b,c`
+- `source = table | dedup 1 a keepempty=true | fields a,b,c`
+- `source = table | dedup 1 a,b keepempty=true | fields a,b,c`
+- `source = table | dedup 1 a consecutive=true| fields a,b,c` (Unsupported)
+- `source = table | dedup 2 a | fields a,b,c` (Unsupported)
 
-> For additional details, review [Integration Tests](../integ-test/src/test/scala/org/opensearch/flint/spark/)
- 
+
+For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
+
 ---
 
-#### Planned Support
+For additional details on Spark PPL commands project, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
+For additional details on Spark PPL commands support campaign, see [PPL Commands Campaign](https://github.com/opensearch-project/opensearch-spark/issues/408)
 
- - support the `explain` command to return the explained PPL query logical plan and expected execution plan
+#### Experimental Commands:
+ - `correlation` - [See details](../docs/PPL-Correlation-command.md)
 
- - attend [sort](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/sort.rst) partially supported, missing capability to sort by alias field (span like or aggregation)
- - attend `alias` - partially supported, missing capability to sort by / group-by alias field name 
+> This is an experimental command - it may be removed in future versions
 
- - add [conditions](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/condition.rst) support
- - add [top](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/top.rst) support
- - add [cast](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/conversion.rst) support
- - add [math](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/functions/math.rst) support
- - add [deduplicate](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/cmd/dedup.rst) support
+
+ 

@@ -14,7 +14,7 @@ import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
-import org.opensearch.flint.core.storage.FlintOpenSearchClient
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
 import org.scalatest.matchers.must.Matchers.{defined, have}
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
@@ -25,8 +25,8 @@ import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
   /** Test table, MV, index name and query */
-  private val testTable = "spark_catalog.default.mv_test"
-  private val testMvName = "spark_catalog.default.mv_test_metrics"
+  private val testTable = s"$catalogName.default.mv_test"
+  private val testMvName = s"$catalogName.default.mv_test_metrics"
   private val testFlintIndex = getFlintIndexName(testMvName)
   private val testQuery =
     s"""
@@ -152,10 +152,12 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
              |""".stripMargin)
 
     // Check if the index setting option is set to OS index setting
-    val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
+    val flintIndexMetadataService =
+      new FlintOpenSearchIndexMetadataService(new FlintOptions(openSearchOptions.asJava))
 
     implicit val formats: Formats = Serialization.formats(NoTypeHints)
-    val settings = parse(flintClient.getIndexMetadata(testFlintIndex).indexSettings.get)
+    val settings =
+      parse(flintIndexMetadataService.getIndexMetadata(testFlintIndex).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "3"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
@@ -218,7 +220,11 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
   }
 
   test("issue 112, https://github.com/opensearch-project/opensearch-spark/issues/112") {
-    val tableName = "spark_catalog.default.issue112"
+    if (tableType.equalsIgnoreCase("iceberg")) {
+      cancel
+    }
+
+    val tableName = s"$catalogName.default.issue112"
     createTableIssue112(tableName)
     sql(s"""
            |CREATE MATERIALIZED VIEW $testMvName AS
@@ -261,14 +267,14 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
   test("create materialized view with quoted name and column name") {
     val testQuotedQuery =
-      """ SELECT
+      s""" SELECT
         |   window.start AS `start.time`,
         |   COUNT(*) AS `count`
-        | FROM `spark_catalog`.`default`.`mv_test`
+        | FROM `$catalogName`.`default`.`mv_test`
         | GROUP BY TUMBLE(`time`, '10 Minutes')""".stripMargin.trim
 
     sql(s"""
-           | CREATE MATERIALIZED VIEW `spark_catalog`.`default`.`mv_test_metrics`
+           | CREATE MATERIALIZED VIEW `$catalogName`.`default`.`mv_test_metrics`
            | AS $testQuotedQuery
            |""".stripMargin)
 
@@ -303,34 +309,34 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
   test("show all materialized views in catalog and database") {
     // Show in catalog
-    flint.materializedView().name("spark_catalog.default.mv1").query(testQuery).create()
-    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN spark_catalog"), Seq(Row("mv1")))
+    flint.materializedView().name(s"$catalogName.default.mv1").query(testQuery).create()
+    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN $catalogName"), Seq(Row("mv1")))
 
     // Show in catalog.database
-    flint.materializedView().name("spark_catalog.default.mv2").query(testQuery).create()
+    flint.materializedView().name(s"$catalogName.default.mv2").query(testQuery).create()
     checkAnswer(
-      sql(s"SHOW MATERIALIZED VIEW IN spark_catalog.default"),
+      sql(s"SHOW MATERIALIZED VIEW IN $catalogName.default"),
       Seq(Row("mv1"), Row("mv2")))
 
-    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN spark_catalog.other"), Seq.empty)
+    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN $catalogName.other"), Seq.empty)
 
     deleteTestIndex(
-      getFlintIndexName("spark_catalog.default.mv1"),
-      getFlintIndexName("spark_catalog.default.mv2"))
+      getFlintIndexName(s"$catalogName.default.mv1"),
+      getFlintIndexName(s"$catalogName.default.mv2"))
   }
 
   test("show materialized view in database with the same prefix") {
-    flint.materializedView().name("spark_catalog.default.mv1").query(testQuery).create()
-    flint.materializedView().name("spark_catalog.default_test.mv2").query(testQuery).create()
-    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN spark_catalog.default"), Seq(Row("mv1")))
+    flint.materializedView().name(s"$catalogName.default.mv1").query(testQuery).create()
+    flint.materializedView().name(s"$catalogName.default_test.mv2").query(testQuery).create()
+    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN $catalogName.default"), Seq(Row("mv1")))
 
     deleteTestIndex(
-      getFlintIndexName("spark_catalog.default.mv1"),
-      getFlintIndexName("spark_catalog.default_test.mv2"))
+      getFlintIndexName(s"$catalogName.default.mv1"),
+      getFlintIndexName(s"$catalogName.default_test.mv2"))
   }
 
   test("should return emtpy when show materialized views in empty database") {
-    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN spark_catalog.other"), Seq.empty)
+    checkAnswer(sql(s"SHOW MATERIALIZED VIEW IN $catalogName.other"), Seq.empty)
   }
 
   test("describe materialized view") {

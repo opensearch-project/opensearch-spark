@@ -27,6 +27,7 @@ queryStatement
 // commands
 pplCommands
    : searchCommand
+   | describeCommand
    ;
 
 commands
@@ -34,6 +35,7 @@ commands
    | correlateCommand
    | fieldsCommand
    | statsCommand
+   | dedupCommand
    | sortCommand
    | headCommand
    | evalCommand
@@ -232,6 +234,8 @@ statsFunctionName
    | SUM
    | MIN
    | MAX
+   | STDDEV_SAMP
+   | STDDEV_POP
    ;
 
 takeAggFunction

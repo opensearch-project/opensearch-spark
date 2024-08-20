@@ -15,12 +15,13 @@ import scala.util.control.Breaks.{break, breakable}
 
 import org.opensearch.OpenSearchStatusException
 import org.opensearch.flint.OpenSearchSuite
+import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession}
 import org.opensearch.flint.core.{FlintClient, FlintOptions}
 import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintReader, OpenSearchUpdater}
-import org.opensearch.flint.data.{FlintStatement, InteractiveSession}
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.FlintREPLConfConstants.DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DATA_SOURCE_NAME, EXCLUDE_JOB_IDS, HOST_ENDPOINT, HOST_PORT, JOB_TYPE, REFRESH_POLICY, REPL_INACTIVITY_TIMEOUT_MILLIS, REQUEST_INDEX, SESSION_ID}
 import org.apache.spark.sql.util.MockEnvironment
 import org.apache.spark.util.ThreadUtils
@@ -120,7 +121,6 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
     updater = new OpenSearchUpdater(
       requestIndex,
       new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava)))
-
   }
 
   override def afterEach(): Unit = {
@@ -130,19 +130,20 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
 
   def createSession(jobId: String, excludeJobId: String): Unit = {
     val docs = Seq(s"""{
-        |  "state": "running",
-        |  "lastUpdateTime": 1698796582978,
-        |  "applicationId": "00fd777k3k3ls20p",
-        |  "error": "",
-        |  "sessionId": ${sessionId},
-        |  "jobId": \"${jobId}\",
-        |  "type": "session",
-        |  "excludeJobIds": [\"${excludeJobId}\"]
-        |}""".stripMargin)
+                      |  "state": "running",
+                      |  "lastUpdateTime": 1698796582978,
+                      |  "applicationId": "00fd777k3k3ls20p",
+                      |  "error": "",
+                      |  "sessionId": ${sessionId},
+                      |  "jobId": \"${jobId}\",
+                      |  "type": "session",
+                      |  "excludeJobIds": [\"${excludeJobId}\"]
+                      |}""".stripMargin)
     index(requestIndex, oneNodeSetting, requestIndexMapping, docs)
   }
 
-  def startREPL(): Future[Unit] = {
+  def startREPL(queryLoopExecutionFrequency: Long = DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY)
+      : Future[Unit] = {
     val prefix = "flint-repl-test"
     val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor(prefix, 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
@@ -163,6 +164,10 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
       System.setProperty(HOST_ENDPOINT.key, openSearchHost)
       System.setProperty(HOST_PORT.key, String.valueOf(openSearchPort))
       System.setProperty(REFRESH_POLICY.key, "true")
+
+      System.setProperty(
+        "spark.flint.job.queryLoopExecutionFrequency",
+        queryLoopExecutionFrequency.toString)
 
       FlintREPL.envinromentProvider = new MockEnvironment(
         Map("SERVERLESS_EMR_JOB_ID" -> jobRunId, "SERVERLESS_EMR_VIRTUAL_CLUSTER_ID" -> appId))
@@ -266,7 +271,7 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
       val lateSelectQuery = s"SELECT name, age FROM $testTable".stripMargin
       // submitted from last year. We won't pick it up
       val lateSelectStatementId =
-        submitQuery(s"${makeJsonCompliant(selectQuery)}", selectQueryId, 1672101970000L)
+        submitQuery(s"${makeJsonCompliant(lateSelectQuery)}", lateSelectQueryId, 1672101970000L)
 
       // clean up
       val dropStatement =
@@ -482,6 +487,99 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
     } finally {
       waitREPLStop(threadLocalFuture.get())
       threadLocalFuture.remove()
+    }
+  }
+
+  test("query loop should exit with inactivity timeout due to large query loop freq") {
+    try {
+      createSession(jobRunId, "")
+      threadLocalFuture.set(startREPL(5000L))
+      val createStatement =
+        s"""
+           | CREATE TABLE $testTable
+           | (
+           |   name STRING,
+           |   age INT
+           | )
+           | USING CSV
+           | OPTIONS (
+           |  header 'false',
+           |  delimiter '\\t'
+           | )
+           |""".stripMargin
+      submitQuery(s"${makeJsonCompliant(createStatement)}", "119")
+
+      val insertStatement =
+        s"""
+           | INSERT INTO $testTable
+           | VALUES ('Hello', 30)
+           | """.stripMargin
+      submitQuery(s"${makeJsonCompliant(insertStatement)}", "120")
+
+      val selectQueryId = "121"
+      val selectQueryStartTime = System.currentTimeMillis()
+      val selectQuery = s"SELECT name, age FROM $testTable".stripMargin
+      val selectStatementId = submitQuery(s"${makeJsonCompliant(selectQuery)}", selectQueryId)
+
+      val lateSelectQueryId = "122"
+      val lateSelectQuery = s"SELECT name, age FROM $testTable".stripMargin
+      // old query
+      val lateSelectStatementId =
+        submitQuery(s"${makeJsonCompliant(lateSelectQuery)}", lateSelectQueryId, 1672101970000L)
+
+      // clean up
+      val dropStatement =
+        s"""DROP TABLE $testTable""".stripMargin
+      submitQuery(s"${makeJsonCompliant(dropStatement)}", "999")
+
+      val selectQueryValidation: REPLResult => Boolean = result => {
+        assert(
+          result.results.size == 1,
+          s"expected result size is 1, but got ${result.results.size}")
+        val expectedResult = "{'name':'Hello','age':30}"
+        assert(
+          result.results(0).equals(expectedResult),
+          s"expected result is $expectedResult, but got ${result.results(0)}")
+        assert(
+          result.schemas.size == 2,
+          s"expected schema size is 2, but got ${result.schemas.size}")
+        val expectedZerothSchema = "{'column_name':'name','data_type':'string'}"
+        assert(
+          result.schemas(0).equals(expectedZerothSchema),
+          s"expected first field is $expectedZerothSchema, but got ${result.schemas(0)}")
+        val expectedFirstSchema = "{'column_name':'age','data_type':'integer'}"
+        assert(
+          result.schemas(1).equals(expectedFirstSchema),
+          s"expected second field is $expectedFirstSchema, but got ${result.schemas(1)}")
+        commonValidation(result, selectQueryId, selectQuery, selectQueryStartTime)
+        successValidation(result)
+        true
+      }
+      pollForResultAndAssert(selectQueryValidation, selectQueryId)
+      assert(
+        !awaitConditionForStatementOrTimeout(
+          statement => {
+            statement.state == "success"
+          },
+          selectStatementId),
+        s"Fail to verify for $selectStatementId.")
+
+      assert(
+        awaitConditionForStatementOrTimeout(
+          statement => {
+            statement.state != "waiting"
+          },
+          lateSelectStatementId),
+        s"Fail to verify for $lateSelectStatementId.")
+    } catch {
+      case e: Exception =>
+        logError("Unexpected exception", e)
+        assert(false, "Unexpected exception")
+    } finally {
+      waitREPLStop(threadLocalFuture.get())
+      threadLocalFuture.remove()
+
+      // shutdown hook is called after all tests have finished. We cannot verify if session has correctly been set in IT.
     }
   }
 

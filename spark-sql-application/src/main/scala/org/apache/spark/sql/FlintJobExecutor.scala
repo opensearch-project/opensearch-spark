@@ -96,6 +96,24 @@ trait FlintJobExecutor {
       }
     }""".stripMargin
 
+  // Define the data schema
+  val schema = StructType(
+    Seq(
+      StructField("result", ArrayType(StringType, containsNull = true), nullable = true),
+      StructField("schema", ArrayType(StringType, containsNull = true), nullable = true),
+      StructField("jobRunId", StringType, nullable = true),
+      StructField("applicationId", StringType, nullable = true),
+      StructField("dataSourceName", StringType, nullable = true),
+      StructField("status", StringType, nullable = true),
+      StructField("error", StringType, nullable = true),
+      StructField("queryId", StringType, nullable = true),
+      StructField("queryText", StringType, nullable = true),
+      StructField("sessionId", StringType, nullable = true),
+      StructField("jobType", StringType, nullable = true),
+      // number is not nullable
+      StructField("updateTime", LongType, nullable = false),
+      StructField("queryRunTime", LongType, nullable = true)))
+
   def createSparkConf(): SparkConf = {
     val conf = new SparkConf().setAppName(getClass.getSimpleName)
 
@@ -129,11 +147,14 @@ trait FlintJobExecutor {
     builder.getOrCreate()
   }
 
-  private def writeData(resultData: DataFrame, resultIndex: String): Unit = {
+  private def writeData(
+      resultData: DataFrame,
+      resultIndex: String,
+      refreshPolicy: String): Unit = {
     try {
       resultData.write
         .format("flint")
-        .option(REFRESH_POLICY.optionKey, "wait_for")
+        .option(REFRESH_POLICY.optionKey, refreshPolicy)
         .mode("append")
         .save(resultIndex)
       IRestHighLevelClient.recordOperationSuccess(
@@ -160,11 +181,12 @@ trait FlintJobExecutor {
       resultData: DataFrame,
       resultIndex: String,
       osClient: OSClient): Unit = {
+    val refreshPolicy = osClient.flintOptions.getRefreshPolicy;
     if (osClient.doesIndexExist(resultIndex)) {
-      writeData(resultData, resultIndex)
+      writeData(resultData, resultIndex, refreshPolicy)
     } else {
       createResultIndex(osClient, resultIndex, resultIndexMapping)
-      writeData(resultData, resultIndex)
+      writeData(resultData, resultIndex, refreshPolicy)
     }
   }
 
@@ -199,24 +221,6 @@ trait FlintJobExecutor {
           StructField("column_name", StringType, nullable = false),
           StructField("data_type", StringType, nullable = false))))
 
-    // Define the data schema
-    val schema = StructType(
-      Seq(
-        StructField("result", ArrayType(StringType, containsNull = true), nullable = true),
-        StructField("schema", ArrayType(StringType, containsNull = true), nullable = true),
-        StructField("jobRunId", StringType, nullable = true),
-        StructField("applicationId", StringType, nullable = true),
-        StructField("dataSourceName", StringType, nullable = true),
-        StructField("status", StringType, nullable = true),
-        StructField("error", StringType, nullable = true),
-        StructField("queryId", StringType, nullable = true),
-        StructField("queryText", StringType, nullable = true),
-        StructField("sessionId", StringType, nullable = true),
-        StructField("jobType", StringType, nullable = true),
-        // number is not nullable
-        StructField("updateTime", LongType, nullable = false),
-        StructField("queryRunTime", LongType, nullable = true)))
-
     val resultToSave = result.toJSON.collect.toList
       .map(_.replaceAll("'", "\\\\'").replaceAll("\"", "'"))
 
@@ -249,35 +253,17 @@ trait FlintJobExecutor {
     spark.createDataFrame(rows).toDF(schema.fields.map(_.name): _*)
   }
 
-  def getFailedData(
+  def constructErrorDF(
       spark: SparkSession,
       dataSource: String,
+      status: String,
       error: String,
       queryId: String,
-      query: String,
+      queryText: String,
       sessionId: String,
-      startTime: Long,
-      timeProvider: TimeProvider): DataFrame = {
+      startTime: Long): DataFrame = {
 
-    // Define the data schema
-    val schema = StructType(
-      Seq(
-        StructField("result", ArrayType(StringType, containsNull = true), nullable = true),
-        StructField("schema", ArrayType(StringType, containsNull = true), nullable = true),
-        StructField("jobRunId", StringType, nullable = true),
-        StructField("applicationId", StringType, nullable = true),
-        StructField("dataSourceName", StringType, nullable = true),
-        StructField("status", StringType, nullable = true),
-        StructField("error", StringType, nullable = true),
-        StructField("queryId", StringType, nullable = true),
-        StructField("queryText", StringType, nullable = true),
-        StructField("sessionId", StringType, nullable = true),
-        StructField("jobType", StringType, nullable = true),
-        // number is not nullable
-        StructField("updateTime", LongType, nullable = false),
-        StructField("queryRunTime", LongType, nullable = true)))
-
-    val endTime = timeProvider.currentEpochMillis()
+    val updateTime = currentTimeProvider.currentEpochMillis()
 
     // Create the data rows
     val rows = Seq(
@@ -287,14 +273,14 @@ trait FlintJobExecutor {
         envinromentProvider.getEnvVar("SERVERLESS_EMR_JOB_ID", "unknown"),
         envinromentProvider.getEnvVar("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown"),
         dataSource,
-        "FAILED",
+        status.toUpperCase(Locale.ROOT),
         error,
         queryId,
-        query,
+        queryText,
         sessionId,
         spark.conf.get(FlintSparkConf.JOB_TYPE.key),
-        endTime,
-        endTime - startTime))
+        updateTime,
+        updateTime - startTime))
 
     // Create the DataFrame for data
     spark.createDataFrame(rows).toDF(schema.fields.map(_.name): _*)

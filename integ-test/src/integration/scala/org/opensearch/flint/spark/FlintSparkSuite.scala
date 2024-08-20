@@ -35,6 +35,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
   lazy protected val flint: FlintSpark = new FlintSpark(spark)
   lazy protected val tableType: String = "CSV"
   lazy protected val tableOptions: String = "OPTIONS (header 'false', delimiter '\t')"
+  lazy protected val catalogName: String = "spark_catalog"
 
   override protected def sparkConf: SparkConf = {
     val conf = super.sparkConf
@@ -69,7 +70,8 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
         flint.deleteIndex(testIndex)
         flint.vacuumIndex(testIndex)
       } catch {
-        case _: IllegalStateException =>
+        // Forcefully delete index data and log entry in case of any errors, such as version conflict
+        case _: Exception =>
           if (openSearchClient
               .indices()
               .exists(new GetIndexRequest(testIndex), RequestOptions.DEFAULT)) {
@@ -306,6 +308,40 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
       |        ('David', 'USA', 'Gardening', 'English'),
       |        ('Jane', 'Canada', 'Singing', 'French')
       | """.stripMargin)
+  }
+
+  protected def createDuplicationNullableTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   id INT,
+           |   name STRING,
+           |   category STRING
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES   (1, "A", "X"),
+           |          (2, "A", "Y"),
+           |          (3, "A", "Y"),
+           |          (4, "B", "Z"),
+           |          (5, "B", "Z"),
+           |          (6, "B", "Z"),
+           |          (7, "C", "X"),
+           |          (8, null, "Y"),
+           |          (9, "D", "Z"),
+           |          (10, "E", null),
+           |          (11, "A", "X"),
+           |          (12, "A", "Y"),
+           |          (13, null, "X"),
+           |          (14, "B", null),
+           |          (15, "B", "Y"),
+           |          (16, null, "Z"),
+           |          (17, "C", "X"),
+           |          (18, null, null)
+           | """.stripMargin)
   }
 
   protected def createTimeSeriesTable(testTable: String): Unit = {

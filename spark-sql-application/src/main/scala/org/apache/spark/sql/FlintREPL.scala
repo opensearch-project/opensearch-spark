@@ -18,20 +18,31 @@ import com.codahale.metrics.Timer
 import org.json4s.native.Serialization
 import org.opensearch.action.get.GetResponse
 import org.opensearch.common.Strings
+import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession}
+import org.opensearch.flint.common.model.InteractiveSession.formats
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
-import org.opensearch.flint.data.{FlintStatement, InteractiveSession}
-import org.opensearch.flint.data.InteractiveSession.formats
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
+import org.apache.spark.sql.FlintREPLConfConstants._
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.util.ThreadUtils
+
+object FlintREPLConfConstants {
+  val HEARTBEAT_INTERVAL_MILLIS = 60000L
+  val MAPPING_CHECK_TIMEOUT = Duration(1, MINUTES)
+  val DEFAULT_QUERY_EXECUTION_TIMEOUT = Duration(30, MINUTES)
+  val DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS = 10 * 60 * 1000
+  val DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY = 100L
+  val INITIAL_DELAY_MILLIS = 3000L
+  val EARLY_TERMINATION_CHECK_FREQUENCY = 60000L
+}
 
 /**
  * Spark SQL Application entrypoint
@@ -47,13 +58,6 @@ import org.apache.spark.util.ThreadUtils
  *   write sql query result to given opensearch index
  */
 object FlintREPL extends Logging with FlintJobExecutor {
-
-  private val HEARTBEAT_INTERVAL_MILLIS = 60000L
-  private val MAPPING_CHECK_TIMEOUT = Duration(1, MINUTES)
-  private val DEFAULT_QUERY_EXECUTION_TIMEOUT = Duration(30, MINUTES)
-  private val DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS = 10 * 60 * 1000
-  val INITIAL_DELAY_MILLIS = 3000L
-  val EARLY_TERMIANTION_CHECK_FREQUENCY = 60000L
 
   @volatile var earlyExitFlag: Boolean = false
 
@@ -134,7 +138,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
         SECONDS)
       val queryWaitTimeoutMillis: Long =
         conf.getLong("spark.flint.job.queryWaitTimeoutMillis", DEFAULT_QUERY_WAIT_TIMEOUT_MILLIS)
-
+      val queryLoopExecutionFrequency: Long =
+        conf.getLong(
+          "spark.flint.job.queryLoopExecutionFrequency",
+          DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY)
       val flintSessionIndexUpdater = osClient.createUpdater(sessionIndex.get)
       val sessionTimerContext = getTimerContext(MetricConstants.REPL_PROCESSING_TIME_METRIC)
 
@@ -199,7 +206,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
           jobId,
           queryExecutionTimeoutSecs,
           inactivityLimitMillis,
-          queryWaitTimeoutMillis)
+          queryWaitTimeoutMillis,
+          queryLoopExecutionFrequency)
         exponentialBackoffRetry(maxRetries = 5, initialDelay = 2.seconds) {
           queryLoop(commandContext)
         }
@@ -342,7 +350,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
   }
 
   def queryLoop(commandContext: CommandContext): Unit = {
-    // 1 thread for updating heart beat
+    // 1 thread for async query execution
     val threadPool = threadPoolFactory.newDaemonThreadPoolScheduledExecutor("flint-repl-query", 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
 
@@ -392,7 +400,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           flintReader.close()
         }
 
-        Thread.sleep(100)
+        Thread.sleep(commandContext.queryLoopExecutionFrequency)
       }
     } finally {
       if (threadPool != null) {
@@ -448,7 +456,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       .getOrElse(createFailedFlintInstance(applicationId, jobId, sessionId, jobStartTime, error))
 
     updateFlintInstance(flintInstance, flintSessionIndexUpdater, sessionId)
-    if (flintInstance.state.equals("fail")) {
+    if (flintInstance.isFail) {
       recordSessionFailed(sessionTimerContext)
     }
   }
@@ -522,15 +530,15 @@ object FlintREPL extends Logging with FlintJobExecutor {
       startTime: Long): DataFrame = {
     flintStatement.fail()
     flintStatement.error = Some(error)
-    super.getFailedData(
+    super.constructErrorDF(
       spark,
       dataSource,
+      flintStatement.state,
       error,
       flintStatement.queryId,
       flintStatement.query,
       sessionId,
-      startTime,
-      currentTimeProvider)
+      startTime)
   }
 
   def processQueryException(ex: Exception, flintStatement: FlintStatement): String = {
@@ -555,8 +563,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
     while (canProceed) {
       val currentTime = currentTimeProvider.currentEpochMillis()
 
-      // Only call canPickNextStatement if EARLY_TERMIANTION_CHECK_FREQUENCY milliseconds have passed
-      if (currentTime - lastCanPickCheckTime > EARLY_TERMIANTION_CHECK_FREQUENCY) {
+      // Only call canPickNextStatement if EARLY_TERMINATION_CHECK_FREQUENCY milliseconds have passed
+      if (currentTime - lastCanPickCheckTime > EARLY_TERMINATION_CHECK_FREQUENCY) {
         canPickNextStatementResult =
           canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
         lastCanPickCheckTime = currentTime
@@ -646,7 +654,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       error: String,
       flintStatement: FlintStatement,
       sessionId: String,
-      startTime: Long): Option[DataFrame] = {
+      startTime: Long): DataFrame = {
     /*
      * https://tinyurl.com/2ezs5xj9
      *
@@ -660,14 +668,17 @@ object FlintREPL extends Logging with FlintJobExecutor {
      * actions that require the computation of results that need to be collected or stored.
      */
     spark.sparkContext.cancelJobGroup(flintStatement.queryId)
-    Some(
-      handleCommandFailureAndGetFailedData(
-        spark,
-        dataSource,
-        error,
-        flintStatement,
-        sessionId,
-        startTime))
+    flintStatement.timeout()
+    flintStatement.error = Some(error)
+    super.constructErrorDF(
+      spark,
+      dataSource,
+      flintStatement.state,
+      error,
+      flintStatement.queryId,
+      flintStatement.query,
+      sessionId,
+      startTime)
   }
 
   def executeAndHandle(
@@ -694,7 +705,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       case e: TimeoutException =>
         val error = s"Executing ${flintStatement.query} timed out"
         CustomLogging.logError(error, e)
-        handleCommandTimeout(spark, dataSource, error, flintStatement, sessionId, startTime)
+        Some(handleCommandTimeout(spark, dataSource, error, flintStatement, sessionId, startTime))
       case e: Exception =>
         val error = processQueryException(e, flintStatement)
         Some(
@@ -753,8 +764,14 @@ object FlintREPL extends Logging with FlintJobExecutor {
           case e: TimeoutException =>
             val error = s"Getting the mapping of index $resultIndex timed out"
             CustomLogging.logError(error, e)
-            dataToWrite =
-              handleCommandTimeout(spark, dataSource, error, flintStatement, sessionId, startTime)
+            dataToWrite = Some(
+              handleCommandTimeout(
+                spark,
+                dataSource,
+                error,
+                flintStatement,
+                sessionId,
+                startTime))
           case NonFatal(e) =>
             val error = s"An unexpected error occurred: ${e.getMessage}"
             CustomLogging.logError(error, e)
@@ -933,7 +950,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       sessionId: String,
       sessionTimerContext: Timer.Context): Unit = {
     val flintInstance = InteractiveSession.deserializeFromMap(source)
-    flintInstance.state = "dead"
+    flintInstance.complete()
     flintSessionIndexUpdater.updateIf(
       sessionId,
       InteractiveSession.serializeWithoutJobId(

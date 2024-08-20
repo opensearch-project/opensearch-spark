@@ -13,7 +13,7 @@ import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.{compact, parse, render}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
-import org.opensearch.flint.core.storage.FlintOpenSearchClient
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
@@ -25,8 +25,8 @@ import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
 class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuiteHelper {
 
   /** Test table and index name */
-  private val testTable = "spark_catalog.default.skipping_sql_test"
-  private val testIndex = getSkippingIndexName(testTable)
+  protected val testTable = s"$catalogName.default.skipping_sql_test"
+  protected val testIndex = getSkippingIndexName(testTable)
 
   override def beforeEach(): Unit = {
     super.beforeAll()
@@ -150,7 +150,8 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
         |""".stripMargin)).foreach { case (query, expectedParamJson) =>
     test(s"create skipping index with bloom filter parameters $expectedParamJson") {
       sql(query)
-      val metadata = flint.describeIndex(testIndex).get.metadata().getContent
+      val metadata = FlintOpenSearchIndexMetadataService.serialize(
+        flint.describeIndex(testIndex).get.metadata())
       val parameters = compact(render(parse(metadata) \\ "parameters"))
       parameters should matchJson(expectedParamJson)
     }
@@ -187,10 +188,11 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
            |""".stripMargin)
 
     // Check if the index setting option is set to OS index setting
-    val flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava))
+    val flintIndexMetadataService =
+      new FlintOpenSearchIndexMetadataService(new FlintOptions(openSearchOptions.asJava))
 
     implicit val formats: Formats = Serialization.formats(NoTypeHints)
-    val settings = parse(flintClient.getIndexMetadata(testIndex).indexSettings.get)
+    val settings = parse(flintIndexMetadataService.getIndexMetadata(testIndex).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "3"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
@@ -201,7 +203,9 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
     "`struct_col`.`field1`.`subfield` VALUE_SET, `struct_col`.`field2` MIN_MAX").foreach {
     columnSkipTypes =>
       test(s"build skipping index for nested field $columnSkipTypes") {
-        val testTable = "spark_catalog.default.nested_field_table"
+        assume(tableType != "iceberg", "ignore iceberg skipping index query rewrite test")
+
+        val testTable = s"$catalogName.default.nested_field_table"
         val testIndex = getSkippingIndexName(testTable)
         withTable(testTable) {
           createStructTable(testTable)
@@ -339,7 +343,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
 
   test("create skipping index with quoted table and column name") {
     sql(s"""
-           | CREATE SKIPPING INDEX ON `spark_catalog`.`default`.`skipping_sql_test`
+           | CREATE SKIPPING INDEX ON `$catalogName`.`default`.`skipping_sql_test`
            | (
            |   `year` PARTITION,
            |   `name` VALUE_SET,
@@ -385,17 +389,26 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
     sql("USE sample")
 
     // Create index without database name specified
-    sql("CREATE TABLE test1 (name STRING) USING CSV")
+    sql(s"CREATE TABLE test1 (name STRING) USING $tableType")
     sql("CREATE SKIPPING INDEX ON test1 (name VALUE_SET)")
 
     // Create index with database name specified
-    sql("CREATE TABLE test2 (name STRING) USING CSV")
+    sql(s"CREATE TABLE test2 (name STRING) USING $tableType")
     sql("CREATE SKIPPING INDEX ON sample.test2 (name VALUE_SET)")
 
     try {
-      flint.describeIndex("flint_spark_catalog_sample_test1_skipping_index") shouldBe defined
-      flint.describeIndex("flint_spark_catalog_sample_test2_skipping_index") shouldBe defined
+      flint.describeIndex(s"flint_${catalogName}_sample_test1_skipping_index") shouldBe defined
+      flint.describeIndex(s"flint_${catalogName}_sample_test2_skipping_index") shouldBe defined
     } finally {
+
+      /**
+       * TODO: REMOVE DROP TABLE when iceberg support CASCADE. More reading at
+       * https://github.com/apache/iceberg/pull/7275.
+       */
+      if (tableType.equalsIgnoreCase("iceberg")) {
+        sql("DROP TABLE test1")
+        sql("DROP TABLE test2")
+      }
       sql("DROP DATABASE sample CASCADE")
     }
   }

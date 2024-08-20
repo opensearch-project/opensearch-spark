@@ -9,7 +9,7 @@ import java.util.Collections
 
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 
-import org.opensearch.flint.core.metadata.FlintMetadata
+import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
