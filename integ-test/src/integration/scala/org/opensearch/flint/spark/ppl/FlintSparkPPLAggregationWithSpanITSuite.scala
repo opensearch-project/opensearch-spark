@@ -351,4 +351,101 @@ class FlintSparkPPLAggregationWithSpanITSuite
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
+
+  /**
+   * | age_span | age_percentile |
+   * |:---------|---------------:|
+   * | 20       |             25 |
+   * | 30       |             30 |
+   * | 70       |             70 |
+   */
+  test(
+    "create ppl simple age 60th percentile by span of interval of 10 years query with state filter test ") {
+    val frame = sql(s"""
+                       | source = $testTable | where state != 'Quebec' | stats percentile(age, 60) by span(age, 10) as age_span
+                       | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(Row(70d, 70L), Row(30d, 30L), Row(25d, 20L))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Long](_.getAs[Long](1))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val ageField = UnresolvedAttribute("age")
+    val percentage = Literal(0.6)
+    val stateField = UnresolvedAttribute("state")
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("PERCENTILE"), Seq(ageField, percentage), isDistinct = false),
+        "percentile(age, 60)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
+      "age_span")()
+    val filterExpr = Not(EqualTo(stateField, Literal("Quebec")))
+    val filterPlan = Filter(filterExpr, table)
+    val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), filterPlan)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+
+  /**
+   * | age_span | age_percentile |
+   * |:---------|---------------:|
+   * | 20       |             25 |
+   * | 30       |             30 |
+   * | 70       |             70 |
+   */
+  test(
+    "create ppl simple age 60th percentile approx by span of interval of 10 years query with state filter test ") {
+    val frame = sql(s"""
+                       | source = $testTable | where state != 'Quebec' | stats percentile_approx(age, 60) by span(age, 10) as age_span
+                       | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(Row(70d, 70L), Row(30d, 30L), Row(25d, 20L))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Long](_.getAs[Long](1))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val ageField = UnresolvedAttribute("age")
+    val percentage = Literal(0.6)
+    val stateField = UnresolvedAttribute("state")
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(
+          Seq("PERCENTILE_APPROX"),
+          Seq(ageField, percentage),
+          isDistinct = false),
+        "percentile_approx(age, 60)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
+      "age_span")()
+    val filterExpr = Not(EqualTo(stateField, Literal("Quebec")))
+    val filterPlan = Filter(filterExpr, table)
+    val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), filterPlan)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
 }
