@@ -6,9 +6,13 @@
 package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
+import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
+import org.apache.spark.sql.types.Metadata;
+import org.opensearch.sql.data.type.ExprType;
 import scala.collection.Iterator;
 import scala.collection.Seq;
 
@@ -81,6 +85,15 @@ public class CatalystPlanContext {
         return groupingParseExpressions;
     }
 
+    /**
+     * define new field
+     * @param symbol
+     * @return
+     */
+    public LogicalPlan define(Expression symbol) {
+        namedParseExpressions.push(symbol);
+        return getPlan();
+    }
     /**
      * append plan with evolving plans branches
      *
