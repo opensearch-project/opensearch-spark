@@ -372,4 +372,226 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
+  test("test price sample stddev group by product sorted") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats stddev_samp(price) by product | sort product",
+        false),
+      context)
+    val star = Seq(UnresolvedStar(None))
+    val priceField = UnresolvedAttribute("price")
+    val productField = UnresolvedAttribute("product")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val groupByAttributes = Seq(Alias(productField, "product")())
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("STDDEV_SAMP"), Seq(priceField), isDistinct = false),
+        "stddev_samp(price)")()
+    val productAlias = Alias(productField, "product")()
+
+    val aggregatePlan =
+      Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), tableRelation)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(productField, Ascending)), global = true, aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test price sample stddev with alias and filter") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table category = 'vegetable' | stats stddev_samp(price) as dev_samp",
+        false),
+      context)
+    val star = Seq(UnresolvedStar(None))
+    val categoryField = UnresolvedAttribute("category")
+    val priceField = UnresolvedAttribute("price")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val aggregateExpressions = Seq(
+      Alias(
+        UnresolvedFunction(Seq("STDDEV_SAMP"), Seq(priceField), isDistinct = false),
+        "dev_samp")())
+    val filterExpr = EqualTo(categoryField, Literal("vegetable"))
+    val filterPlan = Filter(filterExpr, tableRelation)
+    val aggregatePlan = Aggregate(Seq(), aggregateExpressions, filterPlan)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test age sample stddev by span of interval of 5 years query with sort ") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats stddev_samp(age) by span(age, 5) as age_span | sort age",
+        false),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val ageField = UnresolvedAttribute("age")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("STDDEV_SAMP"), Seq(ageField), isDistinct = false),
+        "stddev_samp(age)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(5))), Literal(5)),
+      "age_span")()
+    val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), tableRelation)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test number of flights sample stddev by airport with alias and limit") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats stddev_samp(no_of_flights) as dev_samp_flights by airport | head 10",
+        false),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val numberOfFlightsField = UnresolvedAttribute("no_of_flights")
+    val airportField = UnresolvedAttribute("airport")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val groupByAttributes = Seq(Alias(airportField, "airport")())
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("STDDEV_SAMP"), Seq(numberOfFlightsField), isDistinct = false),
+        "dev_samp_flights")()
+    val airportAlias = Alias(airportField, "airport")()
+
+    val aggregatePlan =
+      Aggregate(groupByAttributes, Seq(aggregateExpressions, airportAlias), tableRelation)
+    val planWithLimit = GlobalLimit(Literal(10), LocalLimit(Literal(10), aggregatePlan))
+    val expectedPlan = Project(star, planWithLimit)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test price population stddev group by product sorted") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats stddev_pop(price) by product | sort product",
+        false),
+      context)
+    val star = Seq(UnresolvedStar(None))
+    val priceField = UnresolvedAttribute("price")
+    val productField = UnresolvedAttribute("product")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val groupByAttributes = Seq(Alias(productField, "product")())
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("STDDEV_POP"), Seq(priceField), isDistinct = false),
+        "stddev_pop(price)")()
+    val productAlias = Alias(productField, "product")()
+
+    val aggregatePlan =
+      Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), tableRelation)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(productField, Ascending)), global = true, aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test price population stddev with alias and filter") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table category = 'vegetable' | stats stddev_pop(price) as dev_pop",
+        false),
+      context)
+    val star = Seq(UnresolvedStar(None))
+    val categoryField = UnresolvedAttribute("category")
+    val priceField = UnresolvedAttribute("price")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val aggregateExpressions = Seq(
+      Alias(
+        UnresolvedFunction(Seq("STDDEV_POP"), Seq(priceField), isDistinct = false),
+        "dev_pop")())
+    val filterExpr = EqualTo(categoryField, Literal("vegetable"))
+    val filterPlan = Filter(filterExpr, tableRelation)
+    val aggregatePlan = Aggregate(Seq(), aggregateExpressions, filterPlan)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test age population stddev by span of interval of 5 years query with sort ") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats stddev_pop(age) by span(age, 5) as age_span | sort age",
+        false),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val ageField = UnresolvedAttribute("age")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("STDDEV_POP"), Seq(ageField), isDistinct = false),
+        "stddev_pop(age)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(5))), Literal(5)),
+      "age_span")()
+    val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), tableRelation)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test number of flights population stddev by airport with alias and limit") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats stddev_pop(no_of_flights) as dev_pop_flights by airport | head 50",
+        false),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val numberOfFlightsField = UnresolvedAttribute("no_of_flights")
+    val airportField = UnresolvedAttribute("airport")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val groupByAttributes = Seq(Alias(airportField, "airport")())
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("STDDEV_POP"), Seq(numberOfFlightsField), isDistinct = false),
+        "dev_pop_flights")()
+    val airportAlias = Alias(airportField, "airport")()
+
+    val aggregatePlan =
+      Aggregate(groupByAttributes, Seq(aggregateExpressions, airportAlias), tableRelation)
+    val planWithLimit = GlobalLimit(Literal(50), LocalLimit(Literal(50), aggregatePlan))
+    val expectedPlan = Project(star, planWithLimit)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
 }
