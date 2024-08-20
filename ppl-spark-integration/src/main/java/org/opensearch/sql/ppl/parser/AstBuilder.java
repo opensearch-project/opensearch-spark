@@ -12,7 +12,9 @@ import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParserBaseVisitor;
+import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Alias;
+import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldsMapping;
@@ -35,11 +37,13 @@ import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Parse;
 import org.opensearch.sql.ast.tree.Project;
+import org.opensearch.sql.ast.tree.RareAggregation;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.TableFunction;
+import org.opensearch.sql.ast.tree.TopAggregation;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
@@ -236,12 +240,6 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
         .collect(Collectors.toList());
   }
 
-  /** Rare command. */
-  @Override
-  public UnresolvedPlan visitRareCommand(OpenSearchPPLParser.RareCommandContext ctx) {
-    throw new RuntimeException("Rare Command is not supported ");
-  }
-
   @Override
   public UnresolvedPlan visitGrokCommand(OpenSearchPPLParser.GrokCommandContext ctx) {
     UnresolvedExpression sourceField = internalVisitExpression(ctx.source_field);
@@ -278,13 +276,91 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   /** Top command. */
   @Override
   public UnresolvedPlan visitTopCommand(OpenSearchPPLParser.TopCommandContext ctx) {
-    List<UnresolvedExpression> groupList =
-        ctx.byClause() == null ? emptyList() : getGroupByList(ctx.byClause());
-    return new RareTopN(
-        RareTopN.CommandType.TOP,
-        ArgumentFactory.getArgumentList(ctx),
-        getFieldList(ctx.fieldList()),
-        groupList);
+    ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
+    ImmutableList.Builder<UnresolvedExpression> groupListBuilder = new ImmutableList.Builder<>();
+    ImmutableList.Builder<UnresolvedExpression> sortListBuilder = new ImmutableList.Builder<>();
+    ctx.fieldList().fieldExpression().forEach(field -> {
+      UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field),
+              Collections.singletonList(new Argument("countParam", new Literal(1, DataType.INTEGER))));
+      String name = field.qualifiedName().getText();
+      Alias alias = new Alias("count("+name+")", aggExpression);
+      aggListBuilder.add(alias);
+      // group by the `field-list` as the mandatory groupBy fields
+      groupListBuilder.add(internalVisitExpression(field));
+    });
+
+    // group by the `by-clause` as the optional groupBy fields
+    groupListBuilder.addAll(
+            Optional.ofNullable(ctx.byClause())
+                    .map(OpenSearchPPLParser.ByClauseContext::fieldList)
+                    .map(
+                            expr ->
+                                    expr.fieldExpression().stream()
+                                            .map(
+                                                    groupCtx ->
+                                                            (UnresolvedExpression)
+                                                                    new Alias(
+                                                                            getTextInQuery(groupCtx),
+                                                                            internalVisitExpression(groupCtx)))
+                                            .collect(Collectors.toList()))
+                    .orElse(emptyList())
+    );
+    //build the sort fields
+    ctx.fieldList().fieldExpression().forEach(field -> {
+      sortListBuilder.add(internalVisitExpression(field));
+    });
+    UnresolvedExpression unresolvedPlan = (ctx.number != null ? internalVisitExpression(ctx.number) : null);
+    TopAggregation aggregation =
+            new TopAggregation(
+                    Optional.ofNullable((Literal) unresolvedPlan),
+                    aggListBuilder.build(),
+                    sortListBuilder.build(),
+                    groupListBuilder.build());
+    return aggregation;
+  }
+  
+  /** Rare command. */
+  @Override
+  public UnresolvedPlan visitRareCommand(OpenSearchPPLParser.RareCommandContext ctx) {
+    ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
+    ImmutableList.Builder<UnresolvedExpression> groupListBuilder = new ImmutableList.Builder<>();
+    ImmutableList.Builder<UnresolvedExpression> sortListBuilder = new ImmutableList.Builder<>();
+    ctx.fieldList().fieldExpression().forEach(field -> {
+      UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field),
+              Collections.singletonList(new Argument("countParam", new Literal(1, DataType.INTEGER))));
+      String name = field.qualifiedName().getText();
+      Alias alias = new Alias("count("+name+")", aggExpression);
+      aggListBuilder.add(alias);
+      // group by the `field-list` as the mandatory groupBy fields
+      groupListBuilder.add(internalVisitExpression(field));
+    });
+
+    // group by the `by-clause` as the optional groupBy fields
+    groupListBuilder.addAll(
+            Optional.ofNullable(ctx.byClause())
+                    .map(OpenSearchPPLParser.ByClauseContext::fieldList)
+                    .map(
+                            expr ->
+                                    expr.fieldExpression().stream()
+                                            .map(
+                                                    groupCtx ->
+                                                            (UnresolvedExpression)
+                                                                    new Alias(
+                                                                            getTextInQuery(groupCtx),
+                                                                            internalVisitExpression(groupCtx)))
+                                            .collect(Collectors.toList()))
+                    .orElse(emptyList())
+    );
+    //build the sort fields
+    ctx.fieldList().fieldExpression().forEach(field -> {
+      sortListBuilder.add(internalVisitExpression(field));
+    });
+    RareAggregation aggregation =
+            new RareAggregation(
+                    aggListBuilder.build(),
+                    sortListBuilder.build(),
+                    groupListBuilder.build());
+    return aggregation;
   }
 
   /** From clause. */

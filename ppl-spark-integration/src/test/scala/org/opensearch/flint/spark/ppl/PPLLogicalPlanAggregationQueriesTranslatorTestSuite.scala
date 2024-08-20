@@ -594,4 +594,168 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
+  test("test price 50th percentile group by product sorted") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats percentile(price, 50) by product | sort product",
+        false),
+      context)
+    val star = Seq(UnresolvedStar(None))
+    val priceField = UnresolvedAttribute("price")
+    val productField = UnresolvedAttribute("product")
+    val percentage = Literal(0.5)
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val groupByAttributes = Seq(Alias(productField, "product")())
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("PERCENTILE"), Seq(priceField, percentage), isDistinct = false),
+        "percentile(price, 50)")()
+    val productAlias = Alias(productField, "product")()
+
+    val aggregatePlan =
+      Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), tableRelation)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(productField, Ascending)), global = true, aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test price 20th percentile with alias and filter") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table category = 'vegetable' | stats percentile(price, 20) as price_20_percentile",
+        false),
+      context)
+    val star = Seq(UnresolvedStar(None))
+    val categoryField = UnresolvedAttribute("category")
+    val priceField = UnresolvedAttribute("price")
+    val percentage = Literal(0.2)
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val aggregateExpressions = Seq(
+      Alias(
+        UnresolvedFunction(Seq("PERCENTILE"), Seq(priceField, percentage), isDistinct = false),
+        "price_20_percentile")())
+    val filterExpr = EqualTo(categoryField, Literal("vegetable"))
+    val filterPlan = Filter(filterExpr, tableRelation)
+    val aggregatePlan = Aggregate(Seq(), aggregateExpressions, filterPlan)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test age 40th percentile by span of interval of 5 years query with sort ") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats percentile(age, 40) by span(age, 5) as age_span | sort age",
+        false),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val ageField = UnresolvedAttribute("age")
+    val percentage = Literal(0.4)
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("PERCENTILE"), Seq(ageField, percentage), isDistinct = false),
+        "percentile(age, 40)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(5))), Literal(5)),
+      "age_span")()
+    val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), tableRelation)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test sum number of flights by airport and calculate 30th percentile with aliases") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats sum(no_of_flights) as flights_count by airport | stats percentile(flights_count, 30) as percentile_30",
+        false),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val numberOfFlightsField = UnresolvedAttribute("no_of_flights")
+    val airportField = UnresolvedAttribute("airport")
+    val percentage = Literal(0.3)
+    val flightsCountField = UnresolvedAttribute("flights_count")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val airportAlias = Alias(airportField, "airport")()
+    val sumAggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(numberOfFlightsField), isDistinct = false),
+        "flights_count")()
+    val sumGroupByAttributes = Seq(Alias(airportField, "airport")())
+    val sumAggregatePlan =
+      Aggregate(sumGroupByAttributes, Seq(sumAggregateExpressions, airportAlias), tableRelation)
+
+    val percentileAggregateExpressions =
+      Alias(
+        UnresolvedFunction(
+          Seq("PERCENTILE"),
+          Seq(flightsCountField, percentage),
+          isDistinct = false),
+        "percentile_30")()
+    val percentileAggregatePlan =
+      Aggregate(Seq(), Seq(percentileAggregateExpressions), sumAggregatePlan)
+    val expectedPlan = Project(star, percentileAggregatePlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test(
+    "test sum number of flights by airport and calculate 30th percentile approx with aliases") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats sum(no_of_flights) as flights_count by airport | stats percentile_approx(flights_count, 30) as percentile_approx_30",
+        false),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val numberOfFlightsField = UnresolvedAttribute("no_of_flights")
+    val airportField = UnresolvedAttribute("airport")
+    val percentage = Literal(0.3)
+    val flightsCountField = UnresolvedAttribute("flights_count")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val airportAlias = Alias(airportField, "airport")()
+    val sumAggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(numberOfFlightsField), isDistinct = false),
+        "flights_count")()
+    val sumGroupByAttributes = Seq(Alias(airportField, "airport")())
+    val sumAggregatePlan =
+      Aggregate(sumGroupByAttributes, Seq(sumAggregateExpressions, airportAlias), tableRelation)
+
+    val percentileAggregateExpressions =
+      Alias(
+        UnresolvedFunction(
+          Seq("PERCENTILE_APPROX"),
+          Seq(flightsCountField, percentage),
+          isDistinct = false),
+        "percentile_approx_30")()
+    val percentileAggregatePlan =
+      Aggregate(Seq(), Seq(percentileAggregateExpressions), sumAggregatePlan)
+    val expectedPlan = Project(star, percentileAggregatePlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
 }

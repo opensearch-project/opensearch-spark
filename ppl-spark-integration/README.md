@@ -231,6 +231,11 @@ See the next samples of PPL queries :
  - `source = table`
  - `source = table | fields a,b,c`
 
+**Nested-Fields**
+ - `source = catalog.schema.table1, catalog.schema.table2 | fields A.nested1, B.nested1`
+ - `source = catalog.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield`
+ - `source = catalog.schema.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield`
+
 **Filters**
  - `source = table | where a = 1 | fields a,b,c`
  - `source = table | where a >= 1 | fields a,b,c`
@@ -267,6 +272,8 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
  - `source = table | stats count(c) by b | head 5`
  - `source = table | stats stddev_samp(c)`
  - `source = table | stats stddev_pop(c)`
+ - `source = table | stats percentile(c, 90)`
+ - `source = table | stats percentile_approx(c, 99)`
 
 **Aggregations With Span**
 - `source = table  | stats count(a) by span(a, 10) as a_span`
@@ -278,7 +285,6 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date, productId`
 
 **Dedup**
-
 - `source = table | dedup a | fields a,b,c`
 - `source = table | dedup a,b | fields a,b,c`
 - `source = table | dedup a keepempty=true | fields a,b,c`
@@ -290,8 +296,17 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source = table | dedup 1 a consecutive=true| fields a,b,c` (Unsupported)
 - `source = table | dedup 2 a | fields a,b,c` (Unsupported)
 
+**Rare**
+- `source=accounts | rare gender`
+- `source=accounts | rare age by gender`
 
-For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
+**Top**
+- `source=accounts | top gender`
+- `source=accounts | top 1 gender`
+- `source=accounts | top 1 age by gender`
+
+
+> For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
 
 ---
 
