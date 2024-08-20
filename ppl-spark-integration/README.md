@@ -224,6 +224,9 @@ This section describes the next steps planned for enabling additional commands a
 #### Example PPL Queries
 See the next samples of PPL queries :
 
+**Describe**
+ - `describe table`  This command is equal to the `DESCRIBE EXTENDED table` SQL command
+
 **Fields**
  - `source = table`
  - `source = table | fields a,b,c`
@@ -267,6 +270,8 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
  - `source = table | where a < 50 | stats avg(c) `
  - `source = table | stats max(c) by b`
  - `source = table | stats count(c) by b | head 5`
+ - `source = table | stats stddev_samp(c)`
+ - `source = table | stats stddev_pop(c)`
 
 **Aggregations With Span**
 - `source = table  | stats count(a) by span(a, 10) as a_span`
@@ -302,5 +307,6 @@ For additional details on Spark PPL commands support campaign, see [PPL Commands
  - `correlation` - [See details](../docs/PPL-Correlation-command.md)
 
 > This is an experimental command - it may be removed in future versions
+
 
  
