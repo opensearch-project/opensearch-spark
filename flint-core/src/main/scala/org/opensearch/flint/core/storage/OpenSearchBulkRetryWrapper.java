@@ -79,9 +79,15 @@ public class OpenSearchBulkRetryWrapper {
     }
   }
 
+  /**
+   * A predicate to decide if a BulkResponse is retryable or not.
+   */
+  private static final CheckedPredicate<BulkResponse> bulkItemErrorResultPredicate = bulkResponse ->
+      bulkResponse.hasFailures() && isRetryable(bulkResponse);
+
   private static boolean isRetryable(BulkResponse bulkResponse) {
     if (Arrays.stream(bulkResponse.getItems())
-        .anyMatch(itemResp -> !isCreateConflict(itemResp))) {
+        .anyMatch(itemResp -> !isItemRetryable(itemResp))) {
       LOG.info("Found retryable failure in the bulk response");
       return true;
     }
@@ -93,14 +99,7 @@ public class OpenSearchBulkRetryWrapper {
   }
 
   private static boolean isCreateConflict(BulkItemResponse itemResp) {
-    return itemResp.getOpType() == DocWriteRequest.OpType.CREATE && (itemResp.getFailure() == null
-        || itemResp.getFailure()
-        .getStatus() == RestStatus.CONFLICT);
+    return itemResp.getOpType() == DocWriteRequest.OpType.CREATE &&
+        itemResp.getFailure().getStatus() == RestStatus.CONFLICT;
   }
-
-  /**
-   * A predicate to decide if a BulkResponse is retryable or not.
-   */
-  private static final CheckedPredicate<BulkResponse> bulkItemErrorResultPredicate = bulkResponse ->
-      bulkResponse.hasFailures() && isRetryable(bulkResponse);
 }
