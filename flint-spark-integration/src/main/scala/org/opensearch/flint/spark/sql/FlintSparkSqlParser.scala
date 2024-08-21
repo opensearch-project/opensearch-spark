@@ -31,6 +31,7 @@ import org.antlr.v4.runtime._
 import org.antlr.v4.runtime.atn.PredictionMode
 import org.antlr.v4.runtime.misc.{Interval, ParseCancellationException}
 import org.antlr.v4.runtime.tree.TerminalNodeImpl
+import org.opensearch.flint.core.logging.CustomLogging.{logError, logInfo}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
 import org.apache.spark.sql.AnalysisException
@@ -61,7 +62,12 @@ class FlintSparkSqlParser(sparkParser: ParserInterface) extends ParserInterface 
       }
     } catch {
       // Fall back to Spark parse plan logic if flint cannot parse
-      case _: ParseException => sparkParser.parsePlan(sqlText)
+      case e: ParseException =>
+        logInfo(
+          s"Failed to parse PPL with PPL parser. Falling back to Spark parser. PPL: $sqlText",
+          e)
+        sparkParser.parsePlan(sqlText)
+
     }
   }
 
