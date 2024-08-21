@@ -50,7 +50,7 @@ case class JobOperator(
       val futureMappingCheck = Future {
         checkAndCreateIndex(osClient, resultIndex)
       }
-      val data = executeQuery(spark, query, dataSource, "", "", streaming)
+      val data = executeQuery(spark, query, dataSource, "dummy", "", streaming)
 
       val mappingCheckResult = ThreadUtils.awaitResult(futureMappingCheck, Duration(1, MINUTES))
       dataToWrite = Some(mappingCheckResult match {
