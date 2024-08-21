@@ -15,8 +15,10 @@ import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
+import org.apache.spark.sql.catalyst.expressions.RegExpExtract;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
+import org.apache.spark.sql.catalyst.expressions.StringRegexExpression;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
 import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Deduplicate;
@@ -68,7 +70,6 @@ import org.opensearch.sql.ast.tree.RareAggregation;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Sort;
-import org.opensearch.sql.expression.parse.ParseExpression;
 import org.opensearch.sql.ast.tree.TopAggregation;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
@@ -89,6 +90,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static java.util.List.of;
+import static org.apache.spark.sql.types.DataTypes.StringType;
 import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
@@ -306,15 +308,19 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
       }
 
     private LogicalPlan visitParseCommand(Parse node, Expression sourceField, ParseMethod parseMethod, Map<String, Literal> arguments, String pattern, CatalystPlanContext context) {
-        ParseUtils.getNamedGroupCandidates(parseMethod, pattern, arguments)
+        AttributeReference column = new AttributeReference(sourceField.nodeName(), StringType, true, Metadata.empty(), NamedExpression.newExprId(), seq(of()));
+        List<String> namedGroupCandidates = ParseUtils.getNamedGroupCandidates(parseMethod, pattern, arguments);
+        namedGroupCandidates
                 .forEach(
                         group -> {
-                            ParseExpression expr =
-                                    ParseUtils.createParseExpression(
-                                            parseMethod, sourceField, pattern, group);
-                            context.define(new AttributeReference(group, expr.dataType(), true, Metadata.empty(), NamedExpression.newExprId(), seq(emptyList()))new Ngroup, expr.type());
-                            context.getNamedParseExpressions().add(new NamedExpression(group, expr));
+                            ParseUtils.ParseExpression expr =
+                                    ParseUtils.createParseExpression(parseMethod, pattern, group);
+                            context.define(new AttributeReference(group, StringType, true, Metadata.empty(), NamedExpression.newExprId(), seq(emptyList())));
+                            //todo add exp details to the regExpExtract
+                            RegExpExtract regExpExtract = new RegExpExtract(column, new org.apache.spark.sql.catalyst.expressions.Literal(pattern, StringType),
+                                    new org.apache.spark.sql.catalyst.expressions.Literal(group, StringType));
                         });
+    return context.getPlan();
     }
 
     @Override
