@@ -11,7 +11,7 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Divide, EqualTo, Floor, GreaterThanOrEqual, Literal, Multiply, SortOrder, TimeWindow}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Divide, EqualTo, Floor, GreaterThan, GreaterThanOrEqual, Literal, Multiply, SortOrder, TimeWindow}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
 
@@ -755,6 +755,124 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
       Aggregate(Seq(), Seq(percentileAggregateExpressions), sumAggregatePlan)
     val expectedPlan = Project(star, percentileAggregatePlan)
 
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test distinct count product group by brand sorted") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats distinct_count(product) by brand | sort brand",
+        false),
+      context)
+    val star = Seq(UnresolvedStar(None))
+    val brandField = UnresolvedAttribute("brand")
+    val productField = UnresolvedAttribute("product")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val groupByAttributes = Seq(Alias(brandField, "brand")())
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(productField), isDistinct = true),
+        "distinct_count(product)")()
+    val brandAlias = Alias(brandField, "brand")()
+
+    val aggregatePlan =
+      Aggregate(groupByAttributes, Seq(aggregateExpressions, brandAlias), tableRelation)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(brandField, Ascending)), global = true, aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test distinct count product with alias and filter") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table price > 100 | stats distinct_count(product) as dc_product",
+        false),
+      context)
+    val star = Seq(UnresolvedStar(None))
+    val productField = UnresolvedAttribute("product")
+    val priceField = UnresolvedAttribute("price")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val aggregateExpressions = Seq(
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(productField), isDistinct = true),
+        "dc_product")())
+    val filterExpr = GreaterThan(priceField, Literal(100))
+    val filterPlan = Filter(filterExpr, tableRelation)
+    val aggregatePlan = Aggregate(Seq(), aggregateExpressions, filterPlan)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test distinct count age by span of interval of 10 years query with sort ") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats distinct_count(age) by span(age, 10) as age_span | sort age",
+        false),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val ageField = UnresolvedAttribute("age")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(ageField), isDistinct = true),
+        "distinct_count(age)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
+      "age_span")()
+    val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), tableRelation)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test distinct count status by week window and group by status with limit") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats distinct_count(status) by span(@timestamp, 1w) as status_count_by_week, status | head 100",
+        false),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val status = Alias(UnresolvedAttribute("status"), "status")()
+    val statusCount = UnresolvedAttribute("status")
+    val table = UnresolvedRelation(Seq("table"))
+
+    val windowExpression = Alias(
+      TimeWindow(
+        UnresolvedAttribute("`@timestamp`"),
+        TimeWindow.parseExpression(Literal("1 week")),
+        TimeWindow.parseExpression(Literal("1 week")),
+        0),
+      "status_count_by_week")()
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(statusCount), isDistinct = true),
+        "distinct_count(status)")()
+    val aggregatePlan = Aggregate(
+      Seq(status, windowExpression),
+      Seq(aggregateExpressions, status, windowExpression),
+      table)
+    val planWithLimit = GlobalLimit(Literal(100), LocalLimit(Literal(100), aggregatePlan))
+    val expectedPlan = Project(star, planWithLimit)
+    // Compare the two plans
     comparePlans(expectedPlan, logPlan, false)
   }
 
