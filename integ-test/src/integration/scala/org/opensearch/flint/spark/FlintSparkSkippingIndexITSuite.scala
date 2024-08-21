@@ -26,6 +26,7 @@ import org.apache.spark.sql.{Column, Row}
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf._
 import org.apache.spark.sql.functions.{col, isnull, lit, xxhash64}
 import org.apache.spark.sql.internal.SQLConf
@@ -146,11 +147,13 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         .skippingIndex()
         .onTable(testTable)
         .addValueSet("address")
-        .options(FlintSparkIndexOptions(Map(
-          "auto_refresh" -> "true",
-          "refresh_interval" -> "1 Minute",
-          "checkpoint_location" -> checkpointDir.getAbsolutePath,
-          "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")))
+        .options(
+          FlintSparkIndexOptions(Map(
+            "auto_refresh" -> "true",
+            "refresh_interval" -> "1 Minute",
+            "checkpoint_location" -> checkpointDir.getAbsolutePath,
+            "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")),
+          testIndex)
         .create()
 
       val index = flint.describeIndex(testIndex)
@@ -178,6 +181,37 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       index.get.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
       index.get.options.indexSettings() shouldBe
         Some("{\"number_of_shards\": 3,\"number_of_replicas\": 2}")
+    }
+  }
+
+  test("create skipping index with default checkpoint location successfully") {
+    withTempDir { checkpointDir =>
+      conf.setConfString(
+        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key,
+        checkpointDir.getAbsolutePath)
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addValueSet("address")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "refresh_interval" -> "1 Minute",
+              "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")),
+          testIndex)
+        .create()
+
+      val index = flint.describeIndex(testIndex)
+      index shouldBe defined
+
+      val checkpointLocation = index.get.options.checkpointLocation()
+      assert(checkpointLocation.isDefined, "Checkpoint location should be defined")
+      assert(
+        checkpointLocation.get.contains(testIndex),
+        s"Checkpoint location dir should contain ${testIndex}")
+
+      conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
     }
   }
 
@@ -218,7 +252,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
           FlintSparkIndexOptions(
             Map(
               "incremental_refresh" -> "true",
-              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testIndex)
         .create()
 
       flint.refreshIndex(testIndex) shouldBe empty
@@ -246,7 +281,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
         .skippingIndex()
         .onTable(testTable)
         .addPartitions("year", "month")
-        .options(FlintSparkIndexOptions(Map("incremental_refresh" -> "true")))
+        .options(FlintSparkIndexOptions(Map("incremental_refresh" -> "true")), testIndex)
         .create()
     } should have message "requirement failed: Checkpoint location is required"
   }
@@ -257,7 +292,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       .skippingIndex()
       .onTable(testTable)
       .addPartitions("year", "month")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testIndex)
       .create()
 
     val jobId = flint.refreshIndex(testIndex)
@@ -283,7 +318,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
             Map(
               "auto_refresh" -> "true",
               "scheduler_mode" -> "external",
-              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testIndex)
         .create()
 
       flint.refreshIndex(testIndex) shouldBe empty
