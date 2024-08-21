@@ -51,7 +51,7 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
       .skippingIndex()
       .onTable(testTable)
       .addPartitions("year")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testIndex)
       .create()
 
     flint.recoverIndex(testIndex) shouldBe true
@@ -65,7 +65,7 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
         .skippingIndex()
         .onTable(testTable)
         .addPartitions("year")
-        .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+        .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testIndex)
         .create()
 
       updateLatestLogEntry(
@@ -88,7 +88,7 @@ class FlintSparkIndexJobITSuite extends OpenSearchTransactionSuite with Matchers
         .skippingIndex()
         .onTable(testTable)
         .addPartitions("year")
-        .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+        .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testIndex)
         .create()
 
       updateLatestLogEntry(

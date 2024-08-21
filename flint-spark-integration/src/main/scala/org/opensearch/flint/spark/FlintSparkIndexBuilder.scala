@@ -5,14 +5,18 @@
 
 package org.opensearch.flint.spark
 
+import java.util.{Collections, UUID}
+
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.CHECKPOINT_LOCATION
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 
 import org.apache.spark.sql.catalog.Column
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
 import org.apache.spark.sql.flint.{findField, loadTable, parseTableName, qualifyTableName}
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types.{StructField, StructType}
 
 /**
@@ -48,8 +52,9 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
    * @return
    *   builder
    */
-  def options(options: FlintSparkIndexOptions): this.type = {
-    this.indexOptions = options
+  def options(options: FlintSparkIndexOptions, indexName: String): this.type = {
+    val updatedOptions = updateOptionWithDefaultCheckpointLocation(indexName, options)
+    this.indexOptions = updatedOptions
     this
   }
 
@@ -138,5 +143,38 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
       nullable = field.nullable,
       isPartition = false, // useless for now so just set to false
       isBucket = false)
+  }
+
+  /**
+   * Updates the options with a default checkpoint location if not already set.
+   *
+   * @param indexName
+   *   The index name string
+   * @param options
+   *   The original FlintSparkIndexOptions
+   * @return
+   *   Updated FlintSparkIndexOptions
+   */
+  private def updateOptionWithDefaultCheckpointLocation(
+      indexName: String,
+      options: FlintSparkIndexOptions): FlintSparkIndexOptions = {
+
+    val checkpointLocationRootDirOption = new FlintSparkConf(
+      Collections.emptyMap[String, String]).checkpointLocationRootDir
+
+    if (options.checkpointLocation().isEmpty) {
+      checkpointLocationRootDirOption match {
+        case Some(checkpointLocationRootDir) =>
+          // Currently, deleting and recreating the flint index will enter same checkpoint dir.
+          // Use a UUID to isolate checkpoint data.
+          val checkpointLocation =
+            s"${checkpointLocationRootDir.stripSuffix("/")}/$indexName/${UUID.randomUUID().toString}"
+          FlintSparkIndexOptions(
+            options.options + (CHECKPOINT_LOCATION.toString -> checkpointLocation))
+        case None => options
+      }
+    } else {
+      options
+    }
   }
 }
