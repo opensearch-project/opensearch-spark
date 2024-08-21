@@ -11,11 +11,13 @@ import java.util.Base64
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.opensearch.flint.common.FlintVersion.current
 import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.CHECKPOINT_LOCATION
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.flint.config.FlintSparkConf
 
 class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
@@ -55,7 +57,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
         .materializedView()
         .name(testMvName)
         .query(testQuery)
-        .options(indexOptions)
+        .options(indexOptions, testFlintIndex)
         .create()
 
       val index = flint.describeIndex(testFlintIndex)
@@ -96,6 +98,34 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
            |  }
            | }
            |""".stripMargin)
+    }
+  }
+
+  test("create materialized view with default checkpoint location successfully") {
+    withTempDir { checkpointDir =>
+      conf.setConfString(
+        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key,
+        checkpointDir.getAbsolutePath)
+
+      val indexOptions =
+        FlintSparkIndexOptions(Map("auto_refresh" -> "true", "watermark_delay" -> "30 Seconds"))
+      flint
+        .materializedView()
+        .name(testMvName)
+        .query(testQuery)
+        .options(indexOptions, testFlintIndex)
+        .create()
+
+      val index = flint.describeIndex(testFlintIndex)
+      index shouldBe defined
+
+      val checkpointLocation = index.get.options.checkpointLocation()
+      assert(checkpointLocation.isDefined, "Checkpoint location should be defined")
+      assert(
+        checkpointLocation.get.contains(testFlintIndex),
+        s"Checkpoint location dir should contain ${testFlintIndex}")
+
+      conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
     }
   }
 
@@ -255,7 +285,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
         .materializedView()
         .name(testMvName)
         .query(query)
-        .options(indexOptions)
+        .options(indexOptions, testFlintIndex)
         .create()
 
       flint

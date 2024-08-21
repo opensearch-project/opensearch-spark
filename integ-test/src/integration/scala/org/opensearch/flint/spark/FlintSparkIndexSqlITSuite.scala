@@ -109,7 +109,9 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite with Matchers {
       .skippingIndex()
       .onTable(testTableQualifiedName)
       .addValueSet("name")
-      .options(FlintSparkIndexOptions(Map(AUTO_REFRESH.toString -> "true")))
+      .options(
+        FlintSparkIndexOptions(Map(AUTO_REFRESH.toString -> "true")),
+        testSkippingFlintIndex)
       .create()
     flint.refreshIndex(testSkippingFlintIndex)
     val activeJob = spark.streams.active.find(_.name == testSkippingFlintIndex)
@@ -153,7 +155,9 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite with Matchers {
       .name(testCoveringIndex)
       .onTable(testTableQualifiedName)
       .addIndexColumns("name", "age")
-      .options(FlintSparkIndexOptions(Map(AUTO_REFRESH.toString -> "true")))
+      .options(
+        FlintSparkIndexOptions(Map(AUTO_REFRESH.toString -> "true")),
+        testCoveringFlintIndex)
       .create()
     flint.refreshIndex(testCoveringFlintIndex)
 
@@ -228,7 +232,9 @@ class FlintSparkIndexSqlITSuite extends FlintSparkSuite with Matchers {
       .name(testCoveringIndexSpecial)
       .onTable(testTableQualifiedName)
       .addIndexColumns("name", "age")
-      .options(FlintSparkIndexOptions(Map(AUTO_REFRESH.toString -> "true")))
+      .options(
+        FlintSparkIndexOptions(Map(AUTO_REFRESH.toString -> "true")),
+        testCoveringFlintIndexSpecial)
       .create()
     flint.refreshIndex(testCoveringFlintIndexSpecial)
 

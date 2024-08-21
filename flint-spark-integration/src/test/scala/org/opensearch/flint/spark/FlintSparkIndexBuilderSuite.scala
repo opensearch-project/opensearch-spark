@@ -5,11 +5,16 @@
 
 package org.opensearch.flint.spark
 
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.CHECKPOINT_LOCATION
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
+import org.apache.spark.sql.flint.config.FlintSparkConf
 
 class FlintSparkIndexBuilderSuite extends FlintSuite {
+
+  val indexName: String = "test_index"
+  val testCheckpointLocation = "/test/checkpoints/"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -29,6 +34,56 @@ class FlintSparkIndexBuilderSuite extends FlintSuite {
     sql("DROP TABLE spark_catalog.default.test")
 
     super.afterAll()
+  }
+
+  test("indexOptions should not have checkpoint location when no conf") {
+    assert(!conf.contains(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key))
+
+    val options = FlintSparkIndexOptions(Map.empty)
+    val builder = new FakeFlintSparkIndexBuilder
+
+    val updatedOptions = builder.options(options, indexName).testOptions
+    updatedOptions.checkpointLocation() shouldBe None
+  }
+
+  test("indexOptions should not override existing checkpoint location when no conf") {
+    assert(!conf.contains(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key))
+
+    val options =
+      FlintSparkIndexOptions(Map(CHECKPOINT_LOCATION.toString -> testCheckpointLocation))
+    val builder = new FakeFlintSparkIndexBuilder
+
+    val updatedOptions = builder.options(options, indexName).testOptions
+    updatedOptions.checkpointLocation() shouldBe Some(testCheckpointLocation)
+  }
+
+  test("indexOptions should not override existing checkpoint location with conf") {
+    conf.setConfString(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key, testCheckpointLocation)
+    assert(conf.contains(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key))
+
+    val options =
+      FlintSparkIndexOptions(Map(CHECKPOINT_LOCATION.toString -> testCheckpointLocation))
+    val builder = new FakeFlintSparkIndexBuilder
+
+    val updatedOptions = builder.options(options, indexName).testOptions
+    updatedOptions.checkpointLocation() shouldBe Some(testCheckpointLocation)
+  }
+
+  test("indexOptions should have default checkpoint location with conf") {
+    conf.setConfString(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key, testCheckpointLocation)
+    assert(conf.contains(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key))
+
+    val options = FlintSparkIndexOptions(Map.empty)
+    val builder = new FakeFlintSparkIndexBuilder
+
+    val updatedOptions = builder.options(options, indexName).testOptions
+    assert(updatedOptions.checkpointLocation().isDefined, "Checkpoint location should be defined")
+    assert(
+      updatedOptions
+        .checkpointLocation()
+        .get
+        .startsWith(s"${testCheckpointLocation}${indexName}"),
+      s"Checkpoint location should start with ${testCheckpointLocation}${indexName}")
   }
 
   test("find column type") {
@@ -94,6 +149,7 @@ class FlintSparkIndexBuilderSuite extends FlintSuite {
    * Fake builder that have access to internal method for assertion
    */
   class FakeFlintSparkIndexBuilder extends FlintSparkIndexBuilder(new FlintSpark(spark)) {
+    def testOptions: FlintSparkIndexOptions = this.indexOptions
 
     def onTable(tableName: String): FakeFlintSparkIndexBuilder = {
       this.tableName = tableName
