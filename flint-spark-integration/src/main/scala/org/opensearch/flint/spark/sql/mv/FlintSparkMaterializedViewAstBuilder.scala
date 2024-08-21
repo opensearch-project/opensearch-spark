@@ -39,14 +39,15 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
 
       val ignoreIfExists = ctx.EXISTS() != null
       val indexOptions = visitPropertyList(ctx.propertyList())
+      val flintIndexName = getFlintIndexName(flint, ctx.mvName)
+
       mvBuilder
-        .options(indexOptions)
+        .options(indexOptions, flintIndexName)
         .create(ignoreIfExists)
 
       // Trigger auto refresh if enabled and not using external scheduler
       if (indexOptions
           .autoRefresh() && SchedulerMode.INTERNAL == indexOptions.schedulerMode()) {
-        val flintIndexName = getFlintIndexName(flint, ctx.mvName)
         flint.refreshIndex(flintIndexName)
       }
       Seq.empty
