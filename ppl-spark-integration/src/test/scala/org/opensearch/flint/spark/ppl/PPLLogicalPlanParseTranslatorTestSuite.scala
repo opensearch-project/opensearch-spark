@@ -5,16 +5,17 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
+import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
+import org.scalatest.matchers.should.Matchers
+
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.ScalaReflection.universe.Star
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Coalesce, Descending, GreaterThan, Literal, NamedExpression, NullsFirst, NullsLast, RegExpExtract, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, Project, Sort}
-import org.opensearch.flint.spark.ppl.PlaneUtils.plan
-import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
-import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
-import org.scalatest.matchers.should.Matchers
 
 class PPLLogicalPlanParseTranslatorTestSuite
     extends SparkFunSuite
@@ -29,20 +30,22 @@ class PPLLogicalPlanParseTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | parse email '.+@(?<host>.+)' | fields email, host", isExplain = false),
+        plan(
+          pplParser,
+          "source=t | parse email '.+@(?<host>.+)' | fields email, host",
+          isExplain = false),
         context)
 
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(
-        Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal("1")))), "host")()
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal("1")))),
+      "host")()
     val expectedPlan = Project(
       Seq(emailAttribute, hostAttribute),
       Project(
-        Seq(emailAttribute, hostExpression),
-        UnresolvedRelation(Seq("t"))
-      ))
+        Seq(emailAttribute, hostExpression, UnresolvedStar(None)),
+        UnresolvedRelation(Seq("t"))))
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
@@ -52,17 +55,16 @@ class PPLLogicalPlanParseTranslatorTestSuite
       planTransformer.visit(
         plan(pplParser, "source=t | parse email '.+@(?<email>.+)' | fields email", false),
         context)
-        
+
     val emailAttribute = UnresolvedAttribute("email")
     val hostExpression = Alias(
-      Coalesce(
-        Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal("1")))), "email")()
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal("1")))),
+      "email")()
     val expectedPlan = Project(
       Seq(emailAttribute),
       Project(
-        Seq(emailAttribute, hostExpression),
-        UnresolvedRelation(Seq("t"))
-      ))
+        Seq(emailAttribute, hostExpression, UnresolvedStar(None)),
+        UnresolvedRelation(Seq("t"))))
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
@@ -70,14 +72,18 @@ class PPLLogicalPlanParseTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser,
-      "source = t | parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host", isExplain = false),
+        plan(
+          pplParser,
+          "source = t | parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host",
+          isExplain = false),
         context)
 
     // Define the expected logical plan
     val emailAttribute = UnresolvedAttribute("email")
     val ageAttribute = UnresolvedAttribute("age")
-    val hostExpression = Alias(Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))), "host")()
+    val hostExpression = Alias(
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
+      "host")()
 
     // Define the corrected expected plan
     val expectedPlan = Project(
@@ -88,12 +94,8 @@ class PPLLogicalPlanParseTranslatorTestSuite
         Filter(
           GreaterThan(ageAttribute, Literal(45)),
           Project(
-            Seq(ageAttribute, emailAttribute, hostExpression),
-            UnresolvedRelation(Seq("t"))
-          )
-        )
-      )
-    )
+            Seq(emailAttribute, hostExpression, UnresolvedStar(None)),
+            UnresolvedRelation(Seq("t"))))))
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
@@ -101,7 +103,10 @@ class PPLLogicalPlanParseTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | parse email '.+@(?<host>.+)' | eval eval_result=1 | fields host, eval_result", false),
+        plan(
+          pplParser,
+          "source=t | parse email '.+@(?<host>.+)' | eval eval_result=1 | fields host, eval_result",
+          false),
         context)
 
     val emailAttribute = UnresolvedAttribute("email")
@@ -119,11 +124,8 @@ class PPLLogicalPlanParseTranslatorTestSuite
       Project(
         Seq(UnresolvedStar(None), evalResultExpression),
         Project(
-          Seq(emailAttribute, hostExpression),
-          UnresolvedRelation(Seq("t"))
-        )
-      )
-    )
+          Seq(emailAttribute, hostExpression, UnresolvedStar(None)),
+          UnresolvedRelation(Seq("t")))))
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
@@ -131,7 +133,10 @@ class PPLLogicalPlanParseTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | parse address '(?<streetNumber>\\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street", false),
+        plan(
+          pplParser,
+          "source=t | parse address '(?<streetNumber>\\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street",
+          false),
         context)
 
     val addressAttribute = UnresolvedAttribute("address")
@@ -140,8 +145,7 @@ class PPLLogicalPlanParseTranslatorTestSuite
 
     val streetNumberExpression = Alias(
       Coalesce(Seq(RegExpExtract(addressAttribute, Literal("(\\d+) (.+)"), Literal("1")))),
-      "streetNumber"
-    )()
+      "streetNumber")()
 
     val streetExpression = Alias(
       Coalesce(Seq(RegExpExtract(addressAttribute, Literal("(\\d+) (.+)"), Literal("2")))),
@@ -155,12 +159,9 @@ class PPLLogicalPlanParseTranslatorTestSuite
         Filter(
           GreaterThan(streetNumberAttribute, Literal(500)),
           Project(
-            Seq(addressAttribute, streetNumberExpression, streetExpression),
-            UnresolvedRelation(Seq("t"))
-          )
-        )
-      )
-    )
+            Seq(addressAttribute, streetNumberExpression, streetExpression, UnresolvedStar(None)),
+            UnresolvedRelation(Seq("t"))))))
 
     assert(compareByString(expectedPlan) === compareByString(logPlan))
-  }}
+  }
+}

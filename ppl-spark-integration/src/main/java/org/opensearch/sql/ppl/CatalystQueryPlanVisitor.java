@@ -240,7 +240,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitProject(Project node, CatalystPlanContext context) {
         LogicalPlan child = node.getChild().get(0).accept(this, context);
-        List<Expression> expressionList = visitExpressionList(node.getProjectList(), context);
+        context.withProjectedFields(visitExpressionList(node.getProjectList(), context));
 
         // Create a projection list from the existing expressions
         Seq<?> projectList = seq(context.getNamedParseExpressions());
@@ -316,6 +316,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                             Option.empty(),
                             seq(new java.util.ArrayList<String>())));
         }
+        // Create an UnresolvedStar for all-fields projection (possible external wrapping projection that may include additional fields)
+        context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+        // extract all fields to project with
         Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
         // build the plan with the projection step
         LogicalPlan child = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));

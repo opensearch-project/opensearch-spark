@@ -37,6 +37,10 @@ public class CatalystPlanContext {
     /**
      * Catalyst relations list
      **/
+    private List<Expression> projectedFields = new ArrayList<>();
+    /**
+     * Catalyst relations list
+     **/
     private List<LogicalPlan> relations = new ArrayList<>();
     /**
      * Catalyst evolving logical plan
@@ -63,6 +67,10 @@ public class CatalystPlanContext {
 
     public List<LogicalPlan> getRelations() {
         return relations;
+    }
+
+    public List<Expression> getProjectedFields() {
+        return projectedFields;
     }
 
     public LogicalPlan getPlan() {
@@ -112,6 +120,16 @@ public class CatalystPlanContext {
     public LogicalPlan withRelation(UnresolvedRelation relation) {
         this.relations.add(relation);
         return with(relation);
+    }
+    /**
+     * append projected fields
+     *
+     * @param projectedFields
+     * @return
+     */
+    public LogicalPlan withProjectedFields(List<Expression> projectedFields) {
+        this.projectedFields.addAll(projectedFields);
+        return getPlan();
     }
 
     /**

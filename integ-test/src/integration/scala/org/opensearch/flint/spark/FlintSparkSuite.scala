@@ -101,8 +101,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
   }
 
   protected def createPartitionedGrokEmailTable(testTable: String): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE TABLE $testTable
          | (
          |   name STRING,
@@ -127,12 +126,10 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
       ("Grace", 41, "grace@demo.net", "404 Birch St, Chicago", 2023, 4),
       ("Hank", 32, "hank@demonstration.com", "505 Spruce St, Miami", 2023, 5),
       ("Ivy", 9, "ivy@examples.org", "606 Fir St, Denver", 2023, 4),
-      ("Jack", 12, "jack@sample.net", "707 Ash St, Seattle", 2023, 5)
-    )
+      ("Jack", 12, "jack@sample.net", "707 Ash St, Seattle", 2023, 5))
 
     data.foreach { case (name, age, email, street_address, year, month) =>
-      spark.sql(
-        s"""
+      spark.sql(s"""
            | INSERT INTO $testTable
            | PARTITION (year=$year, month=$month)
            | VALUES ('$name', $age, '$email', '$street_address')

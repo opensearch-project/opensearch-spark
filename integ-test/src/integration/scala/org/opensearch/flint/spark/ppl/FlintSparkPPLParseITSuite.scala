@@ -5,12 +5,13 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
+
+import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Coalesce, Descending, GreaterThan, Literal, NullsLast, RegExpExtract, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, LogicalPlan, Project, Sort}
 import org.apache.spark.sql.streaming.StreamTest
-import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
-import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 
 class FlintSparkPPLParseITSuite
     extends QueryTest
@@ -38,8 +39,7 @@ class FlintSparkPPLParseITSuite
   }
 
   test("test parse email expressions parsing") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| parse email '.+@(?<host>.+)' | fields email, host ;
          | """.stripMargin)
 
@@ -57,8 +57,7 @@ class FlintSparkPPLParseITSuite
       Row("jack@sample.net", "sample.net"),
       Row("eve@examples.com", "examples.com"),
       Row("ivy@examples.org", "examples.org"),
-      Row("bob@test.org", "test.org")
-    )
+      Row("bob@test.org", "test.org"))
 
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
@@ -70,20 +69,18 @@ class FlintSparkPPLParseITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(
-        Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal("1")))), "host")()
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal("1")))),
+      "host")()
     val expectedPlan = Project(
       Seq(emailAttribute, hostAttribute),
       Project(
-        Seq(emailAttribute, hostExpression),
-        UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
-      ))
+        Seq(emailAttribute, hostExpression, UnresolvedStar(None)),
+        UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))))
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
   test("test parse email expressions parsing filter & sort by age") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host ;
          | """.stripMargin)
 
@@ -93,8 +90,7 @@ class FlintSparkPPLParseITSuite
     val expectedResults: Array[Row] = Array(
       Row(76, "frank@sample.org", "sample.org"),
       Row(65, "charlie@domain.net", "domain.net"),
-      Row(55, "bob@test.org", "test.org")
-    )
+      Row(55, "bob@test.org", "test.org"))
 
     // Compare the results
     assert(results.sameElements(expectedResults))
@@ -104,7 +100,9 @@ class FlintSparkPPLParseITSuite
     // Define the expected logical plan
     val emailAttribute = UnresolvedAttribute("email")
     val ageAttribute = UnresolvedAttribute("age")
-    val hostExpression = Alias(Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))), "host")()
+    val hostExpression = Alias(
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
+      "host")()
 
     // Define the corrected expected plan
     val expectedPlan = Project(
@@ -115,12 +113,8 @@ class FlintSparkPPLParseITSuite
         Filter(
           GreaterThan(ageAttribute, Literal(45)),
           Project(
-            Seq(emailAttribute, hostExpression),
-            UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
-          )
-        )
-      )
-    )
+            Seq(emailAttribute, hostExpression, UnresolvedStar(None)),
+            UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))))))
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 }
