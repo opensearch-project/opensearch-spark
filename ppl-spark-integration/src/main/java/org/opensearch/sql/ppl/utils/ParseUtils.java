@@ -62,6 +62,25 @@ public class ParseUtils {
     }
   }
 
+  /**
+   * extract the cleaner pattern without the additional fields
+   * @param parseMethod
+   * @param pattern
+   * @param columns
+   * @return
+   */
+  public static String extractPatterns(
+          ParseMethod parseMethod, String pattern, List<String> columns) {
+    switch (parseMethod) {
+      case REGEX:
+        return RegexExpression.extractPattern(pattern, columns);
+      case GROK:
+        return GrokExpression.extractPattern(pattern, columns);
+      default:
+        return PatternsExpression.extractPattern(pattern, columns);
+    }
+  }
+
   public static abstract class  ParseExpression {
     abstract String parseValue(String value);
   }
@@ -98,6 +117,23 @@ public class ParseUtils {
         return matcher.group(identifier);
       }
       return "";
+    }
+
+    public static String extractPattern(String patterns, List<String> columns) {
+      StringBuilder result = new StringBuilder();
+      Matcher matcher = GROUP_PATTERN.matcher(patterns);
+
+      int lastEnd = 0;
+      while (matcher.find()) {
+        String groupName = matcher.group(1);
+        if (columns.contains(groupName)) {
+          result.append(patterns, lastEnd, matcher.start());
+          result.append("(");
+          lastEnd = matcher.end();
+        }
+      }
+      result.append(patterns.substring(lastEnd));
+      return result.toString();
     }
   }
   
@@ -136,6 +172,10 @@ public class ParseUtils {
               .collect(Collectors.toUnmodifiableList());
     }
 
+    public static String extractPattern(String patterns, List<String> columns) {
+      //todo implement
+      return patterns;
+    }
   }
   
   public static class PatternsExpression extends ParseExpression{
@@ -187,6 +227,11 @@ public class ParseUtils {
      */
     public static List<String> getNamedGroupCandidates(String identifier) {
       return ImmutableList.of(Objects.requireNonNullElse(identifier, DEFAULT_NEW_FIELD));
+    }
+    
+    public static String extractPattern(String patterns, List<String> columns) {
+      //todo implement
+      return patterns;
     }
   }
   

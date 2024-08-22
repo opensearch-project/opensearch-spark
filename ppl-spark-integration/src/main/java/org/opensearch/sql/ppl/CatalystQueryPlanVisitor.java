@@ -11,6 +11,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
+import org.apache.spark.sql.catalyst.expressions.Coalesce;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
@@ -90,6 +91,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static java.util.List.of;
+import static org.apache.spark.sql.types.DataTypes.IntegerType;
 import static org.apache.spark.sql.types.DataTypes.StringType;
 import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
@@ -291,36 +293,33 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         ParseMethod parseMethod = node.getParseMethod();
         java.util.Map<String, Literal> arguments = node.getArguments();
         String pattern = (String) node.getPattern().getValue();
-
-        List<UnresolvedExpression> aliases = new ArrayList<>();
-        switch (node.getParseMethod()) {
-            case GROK:
-                throw new IllegalStateException("Not Supported operation : GROK");
-            case PATTERNS:
-                throw new IllegalStateException("Not Supported operation : PATTERNS");
-            case REGEX:
-                return visitParseCommand(node, sourceField, parseMethod, arguments, pattern, context);
-            default:
-                throw new IllegalArgumentException("Invalid parse command name: " + node.getParseMethod()
-                        + " Syntax: [parse <field> <pattern>] ");
-                
-        }
+        return visitParseCommand(node, sourceField, parseMethod, arguments, pattern, context);
       }
 
     private LogicalPlan visitParseCommand(Parse node, Expression sourceField, ParseMethod parseMethod, Map<String, Literal> arguments, String pattern, CatalystPlanContext context) {
-        AttributeReference column = new AttributeReference(sourceField.nodeName(), StringType, true, Metadata.empty(), NamedExpression.newExprId(), seq(of()));
         List<String> namedGroupCandidates = ParseUtils.getNamedGroupCandidates(parseMethod, pattern, arguments);
-        namedGroupCandidates
-                .forEach(
-                        group -> {
-                            ParseUtils.ParseExpression expr =
-                                    ParseUtils.createParseExpression(parseMethod, pattern, group);
-                            context.define(new AttributeReference(group, StringType, true, Metadata.empty(), NamedExpression.newExprId(), seq(emptyList())));
-                            //todo add exp details to the regExpExtract
-                            RegExpExtract regExpExtract = new RegExpExtract(column, new org.apache.spark.sql.catalyst.expressions.Literal(pattern, StringType),
-                                    new org.apache.spark.sql.catalyst.expressions.Literal(group, StringType));
-                        });
-    return context.getPlan();
+        String cleanedPattern = ParseUtils.extractPatterns(parseMethod, pattern, namedGroupCandidates);
+        for (int i = 0; i < namedGroupCandidates.size(); i++) {
+            String group = namedGroupCandidates.get(i);
+            //first create the regExp 
+            RegExpExtract regExpExtract = new RegExpExtract(sourceField,
+                    org.apache.spark.sql.catalyst.expressions.Literal.create(cleanedPattern, StringType),
+                    org.apache.spark.sql.catalyst.expressions.Literal.create(i+1, IntegerType));
+            //next create Coalesce to handle potential null values 
+            Coalesce coalesce = new Coalesce(seq(regExpExtract));
+            //next Alias the extracted fields
+            context.getNamedParseExpressions().push(
+                    org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(coalesce,
+                            group,
+                            NamedExpression.newExprId(),
+                            seq(new java.util.ArrayList<String>()),
+                            Option.empty(),
+                            seq(new java.util.ArrayList<String>())));
+        }
+        Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+        // build the plan with the projection step
+        LogicalPlan child = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+        return child;
     }
 
     @Override
