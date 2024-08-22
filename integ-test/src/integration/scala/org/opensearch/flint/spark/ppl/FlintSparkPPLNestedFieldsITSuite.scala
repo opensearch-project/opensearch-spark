@@ -25,7 +25,7 @@ class FlintSparkPPLNestedFieldsITSuite
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    createStructNestedTable(testTable)
+    createStructNestedTable3(testTable)
   }
 
   protected override def afterEach(): Unit = {
@@ -36,6 +36,30 @@ class FlintSparkPPLNestedFieldsITSuite
       job.awaitTermination()
     }
   }
+
+  test("aaa") {
+    val pplFrame = sql(s"""
+                       | source = $testTable | fields unmapped.userIdentity.sessioncontext.sessionIssuer.type
+                       | """.stripMargin)
+
+    // Retrieve the results
+    val pplResults: Array[Row] = pplFrame.collect()
+    assert(pplResults.length == 1)
+    val expectedResults: Array[Row] = Array(Row("Role"))
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(pplResults.sorted.sameElements(expectedResults.sorted))
+
+    val sqlFrame = sql(s"""
+                       | select unmapped['userIdentity.sessioncontext.sessionIssuer.type'] from $testTable
+                       | """.stripMargin)
+
+    // Retrieve the results
+    val sqlResults: Array[Row] = sqlFrame.collect()
+    assert(sqlResults.length == 1)
+    assert(sqlResults.sorted.sameElements(expectedResults.sorted))
+  }
+
 
   test("create ppl simple query test") {
     val testTableQuoted = "`spark_catalog`.`default`.`flint_ppl_test`"

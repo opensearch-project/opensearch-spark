@@ -486,6 +486,32 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          |""".stripMargin)
   }
 
+  protected def createStructNestedTable2(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   unmapped  STRUCT<userIdentity: STRUCT<sessioncontext: STRUCT<sessionIssuer: STRUCT<type: STRING>>>>
+           | )
+           | USING JSON
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES
+           | ( STRUCT(STRUCT(STRUCT(STRUCT(STRUCT("example_type1"))))) )
+           |""".stripMargin)
+  }
+
+  protected def createStructNestedTable3(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | USING JSON
+           | OPTIONS (
+           |  path "../integ-test/src/integration/scala/org/opensearch/flint/spark/unmapped.json"
+           | )
+           |""".stripMargin)
+  }
+
   protected def createTableIssue112(testTable: String): Unit = {
     sql(s"""
            | CREATE TABLE $testTable (
