@@ -72,6 +72,7 @@ import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.RareAggregation;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
+import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.TopAggregation;
@@ -397,6 +398,19 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         java.util.Map<String, Literal> arguments = node.getArguments();
         String pattern = (String) node.getPattern().getValue();
         return ParseStrategy.visitParseCommand(node, sourceField, parseMethod, arguments, pattern, context);
+    }
+
+    @Override
+    public LogicalPlan visitRename(Rename node, CatalystPlanContext context) {
+        node.getChild().get(0).accept(this, context);
+        if (context.getNamedParseExpressions().isEmpty()) {
+            // Create an UnresolvedStar for all-fields projection
+            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.empty()));
+        }
+        visitExpressionList(node.getRenameList(), context);
+        Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+        // build the plan with the projection step
+        return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
     }
 
     @Override
