@@ -39,7 +39,7 @@ case class FlintWrite(
   }
 
   override def commit(epochId: Long, messages: Array[WriterCommitMessage]): Unit = {
-    logDebug(s"""Write of ${logicalWriteInfo
+    logInfo(s"""Write of ${logicalWriteInfo
         .queryId()} committed for epochId: $epochId, ${messages.length} tasks""")
   }
 

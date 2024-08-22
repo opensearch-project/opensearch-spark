@@ -54,6 +54,7 @@ case class FlintPartitionWriter(
    * { "create": { "_id": "id1" } } { "title": "Prisoners", "year": 2013 }
    */
   override def write(record: InternalRow): Unit = {
+    logInfo(s"Writing record: ${record}")
     gen.writeAction(FlintWriter.ACTION_CREATE, idOrdinal, record)
     gen.writeLineEnding()
     gen.write(record)
