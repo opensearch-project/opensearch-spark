@@ -8,10 +8,13 @@ package org.opensearch.flint.core.http;
 import static java.time.temporal.ChronoUnit.SECONDS;
 
 import dev.failsafe.RetryPolicy;
+import dev.failsafe.event.ExecutionAttemptedEvent;
+import dev.failsafe.function.CheckedPredicate;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Logger;
+import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.flint.core.http.handler.ExceptionClassNameFailurePredicate;
 import org.opensearch.flint.core.http.handler.HttpStatusCodeResultPredicate;
 import java.io.Serializable;
@@ -71,11 +74,31 @@ public class FlintRetryOptions implements Serializable {
         .handleIf(ExceptionClassNameFailurePredicate.create(getRetryableExceptionClassNames()))
         .handleResultIf(new HttpStatusCodeResultPredicate<>(getRetryableHttpStatusCodes()))
         // Logging listener
-        .onFailedAttempt(event ->
-            LOG.severe("Attempt to execute request failed: " + event))
-        .onRetry(ex ->
-            LOG.warning("Retrying failed request at #" + ex.getAttemptCount()))
+        .onFailedAttempt(FlintRetryOptions::onFailure)
+        .onRetry(FlintRetryOptions::onRetry)
         .build();
+  }
+
+  public RetryPolicy<BulkResponse> getBulkRetryPolicy(CheckedPredicate<BulkResponse> resultPredicate) {
+    return RetryPolicy.<BulkResponse>builder()
+        // Using higher initial backoff to mitigate throttling quickly
+        .withBackoff(4, 30, SECONDS)
+        .withJitter(Duration.ofMillis(100))
+        .withMaxRetries(getMaxRetries())
+        // Do not retry on exception (will be handled by the other retry policy
+        .handleIf((ex) -> false)
+        .handleResultIf(resultPredicate)
+        .onFailedAttempt(FlintRetryOptions::onFailure)
+        .onRetry(FlintRetryOptions::onRetry)
+        .build();
+  }
+
+  private static <T> void onFailure(ExecutionAttemptedEvent<T> event) {
+    LOG.severe("Attempt to execute request failed: " + event);
+  }
+
+  private static <T> void onRetry(ExecutionAttemptedEvent<T> event) {
+    LOG.warning("Retrying failed request at #" + event.getAttemptCount());
   }
 
   /**
