@@ -6,8 +6,8 @@
 package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, Literal, SortOrder}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Project, Sort}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Coalesce, Descending, GreaterThan, Literal, NullsLast, RegExpExtract, SortOrder}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, LogicalPlan, Project, Sort}
 import org.apache.spark.sql.streaming.StreamTest
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
@@ -38,15 +38,28 @@ class FlintSparkPPLParseITSuite
   }
 
   test("test parse email expressions parsing") {
-    val frame = sql(s"""
-         | source = $testTable | parse email '.+@(?<host>.+)' | fields email, host ;
+    val frame = sql(
+      s"""
+         | source = $testTable| parse email '.+@(?<host>.+)' | fields email, host ;
          | """.stripMargin)
 
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     // Define the expected results
-    val expectedResults: Array[Row] =
-      Array(Row("Jake", 70), Row("Hello", 30), Row("John", 25), Row("Jane", 20))
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("charlie@domain.net", "domain.net"),
+      Row("david@anotherdomain.com", "anotherdomain.com"),
+      Row("hank@demonstration.com", "demonstration.com"),
+      Row("alice@example.com", "example.com"),
+      Row("frank@sample.org", "sample.org"),
+      Row("grace@demo.net", "demo.net"),
+      Row("jack@sample.net", "sample.net"),
+      Row("eve@examples.com", "examples.com"),
+      Row("ivy@examples.org", "examples.org"),
+      Row("bob@test.org", "test.org")
+    )
+
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
@@ -54,12 +67,60 @@ class FlintSparkPPLParseITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
-    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
-    val fieldsProjectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
-    val evalProjectList = Seq(UnresolvedStar(None), Alias(Literal(1), "col")())
-    val expectedPlan = Project(fieldsProjectList, Project(evalProjectList, table))
-    // Compare the two plans
-    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+    val emailAttribute = UnresolvedAttribute("email")
+    val hostAttribute = UnresolvedAttribute("host")
+    val hostExpression = Alias(
+      Coalesce(
+        Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal("1")))), "host")()
+    val expectedPlan = Project(
+      Seq(emailAttribute, hostAttribute),
+      Project(
+        Seq(emailAttribute, hostExpression),
+        UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+      ))
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
+  test("test parse email expressions parsing filter & sort by age") {
+    val frame = sql(
+      s"""
+         | source = $testTable| parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host ;
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row(76, "frank@sample.org", "sample.org"),
+      Row(65, "charlie@domain.net", "domain.net"),
+      Row(55, "bob@test.org", "test.org")
+    )
+
+    // Compare the results
+    assert(results.sameElements(expectedResults))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val emailAttribute = UnresolvedAttribute("email")
+    val ageAttribute = UnresolvedAttribute("age")
+    val hostExpression = Alias(Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))), "host")()
+
+    // Define the corrected expected plan
+    val expectedPlan = Project(
+      Seq(ageAttribute, emailAttribute, UnresolvedAttribute("host")),
+      Sort(
+        Seq(SortOrder(ageAttribute, Descending, NullsLast, Seq.empty)),
+        global = true,
+        Filter(
+          GreaterThan(ageAttribute, Literal(45)),
+          Project(
+            Seq(emailAttribute, hostExpression),
+            UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+          )
+        )
+      )
+    )
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
 }

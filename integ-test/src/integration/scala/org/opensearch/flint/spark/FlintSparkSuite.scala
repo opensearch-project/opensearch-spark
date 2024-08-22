@@ -106,6 +106,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          | CREATE TABLE $testTable
          | (
          |   name STRING,
+         |   age INT,
          |   email STRING,
          |   street_address STRING
          | )
@@ -117,24 +118,24 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          |""".stripMargin)
 
     val data = Seq(
-      ("Alice", "alice@example.com", "123 Main St, Seattle", 2023, 4),
-      ("Bob", "bob@test.org", "456 Elm St, Portland", 2023, 5),
-      ("Charlie", "charlie@domain.net", "789 Pine St, San Francisco", 2023, 4),
-      ("David", "david@anotherdomain.com", "101 Maple St, New York", 2023, 5),
-      ("Eve", "eve@examples.com", "202 Oak St, Boston", 2023, 4),
-      ("Frank", "frank@sample.org", "303 Cedar St, Austin", 2023, 5),
-      ("Grace", "grace@demo.net", "404 Birch St, Chicago", 2023, 4),
-      ("Hank", "hank@demonstration.com", "505 Spruce St, Miami", 2023, 5),
-      ("Ivy", "ivy@examples.org", "606 Fir St, Denver", 2023, 4),
-      ("Jack", "jack@sample.net", "707 Ash St, Seattle", 2023, 5)
+      ("Alice", 30, "alice@example.com", "123 Main St, Seattle", 2023, 4),
+      ("Bob", 55, "bob@test.org", "456 Elm St, Portland", 2023, 5),
+      ("Charlie", 65, "charlie@domain.net", "789 Pine St, San Francisco", 2023, 4),
+      ("David", 19, "david@anotherdomain.com", "101 Maple St, New York", 2023, 5),
+      ("Eve", 21, "eve@examples.com", "202 Oak St, Boston", 2023, 4),
+      ("Frank", 76, "frank@sample.org", "303 Cedar St, Austin", 2023, 5),
+      ("Grace", 41, "grace@demo.net", "404 Birch St, Chicago", 2023, 4),
+      ("Hank", 32, "hank@demonstration.com", "505 Spruce St, Miami", 2023, 5),
+      ("Ivy", 9, "ivy@examples.org", "606 Fir St, Denver", 2023, 4),
+      ("Jack", 12, "jack@sample.net", "707 Ash St, Seattle", 2023, 5)
     )
 
-    data.foreach { case (name, email, street_address, year, month) =>
+    data.foreach { case (name, age, email, street_address, year, month) =>
       spark.sql(
         s"""
            | INSERT INTO $testTable
            | PARTITION (year=$year, month=$month)
-           | VALUES ('$name', '$email', '$street_address')
+           | VALUES ('$name', $age, '$email', '$street_address')
            | """.stripMargin)
     }
   }

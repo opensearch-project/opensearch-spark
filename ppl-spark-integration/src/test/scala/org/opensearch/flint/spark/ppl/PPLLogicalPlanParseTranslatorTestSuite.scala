@@ -8,7 +8,7 @@ package org.opensearch.flint.spark.ppl
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.ScalaReflection.universe.Star
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Coalesce, GreaterThan, Literal, NamedExpression, NullsFirst, RegExpExtract, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Coalesce, Descending, GreaterThan, Literal, NamedExpression, NullsFirst, NullsLast, RegExpExtract, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, Project, Sort}
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
@@ -63,6 +63,37 @@ class PPLLogicalPlanParseTranslatorTestSuite
         Seq(emailAttribute, hostExpression),
         UnresolvedRelation(Seq("t"))
       ))
+    assert(compareByString(expectedPlan) === compareByString(logPlan))
+  }
+
+  test("test parse email expression with filter by age and sort by age field") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser,
+      "source = t | parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host", isExplain = false),
+        context)
+
+    // Define the expected logical plan
+    val emailAttribute = UnresolvedAttribute("email")
+    val ageAttribute = UnresolvedAttribute("age")
+    val hostExpression = Alias(Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))), "host")()
+
+    // Define the corrected expected plan
+    val expectedPlan = Project(
+      Seq(ageAttribute, emailAttribute, UnresolvedAttribute("host")),
+      Sort(
+        Seq(SortOrder(ageAttribute, Descending, NullsLast, Seq.empty)),
+        global = true,
+        Filter(
+          GreaterThan(ageAttribute, Literal(45)),
+          Project(
+            Seq(ageAttribute, emailAttribute, hostExpression),
+            UnresolvedRelation(Seq("t"))
+          )
+        )
+      )
+    )
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
