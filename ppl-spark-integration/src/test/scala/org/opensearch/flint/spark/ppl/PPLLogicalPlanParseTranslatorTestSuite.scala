@@ -12,10 +12,10 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.ScalaReflection.universe.Star
-import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Coalesce, Descending, GreaterThan, Literal, NamedExpression, NullsFirst, NullsLast, RegExpExtract, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
-import org.apache.spark.sql.catalyst.plans.logical.{Filter, Project, Sort}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, GlobalLimit, LocalLimit, Project, Sort}
 
 class PPLLogicalPlanParseTranslatorTestSuite
     extends SparkFunSuite
@@ -163,5 +163,77 @@ class PPLLogicalPlanParseTranslatorTestSuite
             UnresolvedRelation(Seq("t"))))))
 
     assert(compareByString(expectedPlan) === compareByString(logPlan))
+  }
+
+  test("test parse email expressions and group by count host ") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=t | parse email '.+@(?<host>.+)' | stats count() by host", false),
+        context)
+
+    val emailAttribute = UnresolvedAttribute("email")
+    val hostAttribute = UnresolvedAttribute("host")
+    val hostExpression = Alias(
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
+      "host")()
+
+    // Define the corrected expected plan
+    val expectedPlan = Project(
+      Seq(UnresolvedStar(None)), // Matches the '*' in the Project
+      Aggregate(
+        Seq(Alias(hostAttribute, "host")()), // Group by 'host'
+        Seq(
+          Alias(
+            UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
+            "count()")(),
+          Alias(hostAttribute, "host")()),
+        Project(
+          Seq(emailAttribute, hostExpression, UnresolvedStar(None)),
+          UnresolvedRelation(Seq("t")))))
+
+    // Compare the logical plans
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test parse email expressions and top count_host ") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=t | parse email '.+@(?<host>.+)' | top 1 host", false),
+        context)
+
+    val emailAttribute = UnresolvedAttribute("email")
+    val hostAttribute = UnresolvedAttribute("host")
+    val hostExpression = Alias(
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
+      "host")()
+
+    val sortedPlan = Sort(
+      Seq(
+        SortOrder(
+          Alias(
+            UnresolvedFunction(Seq("COUNT"), Seq(hostAttribute), isDistinct = false),
+            "count_host")(),
+          Descending,
+          NullsLast,
+          Seq.empty)),
+      global = true,
+      Aggregate(
+        Seq(hostAttribute),
+        Seq(
+          Alias(
+            UnresolvedFunction(Seq("COUNT"), Seq(hostAttribute), isDistinct = false),
+            "count_host")(),
+          hostAttribute),
+        Project(
+          Seq(emailAttribute, hostExpression, UnresolvedStar(None)),
+          UnresolvedRelation(Seq("t")))))
+    // Define the corrected expected plan
+    val expectedPlan = Project(
+      Seq(UnresolvedStar(None)), // Matches the '*' in the Project
+      GlobalLimit(Literal(1), LocalLimit(Literal(1), sortedPlan)))
+    // Compare the logical plans
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 }

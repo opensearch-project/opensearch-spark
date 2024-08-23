@@ -125,7 +125,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
       ("Frank", 76, "frank@sample.org", "303 Cedar St, Austin", 2023, 5),
       ("Grace", 41, "grace@demo.net", "404 Birch St, Chicago", 2023, 4),
       ("Hank", 32, "hank@demonstration.com", "505 Spruce St, Miami", 2023, 5),
-      ("Ivy", 9, "ivy@examples.org", "606 Fir St, Denver", 2023, 4),
+      ("Ivy", 9, "ivy@examples.com", "606 Fir St, Denver", 2023, 4),
       ("Jack", 12, "jack@sample.net", "707 Ash St, Seattle", 2023, 5))
 
     data.foreach { case (name, age, email, street_address, year, month) =>
@@ -271,9 +271,13 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          | VALUES ('Jake', 'Engineer', 'England' , 100000),
          |        ('Hello', 'Artist', 'USA', 70000),
          |        ('John', 'Doctor', 'Canada', 120000),
-         |        ('David', 'Doctor', 'USA', 120000),
+         |        ('Rachel', 'Doctor', 'Canada', 220000),
+         |        ('Henry', 'Doctor', 'Canada', 220000),
+         |        ('David', 'Engineer', 'USA', 320000),
+         |        ('Barty', 'Engineer', 'USA', 120000),
          |        ('David', 'Unemployed', 'Canada', 0),
-         |        ('Jane', 'Scientist', 'Canada', 90000)
+         |        ('Jane', 'Scientist', 'Canada', 90000),
+         |        ('Philip', 'Scientist', 'Canada', 190000)
          | """.stripMargin)
   }
 
