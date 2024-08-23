@@ -307,7 +307,6 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source=accounts | top 1 age by gender`
 
 **Parse**
-- `source=accounts | top gender`
 - `source=accounts | parse email '.+@(?<host>.+)' | fields email, host `
 - `source=accounts | parse email '.+@(?<host>.+)' | top 1 host `
 - `source=accounts | parse email '.+@(?<host>.+)' | stats count() by host`
