@@ -21,11 +21,13 @@ class FlintSparkPPLTopAndRareITSuite
 
   /** Test table and index name */
   private val testTable = "spark_catalog.default.flint_ppl_test"
+  private val newTestTable = "spark_catalog.default.new_flint_ppl_test"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    // Create test table
+    // Create test tables
+    createOccupationTopRareTable(newTestTable)
     createPartitionedMultiRowAddressTable(testTable)
   }
 
@@ -61,7 +63,7 @@ class FlintSparkPPLTopAndRareITSuite
     val aggregateExpressions = Seq(
       Alias(
         UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
-        "count(address)")(),
+        "count_address")(),
       addressField)
     val aggregatePlan =
       Aggregate(
@@ -70,11 +72,16 @@ class FlintSparkPPLTopAndRareITSuite
         UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
     val sortedPlan: LogicalPlan =
       Sort(
-        Seq(SortOrder(UnresolvedAttribute("address"), Descending)),
+        Seq(
+          SortOrder(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
+              "count_address")(),
+            Ascending)),
         global = true,
         aggregatePlan)
     val expectedPlan = Project(projectList, sortedPlan)
-    comparePlans(expectedPlan, logicalPlan, false)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 
   test("create ppl rare address by age field query test") {
@@ -101,7 +108,7 @@ class FlintSparkPPLTopAndRareITSuite
 
     val countExpr = Alias(
       UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
-      "count(address)")()
+      "count_address")()
 
     val aggregateExpressions = Seq(countExpr, addressField, ageAlias)
     val aggregatePlan =
@@ -112,7 +119,12 @@ class FlintSparkPPLTopAndRareITSuite
 
     val sortedPlan: LogicalPlan =
       Sort(
-        Seq(SortOrder(UnresolvedAttribute("address"), Descending)),
+        Seq(
+          SortOrder(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
+              "count_address")(),
+            Ascending)),
         global = true,
         aggregatePlan)
 
@@ -146,7 +158,7 @@ class FlintSparkPPLTopAndRareITSuite
     val aggregateExpressions = Seq(
       Alias(
         UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
-        "count(address)")(),
+        "count_address")(),
       addressField)
     val aggregatePlan =
       Aggregate(
@@ -155,29 +167,28 @@ class FlintSparkPPLTopAndRareITSuite
         UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
     val sortedPlan: LogicalPlan =
       Sort(
-        Seq(SortOrder(UnresolvedAttribute("address"), Ascending)),
+        Seq(
+          SortOrder(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
+              "count_address")(),
+            Descending)),
         global = true,
         aggregatePlan)
     val expectedPlan = Project(projectList, sortedPlan)
-    comparePlans(expectedPlan, logicalPlan, false)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 
-  test("create ppl top 3 countries by occupation field query test") {
-    val newTestTable = "spark_catalog.default.new_flint_ppl_test"
-    createOccupationTable(newTestTable)
-
+  test("create ppl top 3 countries query test") {
     val frame = sql(s"""
-         | source = $newTestTable| top 3 country by occupation
+         | source = $newTestTable| top 3 country
          | """.stripMargin)
 
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     assert(results.length == 3)
 
-    val expectedRows = Set(
-      Row(1, "Canada", "Doctor"),
-      Row(1, "Canada", "Scientist"),
-      Row(1, "Canada", "Unemployed"))
+    val expectedRows = Set(Row(6, "Canada"), Row(3, "USA"), Row(1, "England"))
     val actualRows = results.take(3).toSet
 
     // Compare the sets
@@ -187,14 +198,61 @@ class FlintSparkPPLTopAndRareITSuite
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val countryField = UnresolvedAttribute("country")
+    val countExpr = Alias(
+      UnresolvedFunction(Seq("COUNT"), Seq(countryField), isDistinct = false),
+      "count_country")()
+    val aggregateExpressions = Seq(countExpr, countryField)
+    val aggregatePlan =
+      Aggregate(
+        Seq(countryField),
+        aggregateExpressions,
+        UnresolvedRelation(Seq("spark_catalog", "default", "new_flint_ppl_test")))
 
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(
+          SortOrder(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(countryField), isDistinct = false),
+              "count_country")(),
+            Descending)),
+        global = true,
+        aggregatePlan)
+
+    val planWithLimit =
+      GlobalLimit(Literal(3), LocalLimit(Literal(3), sortedPlan))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("create ppl top 2 countries by occupation field query test") {
+    val frame = sql(s"""
+         | source = $newTestTable| top 3 country by occupation
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 3)
+
+    val expectedRows =
+      Set(Row(3, "Canada", "Doctor"), Row(2, "Canada", "Scientist"), Row(2, "USA", "Engineer"))
+    val actualRows = results.take(3).toSet
+
+    // Compare the sets
+    assert(
+      actualRows == expectedRows,
+      s"The first two results do not match the expected rows. Expected: $expectedRows, Actual: $actualRows")
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val countryField = UnresolvedAttribute("country")
     val occupationField = UnresolvedAttribute("occupation")
     val occupationFieldAlias = Alias(occupationField, "occupation")()
 
     val countExpr = Alias(
       UnresolvedFunction(Seq("COUNT"), Seq(countryField), isDistinct = false),
-      "count(country)")()
+      "count_country")()
     val aggregateExpressions = Seq(countExpr, countryField, occupationFieldAlias)
     val aggregatePlan =
       Aggregate(
@@ -204,13 +262,19 @@ class FlintSparkPPLTopAndRareITSuite
 
     val sortedPlan: LogicalPlan =
       Sort(
-        Seq(SortOrder(UnresolvedAttribute("country"), Ascending)),
+        Seq(
+          SortOrder(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(countryField), isDistinct = false),
+              "count_country")(),
+            Descending)),
         global = true,
         aggregatePlan)
 
     val planWithLimit =
       GlobalLimit(Literal(3), LocalLimit(Literal(3), sortedPlan))
     val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
-    comparePlans(expectedPlan, logicalPlan, false)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+
   }
 }
