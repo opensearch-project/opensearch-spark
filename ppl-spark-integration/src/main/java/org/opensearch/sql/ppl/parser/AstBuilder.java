@@ -278,12 +278,11 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   public UnresolvedPlan visitTopCommand(OpenSearchPPLParser.TopCommandContext ctx) {
     ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
     ImmutableList.Builder<UnresolvedExpression> groupListBuilder = new ImmutableList.Builder<>();
-    ImmutableList.Builder<UnresolvedExpression> sortListBuilder = new ImmutableList.Builder<>();
     ctx.fieldList().fieldExpression().forEach(field -> {
       UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field),
               Collections.singletonList(new Argument("countParam", new Literal(1, DataType.INTEGER))));
       String name = field.qualifiedName().getText();
-      Alias alias = new Alias("count("+name+")", aggExpression);
+      Alias alias = new Alias("count_"+name, aggExpression);
       aggListBuilder.add(alias);
       // group by the `field-list` as the mandatory groupBy fields
       groupListBuilder.add(internalVisitExpression(field));
@@ -305,16 +304,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                                             .collect(Collectors.toList()))
                     .orElse(emptyList())
     );
-    //build the sort fields
-    ctx.fieldList().fieldExpression().forEach(field -> {
-      sortListBuilder.add(internalVisitExpression(field));
-    });
     UnresolvedExpression unresolvedPlan = (ctx.number != null ? internalVisitExpression(ctx.number) : null);
     TopAggregation aggregation =
             new TopAggregation(
                     Optional.ofNullable((Literal) unresolvedPlan),
                     aggListBuilder.build(),
-                    sortListBuilder.build(),
+                    aggListBuilder.build(),
                     groupListBuilder.build());
     return aggregation;
   }
@@ -324,12 +319,11 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   public UnresolvedPlan visitRareCommand(OpenSearchPPLParser.RareCommandContext ctx) {
     ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
     ImmutableList.Builder<UnresolvedExpression> groupListBuilder = new ImmutableList.Builder<>();
-    ImmutableList.Builder<UnresolvedExpression> sortListBuilder = new ImmutableList.Builder<>();
     ctx.fieldList().fieldExpression().forEach(field -> {
       UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field),
               Collections.singletonList(new Argument("countParam", new Literal(1, DataType.INTEGER))));
       String name = field.qualifiedName().getText();
-      Alias alias = new Alias("count("+name+")", aggExpression);
+      Alias alias = new Alias("count_"+name, aggExpression);
       aggListBuilder.add(alias);
       // group by the `field-list` as the mandatory groupBy fields
       groupListBuilder.add(internalVisitExpression(field));
@@ -351,14 +345,10 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                                             .collect(Collectors.toList()))
                     .orElse(emptyList())
     );
-    //build the sort fields
-    ctx.fieldList().fieldExpression().forEach(field -> {
-      sortListBuilder.add(internalVisitExpression(field));
-    });
     RareAggregation aggregation =
             new RareAggregation(
                     aggListBuilder.build(),
-                    sortListBuilder.build(),
+                    aggListBuilder.build(),
                     groupListBuilder.build());
     return aggregation;
   }
