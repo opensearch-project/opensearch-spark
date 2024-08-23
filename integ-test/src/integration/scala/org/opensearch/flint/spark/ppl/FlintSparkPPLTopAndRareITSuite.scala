@@ -27,7 +27,7 @@ class FlintSparkPPLTopAndRareITSuite
     super.beforeAll()
 
     // Create test tables
-    createOccupationTable(newTestTable)
+    createOccupationTopRareTable(newTestTable)
     createPartitionedMultiRowAddressTable(testTable)
   }
 

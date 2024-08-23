@@ -271,6 +271,35 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          | VALUES ('Jake', 'Engineer', 'England' , 100000),
          |        ('Hello', 'Artist', 'USA', 70000),
          |        ('John', 'Doctor', 'Canada', 120000),
+         |        ('David', 'Doctor', 'USA', 120000),
+         |        ('David', 'Unemployed', 'Canada', 0),
+         |        ('Jane', 'Scientist', 'Canada', 90000)
+         | """.stripMargin)
+  }
+
+  protected def createOccupationTopRareTable(testTable: String): Unit = {
+    sql(s"""
+      | CREATE TABLE $testTable
+      | (
+      |   name STRING,
+      |   occupation STRING,
+      |   country STRING,
+      |   salary INT
+      | )
+      | USING $tableType $tableOptions
+      | PARTITIONED BY (
+      |    year INT,
+      |    month INT
+      | )
+      |""".stripMargin)
+
+    // Insert data into the new table
+    sql(s"""
+         | INSERT INTO $testTable
+         | PARTITION (year=2023, month=4)
+         | VALUES ('Jake', 'Engineer', 'England' , 100000),
+         |        ('Hello', 'Artist', 'USA', 70000),
+         |        ('John', 'Doctor', 'Canada', 120000),
          |        ('Rachel', 'Doctor', 'Canada', 220000),
          |        ('Henry', 'Doctor', 'Canada', 220000),
          |        ('David', 'Engineer', 'USA', 320000),
