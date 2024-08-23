@@ -49,7 +49,7 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
      */
     public RestHighLevelClientWrapper(RestHighLevelClient client) {
         this.client = client;
-        LOG.info("commit: 3bc4744");
+        LOG.info("commit: ea359b6");
     }
 
     @Override
