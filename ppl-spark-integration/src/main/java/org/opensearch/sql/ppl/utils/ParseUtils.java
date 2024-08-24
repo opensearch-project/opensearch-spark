@@ -12,16 +12,23 @@ import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.ParseMethod;
 import org.opensearch.sql.common.grok.Grok;
 import org.opensearch.sql.common.grok.GrokCompiler;
+import org.opensearch.sql.common.grok.GrokUtils;
 import org.opensearch.sql.common.grok.Match;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class ParseUtils {
+  private static final Pattern GROUP_PATTERN = Pattern.compile("\\(\\?<([a-zA-Z][a-zA-Z0-9]*)>");
   private static final String NEW_FIELD_KEY = "new_field";
 
   /**
@@ -55,7 +62,7 @@ public class ParseUtils {
       case GROK:
         return GrokExpression.getNamedGroupCandidates(pattern);
       default:
-        return PatternsExpression.getNamedGroupCandidates(
+        return GrokExpression.getNamedGroupCandidates(
                 arguments.containsKey(NEW_FIELD_KEY)
                         ? (String) arguments.get(NEW_FIELD_KEY).getValue()
                         : null);
@@ -81,12 +88,28 @@ public class ParseUtils {
     }
   }
 
+  public static String extractPattern(String patterns, List<String> columns) {
+    StringBuilder result = new StringBuilder();
+    Matcher matcher = GROUP_PATTERN.matcher(patterns);
+
+    int lastEnd = 0;
+    while (matcher.find()) {
+      String groupName = matcher.group(1);
+      if (columns.contains(groupName)) {
+        result.append(patterns, lastEnd, matcher.start());
+        result.append("(");
+        lastEnd = matcher.end();
+      }
+    }
+    result.append(patterns.substring(lastEnd));
+    return result.toString();
+  }
+
   public static abstract class  ParseExpression {
     abstract String parseValue(String value);
   }
   
   public static class RegexExpression extends ParseExpression{
-    private static final Pattern GROUP_PATTERN = Pattern.compile("\\(\\?<([a-zA-Z][a-zA-Z0-9]*)>");
     private final Pattern regexPattern;
     protected final String identifier;
 
@@ -120,25 +143,17 @@ public class ParseUtils {
     }
 
     public static String extractPattern(String patterns, List<String> columns) {
-      StringBuilder result = new StringBuilder();
-      Matcher matcher = GROUP_PATTERN.matcher(patterns);
-
-      int lastEnd = 0;
-      while (matcher.find()) {
-        String groupName = matcher.group(1);
-        if (columns.contains(groupName)) {
-          result.append(patterns, lastEnd, matcher.start());
-          result.append("(");
-          lastEnd = matcher.end();
-        }
-      }
-      result.append(patterns.substring(lastEnd));
-      return result.toString();
+      return ParseUtils.extractPattern(patterns, columns);
     }
   }
   
-  public static class GrokExpression extends ParseExpression{
+  public static class GrokExpression extends ParseExpression {
     private static final GrokCompiler grokCompiler = GrokCompiler.newInstance();
+
+    static {
+      grokCompiler.registerDefaultPatterns();
+    }
+
     private final Grok grok;
     private final String identifier;
 
@@ -172,9 +187,16 @@ public class ParseUtils {
               .collect(Collectors.toUnmodifiableList());
     }
 
-    public static String extractPattern(String patterns, List<String> columns) {
-      //todo implement
-      return patterns;
+    public static String extractPattern(final String patterns, List<String> columns) {
+      AtomicReference<String> cleanedPattern = new AtomicReference<>(patterns);
+      Grok grok = grokCompiler.compile(patterns);
+      columns.forEach(group -> {
+        if (grok.getNamedRegexCollection().containsValue(group)) {
+          String groupName = GrokUtils.getKeyByValue(grok.getNamedRegexCollection(), group);
+          cleanedPattern.set(ParseUtils.extractPattern(grok.getNamedRegex(), List.of(groupName)));
+        }
+      });
+      return cleanedPattern.get();
     }
   }
   
