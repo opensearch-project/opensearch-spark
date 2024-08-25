@@ -105,7 +105,7 @@ class FlintSparkPPLGrokITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val ageAttribute = UnresolvedAttribute("age")
     val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"), Literal(1)))),
       "host")()
 
     // Define the corrected expected plan
@@ -150,7 +150,7 @@ class FlintSparkPPLGrokITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"), Literal(1)))),
       "host")()
 
     // Define the corrected expected plan
@@ -189,7 +189,7 @@ class FlintSparkPPLGrokITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"), Literal(1)))),
       "host")()
 
     val sortedPlan = Sort(
