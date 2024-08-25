@@ -5,18 +5,19 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Coalesce, Descending, GreaterThan, Literal, NullsFirst, NullsLast, RegExpExtract, SortOrder}
-import org.apache.spark.sql.catalyst.plans.PlanTest
-import org.apache.spark.sql.catalyst.plans.logical._
+import java.util
+import java.util.Map
+
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.common.grok.{Grok, GrokCompiler, Match}
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
 
-import java.util
-import java.util.Map
+import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Coalesce, Descending, GreaterThan, Literal, NullsFirst, NullsLast, RegExpExtract, SortOrder}
+import org.apache.spark.sql.catalyst.plans.PlanTest
+import org.apache.spark.sql.catalyst.plans.logical._
 
 class PPLLogicalPlanGrokTranslatorTestSuite
     extends SparkFunSuite
@@ -31,10 +32,10 @@ class PPLLogicalPlanGrokTranslatorTestSuite
     val grokCompiler = GrokCompiler.newInstance
     grokCompiler.registerDefaultPatterns()
 
-    /* Grok pattern to compile, here httpd logs *//* Grok pattern to compile, here httpd logs */
+    /* Grok pattern to compile, here httpd logs */ /* Grok pattern to compile, here httpd logs */
     val grok = grokCompiler.compile(".+@%{HOSTNAME:host}")
 
-    /* Line of log to match *//* Line of log to match */
+    /* Line of log to match */ /* Line of log to match */
     val log = "iii@gmail.com"
 
     val gm = grok.`match`(log)
@@ -52,7 +53,13 @@ class PPLLogicalPlanGrokTranslatorTestSuite
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"), Literal("1")))),
+      Coalesce(
+        Seq(
+          RegExpExtract(
+            emailAttribute,
+            Literal(
+              ".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+            Literal("1")))),
       "host")()
     val expectedPlan = Project(
       Seq(emailAttribute, hostAttribute),
@@ -66,18 +73,22 @@ class PPLLogicalPlanGrokTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=apache | grok message '%{COMMONAPACHELOG}' | fields COMMONAPACHELOG, timestamp, response, bytes", false),
+        plan(
+          pplParser,
+          "source=apache | grok message '%{COMMONAPACHELOG}' | fields COMMONAPACHELOG, timestamp, response, bytes",
+          false),
         context)
 
-    val emailAttribute = UnresolvedAttribute("email")
-    val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal("1")))),
-      "email")()
+    val logAttribute = UnresolvedAttribute("COMMONAPACHELOG")
+    val timestampAttribute = UnresolvedAttribute("timestamp")
+    val responseAttribute = UnresolvedAttribute("response")
+    val bytesAttribute = UnresolvedAttribute("bytes")
+    val logExpression = Alias(
+      Coalesce(Seq(RegExpExtract(logAttribute, Literal(".+@(.+)"), Literal("1")))),
+      "COMMONAPACHELOG")()
     val expectedPlan = Project(
-      Seq(emailAttribute),
-      Project(
-        Seq(emailAttribute, hostExpression, UnresolvedStar(None)),
-        UnresolvedRelation(Seq("t"))))
+      Seq(logAttribute, timestampAttribute, responseAttribute, bytesAttribute),
+      Project(Seq(logExpression, UnresolvedStar(None)), UnresolvedRelation(Seq("t"))))
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
@@ -95,7 +106,13 @@ class PPLLogicalPlanGrokTranslatorTestSuite
     val emailAttribute = UnresolvedAttribute("email")
     val ageAttribute = UnresolvedAttribute("age")
     val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
+      Coalesce(
+        Seq(
+          RegExpExtract(
+            emailAttribute,
+            Literal(
+              ".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+            Literal(1)))),
       "host")()
 
     // Define the corrected expected plan
@@ -108,7 +125,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
           GreaterThan(ageAttribute, Literal(45)),
           Project(
             Seq(emailAttribute, hostExpression, UnresolvedStar(None)),
-            UnresolvedRelation(Seq("t"))))))
+            UnresolvedRelation(Seq("accounts"))))))
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
@@ -127,7 +144,13 @@ class PPLLogicalPlanGrokTranslatorTestSuite
     val evalResultAttribute = UnresolvedAttribute("eval_result")
 
     val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal("1")))),
+      Coalesce(
+        Seq(
+          RegExpExtract(
+            emailAttribute,
+            Literal(
+              ".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+            Literal("1")))),
       "host")()
 
     val evalResultExpression = Alias(Literal(1), "eval_result")()
@@ -138,21 +161,30 @@ class PPLLogicalPlanGrokTranslatorTestSuite
         Seq(UnresolvedStar(None), evalResultExpression),
         Project(
           Seq(emailAttribute, hostExpression, UnresolvedStar(None)),
-          UnresolvedRelation(Seq("t")))))
+          UnresolvedRelation(Seq("accounts")))))
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
-  
+
   test("test parse email expressions and group by count host ") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | grok email '.+@%{HOSTNAME:host}' | stats count() by host", false),
+        plan(
+          pplParser,
+          "source=t | grok email '.+@%{HOSTNAME:host}' | stats count() by host",
+          false),
         context)
 
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
+      Coalesce(
+        Seq(
+          RegExpExtract(
+            emailAttribute,
+            Literal(
+              ".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+            Literal(1)))),
       "host")()
 
     // Define the corrected expected plan
@@ -183,7 +215,13 @@ class PPLLogicalPlanGrokTranslatorTestSuite
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
+      Coalesce(
+        Seq(
+          RegExpExtract(
+            emailAttribute,
+            Literal(
+              ".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+            Literal(1)))),
       "host")()
 
     val sortedPlan = Sort(

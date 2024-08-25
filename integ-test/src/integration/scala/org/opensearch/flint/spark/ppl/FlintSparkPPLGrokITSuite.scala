@@ -5,11 +5,11 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Coalesce, Descending, GreaterThan, Literal, NullsLast, RegExpExtract, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
-import org.apache.spark.sql.{QueryTest, Row}
 
 class FlintSparkPPLGrokITSuite
     extends QueryTest
@@ -67,8 +67,13 @@ class FlintSparkPPLGrokITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
-        Literal("1")))),
+      Coalesce(
+        Seq(
+          RegExpExtract(
+            emailAttribute,
+            Literal(
+              ".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+            Literal("1")))),
       "host")()
     val expectedPlan = Project(
       Seq(emailAttribute, hostAttribute),
@@ -80,7 +85,7 @@ class FlintSparkPPLGrokITSuite
 
   test("test parse email expressions parsing filter & sort by age") {
     val frame = sql(s"""
-         | source = $testTable| parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host ;
+         | source = $testTable| grok email '.+@%{HOSTNAME:host}' | where age > 45 | sort - age | fields age, email, host ;
          | """.stripMargin)
 
     // Retrieve the results
@@ -119,7 +124,7 @@ class FlintSparkPPLGrokITSuite
 
   test("test parse email expressions and group by count host ") {
     val frame = sql(s"""
-         | source = $testTable| parse email '.+@(?<host>.+)' | stats count() by host
+         | source = $testTable| grok email '.+@%{HOSTNAME:host}'  | stats count() by host
          | """.stripMargin)
 
     // Retrieve the results
@@ -167,7 +172,7 @@ class FlintSparkPPLGrokITSuite
 
   test("test parse email expressions and top count_host ") {
     val frame = sql(s"""
-         | source = $testTable| parse email '.+@(?<host>.+)' | top 1 host
+         | source = $testTable| grok email '.+@%{HOSTNAME:host}'  | top 1 host
          | """.stripMargin)
 
     // Retrieve the results
