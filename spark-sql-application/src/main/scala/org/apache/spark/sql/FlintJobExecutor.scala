@@ -41,7 +41,7 @@ trait FlintJobExecutor {
 
   var currentTimeProvider: TimeProvider = new RealTimeProvider()
   var threadPoolFactory: ThreadPoolFactory = new DefaultThreadPoolFactory()
-  var envinromentProvider: EnvironmentProvider = new RealEnvironment()
+  var environmentProvider: EnvironmentProvider = new RealEnvironment()
   var enableHiveSupport: Boolean = true
   // termiante JVM in the presence non-deamon thread before exiting
   var terminateJVM = true
@@ -190,6 +190,7 @@ trait FlintJobExecutor {
     }
   }
 
+  // scalastyle:off
   /**
    * Create a new formatted dataframe with json result, json schema and EMR_STEP_ID.
    *
@@ -201,6 +202,8 @@ trait FlintJobExecutor {
    *   dataframe with result, schema and emr step id
    */
   def getFormattedData(
+      applicationId: String,
+      jobId: String,
       result: DataFrame,
       spark: SparkSession,
       dataSource: String,
@@ -231,14 +234,13 @@ trait FlintJobExecutor {
     // after consumed the query result. Streaming query shuffle data is cleaned after each
     // microBatch execution.
     cleaner.cleanUp(spark)
-
     // Create the data rows
     val rows = Seq(
       (
         resultToSave,
         resultSchemaToSave,
-        envinromentProvider.getEnvVar("SERVERLESS_EMR_JOB_ID", "unknown"),
-        envinromentProvider.getEnvVar("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown"),
+        jobId,
+        applicationId,
         dataSource,
         "SUCCESS",
         "",
@@ -254,6 +256,8 @@ trait FlintJobExecutor {
   }
 
   def constructErrorDF(
+      applicationId: String,
+      jobId: String,
       spark: SparkSession,
       dataSource: String,
       status: String,
@@ -270,8 +274,8 @@ trait FlintJobExecutor {
       (
         null,
         null,
-        envinromentProvider.getEnvVar("SERVERLESS_EMR_JOB_ID", "unknown"),
-        envinromentProvider.getEnvVar("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown"),
+        jobId,
+        applicationId,
         dataSource,
         status.toUpperCase(Locale.ROOT),
         error,
@@ -396,6 +400,8 @@ trait FlintJobExecutor {
   }
 
   def executeQuery(
+      applicationId: String,
+      jobId: String,
       spark: SparkSession,
       query: String,
       dataSource: String,
@@ -409,6 +415,8 @@ trait FlintJobExecutor {
     val result: DataFrame = spark.sql(query)
     // Get Data
     getFormattedData(
+      applicationId,
+      jobId,
       result,
       spark,
       dataSource,

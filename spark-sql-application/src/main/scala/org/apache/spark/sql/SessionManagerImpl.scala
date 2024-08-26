@@ -8,10 +8,9 @@ package org.apache.spark.sql
 import scala.util.{Failure, Success, Try}
 
 import org.json4s.native.Serialization
-import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession}
+import org.opensearch.flint.common.model.InteractiveSession
 import org.opensearch.flint.common.model.InteractiveSession.formats
 import org.opensearch.flint.core.logging.CustomLogging
-import org.opensearch.flint.core.storage.FlintReader
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SessionUpdateMode.SessionUpdateMode
@@ -27,14 +26,14 @@ class SessionManagerImpl(spark: SparkSession, resultIndexOption: Option[String])
   }
 
   // we don't allow default value for sessionIndex. Throw exception if key not found.
-  private val sessionIndex: String = spark.conf.get(FlintSparkConf.REQUEST_INDEX.key, "")
+  val sessionIndex: String = spark.conf.get(FlintSparkConf.REQUEST_INDEX.key, "")
 
   if (sessionIndex.isEmpty) {
     logAndThrow(FlintSparkConf.REQUEST_INDEX.key + " is not set")
   }
 
-  private val osClient = new OSClient(FlintSparkConf().flintOptions())
-  private val flintSessionIndexUpdater = osClient.createUpdater(sessionIndex)
+  val osClient = new OSClient(FlintSparkConf().flintOptions())
+  lazy val flintSessionIndexUpdater = osClient.createUpdater(sessionIndex)
 
   override def getSessionContext: Map[String, Any] = {
     Map(
@@ -50,7 +49,6 @@ class SessionManagerImpl(spark: SparkSession, resultIndexOption: Option[String])
         // Retrieve the source map and create session
         val sessionOption = Option(getResponse.getSourceAsMap)
           .map(InteractiveSession.deserializeFromMap)
-
         // Retrieve sequence number and primary term from the response
         val seqNo = getResponse.getSeqNo
         val primaryTerm = getResponse.getPrimaryTerm

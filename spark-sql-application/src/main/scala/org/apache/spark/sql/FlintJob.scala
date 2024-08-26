@@ -55,9 +55,15 @@ object FlintJob extends Logging with FlintJobExecutor {
     conf.set("spark.sql.defaultCatalog", dataSource)
     configDYNMaxExecutors(conf, jobType)
 
+    val applicationId =
+      environmentProvider.getEnvVar("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", "unknown")
+    val jobId = environmentProvider.getEnvVar("SERVERLESS_EMR_JOB_ID", "unknown")
+
     val streamingRunningCount = new AtomicInteger(0)
     val jobOperator =
       JobOperator(
+        applicationId,
+        jobId,
         createSparkSession(conf),
         query,
         dataSource,

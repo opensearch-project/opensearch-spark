@@ -6,21 +6,22 @@
 package org.apache.spark.sql
 
 import org.opensearch.flint.common.model.FlintStatement
-import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
+import org.opensearch.flint.core.storage.OpenSearchUpdater
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.FlintJob.{checkAndCreateIndex, createResultIndex, isSuperset, resultIndexMapping}
-import org.apache.spark.sql.FlintREPL.executeQuery
 
-class StatementExecutionManagerImpl(
-    spark: SparkSession,
-    sessionId: String,
-    dataSource: String,
-    context: Map[String, Any])
+/**
+ * StatementExecutionManagerImpl is session based implementation of StatementExecutionManager
+ * interface It uses FlintReader to fetch all pending queries in a mirco-batch
+ * @param commandContext
+ */
+class StatementExecutionManagerImpl(commandContext: CommandContext)
     extends StatementExecutionManager
+    with FlintJobExecutor
     with Logging {
 
+  private val context = commandContext.sessionManager.getSessionContext
   private val sessionIndex = context("sessionIndex").asInstanceOf[String]
   private val resultIndex = context("resultIndex").asInstanceOf[String]
   private val osClient = context("osClient").asInstanceOf[OSClient]
@@ -53,10 +54,20 @@ class StatementExecutionManagerImpl(
   }
 
   override def executeStatement(statement: FlintStatement): DataFrame = {
-    executeQuery(spark, statement.query, dataSource, statement.queryId, sessionId, false)
+    import commandContext._
+    executeQuery(
+      applicationId,
+      jobId,
+      spark,
+      statement.query,
+      dataSource,
+      statement.queryId,
+      sessionId,
+      false)
   }
 
   private def createOpenSearchQueryReader() = {
+    import commandContext._
     // all state in index are in lower case
     // we only search for statement submitted in the last hour in case of unexpected bugs causing infinite loop in the
     // same doc
