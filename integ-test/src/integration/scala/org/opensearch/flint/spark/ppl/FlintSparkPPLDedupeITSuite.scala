@@ -307,4 +307,40 @@ class FlintSparkPPLDedupeITSuite
              | """.stripMargin))
     assert(ex.getMessage.contains("Consecutive deduplication is not supported"))
   }
+
+  test("test dedupe 1 category, name - reorder field list won't impact output order") {
+    val frame1 = sql(s"""
+          | source = $testTable | dedup 1 name, category
+          | """.stripMargin)
+
+    val results1: Array[Row] = frame1.drop("id").collect()
+
+    val frame2 = sql(s"""
+          | source = $testTable | dedup 1 category, name
+          | """.stripMargin)
+
+    val results2: Array[Row] = frame2.drop("id").collect()
+    implicit val twoColsRowOrdering: Ordering[Row] =
+      Ordering.by[Row, (String, String)](row => (row.getAs(0), row.getAs(1)))
+    assert(results1.sorted.sameElements(results2.sorted))
+  }
+
+  test("test dedupe 2 category, name - reorder field list won't impact output order") {
+    val frame1 = sql(s"""
+          | source = $testTable | dedup 2 name, category
+          | """.stripMargin)
+
+    val results1: Array[Row] = frame1.drop("id").collect()
+
+    val frame2 = sql(s"""
+          | source = $testTable | dedup 2 category, name
+          | """.stripMargin)
+
+    val results2: Array[Row] = frame2.drop("id").collect()
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](row => {
+      val value = row.getAs[String](0)
+      if (value == null) String.valueOf(Int.MaxValue) else value
+    })
+    assert(results1.sorted.sameElements(results2.sorted))
+  }
 }
