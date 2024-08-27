@@ -6,12 +6,10 @@
 package org.opensearch.flint.spark.ppl
 
 import scala.reflect.internal.Reporter.Count
-
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
-
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Coalesce, Descending, GreaterThan, Literal, NullsLast, RegExpExtract, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Coalesce, Descending, GreaterThan, Literal, NullsFirst, NullsLast, RegExpExtract, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, GlobalLimit, LocalLimit, LogicalPlan, Project, Sort}
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -71,7 +69,7 @@ class FlintSparkPPLParseITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal("1")))),
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal("1")))),
       "host")()
     val expectedPlan = Project(
       Seq(emailAttribute, hostAttribute),
@@ -103,7 +101,7 @@ class FlintSparkPPLParseITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val ageAttribute = UnresolvedAttribute("age")
     val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal(1)))),
       "host")()
 
     // Define the corrected expected plan
@@ -148,7 +146,7 @@ class FlintSparkPPLParseITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal(1)))),
       "host")()
 
     // Define the corrected expected plan
@@ -187,7 +185,7 @@ class FlintSparkPPLParseITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
+      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal(1)))),
       "host")()
 
     val sortedPlan = Sort(
@@ -217,4 +215,52 @@ class FlintSparkPPLParseITSuite
     // Compare the logical plans
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
+
+  test("test parse email & host expressions including cast and sort commands") {
+    val frame = sql(
+      s"""
+         | source = $testTable| parse street_address '(?<streetNumber>\\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street
+         | """.stripMargin)
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("505", "Spruce St, Miami"),
+      Row("606", "Fir St, Denver"),
+      Row("707", "Ash St, Seattle"),
+      Row("789", "Pine St, San Francisco")
+    )
+
+    // Sort both the results and the expected results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by(r => (r.getString(0), r.getString(1)))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val addressAttribute = UnresolvedAttribute("street_address")
+    val streetNumberAttribute = UnresolvedAttribute("streetNumber")
+    val streetAttribute = UnresolvedAttribute("street")
+
+    val streetNumberExpression = Alias(
+      Coalesce(Seq(RegExpExtract(addressAttribute, Literal("(?<streetNumber>\\d+) (?<street>.+)"), Literal("1")))),
+      "streetNumber")()
+
+    val streetExpression = Alias(
+      Coalesce(Seq(RegExpExtract(addressAttribute, Literal("(?<streetNumber>\\d+) (?<street>.+)"), Literal("2")))),
+      "street")()
+
+    val expectedPlan = Project(
+      Seq(streetNumberAttribute, streetAttribute),
+      Sort(
+        Seq(SortOrder(streetNumberAttribute, Ascending, NullsFirst, Seq.empty)),
+        global = true,
+        Filter(
+          GreaterThan(streetNumberAttribute, Literal(500)),
+          Project(
+            Seq(addressAttribute, streetNumberExpression, streetExpression, UnresolvedStar(None)),
+            UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))))))
+
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+
 }

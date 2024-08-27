@@ -58,7 +58,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
           RegExpExtract(
             emailAttribute,
             Literal(
-              ".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+              ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
             Literal("1")))),
       "host")()
     val expectedPlan = Project(
@@ -69,26 +69,32 @@ class PPLLogicalPlanGrokTranslatorTestSuite
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
-  test("test grok to parse raw logs.") {
+  test("test grok to grok raw logs.") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
         plan(
           pplParser,
-          "source=apache | grok message '%{COMMONAPACHELOG}' | fields COMMONAPACHELOG, timestamp, response, bytes",
+          "source=t | grok message '%{COMMONAPACHELOG}' | fields COMMONAPACHELOG, timestamp, response, bytes",
           false),
         context)
 
+    val messageAttribute = UnresolvedAttribute("message")
     val logAttribute = UnresolvedAttribute("COMMONAPACHELOG")
     val timestampAttribute = UnresolvedAttribute("timestamp")
     val responseAttribute = UnresolvedAttribute("response")
     val bytesAttribute = UnresolvedAttribute("bytes")
-    val logExpression = Alias(
-      Coalesce(Seq(RegExpExtract(logAttribute, Literal(".+@(.+)"), Literal("1")))),
-      "COMMONAPACHELOG")()
+    val expectedRegExp = "(?<name0>(?<name1>(?:(?<name2>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))|(?<name3>(?:(?<name4>((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:)))(%.+)?)|(?<name5>(?<![0-9])(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))(?![0-9])))))) (?<name6>(?<name7>[a-zA-Z0-9._-]+)) (?<name8>(?<name9>[a-zA-Z0-9._-]+)) \\[(?<name10>(?<name11>(?:(?:0[1-9])|(?:[12][0-9])|(?:3[01])|[1-9]))/(?<name12>\\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\\b)/(?<name13>(?>\\d\\d){1,2}):(?<name14>(?!<[0-9])(?<name15>(?:2[0123]|[01]?[0-9])):(?<name16>(?:[0-5][0-9]))(?::(?<name17>(?:(?:[0-5]?[0-9]|60)(?:[:.,][0-9]+)?)))(?![0-9])) (?<name18>(?:[+-]?(?:[0-9]+))))\\] \"(?:(?<name19>\\b\\w+\\b) (?<name20>\\S+)(?: HTTP/(?<name21>(?:(?<name22>(?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\\.[0-9]+)?)|(?:\\.[0-9]+)))))))?|(?<name23>.*?))\" (?<name24>(?:(?<name25>(?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\\.[0-9]+)?)|(?:\\.[0-9]+)))))) (?:(?<name26>(?:(?<name27>(?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\\.[0-9]+)?)|(?:\\.[0-9]+))))))|-))"
+    
+    val COMMONAPACHELOG = Alias(Coalesce(Seq(RegExpExtract(messageAttribute, Literal(expectedRegExp), Literal("1")))), "COMMONAPACHELOG")()
+    val timestamp = Alias(Coalesce(Seq(RegExpExtract(messageAttribute, Literal(expectedRegExp), Literal("5")))), "timestamp")()
+    val response = Alias(Coalesce(Seq(RegExpExtract(messageAttribute, Literal(expectedRegExp), Literal("18")))), "response")()
+    val bytes = Alias(Coalesce(Seq(RegExpExtract(messageAttribute, Literal(expectedRegExp), Literal("19")))), "bytes")()
     val expectedPlan = Project(
       Seq(logAttribute, timestampAttribute, responseAttribute, bytesAttribute),
-      Project(Seq(logExpression, UnresolvedStar(None)), UnresolvedRelation(Seq("t"))))
+      Project(
+        Seq(messageAttribute, COMMONAPACHELOG, timestamp, response, bytes, UnresolvedStar(None)),
+        UnresolvedRelation(Seq("t"))))
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
@@ -111,7 +117,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
           RegExpExtract(
             emailAttribute,
             Literal(
-              ".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+              ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
             Literal(1)))),
       "host")()
 
@@ -149,7 +155,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
           RegExpExtract(
             emailAttribute,
             Literal(
-              ".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+              ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
             Literal("1")))),
       "host")()
 
@@ -165,7 +171,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
-  test("test parse email expressions and group by count host ") {
+  test("test grok email expressions and group by count host ") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
@@ -183,7 +189,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
           RegExpExtract(
             emailAttribute,
             Literal(
-              ".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+              ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
             Literal(1)))),
       "host")()
 
@@ -205,7 +211,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
-  test("test parse email expressions and top count_host ") {
+  test("test grok email expressions and top count_host ") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
@@ -220,7 +226,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
           RegExpExtract(
             emailAttribute,
             Literal(
-              ".+@(\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+              ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
             Literal(1)))),
       "host")()
 
@@ -250,5 +256,29 @@ class PPLLogicalPlanGrokTranslatorTestSuite
       GlobalLimit(Literal(1), LocalLimit(Literal(1), sortedPlan)))
     // Compare the logical plans
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+  
+  test("test grok address expressions with 2 fields identifies ") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=accounts | grok address '%{NUMBER} %{GREEDYDATA:address}' | fields address ", false),
+        context)
+
+
+    val addressAttribute = UnresolvedAttribute("address")
+    val addressExpression = Alias(
+      Coalesce(
+        Seq(
+          RegExpExtract(
+            addressAttribute,
+            Literal("(?<name0>(?:(?<name1>(?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\\.[0-9]+)?)|(?:\\.[0-9]+)))))) (?<name2>.*)"),
+            Literal("2")))), "address")()
+    val expectedPlan = Project(
+      Seq(addressAttribute),
+      Project(
+        Seq(addressAttribute, addressExpression, UnresolvedStar(None)),
+        UnresolvedRelation(Seq("accounts"))))
+    assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 }

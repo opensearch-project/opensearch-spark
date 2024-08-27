@@ -91,15 +91,6 @@ public class ParseUtils {
                 return PatternsExpression.extractPattern(pattern, columns);
         }
     }
-    
-    public static String extractPattern(String patterns, List<String> columns) {
-        AtomicReference<String> patternsContainer = new AtomicReference<>(patterns);
-        // Iterate through each column (which is actually a group name)
-        for (String column : columns) {
-            patternsContainer.set(patternsContainer.get().replace("?<"+column+">", ""));
-        }
-        return patternsContainer.get();
-    }
 
     public static abstract class ParseExpression {
         abstract String parseValue(String value);
@@ -139,7 +130,7 @@ public class ParseUtils {
         }
 
         public static String extractPattern(String patterns, List<String> columns) {
-            return ParseUtils.extractPattern(patterns, columns);
+            return patterns;
         }
     }
 
@@ -185,16 +176,7 @@ public class ParseUtils {
 
         public static String extractPattern(final String patterns, List<String> columns) {
             Grok grok = grokCompiler.compile(patterns);
-            AtomicReference<String> cleanedPattern = new AtomicReference<>(grok.getNamedRegex());
-            columns.stream()
-                    .filter(group -> !group.equals("UNWANTED"))
-                    .forEach(group -> {
-                        if (grok.getNamedRegexCollection().containsValue(group)) {
-                            String groupName = GrokUtils.getKeyByValue(grok.getNamedRegexCollection(), group);
-                            cleanedPattern.set(ParseUtils.extractPattern(cleanedPattern.get(), List.of(groupName)));
-                        }
-                    });
-            return cleanedPattern.get();
+            return grok.getNamedRegex();
         }
     }
 
@@ -250,7 +232,6 @@ public class ParseUtils {
         }
 
         public static String extractPattern(String patterns, List<String> columns) {
-            //todo implement
             return patterns;
         }
     }
