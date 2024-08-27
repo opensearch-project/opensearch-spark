@@ -10,17 +10,13 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
-import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns;
-import org.apache.spark.sql.catalyst.plans.logical.Deduplicate;
 import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
-import org.apache.spark.sql.catalyst.plans.logical.Union;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
@@ -66,7 +62,6 @@ import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
-import org.opensearch.sql.ppl.utils.WindowSpecTransformer;
 import scala.Option;
 import scala.Option$;
 import scala.collection.Seq;
@@ -83,6 +78,10 @@ import static java.util.List.of;
 import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
+import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDuplicateEvents;
+import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDuplicateEventsAndKeepEmpty;
+import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainOneDuplicateEvent;
+import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainOneDuplicateEventAndKeepEmpty;
 import static org.opensearch.sql.ppl.utils.JoinSpecTransformer.join;
 import static org.opensearch.sql.ppl.utils.RelationUtils.resolveField;
 import static org.opensearch.sql.ppl.utils.WindowSpecTransformer.window;
@@ -315,177 +314,29 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         }
         visitFieldList(node.getFields(), context);
         // Columns to deduplicate
-        Seq<org.apache.spark.sql.catalyst.expressions.Attribute> dedupFields
+        Seq<org.apache.spark.sql.catalyst.expressions.Attribute> dedupeFields
             = context.retainAllNamedParseExpressions(e -> (org.apache.spark.sql.catalyst.expressions.Attribute) e);
         // Although we can also use the Window operator to translate this as allowedDuplication > 1 did,
         // adding Aggregate operator could achieve better performance.
         if (allowedDuplication == 1) {
             if (keepEmpty) {
-                // | dedup a, b keepempty=true
-                // Union
-                // :- Deduplicate ['a, 'b]
-                // :  +- Filter (isnotnull('a) AND isnotnull('b)
-                // :     +- ...
-                // :        +- UnresolvedRelation
-                // +- Filter (isnull('a) OR isnull('a))
-                //    +- ...
-                //       +- UnresolvedRelation
-
-                context.apply(p -> {
-                    Expression isNullExpr = buildIsNullFilterExpression(node, context);
-                    LogicalPlan right = new org.apache.spark.sql.catalyst.plans.logical.Filter(isNullExpr, p);
-
-                    Expression isNotNullExpr = buildIsNotNullFilterExpression(node, context);
-                    LogicalPlan left =
-                        new Deduplicate(dedupFields,
-                            new org.apache.spark.sql.catalyst.plans.logical.Filter(isNotNullExpr, p));
-                    return new Union(seq(left, right), false, false);
-                });
-                return context.getPlan();
+                return retainOneDuplicateEventAndKeepEmpty(node, dedupeFields, expressionAnalyzer, context);
             } else {
-                // | dedup a, b keepempty=false
-                // Deduplicate ['a, 'b]
-                // +- Filter (isnotnull('a) AND isnotnull('b))
-                //    +- ...
-                //       +- UnresolvedRelation
-
-                Expression isNotNullExpr = buildIsNotNullFilterExpression(node, context);
-                context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(isNotNullExpr, p));
-                // Todo DeduplicateWithinWatermark in streaming dataset?
-                return context.apply(p -> new Deduplicate(dedupFields, p));
+                return retainOneDuplicateEvent(node, dedupeFields, expressionAnalyzer, context);
             }
         } else {
             if (keepEmpty) {
-                // | dedup 2 a, b keepempty=true
-                // Union
-                //:- DataFrameDropColumns('_row_number_)
-                //:  +- Filter ('_row_number_ <= 2)
-                //:     +- Window [row_number() windowspecdefinition('a, 'b, 'a ASC NULLS FIRST, 'b ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_], ['a, 'b], ['a ASC NULLS FIRST, 'b ASC NULLS FIRST]
-                //:        +- Filter (isnotnull('a) AND isnotnull('b))
-                //:           +- ...
-                //:              +- UnresolvedRelation
-                //+- Filter (isnull('a) OR isnull('b))
-                //   +- ...
-                //      +- UnresolvedRelation
-
-                context.apply(p -> {
-                    // Build isnull Filter for right
-                    Expression isNullExpr = buildIsNullFilterExpression(node, context);
-                    LogicalPlan right = new org.apache.spark.sql.catalyst.plans.logical.Filter(isNullExpr, p);
-
-                    // Build isnotnull Filter
-                    Expression isNotNullExpr = buildIsNotNullFilterExpression(node, context);
-                    LogicalPlan isNotNullFilter = new org.apache.spark.sql.catalyst.plans.logical.Filter(isNotNullExpr, p);
-
-                    // Build Window
-                    visitFieldList(node.getFields(), context);
-                    Seq<Expression> partitionSpec = context.retainAllNamedParseExpressions(exp -> exp);
-                    visitFieldList(node.getFields(), context);
-                    Seq<SortOrder> orderSpec = context.retainAllNamedParseExpressions(exp -> SortUtils.sortOrder(exp, true));
-                    NamedExpression rowNumber = WindowSpecTransformer.buildRowNumber(partitionSpec, orderSpec);
-                    LogicalPlan window = new org.apache.spark.sql.catalyst.plans.logical.Window(
-                        seq(rowNumber),
-                        partitionSpec,
-                        orderSpec,
-                        isNotNullFilter);
-
-                    // Build deduplication Filter ('_row_number_ <= n)
-                    Expression filterExpr = new LessThanOrEqual(
-                        rowNumber.toAttribute(),
-                        new org.apache.spark.sql.catalyst.expressions.Literal(allowedDuplication, DataTypes.IntegerType));
-                    LogicalPlan deduplicationFilter = new org.apache.spark.sql.catalyst.plans.logical.Filter(filterExpr, window);
-
-                    // Build DataFrameDropColumns('_row_number_) for left
-                    LogicalPlan left = new DataFrameDropColumns(seq(rowNumber.toAttribute()), deduplicationFilter);
-
-                    // Build Union
-                    return new Union(seq(left, right), false, false);
-                });
-                return context.getPlan();
+                return retainMultipleDuplicateEventsAndKeepEmpty(node, allowedDuplication, expressionAnalyzer, context);
             } else {
-                // | dedup 2 a, b keepempty=false
-                // DataFrameDropColumns('row_number_col)
-                // +- Filter ('_row_number_ <= n)
-                //    +- Window [row_number() windowspecdefinition('a, 'b, 'a ASC NULLS FIRST, 'b ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_], ['a, 'b], ['a ASC NULLS FIRST, 'b ASC NULLS FIRST]
-                //       +- Filter (isnotnull('a) AND isnotnull('b))
-                //          +- ...
-                //             +- UnresolvedRelation
-
-                // Build isnotnull Filter
-                Expression isNotNullExpr = buildIsNotNullFilterExpression(node, context);
-                context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(isNotNullExpr, p));
-
-                // Build Window
-                visitFieldList(node.getFields(), context);
-                Seq<Expression> partitionSpec = context.retainAllNamedParseExpressions(exp -> exp);
-                visitFieldList(node.getFields(), context);
-                Seq<SortOrder> orderSpec = context.retainAllNamedParseExpressions(exp -> SortUtils.sortOrder(exp, true));
-                NamedExpression rowNumber = WindowSpecTransformer.buildRowNumber(partitionSpec, orderSpec);
-                context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Window(
-                    seq(rowNumber),
-                    partitionSpec,
-                    orderSpec, p));
-
-                // Build deduplication Filter ('_row_number_ <= n)
-                Expression filterExpr = new LessThanOrEqual(
-                    rowNumber.toAttribute(),
-                    new org.apache.spark.sql.catalyst.expressions.Literal(allowedDuplication, DataTypes.IntegerType));
-                context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(filterExpr, p));
-
-                // Build DataFrameDropColumns('_row_number_) Spark 3.5.1+ required
-                return context.apply(p -> new DataFrameDropColumns(seq(rowNumber.toAttribute()), p));
+                return retainMultipleDuplicateEvents(node, allowedDuplication, expressionAnalyzer, context);
             }
         }
-    }
-
-    private Expression buildIsNotNullFilterExpression(Dedupe node, CatalystPlanContext context) {
-        visitFieldList(node.getFields(), context);
-        Seq<Expression> isNotNullExpressions =
-            context.retainAllNamedParseExpressions(
-                org.apache.spark.sql.catalyst.expressions.IsNotNull$.MODULE$::apply);
-
-        Expression isNotNullExpr;
-        if (isNotNullExpressions.size() == 1) {
-            isNotNullExpr = isNotNullExpressions.apply(0);
-        } else {
-            isNotNullExpr = isNotNullExpressions.reduce(
-                new scala.Function2<Expression, Expression, Expression>() {
-                    @Override
-                    public Expression apply(Expression e1, Expression e2) {
-                        return new org.apache.spark.sql.catalyst.expressions.And(e1, e2);
-                    }
-                }
-            );
-        }
-        return isNotNullExpr;
-    }
-
-    private Expression buildIsNullFilterExpression(Dedupe node, CatalystPlanContext context) {
-        visitFieldList(node.getFields(), context);
-        Seq<Expression> isNullExpressions =
-            context.retainAllNamedParseExpressions(
-                org.apache.spark.sql.catalyst.expressions.IsNull$.MODULE$::apply);
-
-        Expression isNullExpr;
-        if (isNullExpressions.size() == 1) {
-            isNullExpr = isNullExpressions.apply(0);
-        } else {
-            isNullExpr = isNullExpressions.reduce(
-                new scala.Function2<Expression, Expression, Expression>() {
-                    @Override
-                    public Expression apply(Expression e1, Expression e2) {
-                        return new org.apache.spark.sql.catalyst.expressions.Or(e1, e2);
-                    }
-                }
-            );
-        }
-        return isNullExpr;
     }
 
     /**
      * Expression Analyzer.
      */
-    private static class ExpressionAnalyzer extends AbstractNodeVisitor<Expression, CatalystPlanContext> {
+    public static class ExpressionAnalyzer extends AbstractNodeVisitor<Expression, CatalystPlanContext> {
 
         public Expression analyze(UnresolvedExpression unresolved, CatalystPlanContext context) {
             return unresolved.accept(this, context);

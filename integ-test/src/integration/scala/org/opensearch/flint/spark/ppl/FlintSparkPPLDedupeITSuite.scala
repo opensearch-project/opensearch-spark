@@ -11,7 +11,7 @@ import org.apache.spark.sql.catalyst.expressions.{And, IsNotNull, IsNull, Or}
 import org.apache.spark.sql.catalyst.plans.logical.{Deduplicate, Filter, LogicalPlan, Project, Union}
 import org.apache.spark.sql.streaming.StreamTest
 
-class FlintSparkPPLDedupITSuite
+class FlintSparkPPLDedupeITSuite
     extends QueryTest
     with LogicalPlanTestUtils
     with FlintPPLSuite

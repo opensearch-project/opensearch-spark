@@ -16,7 +16,7 @@ import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Current
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical.{DataFrameDropColumns, Deduplicate, Filter, Project, Union, Window}
 
-class PPLLogicalPlanDedupTranslatorTestSuite
+class PPLLogicalPlanDedupeTranslatorTestSuite
     extends SparkFunSuite
     with PlanTest
     with LogicalPlanTestUtils
