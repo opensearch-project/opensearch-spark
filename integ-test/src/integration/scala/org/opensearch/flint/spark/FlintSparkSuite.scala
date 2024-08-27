@@ -486,30 +486,32 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          |""".stripMargin)
   }
 
-  protected def createStructNestedTable2(testTable: String): Unit = {
+  protected def createStructNestedTableWithKeysLikeNestedFields(testTable: String): Unit = {
     sql(s"""
-           | CREATE TABLE $testTable
-           | (
-           |   unmapped  STRUCT<userIdentity: STRUCT<sessioncontext: STRUCT<sessionIssuer: STRUCT<type: STRING>>>>
-           | )
-           | USING JSON
-           |""".stripMargin)
+         | CREATE TABLE $testTable
+         | (
+         |   user_data
+         |    STRUCT<
+         |      `user.first.name`:STRING,
+         |      `user.last.name`:STRING,
+         |      `user.age`:INT,
+         |      `user.home.address.street`:STRING,
+         |      `user.home.address.city`:STRING
+         |    >,
+         |   user_credentials STRUCT<login:STRING, password: STRING>
+         | )
+         | USING JSON
+         |""".stripMargin)
 
     sql(s"""
-           | INSERT INTO $testTable
-           | VALUES
-           | ( STRUCT(STRUCT(STRUCT(STRUCT(STRUCT("example_type1"))))) )
-           |""".stripMargin)
-  }
-
-  protected def createStructNestedTable3(testTable: String): Unit = {
-    sql(s"""
-           | CREATE TABLE $testTable
-           | USING JSON
-           | OPTIONS (
-           |  path "../integ-test/src/integration/scala/org/opensearch/flint/spark/unmapped.json"
-           | )
-           |""".stripMargin)
+         | INSERT INTO $testTable
+         | SELECT /*+ COALESCE(1) */ *
+         | FROM VALUES
+         | ( STRUCT("Alice", "Smith", 30, "123 Main St", "Seattle"), STRUCT("asmith", "REDACTED") ),
+         | ( STRUCT("Bob", "Johnson", 55, "456 Elm St", "Seattle"), STRUCT("bjohnson", "REDACTED") ),
+         | ( STRUCT("Charlie", "Williams", 65, "789 Pine St", "San Francisco"), STRUCT("cwilliams", "REDACTED") ),
+         | ( STRUCT("David", "Brown", 19, "101 Maple St", "San Francisco"), STRUCT("dbrown", "REDACTED") )
+         |""".stripMargin)
   }
 
   protected def createTableIssue112(testTable: String): Unit = {

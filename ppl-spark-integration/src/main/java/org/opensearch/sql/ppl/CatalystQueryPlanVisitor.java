@@ -6,7 +6,10 @@
 package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.TableIdentifier;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAlias;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedExtractValue;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedExtractValue$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
@@ -32,6 +35,7 @@ import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.BinaryExpression;
 import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
+import org.opensearch.sql.ast.expression.ExtractedField;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
@@ -240,7 +244,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         // Create a projection list from the existing expressions
         Seq<?> projectList = seq(context.getNamedParseExpressions());
         if (!projectList.isEmpty()) {
-            Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+            Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> {
+                //e.g. UnresolvedExtractValue doesn't inherit from NamedExpression
+                Expression wrappedExpression = p instanceof NamedExpression? p : new UnresolvedAlias(p, Option.empty());
+                return (NamedExpression) wrappedExpression;
+            });
             // build the plan with the projection step
             child = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
         }
@@ -474,7 +482,18 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             }
             return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
         }
-        
+
+        @Override
+        public Expression visitExtractedField(ExtractedField node, CatalystPlanContext context) {
+            node.getField().accept(this, context);
+            Expression rootField = context.popNamedParseExpressions().get();
+            org.apache.spark.sql.catalyst.expressions.Literal extraction = new org.apache.spark.sql.catalyst.expressions.Literal(
+                    translate(node.getExtractPath().getValue(), node.getExtractPath().getType()), translate(node.getExtractPath().getType())
+            );
+            UnresolvedExtractValue extractValue = new UnresolvedExtractValue(rootField, extraction);
+            return context.getNamedParseExpressions().push(UnresolvedExtractValue$.MODULE$.apply(rootField, extraction));
+        }
+
         @Override
         public Expression visitCorrelationMapping(FieldsMapping node, CatalystPlanContext context) {
             return node.getChild().stream().map(expression ->

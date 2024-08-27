@@ -343,6 +343,7 @@ sortFieldExpression
 
 fieldExpression
    : qualifiedName
+   | extractedName
    ;
 
 wcFieldExpression
@@ -782,6 +783,10 @@ valueList
 
 qualifiedName
    : ident (DOT ident)* # identsAsQualifiedName
+   ;
+
+extractedName
+   : rootName = qualifiedName LT_SQR_PRTHS extractPath = qualifiedName RT_SQR_PRTHS
    ;
 
 tableQualifiedName

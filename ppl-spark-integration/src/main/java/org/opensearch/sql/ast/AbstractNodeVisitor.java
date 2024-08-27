@@ -15,6 +15,7 @@ import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.EqualTo;
+import org.opensearch.sql.ast.expression.ExtractedField;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
@@ -177,6 +178,10 @@ public abstract class AbstractNodeVisitor<T, C> {
   }
 
   public T visitField(Field node, C context) {
+    return visitChildren(node, context);
+  }
+
+  public T visitExtractedField(ExtractedField node, C context) {
     return visitChildren(node, context);
   }
 
