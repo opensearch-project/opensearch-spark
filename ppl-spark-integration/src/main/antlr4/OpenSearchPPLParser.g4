@@ -38,7 +38,12 @@ commands
    | dedupCommand
    | sortCommand
    | headCommand
+   | topCommand
+   | rareCommand
    | evalCommand
+   | grokCommand
+   | parseCommand
+   | patternsCommand
    ;
 
 searchCommand
@@ -223,9 +228,10 @@ statsAggTerm
 
 // aggregation functions
 statsFunction
-   : statsFunctionName LT_PRTHS valueExpression RT_PRTHS        # statsFunctionCall
-   | COUNT LT_PRTHS RT_PRTHS                                    # countAllFunctionCall
-   | (DISTINCT_COUNT | DC) LT_PRTHS valueExpression RT_PRTHS    # distinctCountFunctionCall
+   : statsFunctionName LT_PRTHS valueExpression RT_PRTHS                                                                            # statsFunctionCall
+   | COUNT LT_PRTHS RT_PRTHS                                                                                                        # countAllFunctionCall
+   | (DISTINCT_COUNT | DC) LT_PRTHS valueExpression RT_PRTHS                                                                        # distinctCountFunctionCall
+   | percentileFunctionName = (PERCENTILE | PERCENTILE_APPROX) LT_PRTHS valueExpression COMMA percent = integerLiteral RT_PRTHS     # percentileFunctionCall
    ;
 
 statsFunctionName
@@ -234,6 +240,8 @@ statsFunctionName
    | SUM
    | MIN
    | MAX
+   | STDDEV_SAMP
+   | STDDEV_POP
    ;
 
 takeAggFunction
@@ -893,6 +901,7 @@ keywordsCanBeId
    | STDDEV_SAMP
    | STDDEV_POP
    | PERCENTILE
+   | PERCENTILE_APPROX
    | TAKE
    | FIRST
    | LAST

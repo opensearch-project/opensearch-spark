@@ -12,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, Descending, Literal, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, Descending, GreaterThan, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.command.DescribeTableCommand
@@ -27,40 +27,35 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   private val pplParser = new PPLSyntaxParser()
 
   test("test error describe clause") {
-    // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
-    // Intercept the exception and check the message
     val thrown = intercept[IllegalArgumentException] {
       planTransformer.visit(plan(pplParser, "describe t.b.c.d", false), context)
     }
 
-    // Verify the exception message
     assert(
       thrown.getMessage === "Invalid table name: t.b.c.d Syntax: [ database_name. ] table_name")
   }
 
   test("test simple describe clause") {
-    // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(plan(pplParser, "describe t", false), context)
 
     val expectedPlan = DescribeTableCommand(
       TableIdentifier("t"),
       Map.empty[String, String],
-      isExtended = false,
+      isExtended = true,
       output = DescribeRelation.getOutputAttrs)
     comparePlans(expectedPlan, logPlan, false)
   }
 
   test("test FQN table describe table clause") {
-    // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(plan(pplParser, "describe catalog.t", false), context)
 
     val expectedPlan = DescribeTableCommand(
       TableIdentifier("t", Option("catalog")),
       Map.empty[String, String].empty,
-      isExtended = false,
+      isExtended = true,
       output = DescribeRelation.getOutputAttrs)
     comparePlans(expectedPlan, logPlan, false)
   }
@@ -106,6 +101,47 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
+  test("create ppl simple query with nested field 1 range filter test") {
+    val context = new CatalystPlanContext
+    val logicalPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source = spark_catalog.default.flint_ppl_test | where struct_col.field2 > 200 | sort  - struct_col.field2 | fields  int_col, struct_col.field2",
+          isExplain = false),
+        context)
+
+    // Define the expected logical plan
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    // Define the expected logical plan components
+    val filterPlan =
+      Filter(GreaterThan(UnresolvedAttribute("struct_col.field2"), Literal(200)), table)
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(SortOrder(UnresolvedAttribute("struct_col.field2"), Descending)),
+        global = true,
+        filterPlan)
+    val expectedPlan =
+      Project(
+        Seq(UnresolvedAttribute("int_col"), UnresolvedAttribute("struct_col.field2")),
+        sortedPlan)
+
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+
+  test("test simple search with schema.table and one nested field projected") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=schema.table | fields A.nested", false),
+        context)
+
+    val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("A.nested"))
+    val expectedPlan = Project(projectList, UnresolvedRelation(Seq("schema", "table")))
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
   test("test simple search with only one table with one field projected") {
     val context = new CatalystPlanContext
     val logPlan =
@@ -135,6 +171,23 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
     // Sort by A ascending
     val sortOrder = Seq(SortOrder(UnresolvedAttribute("A"), Ascending))
+    val sorted = Sort(sortOrder, true, table)
+    val expectedPlan = Project(projectList, sorted)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test simple search with one table with two fields projected sorted by one nested field") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=t | sort A.nested | fields A.nested, B", false),
+        context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val projectList = Seq(UnresolvedAttribute("A.nested"), UnresolvedAttribute("B"))
+    // Sort by A ascending
+    val sortOrder = Seq(SortOrder(UnresolvedAttribute("A.nested"), Ascending))
     val sorted = Sort(sortOrder, true, table)
     val expectedPlan = Project(projectList, sorted)
 

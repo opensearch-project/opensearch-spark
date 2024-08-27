@@ -100,6 +100,42 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     }
   }
 
+  protected def createPartitionedGrokEmailTable(testTable: String): Unit = {
+    spark.sql(s"""
+         | CREATE TABLE $testTable
+         | (
+         |   name STRING,
+         |   age INT,
+         |   email STRING,
+         |   street_address STRING
+         | )
+         | USING $tableType $tableOptions
+         | PARTITIONED BY (
+         |    year INT,
+         |    month INT
+         | )
+         |""".stripMargin)
+
+    val data = Seq(
+      ("Alice", 30, "alice@example.com", "123 Main St, Seattle", 2023, 4),
+      ("Bob", 55, "bob@test.org", "456 Elm St, Portland", 2023, 5),
+      ("Charlie", 65, "charlie@domain.net", "789 Pine St, San Francisco", 2023, 4),
+      ("David", 19, "david@anotherdomain.com", "101 Maple St, New York", 2023, 5),
+      ("Eve", 21, "eve@examples.com", "202 Oak St, Boston", 2023, 4),
+      ("Frank", 76, "frank@sample.org", "303 Cedar St, Austin", 2023, 5),
+      ("Grace", 41, "grace@demo.net", "404 Birch St, Chicago", 2023, 4),
+      ("Hank", 32, "hank@demonstration.com", "505 Spruce St, Miami", 2023, 5),
+      ("Ivy", 9, "ivy@examples.com", "606 Fir St, Denver", 2023, 4),
+      ("Jack", 12, "jack@sample.net", "707 Ash St, Seattle", 2023, 5))
+
+    data.foreach { case (name, age, email, street_address, year, month) =>
+      spark.sql(s"""
+           | INSERT INTO $testTable
+           | PARTITION (year=$year, month=$month)
+           | VALUES ('$name', $age, '$email', '$street_address')
+           | """.stripMargin)
+    }
+  }
   protected def createPartitionedAddressTable(testTable: String): Unit = {
     sql(s"""
          | CREATE TABLE $testTable
@@ -238,6 +274,39 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          |        ('David', 'Doctor', 'USA', 120000),
          |        ('David', 'Unemployed', 'Canada', 0),
          |        ('Jane', 'Scientist', 'Canada', 90000)
+         | """.stripMargin)
+  }
+
+  protected def createOccupationTopRareTable(testTable: String): Unit = {
+    sql(s"""
+      | CREATE TABLE $testTable
+      | (
+      |   name STRING,
+      |   occupation STRING,
+      |   country STRING,
+      |   salary INT
+      | )
+      | USING $tableType $tableOptions
+      | PARTITIONED BY (
+      |    year INT,
+      |    month INT
+      | )
+      |""".stripMargin)
+
+    // Insert data into the new table
+    sql(s"""
+         | INSERT INTO $testTable
+         | PARTITION (year=2023, month=4)
+         | VALUES ('Jake', 'Engineer', 'England' , 100000),
+         |        ('Hello', 'Artist', 'USA', 70000),
+         |        ('John', 'Doctor', 'Canada', 120000),
+         |        ('Rachel', 'Doctor', 'Canada', 220000),
+         |        ('Henry', 'Doctor', 'Canada', 220000),
+         |        ('David', 'Engineer', 'USA', 320000),
+         |        ('Barty', 'Engineer', 'USA', 120000),
+         |        ('David', 'Unemployed', 'Canada', 0),
+         |        ('Jane', 'Scientist', 'Canada', 90000),
+         |        ('Philip', 'Scientist', 'Canada', 190000)
          | """.stripMargin)
   }
 
@@ -388,6 +457,32 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     sql(s"""
          | INSERT INTO $testTable
          | VALUES ( 50, STRUCT(STRUCT("value3"),789) )
+         |""".stripMargin)
+  }
+
+  protected def createStructNestedTable(testTable: String): Unit = {
+    sql(s"""
+         | CREATE TABLE $testTable
+         | (
+         |   int_col INT,
+         |   struct_col  STRUCT<field1: STRUCT<subfield:STRING>, field2: INT>,
+         |   struct_col2 STRUCT<field1: STRUCT<subfield:STRING>, field2: INT>
+         | )
+         | USING JSON
+         |""".stripMargin)
+
+    sql(s"""
+         | INSERT INTO $testTable
+         | SELECT /*+ COALESCE(1) */ *
+         | FROM VALUES
+         | ( 30, STRUCT(STRUCT("value1"),123), STRUCT(STRUCT("valueA"),23) ),
+         | ( 40, STRUCT(STRUCT("value5"),123), STRUCT(STRUCT("valueB"),33) ),
+         | ( 30, STRUCT(STRUCT("value4"),823), STRUCT(STRUCT("valueC"),83) ),
+         | ( 40, STRUCT(STRUCT("value2"),456), STRUCT(STRUCT("valueD"),46) )
+         |""".stripMargin)
+    sql(s"""
+         | INSERT INTO $testTable
+         | VALUES ( 50, STRUCT(STRUCT("value3"),789), STRUCT(STRUCT("valueE"),89) )
          |""".stripMargin)
   }
 

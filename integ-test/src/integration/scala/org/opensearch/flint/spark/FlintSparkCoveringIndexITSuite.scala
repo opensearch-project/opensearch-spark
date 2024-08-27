@@ -8,12 +8,14 @@ package org.opensearch.flint.spark
 import java.util.Base64
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
-import org.opensearch.flint.core.FlintVersion.current
+import org.opensearch.flint.common.FlintVersion.current
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.flint.config.FlintSparkConf
 
 class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
 
@@ -47,7 +49,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex(testFlintIndex)
     index shouldBe defined
-    index.get.metadata().getContent should matchJson(s"""{
+    FlintOpenSearchIndexMetadataService.serialize(index.get.metadata()) should matchJson(s"""{
          |   "_meta": {
          |     "version": "${current()}",
          |     "name": "name_and_age",
@@ -103,7 +105,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
       .name(testIndex)
       .onTable(testTable)
       .addIndexColumns("name", "age")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testIndex)
       .create()
 
     val jobId = flint.refreshIndex(testFlintIndex)
@@ -116,6 +118,47 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
 
     val indexData = flint.queryIndex(testFlintIndex)
     checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
+
+    val indexOptions = flint.describeIndex(testFlintIndex)
+    indexOptions shouldBe defined
+    indexOptions.get.options.checkpointLocation() shouldBe None
+  }
+
+  test("create covering index with default checkpoint location successfully") {
+    withTempDir { checkpointDir =>
+      conf.setConfString(
+        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key,
+        checkpointDir.getAbsolutePath)
+      flint
+        .coveringIndex()
+        .name(testIndex)
+        .onTable(testTable)
+        .addIndexColumns("name", "age")
+        .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testFlintIndex)
+        .create()
+
+      val jobId = flint.refreshIndex(testFlintIndex)
+      jobId shouldBe defined
+
+      val job = spark.streams.get(jobId.get)
+      failAfter(streamingTimeout) {
+        job.processAllAvailable()
+      }
+
+      val indexData = flint.queryIndex(testFlintIndex)
+      checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
+
+      val index = flint.describeIndex(testFlintIndex)
+      index shouldBe defined
+
+      val checkpointLocation = index.get.options.checkpointLocation()
+      assert(checkpointLocation.isDefined, "Checkpoint location should be defined")
+      assert(
+        checkpointLocation.get.contains(testFlintIndex),
+        s"Checkpoint location dir should contain ${testFlintIndex}")
+
+      conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
+    }
   }
 
   test("auto refresh covering index successfully with external scheduler") {
@@ -130,7 +173,8 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
             Map(
               "auto_refresh" -> "true",
               "scheduler_mode" -> "external",
-              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testIndex)
         .create()
 
       val jobId = flint.refreshIndex(testFlintIndex)

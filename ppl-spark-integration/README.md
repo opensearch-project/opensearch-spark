@@ -224,9 +224,17 @@ This section describes the next steps planned for enabling additional commands a
 #### Example PPL Queries
 See the next samples of PPL queries :
 
+**Describe**
+ - `describe table`  This command is equal to the `DESCRIBE EXTENDED table` SQL command
+
 **Fields**
  - `source = table`
  - `source = table | fields a,b,c`
+
+**Nested-Fields**
+ - `source = catalog.schema.table1, catalog.schema.table2 | fields A.nested1, B.nested1`
+ - `source = catalog.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield`
+ - `source = catalog.schema.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield`
 
 **Filters**
  - `source = table | where a = 1 | fields a,b,c`
@@ -249,7 +257,7 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
  - `source = table | eval n = now() | eval t = unix_timestamp(a) | fields n,t`
  - `source = table | eval f = a | where f > 1 | sort f | fields a,b,c | head 5`
  - `source = table | eval f = a * 2 | eval h = f * 2 | fields a,f,h`
- - `source = table | eval f = a * 2, h = f * 2 | fields a,f,h` (Spark 3.4.0+ required)
+ - `source = table | eval f = a * 2, h = f * 2 | fields a,f,h`
  - `source = table | eval f = a * 2, h = b | stats avg(f) by h`
 
 Limitation: Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous" 
@@ -262,6 +270,11 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
  - `source = table | where a < 50 | stats avg(c) `
  - `source = table | stats max(c) by b`
  - `source = table | stats count(c) by b | head 5`
+ - `source = table | stats distinct_count(c)`
+ - `source = table | stats stddev_samp(c)`
+ - `source = table | stats stddev_pop(c)`
+ - `source = table | stats percentile(c, 90)`
+ - `source = table | stats percentile_approx(c, 99)`
 
 **Aggregations With Span**
 - `source = table  | stats count(a) by span(a, 10) as a_span`
@@ -273,7 +286,6 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date, productId`
 
 **Dedup**
-
 - `source = table | dedup a | fields a,b,c`
 - `source = table | dedup a,b | fields a,b,c`
 - `source = table | dedup a keepempty=true | fields a,b,c`
@@ -288,7 +300,25 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source = table | dedup 2 a,b keepempty=true | fields a,b,c`
 - `source = table | dedup 1 a consecutive=true| fields a,b,c` (Consecutive deduplication is unsupported)
 
-For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
+**Rare**
+- `source=accounts | rare gender`
+- `source=accounts | rare age by gender`
+
+**Top**
+- `source=accounts | top gender`
+- `source=accounts | top 1 gender`
+- `source=accounts | top 1 age by gender`
+
+**Parse**
+- `source=accounts | parse email '.+@(?<host>.+)' | fields email, host `
+- `source=accounts | parse email '.+@(?<host>.+)' | top 1 host `
+- `source=accounts | parse email '.+@(?<host>.+)' | stats count() by host`
+- `source=accounts | parse email '.+@(?<host>.+)' | eval eval_result=1 | fields host, eval_result`
+- `source=accounts | parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host`
+- `source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street`
+
+
+> For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
 
 ---
 
@@ -299,5 +329,6 @@ For additional details on Spark PPL commands support campaign, see [PPL Commands
  - `correlation` - [See details](../docs/PPL-Correlation-command.md)
 
 > This is an experimental command - it may be removed in future versions
+
 
  

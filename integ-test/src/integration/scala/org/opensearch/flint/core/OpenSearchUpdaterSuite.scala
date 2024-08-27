@@ -10,8 +10,8 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import org.opensearch.action.get.{GetRequest, GetResponse}
 import org.opensearch.client.RequestOptions
 import org.opensearch.flint.OpenSearchTransactionSuite
+import org.opensearch.flint.common.model.InteractiveSession
 import org.opensearch.flint.core.storage.{FlintOpenSearchClient, OpenSearchUpdater}
-import org.opensearch.flint.data.InteractiveSession
 import org.scalatest.matchers.should.Matchers
 
 class OpenSearchUpdaterSuite extends OpenSearchTransactionSuite with Matchers {
@@ -32,8 +32,9 @@ class OpenSearchUpdaterSuite extends OpenSearchTransactionSuite with Matchers {
   override def beforeAll(): Unit = {
     super.beforeAll()
     flintClient = new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava));
-    val options = new FlintOptions(openSearchOptions.asJava)
-    updater = new OpenSearchUpdater(testMetaLogIndex, new FlintOpenSearchClient(options), options)
+    updater = new OpenSearchUpdater(
+      testMetaLogIndex,
+      new FlintOpenSearchClient(new FlintOptions(openSearchOptions.asJava)))
   }
 
   test("upsert flintJob should success") {

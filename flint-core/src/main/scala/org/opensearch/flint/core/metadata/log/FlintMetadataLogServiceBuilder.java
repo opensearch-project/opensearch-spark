@@ -6,7 +6,6 @@
 package org.opensearch.flint.core.metadata.log;
 
 import java.lang.reflect.Constructor;
-import org.apache.spark.SparkConf;
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogService;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService;
@@ -15,21 +14,20 @@ import org.opensearch.flint.core.storage.FlintOpenSearchMetadataLogService;
  * {@link FlintMetadataLogService} builder.
  * <p>
  * Custom implementations of {@link FlintMetadataLogService} are expected to provide a public
- * constructor with the signature {@code public MyCustomService(SparkConf sparkConf)} to be
- * instantiated by this builder.
+ * constructor with no arguments to be instantiated by this builder.
  */
 public class FlintMetadataLogServiceBuilder {
-  public static FlintMetadataLogService build(FlintOptions options, SparkConf sparkConf) {
+  public static FlintMetadataLogService build(FlintOptions options) {
     String className = options.getCustomFlintMetadataLogServiceClass();
     if (className.isEmpty()) {
       return new FlintOpenSearchMetadataLogService(options);
     }
 
-    // Attempts to instantiate Flint metadata log service with sparkConf using reflection
+    // Attempts to instantiate Flint metadata log service using reflection
     try {
       Class<?> flintMetadataLogServiceClass = Class.forName(className);
-      Constructor<?> constructor = flintMetadataLogServiceClass.getConstructor(SparkConf.class);
-      return (FlintMetadataLogService) constructor.newInstance(sparkConf);
+      Constructor<?> constructor = flintMetadataLogServiceClass.getConstructor();
+      return (FlintMetadataLogService) constructor.newInstance();
     } catch (Exception e) {
       throw new RuntimeException("Failed to instantiate FlintMetadataLogService: " + className, e);
     }

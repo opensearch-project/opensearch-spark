@@ -40,7 +40,7 @@ import org.opensearch.flint.core.IRestHighLevelClient;
  * - entryVersion:
  *   - seqNo (Long): OpenSearch sequence number
  *   - primaryTerm (Long): OpenSearch primary term
- * - storageContext:
+ * - properties:
  *   - dataSourceName (String): OpenSearch data source associated
  */
 public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadataLogEntry> {
@@ -67,7 +67,8 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
     this.options = options;
     this.metadataLogIndexName = metadataLogIndexName;
     this.dataSourceName = options.getDataSourceName();
-    this.latestId = Base64.getEncoder().encodeToString(flintIndexName.getBytes());
+    String osIndexName = OpenSearchClientUtils.sanitizeIndexName(flintIndexName);
+    this.latestId = Base64.getEncoder().encodeToString(osIndexName.getBytes());
   }
 
   @Override
@@ -155,7 +156,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
             new IndexRequest()
                 .index(metadataLogIndexName)
                 .id(logEntryWithId.id())
-                .setRefreshPolicy(options.getRefreshPolicy())
+                .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
                 .source(toJson(logEntryWithId), XContentType.JSON),
             RequestOptions.DEFAULT));
   }
@@ -166,7 +167,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
         client -> client.update(
             new UpdateRequest(metadataLogIndexName, logEntry.id())
                 .doc(toJson(logEntry), XContentType.JSON)
-                .setRefreshPolicy(options.getRefreshPolicy())
+                .setRefreshPolicy(RefreshPolicy.WAIT_UNTIL)
                 .setIfSeqNo((Long) logEntry.entryVersion().get("seqNo").get())
                 .setIfPrimaryTerm((Long) logEntry.entryVersion().get("primaryTerm").get()),
             RequestOptions.DEFAULT));

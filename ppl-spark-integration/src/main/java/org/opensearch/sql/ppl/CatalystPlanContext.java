@@ -6,12 +6,17 @@
 package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
+import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
+import org.apache.spark.sql.types.Metadata;
+import org.opensearch.sql.data.type.ExprType;
 import scala.collection.Iterator;
 import scala.collection.Seq;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +34,14 @@ import static scala.collection.JavaConverters.asScalaBuffer;
  * The context used for Catalyst logical plan.
  */
 public class CatalystPlanContext {
+    /**
+     * Catalyst relations list
+     **/
+    private List<Expression> projectedFields = new ArrayList<>();
+    /**
+     * Catalyst relations list
+     **/
+    private List<LogicalPlan> relations = new ArrayList<>();
     /**
      * Catalyst evolving logical plan
      **/
@@ -50,6 +63,14 @@ public class CatalystPlanContext {
 
     public Stack<LogicalPlan> getPlanBranches() {
         return planBranches;
+    }
+
+    public List<LogicalPlan> getRelations() {
+        return relations;
+    }
+
+    public List<Expression> getProjectedFields() {
+        return projectedFields;
     }
 
     public LogicalPlan getPlan() {
@@ -79,6 +100,36 @@ public class CatalystPlanContext {
 
     public Stack<Expression> getGroupingParseExpressions() {
         return groupingParseExpressions;
+    }
+    
+    /**
+     * define new field
+     * @param symbol
+     * @return
+     */
+    public LogicalPlan define(Expression symbol) {
+        namedParseExpressions.push(symbol);
+        return getPlan();
+    }
+    /**
+     * append relation to relations list
+     *
+     * @param relation
+     * @return
+     */
+    public LogicalPlan withRelation(UnresolvedRelation relation) {
+        this.relations.add(relation);
+        return with(relation);
+    }
+    /**
+     * append projected fields
+     *
+     * @param projectedFields
+     * @return
+     */
+    public LogicalPlan withProjectedFields(List<Expression> projectedFields) {
+        this.projectedFields.addAll(projectedFields);
+        return getPlan();
     }
 
     /**
@@ -113,12 +164,12 @@ public class CatalystPlanContext {
         // in case it is a self join - single table - apply the same plan
         if (logicalPlans.size() < 2) {
             return with(logicalPlans.stream().map(plan -> {
-                planTraversalContext.push(plan);
-                LogicalPlan result = transformFunction.apply(plan, plan);
-                planTraversalContext.pop();
-                return result;
-            }).findAny()
-                    .orElse(getPlan()));            
+                        planTraversalContext.push(plan);
+                        LogicalPlan result = transformFunction.apply(plan, plan);
+                        planTraversalContext.pop();
+                        return result;
+                    }).findAny()
+                    .orElse(getPlan()));
         }
         // in case there are multiple join tables - reduce the tables
         return with(logicalPlans.stream().reduce((left, right) -> {

@@ -95,11 +95,16 @@ public class FlintOptions implements Serializable {
 
   public static final String DEFAULT_BATCH_BYTES = "1mb";
 
-  public static final String CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS = "spark.datasource.flint.customFlintMetadataLogServiceClass";
+  public static final String CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS = "customFlintMetadataLogServiceClass";
+
+  public static final String CUSTOM_FLINT_INDEX_METADATA_SERVICE_CLASS = "customFlintIndexMetadataServiceClass";
 
   public static final String SUPPORT_SHARD = "read.support_shard";
 
   public static final String DEFAULT_SUPPORT_SHARD = "true";
+
+  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE = "bulkRequestRateLimitPerNode";
+  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE = "0";
 
   public FlintOptions(Map<String, String> options) {
     this.options = options;
@@ -186,6 +191,10 @@ public class FlintOptions implements Serializable {
     return options.getOrDefault(CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS, "");
   }
 
+  public String getCustomFlintIndexMetadataServiceClass() {
+    return options.getOrDefault(CUSTOM_FLINT_INDEX_METADATA_SERVICE_CLASS, "");
+  }
+
   /**
    * FIXME, This is workaround for AWS OpenSearch Serverless (AOSS). AOSS does not support shard
    * operation, but shard info is exposed in index settings. Remove this setting when AOSS fix
@@ -196,5 +205,9 @@ public class FlintOptions implements Serializable {
   public boolean supportShard() {
     return options.getOrDefault(SUPPORT_SHARD, DEFAULT_SUPPORT_SHARD).equalsIgnoreCase(
         DEFAULT_SUPPORT_SHARD);
+  }
+
+  public long getBulkRequestRateLimitPerNode() {
+    return Long.parseLong(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE));
   }
 }

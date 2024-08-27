@@ -7,7 +7,15 @@ package org.opensearch.sql.ppl.utils;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.Literal;
+import org.apache.spark.sql.types.DataTypes;
+import org.opensearch.sql.ast.expression.AggregateFunction;
+import org.opensearch.sql.ast.expression.Argument;
+import org.opensearch.sql.ast.expression.DataType;
+import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
+
+import java.util.List;
 
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static scala.Option.empty;
@@ -26,16 +34,46 @@ public interface AggregatorTranslator {
         // Additional aggregation function operators will be added here
         switch (BuiltinFunctionName.ofAggregation(aggregateFunction.getFuncName()).get()) {
             case MAX:
-                return new UnresolvedFunction(seq("MAX"), seq(arg),false, empty(),false);
+                return new UnresolvedFunction(seq("MAX"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
             case MIN:
-                return new UnresolvedFunction(seq("MIN"), seq(arg),false, empty(),false);
+                return new UnresolvedFunction(seq("MIN"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
             case AVG:
-                return new UnresolvedFunction(seq("AVG"), seq(arg),false, empty(),false);
+                return new UnresolvedFunction(seq("AVG"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
             case COUNT:
-                return new UnresolvedFunction(seq("COUNT"), seq(arg),false, empty(),false);
+                return new UnresolvedFunction(seq("COUNT"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
             case SUM:
-                return new UnresolvedFunction(seq("SUM"), seq(arg),false, empty(),false);
+                return new UnresolvedFunction(seq("SUM"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
+            case STDDEV_POP:
+                return new UnresolvedFunction(seq("STDDEV_POP"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
+            case STDDEV_SAMP:
+                return new UnresolvedFunction(seq("STDDEV_SAMP"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
+            case PERCENTILE:
+                return new UnresolvedFunction(seq("PERCENTILE"), seq(arg, new Literal(getPercentDoubleValue(aggregateFunction), DataTypes.DoubleType)), aggregateFunction.getDistinct(), empty(),false);
+            case PERCENTILE_APPROX:
+                return new UnresolvedFunction(seq("PERCENTILE_APPROX"), seq(arg, new Literal(getPercentDoubleValue(aggregateFunction), DataTypes.DoubleType)), aggregateFunction.getDistinct(), empty(),false);
         }
         throw new IllegalStateException("Not Supported value: " + aggregateFunction.getFuncName());
+    }
+
+    private static double getPercentDoubleValue(AggregateFunction aggregateFunction) {
+
+        List<UnresolvedExpression> arguments = aggregateFunction.getArgList();
+
+        if (arguments == null || arguments.size() != 1) {
+            throw new IllegalStateException("Missing 'percent' argument");
+        }
+
+        org.opensearch.sql.ast.expression.Literal percentIntValue = ((Argument) aggregateFunction.getArgList().get(0)).getValue();
+
+        if (percentIntValue.getType() != DataType.INTEGER) {
+            throw new IllegalStateException("Unsupported datatype for 'percent': " + percentIntValue.getType() + " (expected: INTEGER)");
+        }
+
+        double percentDoubleValue = ((Integer) percentIntValue.getValue()) / 100d;
+
+        if (percentDoubleValue < 0 || percentDoubleValue > 1) {
+            throw new IllegalStateException("Unsupported value 'percent': " + percentIntValue.getValue() + " (expected: >= 0 <= 100))");
+        }
+        return percentDoubleValue;
     }
 }
