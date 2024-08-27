@@ -314,6 +314,14 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source=accounts | parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host`
 - `source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street`
 
+**Grok**
+- `source=accounts | grok email '.+@%{HOSTNAME:host}' | top 1 host`
+- `source=accounts | grok email '.+@%{HOSTNAME:host}' | stats count() by host`
+- `source=accounts | grok email '.+@%{HOSTNAME:host}' | eval eval_result=1 | fields host, eval_result`
+- `source=accounts | grok email '.+@%{HOSTNAME:host}' | eval eval_result=1 | fields host, eval_result`
+- `source=accounts | grok street_address '%{NUMBER} %{GREEDYDATA:address}' | fields address `
+- `source=logs | grok message '%{COMMONAPACHELOG}' | fields COMMONAPACHELOG, timestamp, response, bytes`
+- 
 
 > For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
 
