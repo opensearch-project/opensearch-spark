@@ -144,11 +144,21 @@ class PPLLogicalPlanParseTranslatorTestSuite
     val streetAttribute = UnresolvedAttribute("street")
 
     val streetNumberExpression = Alias(
-      Coalesce(Seq(RegExpExtract(addressAttribute, Literal("(?<streetNumber>\\d+) (?<street>.+)"), Literal("1")))),
+      Coalesce(
+        Seq(
+          RegExpExtract(
+            addressAttribute,
+            Literal("(?<streetNumber>\\d+) (?<street>.+)"),
+            Literal("1")))),
       "streetNumber")()
 
     val streetExpression = Alias(
-      Coalesce(Seq(RegExpExtract(addressAttribute, Literal("(?<streetNumber>\\d+) (?<street>.+)"), Literal("2")))),
+      Coalesce(
+        Seq(
+          RegExpExtract(
+            addressAttribute,
+            Literal("(?<streetNumber>\\d+) (?<street>.+)"),
+            Literal("2")))),
       "street")()
 
     val expectedPlan = Project(

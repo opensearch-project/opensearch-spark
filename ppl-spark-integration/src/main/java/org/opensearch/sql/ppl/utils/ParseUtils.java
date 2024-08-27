@@ -27,6 +27,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static org.opensearch.sql.common.grok.GrokUtils.getGroupPatternName;
+
 public class ParseUtils {
     private static final Pattern GROUP_PATTERN = Pattern.compile("\\(\\?<([a-zA-Z][a-zA-Z0-9]*)>");
     private static final String NEW_FIELD_KEY = "new_field";
@@ -69,6 +71,23 @@ public class ParseUtils {
                         arguments.containsKey(NEW_FIELD_KEY)
                                 ? (String) arguments.get(NEW_FIELD_KEY).getValue()
                                 : null);
+        }
+    }
+    /**
+     * Get list of derived fields based on parse pattern.
+     *
+     * @param pattern pattern used for parsing
+     * @return list of names of the derived fields
+     */
+    public static int getNamedGroupIndex(
+            ParseMethod parseMethod, String pattern, String namedGroup) {
+        switch (parseMethod) {
+            case REGEX:
+                return RegexExpression.getNamedGroupIndex(pattern, namedGroup);
+            case GROK:
+                return GrokExpression.getNamedGroupIndex(pattern, namedGroup);
+            default:
+                return PatternsExpression.getNamedGroupIndex(pattern, namedGroup);
         }
     }
 
@@ -118,6 +137,14 @@ public class ParseUtils {
                 namedGroups.add(m.group(1));
             }
             return namedGroups.build();
+        }
+
+        public static int getNamedGroupIndex(String pattern,String groupName) {
+            List<String> groupCandidates = getNamedGroupCandidates(pattern);
+            for (int i = 0; i < groupCandidates.size(); i++) {
+                if(groupCandidates.get(i).equals(groupName)) return i;
+            }
+            return -1;
         }
 
         @Override
@@ -173,6 +200,15 @@ public class ParseUtils {
                     .filter(group -> !group.equals("UNWANTED"))
                     .collect(Collectors.toUnmodifiableList());
         }
+        
+        public static int getNamedGroupIndex(String pattern,String groupName) {
+            String name = getGroupPatternName(grokCompiler.compile(pattern), groupName);
+            List<String> namedGroups = new ArrayList<>(grokCompiler.compile(pattern).namedGroups);
+            for (int i = 0; i < namedGroups.size(); i++) {
+                 if(namedGroups.get(i).equals(name)) return i;
+            }
+            return -1;
+        }
 
         public static String extractPattern(final String patterns, List<String> columns) {
             Grok grok = grokCompiler.compile(patterns);
@@ -203,6 +239,10 @@ public class ParseUtils {
             if (useCustomPattern) {
                 this.pattern = Pattern.compile(pattern);
             }
+        }
+
+        public static int getNamedGroupIndex(String pattern, String namedGroup) {
+            return 0;
         }
 
         @Override

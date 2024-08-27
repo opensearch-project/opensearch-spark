@@ -22,6 +22,7 @@ import java.util.Map;
 import static org.apache.spark.sql.types.DataTypes.IntegerType;
 import static org.apache.spark.sql.types.DataTypes.StringType;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
+import static org.opensearch.sql.ppl.utils.ParseUtils.GrokExpression.getNamedGroupIndex;
 
 public interface ParseStrategy {
     /**
@@ -43,12 +44,14 @@ public interface ParseStrategy {
             // in select * case - take all namedGroupCandidates
             if(field instanceof AllFields) {
                 for (int i = 0; i < namedGroupCandidates.size(); i++) {
-                    namedGroupNumbers.put(namedGroupCandidates.get(i), i);
+                    namedGroupNumbers.put(namedGroupCandidates.get(i),
+                            ParseUtils.getNamedGroupIndex(parseMethod, pattern, namedGroupCandidates.get(i)));
                 }
                 // in specific field case - match to the namedGroupCandidates group
             } else for (int i = 0; i < namedGroupCandidates.size(); i++) {
                 if (((Field)field).getField().toString().equals(namedGroupCandidates.get(i))) {
-                    namedGroupNumbers.put(namedGroupCandidates.get(i), i);
+                    namedGroupNumbers.put(namedGroupCandidates.get(i),
+                            ParseUtils.getNamedGroupIndex(parseMethod, pattern, namedGroupCandidates.get(i)));
                 }
             }
         });

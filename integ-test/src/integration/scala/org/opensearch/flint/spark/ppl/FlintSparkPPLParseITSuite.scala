@@ -6,7 +6,9 @@
 package org.opensearch.flint.spark.ppl
 
 import scala.reflect.internal.Reporter.Count
+
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
+
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Coalesce, Descending, GreaterThan, Literal, NullsFirst, NullsLast, RegExpExtract, SortOrder}
@@ -217,8 +219,7 @@ class FlintSparkPPLParseITSuite
   }
 
   test("test parse email & host expressions including cast and sort commands") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| parse street_address '(?<streetNumber>\\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street
          | """.stripMargin)
     // Retrieve the results
@@ -228,8 +229,7 @@ class FlintSparkPPLParseITSuite
       Row("505", "Spruce St, Miami"),
       Row("606", "Fir St, Denver"),
       Row("707", "Ash St, Seattle"),
-      Row("789", "Pine St, San Francisco")
-    )
+      Row("789", "Pine St, San Francisco"))
 
     // Sort both the results and the expected results
     implicit val rowOrdering: Ordering[Row] = Ordering.by(r => (r.getString(0), r.getString(1)))
@@ -242,11 +242,21 @@ class FlintSparkPPLParseITSuite
     val streetAttribute = UnresolvedAttribute("street")
 
     val streetNumberExpression = Alias(
-      Coalesce(Seq(RegExpExtract(addressAttribute, Literal("(?<streetNumber>\\d+) (?<street>.+)"), Literal("1")))),
+      Coalesce(
+        Seq(
+          RegExpExtract(
+            addressAttribute,
+            Literal("(?<streetNumber>\\d+) (?<street>.+)"),
+            Literal("1")))),
       "streetNumber")()
 
     val streetExpression = Alias(
-      Coalesce(Seq(RegExpExtract(addressAttribute, Literal("(?<streetNumber>\\d+) (?<street>.+)"), Literal("2")))),
+      Coalesce(
+        Seq(
+          RegExpExtract(
+            addressAttribute,
+            Literal("(?<streetNumber>\\d+) (?<street>.+)"),
+            Literal("2")))),
       "street")()
 
     val expectedPlan = Project(

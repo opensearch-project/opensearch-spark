@@ -5,8 +5,10 @@
 
 package org.opensearch.sql.common.grok;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -63,6 +65,10 @@ public class GrokUtils {
         return namedGroups;
     }
 
+    public static String getGroupPatternName(Grok grok, String groupName) {
+        return getKeyByValue(grok.getNamedRegexCollection(),groupName);
+    }
+    
     public static <K, V> K getKeyByValue(Map<K, V> map, V value) {
         for (Map.Entry<K, V> entry : map.entrySet()) {
             if (entry.getValue().equals(value)) {
