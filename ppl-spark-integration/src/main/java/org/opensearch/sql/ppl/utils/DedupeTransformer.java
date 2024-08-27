@@ -15,14 +15,10 @@ import org.apache.spark.sql.catalyst.plans.logical.Deduplicate;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
 import org.apache.spark.sql.types.DataTypes;
-import org.opensearch.sql.ast.expression.Field;
-import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ppl.CatalystPlanContext;
 import org.opensearch.sql.ppl.CatalystQueryPlanVisitor.ExpressionAnalyzer;
 import scala.collection.Seq;
-
-import java.util.List;
 
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 
@@ -103,9 +99,9 @@ public interface DedupeTransformer {
             LogicalPlan isNotNullFilter = new org.apache.spark.sql.catalyst.plans.logical.Filter(isNotNullExpr, p);
 
             // Build Window
-            visitFieldList(node.getFields(), expressionAnalyzer, context);
+            node.getFields().forEach(field -> expressionAnalyzer.analyze(field, context));
             Seq<Expression> partitionSpec = context.retainAllNamedParseExpressions(exp -> exp);
-            visitFieldList(node.getFields(), expressionAnalyzer, context);
+            node.getFields().forEach(field -> expressionAnalyzer.analyze(field, context));
             Seq<SortOrder> orderSpec = context.retainAllNamedParseExpressions(exp -> SortUtils.sortOrder(exp, true));
             NamedExpression rowNumber = WindowSpecTransformer.buildRowNumber(partitionSpec, orderSpec);
             LogicalPlan window = new org.apache.spark.sql.catalyst.plans.logical.Window(
@@ -148,9 +144,9 @@ public interface DedupeTransformer {
         context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(isNotNullExpr, p));
 
         // Build Window
-        visitFieldList(node.getFields(), expressionAnalyzer, context);
+        node.getFields().forEach(field -> expressionAnalyzer.analyze(field, context));
         Seq<Expression> partitionSpec = context.retainAllNamedParseExpressions(exp -> exp);
-        visitFieldList(node.getFields(), expressionAnalyzer ,context);
+        node.getFields().forEach(field -> expressionAnalyzer.analyze(field, context));
         Seq<SortOrder> orderSpec = context.retainAllNamedParseExpressions(exp -> SortUtils.sortOrder(exp, true));
         NamedExpression rowNumber = WindowSpecTransformer.buildRowNumber(partitionSpec, orderSpec);
         context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Window(
@@ -167,8 +163,8 @@ public interface DedupeTransformer {
         return context.apply(p -> new DataFrameDropColumns(seq(rowNumber.toAttribute()), p));
     }
 
-    static Expression buildIsNotNullFilterExpression(Dedupe node, ExpressionAnalyzer expressionAnalyzer, CatalystPlanContext context) {
-        visitFieldList(node.getFields(), expressionAnalyzer, context);
+    private static Expression buildIsNotNullFilterExpression(Dedupe node, ExpressionAnalyzer expressionAnalyzer, CatalystPlanContext context) {
+        node.getFields().forEach(field -> expressionAnalyzer.analyze(field, context));
         Seq<Expression> isNotNullExpressions =
             context.retainAllNamedParseExpressions(
                 org.apache.spark.sql.catalyst.expressions.IsNotNull$.MODULE$::apply);
@@ -185,7 +181,7 @@ public interface DedupeTransformer {
     }
 
     private static Expression buildIsNullFilterExpression(Dedupe node, ExpressionAnalyzer expressionAnalyzer, CatalystPlanContext context) {
-        visitFieldList(node.getFields(), expressionAnalyzer, context);
+        node.getFields().forEach(field -> expressionAnalyzer.analyze(field, context));
         Seq<Expression> isNullExpressions =
             context.retainAllNamedParseExpressions(
                 org.apache.spark.sql.catalyst.expressions.IsNull$.MODULE$::apply);
@@ -199,13 +195,5 @@ public interface DedupeTransformer {
             );
         }
         return isNullExpr;
-    }
-
-    static void visitFieldList(List<Field> fieldList, ExpressionAnalyzer expressionAnalyzer, CatalystPlanContext context) {
-        fieldList.forEach(field -> visitExpression(field, expressionAnalyzer, context));
-    }
-
-    static Expression visitExpression(UnresolvedExpression expression, ExpressionAnalyzer expressionAnalyzer, CatalystPlanContext context) {
-        return expressionAnalyzer.analyze(expression, context);
     }
 }
