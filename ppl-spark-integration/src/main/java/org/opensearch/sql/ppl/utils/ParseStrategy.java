@@ -26,7 +26,9 @@ import static org.opensearch.sql.ppl.utils.ParseUtils.GrokExpression.getNamedGro
 
 public interface ParseStrategy {
     /**
-     * parse / grok / regexp 
+     * transform the parse/grok/patterns command into a standard catalyst RegExpExtract expression wrapped by a Coalesce to handle potential null values 
+     * Since spark's RegExpExtract cant accept actual regExp group name we need to translate the group's name into its corresponding index
+     * 
      * @param node
      * @param sourceField
      * @param parseMethod
