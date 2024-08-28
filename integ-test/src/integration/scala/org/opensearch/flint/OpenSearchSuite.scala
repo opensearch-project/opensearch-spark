@@ -145,7 +145,6 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
 
       val response =
         openSearchClient.bulk(request, RequestOptions.DEFAULT)
-
       assume(
         !response.hasFailures,
         s"bulk index docs to $index failed: ${response.buildFailureMessage()}")

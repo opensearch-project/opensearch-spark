@@ -14,6 +14,8 @@ import org.json4s.JsonAST.{JArray, JString}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 
+import org.apache.spark.internal.Logging
+
 object SessionStates {
   val RUNNING = "running"
   val DEAD = "dead"
@@ -52,7 +54,8 @@ class InteractiveSession(
     val excludedJobIds: Seq[String] = Seq.empty[String],
     val error: Option[String] = None,
     sessionContext: Map[String, Any] = Map.empty[String, Any])
-    extends ContextualDataStore {
+    extends ContextualDataStore
+    with Logging {
   context = sessionContext // Initialize the context from the constructor
 
   def running(): Unit = state = SessionStates.RUNNING
@@ -96,6 +99,7 @@ object InteractiveSession {
     // Replace extractOpt with jsonOption and map
     val excludeJobIds: Seq[String] = meta \ "excludeJobIds" match {
       case JArray(lst) => lst.map(_.extract[String])
+      case JString(s) => Seq(s)
       case _ => Seq.empty[String]
     }
 
