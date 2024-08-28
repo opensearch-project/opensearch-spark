@@ -169,7 +169,7 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
         "spark.flint.job.queryLoopExecutionFrequency",
         queryLoopExecutionFrequency.toString)
 
-      FlintREPL.envinromentProvider = new MockEnvironment(
+      FlintREPL.environmentProvider = new MockEnvironment(
         Map("SERVERLESS_EMR_JOB_ID" -> jobRunId, "SERVERLESS_EMR_VIRTUAL_CLUSTER_ID" -> appId))
       FlintREPL.enableHiveSupport = false
       FlintREPL.terminateJVM = false
