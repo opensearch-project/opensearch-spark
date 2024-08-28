@@ -1,7 +1,6 @@
 package org.opensearch.sql.ppl.utils;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
-import org.apache.spark.sql.catalyst.expressions.Coalesce;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.RegExpExtract;
@@ -22,11 +21,10 @@ import java.util.Map;
 import static org.apache.spark.sql.types.DataTypes.IntegerType;
 import static org.apache.spark.sql.types.DataTypes.StringType;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
-import static org.opensearch.sql.ppl.utils.ParseUtils.GrokExpression.getNamedGroupIndex;
 
 public interface ParseStrategy {
     /**
-     * transform the parse/grok/patterns command into a standard catalyst RegExpExtract expression wrapped by a Coalesce to handle potential null values 
+     * transform the parse/grok/patterns command into a standard catalyst RegExpExtract expression  
      * Since spark's RegExpExtract cant accept actual regExp group name we need to translate the group's name into its corresponding index
      * 
      * @param node
@@ -64,11 +62,9 @@ public interface ParseStrategy {
             RegExpExtract regExpExtract = new RegExpExtract(sourceField,
                     org.apache.spark.sql.catalyst.expressions.Literal.create(cleanedPattern, StringType),
                     org.apache.spark.sql.catalyst.expressions.Literal.create(index + 1, IntegerType));
-            //next create Coalesce to handle potential null values 
-            Coalesce coalesce = new Coalesce(seq(regExpExtract));
             //next Alias the extracted fields
             context.getNamedParseExpressions().push(
-                    org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(coalesce,
+                    org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(regExpExtract,
                             group,
                             NamedExpression.newExprId(),
                             seq(new java.util.ArrayList<String>()),

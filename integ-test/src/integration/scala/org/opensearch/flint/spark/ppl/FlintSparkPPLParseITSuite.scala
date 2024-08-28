@@ -70,9 +70,8 @@ class FlintSparkPPLParseITSuite
     // Define the expected logical plan
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
-    val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal("1")))),
-      "host")()
+    val hostExpression =
+      Alias(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal("1")), "host")()
     val expectedPlan = Project(
       Seq(emailAttribute, hostAttribute),
       Project(
@@ -102,9 +101,8 @@ class FlintSparkPPLParseITSuite
     // Define the expected logical plan
     val emailAttribute = UnresolvedAttribute("email")
     val ageAttribute = UnresolvedAttribute("age")
-    val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal(1)))),
-      "host")()
+    val hostExpression =
+      Alias(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal(1)), "host")()
 
     // Define the corrected expected plan
     val expectedPlan = Project(
@@ -147,9 +145,8 @@ class FlintSparkPPLParseITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
-    val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal(1)))),
-      "host")()
+    val hostExpression =
+      Alias(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal(1)), "host")()
 
     // Define the corrected expected plan
     val expectedPlan = Project(
@@ -186,9 +183,8 @@ class FlintSparkPPLParseITSuite
 
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
-    val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal(1)))),
-      "host")()
+    val hostExpression =
+      Alias(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal(1)), "host")()
 
     val sortedPlan = Sort(
       Seq(
@@ -242,21 +238,17 @@ class FlintSparkPPLParseITSuite
     val streetAttribute = UnresolvedAttribute("street")
 
     val streetNumberExpression = Alias(
-      Coalesce(
-        Seq(
-          RegExpExtract(
-            addressAttribute,
-            Literal("(?<streetNumber>\\d+) (?<street>.+)"),
-            Literal("1")))),
+      RegExpExtract(
+        addressAttribute,
+        Literal("(?<streetNumber>\\d+) (?<street>.+)"),
+        Literal("1")),
       "streetNumber")()
 
     val streetExpression = Alias(
-      Coalesce(
-        Seq(
-          RegExpExtract(
-            addressAttribute,
-            Literal("(?<streetNumber>\\d+) (?<street>.+)"),
-            Literal("2")))),
+      RegExpExtract(
+        addressAttribute,
+        Literal("(?<streetNumber>\\d+) (?<street>.+)"),
+        Literal("2")),
       "street")()
 
     val expectedPlan = Project(

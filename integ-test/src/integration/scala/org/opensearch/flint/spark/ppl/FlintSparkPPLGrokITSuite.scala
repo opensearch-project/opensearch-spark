@@ -44,7 +44,6 @@ class FlintSparkPPLGrokITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     // Define the expected results
-    // Define the expected results
     val expectedResults: Array[Row] = Array(
       Row("charlie@domain.net", "domain.net"),
       Row("david@anotherdomain.com", "anotherdomain.com"),
@@ -67,13 +66,11 @@ class FlintSparkPPLGrokITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(
-        Seq(
-          RegExpExtract(
-            emailAttribute,
-            Literal(
-              ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
-            Literal("1")))),
+      RegExpExtract(
+        emailAttribute,
+        Literal(
+          ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+        Literal("1")),
       "host")()
     val expectedPlan = Project(
       Seq(emailAttribute, hostAttribute),
@@ -105,13 +102,11 @@ class FlintSparkPPLGrokITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val ageAttribute = UnresolvedAttribute("age")
     val hostExpression = Alias(
-      Coalesce(
-        Seq(
-          RegExpExtract(
-            emailAttribute,
-            Literal(
-              ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
-            Literal(1)))),
+      RegExpExtract(
+        emailAttribute,
+        Literal(
+          ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+        Literal(1)),
       "host")()
 
     // Define the corrected expected plan
@@ -156,13 +151,11 @@ class FlintSparkPPLGrokITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(
-        Seq(
-          RegExpExtract(
-            emailAttribute,
-            Literal(
-              ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
-            Literal(1)))),
+      RegExpExtract(
+        emailAttribute,
+        Literal(
+          ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+        Literal(1)),
       "host")()
 
     // Define the corrected expected plan
@@ -201,13 +194,11 @@ class FlintSparkPPLGrokITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
     val hostExpression = Alias(
-      Coalesce(
-        Seq(
-          RegExpExtract(
-            emailAttribute,
-            Literal(
-              ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
-            Literal(1)))),
+      RegExpExtract(
+        emailAttribute,
+        Literal(
+          ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+        Literal(1)),
       "host")()
 
     val sortedPlan = Sort(
@@ -270,21 +261,20 @@ class FlintSparkPPLGrokITSuite
     val timestampAttribute = UnresolvedAttribute("timestamp")
     val responseAttribute = UnresolvedAttribute("response")
     val bytesAttribute = UnresolvedAttribute("bytes")
+    // scalastyle:off
     val expectedRegExp =
       "(?<name0>(?<name1>(?:(?<name2>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))|(?<name3>(?:(?<name4>((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:)))(%.+)?)|(?<name5>(?<![0-9])(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))(?![0-9])))))) (?<name6>(?<name7>[a-zA-Z0-9._-]+)) (?<name8>(?<name9>[a-zA-Z0-9._-]+)) \\[(?<name10>(?<name11>(?:(?:0[1-9])|(?:[12][0-9])|(?:3[01])|[1-9]))/(?<name12>\\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\\b)/(?<name13>(?>\\d\\d){1,2}):(?<name14>(?!<[0-9])(?<name15>(?:2[0123]|[01]?[0-9])):(?<name16>(?:[0-5][0-9]))(?::(?<name17>(?:(?:[0-5]?[0-9]|60)(?:[:.,][0-9]+)?)))(?![0-9])) (?<name18>(?:[+-]?(?:[0-9]+))))\\] \"(?:(?<name19>\\b\\w+\\b) (?<name20>\\S+)(?: HTTP/(?<name21>(?:(?<name22>(?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\\.[0-9]+)?)|(?:\\.[0-9]+)))))))?|(?<name23>.*?))\" (?<name24>(?:(?<name25>(?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\\.[0-9]+)?)|(?:\\.[0-9]+)))))) (?:(?<name26>(?:(?<name27>(?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\\.[0-9]+)?)|(?:\\.[0-9]+))))))|-))"
+    // scalastyle:on
 
     val COMMONAPACHELOG = Alias(
-      Coalesce(Seq(RegExpExtract(messageAttribute, Literal(expectedRegExp), Literal("1")))),
+      RegExpExtract(messageAttribute, Literal(expectedRegExp), Literal("1")),
       "COMMONAPACHELOG")()
-    val timestamp = Alias(
-      Coalesce(Seq(RegExpExtract(messageAttribute, Literal(expectedRegExp), Literal("5")))),
-      "timestamp")()
-    val response = Alias(
-      Coalesce(Seq(RegExpExtract(messageAttribute, Literal(expectedRegExp), Literal("18")))),
-      "response")()
-    val bytes = Alias(
-      Coalesce(Seq(RegExpExtract(messageAttribute, Literal(expectedRegExp), Literal("19")))),
-      "bytes")()
+    val timestamp =
+      Alias(RegExpExtract(messageAttribute, Literal(expectedRegExp), Literal("5")), "timestamp")()
+    val response =
+      Alias(RegExpExtract(messageAttribute, Literal(expectedRegExp), Literal("18")), "response")()
+    val bytes =
+      Alias(RegExpExtract(messageAttribute, Literal(expectedRegExp), Literal("19")), "bytes")()
     val expectedPlan = Project(
       Seq(logAttribute, timestampAttribute, responseAttribute, bytesAttribute),
       Project(
@@ -322,13 +312,11 @@ class FlintSparkPPLGrokITSuite
     val street_addressAttribute = UnresolvedAttribute("street_address")
     val addressAttribute = UnresolvedAttribute("address")
     val addressExpression = Alias(
-      Coalesce(
-        Seq(
-          RegExpExtract(
-            street_addressAttribute,
-            Literal(
-              "(?<name0>(?:(?<name1>(?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\\.[0-9]+)?)|(?:\\.[0-9]+)))))) (?<name2>.*)"),
-            Literal("3")))),
+      RegExpExtract(
+        street_addressAttribute,
+        Literal(
+          "(?<name0>(?:(?<name1>(?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\\.[0-9]+)?)|(?:\\.[0-9]+)))))) (?<name2>.*)"),
+        Literal("3")),
       "address")()
     val expectedPlan = Project(
       Seq(addressAttribute),
