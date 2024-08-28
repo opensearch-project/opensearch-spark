@@ -11,14 +11,13 @@ import scala.concurrent.duration.Duration
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
 
 case class CommandContext(
+    applicationId: String,
+    jobId: String,
     spark: SparkSession,
     dataSource: String,
-    resultIndex: String,
     sessionId: String,
-    flintSessionIndexUpdater: OpenSearchUpdater,
-    osClient: OSClient,
-    sessionIndex: String,
-    jobId: String,
+    sessionManager: SessionManager,
+    queryResultWriter: QueryResultWriter,
     queryExecutionTimeout: Duration,
     inactivityLimitMillis: Long,
     queryWaitTimeMillis: Long,

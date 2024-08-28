@@ -22,6 +22,8 @@ import org.apache.spark.sql.util.ShuffleCleaner
 import org.apache.spark.util.ThreadUtils
 
 case class JobOperator(
+    applicationId: String,
+    jobId: String,
     spark: SparkSession,
     query: String,
     dataSource: String,
@@ -51,13 +53,23 @@ case class JobOperator(
       val futureMappingCheck = Future {
         checkAndCreateIndex(osClient, resultIndex)
       }
-      val data = executeQuery(spark, query, dataSource, "", "", streaming)
+      val data = executeQuery(applicationId, jobId, spark, query, dataSource, "", "", streaming)
 
       val mappingCheckResult = ThreadUtils.awaitResult(futureMappingCheck, Duration(1, MINUTES))
       dataToWrite = Some(mappingCheckResult match {
         case Right(_) => data
         case Left(error) =>
-          constructErrorDF(spark, dataSource, "FAILED", error, "", query, "", startTime)
+          constructErrorDF(
+            applicationId,
+            jobId,
+            spark,
+            dataSource,
+            "FAILED",
+            error,
+            "",
+            query,
+            "",
+            startTime)
       })
       exceptionThrown = false
     } catch {
@@ -65,11 +77,31 @@ case class JobOperator(
         val error = s"Getting the mapping of index $resultIndex timed out"
         logError(error, e)
         dataToWrite = Some(
-          constructErrorDF(spark, dataSource, "TIMEOUT", error, "", query, "", startTime))
+          constructErrorDF(
+            applicationId,
+            jobId,
+            spark,
+            dataSource,
+            "TIMEOUT",
+            error,
+            "",
+            query,
+            "",
+            startTime))
       case e: Exception =>
         val error = processQueryException(e)
         dataToWrite = Some(
-          constructErrorDF(spark, dataSource, "FAILED", error, "", query, "", startTime))
+          constructErrorDF(
+            applicationId,
+            jobId,
+            spark,
+            dataSource,
+            "FAILED",
+            error,
+            "",
+            query,
+            "",
+            startTime))
     } finally {
       cleanUpResources(exceptionThrown, threadPool, dataToWrite, resultIndex, osClient)
     }
