@@ -12,6 +12,7 @@ import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
 import org.apache.spark.sql.types.Metadata;
+import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.data.type.ExprType;
 import scala.collection.Iterator;
 import scala.collection.Seq;
@@ -37,7 +38,7 @@ public class CatalystPlanContext {
     /**
      * Catalyst relations list
      **/
-    private List<Expression> projectedFields = new ArrayList<>();
+    private List<UnresolvedExpression> projectedFields = new ArrayList<>();
     /**
      * Catalyst relations list
      **/
@@ -69,11 +70,12 @@ public class CatalystPlanContext {
         return relations;
     }
 
-    public List<Expression> getProjectedFields() {
+    public List<UnresolvedExpression> getProjectedFields() {
         return projectedFields;
     }
 
     public LogicalPlan getPlan() {
+        if (this.planBranches.isEmpty()) return null;
         if (this.planBranches.size() == 1) {
             return planBranches.peek();
         }
@@ -101,9 +103,10 @@ public class CatalystPlanContext {
     public Stack<Expression> getGroupingParseExpressions() {
         return groupingParseExpressions;
     }
-    
+
     /**
      * define new field
+     *
      * @param symbol
      * @return
      */
@@ -111,6 +114,7 @@ public class CatalystPlanContext {
         namedParseExpressions.push(symbol);
         return getPlan();
     }
+
     /**
      * append relation to relations list
      *
@@ -121,13 +125,14 @@ public class CatalystPlanContext {
         this.relations.add(relation);
         return with(relation);
     }
+
     /**
      * append projected fields
      *
      * @param projectedFields
      * @return
      */
-    public LogicalPlan withProjectedFields(List<Expression> projectedFields) {
+    public LogicalPlan withProjectedFields(List<UnresolvedExpression> projectedFields) {
         this.projectedFields.addAll(projectedFields);
         return getPlan();
     }
