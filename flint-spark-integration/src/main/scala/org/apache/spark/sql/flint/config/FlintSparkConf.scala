@@ -210,7 +210,7 @@ object FlintSparkConf {
       .createOptional()
   val QUERY_ID =
     FlintConfig(s"spark.flint.job.queryId")
-      .doc("Flint session id")
+      .doc("Flint query id")
       .createOptional()
   val REQUEST_INDEX =
     FlintConfig(s"spark.flint.job.requestIndex")
@@ -243,6 +243,7 @@ object FlintSparkConf {
     FlintConfig("spark.flint.job.customQueryResultWriter")
       .createOptional()
 
+  // TODO: This is POC specific
   val CUSTOM_QUERY_METADATA_SERVICE =
     FlintConfig(FlintOptions.CUSTOM_QUERY_METADATA_SERVICE)
       .createWithDefault("org.apache.spark.sql.NoOpQueryMetadataService")
