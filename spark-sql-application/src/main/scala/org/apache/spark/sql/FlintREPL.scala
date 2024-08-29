@@ -89,12 +89,19 @@ object FlintREPL extends Logging with FlintJobExecutor {
       logInfo(s"""streaming query ${query}""")
       configDYNMaxExecutors(conf, jobType)
       val streamingRunningCount = new AtomicInteger(0)
+
+      val queryId = conf.get("spark.flint.job.queryId")
+      if (queryId.isEmpty) {
+        logWarning("Query ID was not specified.")
+      }
+
       val jobOperator =
         JobOperator(
           createSparkSession(conf),
           query,
           dataSource,
           resultIndex,
+          queryId,
           true,
           streamingRunningCount)
       registerGauge(MetricConstants.STREAMING_RUNNING_METRIC, streamingRunningCount)

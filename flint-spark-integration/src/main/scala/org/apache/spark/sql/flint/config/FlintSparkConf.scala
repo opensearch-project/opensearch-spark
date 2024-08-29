@@ -208,6 +208,10 @@ object FlintSparkConf {
     FlintConfig(s"spark.flint.job.sessionId")
       .doc("Flint session id")
       .createOptional()
+  val QUERY_ID =
+    FlintConfig(s"spark.flint.job.queryId")
+      .doc("Flint session id")
+      .createOptional()
   val REQUEST_INDEX =
     FlintConfig(s"spark.flint.job.requestIndex")
       .doc("Request index")
@@ -238,6 +242,10 @@ object FlintSparkConf {
   val CUSTOM_QUERY_RESULT_WRITER =
     FlintConfig("spark.flint.job.customQueryResultWriter")
       .createOptional()
+
+  val CUSTOM_QUERY_METADATA_SERVICE =
+    FlintConfig(FlintOptions.CUSTOM_QUERY_METADATA_SERVICE)
+      .createWithDefault("org.apache.spark.sql.NoOpQueryMetadataService")
 }
 
 /**
@@ -307,6 +315,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       REPL_INACTIVITY_TIMEOUT_MILLIS,
       CUSTOM_SESSION_MANAGER,
       CUSTOM_COMMAND_LIFECYCLE_MANAGER,
+      CUSTOM_QUERY_METADATA_SERVICE,
       BATCH_BYTES)
       .map(conf => (conf.optionKey, conf.readFrom(reader)))
       .toMap
@@ -317,6 +326,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS,
       CUSTOM_FLINT_INDEX_METADATA_SERVICE_CLASS,
       SESSION_ID,
+      QUERY_ID,
       REQUEST_INDEX,
       METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER,
       CUSTOM_QUERY_RESULT_WRITER,

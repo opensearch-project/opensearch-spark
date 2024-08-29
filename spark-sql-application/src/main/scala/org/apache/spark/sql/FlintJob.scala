@@ -41,6 +41,12 @@ object FlintJob extends Logging with FlintJobExecutor {
     if (query.isEmpty) {
       logAndThrow(s"Query undefined for the ${jobType} job.")
     }
+
+    val queryId = conf.get("spark.flint.job.queryId")
+    if (queryId.isEmpty) {
+      logWarning("Query ID was not specified.")
+    }
+
     // https://github.com/opensearch-project/opensearch-spark/issues/138
     /*
      * To execute queries such as `CREATE SKIPPING INDEX ON my_glue1.default.http_logs_plain (`@timestamp` VALUE_SET) WITH (auto_refresh = true)`,
@@ -59,6 +65,7 @@ object FlintJob extends Logging with FlintJobExecutor {
         query,
         dataSource,
         resultIndex,
+        queryId,
         jobType.equalsIgnoreCase("streaming"),
         streamingRunningCount)
     registerGauge(MetricConstants.STREAMING_RUNNING_METRIC, streamingRunningCount)
