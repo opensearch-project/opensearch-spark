@@ -38,9 +38,8 @@ class PPLLogicalPlanParseTranslatorTestSuite
 
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
-    val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal("1")))),
-      "host")()
+    val hostExpression =
+      Alias(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal("1")), "host")()
     val expectedPlan = Project(
       Seq(emailAttribute, hostAttribute),
       Project(
@@ -57,9 +56,8 @@ class PPLLogicalPlanParseTranslatorTestSuite
         context)
 
     val emailAttribute = UnresolvedAttribute("email")
-    val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal("1")))),
-      "email")()
+    val hostExpression =
+      Alias(RegExpExtract(emailAttribute, Literal(".+@(?<email>.+)"), Literal("1")), "email")()
     val expectedPlan = Project(
       Seq(emailAttribute),
       Project(
@@ -81,9 +79,8 @@ class PPLLogicalPlanParseTranslatorTestSuite
     // Define the expected logical plan
     val emailAttribute = UnresolvedAttribute("email")
     val ageAttribute = UnresolvedAttribute("age")
-    val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
-      "host")()
+    val hostExpression =
+      Alias(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal(1)), "host")()
 
     // Define the corrected expected plan
     val expectedPlan = Project(
@@ -113,9 +110,8 @@ class PPLLogicalPlanParseTranslatorTestSuite
     val hostAttribute = UnresolvedAttribute("host")
     val evalResultAttribute = UnresolvedAttribute("eval_result")
 
-    val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal("1")))),
-      "host")()
+    val hostExpression =
+      Alias(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal("1")), "host")()
 
     val evalResultExpression = Alias(Literal(1), "eval_result")()
 
@@ -144,11 +140,17 @@ class PPLLogicalPlanParseTranslatorTestSuite
     val streetAttribute = UnresolvedAttribute("street")
 
     val streetNumberExpression = Alias(
-      Coalesce(Seq(RegExpExtract(addressAttribute, Literal("(\\d+) (.+)"), Literal("1")))),
+      RegExpExtract(
+        addressAttribute,
+        Literal("(?<streetNumber>\\d+) (?<street>.+)"),
+        Literal("1")),
       "streetNumber")()
 
     val streetExpression = Alias(
-      Coalesce(Seq(RegExpExtract(addressAttribute, Literal("(\\d+) (.+)"), Literal("2")))),
+      RegExpExtract(
+        addressAttribute,
+        Literal("(?<streetNumber>\\d+) (?<street>.+)"),
+        Literal("2")),
       "street")()
 
     val expectedPlan = Project(
@@ -174,9 +176,8 @@ class PPLLogicalPlanParseTranslatorTestSuite
 
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
-    val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
-      "host")()
+    val hostExpression =
+      Alias(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal(1)), "host")()
 
     // Define the corrected expected plan
     val expectedPlan = Project(
@@ -205,9 +206,8 @@ class PPLLogicalPlanParseTranslatorTestSuite
 
     val emailAttribute = UnresolvedAttribute("email")
     val hostAttribute = UnresolvedAttribute("host")
-    val hostExpression = Alias(
-      Coalesce(Seq(RegExpExtract(emailAttribute, Literal(".+@(.+)"), Literal(1)))),
-      "host")()
+    val hostExpression =
+      Alias(RegExpExtract(emailAttribute, Literal(".+@(?<host>.+)"), Literal(1)), "host")()
 
     val sortedPlan = Sort(
       Seq(
