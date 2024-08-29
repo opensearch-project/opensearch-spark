@@ -19,7 +19,8 @@ class FlintSparkPPLNestedFieldsITSuite
 
   /** Test table and index name */
   private val nestedTestTable = "spark_catalog.default.flint_ppl_test_nested"
-  private val nestedTestTableWithNestedKeys = "spark_catalog.default.flint_ppl_test_nested_with_nested_keys"
+  private val nestedTestTableWithNestedKeys =
+    "spark_catalog.default.flint_ppl_test_nested_with_nested_keys"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -82,7 +83,9 @@ class FlintSparkPPLNestedFieldsITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
     val limitPlan: LogicalPlan =
-      Limit(Literal(1), UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_nested")))
+      Limit(
+        Literal(1),
+        UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_nested")))
     val expectedPlan = Project(Seq(UnresolvedStar(None)), limitPlan)
 
     // Compare the two plans
@@ -385,7 +388,8 @@ class FlintSparkPPLNestedFieldsITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     // Define the expected results
-    val expectedResults: Array[Row] = Array(Row("Alice"), Row("Bob"), Row("Charlie"), Row("David"))
+    val expectedResults: Array[Row] =
+      Array(Row("Alice"), Row("Bob"), Row("Charlie"), Row("David"))
     assert(results.length == 4)
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
@@ -395,10 +399,13 @@ class FlintSparkPPLNestedFieldsITSuite
     val pplLogicalPlan: LogicalPlan = frame.queryExecution.logical
 
     // Define the expected logical plan
-    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_nested_with_nested_keys"))
-    val expectedPlan = Project(Seq(
-          UnresolvedAlias(UnresolvedExtractValue(UnresolvedAttribute("user_data"), Literal("user.first.name"))),
-        ), table)
+    val table = UnresolvedRelation(
+      Seq("spark_catalog", "default", "flint_ppl_test_nested_with_nested_keys"))
+    val expectedPlan = Project(
+      Seq(
+        UnresolvedAlias(
+          UnresolvedExtractValue(UnresolvedAttribute("user_data"), Literal("user.first.name")))),
+      table)
 
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(pplLogicalPlan))
@@ -413,8 +420,7 @@ class FlintSparkPPLNestedFieldsITSuite
     // Define the expected results
     val expectedResults: Array[Row] = Array(
       Row(Row("Alice", "Smith", 30, "123 Main St", "Seattle"), Row("asmith", "REDACTED")),
-      Row(Row("Bob", "Johnson", 55, "456 Elm St", "Seattle"), Row("bjohnson", "REDACTED"))
-    )
+      Row(Row("Bob", "Johnson", 55, "456 Elm St", "Seattle"), Row("bjohnson", "REDACTED")))
     assert(results.length == 2)
     // Compare the results
     assert(results === expectedResults)
@@ -423,12 +429,13 @@ class FlintSparkPPLNestedFieldsITSuite
     val pplLogicalPlan: LogicalPlan = frame.queryExecution.logical
 
     // Define the expected logical plan
-    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_nested_with_nested_keys"))
-    val cityEqualTo = EqualTo(UnresolvedExtractValue(UnresolvedAttribute("user_data"), Literal("user.home.address.city")), Literal("Seattle"))
+    val table = UnresolvedRelation(
+      Seq("spark_catalog", "default", "flint_ppl_test_nested_with_nested_keys"))
+    val cityEqualTo = EqualTo(
+      UnresolvedExtractValue(UnresolvedAttribute("user_data"), Literal("user.home.address.city")),
+      Literal("Seattle"))
     val filter = Filter(cityEqualTo, table)
-    val expectedPlan = Project(Seq(
-          UnresolvedStar(Option.empty),
-        ), filter)
+    val expectedPlan = Project(Seq(UnresolvedStar(Option.empty)), filter)
 
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(pplLogicalPlan))
