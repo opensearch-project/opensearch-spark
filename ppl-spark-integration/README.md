@@ -321,19 +321,24 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source=accounts | grok email '.+@%{HOSTNAME:host}' | eval eval_result=1 | fields host, eval_result`
 - `source=accounts | grok street_address '%{NUMBER} %{GREEDYDATA:address}' | fields address `
 - `source=logs | grok message '%{COMMONAPACHELOG}' | fields COMMONAPACHELOG, timestamp, response, bytes`
-- 
+
+_- **Limitation: Overriding existing field is unsupported:**_
+  - `source=accounts | grok address '%{NUMBER} %{GREEDYDATA:address}' | fields address`
+
 
 > For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
 
 ---
+#### Experimental Commands:
+- `correlation` - [See details](../docs/PPL-Correlation-command.md)
+> This is an experimental command - it may be removed in future versions
+
+---
+### Documentations 
 
 For additional details on Spark PPL commands project, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
+
 For additional details on Spark PPL commands support campaign, see [PPL Commands Campaign](https://github.com/opensearch-project/opensearch-spark/issues/408)
-
-#### Experimental Commands:
- - `correlation` - [See details](../docs/PPL-Correlation-command.md)
-
-> This is an experimental command - it may be removed in future versions
 
 
  
