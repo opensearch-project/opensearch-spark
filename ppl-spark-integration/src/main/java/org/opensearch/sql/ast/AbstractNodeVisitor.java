@@ -36,6 +36,7 @@ import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.Aggregation;
+import org.opensearch.sql.ast.tree.Coalesce;
 import org.opensearch.sql.ast.tree.Correlation;
 import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.Eval;
@@ -265,6 +266,10 @@ public abstract class AbstractNodeVisitor<T, C> {
 
   public T visitExplain(Explain node, C context) {
     return visitStatement(node, context);
+  }
+
+  public T visitCoalesce(Coalesce node, C context) {
+    return visitChildren(node, context);
   }
 
 }

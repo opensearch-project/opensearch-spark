@@ -44,6 +44,7 @@ commands
    | grokCommand
    | parseCommand
    | patternsCommand
+   | coalesceCommand
    ;
 
 searchCommand
@@ -132,6 +133,10 @@ parseCommand
 
 patternsCommand
    : PATTERNS (patternsParameter)* (source_field = expression)
+   ;
+
+coalesceCommand
+   : COALESCE expression (expression)*
    ;
 
 patternsParameter

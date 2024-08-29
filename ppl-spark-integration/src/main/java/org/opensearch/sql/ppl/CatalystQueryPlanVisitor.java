@@ -72,6 +72,7 @@ import org.opensearch.sql.ppl.utils.ParseStrategy;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import scala.Option;
 import scala.Option$;
+import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
 import java.util.ArrayList;
@@ -369,6 +370,78 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 return retainMultipleDuplicateEvents(node, allowedDuplication, expressionAnalyzer, context);
             }
         }
+    }
+
+    @Override
+    public LogicalPlan visitCoalesce(org.opensearch.sql.ast.tree.Coalesce node, CatalystPlanContext context) {
+        node.getChild().get(0).accept(this, context);
+
+        List<Expression> expressions = new ArrayList<>(node.getExpressions().size());
+
+        node.getExpressions().forEach(expr -> expressions.add(visitExpression(expr, context)));
+
+        Coalesce coalesce = new Coalesce(JavaConverters.asScalaIteratorConverter(expressions.iterator())
+                .asScala()
+                .toSeq());
+
+        context.retainAllNamedParseExpressions(p -> p);
+
+        context.getNamedParseExpressions().push(
+                org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(coalesce,
+                        "coalesce",
+                        NamedExpression.newExprId(),
+                        seq(new java.util.ArrayList<String>()),
+                        Option.empty(),
+                        seq(new java.util.ArrayList<String>())));
+
+        context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+        Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+        LogicalPlan child = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+        return child;
+    }
+
+    private Expression buildIsNotNullFilterExpression(Dedupe node, CatalystPlanContext context) {
+        visitFieldList(node.getFields(), context);
+        Seq<Expression> isNotNullExpressions =
+            context.retainAllNamedParseExpressions(
+                org.apache.spark.sql.catalyst.expressions.IsNotNull$.MODULE$::apply);
+
+        Expression isNotNullExpr;
+        if (isNotNullExpressions.size() == 1) {
+            isNotNullExpr = isNotNullExpressions.apply(0);
+        } else {
+            isNotNullExpr = isNotNullExpressions.reduce(
+                new scala.Function2<Expression, Expression, Expression>() {
+                    @Override
+                    public Expression apply(Expression e1, Expression e2) {
+                        return new org.apache.spark.sql.catalyst.expressions.And(e1, e2);
+                    }
+                }
+            );
+        }
+        return isNotNullExpr;
+    }
+
+    private Expression buildIsNullFilterExpression(Dedupe node, CatalystPlanContext context) {
+        visitFieldList(node.getFields(), context);
+        Seq<Expression> isNullExpressions =
+            context.retainAllNamedParseExpressions(
+                org.apache.spark.sql.catalyst.expressions.IsNull$.MODULE$::apply);
+
+        Expression isNullExpr;
+        if (isNullExpressions.size() == 1) {
+            isNullExpr = isNullExpressions.apply(0);
+        } else {
+            isNullExpr = isNullExpressions.reduce(
+                new scala.Function2<Expression, Expression, Expression>() {
+                    @Override
+                    public Expression apply(Expression e1, Expression e2) {
+                        return new org.apache.spark.sql.catalyst.expressions.Or(e1, e2);
+                    }
+                }
+            );
+        }
+        return isNullExpr;
     }
 
     /**
