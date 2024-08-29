@@ -11,6 +11,8 @@ import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.{CleanerFactory, MockTimeProvider}
 
 class FlintJobTest extends SparkFunSuite with JobMatchers {
+  private val jobId = "testJobId"
+  private val applicationId = "testApplicationId"
 
   val spark =
     SparkSession.builder().appName("Test").master("local").getOrCreate()
@@ -55,8 +57,8 @@ class FlintJobTest extends SparkFunSuite with JobMatchers {
         Array(
           "{'column_name':'Letter','data_type':'string'}",
           "{'column_name':'Number','data_type':'integer'}"),
-        "unknown",
-        "unknown",
+        jobId,
+        applicationId,
         dataSourceName,
         "SUCCESS",
         "",
@@ -72,6 +74,8 @@ class FlintJobTest extends SparkFunSuite with JobMatchers {
     // Compare the result
     val result =
       FlintJob.getFormattedData(
+        applicationId,
+        jobId,
         input,
         spark,
         dataSourceName,

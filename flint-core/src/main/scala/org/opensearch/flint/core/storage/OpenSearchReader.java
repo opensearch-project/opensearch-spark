@@ -22,7 +22,6 @@ import java.util.Optional;
  * Abstract OpenSearch Reader.
  */
 public abstract class OpenSearchReader implements FlintReader {
-
   @VisibleForTesting
   /** Search request source builder. */
   public final SearchRequest searchRequest;
