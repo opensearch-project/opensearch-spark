@@ -213,6 +213,59 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
     checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
   }
 
+  test("update covering index successfully with custom checkpoint location") {
+    withTempDir { checkpointDir =>
+      // 1. Create an full refresh CV
+      flint
+        .coveringIndex()
+        .name(testIndex)
+        .onTable(testTable)
+        .addIndexColumns("name", "age")
+        .options(FlintSparkIndexOptions.empty, testFlintIndex)
+        .create()
+      var indexData = flint.queryIndex(testFlintIndex)
+      checkAnswer(indexData, Seq())
+
+      var index = flint.describeIndex(testFlintIndex)
+      var checkpointLocation = index.get.options.checkpointLocation()
+      assert(checkpointLocation.isEmpty, "Checkpoint location should not be defined")
+
+      // 2. Update the spark conf with a custom checkpoint location
+      conf.setConfString(
+        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key,
+        checkpointDir.getAbsolutePath)
+
+      index = flint.describeIndex(testFlintIndex)
+      checkpointLocation = index.get.options.checkpointLocation()
+      assert(checkpointLocation.isEmpty, "Checkpoint location should not be defined")
+
+      // 3. Update index to auto refresh
+      val updatedIndex = flint
+        .coveringIndex()
+        .copyWithUpdate(index.get, FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      val jobId = flint.updateIndex(updatedIndex)
+      jobId shouldBe defined
+
+      val job = spark.streams.get(jobId.get)
+      failAfter(streamingTimeout) {
+        job.processAllAvailable()
+      }
+
+      indexData = flint.queryIndex(testFlintIndex)
+      checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
+
+      index = flint.describeIndex(testFlintIndex)
+
+      checkpointLocation = index.get.options.checkpointLocation()
+      assert(checkpointLocation.isDefined, "Checkpoint location should be defined")
+      assert(
+        checkpointLocation.get.contains(testFlintIndex),
+        s"Checkpoint location dir should contain ${testFlintIndex}")
+
+      conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
+    }
+  }
+
   test("can have multiple covering indexes on a table") {
     flint
       .coveringIndex()
