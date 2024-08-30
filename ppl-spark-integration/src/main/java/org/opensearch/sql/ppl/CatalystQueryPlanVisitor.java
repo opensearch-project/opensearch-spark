@@ -372,34 +372,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         }
     }
 
-    @Override
-    public LogicalPlan visitCoalesce(org.opensearch.sql.ast.tree.Coalesce node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
-
-        List<Expression> expressions = new ArrayList<>(node.getExpressions().size());
-
-        node.getExpressions().forEach(expr -> expressions.add(visitExpression(expr, context)));
-
-        Coalesce coalesce = new Coalesce(JavaConverters.asScalaIteratorConverter(expressions.iterator())
-                .asScala()
-                .toSeq());
-
-        context.retainAllNamedParseExpressions(p -> p);
-
-        context.getNamedParseExpressions().push(
-                org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(coalesce,
-                        "coalesce",
-                        NamedExpression.newExprId(),
-                        seq(new java.util.ArrayList<String>()),
-                        Option.empty(),
-                        seq(new java.util.ArrayList<String>())));
-
-        context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
-        Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
-        LogicalPlan child = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
-        return child;
-    }
-
     private Expression buildIsNotNullFilterExpression(Dedupe node, CatalystPlanContext context) {
         visitFieldList(node.getFields(), context);
         Seq<Expression> isNotNullExpressions =

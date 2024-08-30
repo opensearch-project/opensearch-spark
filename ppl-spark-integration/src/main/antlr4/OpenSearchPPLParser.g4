@@ -44,7 +44,6 @@ commands
    | grokCommand
    | parseCommand
    | patternsCommand
-   | coalesceCommand
    ;
 
 searchCommand
@@ -133,10 +132,6 @@ parseCommand
 
 patternsCommand
    : PATTERNS (patternsParameter)* (source_field = expression)
-   ;
-
-coalesceCommand
-   : COALESCE expression (expression)*
    ;
 
 patternsParameter
@@ -389,6 +384,7 @@ evalFunctionName
    | conditionFunctionBase
    | systemFunctionName
    | positionFunctionName
+   | coalesceFunctionName
    ;
 
 functionArgs
@@ -663,6 +659,10 @@ textFunctionName
 
 positionFunctionName
    : POSITION
+   ;
+
+coalesceFunctionName
+   : COALESCE
    ;
 
 // operators

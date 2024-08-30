@@ -28,7 +28,6 @@ import org.opensearch.sql.ast.expression.SpanUnit;
 import org.opensearch.sql.ast.expression.UnresolvedArgument;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.tree.Aggregation;
-import org.opensearch.sql.ast.tree.Coalesce;
 import org.opensearch.sql.ast.tree.Correlation;
 import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.DescribeRelation;
@@ -420,13 +419,6 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   @Override
   public UnresolvedPlan visitMlCommand(OpenSearchPPLParser.MlCommandContext ctx) {
     throw new RuntimeException("ML Command is not supported ");
-  }
-
-  @Override
-  public UnresolvedPlan visitCoalesceCommand(OpenSearchPPLParser.CoalesceCommandContext ctx) {
-    ImmutableList.Builder<UnresolvedExpression> exprListBuilder = new ImmutableList.Builder<>();
-    ctx.expression().forEach(expr -> exprListBuilder.add(internalVisitExpression(expr)));
-    return new Coalesce(exprListBuilder.build());
   }
 
   /** Get original text in query. */
