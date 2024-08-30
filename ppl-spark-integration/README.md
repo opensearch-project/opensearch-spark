@@ -285,6 +285,10 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source = table | stats sum(productsAmount) by span(transactionDate, 1d) as age_date | sort age_date`
 - `source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date, productId`
 
+**Aggregations Group by Multiple Levels**
+- `source = table | stats avg(age) as avg_state_age by country, state | stats avg(avg_state_age) as avg_country_age by country`
+- `source = table | stats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | stats avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | stats avg(avg_state_age) as avg_adult_country_age by country`
+
 **Dedup**
 - `source = table | dedup a | fields a,b,c`
 - `source = table | dedup a,b | fields a,b,c`

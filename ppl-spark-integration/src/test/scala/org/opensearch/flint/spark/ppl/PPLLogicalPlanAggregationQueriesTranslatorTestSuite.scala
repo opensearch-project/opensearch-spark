@@ -876,4 +876,128 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
+  test("multiple stats - test average price and average age") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source = table | stats avg(price) | stats avg(age)", false),
+        context)
+    val star = Seq(UnresolvedStar(None))
+
+    val priceField = UnresolvedAttribute("price")
+    val ageField = UnresolvedAttribute("age")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+    val aggregateExpressions1 = Seq(
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(priceField), isDistinct = false), "avg(price)")())
+    val aggregatePlan1 = Aggregate(Seq(), aggregateExpressions1, tableRelation)
+    val aggregateExpressions2 =
+      Seq(Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")())
+    val aggregatePlan2 = Aggregate(Seq(), aggregateExpressions2, aggregatePlan1)
+    val expectedPlan = Project(star, aggregatePlan2)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("multiple stats - test average price and average age with Alias") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats avg(price) as avg_price | stats avg(age) as avg_age",
+        false),
+      context)
+    val star = Seq(UnresolvedStar(None))
+
+    val priceField = UnresolvedAttribute("price")
+    val ageField = UnresolvedAttribute("age")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+    val aggregateExpressions1 = Seq(
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(priceField), isDistinct = false), "avg_price")())
+    val aggregatePlan1 = Aggregate(Seq(), aggregateExpressions1, tableRelation)
+    val aggregateExpressions2 =
+      Seq(Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg_age")())
+    val aggregatePlan2 = Aggregate(Seq(), aggregateExpressions2, aggregatePlan1)
+    val expectedPlan = Project(star, aggregatePlan2)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test(
+    "multiple stats - test average price group by product and average age by span of interval of 10 years") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats avg(price) by product | stats avg(age) by span(age, 10) as age_span",
+        false),
+      context)
+    val star = Seq(UnresolvedStar(None))
+    val productField = UnresolvedAttribute("product")
+    val priceField = UnresolvedAttribute("price")
+    val ageField = UnresolvedAttribute("age")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val groupByAttributes = Seq(Alias(productField, "product")())
+    val aggregateExpressions1 =
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(priceField), isDistinct = false), "avg(price)")()
+    val productAlias = Alias(productField, "product")()
+
+    val aggregatePlan1 =
+      Aggregate(groupByAttributes, Seq(aggregateExpressions1, productAlias), tableRelation)
+
+    val aggregateExpressions2 =
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
+      "age_span")()
+    val aggregatePlan2 = Aggregate(Seq(span), Seq(aggregateExpressions2, span), aggregatePlan1)
+
+    val expectedPlan = Project(star, aggregatePlan2)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("multiple levels stats") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | stats avg(response_time) as avg_response_time by host, service | stats avg(avg_response_time) as avg_host_response_time by service",
+        false),
+      context)
+    val star = Seq(UnresolvedStar(None))
+    val hostField = UnresolvedAttribute("host")
+    val serviceField = UnresolvedAttribute("service")
+    val ageField = UnresolvedAttribute("age")
+    val responseTimeField = UnresolvedAttribute("response_time")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+    val hostAlias = Alias(hostField, "host")()
+    val serviceAlias = Alias(serviceField, "service")()
+
+    val groupByAttributes1 = Seq(Alias(hostField, "host")(), Alias(serviceField, "service")())
+    val aggregateExpressions1 =
+      Alias(
+        UnresolvedFunction(Seq("AVG"), Seq(responseTimeField), isDistinct = false),
+        "avg_response_time")()
+    val responseTimeAlias = Alias(responseTimeField, "response_time")()
+    val aggregatePlan1 =
+      Aggregate(
+        groupByAttributes1,
+        Seq(aggregateExpressions1, hostAlias, serviceAlias),
+        tableRelation)
+
+    val avgResponseTimeField = UnresolvedAttribute("avg_response_time")
+    val groupByAttributes2 = Seq(Alias(serviceField, "service")())
+    val aggregateExpressions2 =
+      Alias(
+        UnresolvedFunction(Seq("AVG"), Seq(avgResponseTimeField), isDistinct = false),
+        "avg_host_response_time")()
+
+    val aggregatePlan2 =
+      Aggregate(groupByAttributes2, Seq(aggregateExpressions2, serviceAlias), aggregatePlan1)
+
+    val expectedPlan = Project(star, aggregatePlan2)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
 }
