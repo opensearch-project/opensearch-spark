@@ -11,7 +11,7 @@ import org.apache.spark.sql.catalyst.expressions.{And, IsNotNull, IsNull, Or}
 import org.apache.spark.sql.catalyst.plans.logical.{Deduplicate, Filter, LogicalPlan, Project, Union}
 import org.apache.spark.sql.streaming.StreamTest
 
-class FlintSparkPPLDedupITSuite
+class FlintSparkPPLDedupeITSuite
     extends QueryTest
     with LogicalPlanTestUtils
     with FlintPPLSuite
@@ -187,7 +187,7 @@ class FlintSparkPPLDedupITSuite
     assert(ex.getMessage.contains("Consecutive deduplication is not supported"))
   }
 
-  ignore("test dedupe 2 name") {
+  test("test dedupe 2 name") {
     val frame = sql(s"""
          | source = $testTable| dedup 2 name | fields name
          | """.stripMargin)
@@ -200,7 +200,7 @@ class FlintSparkPPLDedupITSuite
     assert(results.sorted.sameElements(expectedResults.sorted))
   }
 
-  ignore("test dedupe 2 name, category") {
+  test("test dedupe 2 name, category") {
     val frame = sql(s"""
          | source = $testTable| dedup 2 name, category | fields name, category
          | """.stripMargin)
@@ -225,7 +225,7 @@ class FlintSparkPPLDedupITSuite
     assert(results.sorted.sameElements(expectedResults.sorted))
   }
 
-  ignore("test dedupe 2 name KEEPEMPTY=true") {
+  test("test dedupe 2 name KEEPEMPTY=true") {
     val frame = sql(s"""
          | source = $testTable| dedup 2 name KEEPEMPTY=true | fields name, category
          | """.stripMargin)
@@ -259,7 +259,7 @@ class FlintSparkPPLDedupITSuite
         .sameElements(expectedResults.sorted.map(_.getAs[String](0))))
   }
 
-  ignore("test dedupe 2 name, category KEEPEMPTY=true") {
+  test("test dedupe 2 name, category KEEPEMPTY=true") {
     val frame = sql(s"""
          | source = $testTable| dedup 2 name, category KEEPEMPTY=true | fields name, category
          | """.stripMargin)
@@ -306,5 +306,141 @@ class FlintSparkPPLDedupITSuite
              | source = $testTable | dedup 2 name KEEPEMPTY=true CONSECUTIVE=true | fields name
              | """.stripMargin))
     assert(ex.getMessage.contains("Consecutive deduplication is not supported"))
+  }
+
+  test("test dedupe 1 category, name - reorder field list won't impact output order") {
+    val expectedResults: Array[Row] = Array(
+      Row("A", "X"),
+      Row("A", "Y"),
+      Row("B", "Z"),
+      Row("C", "X"),
+      Row("D", "Z"),
+      Row("B", "Y"))
+    implicit val twoColsRowOrdering: Ordering[Row] =
+      Ordering.by[Row, (String, String)](row => (row.getAs(0), row.getAs(1)))
+
+    val frame1 = sql(s"""
+          | source = $testTable | dedup 1 name, category
+          | """.stripMargin)
+    val results1: Array[Row] = frame1.drop("id").collect()
+
+    val frame2 = sql(s"""
+          | source = $testTable | dedup 1 category, name
+          | """.stripMargin)
+    val results2: Array[Row] = frame2.drop("id").collect()
+
+    assert(results1.sorted.sameElements(results2.sorted))
+    assert(results1.sorted.sameElements(expectedResults.sorted))
+  }
+
+  test(
+    "test dedupe 1 category, name KEEPEMPTY=true - reorder field list won't impact output order") {
+    val expectedResults: Array[Row] = Array(
+      Row("A", "X"),
+      Row("A", "Y"),
+      Row("B", "Z"),
+      Row("C", "X"),
+      Row("D", "Z"),
+      Row("B", "Y"),
+      Row(null, "Y"),
+      Row("E", null),
+      Row(null, "X"),
+      Row("B", null),
+      Row(null, "Z"),
+      Row(null, null))
+    implicit val nullableTwoColsRowOrdering: Ordering[Row] =
+      Ordering.by[Row, (String, String)](row => {
+        val value0 = row.getAs[String](0)
+        val value1 = row.getAs[String](1)
+        (
+          if (value0 == null) String.valueOf(Int.MaxValue) else value0,
+          if (value1 == null) String.valueOf(Int.MaxValue) else value1)
+      })
+
+    val frame1 = sql(s"""
+          | source = $testTable | dedup 1 name, category KEEPEMPTY=true
+          | """.stripMargin)
+    val results1: Array[Row] = frame1.drop("id").collect()
+
+    val frame2 = sql(s"""
+          | source = $testTable | dedup 1 category, name KEEPEMPTY=true
+          | """.stripMargin)
+    val results2: Array[Row] = frame2.drop("id").collect()
+
+    assert(results1.sorted.sameElements(results2.sorted))
+    assert(results1.sorted.sameElements(expectedResults.sorted))
+  }
+
+  test("test dedupe 2 category, name - reorder field list won't impact output order") {
+    val expectedResults: Array[Row] = Array(
+      Row("A", "X"),
+      Row("A", "X"),
+      Row("A", "Y"),
+      Row("A", "Y"),
+      Row("B", "Y"),
+      Row("B", "Z"),
+      Row("B", "Z"),
+      Row("C", "X"),
+      Row("C", "X"),
+      Row("D", "Z"))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](row => {
+      val value = row.getAs[String](0)
+      if (value == null) String.valueOf(Int.MaxValue) else value
+    })
+
+    val frame1 = sql(s"""
+          | source = $testTable | dedup 2 name, category
+          | """.stripMargin)
+    val results1: Array[Row] = frame1.drop("id").collect()
+
+    val frame2 = sql(s"""
+          | source = $testTable | dedup 2 category, name
+          | """.stripMargin)
+    val results2: Array[Row] = frame2.drop("id").collect()
+
+    assert(results1.sorted.sameElements(results2.sorted))
+    assert(results1.sorted.sameElements(expectedResults.sorted))
+  }
+
+  test(
+    "test dedupe 2 category, name KEEPEMPTY=true - reorder field list won't impact output order") {
+    val expectedResults: Array[Row] = Array(
+      Row("A", "X"),
+      Row("A", "X"),
+      Row("A", "Y"),
+      Row("A", "Y"),
+      Row("B", "Y"),
+      Row("B", "Z"),
+      Row("B", "Z"),
+      Row("C", "X"),
+      Row("C", "X"),
+      Row("D", "Z"),
+      Row(null, "Y"),
+      Row("E", null),
+      Row(null, "X"),
+      Row("B", null),
+      Row(null, "Z"),
+      Row(null, null))
+    implicit val nullableTwoColsRowOrdering: Ordering[Row] =
+      Ordering.by[Row, (String, String)](row => {
+        val value0 = row.getAs[String](0)
+        val value1 = row.getAs[String](1)
+        (
+          if (value0 == null) String.valueOf(Int.MaxValue) else value0,
+          if (value1 == null) String.valueOf(Int.MaxValue) else value1)
+      })
+
+    val frame1 = sql(s"""
+                        | source = $testTable | dedup 2 name, category KEEPEMPTY=true
+                        | """.stripMargin)
+    val results1: Array[Row] = frame1.drop("id").collect()
+
+    val frame2 = sql(s"""
+                        | source = $testTable | dedup 2 category, name KEEPEMPTY=true
+                        | """.stripMargin)
+    val results2: Array[Row] = frame2.drop("id").collect()
+
+    assert(results1.sorted.sameElements(results2.sorted))
+    assert(results1.sorted.sameElements(expectedResults.sorted))
   }
 }
