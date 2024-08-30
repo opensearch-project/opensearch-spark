@@ -81,8 +81,9 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
       index: FlintSparkIndex,
       updateOptions: FlintSparkIndexOptions): FlintSparkIndex = {
     val originalOptions = index.options
-    val updatedOptions =
-      originalOptions.copy(options = originalOptions.options ++ updateOptions.options)
+    val updatedOptions = updateOptionWithDefaultCheckpointLocation(
+      index.name(),
+      originalOptions.copy(options = originalOptions.options ++ updateOptions.options))
     val updatedMetadata = index
       .metadata()
       .copy(options = updatedOptions.options.mapValues(_.asInstanceOf[AnyRef]).asJava)

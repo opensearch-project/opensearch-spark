@@ -237,6 +237,70 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
     }
   }
 
+  test("update materialized view successfully with custom checkpoint location") {
+    withTempDir { checkpointDir =>
+      // 1. Create full refresh MV
+      flint
+        .materializedView()
+        .name(testMvName)
+        .query(testQuery)
+        .options(FlintSparkIndexOptions.empty, testFlintIndex)
+        .create()
+      var indexData = flint.queryIndex(testFlintIndex)
+      checkAnswer(indexData, Seq())
+
+      var index = flint.describeIndex(testFlintIndex)
+      var checkpointLocation = index.get.options.checkpointLocation()
+      assert(checkpointLocation.isEmpty, "Checkpoint location should not be defined")
+
+      // 2. Update the spark conf with a custom checkpoint location
+      conf.setConfString(
+        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key,
+        checkpointDir.getAbsolutePath)
+
+      index = flint.describeIndex(testFlintIndex)
+      checkpointLocation = index.get.options.checkpointLocation()
+      assert(checkpointLocation.isEmpty, "Checkpoint location should not be defined")
+
+      // 3. Update Flint index to auto refresh and wait for complete
+      val updatedIndex = flint
+        .materializedView()
+        .copyWithUpdate(
+          index.get,
+          FlintSparkIndexOptions(Map("auto_refresh" -> "true", "watermark_delay" -> "1 Minute")))
+      val jobId = flint.updateIndex(updatedIndex)
+      jobId shouldBe defined
+
+      val job = spark.streams.get(jobId.get)
+      failAfter(streamingTimeout) {
+        job.processAllAvailable()
+      }
+
+      indexData = flint.queryIndex(testFlintIndex)
+      checkAnswer(
+        indexData.select("startTime", "count"),
+        Seq(
+          Row(timestamp("2023-10-01 00:00:00"), 1),
+          Row(timestamp("2023-10-01 00:10:00"), 2),
+          Row(timestamp("2023-10-01 01:00:00"), 1)
+          /*
+           * The last row is pending to fire upon watermark
+           *   Row(timestamp("2023-10-01 02:00:00"), 1)
+           */
+        ))
+
+      index = flint.describeIndex(testFlintIndex)
+
+      checkpointLocation = index.get.options.checkpointLocation()
+      assert(checkpointLocation.isDefined, "Checkpoint location should be defined")
+      assert(
+        checkpointLocation.get.contains(testFlintIndex),
+        s"Checkpoint location dir should contain ${testFlintIndex}")
+
+      conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
+    }
+  }
+
   private def timestamp(ts: String): Timestamp = Timestamp.valueOf(ts)
 
   private def withIncrementalMaterializedView(query: String)(
