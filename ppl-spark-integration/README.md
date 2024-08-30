@@ -298,8 +298,11 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source = table | dedup 1 a,b | fields a,b,c`
 - `source = table | dedup 1 a keepempty=true | fields a,b,c`
 - `source = table | dedup 1 a,b keepempty=true | fields a,b,c`
-- `source = table | dedup 1 a consecutive=true| fields a,b,c` (Unsupported)
-- `source = table | dedup 2 a | fields a,b,c` (Unsupported)
+- `source = table | dedup 2 a | fields a,b,c`
+- `source = table | dedup 2 a,b | fields a,b,c`
+- `source = table | dedup 2 a keepempty=true | fields a,b,c`
+- `source = table | dedup 2 a,b keepempty=true | fields a,b,c`
+- `source = table | dedup 1 a consecutive=true| fields a,b,c` (Consecutive deduplication is unsupported)
 
 **Rare**
 - `source=accounts | rare gender`
