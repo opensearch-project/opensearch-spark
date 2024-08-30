@@ -372,50 +372,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         }
     }
 
-    private Expression buildIsNotNullFilterExpression(Dedupe node, CatalystPlanContext context) {
-        visitFieldList(node.getFields(), context);
-        Seq<Expression> isNotNullExpressions =
-            context.retainAllNamedParseExpressions(
-                org.apache.spark.sql.catalyst.expressions.IsNotNull$.MODULE$::apply);
-
-        Expression isNotNullExpr;
-        if (isNotNullExpressions.size() == 1) {
-            isNotNullExpr = isNotNullExpressions.apply(0);
-        } else {
-            isNotNullExpr = isNotNullExpressions.reduce(
-                new scala.Function2<Expression, Expression, Expression>() {
-                    @Override
-                    public Expression apply(Expression e1, Expression e2) {
-                        return new org.apache.spark.sql.catalyst.expressions.And(e1, e2);
-                    }
-                }
-            );
-        }
-        return isNotNullExpr;
-    }
-
-    private Expression buildIsNullFilterExpression(Dedupe node, CatalystPlanContext context) {
-        visitFieldList(node.getFields(), context);
-        Seq<Expression> isNullExpressions =
-            context.retainAllNamedParseExpressions(
-                org.apache.spark.sql.catalyst.expressions.IsNull$.MODULE$::apply);
-
-        Expression isNullExpr;
-        if (isNullExpressions.size() == 1) {
-            isNullExpr = isNullExpressions.apply(0);
-        } else {
-            isNullExpr = isNullExpressions.reduce(
-                new scala.Function2<Expression, Expression, Expression>() {
-                    @Override
-                    public Expression apply(Expression e1, Expression e2) {
-                        return new org.apache.spark.sql.catalyst.expressions.Or(e1, e2);
-                    }
-                }
-            );
-        }
-        return isNullExpr;
-    }
-
     /**
      * Expression Analyzer.
      */
