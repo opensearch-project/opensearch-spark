@@ -72,7 +72,6 @@ import org.opensearch.sql.ppl.utils.ParseStrategy;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import scala.Option;
 import scala.Option$;
-import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
 import java.util.ArrayList;
