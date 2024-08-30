@@ -13,7 +13,7 @@ import org.opensearch.flint.core.http.FlintRetryOptions._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
-import org.apache.spark.sql.flint.config.FlintSparkConf.{CUSTOM_SESSION_MANAGER, MONITOR_INITIAL_DELAY_SECONDS, MONITOR_INTERVAL_SECONDS, MONITOR_MAX_ERROR_COUNT, REQUEST_INDEX}
+import org.apache.spark.sql.flint.config.FlintSparkConf.{CUSTOM_QUERY_METADATA_SERVICE, CUSTOM_SESSION_MANAGER, MONITOR_INITIAL_DELAY_SECONDS, MONITOR_INTERVAL_SECONDS, MONITOR_MAX_ERROR_COUNT, REQUEST_INDEX}
 
 class FlintSparkConfSuite extends FlintSuite {
   test("test spark conf") {
@@ -113,6 +113,19 @@ class FlintSparkConfSuite extends FlintSuite {
       setFlintSparkConf(CUSTOM_SESSION_MANAGER, "custom.manager.ClassName")
       val flintOptions = FlintSparkConf().flintOptions()
       assert(flintOptions.getCustomSessionManager == "custom.manager.ClassName")
+    }
+  }
+
+  test("test getCustomQueryMetadataService") {
+    withSparkConf(CUSTOM_QUERY_METADATA_SERVICE.key) {
+      // default value
+      val defaultFlintOptions = FlintSparkConf().flintOptions()
+      assert(
+        defaultFlintOptions.getCustomQueryMetadataService == "org.apache.spark.sql.NoOpQueryMetadataService")
+
+      setFlintSparkConf(CUSTOM_QUERY_METADATA_SERVICE, "custom.query.metadata.ClassName")
+      val flintOptions = FlintSparkConf().flintOptions()
+      assert(flintOptions.getCustomQueryMetadataService == "custom.query.metadata.ClassName")
     }
   }
 

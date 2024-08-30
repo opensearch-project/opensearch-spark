@@ -14,10 +14,11 @@ import scala.util.{Failure, Success, Try}
 
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
+import org.opensearch.flint.data.QueryState
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.apache.spark.sql.util.ShuffleCleaner
+import org.apache.spark.sql.util.{CustomClassLoader, ShuffleCleaner}
 import org.apache.spark.util.ThreadUtils
 
 case class JobOperator(
@@ -25,6 +26,7 @@ case class JobOperator(
     query: String,
     dataSource: String,
     resultIndex: String,
+    queryId: String,
     streaming: Boolean,
     streamingRunningCount: AtomicInteger)
     extends Logging
@@ -42,10 +44,14 @@ case class JobOperator(
     val startTime = System.currentTimeMillis()
     streamingRunningCount.incrementAndGet()
 
+    val flintSparkConf = FlintSparkConf()
+    val queryMetadataService = CustomClassLoader(flintSparkConf).getQueryMetadataService()
+    queryMetadataService.updateQueryState(queryId, QueryState.RUNNING, null)
     // osClient needs spark session to be created first to get FlintOptions initialized.
     // Otherwise, we will have connection exception from EMR-S to OS.
-    val osClient = new OSClient(FlintSparkConf().flintOptions())
+    val osClient = new OSClient(flintSparkConf.flintOptions())
     var exceptionThrown = true
+    var error: String = null
     try {
       val futureMappingCheck = Future {
         checkAndCreateIndex(osClient, resultIndex)
@@ -61,30 +67,31 @@ case class JobOperator(
       exceptionThrown = false
     } catch {
       case e: TimeoutException =>
-        val error = s"Getting the mapping of index $resultIndex timed out"
+        error = s"Getting the mapping of index $resultIndex timed out"
         logError(error, e)
         dataToWrite = Some(
           getFailedData(spark, dataSource, error, "", query, "", startTime, currentTimeProvider))
       case e: Exception =>
-        val error = processQueryException(e)
+        error = processQueryException(e)
         dataToWrite = Some(
           getFailedData(spark, dataSource, error, "", query, "", startTime, currentTimeProvider))
     } finally {
-      cleanUpResources(exceptionThrown, threadPool, dataToWrite, resultIndex, osClient)
+      try {
+        dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
+      } catch {
+        case e: Exception =>
+          exceptionThrown = true
+          error = s"Failed to write to result index. originalError='${error}'"
+          logError(error, e)
+      }
+      val queryState = if (exceptionThrown) QueryState.FAILED else QueryState.SUCCESS
+      queryMetadataService.updateQueryState(queryId, queryState, error);
+
+      cleanUpResources(exceptionThrown, threadPool)
     }
   }
 
-  def cleanUpResources(
-      exceptionThrown: Boolean,
-      threadPool: ThreadPoolExecutor,
-      dataToWrite: Option[DataFrame],
-      resultIndex: String,
-      osClient: OSClient): Unit = {
-    try {
-      dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
-    } catch {
-      case e: Exception => logError("fail to write to result index", e)
-    }
+  def cleanUpResources(exceptionThrown: Boolean, threadPool: ThreadPoolExecutor): Unit = {
 
     try {
       // Wait for streaming job complete if no error and there is streaming job running
