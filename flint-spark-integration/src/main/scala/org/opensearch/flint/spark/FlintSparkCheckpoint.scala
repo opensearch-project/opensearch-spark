@@ -22,10 +22,14 @@ import org.apache.spark.sql.execution.streaming.CheckpointFileManager.RenameHelp
  * @param checkpointLocation
  *   The path to the checkpoint directory.
  */
-class FlintSparkCheckpoint(spark: SparkSession, checkpointLocation: String) extends Logging {
-  private val checkpointDir = new Path(checkpointLocation)
+class FlintSparkCheckpoint(spark: SparkSession, val checkpointLocation: String) extends Logging {
+
+  /** Checkpoint root directory path */
+  private val checkpointRootDir = new Path(checkpointLocation)
+
+  /** Spark checkpoint manager */
   private val checkpointManager =
-    CheckpointFileManager.create(checkpointDir, spark.sessionState.newHadoopConf())
+    CheckpointFileManager.create(checkpointRootDir, spark.sessionState.newHadoopConf())
 
   /**
    * Checks if the checkpoint directory exists.
@@ -33,7 +37,18 @@ class FlintSparkCheckpoint(spark: SparkSession, checkpointLocation: String) exte
    * @return
    *   true if the checkpoint directory exists, false otherwise.
    */
-  def exists(): Boolean = checkpointManager.exists(checkpointDir)
+  def exists(): Boolean = checkpointManager.exists(checkpointRootDir)
+
+  /**
+   * Creates the checkpoint directory and all necessary parent directories if they do not already
+   * exist.
+   *
+   * @return
+   *   The path to the created checkpoint directory.
+   */
+  def createDirectory(): Path = {
+    checkpointManager.createCheckpointDirectory
+  }
 
   /**
    * Creates a temporary file in the checkpoint directory.
@@ -45,9 +60,7 @@ class FlintSparkCheckpoint(spark: SparkSession, checkpointLocation: String) exte
     checkpointManager match {
       case manager: RenameHelperMethods =>
         val tempFilePath =
-          new Path(
-            checkpointManager.createCheckpointDirectory(), // create all parent folders if needed
-            s"${UUID.randomUUID().toString}.tmp")
+          new Path(createDirectory(), s"${UUID.randomUUID().toString}.tmp")
         Some(manager.createTempFile(tempFilePath))
       case _ =>
         logInfo(s"Cannot create temp file at checkpoint location: ${checkpointManager.getClass}")
@@ -62,11 +75,11 @@ class FlintSparkCheckpoint(spark: SparkSession, checkpointLocation: String) exte
    */
   def delete(): Unit = {
     try {
-      checkpointManager.delete(checkpointDir)
-      logInfo(s"Checkpoint directory $checkpointDir deleted.")
+      checkpointManager.delete(checkpointRootDir)
+      logInfo(s"Checkpoint directory $checkpointRootDir deleted")
     } catch {
       case e: Exception =>
-        logError(s"Error deleting checkpoint directory $checkpointDir", e)
+        logError(s"Error deleting checkpoint directory $checkpointRootDir", e)
     }
   }
 }
