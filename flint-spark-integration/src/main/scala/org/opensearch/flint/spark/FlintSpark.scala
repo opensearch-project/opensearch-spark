@@ -271,15 +271,17 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           .transientLog(latest => latest.copy(state = VACUUMING))
           .finalLog(_ => NO_LOG_ENTRY)
           .commit(_ => {
-            val options = flintIndexMetadataService.getIndexMetadata(indexName).options
+            val options = flintIndexMetadataService.getIndexMetadata(indexName).options.asScala
             flintClient.deleteIndex(indexName)
             flintIndexMetadataService.deleteIndexMetadata(indexName)
 
-            Option(options.get(CHECKPOINT_LOCATION.toString))
-              .foreach { checkpointDir =>
-                new FlintSparkCheckpoint(spark, checkpointDir.asInstanceOf[String])
-                  .delete()
-              }
+            // Remove checkpoint folder if defined
+            val checkpoint = options
+              .get(CHECKPOINT_LOCATION.toString)
+              .map(path => new FlintSparkCheckpoint(spark, path.asInstanceOf[String]))
+            if (checkpoint.isDefined) {
+              checkpoint.get.delete()
+            }
             true
           })
       } else {
