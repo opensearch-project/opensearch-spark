@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, EqualTo, LessThan, Literal, Not, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, EqualTo, GreaterThan, LessThan, Literal, Not, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -918,5 +918,208 @@ class FlintSparkPPLAggregationsITSuite
 
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+
+  test("two-level stats") {
+    val frame = sql(s"""
+         | source = $testTable| stats avg(age) as avg_age by state, country | stats avg(avg_age) as avg_state_age by country
+         | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(22.5, "Canada"), Row(50.0, "USA"))
+
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val star = Seq(UnresolvedStar(None))
+    val stateField = UnresolvedAttribute("state")
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val avgAgeField = UnresolvedAttribute("avg_age")
+    val stateAlias = Alias(stateField, "state")()
+    val countryAlias = Alias(countryField, "country")()
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+
+    val groupByAttributes1 = Seq(stateAlias, countryAlias)
+    val aggregateExpressions1 =
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg_age")()
+    val aggregatePlan1 =
+      Aggregate(groupByAttributes1, Seq(aggregateExpressions1, stateAlias, countryAlias), table)
+
+    val groupByAttributes2 = Seq(countryAlias)
+    val aggregateExpressions2 =
+      Alias(
+        UnresolvedFunction(Seq("AVG"), Seq(avgAgeField), isDistinct = false),
+        "avg_state_age")()
+
+    val aggregatePlan2 =
+      Aggregate(groupByAttributes2, Seq(aggregateExpressions2, countryAlias), aggregatePlan1)
+    val expectedPlan = Project(star, aggregatePlan2)
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("two-level stats with eval") {
+    val frame = sql(s"""
+         | source = $testTable| stats avg(age) as avg_age by state, country | eval new_avg_age = avg_age - 10 | stats avg(new_avg_age) as avg_state_age by country
+         | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(12.5, "Canada"), Row(40.0, "USA"))
+
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val star = Seq(UnresolvedStar(None))
+    val stateField = UnresolvedAttribute("state")
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val avgAgeField = UnresolvedAttribute("avg_age")
+    val stateAlias = Alias(stateField, "state")()
+    val countryAlias = Alias(countryField, "country")()
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+
+    val groupByAttributes1 = Seq(stateAlias, countryAlias)
+    val aggregateExpressions1 =
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg_age")()
+    val aggregatePlan1 =
+      Aggregate(groupByAttributes1, Seq(aggregateExpressions1, stateAlias, countryAlias), table)
+
+    val newAvgAgeAlias =
+      Alias(
+        UnresolvedFunction(Seq("-"), Seq(avgAgeField, Literal(10)), isDistinct = false),
+        "new_avg_age")()
+    val evalProject = Project(Seq(UnresolvedStar(None), newAvgAgeAlias), aggregatePlan1)
+
+    val groupByAttributes2 = Seq(countryAlias)
+    val aggregateExpressions2 =
+      Alias(
+        UnresolvedFunction(
+          Seq("AVG"),
+          Seq(UnresolvedAttribute("new_avg_age")),
+          isDistinct = false),
+        "avg_state_age")()
+
+    val aggregatePlan2 =
+      Aggregate(groupByAttributes2, Seq(aggregateExpressions2, countryAlias), evalProject)
+    val expectedPlan = Project(star, aggregatePlan2)
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("two-level stats with filter") {
+    val frame = sql(s"""
+         | source = $testTable| stats avg(age) as avg_age by country, state | where avg_age > 0 | stats count(avg_age) as count_state_age by country
+         | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(2L, "Canada"), Row(2L, "USA"))
+
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](1))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val star = Seq(UnresolvedStar(None))
+    val stateField = UnresolvedAttribute("state")
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val avgAgeField = UnresolvedAttribute("avg_age")
+    val stateAlias = Alias(stateField, "state")()
+    val countryAlias = Alias(countryField, "country")()
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+
+    val groupByAttributes1 = Seq(countryAlias, stateAlias)
+    val aggregateExpressions1 =
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg_age")()
+    val aggregatePlan1 =
+      Aggregate(groupByAttributes1, Seq(aggregateExpressions1, countryAlias, stateAlias), table)
+
+    val filterExpr = GreaterThan(avgAgeField, Literal(0))
+    val filterPlan = Filter(filterExpr, aggregatePlan1)
+
+    val groupByAttributes2 = Seq(countryAlias)
+    val aggregateExpressions2 =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(avgAgeField), isDistinct = false),
+        "count_state_age")()
+
+    val aggregatePlan2 =
+      Aggregate(groupByAttributes2, Seq(aggregateExpressions2, countryAlias), filterPlan)
+    val expectedPlan = Project(star, aggregatePlan2)
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("three-level stats with eval and filter") {
+    val frame = sql(s"""
+         | source = $testTable| stats avg(age) as avg_age by country, state, name | eval avg_age_divide_20 = avg_age - 20 | stats avg(avg_age_divide_20)
+         | as avg_state_age by country, state | where avg_state_age > 0 | stats count(avg_state_age) as count_country_age_greater_20 by country
+         | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(1L, "Canada"), Row(2L, "USA"))
+
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](1))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val star = Seq(UnresolvedStar(None))
+    val nameField = UnresolvedAttribute("name")
+    val stateField = UnresolvedAttribute("state")
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val avgAgeField = UnresolvedAttribute("avg_age")
+    val nameAlias = Alias(nameField, "name")()
+    val stateAlias = Alias(stateField, "state")()
+    val countryAlias = Alias(countryField, "country")()
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+
+    val groupByAttributes1 = Seq(countryAlias, stateAlias, nameAlias)
+    val aggregateExpressions1 =
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg_age")()
+    val aggregatePlan1 =
+      Aggregate(
+        groupByAttributes1,
+        Seq(aggregateExpressions1, countryAlias, stateAlias, nameAlias),
+        table)
+
+    val avg_age_divide_20_Alias =
+      Alias(
+        UnresolvedFunction(Seq("-"), Seq(avgAgeField, Literal(20)), isDistinct = false),
+        "avg_age_divide_20")()
+    val evalProject = Project(Seq(UnresolvedStar(None), avg_age_divide_20_Alias), aggregatePlan1)
+    val groupByAttributes2 = Seq(countryAlias, stateAlias)
+    val aggregateExpressions2 =
+      Alias(
+        UnresolvedFunction(
+          Seq("AVG"),
+          Seq(UnresolvedAttribute("avg_age_divide_20")),
+          isDistinct = false),
+        "avg_state_age")()
+    val aggregatePlan2 =
+      Aggregate(
+        groupByAttributes2,
+        Seq(aggregateExpressions2, countryAlias, stateAlias),
+        evalProject)
+
+    val filterExpr = GreaterThan(UnresolvedAttribute("avg_state_age"), Literal(0))
+    val filterPlan = Filter(filterExpr, aggregatePlan2)
+
+    val groupByAttributes3 = Seq(countryAlias)
+    val aggregateExpressions3 =
+      Alias(
+        UnresolvedFunction(
+          Seq("COUNT"),
+          Seq(UnresolvedAttribute("avg_state_age")),
+          isDistinct = false),
+        "count_country_age_greater_20")()
+
+    val aggregatePlan3 =
+      Aggregate(groupByAttributes3, Seq(aggregateExpressions3, countryAlias), filterPlan)
+    val expectedPlan = Project(star, aggregatePlan3)
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 }
