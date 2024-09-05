@@ -8,6 +8,7 @@ package org.opensearch.flint.spark
 import java.io.IOException
 
 import org.apache.hadoop.fs.Path
+
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
@@ -16,7 +17,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.execution.command.DDLUtils
-import org.apache.spark.sql.execution.streaming.CheckpointFileManager
+
 import org.apache.spark.sql.flint.{loadTable, parseTableName, qualifyTableName}
 
 /**
@@ -71,15 +72,20 @@ trait FlintSparkValidationHelper extends Logging {
    */
   def isCheckpointLocationAccessible(spark: SparkSession, checkpointLocation: String): Boolean = {
     try {
-      val checkpointManager =
-        CheckpointFileManager.create(
-          new Path(checkpointLocation),
-          spark.sessionState.newHadoopConf())
+      val checkpoint = new FlintSparkCheckpoint(spark, checkpointLocation)
 
-      // The primary intent here is to catch any exceptions during the accessibility check.
-      // The actual result is ignored, as Spark can create any necessary sub-folders
-      // when the streaming job starts.
-      checkpointManager.exists(new Path(checkpointLocation))
+      /*
+       * Read permission check: The primary intent here is to catch any exceptions
+       * during the accessibility check. The actual result is ignored, as the write
+       * permission check below will create any necessary sub-folders.
+       */
+      checkpoint.exists()
+
+      /*
+       * Write permission check: Attempt to create a temporary file to verify write access.
+       * The temporary file is left in place in case additional delete permissions required.
+       */
+      checkpoint.createTempFile().foreach(_.close())
       true
     } catch {
       case e: IOException =>

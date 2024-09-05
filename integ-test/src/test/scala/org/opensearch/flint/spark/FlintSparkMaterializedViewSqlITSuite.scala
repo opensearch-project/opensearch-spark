@@ -354,5 +354,33 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     flint.describeIndex(testFlintIndex) shouldBe empty
   }
 
+  test("vacuum materialized view with checkpoint") {
+    withTempDir { checkpointDir =>
+      flint
+        .materializedView()
+        .name(testMvName)
+        .query(testQuery)
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath,
+              "watermark_delay" -> "1 Second")),
+          testFlintIndex)
+        .create()
+      flint.refreshIndex(testFlintIndex)
+
+      val job = spark.streams.active.find(_.name == testFlintIndex)
+      awaitStreamingComplete(job.get.id.toString)
+      flint.deleteIndex(testFlintIndex)
+
+      // Checkpoint folder should be removed after vacuum
+      checkpointDir.exists() shouldBe true
+      sql(s"VACUUM MATERIALIZED VIEW $testMvName")
+      flint.describeIndex(testFlintIndex) shouldBe empty
+      checkpointDir.exists() shouldBe false
+    }
+  }
+
   private def timestamp(ts: String): Timestamp = Timestamp.valueOf(ts)
 }

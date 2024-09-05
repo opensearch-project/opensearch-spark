@@ -412,6 +412,34 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     flint.describeIndex(testFlintIndex) shouldBe empty
   }
 
+  test("vacuum covering index with checkpoint") {
+    withTempDir { checkpointDir =>
+      flint
+        .coveringIndex()
+        .name(testIndex)
+        .onTable(testTable)
+        .addIndexColumns("name", "age")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testFlintIndex)
+        .create()
+      flint.refreshIndex(testFlintIndex)
+
+      val job = spark.streams.active.find(_.name == testFlintIndex)
+      awaitStreamingComplete(job.get.id.toString)
+      flint.deleteIndex(testFlintIndex)
+
+      // Checkpoint folder should be removed after vacuum
+      checkpointDir.exists() shouldBe true
+      sql(s"VACUUM INDEX $testIndex ON $testTable")
+      flint.describeIndex(testFlintIndex) shouldBe empty
+      checkpointDir.exists() shouldBe false
+    }
+  }
+
   private def awaitRefreshComplete(query: String): Unit = {
     sql(query)
 

@@ -10,8 +10,8 @@ import scala.collection.JavaConverters._
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.Serialization
 import org.opensearch.flint.common.metadata.{FlintIndexMetadataService, FlintMetadata}
+import org.opensearch.flint.common.metadata.log.{FlintMetadataLogService, OptimisticTransaction}
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState._
-import org.opensearch.flint.common.metadata.log.FlintMetadataLogService
 import org.opensearch.flint.common.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.FlintIndexMetadataServiceBuilder
@@ -309,8 +309,17 @@ class FlintSpark(val spark: SparkSession) extends Logging {
           .transientLog(latest => latest.copy(state = VACUUMING))
           .finalLog(_ => NO_LOG_ENTRY)
           .commit(_ => {
+            val options = flintIndexMetadataService.getIndexMetadata(indexName).options.asScala
             flintClient.deleteIndex(indexName)
             flintIndexMetadataService.deleteIndexMetadata(indexName)
+
+            // Remove checkpoint folder if defined
+            val checkpoint = options
+              .get(CHECKPOINT_LOCATION.toString)
+              .map(path => new FlintSparkCheckpoint(spark, path.asInstanceOf[String]))
+            if (checkpoint.isDefined) {
+              checkpoint.get.delete()
+            }
             true
           })
       } catch {
