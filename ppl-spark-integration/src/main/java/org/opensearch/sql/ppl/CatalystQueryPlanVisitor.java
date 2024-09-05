@@ -10,6 +10,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
+import org.apache.spark.sql.catalyst.expressions.CaseWhen;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
@@ -24,29 +25,9 @@ import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
-import org.opensearch.sql.ast.expression.AggregateFunction;
-import org.opensearch.sql.ast.expression.Alias;
-import org.opensearch.sql.ast.expression.AllFields;
+import org.opensearch.sql.ast.expression.*;
 import org.opensearch.sql.ast.expression.And;
-import org.opensearch.sql.ast.expression.Argument;
-import org.opensearch.sql.ast.expression.BinaryExpression;
-import org.opensearch.sql.ast.expression.Case;
-import org.opensearch.sql.ast.expression.Compare;
-import org.opensearch.sql.ast.expression.Field;
-import org.opensearch.sql.ast.expression.FieldsMapping;
-import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
-import org.opensearch.sql.ast.expression.Interval;
-import org.opensearch.sql.ast.expression.Let;
-import org.opensearch.sql.ast.expression.Literal;
-import org.opensearch.sql.ast.expression.Not;
-import org.opensearch.sql.ast.expression.Or;
-import org.opensearch.sql.ast.expression.ParseMethod;
-import org.opensearch.sql.ast.expression.QualifiedName;
-import org.opensearch.sql.ast.expression.Span;
-import org.opensearch.sql.ast.expression.UnresolvedExpression;
-import org.opensearch.sql.ast.expression.WindowFunction;
-import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
@@ -65,6 +46,7 @@ import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.TopAggregation;
+import org.opensearch.sql.data.type.ExprType;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
@@ -72,17 +54,16 @@ import org.opensearch.sql.ppl.utils.ParseStrategy;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import scala.Option;
 import scala.Option$;
+import scala.Tuple2;
 import scala.collection.Seq;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static java.util.List.of;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
 import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
@@ -533,6 +514,21 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                             .collect(Collectors.toList());
             Expression function = BuiltinFunctionTranslator.builtinFunction(node, arguments);
             return context.getNamedParseExpressions().push(function);
+        }
+
+        @Override
+        public Expression visitIsEmpty(IsEmpty node, CatalystPlanContext context) {
+            analyze(node.getWhenClause().getCondition(), context);
+            Expression condition = context.getNamedParseExpressions().pop();
+            analyze(node.getWhenClause().getResult(), context);
+            Expression result = context.getNamedParseExpressions().pop();
+            analyze(node.getElseClause(), context);
+            Expression elseClause = context.getNamedParseExpressions().pop();
+            CaseWhen caseWhen =  new CaseWhen(
+                    seq(of(Tuple2.apply(condition, result))),
+                    Option.apply(elseClause)
+            );
+            return context.getNamedParseExpressions().push(caseWhen);
         }
 
         @Override

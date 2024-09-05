@@ -25,6 +25,14 @@ public class When extends UnresolvedExpression {
     this.result = result;
   }
 
+  public UnresolvedExpression getCondition() {
+    return condition;
+  }
+
+  public UnresolvedExpression getResult() {
+    return result;
+  }
+
   @Override
   public List<? extends Node> getChild() {
     return ImmutableList.of(condition, result);

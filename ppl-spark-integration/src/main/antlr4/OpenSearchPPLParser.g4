@@ -266,6 +266,7 @@ logicalExpression
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
    | left = logicalExpression XOR right = logicalExpression     # logicalXor
    | booleanExpression                                          # booleanExpr
+   | isEmptyExpression                                          # isEmptyExpr
    ;
 
 comparisonExpression
@@ -293,6 +294,10 @@ positionFunction
 
 booleanExpression
    : booleanFunctionCall
+   ;
+
+ isEmptyExpression
+   : ISEMPTY LT_PRTHS functionArg RT_PRTHS
    ;
 
 relevanceExpression
@@ -655,6 +660,7 @@ textFunctionName
    | LOCATE
    | REPLACE
    | REVERSE
+   | ISEMPTY
    ;
 
 positionFunctionName

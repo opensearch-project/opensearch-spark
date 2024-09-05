@@ -20,6 +20,7 @@ import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
+import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Map;
@@ -153,6 +154,10 @@ public abstract class AbstractNodeVisitor<T, C> {
   }
 
   public T visitFunction(Function node, C context) {
+    return visitChildren(node, context);
+  }
+
+  public T visitIsEmpty(IsEmpty node, C context) {
     return visitChildren(node, context);
   }
 
