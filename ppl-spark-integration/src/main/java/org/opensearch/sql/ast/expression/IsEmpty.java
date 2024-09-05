@@ -6,17 +6,15 @@ import org.opensearch.sql.ast.AbstractNodeVisitor;
 import java.util.List;
 
 public class IsEmpty extends UnresolvedExpression {
-    private When whenClause;
-    private UnresolvedExpression elseClause;
+    private Case caseValue;
 
-    public IsEmpty(When whenClause, UnresolvedExpression elseClause) {
-        this.whenClause = whenClause;
-        this.elseClause = elseClause;
+    public IsEmpty(Case caseValue) {
+        this.caseValue = caseValue;
     }
 
     @Override
     public List<UnresolvedExpression> getChild() {
-        return ImmutableList.of(this.whenClause, this.elseClause);
+        return ImmutableList.of(this.caseValue);
     }
 
     @Override
@@ -24,18 +22,14 @@ public class IsEmpty extends UnresolvedExpression {
         return nodeVisitor.visitIsEmpty(this, context);
     }
 
-    public When getWhenClause() {
-        return whenClause;
-    }
-
-    public UnresolvedExpression getElseClause() {
-        return elseClause;
+    public Case getCaseValue() {
+        return caseValue;
     }
 
     @Override
     public String toString() {
         return String.format(
-                "isempty(when %s else %s)",
-                whenClause.toString(), elseClause.toString());
+                "isempty(%s)",
+                caseValue.toString());
     }
 }

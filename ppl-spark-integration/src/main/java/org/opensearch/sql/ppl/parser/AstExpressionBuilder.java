@@ -16,6 +16,7 @@ import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Argument;
+import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.Field;
@@ -202,11 +203,12 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         Function trimFunction = new Function(TRIM.getName().getFunctionName(), Collections.singletonList(this.visitFunctionArg(ctx.functionArg())));
         Function lengthFunction = new Function(LENGTH.getName().getFunctionName(), Collections.singletonList(trimFunction));
         Compare lengthEqualsZero = new Compare(EQUAL.getName().getFunctionName(), lengthFunction, new Literal(0, DataType.INTEGER));
+        Literal whenCompareValue = new Literal(0, DataType.INTEGER);
         Literal isEmptyFalse = new Literal(false, DataType.BOOLEAN);
         Literal isEmptyTrue = new Literal(true, DataType.BOOLEAN);
-        When when = new When(lengthEqualsZero, isEmptyTrue);
-
-        return new IsEmpty(when, isEmptyFalse);
+        When when = new When(whenCompareValue, isEmptyTrue);
+        Case caseWhen = new Case(lengthFunction, Collections.singletonList(when), isEmptyFalse);
+        return new IsEmpty(caseWhen);
     }
 
     /**
