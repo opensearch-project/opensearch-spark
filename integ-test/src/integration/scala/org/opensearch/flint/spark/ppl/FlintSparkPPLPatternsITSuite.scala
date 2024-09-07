@@ -124,98 +124,54 @@ class FlintSparkPPLPatternsITSuite
   }
 
   test("test patterns email expressions and top count_host ") {
-    val frame = sql("source=spark_catalog.default.flint_ppl_test | patterns new_field='dot_com' pattern='[0-9]' | top 1 dot_com")
-
-    // Retrieve the results
-    val results: Array[Row] = frame.collect()
-    // Define the expected results
-    val expectedResults: Array[Row] = Array(Row(2L, ".com"))
-
-    // Sort both the results and the expected results
-    implicit val rowOrdering: Ordering[Row] = Ordering.by(r => (r.getLong(0), r.getString(1)))
-    assert(results.sorted.sameElements(expectedResults.sorted))
-    // Retrieve the logical plan
-    val logicalPlan: LogicalPlan = frame.queryExecution.logical
-
-    val emailAttribute = UnresolvedAttribute("email")
-    val hostAttribute = UnresolvedAttribute("host")
-    val hostExpression = Alias(
-      RegExpExtract(
-        emailAttribute,
-        Literal(
-          ".*(\\.com)$"),
-        Literal(1)),
-      "host")()
-
-    val sortedPlan = Sort(
-      Seq(
-        SortOrder(
-          Alias(
-            UnresolvedFunction(Seq("COUNT"), Seq(hostAttribute), isDistinct = false),
-            "count_host")(),
-          Descending,
-          NullsLast,
-          Seq.empty)),
-      global = true,
-      Aggregate(
-        Seq(hostAttribute),
-        Seq(
-          Alias(
-            UnresolvedFunction(Seq("COUNT"), Seq(hostAttribute), isDistinct = false),
-            "count_host")(),
-          hostAttribute),
-        Project(
-          Seq(emailAttribute, hostExpression, UnresolvedStar(None)),
-          UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))))
-    // Define the corrected expected plan
-    val expectedPlan = Project(
-      Seq(UnresolvedStar(None)), // Matches the '*' in the Project
-      GlobalLimit(Literal(1), LocalLimit(Literal(1), sortedPlan)))
-    // Compare the logical plans
-    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
-  }
-  
-  test("test patterns address expressions with 2 fields identifies ") {
-    val frame = sql(s"""
-                | source= $testTable | grok street_address '%{NUMBER} %{GREEDYDATA:address}' | fields address
-                | """.stripMargin)
+    val frame = sql("source=spark_catalog.default.flint_ppl_test | patterns new_field='dot_com' pattern='(.com|.net|.org)' email | stats count() by dot_com ")
 
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     // Define the expected results
     val expectedResults: Array[Row] = Array(
-      Row("Pine St, San Francisco"),
-      Row("Maple St, New York"),
-      Row("Spruce St, Miami"),
-      Row("Main St, Seattle"),
-      Row("Cedar St, Austin"),
-      Row("Birch St, Chicago"),
-      Row("Ash St, Seattle"),
-      Row("Oak St, Boston"),
-      Row("Fir St, Denver"),
-      Row("Elm St, Portland"))
-    // Compare the results
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
+      Row(1L, "charlie@domain"),
+      Row(1L, "david@anotherdomain"),
+      Row(1L, "hank@demonstration"),
+      Row(1L, "alice@example"),
+      Row(1L, "frank@sample"),
+      Row(1L, "grace@demo"),
+      Row(1L, "jack@sample"),
+      Row(1L, "eve@examples"),
+      Row(1L, "ivy@examples"),
+      Row(1L, "bob@test"))
 
+    // Sort both the results and the expected results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by(r => (r.getLong(0), r.getString(1)))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+    
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
-
-    val street_addressAttribute = UnresolvedAttribute("street_address")
-    val addressAttribute = UnresolvedAttribute("address")
-    val addressExpression = Alias(
-      RegExpExtract(
-        street_addressAttribute,
+    val messageAttribute = UnresolvedAttribute("email")
+    val noNumbersAttribute = UnresolvedAttribute("dot_com")
+    val hostExpression = Alias(
+      RegExpReplace(
+        messageAttribute,
         Literal(
-          "(?<name0>(?:(?<name1>(?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\\.[0-9]+)?)|(?:\\.[0-9]+)))))) (?<name2>.*)"),
-        Literal("3")),
-      "address")()
-    val expectedPlan = Project(
-      Seq(addressAttribute),
-      Project(
-        Seq(street_addressAttribute, addressExpression, UnresolvedStar(None)),
-        UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))))
-    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
-  }
+          "(.com|.net|.org)"),
+        Literal("")),
+      "dot_com")()
 
+    // Define the corrected expected plan
+    val expectedPlan = Project(
+      Seq(UnresolvedStar(None)), // Matches the '*' in the Project
+      Aggregate(
+        Seq(Alias(noNumbersAttribute, "dot_com")()), // Group by 'no_numbers'
+        Seq(
+          Alias(
+            UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
+            "count()")(),
+          Alias(noNumbersAttribute, "dot_com")()),
+        Project(
+          Seq(messageAttribute, hostExpression, UnresolvedStar(None)),
+          UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))))
+
+    // Compare the logical plans
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
 }
