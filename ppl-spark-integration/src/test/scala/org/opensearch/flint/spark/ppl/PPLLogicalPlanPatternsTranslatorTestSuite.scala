@@ -5,15 +5,15 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
+import org.scalatest.matchers.should.Matchers
+
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Descending, GreaterThan, Literal, NullsLast, RegExpExtract, RegExpReplace, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.opensearch.flint.spark.ppl.PlaneUtils.plan
-import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
-import org.scalatest.matchers.should.Matchers
-
 
 class PPLLogicalPlanPatternsTranslatorTestSuite
     extends SparkFunSuite
@@ -37,11 +37,7 @@ class PPLLogicalPlanPatternsTranslatorTestSuite
     val emailAttribute = UnresolvedAttribute("email")
     val patterns_field = UnresolvedAttribute("patterns_field")
     val hostExpression = Alias(
-      RegExpReplace(
-        emailAttribute,
-        Literal(
-          "[a-zA-Z0-9]"),
-        Literal("")),
+      RegExpReplace(emailAttribute, Literal("[a-zA-Z0-9]"), Literal("")),
       "patterns_field")()
     val expectedPlan = Project(
       Seq(emailAttribute, patterns_field),
@@ -51,7 +47,8 @@ class PPLLogicalPlanPatternsTranslatorTestSuite
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
-  test("test patterns extract punctuations from a raw log field using user defined patterns and a new field") {
+  test(
+    "test patterns extract punctuations from a raw log field using user defined patterns and a new field") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
@@ -63,13 +60,8 @@ class PPLLogicalPlanPatternsTranslatorTestSuite
 
     val emailAttribute = UnresolvedAttribute("message")
     val patterns_field = UnresolvedAttribute("no_numbers")
-    val hostExpression = Alias(
-      RegExpReplace(
-        emailAttribute,
-        Literal(
-          "[0-9]"),
-        Literal("")),
-      "no_numbers")()
+    val hostExpression =
+      Alias(RegExpReplace(emailAttribute, Literal("[0-9]"), Literal("")), "no_numbers")()
     val expectedPlan = Project(
       Seq(emailAttribute, patterns_field),
       Project(
@@ -94,11 +86,7 @@ class PPLLogicalPlanPatternsTranslatorTestSuite
     val patterns_fieldAttribute = UnresolvedAttribute("patterns_field")
     val ageAttribute = UnresolvedAttribute("age")
     val hostExpression = Alias(
-      RegExpReplace(
-        emailAttribute,
-        Literal(
-          "[a-zA-Z0-9]"),
-        Literal("")),
+      RegExpReplace(emailAttribute, Literal("[a-zA-Z0-9]"), Literal("")),
       "patterns_field")()
 
     // Define the corrected expected plan
@@ -127,13 +115,8 @@ class PPLLogicalPlanPatternsTranslatorTestSuite
 
     val messageAttribute = UnresolvedAttribute("message")
     val noNumbersAttribute = UnresolvedAttribute("no_numbers")
-    val hostExpression = Alias(
-      RegExpReplace(
-        messageAttribute,
-        Literal(
-          "[0-9]"),
-        Literal("")),
-      "no_numbers")()
+    val hostExpression =
+      Alias(RegExpReplace(messageAttribute, Literal("[0-9]"), Literal("")), "no_numbers")()
 
     // Define the corrected expected plan
     val expectedPlan = Project(
@@ -157,18 +140,16 @@ class PPLLogicalPlanPatternsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | top 1 no_numbers", false),
+        plan(
+          pplParser,
+          "source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | top 1 no_numbers",
+          false),
         context)
 
     val messageAttribute = UnresolvedAttribute("message")
     val noNumbersAttribute = UnresolvedAttribute("no_numbers")
-    val hostExpression = Alias(
-      RegExpReplace(
-        messageAttribute,
-        Literal(
-          "[0-9]"),
-        Literal("")),
-      "no_numbers")()
+    val hostExpression =
+      Alias(RegExpReplace(messageAttribute, Literal("[0-9]"), Literal("")), "no_numbers")()
 
     val sortedPlan = Sort(
       Seq(

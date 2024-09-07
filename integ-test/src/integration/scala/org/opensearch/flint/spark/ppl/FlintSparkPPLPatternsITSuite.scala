@@ -5,11 +5,11 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Descending, GreaterThan, Literal, NullsLast, RegExpExtract, RegExpReplace, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
-import org.apache.spark.sql.{QueryTest, Row}
 
 class FlintSparkPPLPatternsITSuite
     extends QueryTest
@@ -65,11 +65,7 @@ class FlintSparkPPLPatternsITSuite
     val emailAttribute = UnresolvedAttribute("email")
     val patterns_field = UnresolvedAttribute("patterns_field")
     val hostExpression = Alias(
-      RegExpReplace(
-        emailAttribute,
-        Literal(
-          "[a-zA-Z0-9]"),
-        Literal("")),
+      RegExpReplace(emailAttribute, Literal("[a-zA-Z0-9]"), Literal("")),
       "patterns_field")()
     val expectedPlan = Project(
       Seq(emailAttribute, patterns_field),
@@ -102,11 +98,7 @@ class FlintSparkPPLPatternsITSuite
     val patterns_fieldAttribute = UnresolvedAttribute("patterns_field")
     val ageAttribute = UnresolvedAttribute("age")
     val patternExpression = Alias(
-      RegExpReplace(
-        emailAttribute,
-        Literal(
-          "[a-zA-Z0-9]"),
-        Literal("")),
+      RegExpReplace(emailAttribute, Literal("[a-zA-Z0-9]"), Literal("")),
       "patterns_field")()
 
     // Define the corrected expected plan
@@ -124,7 +116,8 @@ class FlintSparkPPLPatternsITSuite
   }
 
   test("test patterns email expressions and top count_host ") {
-    val frame = sql("source=spark_catalog.default.flint_ppl_test | patterns new_field='dot_com' pattern='(.com|.net|.org)' email | stats count() by dot_com ")
+    val frame = sql(
+      "source=spark_catalog.default.flint_ppl_test | patterns new_field='dot_com' pattern='(.com|.net|.org)' email | stats count() by dot_com ")
 
     // Retrieve the results
     val results: Array[Row] = frame.collect()
@@ -144,17 +137,13 @@ class FlintSparkPPLPatternsITSuite
     // Sort both the results and the expected results
     implicit val rowOrdering: Ordering[Row] = Ordering.by(r => (r.getLong(0), r.getString(1)))
     assert(results.sorted.sameElements(expectedResults.sorted))
-    
+
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val messageAttribute = UnresolvedAttribute("email")
     val noNumbersAttribute = UnresolvedAttribute("dot_com")
     val hostExpression = Alias(
-      RegExpReplace(
-        messageAttribute,
-        Literal(
-          "(.com|.net|.org)"),
-        Literal("")),
+      RegExpReplace(messageAttribute, Literal("(.com|.net|.org)"), Literal("")),
       "dot_com")()
 
     // Define the corrected expected plan
