@@ -569,6 +569,33 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
     flint.describeIndex(testIndex) shouldBe empty
   }
 
+  test("vacuum skipping index with checkpoint") {
+    withTempDir { checkpointDir =>
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testIndex)
+        .create()
+      flint.refreshIndex(testIndex)
+
+      val job = spark.streams.active.find(_.name == testIndex)
+      awaitStreamingComplete(job.get.id.toString)
+      flint.deleteIndex(testIndex)
+
+      // Checkpoint folder should be removed after vacuum
+      checkpointDir.exists() shouldBe true
+      sql(s"VACUUM SKIPPING INDEX ON $testTable")
+      flint.describeIndex(testIndex) shouldBe empty
+      checkpointDir.exists() shouldBe false
+    }
+  }
+
   test("analyze skipping index with for supported data types") {
     val result = sql(s"ANALYZE SKIPPING INDEX ON $testTable")
 
