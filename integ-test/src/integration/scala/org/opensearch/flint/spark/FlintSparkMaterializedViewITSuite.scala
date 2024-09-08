@@ -103,8 +103,8 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
   test("create materialized view with default checkpoint location successfully") {
     withTempDir { checkpointDir =>
-      conf.setConfString(
-        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key,
+      setFlintSparkConf(
+        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR,
         checkpointDir.getAbsolutePath)
 
       val indexOptions =
@@ -285,8 +285,8 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
       assert(checkpointLocation.isEmpty, "Checkpoint location should not be defined")
 
       // 2. Update the spark conf with a custom checkpoint location
-      conf.setConfString(
-        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key,
+      setFlintSparkConf(
+        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR,
         checkpointDir.getAbsolutePath)
 
       index = flint.describeIndex(testFlintIndex)

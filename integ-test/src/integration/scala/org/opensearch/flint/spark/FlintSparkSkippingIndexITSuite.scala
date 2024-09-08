@@ -186,8 +186,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
   test("create skipping index with default checkpoint location successfully") {
     withTempDir { checkpointDir =>
-      conf.setConfString(
-        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key,
+      setFlintSparkConf(
+        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR,
         checkpointDir.getAbsolutePath)
       flint
         .skippingIndex()
@@ -386,8 +386,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       assert(checkpointLocation.isEmpty, "Checkpoint location should not be defined")
 
       // 2. Update the spark conf with a custom checkpoint location
-      conf.setConfString(
-        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key,
+      setFlintSparkConf(
+        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR,
         checkpointDir.getAbsolutePath)
 
       index = flint.describeIndex(testIndex)

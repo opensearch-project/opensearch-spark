@@ -126,8 +126,8 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
 
   test("create covering index with default checkpoint location successfully") {
     withTempDir { checkpointDir =>
-      conf.setConfString(
-        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key,
+      setFlintSparkConf(
+        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR,
         checkpointDir.getAbsolutePath)
       flint
         .coveringIndex()
@@ -231,8 +231,8 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
       assert(checkpointLocation.isEmpty, "Checkpoint location should not be defined")
 
       // 2. Update the spark conf with a custom checkpoint location
-      conf.setConfString(
-        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key,
+      setFlintSparkConf(
+        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR,
         checkpointDir.getAbsolutePath)
 
       index = flint.describeIndex(testFlintIndex)
