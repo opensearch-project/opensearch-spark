@@ -917,6 +917,33 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     }
   }
 
+  test("vacuum skipping index with checkpoint") {
+    withTempDir { checkpointDir =>
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addValueSet("address")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testIndex)
+        .create()
+      flint.refreshIndex(testIndex)
+
+      val job = spark.streams.active.find(_.name == testIndex)
+      awaitStreamingComplete(job.get.id.toString)
+      flint.deleteIndex(testIndex)
+
+      // Checkpoint folder should be removed after vacuum
+      checkpointDir.exists() shouldBe true
+      flint.vacuumIndex(testIndex)
+      flint.describeIndex(testIndex) shouldBe None
+      checkpointDir.exists() shouldBe false
+    }
+  }
+
   // Custom matcher to check if a SparkPlan uses FlintSparkSkippingFileIndex
   def useFlintSparkSkippingFileIndex(
       subMatcher: Matcher[FlintSparkSkippingFileIndex]): Matcher[SparkPlan] = {
