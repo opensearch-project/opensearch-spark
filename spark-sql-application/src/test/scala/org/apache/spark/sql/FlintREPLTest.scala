@@ -18,11 +18,11 @@ import scala.reflect.runtime.universe.TypeTag
 import com.amazonaws.services.glue.model.AccessDeniedException
 import com.codahale.metrics.Timer
 import org.mockito.{ArgumentMatchersSugar, Mockito}
-import org.mockito.Mockito.{atLeastOnce, never, times, verify, when}
+import org.mockito.Mockito.{atLeastOnce, doNothing, never, times, verify, when}
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.opensearch.action.get.GetResponse
-import org.opensearch.flint.common.model.FlintStatement
+import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession, SessionStates}
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchReader, OpenSearchUpdater}
 import org.opensearch.search.sort.SortOrder
 import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -48,29 +48,28 @@ class FlintREPLTest
   // By using a type alias and casting, I can bypass the type checking error.
   type AnyScheduledFuture = ScheduledFuture[_]
 
-  test(
-    "parseArgs with one argument should return None for query and the argument as resultIndex") {
-    val args = Array("resultIndexName")
-    val (queryOption, resultIndex) = FlintREPL.parseArgs(args)
-    queryOption shouldBe None
-    resultIndex shouldBe "resultIndexName"
-  }
+  private val jobId = "testJobId"
+  private val applicationId = "testApplicationId"
 
-  test(
-    "parseArgs with two arguments should return the first argument as query and the second as resultIndex") {
-    val args = Array("SELECT * FROM table", "resultIndexName")
-    val (queryOption, resultIndex) = FlintREPL.parseArgs(args)
-    queryOption shouldBe Some("SELECT * FROM table")
-    resultIndex shouldBe "resultIndexName"
-  }
-
-  test(
-    "parseArgs with no arguments should throw IllegalArgumentException with specific message") {
+  test("parseArgs with no arguments should return (None, None)") {
     val args = Array.empty[String]
-    val exception = intercept[IllegalArgumentException] {
-      FlintREPL.parseArgs(args)
-    }
-    exception.getMessage shouldBe "Unsupported number of arguments. Expected 1 or 2 arguments."
+    val (queryOption, resultIndexOption) = FlintREPL.parseArgs(args)
+    queryOption shouldBe None
+    resultIndexOption shouldBe None
+  }
+
+  test("parseArgs with one argument should return None for query and Some for resultIndex") {
+    val args = Array("resultIndexName")
+    val (queryOption, resultIndexOption) = FlintREPL.parseArgs(args)
+    queryOption shouldBe None
+    resultIndexOption shouldBe Some("resultIndexName")
+  }
+
+  test("parseArgs with two arguments should return Some for both query and resultIndex") {
+    val args = Array("SELECT * FROM table", "resultIndexName")
+    val (queryOption, resultIndexOption) = FlintREPL.parseArgs(args)
+    queryOption shouldBe Some("SELECT * FROM table")
+    resultIndexOption shouldBe Some("resultIndexName")
   }
 
   test(
@@ -79,7 +78,29 @@ class FlintREPLTest
     val exception = intercept[IllegalArgumentException] {
       FlintREPL.parseArgs(args)
     }
-    exception.getMessage shouldBe "Unsupported number of arguments. Expected 1 or 2 arguments."
+    exception.getMessage shouldBe "Unsupported number of arguments. Expected no more than two arguments."
+  }
+
+  test("getSessionId should throw exception when SESSION_ID is not set") {
+    val conf = new SparkConf()
+    val exception = intercept[IllegalArgumentException] {
+      FlintREPL.getSessionId(conf)
+    }
+    assert(exception.getMessage === FlintSparkConf.SESSION_ID.key + " is not set or is empty")
+  }
+
+  test("getSessionId should return the session ID when it's set") {
+    val sessionId = "test-session-id"
+    val conf = new SparkConf().set(FlintSparkConf.SESSION_ID.key, sessionId)
+    assert(FlintREPL.getSessionId(conf) === sessionId)
+  }
+
+  test("getSessionId should throw exception when SESSION_ID is set to empty string") {
+    val conf = new SparkConf().set(FlintSparkConf.SESSION_ID.key, "")
+    val exception = intercept[IllegalArgumentException] {
+      FlintREPL.getSessionId(conf)
+    }
+    assert(exception.getMessage === FlintSparkConf.SESSION_ID.key + " is not set or is empty")
   }
 
   test("getQuery should return query from queryOption if present") {
@@ -159,19 +180,13 @@ class FlintREPLTest
 
   test("createHeartBeatUpdater should update heartbeat correctly") {
     // Mocks
-    val flintSessionUpdater = mock[OpenSearchUpdater]
-    val osClient = mock[OSClient]
     val threadPool = mock[ScheduledExecutorService]
-    val getResponse = mock[GetResponse]
     val scheduledFutureRaw = mock[ScheduledFuture[_]]
-
+    val sessionManager = mock[SessionManager]
+    val sessionId = "session1"
     // when scheduled task is scheduled, execute the runnable immediately only once and become no-op afterwards.
-    when(
-      threadPool.scheduleAtFixedRate(
-        any[Runnable],
-        eqTo(0),
-        *,
-        eqTo(java.util.concurrent.TimeUnit.MILLISECONDS)))
+    when(threadPool
+      .scheduleAtFixedRate(any[Runnable], *, *, eqTo(java.util.concurrent.TimeUnit.MILLISECONDS)))
       .thenAnswer((invocation: InvocationOnMock) => {
         val runnable = invocation.getArgument[Runnable](0)
         runnable.run()
@@ -179,55 +194,35 @@ class FlintREPLTest
       })
 
     // Invoke the method
-    FlintREPL.createHeartBeatUpdater(
-      1000L,
-      flintSessionUpdater,
-      "session1",
-      threadPool,
-      osClient,
-      "sessionIndex",
-      0)
+    FlintREPL.createHeartBeatUpdater(sessionId, sessionManager, threadPool)
 
     // Verifications
-    verify(flintSessionUpdater, atLeastOnce()).upsert(eqTo("session1"), *)
+    verify(sessionManager, atLeastOnce()).recordHeartbeat(sessionId)
   }
 
   test("PreShutdownListener updates FlintInstance if conditions are met") {
     // Mock dependencies
-    val osClient = mock[OSClient]
-    val getResponse = mock[GetResponse]
-    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
-    val sessionIndex = "testIndex"
     val sessionId = "testSessionId"
     val timerContext = mock[Timer.Context]
+    val sessionManager = mock[SessionManager]
 
-    // Setup the getDoc to return a document indicating the session is running
-    when(osClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
-    when(getResponse.isExists()).thenReturn(true)
-    when(getResponse.getSourceAsMap).thenReturn(
-      Map[String, Object](
-        "applicationId" -> "app1",
-        "jobId" -> "job1",
-        "sessionId" -> "session1",
-        "state" -> "running",
-        "lastUpdateTime" -> java.lang.Long.valueOf(12345L),
-        "error" -> "someError",
-        "state" -> "running",
-        "jobStartTime" -> java.lang.Long.valueOf(0L)).asJava)
+    val interactiveSession = new InteractiveSession(
+      "app123",
+      "job123",
+      sessionId,
+      SessionStates.RUNNING,
+      System.currentTimeMillis(),
+      System.currentTimeMillis() - 10000)
+    when(sessionManager.getSessionDetails(sessionId)).thenReturn(Some(interactiveSession))
 
     // Instantiate the listener
-    val listener = new PreShutdownListener(
-      flintSessionIndexUpdater,
-      osClient,
-      sessionIndex,
-      sessionId,
-      timerContext)
+    val listener = new PreShutdownListener(sessionId, sessionManager, timerContext)
 
     // Simulate application end
     listener.onApplicationEnd(SparkListenerApplicationEnd(System.currentTimeMillis()))
 
-    // Verify the update is called with the correct arguments
-    verify(flintSessionIndexUpdater).updateIf(*, *, *, *)
+    verify(sessionManager).updateSessionDetails(interactiveSession, SessionUpdateMode.UPDATE_IF)
+    interactiveSession.state shouldBe SessionStates.DEAD
   }
 
   test("Test super.constructErrorDF should construct dataframe properly") {
@@ -257,8 +252,8 @@ class FlintREPLTest
       Row(
         null,
         null,
-        "unknown",
-        "unknown",
+        jobId,
+        applicationId,
         dataSourceName,
         "FAILED",
         error,
@@ -281,6 +276,8 @@ class FlintREPLTest
       // Compare the result
       val result =
         FlintREPL.handleCommandFailureAndGetFailedData(
+          applicationId,
+          jobId,
           spark,
           dataSourceName,
           error,
@@ -300,18 +297,18 @@ class FlintREPLTest
   test("test canPickNextStatement: Doc Exists and Valid JobId") {
     val sessionId = "session123"
     val jobId = "jobABC"
-    val osClient = mock[OSClient]
-    val sessionIndex = "sessionIndex"
+    val sessionManager = mock[SessionManager]
 
-    val getResponse = mock[GetResponse]
-    when(osClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
-    when(getResponse.isExists()).thenReturn(true)
+    val interactiveSession = new InteractiveSession(
+      "app123",
+      jobId,
+      sessionId,
+      SessionStates.RUNNING,
+      System.currentTimeMillis(),
+      System.currentTimeMillis() - 10000)
+    when(sessionManager.getSessionDetails(sessionId)).thenReturn(Some(interactiveSession))
 
-    val sourceMap = new java.util.HashMap[String, Object]()
-    sourceMap.put("jobId", jobId.asInstanceOf[Object])
-    when(getResponse.getSourceAsMap).thenReturn(sourceMap)
-
-    val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
+    val result = FlintREPL.canPickNextStatement(sessionId, sessionManager, jobId)
 
     assert(result)
   }
@@ -320,19 +317,20 @@ class FlintREPLTest
     val sessionId = "session123"
     val jobId = "jobABC"
     val differentJobId = "jobXYZ"
-    val osClient = mock[OSClient]
-    val sessionIndex = "sessionIndex"
+    val sessionManager = mock[SessionManager]
 
-    val getResponse = mock[GetResponse]
-    when(osClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
-    when(getResponse.isExists()).thenReturn(true)
+    val interactiveSession = new InteractiveSession(
+      "app123",
+      jobId,
+      sessionId,
+      SessionStates.RUNNING,
+      System.currentTimeMillis(),
+      System.currentTimeMillis() - 10000)
 
-    val sourceMap = new java.util.HashMap[String, Object]()
-    sourceMap.put("jobId", differentJobId.asInstanceOf[Object])
-    when(getResponse.getSourceAsMap).thenReturn(sourceMap)
+    when(sessionManager.getSessionDetails(sessionId)).thenReturn(Some(interactiveSession))
 
     // Execute the method under test
-    val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
+    val result = FlintREPL.canPickNextStatement(sessionId, sessionManager, differentJobId)
 
     // Assertions
     assert(!result) // The function should return false
@@ -341,23 +339,21 @@ class FlintREPLTest
   test("test canPickNextStatement: Doc Exists, JobId Matches, but JobId is Excluded") {
     val sessionId = "session123"
     val jobId = "jobABC"
-    val osClient = mock[OSClient]
-    val sessionIndex = "sessionIndex"
+    val sessionManager = mock[SessionManager]
 
-    val getResponse = mock[GetResponse]
-    when(osClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
-    when(getResponse.isExists()).thenReturn(true)
-
-    val excludeJobIdsList = new java.util.ArrayList[String]()
-    excludeJobIdsList.add(jobId) // Add the jobId to the list to simulate exclusion
-
-    val sourceMap = new java.util.HashMap[String, Object]()
-    sourceMap.put("jobId", jobId) // The jobId matches
-    sourceMap.put("excludeJobIds", excludeJobIdsList) // But jobId is in the exclude list
-    when(getResponse.getSourceAsMap).thenReturn(sourceMap)
+    val interactiveSession = new InteractiveSession(
+      "app123",
+      jobId,
+      sessionId,
+      SessionStates.RUNNING,
+      System.currentTimeMillis(),
+      System.currentTimeMillis() - 10000,
+      Seq(jobId) // Add the jobId to the list to simulate exclusion
+    )
+    when(sessionManager.getSessionDetails(sessionId)).thenReturn(Some(interactiveSession))
 
     // Execute the method under test
-    val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
+    val result = FlintREPL.canPickNextStatement(sessionId, sessionManager, jobId)
 
     // Assertions
     assert(!result) // The function should return false because jobId is excluded
@@ -366,17 +362,12 @@ class FlintREPLTest
   test("test canPickNextStatement: Doc Exists but Source is Null") {
     val sessionId = "session123"
     val jobId = "jobABC"
-    val osClient = mock[OSClient]
-    val sessionIndex = "sessionIndex"
+    val sessionManager = mock[SessionManager]
 
-    // Mock the getDoc response
-    val getResponse = mock[GetResponse]
-    when(osClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
-    when(getResponse.isExists()).thenReturn(true)
-    when(getResponse.getSourceAsMap).thenReturn(null) // Simulate the source being null
+    when(sessionManager.getSessionDetails(sessionId)).thenReturn(None)
 
     // Execute the method under test
-    val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
+    val result = FlintREPL.canPickNextStatement(sessionId, sessionManager, jobId)
 
     // Assertions
     assert(result) // The function should return true despite the null source
@@ -385,11 +376,21 @@ class FlintREPLTest
   test("test canPickNextStatement: Doc Exists with Unexpected Type in excludeJobIds") {
     val sessionId = "session123"
     val jobId = "jobABC"
-    val osClient = mock[OSClient]
+    val mockOSClient = mock[OSClient]
     val sessionIndex = "sessionIndex"
 
+    val mockSparkSession = mock[SparkSession]
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn(sessionIndex)
+
+    val sessionManager = new SessionManagerImpl(mockSparkSession, Some("resultIndex")) {
+      override val osClient: OSClient = mockOSClient
+    }
+
     val getResponse = mock[GetResponse]
-    when(osClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
+    when(mockOSClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
     when(getResponse.isExists()).thenReturn(true)
 
     val sourceMap = new java.util.HashMap[String, Object]()
@@ -401,7 +402,7 @@ class FlintREPLTest
 
     when(getResponse.getSourceAsMap).thenReturn(sourceMap)
 
-    val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
+    val result = FlintREPL.canPickNextStatement(sessionId, sessionManager, jobId)
 
     assert(result) // The function should return true
   }
@@ -409,16 +410,25 @@ class FlintREPLTest
   test("test canPickNextStatement: Doc Does Not Exist") {
     val sessionId = "session123"
     val jobId = "jobABC"
-    val osClient = mock[OSClient]
+    val mockOSClient = mock[OSClient]
     val sessionIndex = "sessionIndex"
+    val mockSparkSession = mock[SparkSession]
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn(sessionIndex)
+
+    val sessionManager = new SessionManagerImpl(mockSparkSession, Some("resultIndex")) {
+      override val osClient: OSClient = mockOSClient
+    }
 
     // Set up the mock GetResponse
     val getResponse = mock[GetResponse]
-    when(osClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
+    when(mockOSClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
     when(getResponse.isExists()).thenReturn(false) // Simulate the document does not exist
 
     // Execute the function under test
-    val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
+    val result = FlintREPL.canPickNextStatement(sessionId, sessionManager, jobId)
 
     // Assert the function returns true
     assert(result)
@@ -427,15 +437,24 @@ class FlintREPLTest
   test("test canPickNextStatement: OSClient Throws Exception") {
     val sessionId = "session123"
     val jobId = "jobABC"
-    val osClient = mock[OSClient]
+    val mockOSClient = mock[OSClient]
     val sessionIndex = "sessionIndex"
+    val mockSparkSession = mock[SparkSession]
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn(sessionIndex)
+
+    val sessionManager = new SessionManagerImpl(mockSparkSession, Some("resultIndex")) {
+      override val osClient: OSClient = mockOSClient
+    }
 
     // Set up the mock OSClient to throw an exception
-    when(osClient.getDoc(sessionIndex, sessionId))
+    when(mockOSClient.getDoc(sessionIndex, sessionId))
       .thenThrow(new RuntimeException("OpenSearch cluster unresponsive"))
 
     // Execute the method under test and expect true, since the method is designed to return true even in case of an exception
-    val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
+    val result = FlintREPL.canPickNextStatement(sessionId, sessionManager, jobId)
 
     // Verify the result is true despite the exception
     assert(result)
@@ -446,11 +465,20 @@ class FlintREPLTest
     val sessionId = "session123"
     val jobId = "jobABC"
     val nonMatchingExcludeJobId = "jobXYZ" // This ID does not match the jobId
-    val osClient = mock[OSClient]
+    val mockOSClient = mock[OSClient]
     val sessionIndex = "sessionIndex"
+    val mockSparkSession = mock[SparkSession]
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn(sessionIndex)
+
+    val sessionManager = new SessionManagerImpl(mockSparkSession, Some("resultIndex")) {
+      override val osClient: OSClient = mockOSClient
+    }
 
     val getResponse = mock[GetResponse]
-    when(osClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
+    when(mockOSClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
     when(getResponse.isExists()).thenReturn(true)
 
     // Create a sourceMap with excludeJobIds as a String that does NOT match jobId
@@ -461,7 +489,7 @@ class FlintREPLTest
     when(getResponse.getSourceAsMap).thenReturn(sourceMap)
 
     // Execute the method under test
-    val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
+    val result = FlintREPL.canPickNextStatement(sessionId, sessionManager, jobId)
 
     // The function should return true since jobId is not excluded
     assert(result)
@@ -512,17 +540,30 @@ class FlintREPLTest
   test("Doc Exists and excludeJobIds is an ArrayList Containing JobId") {
     val sessionId = "session123"
     val jobId = "jobABC"
-    val osClient = mock[OSClient]
+    val mockOSClient = mock[OSClient]
     val sessionIndex = "sessionIndex"
-    val handleSessionError = mock[Function1[String, Unit]]
+    val lastUpdateTime = System.currentTimeMillis()
+    val mockSparkSession = mock[SparkSession]
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn(sessionIndex)
+
+    val sessionManager = new SessionManagerImpl(mockSparkSession, Some("resultIndex")) {
+      override val osClient: OSClient = mockOSClient
+    }
 
     val getResponse = mock[GetResponse]
-    when(osClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
+    when(mockOSClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
     when(getResponse.isExists()).thenReturn(true)
 
     // Create a sourceMap with excludeJobIds as an ArrayList containing jobId
     val sourceMap = new java.util.HashMap[String, Object]()
+    sourceMap.put("applicationId", applicationId.asInstanceOf[Object])
+    sourceMap.put("state", "running".asInstanceOf[Object])
     sourceMap.put("jobId", jobId.asInstanceOf[Object])
+    sourceMap.put("sessionId", sessionId.asInstanceOf[Object])
+    sourceMap.put("lastUpdateTime", lastUpdateTime.asInstanceOf[Object])
 
     // Creating an ArrayList and adding the jobId to it
     val excludeJobIdsList = new java.util.ArrayList[String]()
@@ -530,9 +571,8 @@ class FlintREPLTest
     sourceMap.put("excludeJobIds", excludeJobIdsList.asInstanceOf[Object])
 
     when(getResponse.getSourceAsMap).thenReturn(sourceMap)
-
     // Execute the method under test
-    val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
+    val result = FlintREPL.canPickNextStatement(sessionId, sessionManager, jobId)
 
     // The function should return false since jobId is excluded
     assert(!result)
@@ -541,16 +581,30 @@ class FlintREPLTest
   test("Doc Exists and excludeJobIds is an ArrayList Not Containing JobId") {
     val sessionId = "session123"
     val jobId = "jobABC"
-    val osClient = mock[OSClient]
+    val mockOSClient = mock[OSClient]
     val sessionIndex = "sessionIndex"
+    val lastUpdateTime = System.currentTimeMillis()
+    val mockSparkSession = mock[SparkSession]
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn(sessionIndex)
+
+    val sessionManager = new SessionManagerImpl(mockSparkSession, Some("resultIndex")) {
+      override val osClient: OSClient = mockOSClient
+    }
 
     val getResponse = mock[GetResponse]
-    when(osClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
+    when(mockOSClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
     when(getResponse.isExists()).thenReturn(true)
 
     // Create a sourceMap with excludeJobIds as an ArrayList not containing jobId
     val sourceMap = new java.util.HashMap[String, Object]()
+    sourceMap.put("applicationId", applicationId.asInstanceOf[Object])
+    sourceMap.put("state", "running".asInstanceOf[Object])
     sourceMap.put("jobId", jobId.asInstanceOf[Object])
+    sourceMap.put("sessionId", sessionId.asInstanceOf[Object])
+    sourceMap.put("lastUpdateTime", lastUpdateTime.asInstanceOf[Object])
 
     // Creating an ArrayList and adding a different jobId to it
     val excludeJobIdsList = new java.util.ArrayList[String]()
@@ -560,7 +614,7 @@ class FlintREPLTest
     when(getResponse.getSourceAsMap).thenReturn(sourceMap)
 
     // Execute the method under test
-    val result = FlintREPL.canPickNextStatement(sessionId, jobId, osClient, sessionIndex)
+    val result = FlintREPL.canPickNextStatement(sessionId, sessionManager, jobId)
 
     // The function should return true since the jobId is not in the excludeJobIds list
     assert(result)
@@ -571,34 +625,53 @@ class FlintREPLTest
     val exception = new RuntimeException(
       new ConnectException(
         "Timeout connecting to [search-foo-1-bar.eu-west-1.es.amazonaws.com:443]"))
-    val osClient = mock[OSClient]
-    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+    val mockOSClient = mock[OSClient]
+    when(
+      mockOSClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
       .thenReturn(mockReader)
     when(mockReader.hasNext).thenThrow(exception)
+
+    when(mockOSClient.getIndexMetadata(any[String])).thenReturn(FlintREPL.resultIndexMapping)
 
     val maxRetries = 1
     var actualRetries = 0
 
-    val resultIndex = "testResultIndex"
     val dataSource = "testDataSource"
-    val sessionIndex = "testSessionIndex"
     val sessionId = "testSessionId"
     val jobId = "testJobId"
     val applicationId = "testApplicationId"
+    val sessionIndex = "sessionIndex"
+    val lastUpdateTime = System.currentTimeMillis()
+
+    val getResponse = mock[GetResponse]
+    when(mockOSClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
+    when(getResponse.isExists()).thenReturn(true)
+
+    // Create a sourceMap with excludeJobIds as an ArrayList not containing jobId
+    val sourceMap = new java.util.HashMap[String, Object]()
+    sourceMap.put("applicationId", applicationId.asInstanceOf[Object])
+    sourceMap.put("state", "running".asInstanceOf[Object])
+    sourceMap.put("jobId", jobId.asInstanceOf[Object])
+    sourceMap.put("sessionId", sessionId.asInstanceOf[Object])
+    sourceMap.put("lastUpdateTime", lastUpdateTime.asInstanceOf[Object])
 
     val spark = SparkSession.builder().master("local").appName("FlintREPLTest").getOrCreate()
     try {
-      val flintSessionIndexUpdater = mock[OpenSearchUpdater]
+      spark.conf.set(FlintSparkConf.REQUEST_INDEX.key, sessionIndex)
+      val sessionManager = new SessionManagerImpl(spark, Some("resultIndex")) {
+        override val osClient: OSClient = mockOSClient
+      }
+
+      val queryResultWriter = mock[QueryResultWriter]
 
       val commandContext = CommandContext(
+        applicationId,
+        jobId,
         spark,
         dataSource,
-        resultIndex,
         sessionId,
-        flintSessionIndexUpdater,
-        osClient,
-        sessionIndex,
-        jobId,
+        sessionManager,
+        queryResultWriter,
         Duration(10, MINUTES),
         60,
         60,
@@ -624,6 +697,9 @@ class FlintREPLTest
     when(mockSparkSession.conf).thenReturn(mockConf)
     when(mockSparkSession.conf.get(FlintSparkConf.JOB_TYPE.key))
       .thenReturn(FlintSparkConf.JOB_TYPE.defaultValue.get)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn("someSessionIndex")
+
     // val mockExecutionContextExecutor: ExecutionContextExecutor = mock[ExecutionContextExecutor]
     val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor("flint-repl", 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
@@ -648,18 +724,35 @@ class FlintREPLTest
         .thenReturn(expectedDataFrame)
 
       when(expectedDataFrame.toDF(any[Seq[String]]: _*)).thenReturn(expectedDataFrame)
-
       val sparkContext = mock[SparkContext]
       when(mockSparkSession.sparkContext).thenReturn(sparkContext)
 
+      val sessionManager = new SessionManagerImpl(mockSparkSession, Some("resultIndex"))
+      val queryResultWriter = mock[QueryResultWriter]
+      val commandContext = CommandContext(
+        applicationId,
+        jobId,
+        mockSparkSession,
+        dataSource,
+        sessionId,
+        sessionManager,
+        queryResultWriter,
+        Duration(10, MINUTES),
+        60,
+        60,
+        DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY)
+      val statementExecutionManager = new StatementExecutionManagerImpl(commandContext)
+
       val result = FlintREPL.executeAndHandle(
+        applicationId,
+        jobId,
         mockSparkSession,
         flintStatement,
+        statementExecutionManager,
         dataSource,
         sessionId,
         executionContext,
         startTime,
-        // make sure it times out before mockSparkSession.sql can return, which takes 60 seconds
         Duration(1, SECONDS),
         600000)
 
@@ -677,6 +770,9 @@ class FlintREPLTest
     when(mockSparkSession.conf).thenReturn(mockConf)
     when(mockSparkSession.conf.get(FlintSparkConf.JOB_TYPE.key))
       .thenReturn(FlintSparkConf.JOB_TYPE.defaultValue.get)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn("someSessionIndex")
+
     val flintStatement =
       new FlintStatement(
         "Running",
@@ -705,14 +801,33 @@ class FlintREPLTest
         .thenReturn(expectedDataFrame)
       when(expectedDataFrame.toDF(any[Seq[String]]: _*)).thenReturn(expectedDataFrame)
 
+      val sessionManager = new SessionManagerImpl(mockSparkSession, Some("resultIndex"))
+      val queryResultWriter = mock[QueryResultWriter]
+      val commandContext = CommandContext(
+        applicationId,
+        jobId,
+        mockSparkSession,
+        dataSource,
+        sessionId,
+        sessionManager,
+        queryResultWriter,
+        Duration(10, MINUTES),
+        60,
+        60,
+        DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY)
+      val statementExecutionManager = new StatementExecutionManagerImpl(commandContext)
+
       val result = FlintREPL.executeAndHandle(
+        applicationId,
+        jobId,
         mockSparkSession,
         flintStatement,
+        statementExecutionManager,
         dataSource,
         sessionId,
         executionContext,
         startTime,
-        Duration.Inf, // Use Duration.Inf or a large enough duration to avoid a timeout,
+        Duration.Inf,
         600000)
 
       // Verify that ParseException was caught and handled
@@ -720,19 +835,38 @@ class FlintREPLTest
       flintStatement.error should not be None
       flintStatement.error.get should include("Syntax error:")
     } finally threadPool.shutdown()
-
   }
 
   test("setupFlintJobWithExclusionCheck should proceed normally when no jobs are excluded") {
-    val osClient = mock[OSClient]
+    val sessionIndex = "sessionIndex"
+    val sessionId = "session1"
+    val mockSparkSession = mock[SparkSession]
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn(sessionIndex)
+
+    val mockOSClient = mock[OSClient]
     val getResponse = mock[GetResponse]
-    when(osClient.getDoc(*, *)).thenReturn(getResponse)
+    when(mockOSClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
+    when(getResponse.isExists()).thenReturn(true)
+
+    val mockOpenSearchUpdater = mock[OpenSearchUpdater]
+    doNothing().when(mockOpenSearchUpdater).upsert(any[String], any[String])
+
+    val sessionManager = new SessionManagerImpl(mockSparkSession, Some("resultIndex")) {
+      override val osClient: OSClient = mockOSClient
+      override lazy val flintSessionIndexUpdater: OpenSearchUpdater = mockOpenSearchUpdater
+    }
+    val conf = new SparkConf().set("spark.flint.deployment.excludeJobs", "")
+
+    when(mockOSClient.getDoc(*, *)).thenReturn(getResponse)
     when(getResponse.isExists()).thenReturn(true)
     when(getResponse.getSourceAsMap).thenReturn(
       Map[String, Object](
         "applicationId" -> "app1",
         "jobId" -> "job1",
-        "sessionId" -> "session1",
+        "sessionId" -> sessionId,
         "lastUpdateTime" -> java.lang.Long.valueOf(12345L),
         "error" -> "someError",
         "state" -> "running",
@@ -740,49 +874,77 @@ class FlintREPLTest
     when(getResponse.getSeqNo).thenReturn(0L)
     when(getResponse.getPrimaryTerm).thenReturn(0L)
 
-    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
-    val mockConf = new SparkConf().set("spark.flint.deployment.excludeJobs", "")
-
     // other mock objects like osClient, flintSessionIndexUpdater with necessary mocking
     val result = FlintREPL.setupFlintJobWithExclusionCheck(
-      mockConf,
-      Some("sessionIndex"),
-      Some("sessionId"),
-      osClient,
-      "jobId",
-      "appId",
-      flintSessionIndexUpdater,
+      conf,
+      "session1",
+      jobId,
+      applicationId,
+      sessionManager,
       System.currentTimeMillis())
     assert(!result) // Expecting false as the job should proceed normally
   }
 
   test("setupFlintJobWithExclusionCheck should exit early if current job is excluded") {
-    val osClient = mock[OSClient]
+    val sessionIndex = "sessionIndex"
+    val sessionId = "session1"
+    val mockSparkSession = mock[SparkSession]
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn(sessionIndex)
+
+    val mockOSClient = mock[OSClient]
     val getResponse = mock[GetResponse]
-    when(osClient.getDoc(*, *)).thenReturn(getResponse)
+    when(mockOSClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
+    when(getResponse.isExists()).thenReturn(true)
+
+    val mockOpenSearchUpdater = mock[OpenSearchUpdater]
+    doNothing().when(mockOpenSearchUpdater).upsert(any[String], any[String])
+
+    val sessionManager = new SessionManagerImpl(mockSparkSession, Some("resultIndex")) {
+      override val osClient: OSClient = mockOSClient
+      override lazy val flintSessionIndexUpdater: OpenSearchUpdater = mockOpenSearchUpdater
+    }
+
+    when(mockOSClient.getDoc(*, *)).thenReturn(getResponse)
     when(getResponse.isExists()).thenReturn(true)
     // Mock the rest of the GetResponse as needed
 
-    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
-    val mockConf = new SparkConf().set("spark.flint.deployment.excludeJobs", "jobId")
+    val conf = new SparkConf().set("spark.flint.deployment.excludeJobs", jobId)
 
     val result = FlintREPL.setupFlintJobWithExclusionCheck(
-      mockConf,
-      Some("sessionIndex"),
-      Some("sessionId"),
-      osClient,
-      "jobId",
-      "appId",
-      flintSessionIndexUpdater,
+      conf,
+      sessionId,
+      jobId,
+      applicationId,
+      sessionManager,
       System.currentTimeMillis())
     assert(result) // Expecting true as the job should exit early
   }
 
   test("setupFlintJobWithExclusionCheck should exit early if a duplicate job is running") {
-    val osClient = mock[OSClient]
+    val sessionIndex = "sessionIndex"
+    val sessionId = "session1"
+    val mockSparkSession = mock[SparkSession]
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn(sessionIndex)
+
+    val mockOSClient = mock[OSClient]
     val getResponse = mock[GetResponse]
-    when(osClient.getDoc(*, *)).thenReturn(getResponse)
+    when(mockOSClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
     when(getResponse.isExists()).thenReturn(true)
+
+    val mockOpenSearchUpdater = mock[OpenSearchUpdater]
+    doNothing().when(mockOpenSearchUpdater).upsert(any[String], any[String])
+
+    val sessionManager = new SessionManagerImpl(mockSparkSession, Some("resultIndex")) {
+      override val osClient: OSClient = mockOSClient
+      override lazy val flintSessionIndexUpdater: OpenSearchUpdater = mockOpenSearchUpdater
+    }
+
     // Mock the GetResponse to simulate a scenario of a duplicate job
     when(getResponse.getSourceAsMap).thenReturn(
       Map[String, Object](
@@ -797,99 +959,113 @@ class FlintREPLTest
           .asList("job-2", "job-1") // Include this inside the Map
       ).asJava)
 
-    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
-    val mockConf = new SparkConf().set("spark.flint.deployment.excludeJobs", "job-1,job-2")
+    val conf = new SparkConf().set("spark.flint.deployment.excludeJobs", "job-1,job-2")
 
     val result = FlintREPL.setupFlintJobWithExclusionCheck(
-      mockConf,
-      Some("sessionIndex"),
-      Some("sessionId"),
-      osClient,
-      "jobId",
-      "appId",
-      flintSessionIndexUpdater,
+      conf,
+      sessionId,
+      jobId,
+      applicationId,
+      sessionManager,
       System.currentTimeMillis())
     assert(result) // Expecting true for early exit due to duplicate job
   }
 
   test("setupFlintJobWithExclusionCheck should setup job normally when conditions are met") {
-    val osClient = mock[OSClient]
-    val getResponse = mock[GetResponse]
-    when(osClient.getDoc(*, *)).thenReturn(getResponse)
-    when(getResponse.isExists()).thenReturn(true)
+    val sessionIndex = "sessionIndex"
+    val sessionId = "session1"
+    val mockSparkSession = mock[SparkSession]
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn(sessionIndex)
 
-    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
-    val mockConf = new SparkConf().set("spark.flint.deployment.excludeJobs", "job-3,job-4")
+    val mockOSClient = mock[OSClient]
+    val getResponse = mock[GetResponse]
+    when(mockOSClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
+    when(getResponse.isExists()).thenReturn(true)
+    when(getResponse.getSourceAsMap).thenReturn(
+      Map[String, Object](
+        "applicationId" -> applicationId,
+        "jobId" -> jobId,
+        "sessionId" -> sessionId,
+        "lastUpdateTime" -> java.lang.Long.valueOf(12345L),
+        "error" -> "someError",
+        "state" -> "running",
+        "jobStartTime" -> java.lang.Long.valueOf(0L)).asJava)
+
+    val mockOpenSearchUpdater = mock[OpenSearchUpdater]
+    doNothing().when(mockOpenSearchUpdater).upsert(any[String], any[String])
+
+    val sessionManager = new SessionManagerImpl(mockSparkSession, Some("resultIndex")) {
+      override val osClient: OSClient = mockOSClient
+      override lazy val flintSessionIndexUpdater: OpenSearchUpdater = mockOpenSearchUpdater
+    }
+
+    val conf = new SparkConf().set("spark.flint.deployment.excludeJobs", "job-3,job-4")
 
     val result = FlintREPL.setupFlintJobWithExclusionCheck(
-      mockConf,
-      Some("sessionIndex"),
-      Some("sessionId"),
-      osClient,
-      "jobId",
-      "appId",
-      flintSessionIndexUpdater,
+      conf,
+      sessionId,
+      jobId,
+      applicationId,
+      sessionManager,
       System.currentTimeMillis())
     assert(!result) // Expecting false as the job proceeds normally
   }
 
-  test(
-    "setupFlintJobWithExclusionCheck should throw NoSuchElementException if sessionIndex or sessionId is missing") {
-    val osClient = mock[OSClient]
-    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
-    val mockConf = new SparkConf().set("spark.flint.deployment.excludeJobs", "")
-
-    assertThrows[NoSuchElementException] {
-      FlintREPL.setupFlintJobWithExclusionCheck(
-        mockConf,
-        None, // No sessionIndex provided
-        None, // No sessionId provided
-        osClient,
-        "jobId",
-        "appId",
-        flintSessionIndexUpdater,
-        System.currentTimeMillis())
-    }
-  }
-
   test("queryLoop continue until inactivity limit is reached") {
-    val mockReader = mock[FlintReader]
-    val osClient = mock[OSClient]
-    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
-      .thenReturn(mockReader)
-    when(mockReader.hasNext).thenReturn(false)
-
     val resultIndex = "testResultIndex"
     val dataSource = "testDataSource"
     val sessionIndex = "testSessionIndex"
     val sessionId = "testSessionId"
-    val jobId = "testJobId"
+
+    val mockReader = mock[FlintReader]
+    val mockOSClient = mock[OSClient]
+    val getResponse = mock[GetResponse]
+
+    when(mockOSClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
+    when(getResponse.isExists()).thenReturn(true)
+    when(getResponse.getSourceAsMap).thenReturn(
+      Map[String, Object](
+        "applicationId" -> applicationId,
+        "jobId" -> jobId,
+        "sessionId" -> sessionId,
+        "lastUpdateTime" -> java.lang.Long.valueOf(12345L),
+        "error" -> "someError",
+        "state" -> "running",
+        "jobStartTime" -> java.lang.Long.valueOf(0L)).asJava)
+
+    when(
+      mockOSClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+      .thenReturn(mockReader)
+    when(mockReader.hasNext).thenReturn(false)
+    when(mockOSClient.doesIndexExist(*)).thenReturn(true)
+    when(mockOSClient.getIndexMetadata(*)).thenReturn(FlintREPL.resultIndexMapping)
 
     val shortInactivityLimit = 500 // 500 milliseconds
 
     // Create a SparkSession for testing
     val spark = SparkSession.builder().master("local").appName("FlintREPLTest").getOrCreate()
 
-    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
+    spark.conf.set(FlintSparkConf.REQUEST_INDEX.key, sessionIndex)
+    val sessionManager = new SessionManagerImpl(spark, Some(resultIndex)) {
+      override val osClient: OSClient = mockOSClient
+    }
+    val queryResultWriter = mock[QueryResultWriter]
 
     val commandContext = CommandContext(
+      applicationId,
+      jobId,
       spark,
       dataSource,
-      resultIndex,
       sessionId,
-      flintSessionIndexUpdater,
-      osClient,
-      sessionIndex,
-      jobId,
+      sessionManager,
+      queryResultWriter,
       Duration(10, MINUTES),
       shortInactivityLimit,
       60,
       DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY)
-
-    // Mock processCommands to always allow loop continuation
-    val getResponse = mock[GetResponse]
-    when(osClient.getDoc(*, *)).thenReturn(getResponse)
-    when(getResponse.isExists()).thenReturn(false)
 
     val startTime = System.currentTimeMillis()
 
@@ -905,47 +1081,60 @@ class FlintREPLTest
   }
 
   test("queryLoop should stop when canPickUpNextStatement is false") {
-    val mockReader = mock[FlintReader]
-    val osClient = mock[OSClient]
-    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
-      .thenReturn(mockReader)
-    when(mockReader.hasNext).thenReturn(true)
-
     val resultIndex = "testResultIndex"
     val dataSource = "testDataSource"
     val sessionIndex = "testSessionIndex"
     val sessionId = "testSessionId"
-    val jobId = "testJobId"
+
+    val mockReader = mock[FlintReader]
+    val mockOSClient = mock[OSClient]
+
+    // Mocking canPickNextStatement to return false
+    when(mockOSClient.getDoc(sessionIndex, sessionId)).thenAnswer(_ => {
+      val mockGetResponse = mock[GetResponse]
+      when(mockGetResponse.isExists()).thenReturn(true)
+      when(mockGetResponse.getSourceAsMap).thenReturn(
+        Map[String, Object](
+          "applicationId" -> applicationId,
+          "jobId" -> "differentJobId",
+          "sessionId" -> sessionId,
+          "lastUpdateTime" -> java.lang.Long.valueOf(12345L),
+          "error" -> "someError",
+          "state" -> "running",
+          "jobStartTime" -> java.lang.Long.valueOf(0L)).asJava)
+      mockGetResponse
+    })
+
+    when(
+      mockOSClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+      .thenReturn(mockReader)
+    when(mockReader.hasNext).thenReturn(true)
+    when(mockOSClient.doesIndexExist(*)).thenReturn(true)
+    when(mockOSClient.getIndexMetadata(*)).thenReturn(FlintREPL.resultIndexMapping)
+
     val longInactivityLimit = 10000 // 10 seconds
 
     // Create a SparkSession for testing
     val spark = SparkSession.builder().master("local").appName("FlintREPLTest").getOrCreate()
 
-    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
+    spark.conf.set(FlintSparkConf.REQUEST_INDEX.key, sessionIndex)
+    val sessionManager = new SessionManagerImpl(spark, Some(resultIndex)) {
+      override val osClient: OSClient = mockOSClient
+    }
+    val queryResultWriter = mock[QueryResultWriter]
 
     val commandContext = CommandContext(
+      applicationId,
+      jobId,
       spark,
       dataSource,
-      resultIndex,
       sessionId,
-      flintSessionIndexUpdater,
-      osClient,
-      sessionIndex,
-      jobId,
+      sessionManager,
+      queryResultWriter,
       Duration(10, MINUTES),
       longInactivityLimit,
       60,
       DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY)
-
-    // Mocking canPickNextStatement to return false
-    when(osClient.getDoc(sessionIndex, sessionId)).thenAnswer(_ => {
-      val mockGetResponse = mock[GetResponse]
-      when(mockGetResponse.isExists()).thenReturn(true)
-      val sourceMap = new java.util.HashMap[String, Object]()
-      sourceMap.put("jobId", "differentJobId")
-      when(mockGetResponse.getSourceAsMap).thenReturn(sourceMap)
-      mockGetResponse
-    })
 
     val startTime = System.currentTimeMillis()
 
@@ -961,34 +1150,52 @@ class FlintREPLTest
   }
 
   test("queryLoop should properly shut down the thread pool after execution") {
-    val mockReader = mock[FlintReader]
-    val osClient = mock[OSClient]
-    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
-      .thenReturn(mockReader)
-    when(mockReader.hasNext).thenReturn(false)
-
     val resultIndex = "testResultIndex"
     val dataSource = "testDataSource"
     val sessionIndex = "testSessionIndex"
     val sessionId = "testSessionId"
-    val jobId = "testJobId"
+
+    val mockReader = mock[FlintReader]
+    val mockOSClient = mock[OSClient]
+    when(
+      mockOSClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+      .thenReturn(mockReader)
+    when(mockReader.hasNext).thenReturn(false)
+    when(mockOSClient.doesIndexExist(*)).thenReturn(true)
+    when(mockOSClient.getIndexMetadata(*)).thenReturn(FlintREPL.resultIndexMapping)
+
+    val getResponse = mock[GetResponse]
+    when(mockOSClient.getDoc(sessionIndex, sessionId)).thenReturn(getResponse)
+    when(getResponse.isExists()).thenReturn(true)
+    when(getResponse.getSourceAsMap).thenReturn(
+      Map[String, Object](
+        "applicationId" -> applicationId,
+        "jobId" -> jobId,
+        "sessionId" -> sessionId,
+        "lastUpdateTime" -> java.lang.Long.valueOf(12345L),
+        "error" -> "someError",
+        "state" -> "running",
+        "jobStartTime" -> java.lang.Long.valueOf(0L)).asJava)
 
     val inactivityLimit = 500 // 500 milliseconds
 
     // Create a SparkSession for testing
     val spark = SparkSession.builder().master("local").appName("FlintREPLTest").getOrCreate()
 
-    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
+    spark.conf.set(FlintSparkConf.REQUEST_INDEX.key, sessionIndex)
+    val sessionManager = new SessionManagerImpl(spark, Some(resultIndex)) {
+      override val osClient: OSClient = mockOSClient
+    }
+    val queryResultWriter = mock[QueryResultWriter]
 
     val commandContext = CommandContext(
+      applicationId,
+      jobId,
       spark,
       dataSource,
-      resultIndex,
       sessionId,
-      flintSessionIndexUpdater,
-      osClient,
-      sessionIndex,
-      jobId,
+      sessionManager,
+      queryResultWriter,
       Duration(10, MINUTES),
       inactivityLimit,
       60,
@@ -1011,35 +1218,54 @@ class FlintREPLTest
   }
 
   test("queryLoop handle exceptions within the loop gracefully") {
-    val mockReader = mock[FlintReader]
-    val osClient = mock[OSClient]
-    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
-      .thenReturn(mockReader)
-    // Simulate an exception thrown when hasNext is called
-    when(mockReader.hasNext).thenThrow(new RuntimeException("Test exception"))
-
     val resultIndex = "testResultIndex"
     val dataSource = "testDataSource"
     val sessionIndex = "testSessionIndex"
     val sessionId = "testSessionId"
-    val jobId = "testJobId"
+
+    val mockReader = mock[FlintReader]
+    val mockOSClient = mock[OSClient]
+    val getResponse = mock[GetResponse]
+
+    when(mockOSClient.getDoc(*, *)).thenReturn(getResponse)
+    when(getResponse.isExists()).thenReturn(true)
+    when(getResponse.getSourceAsMap).thenReturn(
+      Map[String, Object](
+        "applicationId" -> applicationId,
+        "jobId" -> jobId,
+        "sessionId" -> sessionId,
+        "lastUpdateTime" -> java.lang.Long.valueOf(12345L),
+        "error" -> "someError",
+        "state" -> "running",
+        "jobStartTime" -> java.lang.Long.valueOf(0L)).asJava)
+
+    when(
+      mockOSClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+      .thenReturn(mockReader)
+    // Simulate an exception thrown when hasNext is called
+    when(mockReader.hasNext).thenThrow(new RuntimeException("Test exception"))
+    when(mockOSClient.doesIndexExist(*)).thenReturn(true)
+    when(mockOSClient.getIndexMetadata(*)).thenReturn(FlintREPL.resultIndexMapping)
 
     val inactivityLimit = 500 // 500 milliseconds
 
     // Create a SparkSession for testing
     val spark = SparkSession.builder().master("local").appName("FlintREPLTest").getOrCreate()
 
-    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
+    spark.conf.set(FlintSparkConf.REQUEST_INDEX.key, sessionIndex)
+    val sessionManager = new SessionManagerImpl(spark, Some(resultIndex)) {
+      override val osClient: OSClient = mockOSClient
+    }
+    val queryResultWriter = mock[QueryResultWriter]
 
     val commandContext = CommandContext(
+      applicationId,
+      jobId,
       spark,
       dataSource,
-      resultIndex,
       sessionId,
-      flintSessionIndexUpdater,
-      osClient,
-      sessionIndex,
-      jobId,
+      sessionManager,
+      queryResultWriter,
       Duration(10, MINUTES),
       inactivityLimit,
       60,
@@ -1064,15 +1290,24 @@ class FlintREPLTest
   }
 
   test("queryLoop should correctly update loop control variables") {
+    val resultIndex = "testResultIndex"
+    val dataSource = "testDataSource"
+    val sessionIndex = "testSessionIndex"
+    val sessionId = "testSessionId"
+
     val mockReader = mock[FlintReader]
-    val osClient = mock[OSClient]
-    when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+    val mockOSClient = mock[OSClient]
+    when(
+      mockOSClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
       .thenReturn(mockReader)
     val getResponse = mock[GetResponse]
-    when(osClient.getDoc(*, *)).thenReturn(getResponse)
+    when(mockOSClient.getDoc(*, *)).thenReturn(getResponse)
     when(getResponse.isExists()).thenReturn(false)
-    when(osClient.doesIndexExist(*)).thenReturn(true)
-    when(osClient.getIndexMetadata(*)).thenReturn(FlintREPL.resultIndexMapping)
+    when(mockOSClient.doesIndexExist(*)).thenReturn(true)
+    when(mockOSClient.getIndexMetadata(*)).thenReturn(FlintREPL.resultIndexMapping)
+
+    val mockOpenSearchUpdater = mock[OpenSearchUpdater]
+    doNothing().when(mockOpenSearchUpdater).upsert(any[String], any[String])
 
     // Configure mockReader to return true once and then false to exit the loop
     when(mockReader.hasNext).thenReturn(true).thenReturn(false)
@@ -1088,12 +1323,6 @@ class FlintREPLTest
         """
     when(mockReader.next).thenReturn(command)
 
-    val resultIndex = "testResultIndex"
-    val dataSource = "testDataSource"
-    val sessionIndex = "testSessionIndex"
-    val sessionId = "testSessionId"
-    val jobId = "testJobId"
-
     val inactivityLimit = 5000 // 5 seconds
 
     // Create a SparkSession for testing\
@@ -1108,20 +1337,27 @@ class FlintREPLTest
     when(mockSparkSession.conf).thenReturn(mockConf)
     when(mockSparkSession.conf.get(FlintSparkConf.JOB_TYPE.key))
       .thenReturn(FlintSparkConf.JOB_TYPE.defaultValue.get)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn(sessionIndex)
+    when(mockSparkSession.conf.get(FlintSparkConf.CUSTOM_STATEMENT_MANAGER.key, ""))
+      .thenReturn("")
 
     when(expectedDataFrame.toDF(any[Seq[String]]: _*)).thenReturn(expectedDataFrame)
 
-    val flintSessionIndexUpdater = mock[OpenSearchUpdater]
+    val sessionManager = new SessionManagerImpl(mockSparkSession, Some(resultIndex)) {
+      override val osClient: OSClient = mockOSClient
+      override lazy val flintSessionIndexUpdater: OpenSearchUpdater = mockOpenSearchUpdater
+    }
+    val queryResultWriter = mock[QueryResultWriter]
 
     val commandContext = CommandContext(
+      applicationId,
+      jobId,
       mockSparkSession,
       dataSource,
-      resultIndex,
       sessionId,
-      flintSessionIndexUpdater,
-      osClient,
-      sessionIndex,
-      jobId,
+      sessionManager,
+      queryResultWriter,
       Duration(10, MINUTES),
       inactivityLimit,
       60,
@@ -1136,7 +1372,10 @@ class FlintREPLTest
 
     // Assuming processCommands updates the lastActivityTime to the current time
     assert(endTime - startTime >= inactivityLimit)
-    verify(osClient, times(1)).getIndexMetadata(*)
+
+    val expectedCalls =
+      Math.ceil(inactivityLimit.toDouble / DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY).toInt
+    verify(mockOSClient, Mockito.atMost(expectedCalls)).getIndexMetadata(*)
   }
 
   val testCases = Table(
@@ -1148,35 +1387,52 @@ class FlintREPLTest
   test(
     "queryLoop should execute loop without processing any commands for different inactivity limits and frequencies") {
     forAll(testCases) { (inactivityLimit, queryLoopExecutionFrequency) =>
-      val mockReader = mock[FlintReader]
-      val osClient = mock[OSClient]
-      when(osClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
-        .thenReturn(mockReader)
-      val getResponse = mock[GetResponse]
-      when(osClient.getDoc(*, *)).thenReturn(getResponse)
-      when(getResponse.isExists()).thenReturn(false)
-      when(mockReader.hasNext).thenReturn(false)
-
       val resultIndex = "testResultIndex"
       val dataSource = "testDataSource"
       val sessionIndex = "testSessionIndex"
       val sessionId = "testSessionId"
-      val jobId = "testJobId"
+
+      val mockReader = mock[FlintReader]
+      val mockOSClient = mock[OSClient]
+      when(
+        mockOSClient
+          .createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
+        .thenReturn(mockReader)
+      val getResponse = mock[GetResponse]
+      when(mockOSClient.getDoc(*, *)).thenReturn(getResponse)
+      when(mockOSClient.doesIndexExist(*)).thenReturn(true)
+      when(mockOSClient.getIndexMetadata(*)).thenReturn(FlintREPL.resultIndexMapping)
+
+      when(getResponse.isExists()).thenReturn(false)
+      when(getResponse.getSourceAsMap).thenReturn(
+        Map[String, Object](
+          "applicationId" -> applicationId,
+          "jobId" -> jobId,
+          "sessionId" -> sessionId,
+          "lastUpdateTime" -> java.lang.Long.valueOf(12345L),
+          "error" -> "someError",
+          "state" -> "running",
+          "jobStartTime" -> java.lang.Long.valueOf(0L)).asJava)
+
+      when(mockReader.hasNext).thenReturn(false)
 
       // Create a SparkSession for testing
       val spark = SparkSession.builder().master("local").appName("FlintREPLTest").getOrCreate()
 
-      val flintSessionIndexUpdater = mock[OpenSearchUpdater]
+      spark.conf.set(FlintSparkConf.REQUEST_INDEX.key, sessionIndex)
+      val sessionManager = new SessionManagerImpl(spark, Some(resultIndex)) {
+        override val osClient: OSClient = mockOSClient
+      }
+      val queryResultWriter = mock[QueryResultWriter]
 
       val commandContext = CommandContext(
+        applicationId,
+        jobId,
         spark,
         dataSource,
-        resultIndex,
         sessionId,
-        flintSessionIndexUpdater,
-        osClient,
-        sessionIndex,
-        jobId,
+        sessionManager,
+        queryResultWriter,
         Duration(10, MINUTES),
         inactivityLimit,
         60,
