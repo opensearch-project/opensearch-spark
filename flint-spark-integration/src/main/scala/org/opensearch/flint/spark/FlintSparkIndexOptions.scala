@@ -5,12 +5,16 @@
 
 package org.opensearch.flint.spark
 
+import java.util.UUID
+
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, INCREMENTAL_REFRESH, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, SCHEDULER_MODE, WATERMARK_DELAY}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
+
+import org.apache.spark.sql.flint.config.FlintSparkConf
 
 /**
  * Flint Spark index configurable options.
@@ -163,6 +167,18 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
       case Some(modeStr) =>
         SchedulerMode.fromString(modeStr) // Will throw an exception if the mode is invalid
       case None => // no action needed if modeStr is empty
+    }
+  }
+
+  def checkpointLocation(indexName: String, flintSparkConf: FlintSparkConf): Option[String] = {
+    options.get(CHECKPOINT_LOCATION.toString) match {
+      case Some(location) => Some(location)
+      case None =>
+        // Currently, deleting and recreating the flint index will enter same checkpoint dir.
+        // Use a UUID to isolate checkpoint data.
+        flintSparkConf.checkpointLocationRootDir.map { rootDir =>
+          s"${rootDir.stripSuffix("/")}/$indexName/${UUID.randomUUID().toString}"
+        }
     }
   }
 }
