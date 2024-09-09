@@ -186,8 +186,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
   test("create skipping index with default checkpoint location successfully") {
     withTempDir { checkpointDir =>
-      conf.setConfString(
-        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key,
+      setFlintSparkConf(
+        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR,
         checkpointDir.getAbsolutePath)
       flint
         .skippingIndex()
@@ -367,6 +367,58 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
     }
 
     flint.queryIndex(testIndex).collect().toSet should have size 2
+  }
+
+  test("update skipping index successfully with custom checkpoint location") {
+    withTempDir { checkpointDir =>
+      // 1. Create full refresh SI
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(FlintSparkIndexOptions.empty, testIndex)
+        .create()
+
+      flint.queryIndex(testIndex).collect().toSet should have size 0
+
+      var index = flint.describeIndex(testIndex)
+      var checkpointLocation = index.get.options.checkpointLocation()
+      assert(checkpointLocation.isEmpty, "Checkpoint location should not be defined")
+
+      // 2. Update the spark conf with a custom checkpoint location
+      setFlintSparkConf(
+        FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR,
+        checkpointDir.getAbsolutePath)
+
+      index = flint.describeIndex(testIndex)
+      checkpointLocation = index.get.options.checkpointLocation()
+      assert(checkpointLocation.isEmpty, "Checkpoint location should not be defined")
+
+      // 3. Update Flint index to auto refresh and wait for complete
+      val updatedIndex =
+        flint
+          .skippingIndex()
+          .copyWithUpdate(index.get, FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+      val jobId = flint.updateIndex(updatedIndex)
+      jobId shouldBe defined
+
+      val job = spark.streams.get(jobId.get)
+      failAfter(streamingTimeout) {
+        job.processAllAvailable()
+      }
+
+      flint.queryIndex(testIndex).collect().toSet should have size 2
+
+      index = flint.describeIndex(testIndex)
+
+      checkpointLocation = index.get.options.checkpointLocation()
+      assert(checkpointLocation.isDefined, "Checkpoint location should be defined")
+      assert(
+        checkpointLocation.get.contains(testIndex),
+        s"Checkpoint location dir should contain ${testIndex}")
+
+      conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
+    }
   }
 
   test("can have only 1 skipping index on a table") {
