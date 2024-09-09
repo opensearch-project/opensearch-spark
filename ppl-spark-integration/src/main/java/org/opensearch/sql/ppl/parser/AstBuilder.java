@@ -34,6 +34,7 @@ import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
+import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Parse;
 import org.opensearch.sql.ast.tree.Project;
@@ -49,6 +50,7 @@ import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -126,6 +128,60 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                     .mappingClause().stream()
                     .map(this::internalVisitExpression)
                     .collect(Collectors.toList())));
+  }
+
+  private UnresolvedPlan withRelationExtensions(
+      OpenSearchPPLParser.RelationContext ctx, UnresolvedPlan leftRelationPlan) {
+    OpenSearchPPLParser.JoinSourceContext joinCtx = ctx.relationExtension().joinSource();
+    Join.JoinType joinType;
+    if (joinCtx.joinType() == null) {
+      joinType = Join.JoinType.INNER;
+    } else if (joinCtx.joinType().INNER() != null) {
+      joinType = Join.JoinType.INNER;
+    } else if (joinCtx.joinType().LEFT() != null) {
+      joinType = Join.JoinType.LEFT;
+    } else if (joinCtx.joinType().RIGHT() != null) {
+      joinType = Join.JoinType.RIGHT;
+    } else if (joinCtx.joinType().SEMI() != null) {
+      joinType = Join.JoinType.SEMI;
+    } else if (joinCtx.joinType().ANTI() != null) {
+      joinType = Join.JoinType.ANTI;
+    } else if (joinCtx.joinType().CROSS() != null) {
+      joinType = Join.JoinType.CROSS;
+    } else if (joinCtx.joinType().FULL() != null) {
+      joinType = Join.JoinType.FULL;
+    } else {
+      joinType = Join.JoinType.INNER;
+    }
+    Join.JoinHint joinHint;
+    if (joinCtx.joinHintList() == null) {
+      joinHint = new Join.JoinHint();
+    } else {
+      joinHint = getJoinHintList(joinCtx.joinHintList());
+    }
+    UnresolvedExpression joinCondition = this.internalVisitExpression(joinCtx.joinCriteria());
+    return new Join(leftRelationPlan, visitRelationPrimary(joinCtx.right), joinType, joinCondition, joinHint);
+  }
+
+  private Join.JoinHint getJoinHintList(OpenSearchPPLParser.JoinHintListContext ctx) {
+    return new Join.JoinHint(
+        ctx.hintPair().stream()
+            .collect(Collectors.toMap(
+                p -> p.key.getText(),
+                p -> p.value.getText(),
+                (v1, v2) -> v2,
+                LinkedHashMap::new
+            ))
+    );
+  }
+
+  @Override
+  public UnresolvedPlan visitRelationPrimary(OpenSearchPPLParser.RelationPrimaryContext ctx) {
+    if (ctx.alias != null) {
+      return new Relation(this.internalVisitExpression(ctx.tableSource()), ctx.alias.getText());
+    } else {
+      return new Relation(this.internalVisitExpression(ctx.tableSource()));
+    }
   }
 
   /** Fields command. */
@@ -356,7 +412,16 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   /** From clause. */
   @Override
   public UnresolvedPlan visitFromClause(OpenSearchPPLParser.FromClauseContext ctx) {
-    return visitTableSourceClause(ctx.tableSourceClause());
+    if (ctx.relation() != null) {
+      return visitRelation(ctx.relation());
+    } else {
+      return visitTableSourceClause(ctx.tableSourceClause());
+    }
+  }
+
+  @Override
+  public UnresolvedPlan visitRelation(OpenSearchPPLParser.RelationContext ctx) {
+    return withRelationExtensions(ctx, visitRelationPrimary(ctx.relationPrimary()));
   }
 
   @Override

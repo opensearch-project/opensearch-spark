@@ -36,6 +36,17 @@ KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
 
+//Native JOIN KEYWORDS
+JOIN:                               'JOIN';
+ON:                                 'ON';
+INNER:                              'INNER';
+OUTER:                              'OUTER';
+FULL:                               'FULL';
+SEMI:                               'SEMI';
+ANTI:                               'ANTI';
+CROSS:                              'CROSS';
+HINT_KEY:                           'HINT.' ID_LITERAL;
+
 //CORRELATION KEYWORDS
 CORRELATE:                          'CORRELATE';
 SELF:                               'SELF';

@@ -57,6 +57,7 @@ import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
+import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Parse;
 import org.opensearch.sql.ast.tree.Project;
@@ -175,6 +176,18 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             expressionAnalyzer.visitCorrelationMapping(node.getMappingListContext(), context);
             Seq<Expression> mapping = context.retainAllNamedParseExpressions(e -> e);
             return join(node.getCorrelationType(), fields, mapping, left, right);
+        });
+        return context.getPlan();
+    }
+
+    @Override
+    public LogicalPlan visitJoin(Join node, CatalystPlanContext context) {
+        LogicalPlan left = node.getLeft().accept(this, context);
+        LogicalPlan right = node.getRight().accept(this, context);
+        context.reduce((l, r) -> {
+            Expression joinCondition = visitExpression(node.getJoinCondition(), context);
+            context.popNamedParseExpressions();
+            return join(l, r, node.getJoinType(), joinCondition, node.getJoinHint());
         });
         return context.getPlan();
     }
@@ -466,7 +479,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         @Override
         public Expression visitQualifiedName(QualifiedName node, CatalystPlanContext context) {
-            List<UnresolvedRelation> relation = findRelation(context.traversalContext());
+            List<UnresolvedRelation> relation = findRelation(context.traversalContext()); // check join context.apply
             if (!relation.isEmpty()) {
                 Optional<QualifiedName> resolveField = resolveField(relation, node, context.getRelations());
                 return resolveField.map(qualifiedName -> context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(qualifiedName.getParts()))))

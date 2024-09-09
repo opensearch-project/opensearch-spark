@@ -183,13 +183,55 @@ mlArg
 
 // clauses
 fromClause
-   : SOURCE EQUAL tableSourceClause
-   | INDEX EQUAL tableSourceClause
+   : SOURCE EQUAL relation
+   | INDEX EQUAL relation
+   | SOURCE EQUAL tableSourceClause
+   | INDEX EQUAL relation
    ;
 
 tableSourceClause
    : tableSource (COMMA tableSource)*
    ;
+
+// join
+relation
+   : relationPrimary relationExtension
+   ;
+
+// TODO subsearch
+relationPrimary
+   : tableSource (AS alias = qualifiedName)?
+   ;
+
+relationExtension
+   : joinSource
+   ;
+
+joinSource
+   : (joinType) JOIN right = relationPrimary joinHintList? joinCriteria
+   ;
+
+joinType
+   : INNER?
+   | CROSS
+   | LEFT OUTER?
+   | RIGHT OUTER?
+   | FULL OUTER?
+   | LEFT? SEMI
+   | LEFT? ANTI
+   ;
+
+joinCriteria
+   : ON logicalExpression
+   ;
+
+joinHintList
+    : hintPair (COMMA? hintPair)*
+    ;
+
+hintPair
+    : key = HINT_KEY EQUAL value = ident
+    ;
 
 renameClasue
    : orignalField = wcFieldExpression AS renamedField = wcFieldExpression
