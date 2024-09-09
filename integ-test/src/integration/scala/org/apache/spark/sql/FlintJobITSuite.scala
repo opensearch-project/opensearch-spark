@@ -37,6 +37,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
   val resultIndex = "query_results2"
   val appId = "00feq82b752mbt0p"
   val dataSourceName = "my_glue1"
+  val queryId = "testQueryId"
   var osClient: OSClient = _
   val threadLocalFuture = new ThreadLocal[Future[Unit]]()
 
@@ -103,9 +104,10 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
           jobRunId,
           spark,
           query,
+          queryId,
           dataSourceName,
           resultIndex,
-          true,
+          "streaming",
           streamingRunningCount)
       job.terminateJVM = false
       job.start()
@@ -144,7 +146,6 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
 
       assert(result.status == "SUCCESS", s"expected status is SUCCESS, but got ${result.status}")
       assert(result.error.isEmpty, s"we don't expect error, but got ${result.error}")
-      assert(result.queryId.isEmpty, s"we don't expect query id, but got ${result.queryId}")
 
       commonAssert(result, jobRunId, query, queryStartTime)
       true
@@ -362,7 +363,9 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
       result.queryRunTime < System.currentTimeMillis() - queryStartTime,
       s"expected query run time ${result.queryRunTime} should be less than ${System
           .currentTimeMillis() - queryStartTime}, but it is not")
-    assert(result.queryId.isEmpty, s"we don't expect query id, but got ${result.queryId}")
+    assert(
+      result.queryId == queryId,
+      s"expected query id is ${queryId}, but got ${result.queryId}")
   }
 
   def pollForResultAndAssert(expected: REPLResult => Boolean, jobId: String): Unit = {

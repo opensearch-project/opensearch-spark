@@ -26,6 +26,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util._
+import org.apache.spark.util.Utils
 
 object SparkConfConstants {
   val SQL_EXTENSIONS_KEY = "spark.sql.extensions"
@@ -524,4 +525,25 @@ trait FlintJobExecutor {
     CustomLogging.logError(t)
     throw t
   }
+
+  def instantiate[T](defaultConstructor: => T, className: String, args: Any*): T = {
+    if (className.isEmpty) {
+      defaultConstructor
+    } else {
+      try {
+        val classObject = Utils.classForName(className)
+        val ctor = if (args.isEmpty) {
+          classObject.getDeclaredConstructor()
+        } else {
+          classObject.getDeclaredConstructor(args.map(_.getClass.asInstanceOf[Class[_]]): _*)
+        }
+        ctor.setAccessible(true)
+        ctor.newInstance(args.map(_.asInstanceOf[Object]): _*).asInstanceOf[T]
+      } catch {
+        case e: Exception =>
+          throw new RuntimeException(s"Failed to instantiate provider: $className", e)
+      }
+    }
+  }
+
 }

@@ -11,11 +11,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.registerGauge
-import play.api.libs.json._
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.apache.spark.sql.types._
 
 /**
  * Spark SQL Application entrypoint
@@ -41,6 +39,8 @@ object FlintJob extends Logging with FlintJobExecutor {
     if (query.isEmpty) {
       logAndThrow(s"Query undefined for the ${jobType} job.")
     }
+    val queryId = conf.get(FlintSparkConf.QUERY_ID.key, "")
+
     if (resultIndexOption.isEmpty) {
       logAndThrow("resultIndex is not set")
     }
@@ -66,9 +66,10 @@ object FlintJob extends Logging with FlintJobExecutor {
         jobId,
         createSparkSession(conf),
         query,
+        queryId,
         dataSource,
         resultIndexOption.get,
-        jobType.equalsIgnoreCase("streaming"),
+        jobType,
         streamingRunningCount)
     registerGauge(MetricConstants.STREAMING_RUNNING_METRIC, streamingRunningCount)
     jobOperator.start()

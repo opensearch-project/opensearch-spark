@@ -12,6 +12,7 @@ import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.concurrent.duration.{Duration, MINUTES}
 import scala.util.{Failure, Success, Try}
 
+import org.opensearch.flint.common.model.FlintStatement
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
 import org.opensearch.flint.spark.FlintSpark
@@ -24,11 +25,12 @@ import org.apache.spark.util.ThreadUtils
 case class JobOperator(
     applicationId: String,
     jobId: String,
-    spark: SparkSession,
+    sparkSession: SparkSession,
     query: String,
+    queryId: String,
     dataSource: String,
     resultIndex: String,
-    streaming: Boolean,
+    jobType: String,
     streamingRunningCount: AtomicInteger)
     extends Logging
     with FlintJobExecutor {
@@ -48,43 +50,68 @@ case class JobOperator(
     // osClient needs spark session to be created first to get FlintOptions initialized.
     // Otherwise, we will have connection exception from EMR-S to OS.
     val osClient = new OSClient(FlintSparkConf().flintOptions())
-    var exceptionThrown = true
-    try {
-      val futureMappingCheck = Future {
-        checkAndCreateIndex(osClient, resultIndex)
-      }
-      val data = executeQuery(applicationId, jobId, spark, query, dataSource, "", "", streaming)
 
-      val mappingCheckResult = ThreadUtils.awaitResult(futureMappingCheck, Duration(1, MINUTES))
-      dataToWrite = Some(mappingCheckResult match {
-        case Right(_) => data
-        case Left(error) =>
-          constructErrorDF(
-            applicationId,
-            jobId,
-            spark,
-            dataSource,
-            "FAILED",
-            error,
-            "",
-            query,
-            "",
-            startTime)
-      })
+    // TODO: Update FlintJob to Support All Query Types. Track on https://github.com/opensearch-project/opensearch-spark/issues/633
+    val commandContext = CommandContext(
+      applicationId,
+      jobId,
+      sparkSession,
+      dataSource,
+      jobType,
+      "", // FlintJob doesn't have sessionId
+      null, // FlintJob doesn't have SessionManager
+      null, // FlintJob doesn't have QueryResultWriter
+      Duration.Inf, // FlintJob doesn't have queryExecutionTimeout
+      -1, // FlintJob doesn't have inactivityLimitMillis
+      -1, // FlintJob doesn't have queryWaitTimeMillis
+      -1 // FlintJob doesn't have queryLoopExecutionFrequency
+    )
+
+    val statementExecutionManager =
+      instantiateStatementExecutionManager(commandContext, resultIndex, osClient)
+
+    val statement =
+      new FlintStatement("running", query, "", queryId, currentTimeProvider.currentEpochMillis())
+
+    var exceptionThrown = true
+    var error: String = null
+
+    try {
+      val futurePrepareQueryExecution = Future {
+        statementExecutionManager.prepareStatementExecution()
+      }
+
+      dataToWrite = Some(
+        ThreadUtils.awaitResult(futurePrepareQueryExecution, Duration(1, MINUTES)) match {
+          case Right(_) => statementExecutionManager.executeStatement(statement)
+          case Left(err) =>
+            error = err
+            constructErrorDF(
+              applicationId,
+              jobId,
+              sparkSession,
+              dataSource,
+              "FAILED",
+              err,
+              queryId,
+              query,
+              "",
+              startTime)
+        })
       exceptionThrown = false
     } catch {
       case e: TimeoutException =>
-        val error = s"Getting the mapping of index $resultIndex timed out"
+        error = s"Getting the mapping of index $resultIndex timed out"
         logError(error, e)
         dataToWrite = Some(
           constructErrorDF(
             applicationId,
             jobId,
-            spark,
+            sparkSession,
             dataSource,
             "TIMEOUT",
             error,
-            "",
+            queryId,
             query,
             "",
             startTime))
@@ -94,44 +121,46 @@ case class JobOperator(
           constructErrorDF(
             applicationId,
             jobId,
-            spark,
+            sparkSession,
             dataSource,
             "FAILED",
             error,
-            "",
+            queryId,
             query,
             "",
             startTime))
     } finally {
-      cleanUpResources(exceptionThrown, threadPool, dataToWrite, resultIndex, osClient)
+      try {
+        dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
+      } catch {
+        case e: Exception =>
+          exceptionThrown = true
+          error = s"Failed to write to result index. originalError='${error}'"
+          logError(error, e)
+      }
+      if (exceptionThrown) statement.fail() else statement.complete()
+      statement.error = Some(error)
+      statementExecutionManager.updateStatement(statement)
+
+      cleanUpResources(exceptionThrown, threadPool)
     }
   }
 
-  def cleanUpResources(
-      exceptionThrown: Boolean,
-      threadPool: ThreadPoolExecutor,
-      dataToWrite: Option[DataFrame],
-      resultIndex: String,
-      osClient: OSClient): Unit = {
-    try {
-      dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
-    } catch {
-      case e: Exception => logError("fail to write to result index", e)
-    }
-
+  def cleanUpResources(exceptionThrown: Boolean, threadPool: ThreadPoolExecutor): Unit = {
+    val isStreaming = jobType.equalsIgnoreCase("streaming")
     try {
       // Wait for streaming job complete if no error
-      if (!exceptionThrown && streaming) {
+      if (!exceptionThrown && isStreaming) {
         // Clean Spark shuffle data after each microBatch.
-        spark.streams.addListener(new ShuffleCleaner(spark))
+        sparkSession.streams.addListener(new ShuffleCleaner(sparkSession))
         // Await index monitor before the main thread terminates
-        new FlintSpark(spark).flintIndexMonitor.awaitMonitor()
+        new FlintSpark(sparkSession).flintIndexMonitor.awaitMonitor()
       } else {
         logInfo(s"""
            | Skip streaming job await due to conditions not met:
            |  - exceptionThrown: $exceptionThrown
-           |  - streaming: $streaming
-           |  - activeStreams: ${spark.streams.active.mkString(",")}
+           |  - streaming: $isStreaming
+           |  - activeStreams: ${sparkSession.streams.active.mkString(",")}
            |""".stripMargin)
       }
     } catch {
@@ -163,7 +192,7 @@ case class JobOperator(
   def stop(): Unit = {
     Try {
       logInfo("Stopping Spark session")
-      spark.stop()
+      sparkSession.stop()
       logInfo("Stopped Spark session")
     } match {
       case Success(_) =>
@@ -191,4 +220,15 @@ case class JobOperator(
     }
   }
 
+  private def instantiateStatementExecutionManager(
+      commandContext: CommandContext,
+      resultIndex: String,
+      osClient: OSClient): StatementExecutionManager = {
+    import commandContext._
+    instantiate(
+      new SingleStatementExecutionManager(commandContext, resultIndex, osClient),
+      spark.conf.get(FlintSparkConf.CUSTOM_STATEMENT_MANAGER.key, ""),
+      spark,
+      sessionId)
+  }
 }

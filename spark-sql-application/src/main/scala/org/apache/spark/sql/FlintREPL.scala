@@ -26,7 +26,7 @@ import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
 import org.apache.spark.sql.FlintREPLConfConstants._
 import org.apache.spark.sql.SessionUpdateMode._
 import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.apache.spark.util.{ThreadUtils, Utils}
+import org.apache.spark.util.ThreadUtils
 
 object FlintREPLConfConstants {
   val HEARTBEAT_INTERVAL_MILLIS = 60000L
@@ -87,6 +87,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     conf.set(FlintSparkConf.JOB_TYPE.key, jobType)
 
     val query = getQuery(queryOption, jobType, conf)
+    val queryId = conf.get(FlintSparkConf.QUERY_ID.key, "")
 
     if (jobType.equalsIgnoreCase("streaming")) {
       if (resultIndexOption.isEmpty) {
@@ -100,9 +101,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
           jobId,
           createSparkSession(conf),
           query,
+          queryId,
           dataSource,
           resultIndexOption.get,
-          true,
+          jobType,
           streamingRunningCount)
       registerGauge(MetricConstants.STREAMING_RUNNING_METRIC, streamingRunningCount)
       jobOperator.start()
@@ -174,6 +176,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           jobId,
           spark,
           dataSource,
+          jobType,
           sessionId,
           sessionManager,
           queryResultWriter,
@@ -352,7 +355,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           canPickUpNextStatement = updatedCanPickUpNextStatement
           lastCanPickCheckTime = updatedLastCanPickCheckTime
         } finally {
-          statementsExecutionManager.terminateStatementsExecution()
+          statementsExecutionManager.terminateStatementExecution()
         }
 
         Thread.sleep(commandContext.queryLoopExecutionFrequency)
@@ -972,26 +975,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
         sessionId
       case _ =>
         logAndThrow(s"${FlintSparkConf.SESSION_ID.key} is not set or is empty")
-    }
-  }
-
-  private def instantiate[T](defaultConstructor: => T, className: String, args: Any*): T = {
-    if (className.isEmpty) {
-      defaultConstructor
-    } else {
-      try {
-        val classObject = Utils.classForName(className)
-        val ctor = if (args.isEmpty) {
-          classObject.getDeclaredConstructor()
-        } else {
-          classObject.getDeclaredConstructor(args.map(_.getClass.asInstanceOf[Class[_]]): _*)
-        }
-        ctor.setAccessible(true)
-        ctor.newInstance(args.map(_.asInstanceOf[Object]): _*).asInstanceOf[T]
-      } catch {
-        case e: Exception =>
-          throw new RuntimeException(s"Failed to instantiate provider: $className", e)
-      }
     }
   }
 
