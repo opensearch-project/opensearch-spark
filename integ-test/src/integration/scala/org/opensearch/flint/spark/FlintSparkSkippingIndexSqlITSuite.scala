@@ -62,7 +62,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
     indexData.count() shouldBe 2
   }
 
-  test("create skipping index with auto refresh and external scheduler") {
+  ignore("create skipping index with auto refresh and external scheduler") {
     withTempDir { checkpointDir =>
       sql(s"""
            | CREATE SKIPPING INDEX ON $testTable

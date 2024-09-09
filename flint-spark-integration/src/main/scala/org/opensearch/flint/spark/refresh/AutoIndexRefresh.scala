@@ -109,7 +109,9 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
         .addCheckpointLocation(options.checkpointLocation(), flintSparkConf.isCheckpointMandatory)
         .addRefreshInterval(options.refreshInterval())
         .addAvailableNowTrigger(
-          SchedulerMode.EXTERNAL == options.schedulerMode() || options.incrementalRefresh())
+          options
+            .isExternalSchedulerEnabled() || options
+            .incrementalRefresh())
         .addOutputMode(options.outputMode())
         .options(options.extraSinkOptions())
     }

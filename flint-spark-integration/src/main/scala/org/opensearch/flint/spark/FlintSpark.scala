@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark
 
+import java.time.Instant
+
 import scala.collection.JavaConverters._
 
 import org.json4s.{Formats, NoTypeHints}
@@ -13,15 +15,20 @@ import org.opensearch.flint.common.metadata.{FlintIndexMetadataService, FlintMet
 import org.opensearch.flint.common.metadata.log.{FlintMetadataLogService, OptimisticTransaction}
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.common.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
+import org.opensearch.flint.common.scheduler.AsyncQueryScheduler
+import org.opensearch.flint.common.scheduler.model.{AsyncQuerySchedulerRequest, LangType}
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.FlintIndexMetadataServiceBuilder
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogServiceBuilder
+import org.opensearch.flint.core.scheduler.AsyncQuerySchedulerBuilder
+import org.opensearch.flint.core.scheduler.AsyncQuerySchedulerBuilder.AsyncQuerySchedulerAction
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
+import org.opensearch.flint.spark.scheduler.util.RefreshQueryGenerator
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
 import org.opensearch.flint.spark.skipping.recommendations.DataTypeSkippingStrategy
@@ -49,6 +56,10 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
 
   private val flintIndexMetadataService: FlintIndexMetadataService = {
     FlintIndexMetadataServiceBuilder.build(flintSparkConf.flintOptions())
+  }
+
+  private val flintAsyncQueryScheduler: AsyncQueryScheduler = {
+    AsyncQuerySchedulerBuilder.build(flintSparkConf.flintOptions())
   }
 
   override protected val flintMetadataLogService: FlintMetadataLogService = {
@@ -113,7 +124,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           .initialLog(latest => latest.state == EMPTY || latest.state == DELETED)
           .transientLog(latest => latest.copy(state = CREATING))
           .finalLog(latest => latest.copy(state = ACTIVE))
-          .commit(latest =>
+          .commit(latest => {
             if (latest == null) { // in case transaction capability is disabled
               flintClient.createIndex(indexName, metadata)
               flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
@@ -122,7 +133,11 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
               flintClient.createIndex(indexName, metadata.copy(latestId = Some(latest.id)))
               flintIndexMetadataService
                 .updateIndexMetadata(indexName, metadata.copy(latestId = Some(latest.id)))
-            })
+            }
+            if (isExternalSchedulerEnabled(index)) {
+              handleAsyncQueryScheduler(index, AsyncQuerySchedulerAction.SCHEDULE)
+            }
+          })
       }
     }
 
@@ -236,16 +251,22 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   def deleteIndex(indexName: String): Boolean =
     withTransaction[Boolean](indexName, "Delete Flint index") { tx =>
       if (flintClient.exists(indexName)) {
+        val index = describeIndex(indexName)
         tx
           .initialLog(latest =>
             latest.state == ACTIVE || latest.state == REFRESHING || latest.state == FAILED)
           .transientLog(latest => latest.copy(state = DELETING))
           .finalLog(latest => latest.copy(state = DELETED))
           .commit(_ => {
-            // TODO: share same transaction for now
-            flintIndexMonitor.stopMonitor(indexName)
-            stopRefreshingJob(indexName)
-            true
+            if (isExternalSchedulerEnabled(index.get)) {
+              handleAsyncQueryScheduler(index.get, AsyncQuerySchedulerAction.UNSCHEDULE)
+              true
+            } else {
+              // TODO: share same transaction for now
+              flintIndexMonitor.stopMonitor(indexName)
+              stopRefreshingJob(indexName)
+              true
+            }
           })
       } else {
         logInfo("Flint index to be deleted doesn't exist")
@@ -264,18 +285,22 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   def vacuumIndex(indexName: String): Boolean =
     withTransaction[Boolean](indexName, "Vacuum Flint index") { tx =>
       if (flintClient.exists(indexName)) {
+        val index = describeIndex(indexName)
+        val options = index.get.options
         tx
           .initialLog(latest => latest.state == DELETED)
           .transientLog(latest => latest.copy(state = VACUUMING))
           .finalLog(_ => NO_LOG_ENTRY)
           .commit(_ => {
-            val options = flintIndexMetadataService.getIndexMetadata(indexName).options.asScala
+            if (isExternalSchedulerEnabled(index.get)) {
+              handleAsyncQueryScheduler(index.get, AsyncQuerySchedulerAction.REMOVE)
+            }
             flintClient.deleteIndex(indexName)
             flintIndexMetadataService.deleteIndexMetadata(indexName)
 
             // Remove checkpoint folder if defined
             val checkpoint = options
-              .get(CHECKPOINT_LOCATION.toString)
+              .checkpointLocation()
               .map(path => new FlintSparkCheckpoint(spark, path.asInstanceOf[String]))
             if (checkpoint.isDefined) {
               checkpoint.get.delete()
@@ -430,6 +455,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         Set(
           AUTO_REFRESH,
           INCREMENTAL_REFRESH,
+          SCHEDULER_MODE,
           REFRESH_INTERVAL,
           CHECKPOINT_LOCATION,
           WATERMARK_DELAY)
@@ -458,9 +484,14 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       .commit(_ => {
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
         logInfo("Update index options complete")
-        flintIndexMonitor.stopMonitor(indexName)
-        stopRefreshingJob(indexName)
-        None
+        if (isExternalSchedulerEnabled(index)) {
+          handleAsyncQueryScheduler(index, AsyncQuerySchedulerAction.UNSCHEDULE)
+          None
+        } else {
+          flintIndexMonitor.stopMonitor(indexName)
+          stopRefreshingJob(indexName)
+          None
+        }
       })
   }
 
@@ -483,7 +514,56 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       .commit(_ => {
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
         logInfo("Update index options complete")
-        indexRefresh.start(spark, flintSparkConf)
+        if (isExternalSchedulerEnabled(index)) {
+          handleAsyncQueryScheduler(index, AsyncQuerySchedulerAction.UPDATE)
+          None
+        } else {
+          indexRefresh.start(spark, flintSparkConf)
+        }
       })
+  }
+
+  private def handleAsyncQueryScheduler(
+      index: FlintSparkIndex,
+      action: AsyncQuerySchedulerAction): Unit = {
+    val dataSource = flintSparkConf.flintOptions().getDataSourceName()
+    val clientId = flintSparkConf.flintOptions().getClientId()
+    val indexName = index.name()
+
+    logInfo(s"handleAsyncQueryScheduler invoked: $action")
+
+    val baseRequest = AsyncQuerySchedulerRequest
+      .builder()
+      .accountId(clientId)
+      .jobId(indexName)
+      .dataSource(dataSource)
+
+    val request = action match {
+      case AsyncQuerySchedulerAction.SCHEDULE | AsyncQuerySchedulerAction.UPDATE =>
+        val currentTime = Instant.now()
+        baseRequest
+          .scheduledQuery(RefreshQueryGenerator.generateRefreshQuery(index))
+          .queryLang(LangType.SQL)
+          .schedule(index.options.refreshInterval())
+          .enabled(true)
+          .enabledTime(currentTime)
+          .lastUpdateTime(currentTime)
+          .build()
+      case _ => baseRequest.build()
+    }
+
+    action match {
+      case AsyncQuerySchedulerAction.SCHEDULE => flintAsyncQueryScheduler.scheduleJob(request)
+      case AsyncQuerySchedulerAction.UPDATE => flintAsyncQueryScheduler.updateJob(request)
+      case AsyncQuerySchedulerAction.UNSCHEDULE => flintAsyncQueryScheduler.unscheduleJob(request)
+      case AsyncQuerySchedulerAction.REMOVE => flintAsyncQueryScheduler.removeJob(request)
+      case _ => throw new IllegalArgumentException(s"Unsupported action: $action")
+    }
+  }
+
+  private def isExternalSchedulerEnabled(index: FlintSparkIndex): Boolean = {
+    val autoRefresh = index.options.autoRefresh()
+    val schedulerModeExternal = index.options.isExternalSchedulerEnabled()
+    autoRefresh && schedulerModeExternal
   }
 }

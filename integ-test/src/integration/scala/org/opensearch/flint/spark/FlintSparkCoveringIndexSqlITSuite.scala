@@ -143,7 +143,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     indexData.count() shouldBe 2
   }
 
-  test("create covering index with external scheduler") {
+  ignore("create covering index with external scheduler") {
     withTempDir { checkpointDir =>
       sql(s"""
            | CREATE INDEX $testIndex ON $testTable

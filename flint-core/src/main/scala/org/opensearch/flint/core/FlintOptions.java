@@ -99,6 +99,8 @@ public class FlintOptions implements Serializable {
 
   public static final String CUSTOM_FLINT_INDEX_METADATA_SERVICE_CLASS = "customFlintIndexMetadataServiceClass";
 
+  public static final String CUSTOM_FLINT_SCHEDULER_CLASS = "customFlintSchedulerClass";
+
   public static final String SUPPORT_SHARD = "read.support_shard";
 
   public static final String DEFAULT_SUPPORT_SHARD = "true";
@@ -177,6 +179,12 @@ public class FlintOptions implements Serializable {
     return options.getOrDefault(DATA_SOURCE_NAME, "");
   }
 
+  public String getClientId() {
+    String clusterName = System.getenv().getOrDefault("FLINT_CLUSTER_NAME", "");
+    String[] parts = clusterName.split(":");
+    return parts.length == 2 ? parts[0] : "";
+  }
+
   public String getSystemIndexName() {
     return options.getOrDefault(SYSTEM_INDEX_KEY_NAME, "");
   }
@@ -209,5 +217,9 @@ public class FlintOptions implements Serializable {
 
   public long getBulkRequestRateLimitPerNode() {
     return Long.parseLong(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE));
+  }
+
+  public String getCustomAsyncQuerySchedulerClass() {
+    return options.getOrDefault(CUSTOM_FLINT_SCHEDULER_CLASS, "");
   }
 }

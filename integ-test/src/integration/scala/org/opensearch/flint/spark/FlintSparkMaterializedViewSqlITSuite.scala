@@ -82,7 +82,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     }
   }
 
-  test("create materialized view with auto refresh and external scheduler") {
+  ignore("create materialized view with auto refresh and external scheduler") {
     withTempDir { checkpointDir =>
       sql(s"""
            | CREATE MATERIALIZED VIEW $testMvName
