@@ -58,7 +58,7 @@ class FlintSparkIndexBuilderSuite extends FlintSuite {
   }
 
   test("indexOptions should not override existing checkpoint location with conf") {
-    conf.setConfString(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key, testCheckpointLocation)
+    setFlintSparkConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR, testCheckpointLocation)
     assert(conf.contains(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key))
 
     val options =
@@ -70,7 +70,7 @@ class FlintSparkIndexBuilderSuite extends FlintSuite {
   }
 
   test("indexOptions should have default checkpoint location with conf") {
-    conf.setConfString(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key, testCheckpointLocation)
+    setFlintSparkConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR, testCheckpointLocation)
     assert(conf.contains(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key))
 
     val options = FlintSparkIndexOptions(Map.empty)

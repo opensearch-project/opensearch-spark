@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import java.util.{Collections, UUID}
+import java.util.Collections
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
@@ -81,8 +81,9 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
       index: FlintSparkIndex,
       updateOptions: FlintSparkIndexOptions): FlintSparkIndex = {
     val originalOptions = index.options
-    val updatedOptions =
-      originalOptions.copy(options = originalOptions.options ++ updateOptions.options)
+    val updatedOptions = updateOptionWithDefaultCheckpointLocation(
+      index.name(),
+      originalOptions.copy(options = originalOptions.options ++ updateOptions.options))
     val updatedMetadata = index
       .metadata()
       .copy(options = updatedOptions.options.mapValues(_.asInstanceOf[AnyRef]).asJava)
@@ -159,22 +160,13 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
       indexName: String,
       options: FlintSparkIndexOptions): FlintSparkIndexOptions = {
 
-    val checkpointLocationRootDirOption = new FlintSparkConf(
-      Collections.emptyMap[String, String]).checkpointLocationRootDir
+    val flintSparkConf = new FlintSparkConf(Collections.emptyMap[String, String])
+    val checkpointLocation = options.checkpointLocation(indexName, flintSparkConf)
 
-    if (options.checkpointLocation().isEmpty) {
-      checkpointLocationRootDirOption match {
-        case Some(checkpointLocationRootDir) =>
-          // Currently, deleting and recreating the flint index will enter same checkpoint dir.
-          // Use a UUID to isolate checkpoint data.
-          val checkpointLocation =
-            s"${checkpointLocationRootDir.stripSuffix("/")}/$indexName/${UUID.randomUUID().toString}"
-          FlintSparkIndexOptions(
-            options.options + (CHECKPOINT_LOCATION.toString -> checkpointLocation))
-        case None => options
-      }
-    } else {
-      options
+    checkpointLocation match {
+      case Some(location) =>
+        FlintSparkIndexOptions(options.options + (CHECKPOINT_LOCATION.toString -> location))
+      case None => options
     }
   }
 }
