@@ -45,26 +45,26 @@ public interface ParseStrategy {
             if(field instanceof AllFields) {
                 for (int i = 0; i < namedGroupCandidates.size(); i++) {
                     namedGroupNumbers.put(namedGroupCandidates.get(i),
-                            ParseUtils.getNamedGroupIndex(parseMethod, pattern, namedGroupCandidates.get(i)));
+                            ParseUtils.getNamedGroupIndex(parseMethod, pattern, namedGroupCandidates.get(i), arguments));
                 }
                 // in specific field case - match to the namedGroupCandidates group
             } else for (int i = 0; i < namedGroupCandidates.size(); i++) {
                 if (((Field)field).getField().toString().equals(namedGroupCandidates.get(i))) {
                     namedGroupNumbers.put(namedGroupCandidates.get(i),
-                            ParseUtils.getNamedGroupIndex(parseMethod, pattern, namedGroupCandidates.get(i)));
+                            ParseUtils.getNamedGroupIndex(parseMethod, pattern, namedGroupCandidates.get(i), arguments));
                 }
             }
         });
         //list the group numbers of these projected fields
         // match the regExpExtract group identifier with its number
         namedGroupNumbers.forEach((group, index) -> {
-            //first create the regExp 
-            RegExpExtract regExpExtract = new RegExpExtract(sourceField,
-                    org.apache.spark.sql.catalyst.expressions.Literal.create(cleanedPattern, StringType),
-                    org.apache.spark.sql.catalyst.expressions.Literal.create(index + 1, IntegerType));
+            //first create the regExp
+            org.apache.spark.sql.catalyst.expressions.Literal patternLiteral = org.apache.spark.sql.catalyst.expressions.Literal.create(cleanedPattern, StringType);
+            org.apache.spark.sql.catalyst.expressions.Literal groupIndexLiteral = org.apache.spark.sql.catalyst.expressions.Literal.create(index + 1, IntegerType);
+            Expression regExp = ParseUtils.getRegExpCommand(parseMethod, sourceField, patternLiteral, groupIndexLiteral);
             //next Alias the extracted fields
             context.getNamedParseExpressions().push(
-                    org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(regExpExtract,
+                    org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(regExp,
                             group,
                             NamedExpression.newExprId(),
                             seq(new java.util.ArrayList<String>()),
