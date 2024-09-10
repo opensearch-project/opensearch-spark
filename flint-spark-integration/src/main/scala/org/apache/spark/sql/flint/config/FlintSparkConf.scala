@@ -211,6 +211,10 @@ object FlintSparkConf {
     FlintConfig("spark.flint.job.query")
       .doc("Flint query for batch and streaming job")
       .createOptional()
+  val QUERY_ID =
+    FlintConfig("spark.flint.job.queryId")
+      .doc("Flint query id for batch and streaming job")
+      .createOptional()
   val JOB_TYPE =
     FlintConfig(s"spark.flint.job.type")
       .doc("Flint job type. Including interactive and streaming")

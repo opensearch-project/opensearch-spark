@@ -50,6 +50,7 @@ class FlintREPLTest
 
   private val jobId = "testJobId"
   private val applicationId = "testApplicationId"
+  private val INTERACTIVE_JOB_TYPE = "interactive"
 
   test("parseArgs with no arguments should return (None, None)") {
     val args = Array.empty[String]
@@ -669,6 +670,7 @@ class FlintREPLTest
         jobId,
         spark,
         dataSource,
+        INTERACTIVE_JOB_TYPE,
         sessionId,
         sessionManager,
         queryResultWriter,
@@ -734,6 +736,7 @@ class FlintREPLTest
         jobId,
         mockSparkSession,
         dataSource,
+        INTERACTIVE_JOB_TYPE,
         sessionId,
         sessionManager,
         queryResultWriter,
@@ -808,6 +811,7 @@ class FlintREPLTest
         jobId,
         mockSparkSession,
         dataSource,
+        INTERACTIVE_JOB_TYPE,
         sessionId,
         sessionManager,
         queryResultWriter,
@@ -1059,6 +1063,7 @@ class FlintREPLTest
       jobId,
       spark,
       dataSource,
+      INTERACTIVE_JOB_TYPE,
       sessionId,
       sessionManager,
       queryResultWriter,
@@ -1128,6 +1133,7 @@ class FlintREPLTest
       jobId,
       spark,
       dataSource,
+      INTERACTIVE_JOB_TYPE,
       sessionId,
       sessionManager,
       queryResultWriter,
@@ -1193,6 +1199,7 @@ class FlintREPLTest
       jobId,
       spark,
       dataSource,
+      INTERACTIVE_JOB_TYPE,
       sessionId,
       sessionManager,
       queryResultWriter,
@@ -1263,6 +1270,7 @@ class FlintREPLTest
       jobId,
       spark,
       dataSource,
+      INTERACTIVE_JOB_TYPE,
       sessionId,
       sessionManager,
       queryResultWriter,
@@ -1355,6 +1363,7 @@ class FlintREPLTest
       jobId,
       mockSparkSession,
       dataSource,
+      INTERACTIVE_JOB_TYPE,
       sessionId,
       sessionManager,
       queryResultWriter,
@@ -1430,6 +1439,7 @@ class FlintREPLTest
         jobId,
         spark,
         dataSource,
+        INTERACTIVE_JOB_TYPE,
         sessionId,
         sessionManager,
         queryResultWriter,
