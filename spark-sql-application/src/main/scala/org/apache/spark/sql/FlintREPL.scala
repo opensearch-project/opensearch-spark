@@ -89,7 +89,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     val query = getQuery(queryOption, jobType, conf)
     val queryId = conf.get(FlintSparkConf.QUERY_ID.key, "")
 
-    if (jobType.equalsIgnoreCase("streaming")) {
+    if (jobType.equalsIgnoreCase(FlintJobType.STREAMING)) {
       if (resultIndexOption.isEmpty) {
         logAndThrow("resultIndex is not set")
       }
@@ -223,7 +223,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
   def getQuery(queryOption: Option[String], jobType: String, conf: SparkConf): String = {
     queryOption.getOrElse {
-      if (jobType.equalsIgnoreCase("streaming")) {
+      if (jobType.equalsIgnoreCase(FlintJobType.STREAMING)) {
         val defaultQuery = conf.get(FlintSparkConf.QUERY.key, "")
         if (defaultQuery.isEmpty) {
           logAndThrow("Query undefined for the streaming job.")

@@ -80,10 +80,10 @@ case class JobOperator(
       val futurePrepareQueryExecution = Future {
         statementExecutionManager.prepareStatementExecution()
       }
-
+      val data = statementExecutionManager.executeStatement(statement)
       dataToWrite = Some(
         ThreadUtils.awaitResult(futurePrepareQueryExecution, Duration(1, MINUTES)) match {
-          case Right(_) => statementExecutionManager.executeStatement(statement)
+          case Right(_) => data
           case Left(err) =>
             error = err
             constructErrorDF(
@@ -101,7 +101,7 @@ case class JobOperator(
       exceptionThrown = false
     } catch {
       case e: TimeoutException =>
-        error = s"Getting the mapping of index $resultIndex timed out"
+        error = s"Preparation for query execution timed out"
         logError(error, e)
         dataToWrite = Some(
           constructErrorDF(
@@ -147,7 +147,7 @@ case class JobOperator(
   }
 
   def cleanUpResources(exceptionThrown: Boolean, threadPool: ThreadPoolExecutor): Unit = {
-    val isStreaming = jobType.equalsIgnoreCase("streaming")
+    val isStreaming = jobType.equalsIgnoreCase(FlintJobType.STREAMING)
     try {
       // Wait for streaming job complete if no error
       if (!exceptionThrown && isStreaming) {

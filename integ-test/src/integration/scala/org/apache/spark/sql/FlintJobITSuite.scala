@@ -92,7 +92,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
        * all Spark conf required by Flint code underlying manually.
        */
       spark.conf.set(DATA_SOURCE_NAME.key, dataSourceName)
-      spark.conf.set(JOB_TYPE.key, "streaming")
+      spark.conf.set(JOB_TYPE.key, FlintJobType.STREAMING)
 
       /**
        * FlintJob.main() is not called because we need to manually set these variables within a
@@ -107,7 +107,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
           queryId,
           dataSourceName,
           resultIndex,
-          "streaming",
+          FlintJobType.STREAMING,
           streamingRunningCount)
       job.terminateJVM = false
       job.start()

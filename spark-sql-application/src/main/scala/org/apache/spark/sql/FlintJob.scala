@@ -30,7 +30,7 @@ object FlintJob extends Logging with FlintJobExecutor {
     val (queryOption, resultIndexOption) = parseArgs(args)
 
     val conf = createSparkConf()
-    val jobType = conf.get("spark.flint.job.type", "batch")
+    val jobType = conf.get("spark.flint.job.type", FlintJobType.BATCH)
     CustomLogging.logInfo(s"""Job type is: ${jobType}""")
     conf.set(FlintSparkConf.JOB_TYPE.key, jobType)
 

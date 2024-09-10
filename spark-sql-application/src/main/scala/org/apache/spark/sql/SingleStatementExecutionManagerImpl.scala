@@ -43,7 +43,7 @@ class SingleStatementExecutionManager(
 
   override def executeStatement(statement: FlintStatement): DataFrame = {
     import commandContext._
-    val isStreaming = jobType.equalsIgnoreCase("streaming")
+    val isStreaming = jobType.equalsIgnoreCase(FlintJobType.STREAMING)
     executeQuery(
       applicationId,
       jobId,

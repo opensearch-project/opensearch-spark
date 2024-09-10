@@ -34,6 +34,12 @@ object SparkConfConstants {
     "org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions"
 }
 
+object FlintJobType {
+  val INTERACTIVE = "interactive"
+  val BATCH = "batch"
+  val STREAMING = "streaming"
+}
+
 trait FlintJobExecutor {
   this: Logging =>
 
@@ -132,7 +138,7 @@ trait FlintJobExecutor {
    * https://github.com/opensearch-project/opensearch-spark/issues/324
    */
   def configDYNMaxExecutors(conf: SparkConf, jobType: String): Unit = {
-    if (jobType.equalsIgnoreCase("streaming")) {
+    if (jobType.equalsIgnoreCase(FlintJobType.STREAMING)) {
       conf.set(
         "spark.dynamicAllocation.maxExecutors",
         conf
