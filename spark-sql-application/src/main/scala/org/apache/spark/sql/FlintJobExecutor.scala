@@ -26,11 +26,18 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util._
+import org.apache.spark.util.Utils
 
 object SparkConfConstants {
   val SQL_EXTENSIONS_KEY = "spark.sql.extensions"
   val DEFAULT_SQL_EXTENSIONS =
     "org.opensearch.flint.spark.FlintPPLSparkExtensions,org.opensearch.flint.spark.FlintSparkExtensions"
+}
+
+object FlintJobType {
+  val INTERACTIVE = "interactive"
+  val BATCH = "batch"
+  val STREAMING = "streaming"
 }
 
 trait FlintJobExecutor {
@@ -131,7 +138,7 @@ trait FlintJobExecutor {
    * https://github.com/opensearch-project/opensearch-spark/issues/324
    */
   def configDYNMaxExecutors(conf: SparkConf, jobType: String): Unit = {
-    if (jobType.equalsIgnoreCase("streaming")) {
+    if (jobType.equalsIgnoreCase(FlintJobType.STREAMING)) {
       conf.set(
         "spark.dynamicAllocation.maxExecutors",
         conf
@@ -524,4 +531,25 @@ trait FlintJobExecutor {
     CustomLogging.logError(t)
     throw t
   }
+
+  def instantiate[T](defaultConstructor: => T, className: String, args: Any*): T = {
+    if (className.isEmpty) {
+      defaultConstructor
+    } else {
+      try {
+        val classObject = Utils.classForName(className)
+        val ctor = if (args.isEmpty) {
+          classObject.getDeclaredConstructor()
+        } else {
+          classObject.getDeclaredConstructor(args.map(_.getClass.asInstanceOf[Class[_]]): _*)
+        }
+        ctor.setAccessible(true)
+        ctor.newInstance(args.map(_.asInstanceOf[Object]): _*).asInstanceOf[T]
+      } catch {
+        case e: Exception =>
+          throw new RuntimeException(s"Failed to instantiate provider: $className", e)
+      }
+    }
+  }
+
 }

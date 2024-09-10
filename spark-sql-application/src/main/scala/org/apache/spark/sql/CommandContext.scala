@@ -15,6 +15,7 @@ case class CommandContext(
     jobId: String,
     spark: SparkSession,
     dataSource: String,
+    jobType: String,
     sessionId: String,
     sessionManager: SessionManager,
     queryResultWriter: QueryResultWriter,

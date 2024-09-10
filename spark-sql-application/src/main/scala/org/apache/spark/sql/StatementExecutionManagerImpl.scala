@@ -38,7 +38,7 @@ class StatementExecutionManagerImpl(commandContext: CommandContext)
   override def updateStatement(statement: FlintStatement): Unit = {
     flintSessionIndexUpdater.update(statement.statementId, FlintStatement.serialize(statement))
   }
-  override def terminateStatementsExecution(): Unit = {
+  override def terminateStatementExecution(): Unit = {
     flintReader.close()
   }
 
