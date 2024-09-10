@@ -38,5 +38,5 @@ trait StatementExecutionManager {
   /**
    * Terminates the statement lifecycle.
    */
-  def terminateStatementsExecution(): Unit
+  def terminateStatementExecution(): Unit
 }
