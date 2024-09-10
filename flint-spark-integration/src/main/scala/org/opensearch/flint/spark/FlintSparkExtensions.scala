@@ -21,9 +21,9 @@ class FlintSparkExtensions extends (SparkSessionExtensions => Unit) {
     }
 
     extensions.injectFunction(TumbleFunction.description)
-
     extensions.injectOptimizerRule { spark =>
       new FlintSparkOptimizer(spark)
     }
+    extensions.injectPostHocResolutionRule(_ => new DisallowCatalogViews())
   }
 }

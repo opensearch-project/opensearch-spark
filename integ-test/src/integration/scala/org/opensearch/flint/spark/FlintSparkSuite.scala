@@ -101,7 +101,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
   }
 
   protected def createPartitionedGrokEmailTable(testTable: String): Unit = {
-    spark.sql(s"""
+    val table = spark.sql(s"""
          | CREATE TABLE $testTable
          | (
          |   name STRING,
@@ -115,7 +115,6 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          |    month INT
          | )
          |""".stripMargin)
-
     val data = Seq(
       ("Alice", 30, "alice@example.com", "123 Main St, Seattle", 2023, 4),
       ("Bob", 55, "bob@test.org", "456 Elm St, Portland", 2023, 5),
@@ -135,6 +134,17 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            | VALUES ('$name', $age, '$email', '$street_address')
            | """.stripMargin)
     }
+    // Create a Glue view
+    val glueViewName = "my_view"
+    val glueViewQuery = s"""
+    CREATE VIEW $glueViewName
+    AS
+    SELECT name, age, email, street_address
+    FROM $testTable
+  """
+
+    val res = spark.sql(glueViewQuery)
+    log.error(res.toString())
   }
   protected def createPartitionedAddressTable(testTable: String): Unit = {
     sql(s"""

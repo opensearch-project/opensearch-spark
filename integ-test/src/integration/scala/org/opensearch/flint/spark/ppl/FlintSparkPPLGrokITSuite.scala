@@ -5,6 +5,9 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.scalatest.matchers.must.Matchers.have
+import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
+
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Coalesce, Descending, GreaterThan, Literal, NullsLast, RegExpExtract, SortOrder}
@@ -34,6 +37,15 @@ class FlintSparkPPLGrokITSuite
       job.stop()
       job.awaitTermination()
     }
+  }
+
+
+  test("test querying catalog views throws validation exception") {
+    the[IllegalArgumentException] thrownBy {
+      sql("""
+           | source = my_view| grok email '.+@%{HOSTNAME:host}' | fields email, host
+           | """.stripMargin)
+    } should have message "Catalog View is not allowed to be queried"
   }
 
   test("test grok email expressions parsing") {
