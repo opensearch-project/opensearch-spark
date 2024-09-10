@@ -6,7 +6,6 @@
 package org.opensearch.sql.ppl.utils;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.RegExpExtract;
 import org.apache.spark.sql.catalyst.expressions.RegExpReplace;
@@ -30,25 +29,6 @@ public class ParseUtils {
     private static final Pattern GROUP_PATTERN = Pattern.compile("\\(\\?<([a-zA-Z][a-zA-Z0-9]*)>");
     private static final String NEW_FIELD_KEY = "new_field";
 
-    /**
-     * Construct corresponding ParseExpression by {@link ParseMethod}.
-     *
-     * @param parseMethod method used to parse
-     * @param pattern     pattern used for parsing
-     * @param identifier  derived field
-     * @return {@link ParseExpression}
-     */
-    public static ParseExpression createParseExpression(
-            ParseMethod parseMethod, String pattern, String identifier) {
-        switch (parseMethod) {
-            case GROK:
-                return new GrokExpression(pattern, identifier);
-            case PATTERNS:
-                return new PatternsExpression(pattern, identifier);
-            default:
-                return new RegexExpression(pattern, identifier);
-        }
-    }
 
     /**
      * Get list of derived fields based on parse pattern.
@@ -119,19 +99,7 @@ public class ParseUtils {
         }
     }
 
-    public static abstract class ParseExpression {
-        abstract String parseValue(String value);
-    }
-
-    public static class RegexExpression extends ParseExpression {
-        private final Pattern regexPattern;
-        protected final String identifier;
-
-        public RegexExpression(String patterns, String identifier) {
-            this.regexPattern = Pattern.compile(patterns);
-            this.identifier = identifier;
-        }
-
+    public static class RegexExpression {
         /**
          * Get list of derived fields based on parse pattern.
          *
@@ -162,48 +130,20 @@ public class ParseUtils {
             return new RegExpExtract(sourceField, patternLiteral, groupIndexLiteral);
         }
 
-        @Override
-        public String parseValue(String value) {
-            Matcher matcher = regexPattern.matcher(value);
-            if (matcher.matches()) {
-                return matcher.group(identifier);
-            }
-            return "";
-        }
-
         public static String extractPattern(String patterns, List<String> columns) {
             return patterns;
         }
     }
 
-    public static class GrokExpression extends ParseExpression {
+    public static class GrokExpression {
         private static final GrokCompiler grokCompiler = GrokCompiler.newInstance();
 
         static {
             grokCompiler.registerDefaultPatterns();
         }
 
-        private final Grok grok;
-        private final String identifier;
-
-        public GrokExpression(String pattern, String identifier) {
-            this.grok = grokCompiler.compile(pattern);
-            this.identifier = identifier;
-        }
-
         public static Expression getRegExpCommand(Expression sourceField, org.apache.spark.sql.catalyst.expressions.Literal patternLiteral, org.apache.spark.sql.catalyst.expressions.Literal groupIndexLiteral) {
             return new RegExpExtract(sourceField, patternLiteral, groupIndexLiteral);
-        }
-
-        @Override
-        public String parseValue(String value) {
-            Match grokMatch = grok.match(value);
-            Map<String, Object> capture = grokMatch.capture();
-            Object match = capture.get(identifier);
-            if (match != null) {
-                return match.toString();
-            }
-            return "";
         }
 
         /**
@@ -236,31 +176,10 @@ public class ParseUtils {
         }
     }
 
-    public static class PatternsExpression extends ParseExpression {
+    public static class PatternsExpression  {
         public static final String DEFAULT_NEW_FIELD = "patterns_field";
         private static final String DEFAULT_IGNORED_PATTERN = "[a-zA-Z0-9]";
 
-        private static final ImmutableSet<Character> DEFAULT_IGNORED_CHARS =
-                ImmutableSet.copyOf(
-                        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-                                .chars()
-                                .mapToObj(c -> (char) c)
-                                .toArray(Character[]::new));
-        private final boolean useCustomPattern;
-        private Pattern pattern;
-
-        /**
-         * PatternsExpression.
-         *
-         * @param pattern    pattern used for parsing
-         * @param identifier derived field
-         */
-        public PatternsExpression(String pattern, String identifier) {
-            useCustomPattern = !pattern.isEmpty();
-            if (useCustomPattern) {
-                this.pattern = Pattern.compile(pattern);
-            }
-        }
 
         public static int getNamedGroupIndex(String pattern, String namedGroup, Map<String, Literal> arguments) {
             return 0;
@@ -271,24 +190,7 @@ public class ParseUtils {
                                                   org.apache.spark.sql.catalyst.expressions.Literal groupIndexLiteral) {
             return new RegExpReplace(sourceField, patternLiteral, org.apache.spark.sql.catalyst.expressions.Literal.create("", StringType));
         }
-
-
-        @Override
-        public String parseValue(String value) {
-            if (useCustomPattern) {
-                return pattern.matcher(value).replaceAll("");
-            }
-
-            char[] chars = value.toCharArray();
-            int pos = 0;
-            for (int i = 0; i < chars.length; i++) {
-                if (!DEFAULT_IGNORED_CHARS.contains(chars[i])) {
-                    chars[pos++] = chars[i];
-                }
-            }
-            return new String(chars, 0, pos);
-        }
-
+        
         /**
          * Get list of derived fields.
          *
