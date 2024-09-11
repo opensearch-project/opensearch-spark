@@ -9,6 +9,7 @@ import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.GetIndexRequest;
+import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.common.metadata.FlintMetadata;
 import org.opensearch.flint.core.FlintClient;
@@ -69,10 +70,23 @@ public class FlintOpenSearchClient implements FlintClient {
     LOG.info("Deleting Flint index " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
     try (IRestHighLevelClient client = createClient()) {
-      DeleteIndexRequest request = new DeleteIndexRequest(osIndexName);
+      DeleteIndexRequest request = disableTimeoutsForServerless(
+          new DeleteIndexRequest(osIndexName)
+      );
       client.deleteIndex(request, RequestOptions.DEFAULT);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to delete Flint index " + osIndexName, e);
+    }
+  }
+
+  /** OpenSearch Serverless does not accept timeout parameters for deleteIndex API */
+  private DeleteIndexRequest disableTimeoutsForServerless(DeleteIndexRequest deleteIndexRequest) {
+    if (FlintOptions.SERVICE_NAME_AOSS.equals(options.getServiceName())) {
+      return deleteIndexRequest
+          .clusterManagerNodeTimeout((TimeValue) null)
+          .timeout((TimeValue) null);
+    } else {
+      return deleteIndexRequest;
     }
   }
 
