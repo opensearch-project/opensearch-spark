@@ -329,6 +329,12 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source=accounts | grok street_address '%{NUMBER} %{GREEDYDATA:address}' | fields address `
 - `source=logs | grok message '%{COMMONAPACHELOG}' | fields COMMONAPACHELOG, timestamp, response, bytes`
 
+**Patterns**
+- `source=accounts | patterns email | fields email, patterns_field `
+- `source=accounts | patterns email | where age > 45 | sort - age | fields email, patterns_field`
+- `source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | fields message, no_numbers`
+- `source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | stats count() by no_numbers`
+
 _- **Limitation: Overriding existing field is unsupported:**_
   - `source=accounts | grok address '%{NUMBER} %{GREEDYDATA:address}' | fields address`
 
