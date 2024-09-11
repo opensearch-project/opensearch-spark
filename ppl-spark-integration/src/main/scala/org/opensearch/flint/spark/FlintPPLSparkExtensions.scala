@@ -18,7 +18,5 @@ class FlintPPLSparkExtensions extends (SparkSessionExtensions => Unit) {
     extensions.injectParser { (spark, parser) =>
       new FlintSparkPPLParser(parser)
     }
-
-
   }
 }

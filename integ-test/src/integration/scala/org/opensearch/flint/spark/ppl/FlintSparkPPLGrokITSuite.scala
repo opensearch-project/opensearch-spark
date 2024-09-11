@@ -39,7 +39,6 @@ class FlintSparkPPLGrokITSuite
     }
   }
 
-
   test("test querying catalog views throws validation exception") {
     the[IllegalArgumentException] thrownBy {
       sql("""

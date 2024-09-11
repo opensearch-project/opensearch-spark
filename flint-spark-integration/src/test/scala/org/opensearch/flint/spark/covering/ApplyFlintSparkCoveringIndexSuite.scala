@@ -55,6 +55,9 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
          |  ('F', 35), ('G', 40), ('H', 45), ('I', 50), ('J', 55)
          | """.stripMargin)
 
+    // Create a view
+    sql(s"CREATE VIEW myView AS SELECT name, age FROM $testTable WHERE age > 20")
+
     // Mock static create method in FlintClientBuilder used by Flint data source
     clientBuilder
       .when(() => FlintClientBuilder.build(any(classOf[FlintOptions])))
@@ -140,6 +143,12 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
           indexedColumns = Map("name" -> "string", "age" -> "int"),
           filterCondition = Some("name = 'A' OR age > 30")))
       .assertIndexNotUsed(testTable)
+  }
+  test("test querying catalog views throws validation exception") {
+    the[IllegalArgumentException] thrownBy {
+      sql(s"SELECT * FROM myview WHERE name = 'A' AND age > 30")
+    } should have message "Catalog View is not allowed to be queried"
+
   }
 
   test("should not apply if covering index is logically deleted") {
