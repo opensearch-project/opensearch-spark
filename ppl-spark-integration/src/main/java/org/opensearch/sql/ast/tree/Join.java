@@ -15,15 +15,24 @@ import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
 public class Join extends UnresolvedPlan {
-    private final UnresolvedPlan left;
+    private UnresolvedPlan left;
     private final UnresolvedPlan right;
+    private final String leftAlias;
+    private final String rightAlias;
     private final JoinType joinType;
     private final UnresolvedExpression joinCondition;
     private final JoinHint joinHint;
 
-    public Join(UnresolvedPlan left, UnresolvedPlan right, JoinType joinType, UnresolvedExpression joinCondition, JoinHint joinHint) {
-        this.left = left;
+    public Join(
+            UnresolvedPlan right,
+            String leftAlias,
+            String rightAlias,
+            JoinType joinType,
+            UnresolvedExpression joinCondition,
+            JoinHint joinHint) {
         this.right = right;
+        this.leftAlias = leftAlias;
+        this.rightAlias = rightAlias;
         this.joinType = joinType;
         this.joinCondition = joinCondition;
         this.joinHint = joinHint;
@@ -31,12 +40,13 @@ public class Join extends UnresolvedPlan {
 
     @Override
     public UnresolvedPlan attach(UnresolvedPlan child) {
+        this.left = new SubqueryAlias(leftAlias, child);
         return this;
     }
 
     @Override
     public List<UnresolvedPlan> getChild() {
-        return ImmutableList.of(left, right);
+        return ImmutableList.of(left);
     }
 
     @Override
@@ -54,12 +64,16 @@ public class Join extends UnresolvedPlan {
         FULL
     }
 
-    public UnresolvedPlan getLeft() {
-        return left;
-    }
-
     public UnresolvedPlan getRight() {
         return right;
+    }
+
+    public String getLeftAlias() {
+        return leftAlias;
+    }
+
+    public String getRightAlias() {
+        return rightAlias;
     }
 
     public JoinType getJoinType() {
@@ -79,12 +93,12 @@ public class Join extends UnresolvedPlan {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Join join = (Join) o;
-        return Objects.equals(left, join.left) && Objects.equals(right, join.right) && joinType == join.joinType && Objects.equals(joinCondition, join.joinCondition);
+        return Objects.equals(left, join.left) && Objects.equals(right, join.right) && Objects.equals(leftAlias, join.leftAlias) && Objects.equals(rightAlias, join.rightAlias) && joinType == join.joinType && Objects.equals(joinCondition, join.joinCondition) && Objects.equals(joinHint, join.joinHint);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(left, right, joinType, joinCondition);
+        return Objects.hash(left, right, leftAlias, rightAlias, joinType, joinCondition, joinHint);
     }
 
     public static class JoinHint {

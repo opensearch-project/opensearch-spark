@@ -45,7 +45,7 @@ FULL:                               'FULL';
 SEMI:                               'SEMI';
 ANTI:                               'ANTI';
 CROSS:                              'CROSS';
-HINT_KEY:                           'HINT.' ID_LITERAL;
+HINT_PREFIX:                        'HINT.';
 
 //CORRELATION KEYWORDS
 CORRELATE:                          'CORRELATE';

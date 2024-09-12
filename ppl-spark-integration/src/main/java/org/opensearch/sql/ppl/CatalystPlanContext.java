@@ -10,6 +10,7 @@ import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
 import org.apache.spark.sql.types.Metadata;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
@@ -44,6 +45,10 @@ public class CatalystPlanContext {
      **/
     private List<LogicalPlan> relations = new ArrayList<>();
     /**
+     * Catalyst SubqueryAlias list
+     **/
+    private List<LogicalPlan> subqueryAlias = new ArrayList<>();
+    /**
      * Catalyst evolving logical plan
      **/
     private Stack<LogicalPlan> planBranches = new Stack<>();
@@ -68,6 +73,10 @@ public class CatalystPlanContext {
 
     public List<LogicalPlan> getRelations() {
         return relations;
+    }
+
+    public List<LogicalPlan> getSubqueryAlias() {
+        return subqueryAlias;
     }
 
     public List<UnresolvedExpression> getProjectedFields() {
@@ -124,6 +133,10 @@ public class CatalystPlanContext {
     public LogicalPlan withRelation(UnresolvedRelation relation) {
         this.relations.add(relation);
         return with(relation);
+    }
+
+    public void withSubqueryAlias(SubqueryAlias subqueryAlias) {
+        this.subqueryAlias.add(subqueryAlias);
     }
 
     /**

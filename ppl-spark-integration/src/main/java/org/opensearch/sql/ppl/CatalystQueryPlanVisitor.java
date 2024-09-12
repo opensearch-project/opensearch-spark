@@ -65,6 +65,7 @@ import org.opensearch.sql.ast.tree.RareAggregation;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Sort;
+import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.TopAggregation;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
@@ -182,14 +183,25 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitJoin(Join node, CatalystPlanContext context) {
-        LogicalPlan left = node.getLeft().accept(this, context);
-        LogicalPlan right = node.getRight().accept(this, context);
-        context.reduce((l, r) -> {
+        node.getChild().get(0).accept(this, context);
+        return context.apply(left -> {
+            LogicalPlan right = node.getRight().accept(this, context);
             Expression joinCondition = visitExpression(node.getJoinCondition(), context);
-            context.popNamedParseExpressions();
-            return join(l, r, node.getJoinType(), joinCondition, node.getJoinHint());
+            context.retainAllNamedParseExpressions(p -> p);
+            context.retainAllPlans(p -> p);
+            return join(left, right, node.getJoinType(), joinCondition, node.getJoinHint());
         });
-        return context.getPlan();
+    }
+
+    @Override
+    public LogicalPlan visitSubqueryAlias(SubqueryAlias node, CatalystPlanContext context) {
+        node.getChild().get(0).accept(this, context);
+        return context.apply(p -> {
+            var alias = org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$.MODULE$.apply(node.getAlias(), p);
+            context.withSubqueryAlias(alias);
+            return alias;
+        });
+
     }
 
     @Override
@@ -479,11 +491,19 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         @Override
         public Expression visitQualifiedName(QualifiedName node, CatalystPlanContext context) {
-            List<UnresolvedRelation> relation = findRelation(context.traversalContext()); // check join context.apply
+            List<UnresolvedRelation> relation = findRelation(context.traversalContext());
             if (!relation.isEmpty()) {
                 Optional<QualifiedName> resolveField = resolveField(relation, node, context.getRelations());
-                return resolveField.map(qualifiedName -> context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(qualifiedName.getParts()))))
-                        .orElse(null);
+                Expression result = resolveField.map(qualifiedName -> context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(qualifiedName.getParts()))))
+                    .orElse(null);
+                if (result == null && node.first().isPresent() &&
+                        context.traversalContext().peek() instanceof org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias) {
+                    if (context.getSubqueryAlias().stream().map(p -> (org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias) p)
+                        .anyMatch(a -> a.alias().equalsIgnoreCase(node.first().get()))) {
+                        result = context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
+                    }
+                }
+                return result;
             }
             return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
         }

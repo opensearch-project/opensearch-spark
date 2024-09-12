@@ -33,6 +33,7 @@ pplCommands
 commands
    : whereCommand
    | correlateCommand
+   | joinCommand
    | fieldsCommand
    | statsCommand
    | dedupCommand
@@ -183,10 +184,8 @@ mlArg
 
 // clauses
 fromClause
-   : SOURCE EQUAL relation
-   | INDEX EQUAL relation
-   | SOURCE EQUAL tableSourceClause
-   | INDEX EQUAL relation
+   : SOURCE EQUAL tableSourceClause
+   | INDEX EQUAL tableSourceClause
    ;
 
 tableSourceClause
@@ -194,21 +193,8 @@ tableSourceClause
    ;
 
 // join
-relation
-   : relationPrimary relationExtension
-   ;
-
-// TODO subsearch
-relationPrimary
-   : tableSource (AS alias = qualifiedName)?
-   ;
-
-relationExtension
-   : joinSource
-   ;
-
-joinSource
-   : (joinType) JOIN right = relationPrimary joinHintList? joinCriteria
+joinCommand
+   : (joinType) JOIN sideAlias joinHintList? ON joinCriteria right = tableSource
    ;
 
 joinType
@@ -221,8 +207,29 @@ joinType
    | LEFT? ANTI
    ;
 
+sideAlias
+   : HINT_PREFIX LEFT EQUAL leftAlias COMMA? HINT_PREFIX RIGHT EQUAL rightAlias
+   ;
+
+// this will be reused in #joinConditionExpr
+leftAlias
+   : ident
+   ;
+
+// this will be reused in #joinConditionExpr
+rightAlias
+   : ident
+   ;
+
 joinCriteria
-   : ON logicalExpression
+   : joinCondition
+   | NOT joinCondition
+   | left = joinCondition OR right = joinCondition
+   | left = joinCondition AND right = joinCondition
+   ;
+
+joinCondition
+   : left = fieldExpression comparisonOperator right = fieldExpression
    ;
 
 joinHintList
@@ -230,7 +237,7 @@ joinHintList
     ;
 
 hintPair
-    : key = HINT_KEY EQUAL value = ident
+    : key = HINT_PREFIX ID EQUAL value = ident
     ;
 
 renameClasue

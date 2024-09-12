@@ -115,6 +115,14 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     }
 
     /**
+     * Join condition expression.
+     */
+    @Override
+    public UnresolvedExpression visitJoinCondition(OpenSearchPPLParser.JoinConditionContext ctx) {
+        return new Compare(ctx.comparisonOperator().getText(), visit(ctx.left), visit(ctx.right));
+    }
+
+    /**
      * Value Expression.
      */
     @Override
