@@ -259,6 +259,7 @@ POWER:                              'POWER';
 RAND:                               'RAND';
 ROUND:                              'ROUND';
 SIGN:                               'SIGN';
+SIGNUM:                             'SIGNUM';
 SQRT:                               'SQRT';
 TRUNCATE:                           'TRUNCATE';
 
