@@ -61,6 +61,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
             new ImmutableMap.Builder<String, String>()
                     .put("isnull", IS_NULL.getName().getFunctionName())
                     .put("isnotnull", IS_NOT_NULL.getName().getFunctionName())
+                    .put("ispresent", IS_NOT_NULL.getName().getFunctionName())
                     .build();
 
     @Override

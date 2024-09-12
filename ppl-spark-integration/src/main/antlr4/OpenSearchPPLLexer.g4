@@ -331,6 +331,7 @@ CAST:                               'CAST';
 LIKE:                               'LIKE';
 ISNULL:                             'ISNULL';
 ISNOTNULL:                          'ISNOTNULL';
+ISPRESENT:                          'ISPRESENT';
 
 // FLOWCONTROL FUNCTIONS
 IFNULL:                             'IFNULL';
