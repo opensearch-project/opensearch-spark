@@ -43,83 +43,79 @@ class FlintSparkPPLBasicITSuite
            describe flint_ppl_test
            """.stripMargin)
 
-      // Retrieve the results
-      val results: Array[Row] = frame.collect()
-      // Define the expected results
-      val expectedResults: Array[Row] = Array(
-        Row("name", "string", null),
-        Row("age", "int", null),
-        Row("state", "string", null),
-        Row("country", "string", null),
-        Row("year", "int", null),
-        Row("month", "int", null),
-        Row("# Partition Information", "", ""),
-        Row("# col_name", "data_type", "comment"),
-        Row("year", "int", null),
-        Row("month", "int", null))
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("name", "string", null),
+      Row("age", "int", null),
+      Row("state", "string", null),
+      Row("country", "string", null),
+      Row("year", "int", null),
+      Row("month", "int", null),
+      Row("# Partition Information", "", ""),
+      Row("# col_name", "data_type", "comment"),
+      Row("year", "int", null),
+      Row("month", "int", null))
 
-      // Convert actual results to a Set for quick lookup
-      val resultsSet: Set[Row] = results.toSet
-      // Check that each expected row is present in the actual results
-      expectedResults.foreach { expectedRow =>
-        assert(
-          resultsSet.contains(expectedRow),
-          s"Expected row $expectedRow not found in results")
-      }
-      // Retrieve the logical plan
-      val logicalPlan: LogicalPlan =
-        frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
-      // Define the expected logical plan
-      val expectedPlan: LogicalPlan =
-        DescribeTableCommand(
-          TableIdentifier("flint_ppl_test"),
-          Map.empty[String, String],
-          isExtended = true,
-          output = DescribeRelation.getOutputAttrs)
-      // Compare the two plans
-      comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+    // Convert actual results to a Set for quick lookup
+    val resultsSet: Set[Row] = results.toSet
+    // Check that each expected row is present in the actual results
+    expectedResults.foreach { expectedRow =>
+      assert(resultsSet.contains(expectedRow), s"Expected row $expectedRow not found in results")
+    }
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan =
+      frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
+    // Define the expected logical plan
+    val expectedPlan: LogicalPlan =
+      DescribeTableCommand(
+        TableIdentifier("flint_ppl_test"),
+        Map.empty[String, String],
+        isExtended = true,
+        output = DescribeRelation.getOutputAttrs)
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
   test("describe (extended) FQN (2 parts) table query test") {
-      val frame = sql(s"""
+    val frame = sql(s"""
            describe default.flint_ppl_test
            """.stripMargin)
 
-      // Retrieve the results
-      val results: Array[Row] = frame.collect()
-      // Define the expected results
-      val expectedResults: Array[Row] = Array(
-        Row("name", "string", null),
-        Row("age", "int", null),
-        Row("state", "string", null),
-        Row("country", "string", null),
-        Row("year", "int", null),
-        Row("month", "int", null),
-        Row("# Partition Information", "", ""),
-        Row("# col_name", "data_type", "comment"),
-        Row("year", "int", null),
-        Row("month", "int", null))
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("name", "string", null),
+      Row("age", "int", null),
+      Row("state", "string", null),
+      Row("country", "string", null),
+      Row("year", "int", null),
+      Row("month", "int", null),
+      Row("# Partition Information", "", ""),
+      Row("# col_name", "data_type", "comment"),
+      Row("year", "int", null),
+      Row("month", "int", null))
 
-      // Convert actual results to a Set for quick lookup
-      val resultsSet: Set[Row] = results.toSet
-      // Check that each expected row is present in the actual results
-      expectedResults.foreach { expectedRow =>
-        assert(
-          resultsSet.contains(expectedRow),
-          s"Expected row $expectedRow not found in results")
-      }
-      // Retrieve the logical plan
-      val logicalPlan: LogicalPlan =
-        frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
-      // Define the expected logical plan
-      val expectedPlan: LogicalPlan =
-        DescribeTableCommand(
-          TableIdentifier("flint_ppl_test", Option("default")),
-          Map.empty[String, String],
-          isExtended = true,
-          output = DescribeRelation.getOutputAttrs)
-      // Compare the two plans
-      comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+    // Convert actual results to a Set for quick lookup
+    val resultsSet: Set[Row] = results.toSet
+    // Check that each expected row is present in the actual results
+    expectedResults.foreach { expectedRow =>
+      assert(resultsSet.contains(expectedRow), s"Expected row $expectedRow not found in results")
+    }
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan =
+      frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
+    // Define the expected logical plan
+    val expectedPlan: LogicalPlan =
+      DescribeTableCommand(
+        TableIdentifier("flint_ppl_test", Option("default")),
+        Map.empty[String, String],
+        isExtended = true,
+        output = DescribeRelation.getOutputAttrs)
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
   test("create ppl simple query test") {

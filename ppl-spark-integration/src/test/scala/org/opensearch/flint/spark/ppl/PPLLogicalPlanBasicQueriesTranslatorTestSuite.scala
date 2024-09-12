@@ -36,10 +36,10 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
       thrown.getMessage === "Invalid table name: t.b.c.d Syntax: [ database_name. ] table_name")
   }
 
-
   test("test describe FQN table clause") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "describe schema.default.http_logs", false), context)
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "describe schema.default.http_logs", false), context)
 
     val expectedPlan = DescribeTableCommand(
       TableIdentifier("http_logs", Option("schema"), Option("default")),
