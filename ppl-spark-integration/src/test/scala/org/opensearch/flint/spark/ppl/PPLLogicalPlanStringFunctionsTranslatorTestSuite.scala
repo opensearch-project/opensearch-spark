@@ -222,4 +222,19 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
     val expectedPlan = Project(projectList, filterPlan)
     comparePlans(expectedPlan, logPlan, false)
   }
+
+  test("test ispresent") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=t a = ispresent(b)", false), context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val filterExpr = EqualTo(
+      UnresolvedAttribute("a"),
+      UnresolvedFunction("isnotnull", seq(UnresolvedAttribute("b")), isDistinct = false))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, filterPlan)
+    comparePlans(expectedPlan, logPlan, false)
+  }
 }
