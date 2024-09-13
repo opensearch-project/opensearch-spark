@@ -599,6 +599,36 @@ class FlintSparkPPLBuiltinFunctionITSuite
              | """.stripMargin))
   }
 
+  test("test coalesce function") {
+    val frame = sql(s"""
+                       | source = $testNullTable | where age = 10 | eval result=coalesce(name, state, country) | fields result
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row("Canada"))
+    assert(results.sameElements(expectedResults))
+  }
+
+  test("test coalesce function nulls only") {
+    val frame = sql(s"""
+                       | source = $testNullTable | where age = 10 | eval result=coalesce(name, state) | fields result
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(null))
+    assert(results.sameElements(expectedResults))
+  }
+
+  test("test coalesce function where") {
+    val frame = sql(s"""
+                       | source = $testNullTable | where isnull(coalesce(name, state))
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(null, 10, null, "Canada"))
+    assert(results.sameElements(expectedResults))
+  }
+
   // Todo
   // +---------------------------------------+
   // | Below tests are not supported (cast)  |
