@@ -11,9 +11,9 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Descending, EqualTo, IsNotNull, Literal, NamedExpression, SortOrder}
-import org.apache.spark.sql.catalyst.plans.{Cross, Inner, LeftOuter, PlanTest}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Deduplicate, Filter, Join, JoinHint, Project, Sort, SubqueryAlias}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, Descending, EqualTo, LessThan, Literal, SortOrder}
+import org.apache.spark.sql.catalyst.plans.{Cross, FullOuter, Inner, LeftAnti, LeftOuter, LeftSemi, PlanTest, RightOuter}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Join, JoinHint, Project, Sort, SubqueryAlias}
 
 class PPLLogicalPlanJoinTranslatorTestSuite
     extends SparkFunSuite
@@ -28,6 +28,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
   private val testTable1 = "spark_catalog.default.flint_ppl_test1"
   private val testTable2 = "spark_catalog.default.flint_ppl_test2"
   private val testTable3 = "spark_catalog.default.flint_ppl_test3"
+  private val testTable4 = "spark_catalog.default.flint_ppl_test4"
 
   test("test two-tables inner join: join condition with aliases") {
     val context = new CatalystPlanContext
@@ -48,7 +49,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 
-  ignore("test two-tables inner join: join condition with table names") {
+  test("test two-tables inner join: join condition with table names") {
     val context = new CatalystPlanContext
     val logPlan = plan(
       pplParser,
@@ -68,7 +69,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 
-  test("test two-tables inner join: join condition without prefix") {
+  test("test inner join: join condition without prefix") {
     val context = new CatalystPlanContext
     val logPlan = plan(
       pplParser,
@@ -88,12 +89,68 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 
-  test("test two-tables left outer join") {
+  test("test inner join: join condition with aliases and predicates") {
     val context = new CatalystPlanContext
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | left outer JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
+         | source = $testTable1 | JOIN hint.left = l hint.right = r ON l.id = r.id AND l.count > 10 AND lower(r.name) = 'hello' $testTable2
+         | """.stripMargin,
+      isExplain = false)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val leftPlan = SubqueryAlias("l", table1)
+    val rightPlan = SubqueryAlias("r", table2)
+    val joinCondition = And(
+      And(
+        EqualTo(UnresolvedAttribute("l.id"), UnresolvedAttribute("r.id")),
+        EqualTo(
+          Literal("hello"),
+          UnresolvedFunction.apply(
+            "lower",
+            Seq(UnresolvedAttribute("r.name")),
+            isDistinct = false))),
+      LessThan(Literal(10), UnresolvedAttribute("l.count")))
+    val joinPlan = Join(leftPlan, rightPlan, Inner, Some(joinCondition), JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test inner join: join condition with table names and predicates") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1 | INNER JOIN hint.left = l hint.right = r ON $testTable1.id = $testTable2.id AND $testTable1.count > 10 AND lower($testTable2.name) = 'hello' $testTable2
+         | """.stripMargin,
+      isExplain = false)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val leftPlan = SubqueryAlias("l", table1)
+    val rightPlan = SubqueryAlias("r", table2)
+    val joinCondition = And(
+      And(
+        EqualTo(UnresolvedAttribute(s"$testTable1.id"), UnresolvedAttribute(s"$testTable2.id")),
+        EqualTo(
+          Literal("hello"),
+          UnresolvedFunction.apply(
+            "lower",
+            Seq(UnresolvedAttribute(s"$testTable2.name")),
+            isDistinct = false))),
+      LessThan(Literal(10), UnresolvedAttribute(s"$testTable1.count")))
+    val joinPlan = Join(leftPlan, rightPlan, Inner, Some(joinCondition), JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test left outer join") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1 | LEFT OUTER JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -107,12 +164,106 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 
-  test("test two-tables cross join") {
+  test("test right outer join") {
     val context = new CatalystPlanContext
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | cross JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
+         | source = $testTable1 | RIGHT JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
+         | """.stripMargin,
+      isExplain = false)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val leftPlan = SubqueryAlias("l", table1)
+    val rightPlan = SubqueryAlias("r", table2)
+    val joinCondition = EqualTo(UnresolvedAttribute("l.id"), UnresolvedAttribute("r.id"))
+    val joinPlan = Join(leftPlan, rightPlan, RightOuter, Some(joinCondition), JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test left semi join") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1 | LEFT SEMI JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
+         | """.stripMargin,
+      isExplain = false)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val leftPlan = SubqueryAlias("l", table1)
+    val rightPlan = SubqueryAlias("r", table2)
+    val joinCondition = EqualTo(UnresolvedAttribute("l.id"), UnresolvedAttribute("r.id"))
+    val joinPlan = Join(leftPlan, rightPlan, LeftSemi, Some(joinCondition), JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test left anti join") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1 | LEFT ANTI JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
+         | """.stripMargin,
+      isExplain = false)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val leftPlan = SubqueryAlias("l", table1)
+    val rightPlan = SubqueryAlias("r", table2)
+    val joinCondition = EqualTo(UnresolvedAttribute("l.id"), UnresolvedAttribute("r.id"))
+    val joinPlan = Join(leftPlan, rightPlan, LeftAnti, Some(joinCondition), JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test full outer join") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1 | FULL JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
+         | """.stripMargin,
+      isExplain = false)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val leftPlan = SubqueryAlias("l", table1)
+    val rightPlan = SubqueryAlias("r", table2)
+    val joinCondition = EqualTo(UnresolvedAttribute("l.id"), UnresolvedAttribute("r.id"))
+    val joinPlan = Join(leftPlan, rightPlan, FullOuter, Some(joinCondition), JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test cross join") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1 | CROSS JOIN hint.left = l hint.right = r $testTable2
+         | """.stripMargin,
+      isExplain = false)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val leftPlan = SubqueryAlias("l", table1)
+    val rightPlan = SubqueryAlias("r", table2)
+    val joinPlan = Join(leftPlan, rightPlan, Cross, None, JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test cross join with join condition") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1 | CROSS JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -126,7 +277,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 
-  test("test three-tables inner join") {
+  test("test multiple joins") {
     val context = new CatalystPlanContext
     val logPlan = plan(
       pplParser,
@@ -134,12 +285,14 @@ class PPLLogicalPlanJoinTranslatorTestSuite
          | source = $testTable1
          | | inner JOIN hint.left = l,hint.right = r ON l.id = r.id $testTable2
          | | left JOIN hint.left = l,hint.right = r ON l.name = r.name $testTable3
+         | | cross JOIN hint.left = l,hint.right = r $testTable4
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
     val table3 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test3"))
+    val table4 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test4"))
     var leftPlan = SubqueryAlias("l", table1)
     var rightPlan = SubqueryAlias("r", table2)
     val joinCondition1 = EqualTo(UnresolvedAttribute("l.id"), UnresolvedAttribute("r.id"))
@@ -148,7 +301,10 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     rightPlan = SubqueryAlias("r", table3)
     val joinCondition2 = EqualTo(UnresolvedAttribute("l.name"), UnresolvedAttribute("r.name"))
     val joinPlan2 = Join(leftPlan, rightPlan, LeftOuter, Some(joinCondition2), JoinHint.NONE)
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan2)
+    leftPlan = SubqueryAlias("l", joinPlan2)
+    rightPlan = SubqueryAlias("r", table4)
+    val joinPlan3 = Join(leftPlan, rightPlan, Cross, None, JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan3)
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 

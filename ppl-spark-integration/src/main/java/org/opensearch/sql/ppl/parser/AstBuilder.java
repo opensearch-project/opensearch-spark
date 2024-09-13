@@ -47,6 +47,7 @@ import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.TableFunction;
 import org.opensearch.sql.ast.tree.TopAggregation;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
+import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
 import java.util.ArrayList;
@@ -134,11 +135,16 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   @Override
   public UnresolvedPlan visitJoinCommand(OpenSearchPPLParser.JoinCommandContext ctx) {
     Join.JoinType joinType = getJoinType(ctx.joinType());
+    if (ctx.joinCriteria() == null) {
+      joinType = Join.JoinType.CROSS;
+    }
     Join.JoinHint joinHint = getJoinHint(ctx.joinHintList());
     String leftAlias = ctx.sideAlias().leftAlias().getText();
     String rightAlias = ctx.sideAlias().rightAlias().getText();
     UnresolvedPlan right = new SubqueryAlias(rightAlias, new Relation(this.internalVisitExpression(ctx.tableSource()), rightAlias));
-    UnresolvedExpression joinCondition = expressionBuilder.visitJoinCriteria(ctx.joinCriteria());
+    Optional<UnresolvedExpression> joinCondition =
+        ctx.joinCriteria() == null ? Optional.empty() : Optional.of(expressionBuilder.visitJoinCriteria(ctx.joinCriteria()));
+
     return new Join(right, leftAlias, rightAlias, joinType, joinCondition, joinHint);
   }
 
@@ -164,14 +170,14 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
       joinType = Join.JoinType.INNER;
     } else if (ctx.INNER() != null) {
       joinType = Join.JoinType.INNER;
-    } else if (ctx.LEFT() != null) {
-      joinType = Join.JoinType.LEFT;
-    } else if (ctx.RIGHT() != null) {
-      joinType = Join.JoinType.RIGHT;
     } else if (ctx.SEMI() != null) {
       joinType = Join.JoinType.SEMI;
     } else if (ctx.ANTI() != null) {
       joinType = Join.JoinType.ANTI;
+    } else if (ctx.LEFT() != null) {
+      joinType = Join.JoinType.LEFT;
+    } else if (ctx.RIGHT() != null) {
+      joinType = Join.JoinType.RIGHT;
     } else if (ctx.CROSS() != null) {
       joinType = Join.JoinType.CROSS;
     } else if (ctx.FULL() != null) {

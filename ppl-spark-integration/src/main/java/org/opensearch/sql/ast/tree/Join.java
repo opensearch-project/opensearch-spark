@@ -9,6 +9,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import com.google.common.collect.ImmutableMap;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
@@ -20,7 +21,7 @@ public class Join extends UnresolvedPlan {
     private final String leftAlias;
     private final String rightAlias;
     private final JoinType joinType;
-    private final UnresolvedExpression joinCondition;
+    private final Optional<UnresolvedExpression> joinCondition;
     private final JoinHint joinHint;
 
     public Join(
@@ -28,7 +29,7 @@ public class Join extends UnresolvedPlan {
             String leftAlias,
             String rightAlias,
             JoinType joinType,
-            UnresolvedExpression joinCondition,
+            Optional<UnresolvedExpression> joinCondition,
             JoinHint joinHint) {
         this.right = right;
         this.leftAlias = leftAlias;
@@ -80,7 +81,7 @@ public class Join extends UnresolvedPlan {
         return joinType;
     }
 
-    public UnresolvedExpression getJoinCondition() {
+    public Optional<UnresolvedExpression> getJoinCondition() {
         return joinCondition;
     }
 

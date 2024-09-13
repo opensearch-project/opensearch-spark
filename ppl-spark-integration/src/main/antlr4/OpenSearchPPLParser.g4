@@ -194,7 +194,7 @@ tableSourceClause
 
 // join
 joinCommand
-   : (joinType) JOIN sideAlias joinHintList? ON joinCriteria right = tableSource
+   : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableSource
    ;
 
 joinType
@@ -222,14 +222,7 @@ rightAlias
    ;
 
 joinCriteria
-   : joinCondition
-   | NOT joinCondition
-   | left = joinCondition OR right = joinCondition
-   | left = joinCondition AND right = joinCondition
-   ;
-
-joinCondition
-   : left = fieldExpression comparisonOperator right = fieldExpression
+   : ON logicalExpression
    ;
 
 joinHintList

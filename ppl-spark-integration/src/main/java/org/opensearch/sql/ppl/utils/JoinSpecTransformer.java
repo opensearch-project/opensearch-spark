@@ -17,6 +17,7 @@ import scala.Option;
 import scala.collection.Seq;
 
 import java.util.List;
+import java.util.Optional;
 
 import static scala.collection.JavaConverters.seqAsJavaListConverter;
 
@@ -92,8 +93,8 @@ public interface JoinSpecTransformer {
     // | Native Join Syntax (https://github.com/opensearch-project/sql/issues/2913) |
     // +----------------------------------------------------------------------------+
 
-    static LogicalPlan join(LogicalPlan left, LogicalPlan right, org.opensearch.sql.ast.tree.Join.JoinType joinType, Expression joinCondition, org.opensearch.sql.ast.tree.Join.JoinHint joinHint) {
-        return new Join(left, right, getType(joinType), Option.apply(joinCondition), JoinHint.NONE());
+    static LogicalPlan join(LogicalPlan left, LogicalPlan right, org.opensearch.sql.ast.tree.Join.JoinType joinType, Optional<Expression> joinCondition, org.opensearch.sql.ast.tree.Join.JoinHint joinHint) {
+        return new Join(left, right, getType(joinType), Option.apply(joinCondition.orElse(null)), JoinHint.NONE());
     }
 
     static JoinType getType(org.opensearch.sql.ast.tree.Join.JoinType joinType) {
