@@ -475,7 +475,7 @@ class FlintSparkPPLBuiltinFunctionITSuite
     assert(results.sorted.sameElements(expectedResults.sorted))
   }
 
-  test("test boolean condition functions - isnull isnotnull ifnull nullif") {
+  test("test boolean condition functions - isnull isnotnull ifnull nullif ispresent") {
     val frameIsNull = sql(s"""
        | source = $testNullTable | where isnull(name)  | fields age
        | """.stripMargin)
@@ -513,6 +513,27 @@ class FlintSparkPPLBuiltinFunctionITSuite
     val expectedResults4: Array[Row] =
       Array(Row("John", 25), Row("Jane", null), Row(null, 10), Row("Jake", 70), Row("Hello", 30))
     assert(results4.sameElements(expectedResults4))
+
+    val frameIsPresent = sql(s"""
+                                | source = $testNullTable | where ispresent(name)  | fields name
+                                | """.stripMargin)
+
+    val results5: Array[Row] = frameIsPresent.collect()
+    val expectedResults5: Array[Row] = Array(Row("John"), Row("Jane"), Row("Jake"), Row("Hello"))
+    assert(results5.sameElements(expectedResults5))
+
+    val frameEvalIsPresent = sql(s"""
+                             | source = $testNullTable | eval hasName = ispresent(name)  | fields name, hasName
+                             | """.stripMargin)
+
+    val results6: Array[Row] = frameEvalIsPresent.collect()
+    val expectedResults6: Array[Row] = Array(
+      Row("John", true),
+      Row("Jane", true),
+      Row(null, false),
+      Row("Jake", true),
+      Row("Hello", true))
+    assert(results6.sameElements(expectedResults6))
   }
 
   test("test typeof function") {

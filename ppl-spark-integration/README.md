@@ -242,6 +242,7 @@ See the next samples of PPL queries :
  - `source = table | where a < 1 | fields a,b,c`
  - `source = table | where b != 'test' | fields a,b,c`
  - `source = table | where c = 'test' | fields a,b,c | head 3`
+ - `source = table  where ispresent(b)`
 
 **Filters With Logical Conditions**
  - `source = table | where c = 'test' AND a = 1 | fields a,b,c`
@@ -259,6 +260,7 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
  - `source = table | eval f = a * 2 | eval h = f * 2 | fields a,f,h`
  - `source = table | eval f = a * 2, h = f * 2 | fields a,f,h`
  - `source = table | eval f = a * 2, h = b | stats avg(f) by h`
+ - `source = table | eval f = ispresent(a)`
 
 Limitation: Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous" 
  - `source = table | eval a = 10 | fields a,b,c`
@@ -328,6 +330,12 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source=accounts | grok email '.+@%{HOSTNAME:host}' | eval eval_result=1 | fields host, eval_result`
 - `source=accounts | grok street_address '%{NUMBER} %{GREEDYDATA:address}' | fields address `
 - `source=logs | grok message '%{COMMONAPACHELOG}' | fields COMMONAPACHELOG, timestamp, response, bytes`
+
+**Patterns**
+- `source=accounts | patterns email | fields email, patterns_field `
+- `source=accounts | patterns email | where age > 45 | sort - age | fields email, patterns_field`
+- `source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | fields message, no_numbers`
+- `source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | stats count() by no_numbers`
 
 _- **Limitation: Overriding existing field is unsupported:**_
   - `source=accounts | grok address '%{NUMBER} %{GREEDYDATA:address}' | fields address`
