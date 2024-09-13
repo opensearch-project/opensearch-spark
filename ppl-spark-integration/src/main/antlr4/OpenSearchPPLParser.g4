@@ -626,6 +626,7 @@ conditionFunctionBase
    | ISNOTNULL
    | IFNULL
    | NULLIF
+   | ISPRESENT
    ;
 
 systemFunctionName
