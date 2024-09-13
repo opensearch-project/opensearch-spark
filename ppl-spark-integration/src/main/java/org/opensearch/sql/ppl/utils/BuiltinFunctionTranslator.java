@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADD;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.COALESCE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SUBTRACT;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MULTIPLY;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DIVIDE;
@@ -67,6 +68,7 @@ public interface BuiltinFunctionTranslator {
             .put(IS_NULL, "isnull")
             .put(IS_NOT_NULL, "isnotnull")
             .put(BuiltinFunctionName.ISPRESENT, "isnotnull")
+            .put(COALESCE, "coalesce")
             .build();
 
     static Expression builtinFunction(org.opensearch.sql.ast.expression.Function function, List<Expression> args) {
