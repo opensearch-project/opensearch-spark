@@ -134,6 +134,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 identifier = new TableIdentifier(
                         node.getTableQualifiedName().getParts().get(1),
                         Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(0)));
+            } else if (node.getTableQualifiedName().getParts().size() == 3) {
+                identifier = new TableIdentifier(
+                        node.getTableQualifiedName().getParts().get(2),
+                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(0)),
+                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(1)));
             } else {
                 throw new IllegalArgumentException("Invalid table name: " + node.getTableQualifiedName()
                         + " Syntax: [ database_name. ] table_name");
@@ -166,10 +171,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitCorrelation(Correlation node, CatalystPlanContext context) {
         node.getChild().get(0).accept(this, context);
-        context.reduce((left,right) -> {
+        context.reduce((left, right) -> {
             visitFieldList(node.getFieldsList().stream().map(Field::new).collect(Collectors.toList()), context);
             Seq<Expression> fields = context.retainAllNamedParseExpressions(e -> e);
-            if(!Objects.isNull(node.getScope())) {
+            if (!Objects.isNull(node.getScope())) {
                 // scope - this is a time base expression that timeframes the join to a specific period : (Time-field-name, value, unit)
                 expressionAnalyzer.visitSpan(node.getScope(), context);
                 context.popNamedParseExpressions().get();
@@ -236,9 +241,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                             seq(new ArrayList<Expression>())));
             context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Sort(sortElements, true, logicalPlan));
         }
-        //visit TopAggregation results limit
-        if((node instanceof TopAggregation) && ((TopAggregation) node).getResults().isPresent()) {
-            context.apply(p ->(LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
+        //visit TopAggregation results limit 
+        if ((node instanceof TopAggregation) && ((TopAggregation) node).getResults().isPresent()) {
+            context.apply(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
                     ((TopAggregation) node).getResults().get().getValue(), org.apache.spark.sql.types.DataTypes.IntegerType), p));
         }
         return logicalPlan;
@@ -321,7 +326,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         LogicalPlan child = node.getChild().get(0).accept(this, context);
         List<UnresolvedExpression> aliases = new ArrayList<>();
         List<Let> letExpressions = node.getExpressionList();
-        for(Let let : letExpressions) {
+        for (Let let : letExpressions) {
             Alias alias = new Alias(let.getVar().getField().toString(), let.getExpression());
             aliases.add(alias);
         }
@@ -378,7 +383,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         visitFieldList(node.getFields(), context);
         // Columns to deduplicate
         Seq<org.apache.spark.sql.catalyst.expressions.Attribute> dedupeFields
-            = context.retainAllNamedParseExpressions(e -> (org.apache.spark.sql.catalyst.expressions.Attribute) e);
+                = context.retainAllNamedParseExpressions(e -> (org.apache.spark.sql.catalyst.expressions.Attribute) e);
         // Although we can also use the Window operator to translate this as allowedDuplication > 1 did,
         // adding Aggregate operator could achieve better performance.
         if (allowedDuplication == 1) {
@@ -413,6 +418,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         /**
          * generic binary (And, Or, Xor , ...) arithmetic expression resolver
+         *
          * @param node
          * @param transformer
          * @param context
@@ -423,11 +429,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             Optional<Expression> left = context.popNamedParseExpressions();
             node.getRight().accept(this, context);
             Optional<Expression> right = context.popNamedParseExpressions();
-            if(left.isPresent() && right.isPresent()) {
-                return transformer.apply(left.get(),right.get());
-            } else if(left.isPresent()) {
+            if (left.isPresent() && right.isPresent()) {
+                return transformer.apply(left.get(), right.get());
+            } else if (left.isPresent()) {
                 return context.getNamedParseExpressions().push(left.get());
-            } else if(right.isPresent()) {
+            } else if (right.isPresent()) {
                 return context.getNamedParseExpressions().push(right.get());
             }
             return null;
@@ -437,25 +443,25 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         @Override
         public Expression visitAnd(And node, CatalystPlanContext context) {
             return visitBinaryArithmetic(node,
-                    (left,right)-> context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.And(left, right)), context);
+                    (left, right) -> context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.And(left, right)), context);
         }
 
         @Override
         public Expression visitOr(Or node, CatalystPlanContext context) {
             return visitBinaryArithmetic(node,
-                    (left,right)-> context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.Or(left, right)), context);
+                    (left, right) -> context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.Or(left, right)), context);
         }
 
         @Override
         public Expression visitXor(Xor node, CatalystPlanContext context) {
             return visitBinaryArithmetic(node,
-                    (left,right)-> context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.BitwiseXor(left, right)), context);
+                    (left, right) -> context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.BitwiseXor(left, right)), context);
         }
 
         @Override
         public Expression visitNot(Not node, CatalystPlanContext context) {
             node.getExpression().accept(this, context);
-            Optional<Expression> arg =  context.popNamedParseExpressions();
+            Optional<Expression> arg = context.popNamedParseExpressions();
             return arg.map(expression -> context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.Not(expression))).orElse(null);
         }
 
@@ -558,18 +564,18 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         @Override
         public Expression visitFunction(Function node, CatalystPlanContext context) {
             List<Expression> arguments =
-                node.getFuncArgs().stream()
-                    .map(
-                        unresolvedExpression -> {
-                            var ret = analyze(unresolvedExpression, context);
-                            if (ret == null) {
-                                throw new UnsupportedOperationException(
-                                    String.format("Invalid use of expression %s", unresolvedExpression));
-                            } else {
-                                return context.popNamedParseExpressions().get();
-                            }
-                        })
-                    .collect(Collectors.toList());
+                    node.getFuncArgs().stream()
+                            .map(
+                                    unresolvedExpression -> {
+                                        var ret = analyze(unresolvedExpression, context);
+                                        if (ret == null) {
+                                            throw new UnsupportedOperationException(
+                                                    String.format("Invalid use of expression %s", unresolvedExpression));
+                                        } else {
+                                            return context.popNamedParseExpressions().get();
+                                        }
+                                    })
+                            .collect(Collectors.toList());
             Expression function = BuiltinFunctionTranslator.builtinFunction(node, arguments);
             return context.getNamedParseExpressions().push(function);
         }

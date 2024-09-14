@@ -417,6 +417,7 @@ evalFunctionName
    | conditionFunctionBase
    | systemFunctionName
    | positionFunctionName
+   | coalesceFunctionName
    ;
 
 functionArgs
@@ -691,6 +692,10 @@ textFunctionName
 
 positionFunctionName
    : POSITION
+   ;
+
+coalesceFunctionName
+   : COALESCE
    ;
 
 // operators

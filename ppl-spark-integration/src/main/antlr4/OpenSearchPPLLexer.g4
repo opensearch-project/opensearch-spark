@@ -351,6 +351,9 @@ NULLIF:                             'NULLIF';
 IF:                                 'IF';
 TYPEOF:                             'TYPEOF';
 
+//OTHER CONDITIONAL EXPRESSIONS
+COALESCE:                           'COALESCE';
+
 // RELEVANCE FUNCTIONS AND PARAMETERS
 MATCH:                              'MATCH';
 MATCH_PHRASE:                       'MATCH_PHRASE';
