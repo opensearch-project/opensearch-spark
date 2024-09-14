@@ -210,6 +210,7 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
          |  "state": "waiting",
          |  "submitTime": $submitTime,
          |  "type": "statement",
+         |  "lang": "sql",
          |  "statementId": "${statementId}",
          |  "queryId": "${queryId}",
          |  "dataSourceName": "${dataSourceName}"
