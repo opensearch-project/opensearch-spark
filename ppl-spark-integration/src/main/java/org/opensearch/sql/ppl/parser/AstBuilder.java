@@ -16,6 +16,7 @@ import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.DataType;
+import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Let;
@@ -139,8 +140,9 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
       joinType = Join.JoinType.CROSS;
     }
     Join.JoinHint joinHint = getJoinHint(ctx.joinHintList());
-    String leftAlias = ctx.sideAlias().leftAlias().getText();
-    String rightAlias = ctx.sideAlias().rightAlias().getText();
+    String leftAlias = ctx.sideAlias().leftAlias.getText();
+    String rightAlias = ctx.sideAlias().rightAlias.getText();
+    // TODO when sub-search is supported, this part need to change. Now relation is the only supported plan for right side
     UnresolvedPlan right = new SubqueryAlias(rightAlias, new Relation(this.internalVisitExpression(ctx.tableSource()), rightAlias));
     Optional<UnresolvedExpression> joinCondition =
         ctx.joinCriteria() == null ? Optional.empty() : Optional.of(expressionBuilder.visitJoinCriteria(ctx.joinCriteria()));
@@ -155,9 +157,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     } else {
       joinHint = new Join.JoinHint(
           ctx.hintPair().stream()
+              .map(pCtx -> expressionBuilder.visit(pCtx))
+              .filter(e -> e instanceof EqualTo)
+              .map(e -> (EqualTo) e)
               .collect(Collectors.toMap(
-                  p -> p.key.getText(),
-                  p -> p.value.getText(),
+                  k -> k.getLeft().toString(), // always literal
+                  v -> v.getRight().toString(), // always literal
                   (v1, v2) -> v2,
                   LinkedHashMap::new)));
     }

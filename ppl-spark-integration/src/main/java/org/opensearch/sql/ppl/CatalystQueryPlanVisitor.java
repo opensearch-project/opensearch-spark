@@ -495,19 +495,18 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             if (!relation.isEmpty()) {
                 Optional<QualifiedName> resolveField = resolveField(relation, node, context.getRelations());
                 return resolveField.map(qualifiedName -> context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(qualifiedName.getParts()))))
-                    .orElse(resolveQualifiedNameInJoinCondition(node, context));
+                    .orElse(resolveQualifiedNameWithSubqueryAlias(node, context));
             }
             return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
         }
 
         /**
-         * Resolve the qualified name in join condition: <br/>
-         * - tableName1.joinKey = tableName2.joinKey <br/>
+         * Resolve the qualified name with subquery alias: <br/>
          * - subqueryAlias1.joinKey = subqueryAlias2.joinKey <br/>
          * - tableName1.joinKey = subqueryAlias2.joinKey <br/>
          * - subqueryAlias1.joinKey = tableName2.joinKey <br/>
          */
-        private Expression resolveQualifiedNameInJoinCondition(QualifiedName node, CatalystPlanContext context) {
+        private Expression resolveQualifiedNameWithSubqueryAlias(QualifiedName node, CatalystPlanContext context) {
             if (node.getPrefix().isPresent() &&
                 context.traversalContext().peek() instanceof org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias) {
                 if (context.getSubqueryAlias().stream().map(p -> (org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias) p)

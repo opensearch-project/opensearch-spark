@@ -18,6 +18,7 @@ import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.DataType;
+import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.Interval;
@@ -306,6 +307,16 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     public UnresolvedExpression visitSpanClause(OpenSearchPPLParser.SpanClauseContext ctx) {
         String unit = ctx.unit != null ? ctx.unit.getText() : "";
         return new Span(visit(ctx.fieldExpression()), visit(ctx.value), SpanUnit.of(unit));
+    }
+
+    @Override
+    public UnresolvedExpression visitLeftHint(OpenSearchPPLParser.LeftHintContext ctx) {
+        return new EqualTo(new Literal(ctx.leftHintKey.getText(), DataType.STRING), visit(ctx.leftHintValue));
+    }
+
+    @Override
+    public UnresolvedExpression visitRightHint(OpenSearchPPLParser.RightHintContext ctx) {
+        return new EqualTo(new Literal(ctx.rightHintKey.getText(), DataType.STRING), visit(ctx.rightHintValue));
     }
 
     private QualifiedName visitIdentifiers(List<? extends ParserRuleContext> ctx) {

@@ -208,17 +208,7 @@ joinType
    ;
 
 sideAlias
-   : HINT_PREFIX LEFT EQUAL leftAlias COMMA? HINT_PREFIX RIGHT EQUAL rightAlias
-   ;
-
-// this will be reused in #joinConditionExpr
-leftAlias
-   : ident
-   ;
-
-// this will be reused in #joinConditionExpr
-rightAlias
-   : ident
+   : LEFT_HINT EQUAL leftAlias = ident COMMA? RIGHT_HINT EQUAL rightAlias = ident
    ;
 
 joinCriteria
@@ -230,7 +220,8 @@ joinHintList
     ;
 
 hintPair
-    : key = HINT_PREFIX ID EQUAL value = ident
+    : leftHintKey = LEFT_HINT DOT ID EQUAL leftHintValue = ident             #leftHint
+    | rightHintKey = RIGHT_HINT DOT ID EQUAL rightHintValue = ident          #rightHint
     ;
 
 renameClasue

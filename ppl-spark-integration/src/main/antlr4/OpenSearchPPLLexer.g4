@@ -45,7 +45,8 @@ FULL:                               'FULL';
 SEMI:                               'SEMI';
 ANTI:                               'ANTI';
 CROSS:                              'CROSS';
-HINT_PREFIX:                        'HINT.';
+LEFT_HINT:                          'HINT.LEFT';
+RIGHT_HINT:                         'HINT.RIGHT';
 
 //CORRELATION KEYWORDS
 CORRELATE:                          'CORRELATE';

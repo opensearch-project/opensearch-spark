@@ -358,46 +358,10 @@ SEARCH source=<left-table>
 
 joinType: [INNER] | LEFT [OUTER] | RIGHT [OUTER] | FULL [OUTER] | CROSS | [LEFT] SEMI | [LEFT] ANTI 
 ```
+_- **Limitation: sub-searches is unsupported in join right side now**_
 
-Example of migration from SQL query (TPC-H Q13):
-```sql
-SELECT c_count, COUNT(*) AS custdist
-FROM
-  ( SELECT c_custkey, COUNT(o_orderkey) c_count
-    FROM customer LEFT OUTER JOIN orders ON c_custkey = o_custkey
-        AND o_comment NOT LIKE '%unusual%packages%'
-    GROUP BY c_custkey
-  ) AS c_orders
-GROUP BY c_count
-ORDER BY custdist DESC, c_count DESC;
-```
-Rewritten by PPL Join query:
-```sql
-SEARCH source=customer
-| FIELDS c_custkey
-| LEFT OUTER JOIN hint.left = c, hint.right = o
-    ON c.c_custkey = o.o_custkey AND o_comment NOT LIKE '%unusual%packages%'
-    orders
-| STATS count(o_orderkey) AS c_count BY c.c_custkey
-| STATS count(1) AS custdist BY c_count
-| SORT - custdist, - c_count
-```
-_- **Limitation: sub-searches is unsupported in join right side**_
+Details of Join commands - view [PPL-Join-Command](../docs/PPL-Join-command.md)
 
-If sub-searches is supported, above ppl query could be rewritten as:
-```sql
-SEARCH source=customer
-| FIELDS c_custkey
-| LEFT OUTER JOIN hint.left = c, hint.right = o ON c.c_custkey = o.o_custkey
-   [
-      SEARCH source=orders
-      | WHERE o_comment NOT LIKE '%unusual%packages%'
-      | FIELDS o_orderkey, o_custkey
-   ]
-| STATS count(o_orderkey) AS c_count BY c.c_custkey
-| STATS count(*) AS custdist BY c_count
-| SORT - custdist, - c_count
-```
 
 > For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
 
