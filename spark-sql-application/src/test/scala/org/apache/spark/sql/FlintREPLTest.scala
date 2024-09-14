@@ -23,6 +23,7 @@ import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.opensearch.action.get.GetResponse
 import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession, SessionStates}
+import org.opensearch.flint.common.scheduler.model.LangType
 import org.opensearch.flint.core.storage.{FlintReader, OpenSearchReader, OpenSearchUpdater}
 import org.opensearch.search.sort.SortOrder
 import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -269,7 +270,8 @@ class FlintREPLTest
     val expected =
       spark.createDataFrame(spark.sparkContext.parallelize(expectedRows), expectedSchema)
 
-    val flintStatement = new FlintStatement("failed", "select 1", "30", "10", currentTime, None)
+    val flintStatement =
+      new FlintStatement("failed", "select 1", "30", "10", LangType.SQL, currentTime, None)
 
     try {
       FlintREPL.currentTimeProvider = new MockTimeProvider(currentTime)
@@ -711,7 +713,14 @@ class FlintREPLTest
       val startTime = System.currentTimeMillis()
       val expectedDataFrame = mock[DataFrame]
       val flintStatement =
-        new FlintStatement("running", "select 1", "30", "10", Instant.now().toEpochMilli(), None)
+        new FlintStatement(
+          "running",
+          "select 1",
+          "30",
+          "10",
+          LangType.SQL,
+          Instant.now().toEpochMilli(),
+          None)
       // When the `sql` method is called, execute the custom Answer that introduces a delay
       when(mockSparkSession.sql(any[String])).thenAnswer(new Answer[DataFrame] {
         override def answer(invocation: InvocationOnMock): DataFrame = {
@@ -782,6 +791,7 @@ class FlintREPLTest
         "select * from default.http_logs limit1 1",
         "10",
         "20",
+        LangType.SQL,
         Instant.now().toEpochMilli,
         None)
     val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor("flint-repl", 1)
@@ -1325,6 +1335,7 @@ class FlintREPLTest
           "query": "SELECT * FROM table",
           "statementId": "stmt123",
           "queryId": "query456",
+          "lang": "sql",
           "submitTime": 1234567890,
           "error": "Some error"
         }
