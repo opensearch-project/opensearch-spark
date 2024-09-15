@@ -13,6 +13,7 @@ import scala.concurrent.duration.{Duration, MINUTES}
 import scala.util.{Failure, Success, Try}
 
 import org.opensearch.flint.common.model.FlintStatement
+import org.opensearch.flint.common.scheduler.model.LangType
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
 import org.opensearch.flint.spark.FlintSpark
@@ -71,7 +72,13 @@ case class JobOperator(
       instantiateStatementExecutionManager(commandContext, resultIndex, osClient)
 
     val statement =
-      new FlintStatement("running", query, "", queryId, currentTimeProvider.currentEpochMillis())
+      new FlintStatement(
+        "running",
+        query,
+        "",
+        queryId,
+        LangType.SQL,
+        currentTimeProvider.currentEpochMillis())
 
     var exceptionThrown = true
     var error: String = null
