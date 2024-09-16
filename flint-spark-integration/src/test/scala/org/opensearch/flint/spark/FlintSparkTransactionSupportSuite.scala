@@ -5,8 +5,10 @@
 
 package org.opensearch.flint.spark
 
+import java.util.Optional
+
 import org.mockito.Mockito._
-import org.opensearch.flint.common.metadata.log.FlintMetadataLogService
+import org.opensearch.flint.common.metadata.log.{FlintMetadataLog, FlintMetadataLogEntry, FlintMetadataLogService}
 import org.opensearch.flint.core.FlintClient
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
@@ -28,11 +30,18 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
       mockFlintMetadataLogService
   }
 
-  override protected def afterEach(): Unit = {
-    reset(mockFlintClient, mockFlintMetadataLogService)
+  override protected def beforeEach(): Unit = {
+    super.beforeEach()
+    when(mockFlintMetadataLogService.getIndexMetadataLog(testIndex))
+      .thenReturn(Optional.of(mock[FlintMetadataLog[FlintMetadataLogEntry]]))
   }
 
-  test("execute transaction without force initialization when index exists") {
+  override protected def afterEach(): Unit = {
+    reset(mockFlintClient, mockFlintMetadataLogService)
+    super.afterEach()
+  }
+
+  test("execute transaction without force initialization") {
     assertIndexOperation()
       .withForceInit(false)
       .withResult("test")
@@ -41,7 +50,7 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
       .verifyTransaction(forceInit = false)
   }
 
-  test("execute transaction with force initialization when index exists") {
+  test("execute transaction with force initialization") {
     assertIndexOperation()
       .withForceInit(true)
       .withResult("test")
@@ -50,7 +59,7 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
       .verifyTransaction(forceInit = true)
   }
 
-  test("bypass transaction without force initialization when index does not exist") {
+  test("bypass transaction without force initialization when index corrupted") {
     assertIndexOperation()
       .withForceInit(false)
       .withResult("test")
@@ -58,7 +67,7 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
       .expectNoResult()
   }
 
-  test("execute transaction with force initialization even if index does not exist") {
+  test("execute transaction with force initialization even if index corrupted") {
     assertIndexOperation()
       .withForceInit(true)
       .withResult("test")
