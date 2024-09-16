@@ -46,14 +46,21 @@ trait FlintSparkTransactionSupport extends Logging {
    *   the type of the result produced by the operation block
    * @return
    *   Some(result) of the operation block if the operation is executed, or None if the operation
-   *   execution is bypassed due to missing index data
+   *   execution is bypassed due to index corrupted
    */
   def withTransaction[T](indexName: String, opName: String, forceInit: Boolean = false)(
       opBlock: OptimisticTransaction[T] => T): Option[T] = {
     logInfo(s"Starting index operation [$opName $indexName] with forceInit=$forceInit")
     try {
-      // Execute the action if data index exists or create index action (indicated by forceInit)
-      if (forceInit || flintClient.exists(indexName)) {
+      val isCorrupted = isIndexCorrupted(indexName)
+      if (isCorrupted) {
+        logWarning(
+          s"Bypassing index operation [$opName $indexName] as index data has been deleted")
+        cleanupCorruptedIndex(indexName)
+      }
+
+      // Execute the action if create index action (indicated by forceInit) or not corrupted
+      if (forceInit || !isCorrupted) {
 
         // Create transaction (only have side effect if forceInit is true)
         val tx: OptimisticTransaction[T] =
@@ -62,19 +69,6 @@ trait FlintSparkTransactionSupport extends Logging {
         logInfo(s"Index operation [$opName $indexName] complete")
         Some(result)
       } else {
-        /*
-         * If execution reaches this point, it indicates that the Flint index is corrupted.
-         * In such cases, clean up the metadata log, as the index data no longer exists.
-         * There is a very small possibility that users may recreate the index in the
-         * interim, but metadata log get deleted by this cleanup process.
-         */
-        logWarning(
-          s"Bypassing index operation [$opName $indexName] as index data has been deleted")
-        flintMetadataLogService
-          .startTransaction(indexName)
-          .initialLog(_ => true)
-          .finalLog(_ => NO_LOG_ENTRY)
-          .commit(_ => {})
         None
       }
     } catch {
@@ -84,5 +78,31 @@ trait FlintSparkTransactionSupport extends Logging {
         // Rethrowing the original exception for high level logic to handle
         throw e
     }
+  }
+
+  /**
+   * Determines if the index is corrupted, meaning metadata log entry exists but the corresponding
+   * data index does not. There is no race condition with index creation, as it always creates the
+   * data index first. However, there is a very small chance with the vacuum operation, which
+   * deletes the data index before removing the metadata log entry.
+   */
+  private def isIndexCorrupted(indexName: String): Boolean = {
+    val logEntryExists = flintMetadataLogService.getIndexMetadataLog(indexName).isPresent
+    val dataIndexExists = flintClient.exists(indexName)
+    logEntryExists && !dataIndexExists
+  }
+
+  /*
+   * If execution reaches this point, it indicates that the Flint index is corrupted.
+   * In such cases, clean up the metadata log, as the index data no longer exists.
+   * There is a very small possibility that users may recreate the index in the
+   * interim, but metadata log get deleted by this cleanup process.
+   */
+  private def cleanupCorruptedIndex(indexName: String): Unit = {
+    flintMetadataLogService
+      .startTransaction(indexName)
+      .initialLog(_ => true)
+      .finalLog(_ => NO_LOG_ENTRY)
+      .commit(_ => {})
   }
 }
