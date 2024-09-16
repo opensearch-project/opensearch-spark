@@ -248,6 +248,28 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            | """.stripMargin)
   }
 
+  protected def createTextSizeTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   name STRING,
+           |   size INT
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+
+    spark.sql(s"""
+           | INSERT INTO $testTable
+           | VALUES ('Jake', 4),
+           |        ('Hello', 5),
+           |        ('', 0),
+           |        ('\t\t', 1),
+           |        ('\t\t', 2),
+           |        ('?', 1),
+           |        (null, 0)
+           | """.stripMargin)
+  }
+
   protected def createOccupationTable(testTable: String): Unit = {
     sql(s"""
       | CREATE TABLE $testTable
