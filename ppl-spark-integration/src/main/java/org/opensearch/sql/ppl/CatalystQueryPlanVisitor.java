@@ -78,10 +78,7 @@ import scala.Option$;
 import scala.Tuple2;
 import scala.collection.Seq;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
@@ -537,7 +534,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         @Override
         public Expression visitIsEmpty(IsEmpty node, CatalystPlanContext context) {
-            return visitCase(node.getCaseValue(), context);
+            Stack<Expression> namedParseExpressions = new Stack<>();
+            namedParseExpressions.addAll(context.getNamedParseExpressions());
+            Expression expression = visitCase(node.getCaseValue(), context);
+            namedParseExpressions.add(expression);
+            context.setNamedParseExpressions(namedParseExpressions);
+            return expression;
         }
 
 
