@@ -64,11 +64,42 @@ WHERE t1.serviceName = `order`
 ```sql
 SEARCH source=<left-table>
 | <other piped command>
-| [joinType] JOIN hint.left = <leftAlias>, hint.right = <rightAlias> ON joinCriteria <right-table>
+| [joinType] JOIN
+    leftAlias
+    rightAlias
+    [joinHints]
+    ON joinCriteria
+    <right-table>
 | <other piped command>
-
-joinType: [INNER] | LEFT [OUTER] | RIGHT [OUTER] | FULL [OUTER] | CROSS | [LEFT] SEMI | [LEFT] ANTI 
 ```
+**joinType**
+- Syntax: `[INNER] | LEFT [OUTER] | RIGHT [OUTER] | FULL [OUTER] | CROSS | [LEFT] SEMI | [LEFT] ANTI`
+- Optional
+- Description: The type of join to perform. The default is `INNER` if not specified.
+
+**leftAlias**
+- Syntax: `hint.left = <leftAlias>`
+- Required
+- Description: The subquery alias to use with the left join side, to avoid ambiguous naming.
+
+**rightAlias**
+- Syntax: `hint.right = <rightAlias>`
+- Required
+- Description: The subquery aliases to use with the right join side, to avoid ambiguous naming.
+
+**joinHints**
+- Syntax: `[hint.left.key1 = value1 hint.right.key2 = value2]`
+- Optional
+- Description: Zero or more space-separated join hints in the form of Key = Value. The key must start with `hint.left.` or `hint.right.`
+
+**joinCriteria**
+- Syntax: `<expression>`
+- Required
+- Description: The syntax starts with `ON`. It could be any comparison expression. Generally, the join criteria looks like `<leftAlias>.<leftField>=<rightAlias>.<rightField>`. For example: l.id = r.id. If the join criteria contains multiple conditions, you can specify `AND` and `OR` operator between each comparison expression. For example, l.id = r.id AND l.name = r.name.
+
+**right-table**
+- Required
+- Description: The index or table name of join right-side. Sub-search is unsupported in join right side for now.
 
 ### Rewriting
 ```sql
@@ -127,6 +158,28 @@ SEARCH source=customer
       | FIELDS o_orderkey, o_custkey
    ]
 | STATS count(o_orderkey) AS c_count BY c.c_custkey
-| STATS count(*) AS custdist BY c_count
+| STATS count(1) AS custdist BY c_count
 | SORT - custdist, - c_count
 ```
+
+### Comparison with [Correlation](../PPL-Correlation-command.md)
+
+A primary difference between `correlate` and `join` is that both sides of `correlate` are tables, but both sides of `join` are subqueries. 
+For example:
+```sql
+source = testTable1
+ | where country = 'Canada' OR country = 'England'
+ | eval cname = lower(name)
+ | fields cname, country, year, month
+ | inner join hint.left=l, hint.right=r
+     ON l.cname = r.name AND l.country = r.country AND l.year = 2023 AND r.month = 4
+     testTable2s
+```
+The subquery alias `l` does not represent the `testTable1` table itself. Instead, it represents the subquery:
+```sql
+source = testTable1
+| where country = 'Canada' OR country = 'England'
+| eval cname = lower(name)
+| fields cname, country, year, month
+```
+Therefore, the condition of `join` must be `subqueryAlias.field = subqueryAlias.field`, rather than `tableName.field = tableName.field` as in `correlate`.
