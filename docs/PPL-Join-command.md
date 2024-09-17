@@ -85,17 +85,17 @@ SEARCH source=<left-table>
 **rightAlias**
 - Syntax: `hint.right = <rightAlias>`
 - Required
-- Description: The subquery aliases to use with the right join side, to avoid ambiguous naming.
+- Description: The subquery alias to use with the right join side, to avoid ambiguous naming.
 
 **joinHints**
 - Syntax: `[hint.left.key1 = value1 hint.right.key2 = value2]`
 - Optional
-- Description: Zero or more space-separated join hints in the form of Key = Value. The key must start with `hint.left.` or `hint.right.`
+- Description: Zero or more space-separated join hints in the form of `Key` = `Value`. The key must start with `hint.left.` or `hint.right.`
 
 **joinCriteria**
 - Syntax: `<expression>`
 - Required
-- Description: The syntax starts with `ON`. It could be any comparison expression. Generally, the join criteria looks like `<leftAlias>.<leftField>=<rightAlias>.<rightField>`. For example: l.id = r.id. If the join criteria contains multiple conditions, you can specify `AND` and `OR` operator between each comparison expression. For example, l.id = r.id AND l.name = r.name.
+- Description: The syntax starts with `ON`. It could be any comparison expression. Generally, the join criteria looks like `<leftAlias>.<leftField>=<rightAlias>.<rightField>`. For example: `l.id = r.id`. If the join criteria contains multiple conditions, you can specify `AND` and `OR` operator between each comparison expression. For example, `l.id = r.id AND l.email = r.email AND (r.age > 65 OR r.age < 18)`.
 
 **right-table**
 - Required
