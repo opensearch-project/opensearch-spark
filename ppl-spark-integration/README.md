@@ -351,21 +351,9 @@ _- **Limitation: Overriding existing field is unsupported:**_
 - `source = table1 | left semi join hint.left = l hint.right = r on l.a = r.a table2`
 - `source = table1 | left anti join hint.left = l hint.right = r on l.a = r.a table2`
 
-The syntax of Join:
-```sql
-SEARCH source=<left-table>
-| <other piped command>
-| [joinType] JOIN hint.left = <leftAlias>, hint.right = <rightAlias> ON joinCriteria <right-table>
-| <other piped command>
-
-joinType: [INNER] | LEFT [OUTER] | RIGHT [OUTER] | FULL [OUTER] | CROSS | [LEFT] SEMI | [LEFT] ANTI 
-```
 _- **Limitation: sub-searches is unsupported in join right side now**_
 
-Details of Join commands - view [PPL-Join-Command](../docs/PPL-Join-command.md)
-
-
-> For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
+Details of Join command, see [PPL-Join-Command](../docs/PPL-Join-command.md)
 
 ---
 #### Experimental Commands:
@@ -374,6 +362,8 @@ Details of Join commands - view [PPL-Join-Command](../docs/PPL-Join-command.md)
 
 ---
 ### Documentations 
+
+For additional details on PPL commands, see [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
 
 For additional details on Spark PPL commands project, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
 
