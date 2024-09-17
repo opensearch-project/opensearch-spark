@@ -32,8 +32,11 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
+
+    val logEntry = mock[FlintMetadataLog[FlintMetadataLogEntry]]
+    when(logEntry.getLatest).thenReturn(Optional.of(mock[FlintMetadataLogEntry]))
     when(mockFlintMetadataLogService.getIndexMetadataLog(testIndex))
-      .thenReturn(Optional.of(mock[FlintMetadataLog[FlintMetadataLogEntry]]))
+      .thenReturn(Optional.of(logEntry))
   }
 
   override protected def afterEach(): Unit = {
