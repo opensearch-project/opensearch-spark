@@ -54,8 +54,7 @@ trait FlintSparkTransactionSupport extends Logging {
     try {
       val isCorrupted = isIndexCorrupted(indexName)
       if (isCorrupted) {
-        logWarning(
-          s"Bypassing index operation [$opName $indexName] as index data has been deleted")
+        logWarning(s"Cleaning up for index operation [$opName $indexName] as index is corrupted")
         cleanupCorruptedIndex(indexName)
       }
 
@@ -69,6 +68,7 @@ trait FlintSparkTransactionSupport extends Logging {
         logInfo(s"Index operation [$opName $indexName] complete")
         Some(result)
       } else {
+        logWarning(s"Bypassing index operation [$opName $indexName]")
         None
       }
     } catch {
@@ -87,7 +87,11 @@ trait FlintSparkTransactionSupport extends Logging {
    * deletes the data index before removing the metadata log entry.
    */
   private def isIndexCorrupted(indexName: String): Boolean = {
-    val logEntryExists = flintMetadataLogService.getIndexMetadataLog(indexName).isPresent
+    val logEntryExists =
+      flintMetadataLogService
+        .getIndexMetadataLog(indexName)
+        .flatMap(_.getLatest)
+        .isPresent
     val dataIndexExists = flintClient.exists(indexName)
     logEntryExists && !dataIndexExists
   }

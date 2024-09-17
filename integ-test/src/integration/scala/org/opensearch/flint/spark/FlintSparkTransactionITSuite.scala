@@ -213,22 +213,51 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       s"Flint index $testFlintIndex already exists"
   }
 
-  test("should clean up metadata log entry if index data has been deleted") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testFlintIndex)
-      .create()
+  Seq(
+    ("refresh", () => flint.refreshIndex(testFlintIndex)),
+    ("delete", () => flint.deleteIndex(testFlintIndex)),
+    ("vacuum", () => flint.vacuumIndex(testFlintIndex)),
+    ("recover", () => flint.recoverIndex(testFlintIndex))).foreach { case (opName, opAction) =>
+    test(s"should clean up metadata log entry when $opName if index is corrupted") {
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testFlintIndex)
+        .create()
+      flint.refreshIndex(testFlintIndex)
+
+      // Simulate the situation that user delete index data directly and then refresh exits
+      spark.streams.active.find(_.name == testFlintIndex).get.stop()
+      deleteIndex(testFlintIndex)
+
+      // Index state is refreshing and expect recover API clean it up
+      latestLogEntry(testLatestId) should contain("state" -> "refreshing")
+      opAction()
+      latestLogEntry(testLatestId) shouldBe empty
+    }
+  }
+
+  test("should clean up metadata log entry and create index if index is corrupted") {
+    def createIndex(): Unit = {
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testFlintIndex)
+        .create()
+    }
+
+    createIndex()
     flint.refreshIndex(testFlintIndex)
 
     // Simulate the situation that user delete index data directly and then refresh exits
     spark.streams.active.find(_.name == testFlintIndex).get.stop()
     deleteIndex(testFlintIndex)
 
-    // Index state is refreshing and expect recover API clean it up
+    // Index state is refreshing and expect create action clean it up
     latestLogEntry(testLatestId) should contain("state" -> "refreshing")
-    flint.recoverIndex(testFlintIndex)
-    latestLogEntry(testLatestId) shouldBe empty
+    createIndex()
+    latestLogEntry(testLatestId) should contain("state" -> "active")
   }
 }
