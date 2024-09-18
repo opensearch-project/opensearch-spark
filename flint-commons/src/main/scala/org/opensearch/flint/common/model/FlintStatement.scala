@@ -31,6 +31,8 @@ object StatementStates {
  *   Unique identifier for the type of statement.
  * @param queryId
  *   Unique identifier for the query.
+ * @param langType
+ *   The language type of the query (e.g., "sql" or "ppl").
  * @param submitTime
  *   Timestamp when the statement was submitted.
  * @param error
@@ -44,6 +46,7 @@ class FlintStatement(
     // statementId is the statement type doc id
     val statementId: String,
     val queryId: String,
+    val langType: String,
     val submitTime: Long,
     var error: Option[String] = None,
     statementContext: Map[String, Any] = Map.empty[String, Any])
@@ -65,7 +68,7 @@ class FlintStatement(
 
   // Does not include context, which could contain sensitive information.
   override def toString: String =
-    s"FlintStatement(state=$state, statementId=$statementId, queryId=$queryId, submitTime=$submitTime, error=$error)"
+    s"FlintStatement(state=$state, statementId=$statementId, queryId=$queryId, langType=$langType, submitTime=$submitTime, error=$error)"
 }
 
 object FlintStatement {
@@ -78,13 +81,14 @@ object FlintStatement {
     val query = (meta \ "query").extract[String]
     val statementId = (meta \ "statementId").extract[String]
     val queryId = (meta \ "queryId").extract[String]
+    val langType = (meta \ "lang").extract[String].toLowerCase(Locale.ROOT)
     val submitTime = (meta \ "submitTime").extract[Long]
     val maybeError: Option[String] = (meta \ "error") match {
       case JString(str) => Some(str)
       case _ => None
     }
 
-    new FlintStatement(state, query, statementId, queryId, submitTime, maybeError)
+    new FlintStatement(state, query, statementId, queryId, langType, submitTime, maybeError)
   }
 
   def serialize(flintStatement: FlintStatement): String = {

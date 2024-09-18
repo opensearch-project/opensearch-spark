@@ -475,7 +475,7 @@ class FlintSparkPPLBuiltinFunctionITSuite
     assert(results.sorted.sameElements(expectedResults.sorted))
   }
 
-  test("test boolean condition functions - isnull isnotnull ifnull nullif") {
+  test("test boolean condition functions - isnull isnotnull ifnull nullif ispresent") {
     val frameIsNull = sql(s"""
        | source = $testNullTable | where isnull(name)  | fields age
        | """.stripMargin)
@@ -513,6 +513,27 @@ class FlintSparkPPLBuiltinFunctionITSuite
     val expectedResults4: Array[Row] =
       Array(Row("John", 25), Row("Jane", null), Row(null, 10), Row("Jake", 70), Row("Hello", 30))
     assert(results4.sameElements(expectedResults4))
+
+    val frameIsPresent = sql(s"""
+                                | source = $testNullTable | where ispresent(name)  | fields name
+                                | """.stripMargin)
+
+    val results5: Array[Row] = frameIsPresent.collect()
+    val expectedResults5: Array[Row] = Array(Row("John"), Row("Jane"), Row("Jake"), Row("Hello"))
+    assert(results5.sameElements(expectedResults5))
+
+    val frameEvalIsPresent = sql(s"""
+                             | source = $testNullTable | eval hasName = ispresent(name)  | fields name, hasName
+                             | """.stripMargin)
+
+    val results6: Array[Row] = frameEvalIsPresent.collect()
+    val expectedResults6: Array[Row] = Array(
+      Row("John", true),
+      Row("Jane", true),
+      Row(null, false),
+      Row("Jake", true),
+      Row("Hello", true))
+    assert(results6.sameElements(expectedResults6))
   }
 
   test("test typeof function") {
@@ -576,6 +597,36 @@ class FlintSparkPPLBuiltinFunctionITSuite
     intercept[AnalysisException](sql(s"""
              | source = $testTable | eval a = ADDDATE(DATE('2020-08-26'), INTERVAL 1 HOUR)
              | """.stripMargin))
+  }
+
+  test("test coalesce function") {
+    val frame = sql(s"""
+                       | source = $testNullTable | where age = 10 | eval result=coalesce(name, state, country) | fields result
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row("Canada"))
+    assert(results.sameElements(expectedResults))
+  }
+
+  test("test coalesce function nulls only") {
+    val frame = sql(s"""
+                       | source = $testNullTable | where age = 10 | eval result=coalesce(name, state) | fields result
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(null))
+    assert(results.sameElements(expectedResults))
+  }
+
+  test("test coalesce function where") {
+    val frame = sql(s"""
+                       | source = $testNullTable | where isnull(coalesce(name, state))
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(null, 10, null, "Canada"))
+    assert(results.sameElements(expectedResults))
   }
 
   // Todo
