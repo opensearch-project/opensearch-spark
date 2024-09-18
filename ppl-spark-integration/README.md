@@ -333,6 +333,7 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
  - `source = table | eval a = 10 | fields a,b,c`
  - `source = table | eval a = a * 2 | stats avg(a)`
  - `source = table | eval a = abs(a) | where a > 0`
+ - `source = table | eval a = signum(a) | where a < 0`
 
 **Aggregations**
  - `source = table | stats avg(a) `
