@@ -66,6 +66,7 @@ public interface BuiltinFunctionTranslator {
             //condition functions
             .put(IS_NULL, "isnull")
             .put(IS_NOT_NULL, "isnotnull")
+            .put(BuiltinFunctionName.ISPRESENT, "isnotnull")
             .build();
 
     static Expression builtinFunction(org.opensearch.sql.ast.expression.Function function, List<Expression> args) {
