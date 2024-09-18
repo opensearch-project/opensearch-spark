@@ -6,7 +6,9 @@
 package org.opensearch.flint.spark.ppl
 
 import java.sql.{Date, Time, Timestamp}
+
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
+
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, CaseWhen, EqualTo, GreaterThan, Literal, NamedExpression}
@@ -31,7 +33,6 @@ class FlintSparkPPLBuiltinFunctionITSuite
     // Create test table
     createPartitionedStateCountryTable(testTable)
     createNullableStateCountryTable(testNullTable)
-    createTextSizeTable(testTextSizeTable)
   }
 
   protected override def afterEach(): Unit = {
@@ -286,22 +287,77 @@ class FlintSparkPPLBuiltinFunctionITSuite
 
     //    val projectList = Seq(UnresolvedStar(None))
 
-    val caseOne = CaseWhen(Seq((EqualTo(UnresolvedFunction("length", Seq(UnresolvedFunction("trim", Seq(Literal("full")), isDistinct = false)), isDistinct = false), Literal(0)), Literal(true)))
-      , Literal(false))
+    val caseOne = CaseWhen(
+      Seq(
+        (
+          EqualTo(
+            UnresolvedFunction(
+              "length",
+              Seq(UnresolvedFunction("trim", Seq(Literal("full")), isDistinct = false)),
+              isDistinct = false),
+            Literal(0)),
+          Literal(true))),
+      Literal(false))
     val aliasOne = Alias(caseOne, "a")()
 
-    val caseTwo = CaseWhen(Seq((EqualTo(UnresolvedFunction("length", Seq(UnresolvedFunction("trim", Seq(Literal("")), isDistinct = false)), isDistinct = false), Literal(0)), Literal(true)))
-      , Literal(false))
+    val caseTwo = CaseWhen(
+      Seq(
+        (
+          EqualTo(
+            UnresolvedFunction(
+              "length",
+              Seq(UnresolvedFunction("trim", Seq(Literal("")), isDistinct = false)),
+              isDistinct = false),
+            Literal(0)),
+          Literal(true))),
+      Literal(false))
     val aliasTwo = Alias(caseTwo, "b")()
 
-    val caseThree = CaseWhen(Seq((EqualTo(UnresolvedFunction("length", Seq(UnresolvedFunction("trim", Seq(Literal(" ")), isDistinct = false)), isDistinct = false), Literal(0)), Literal(true)))
-      , Literal(false))
+    val caseThree = CaseWhen(
+      Seq(
+        (
+          EqualTo(
+            UnresolvedFunction(
+              "length",
+              Seq(UnresolvedFunction("trim", Seq(Literal(" ")), isDistinct = false)),
+              isDistinct = false),
+            Literal(0)),
+          Literal(true))),
+      Literal(false))
     val aliasThree = Alias(caseThree, "c")()
 
     val projectList = Seq(UnresolvedStar(None), aliasOne, aliasTwo, aliasThree)
     val innerProject = Project(projectList, globalLimit)
 
-    val expectedPlan = Project(Seq(UnresolvedAttribute("a"), UnresolvedAttribute("b"), UnresolvedAttribute("c")), innerProject)
+    val expectedPlan = Project(
+      Seq(UnresolvedAttribute("a"), UnresolvedAttribute("b"), UnresolvedAttribute("c")),
+      innerProject)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test string functions - isempty where") {
+    val frame = sql(s"""
+                       | source = $testNullTable | where isempty('I am not empty');
+                       | """.stripMargin)
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 0)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_null"))
+    val caseIsEmpty = CaseWhen(
+      Seq(
+        (
+          EqualTo(
+            UnresolvedFunction(
+              "length",
+              Seq(UnresolvedFunction("trim", Seq(Literal("I am not empty")), isDistinct = false)),
+              isDistinct = false),
+            Literal(0)),
+          Literal(true))),
+      Literal(false))
+    val filterPlan = Filter(caseIsEmpty, table)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), filterPlan)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
