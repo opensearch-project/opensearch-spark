@@ -238,10 +238,10 @@ See the next samples of PPL queries :
 
 **Load File Source**
 
-- `file = table1 ( "s3://my-bucket/path/file.csv" ) | fields a,b,c`
-- `file = table2 ( "s3://my-bucket/path/file.csv.gz" ) | fields a,b,c`
-- `file = table3 ( "s3a://my-bucket/path/file.parquet" ) | fields a,b,c`
-- `file = table4 ( "s3a://my-bucket/path/file.csv" ) a > 0 | fields a,b,c`
+- `file = table1 "s3://my-bucket/path/file.csv" | fields a,b,c`
+- `file = table2 "s3://my-bucket/path/file.csv.gz" | fields a,b,c`
+- `file = table3 "s3a://my-bucket/path/file.parquet" | fields a,b,c`
+- `file = table4 "s3a://my-bucket/path/file.csv" a > 0 | fields a,b,c`
 
 **Filters**
  - `source = table | where a = 1 | fields a,b,c`

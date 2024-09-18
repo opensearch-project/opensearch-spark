@@ -194,7 +194,7 @@ tableSourceClause
 
 // support only one path URL first
 fileSourceClause
-   : tableName = ident LT_PRTHS url = stringLiteral RT_PRTHS
+   : tableName = ident url = stringLiteral
    ;
 
 renameClasue

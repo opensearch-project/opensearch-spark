@@ -367,7 +367,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   @Override
   public UnresolvedPlan visitFileSourceClause(OpenSearchPPLParser.FileSourceClauseContext ctx) {
-    String tableName = ctx.tableName.getText().toLowerCase(Locale.ROOT);
+    UnresolvedExpression tableName = internalVisitExpression(ctx.tableName);
     String path = ((Literal) internalVisitExpression(ctx.url)).toString().toLowerCase(Locale.ROOT);
     // S3 path supported only
     if (!isTesting() && (!path.startsWith("s3://") || !path.startsWith("s3a://"))) {

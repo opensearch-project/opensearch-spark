@@ -31,7 +31,7 @@ class PPLLogicalPlanFileSourceRelationTranslatorTestSuite
   test("test csv file source relation") {
     val context = new CatalystPlanContext
     val scanPlan = planTransformer.visit(
-      plan(pplParser, "file=test1('ppl-spark-integration/src/test/resources/people.csv')", false),
+      plan(pplParser, "file=test1 'ppl-spark-integration/src/test/resources/people.csv'", false),
       context)
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
@@ -55,7 +55,7 @@ class PPLLogicalPlanFileSourceRelationTranslatorTestSuite
     val scanPlan = planTransformer.visit(
       plan(
         pplParser,
-        "file=test1('ppl-spark-integration/src/test/resources/people.csv.gz')",
+        "file=test1 'ppl-spark-integration/src/test/resources/people.csv.gz'",
         false),
       context)
 
@@ -81,7 +81,7 @@ class PPLLogicalPlanFileSourceRelationTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          "file=test1('ppl-spark-integration/src/test/resources/head.csv.brotli')",
+          "file=test1 'ppl-spark-integration/src/test/resources/head.csv.brotli'",
           false),
         context)
     }
@@ -93,7 +93,7 @@ class PPLLogicalPlanFileSourceRelationTranslatorTestSuite
     val context = new CatalystPlanContext
     val thrown = intercept[UnsupportedOperationException] {
       planTransformer.visit(
-        plan(pplParser, "file=test1('ppl-spark-integration/src/test/resources/head.txt')", false),
+        plan(pplParser, "file=test1 'ppl-spark-integration/src/test/resources/head.txt'", false),
         context)
     }
 
