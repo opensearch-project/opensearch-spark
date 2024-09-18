@@ -37,7 +37,7 @@ class FlintSparkPPLFileSourceRelationITSuite
 
   test("test csv file source relation") {
     val frame = sql(s"""
-         | file = $testTable ( integ-test/src/integration/resources/opensearch_dashboards_sample_data_flights.csv )
+         | file = $testTable ( "integ-test/src/integration/resources/opensearch_dashboards_sample_data_flights.csv" )
          | | where Cancelled = false AND DistanceMiles > 0
          | | fields FlightNum, DistanceMiles, FlightTimeMin, OriginWeather, AvgTicketPrice, Carrier, FlightDelayType, timestamp
          | | stats avg(AvgTicketPrice) as avg_price_by_weather by OriginWeather
@@ -122,7 +122,7 @@ class FlintSparkPPLFileSourceRelationITSuite
 
   test("test csv file source relation with compression codec") {
     val frame = sql(s"""
-         | file = $testTable ( integ-test/src/integration/resources/opensearch_dashboards_sample_data_flights.csv.gz )
+         | file = $testTable ( "integ-test/src/integration/resources/opensearch_dashboards_sample_data_flights.csv.gz" )
          | | where Cancelled = false AND DistanceMiles > 0
          | | fields FlightNum, DistanceMiles, FlightTimeMin, OriginWeather, AvgTicketPrice, Carrier, FlightDelayType, timestamp
          | | stats avg(AvgTicketPrice) as avg_price_by_weather by OriginWeather
@@ -207,7 +207,7 @@ class FlintSparkPPLFileSourceRelationITSuite
 
   test("test csv file source relation with filter") {
     val frame = sql(s"""
-         | file = $testTable ( integ-test/src/integration/resources/opensearch_dashboards_sample_data_flights.csv )
+         | file = $testTable ( "integ-test/src/integration/resources/opensearch_dashboards_sample_data_flights.csv" )
          |    Cancelled = false AND DistanceMiles > 0
          | | fields FlightNum, DistanceMiles, FlightTimeMin, OriginWeather, AvgTicketPrice, Carrier, FlightDelayType, timestamp
          | | stats avg(AvgTicketPrice) as avg_price_by_weather by OriginWeather
@@ -292,7 +292,7 @@ class FlintSparkPPLFileSourceRelationITSuite
 
   test("test parquet file source relation") {
     val frame = sql(s"""
-         | file = $testTable ( integ-test/src/integration/resources/users.parquet )
+         | file = $testTable ( "integ-test/src/integration/resources/users.parquet" )
          | | fields name, favorite_color
          | """.stripMargin)
 
