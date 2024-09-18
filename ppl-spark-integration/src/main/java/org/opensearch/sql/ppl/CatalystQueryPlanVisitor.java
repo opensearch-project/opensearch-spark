@@ -5,6 +5,7 @@
 
 package org.opensearch.sql.ppl;
 
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
@@ -21,6 +22,7 @@ import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
+import org.apache.spark.sql.execution.datasources.LogicalRelation;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
@@ -59,6 +61,7 @@ import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Parse;
+import org.opensearch.sql.ast.tree.FileSourceRelation;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.RareAggregation;
 import org.opensearch.sql.ast.tree.RareTopN;
@@ -75,7 +78,9 @@ import scala.Option$;
 import scala.collection.Seq;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -98,10 +103,15 @@ import static org.opensearch.sql.ppl.utils.WindowSpecTransformer.window;
  * Utility class to traverse PPL logical plan and translate it into catalyst logical plan
  */
 public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, CatalystPlanContext> {
-
+    private SparkSession sparkSession;
     private final ExpressionAnalyzer expressionAnalyzer;
 
     public CatalystQueryPlanVisitor() {
+        this(null);
+    }
+
+    public CatalystQueryPlanVisitor(SparkSession spark) {
+        this.sparkSession = spark;
         this.expressionAnalyzer = new ExpressionAnalyzer();
     }
 
@@ -154,6 +164,22 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 context.withRelation(new UnresolvedRelation(seq(of(t.split("\\."))), CaseInsensitiveStringMap.empty(), false))
         );
         return context.getPlan();
+    }
+
+    @Override
+    public LogicalPlan visitFileSourceRelation(FileSourceRelation node, CatalystPlanContext context) {
+        // We have to use dataframe API instead of catalyst plan to handle file source relation
+        // since we can not deal with file based information (path, schema, format) by UnresolvedRelation.
+        Map<String, String> options = new HashMap<>();
+        options.put("header", "true");
+        options.put("inferSchema", "true");
+        if (node.getCompressionCodeName() != null) {
+            options.put("compression", node.getCompressionCodeName());
+        }
+        var df = sparkSession.read()
+            .format(node.getFormat()).options(options)
+            .load(node.getPaths().toArray(new String[0]));
+        return context.withRelation((LogicalRelation) df.queryExecution().logical());
     }
 
     @Override

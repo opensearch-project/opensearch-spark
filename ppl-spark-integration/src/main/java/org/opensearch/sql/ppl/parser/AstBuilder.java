@@ -36,9 +36,9 @@ import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Parse;
+import org.opensearch.sql.ast.tree.FileSourceRelation;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.RareAggregation;
-import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
@@ -48,8 +48,10 @@ import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -91,11 +93,11 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
         .attach(visit(ctx.fromClause()));
   }
 
-  @Override
-  public UnresolvedPlan visitSearchFilterFrom(OpenSearchPPLParser.SearchFilterFromContext ctx) {
-    return new Filter(internalVisitExpression(ctx.logicalExpression()))
-        .attach(visit(ctx.fromClause()));
-  }
+//  @Override
+//  public UnresolvedPlan visitSearchFilterFrom(OpenSearchPPLParser.SearchFilterFromContext ctx) {
+//    return new Filter(internalVisitExpression(ctx.logicalExpression()))
+//        .attach(visit(ctx.fromClause()));
+//  }
 
   @Override
   public UnresolvedPlan visitDescribeCommand(OpenSearchPPLParser.DescribeCommandContext ctx) {
@@ -103,6 +105,46 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     QualifiedName tableQualifiedName = table.getTableQualifiedName();
     ArrayList<String> parts = new ArrayList<>(tableQualifiedName.getParts());
     return new DescribeRelation(new QualifiedName(parts));
+  }
+
+  @Override
+  public UnresolvedPlan visitInputCommand(OpenSearchPPLParser.InputCommandContext ctx) {
+    List<String> paths = ctx.urlList().stringLiteral().stream()
+            .map(this::internalVisitExpression)
+            .map(url -> (Literal) url)
+            .map(Literal::getValue)
+            .map(Object::toString)
+            .map(s -> s.toLowerCase(Locale.ROOT))
+            .collect(Collectors.toList());
+    if (paths.size() > 1) {
+      throw new UnsupportedOperationException("Multiple input URLs are not supported yet");
+    }
+    String path = paths.get(0);
+    // S3 path supported only
+    if (!isTesting() && (!path.startsWith("s3://") || !path.startsWith("s3a://"))) {
+      throw new UnsupportedOperationException("Path should start with 's3://' or 's3a://'");
+    }
+    String suffix = path.substring(path.lastIndexOf('.') + 1);
+    // if the suffix is compression codec, the format is second last suffix
+    if (Arrays.asList("gz", "lzo", "snappy", "zstd").contains(suffix)) {
+      int lastDotIndex = path.lastIndexOf('.');
+      int secondLastDotIndex = path.lastIndexOf('.', lastDotIndex - 1);
+      String format = path.substring(secondLastDotIndex + 1, lastDotIndex);
+      if (Arrays.asList("csv", "parquet", "avro", "orc").contains(format)) {
+        return new FileSourceRelation(paths, format, suffix.equals("gz") ? "gzip" : suffix);
+      } else {
+        throw new UnsupportedOperationException("Unsupported file suffix: " + suffix +
+                ", the supported formats are 'csv', 'parquet', 'avro', 'orc'" +
+                ", the supported compression codecs are 'gz', 'lzo', 'snappy', 'zstd'");
+      }
+    }
+    if (Arrays.asList("csv", "parquet", "avro", "orc").contains(suffix)) {
+      return new FileSourceRelation(paths, suffix);
+    } else {
+      throw new UnsupportedOperationException("Unsupported file suffix: " + suffix +
+              ", the supported formats are 'csv', 'parquet', 'avro', 'orc'" +
+              ", the supported compression codecs are 'gz', 'lzo', 'snappy', 'zstd'");
+    }
   }
 
   /** Where command. */
@@ -426,5 +468,9 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     Token start = ctx.getStart();
     Token stop = ctx.getStop();
     return query.substring(start.getStartIndex(), stop.getStopIndex() + 1);
+  }
+
+  private boolean isTesting() {
+    return System.getenv("SPARK_TESTING") != null || System.getProperty("spark.testing") != null;
   }
 }

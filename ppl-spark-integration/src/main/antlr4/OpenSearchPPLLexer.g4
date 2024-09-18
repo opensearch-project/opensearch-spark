@@ -12,6 +12,7 @@ channels { WHITESPACE, ERRORCHANNEL }
 // COMMAND KEYWORDS
 SEARCH:                             'SEARCH';
 DESCRIBE:                           'DESCRIBE';
+INPUT:                              'INPUT';
 SHOW:                               'SHOW';
 FROM:                               'FROM';
 WHERE:                              'WHERE';
