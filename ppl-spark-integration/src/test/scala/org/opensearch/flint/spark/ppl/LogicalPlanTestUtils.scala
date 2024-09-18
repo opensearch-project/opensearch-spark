@@ -5,8 +5,9 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.apache.spark.sql.catalyst.expressions.{Alias, ExprId}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, ExprId}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Project}
+import org.apache.spark.sql.execution.datasources.LogicalRelation
 
 /**
  * general utility functions for ppl to spark transformation test
@@ -43,6 +44,15 @@ trait LogicalPlanTestUtils {
         }
         agg.copy(groupingExpressions = newGrouping, aggregateExpressions = newAggregations)
 
+      case l @ LogicalRelation(_, output, _, _) =>
+        // Because the exprIds of Output attributes in LogicalRelation cannot be normalized
+        // by PlanTest.normalizePlan(). We normalize it manually.
+        val newOutput = output.map { a: AttributeReference =>
+          AttributeReference(a.name, a.dataType, a.nullable, a.metadata)(
+            exprId = ExprId(0),
+            qualifier = a.qualifier)
+        }
+        l.copy(output = newOutput)
       case other => other
     }
 
