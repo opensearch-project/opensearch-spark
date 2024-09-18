@@ -236,6 +236,12 @@ See the next samples of PPL queries :
  - `source = catalog.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield`
  - `source = catalog.schema.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield`
 
+**Load File Source**
+- `file = table1 ( s3://my_bucket/path/csv ) | fields a,b,c`
+- `file = table2 ( s3://my_bucket/path/csv.gz ) | fields a,b,c`
+- `file = table3 ( s3a://my_bucket/path/parquet ) | fields a,b,c`
+- `file = table4 ( s3a://my_bucket/path/csv ) a > 0 | fields a,b,c`
+
 **Filters**
  - `source = table | where a = 1 | fields a,b,c`
  - `source = table | where a >= 1 | fields a,b,c`

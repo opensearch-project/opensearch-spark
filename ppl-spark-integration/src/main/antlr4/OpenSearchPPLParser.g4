@@ -185,10 +185,16 @@ mlArg
 fromClause
    : SOURCE EQUAL tableSourceClause
    | INDEX EQUAL tableSourceClause
+   | FILE EQUAL fileSourceClause
    ;
 
 tableSourceClause
    : tableSource (COMMA tableSource)*
+   ;
+
+// support only one path URL first
+fileSourceClause
+   : tableName = ident LT_PRTHS url = FILE_URL RT_PRTHS
    ;
 
 renameClasue

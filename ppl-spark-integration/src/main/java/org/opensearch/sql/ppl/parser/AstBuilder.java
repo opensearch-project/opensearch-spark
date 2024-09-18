@@ -36,9 +36,9 @@ import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Parse;
+import org.opensearch.sql.ast.tree.FileSourceRelation;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.RareAggregation;
-import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
@@ -48,8 +48,10 @@ import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -356,7 +358,46 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   /** From clause. */
   @Override
   public UnresolvedPlan visitFromClause(OpenSearchPPLParser.FromClauseContext ctx) {
-    return visitTableSourceClause(ctx.tableSourceClause());
+    if (ctx.FILE() != null) {
+      return visitFileSourceClause(ctx.fileSourceClause());
+    } else {
+      return visitTableSourceClause(ctx.tableSourceClause());
+    }
+  }
+
+  @Override
+  public UnresolvedPlan visitFileSourceClause(OpenSearchPPLParser.FileSourceClauseContext ctx) {
+    String tableName = ctx.tableName.getText().toLowerCase(Locale.ROOT);
+    String path = ctx.url.getText().toLowerCase(Locale.ROOT);
+    // S3 path supported only
+    if (!isTesting() && (!path.startsWith("s3://") || !path.startsWith("s3a://"))) {
+      throw new UnsupportedOperationException("Path should start with 's3://' or 's3a://'");
+    }
+    String suffix = path.substring(path.lastIndexOf('.') + 1);
+    // if the suffix is compression codec, the format is second last suffix
+    if (Arrays.asList("gz", "lzo", "snappy", "zstd").contains(suffix)) {
+      int lastDotIndex = path.lastIndexOf('.');
+      int secondLastDotIndex = path.lastIndexOf('.', lastDotIndex - 1);
+      String format = path.substring(secondLastDotIndex + 1, lastDotIndex);
+      if (Arrays.asList("csv", "parquet", "avro", "orc").contains(format)) {
+        return new FileSourceRelation(tableName, path, format, suffix.equals("gz") ? "gzip" : suffix);
+      } else {
+        throw new UnsupportedOperationException("Unsupported file suffix: " + suffix +
+                ", the supported formats are 'csv', 'parquet', 'avro', 'orc'" +
+                ", the supported compression codecs are 'gz', 'lzo', 'snappy', 'zstd'");
+      }
+    }
+    if (Arrays.asList("csv", "parquet", "avro", "orc").contains(suffix)) {
+      return new FileSourceRelation(tableName, path, suffix);
+    } else {
+      throw new UnsupportedOperationException("Unsupported file suffix: " + suffix +
+              ", the supported formats are 'csv', 'parquet', 'avro', 'orc'" +
+              ", the supported compression codecs are 'gz', 'lzo', 'snappy', 'zstd'");
+    }
+  }
+
+  private boolean isTesting() {
+    return System.getenv("SPARK_TESTING") != null || System.getProperty("spark.testing") != null;
   }
 
   @Override

@@ -49,6 +49,7 @@ AS:                                 'AS';
 BY:                                 'BY';
 SOURCE:                             'SOURCE';
 INDEX:                              'INDEX';
+FILE:                               'FILE';
 D:                                  'D';
 DESC:                               'DESC';
 DATASOURCES:                        'DATASOURCES';
@@ -396,6 +397,7 @@ ID:                                 ID_LITERAL;
 CLUSTER:                            CLUSTER_PREFIX_LITERAL;
 INTEGER_LITERAL:                    DEC_DIGIT+;
 DECIMAL_LITERAL:                    (DEC_DIGIT+)? '.' DEC_DIGIT+;
+FILE_URL:                           [a-zA-Z] [a-zA-Z0-9._:/\\-]*;
 
 fragment DATE_SUFFIX:               ([\-.][*0-9]+)+;
 fragment ID_LITERAL:                [@*A-Z]+?[*A-Z_\-0-9]*;
