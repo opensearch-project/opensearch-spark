@@ -53,7 +53,7 @@ class FlintSparkPPLJoinITSuite
   test("test join on one join condition and filters") {
     val frame = sql(s"""
          | source = $testTable1
-         | | inner join hint.left=a, hint.right=b
+         | | inner join left=a, right=b
          |     ON a.name = b.name AND a.year = 2023 AND a.month = 4 AND b.year = 2023 AND b.month = 4
          |     $testTable2
          | | fields a.name, a.age, a.state, a.country, b.occupation, b.country, b.salary
@@ -105,7 +105,7 @@ class FlintSparkPPLJoinITSuite
   test("test join on two join conditions and filters") {
     val frame = sql(s"""
          | source = $testTable1
-         | | inner join hint.left=a, hint.right=b
+         | | inner join left=a, right=b
          |     ON a.name = b.name AND a.country = b.country AND a.year = 2023 AND a.month = 4 AND b.year = 2023 AND b.month = 4
          |     $testTable2
          | | fields a.name, a.age, a.state, a.country, b.occupation, b.country, b.salary
@@ -157,7 +157,7 @@ class FlintSparkPPLJoinITSuite
   test("test join with two columns and disjoint filters") {
     val frame = sql(s"""
          | source = $testTable1
-         | | inner join hint.left=a, hint.right=b
+         | | inner join left=a, right=b
          |     ON a.name = b.name AND a.country = b.country AND a.year = 2023 AND a.month = 4 AND b.salary > 100000
          |     $testTable2
          | | fields a.name, a.age, a.state, a.country, b.occupation, b.country, b.salary
@@ -205,7 +205,7 @@ class FlintSparkPPLJoinITSuite
   test("test join then stats") {
     val frame = sql(s"""
          | source = $testTable1
-         | | inner join hint.left=a, hint.right=b
+         | | inner join left=a, right=b
          |     ON a.name = b.name
          |     $testTable2
          | | stats avg(salary) by span(age, 10) as age_span
@@ -244,7 +244,7 @@ class FlintSparkPPLJoinITSuite
   test("test join then stats with group by") {
     val frame = sql(s"""
          | source = $testTable1
-         | | inner join hint.left=a, hint.right=b
+         | | inner join left=a, right=b
          |     ON a.name = b.name
          |     $testTable2
          | | stats avg(salary) by span(age, 10) as age_span, b.country
@@ -291,7 +291,7 @@ class FlintSparkPPLJoinITSuite
     val frame = sql(s"""
          | source = $testTable1
          | | where country = 'USA' OR country = 'England'
-         | | inner join hint.left=a, hint.right=b
+         | | inner join left=a, right=b
          |     ON a.name = b.name
          |     $testTable2
          | | stats avg(salary) by span(age, 10) as age_span, b.country
@@ -340,7 +340,7 @@ class FlintSparkPPLJoinITSuite
     val frame = sql(s"""
          | source = $testTable1
          | | where country = 'Canada' OR country = 'England'
-         | | left join hint.left=a, hint.right=b
+         | | left join left=a, right=b
          |     ON a.name = b.name
          |     $testTable2
          | | sort a.age
@@ -389,7 +389,7 @@ class FlintSparkPPLJoinITSuite
     val frame = sql(s"""
          | source = $testTable1
          | | where country = 'Canada' OR country = 'England'
-         | | right join hint.left=a, hint.right=b
+         | | right join left=a, right=b
          |     ON a.name = b.name
          |     $testTable2
          | | sort a.age
@@ -439,7 +439,7 @@ class FlintSparkPPLJoinITSuite
     val frame = sql(s"""
          | source = $testTable1
          | | where country = 'Canada' OR country = 'England'
-         | | left semi join hint.left=a, hint.right=b
+         | | left semi join left=a, right=b
          |     ON a.name = b.name
          |     $testTable2
          | | sort a.age
@@ -475,7 +475,7 @@ class FlintSparkPPLJoinITSuite
     val frame = sql(s"""
          | source = $testTable1
          | | where country = 'Canada' OR country = 'England'
-         | | left anti join hint.left=a, hint.right=b
+         | | left anti join left=a, right=b
          |     ON a.name = b.name
          |     $testTable2
          | | sort a.age
@@ -512,7 +512,7 @@ class FlintSparkPPLJoinITSuite
     val frame = sql(s"""
          | source = $testTable1
          | | where country = 'Canada' OR country = 'England'
-         | | join hint.left=a, hint.right=b
+         | | join left=a, right=b
          |     $testTable2
          | | sort a.age
          | | fields a.name, a.age, a.state, a.country, b.occupation, b.country, b.salary
@@ -586,7 +586,7 @@ class FlintSparkPPLJoinITSuite
     val cross = sql(s"""
          | source = $testTable1
          | | where country = 'Canada' OR country = 'England'
-         | | cross join hint.left=a, hint.right=b
+         | | cross join left=a, right=b
          |     ON a.name = b.name
          |     $testTable2
          | | sort a.age
@@ -597,7 +597,7 @@ class FlintSparkPPLJoinITSuite
     val inner = sql(s"""
          | source = $testTable1
          | | where country = 'Canada' OR country = 'England'
-         | | inner join hint.left=a, hint.right=b
+         | | inner join left=a, right=b
          |     ON a.name = b.name
          |     $testTable2
          | | sort a.age
@@ -639,7 +639,7 @@ class FlintSparkPPLJoinITSuite
     val frame = sql(s"""
          | source = $testTable1
          | | where country = 'USA' OR country = 'England'
-         | | inner join hint.left=a, hint.right=b
+         | | inner join left=a, right=b
          |     ON age < salary
          |     $testTable2
          | | where occupation = 'Doctor' OR occupation = 'Engineer'
@@ -695,26 +695,26 @@ class FlintSparkPPLJoinITSuite
     val frame = sql(s"""
          | source = $testTable1
          | | where country = 'Canada' OR country = 'England'
-         | | inner join hint.left=a, hint.right=b
+         | | inner join left=a, right=b
          |     ON a.name = b.name AND a.year = 2023 AND a.month = 4 AND b.year = 2023 AND b.month = 4
          |     $testTable2
          | | eval a_name = a.name
          | | eval a_country = a.country
          | | eval b_country = b.country
          | | fields a_name, age, state, a_country, occupation, b_country, salary
-         | | left join hint.left=a, hint.right=b
+         | | left join left=a, right=b
          |     ON a.a_name = b.name
          |     $testTable3
          | | eval aa_country = a.a_country
          | | eval ab_country = a.b_country
          | | eval bb_country = b.country
          | | fields a_name, age, state, aa_country, occupation, ab_country, salary, bb_country, hobby, language
-         | | cross join hint.left=a, hint.right=b
+         | | cross join left=a, right=b
          |     $testTable2
          | | eval new_country = a.aa_country
          | | eval new_salary = b.salary
          | | stats avg(new_salary) as avg_salary by span(age, 5) as age_span, state
-         | | left semi join hint.left=a, hint.right=b
+         | | left semi join left=a, right=b
          |     ON a.state = b.state
          |     $testTable1
          | | eval new_avg_salary = floor(avg_salary)

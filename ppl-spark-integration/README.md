@@ -343,13 +343,13 @@ _- **Limitation: Overriding existing field is unsupported:**_
   - `source=accounts | grok address '%{NUMBER} %{GREEDYDATA:address}' | fields address`
 
 **Join**
-- `source = table1 | inner join hint.left = l hint.right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
-- `source = table1 | left join hint.left = l hint.right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
-- `source = table1 | right join hint.left = l hint.right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
-- `source = table1 | full hint.left = l hint.right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
-- `source = table1 | cross join hint.left = l hint.right = r table2`
-- `source = table1 | left semi join hint.left = l hint.right = r on l.a = r.a table2`
-- `source = table1 | left anti join hint.left = l hint.right = r on l.a = r.a table2`
+- `source = table1 | inner join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
+- `source = table1 | left join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
+- `source = table1 | right join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
+- `source = table1 | full left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
+- `source = table1 | cross join left = l right = r table2`
+- `source = table1 | left semi join left = l right = r on l.a = r.a table2`
+- `source = table1 | left anti join left = l right = r on l.a = r.a table2`
 
 _- **Limitation: sub-searches is unsupported in join right side now**_
 

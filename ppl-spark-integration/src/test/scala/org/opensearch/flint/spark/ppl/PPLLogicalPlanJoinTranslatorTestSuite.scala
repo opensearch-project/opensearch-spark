@@ -35,7 +35,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-       | source = $testTable1 | JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
+       | source = $testTable1 | JOIN left = l right = r ON l.id = r.id $testTable2
        | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -54,7 +54,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | JOIN hint.left = l hint.right = r ON $testTable1.id = $testTable2.id $testTable2
+         | source = $testTable1 | JOIN left = l right = r ON $testTable1.id = $testTable2.id $testTable2
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -74,7 +74,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | JOIN hint.left = l hint.right = r ON id = name $testTable2
+         | source = $testTable1 | JOIN left = l right = r ON id = name $testTable2
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -94,7 +94,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | JOIN hint.left = l hint.right = r ON l.id = r.id AND l.count > 10 AND lower(r.name) = 'hello' $testTable2
+         | source = $testTable1 | JOIN left = l right = r ON l.id = r.id AND l.count > 10 AND lower(r.name) = 'hello' $testTable2
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -122,7 +122,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | INNER JOIN hint.left = l hint.right = r ON $testTable1.id = $testTable2.id AND $testTable1.count > 10 AND lower($testTable2.name) = 'hello' $testTable2
+         | source = $testTable1 | INNER JOIN left = l right = r ON $testTable1.id = $testTable2.id AND $testTable1.count > 10 AND lower($testTable2.name) = 'hello' $testTable2
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -150,7 +150,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | LEFT OUTER JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
+         | source = $testTable1 | LEFT OUTER JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -169,7 +169,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | RIGHT JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
+         | source = $testTable1 | RIGHT JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -188,7 +188,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | LEFT SEMI JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
+         | source = $testTable1 | LEFT SEMI JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -207,7 +207,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | LEFT ANTI JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
+         | source = $testTable1 | LEFT ANTI JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -226,7 +226,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | FULL JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
+         | source = $testTable1 | FULL JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -245,7 +245,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | CROSS JOIN hint.left = l hint.right = r $testTable2
+         | source = $testTable1 | CROSS JOIN left = l right = r $testTable2
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -263,7 +263,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | CROSS JOIN hint.left = l hint.right = r ON l.id = r.id $testTable2
+         | source = $testTable1 | CROSS JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -283,9 +283,9 @@ class PPLLogicalPlanJoinTranslatorTestSuite
       pplParser,
       s"""
          | source = $testTable1
-         | | inner JOIN hint.left = l,hint.right = r ON l.id = r.id $testTable2
-         | | left JOIN hint.left = l,hint.right = r ON l.name = r.name $testTable3
-         | | cross JOIN hint.left = l,hint.right = r $testTable4
+         | | inner JOIN left = l,right = r ON l.id = r.id $testTable2
+         | | left JOIN left = l,right = r ON l.name = r.name $testTable3
+         | | cross JOIN left = l,right = r $testTable4
          | """.stripMargin,
       isExplain = false)
     val logicalPlan = planTransformer.visit(logPlan, context)
@@ -315,7 +315,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
       s"""
          | SEARCH source = $testTable1
          | | FIELDS id, name
-         | | LEFT OUTER JOIN hint.left = c hint.right = o ON c.custkey = o.custkey $testTable2
+         | | LEFT OUTER JOIN left = c right = o ON c.custkey = o.custkey $testTable2
          | | STATS count(o.orderkey) AS o_count BY c.custkey
          | | STATS count(1) AS custdist BY o_count
          | | SORT - custdist, - o_count

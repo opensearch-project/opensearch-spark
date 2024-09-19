@@ -78,12 +78,12 @@ SEARCH source=<left-table>
 - Description: The type of join to perform. The default is `INNER` if not specified.
 
 **leftAlias**
-- Syntax: `hint.left = <leftAlias>`
+- Syntax: `left = <leftAlias>`
 - Required
 - Description: The subquery alias to use with the left join side, to avoid ambiguous naming.
 
 **rightAlias**
-- Syntax: `hint.right = <rightAlias>`
+- Syntax: `right = <rightAlias>`
 - Required
 - Description: The subquery alias to use with the right join side, to avoid ambiguous naming.
 
@@ -105,14 +105,14 @@ SEARCH source=<left-table>
 ```sql
 SEARCH source=otel-v1-apm-span-000001
 | WHERE serviceName = 'order'
-| JOIN hint.left=t1 hint.right=t2
+| JOIN left=t1 right=t2
     ON t1.traceId = t2.traceId AND t2.serviceName = 'order'
     otel-v1-apm-span-000001 -- self inner join
 | EVAL s_name = t1.name -- rename to avoid ambiguous
 | EVAL s_parentSpanId = t1.parentSpanId -- RENAME command would be better when it is supported
 | EVAL s_durationInNanos = t1.durationInNanos 
 | FIELDS s_name, s_parentSpanId, s_durationInNanos -- reduce colunms in join
-| LEFT JOIN hint.left=s1 hint.right=t3
+| LEFT JOIN left=s1 right=t3
     ON s_name = t3.target.resource AND t3.serviceName = 'order' AND t3.traceGroupName = 'client_cancel_order'
     otel-v1-apm-service-map
 | WHERE (s_parentSpanId IS NOT NULL OR (s_parentSpanId IS NULL AND s_name = 'client_cancel_order'))
@@ -138,7 +138,7 @@ Rewritten by PPL Join query:
 ```sql
 SEARCH source=customer
 | FIELDS c_custkey
-| LEFT OUTER JOIN hint.left = c, hint.right = o
+| LEFT OUTER JOIN left = c, right = o
     ON c.c_custkey = o.o_custkey AND o_comment NOT LIKE '%unusual%packages%'
     orders
 | STATS count(o_orderkey) AS c_count BY c.c_custkey
@@ -151,7 +151,7 @@ If sub-searches is supported, above ppl query could be rewritten as:
 ```sql
 SEARCH source=customer
 | FIELDS c_custkey
-| LEFT OUTER JOIN hint.left = c, hint.right = o ON c.c_custkey = o.o_custkey
+| LEFT OUTER JOIN left = c, right = o ON c.c_custkey = o.o_custkey
    [
       SEARCH source=orders
       | WHERE o_comment NOT LIKE '%unusual%packages%'
@@ -171,7 +171,7 @@ source = testTable1
  | where country = 'Canada' OR country = 'England'
  | eval cname = lower(name)
  | fields cname, country, year, month
- | inner join hint.left=l, hint.right=r
+ | inner join left=l, right=r
      ON l.cname = r.name AND l.country = r.country AND l.year = 2023 AND r.month = 4
      testTable2s
 ```

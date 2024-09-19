@@ -208,7 +208,7 @@ joinType
    ;
 
 sideAlias
-   : LEFT_HINT EQUAL leftAlias = ident COMMA? RIGHT_HINT EQUAL rightAlias = ident
+   : LEFT EQUAL leftAlias = ident COMMA? RIGHT EQUAL rightAlias = ident
    ;
 
 joinCriteria
