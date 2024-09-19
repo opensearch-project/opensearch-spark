@@ -105,6 +105,11 @@ public class CatalystPlanContext {
         return namedParseExpressions;
     }
 
+    public void setNamedParseExpressions(Stack<org.apache.spark.sql.catalyst.expressions.Expression> namedParseExpressions) {
+        this.namedParseExpressions.clear();
+        this.namedParseExpressions.addAll(namedParseExpressions);
+    }
+
     public Optional<Expression> popNamedParseExpressions() {
         return namedParseExpressions.isEmpty() ? Optional.empty() : Optional.of(namedParseExpressions.pop());
     }

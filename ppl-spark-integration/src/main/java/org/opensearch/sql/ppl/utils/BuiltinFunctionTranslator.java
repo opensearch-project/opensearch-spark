@@ -14,26 +14,28 @@ import java.util.List;
 import java.util.Map;
 
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADD;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADDDATE;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATEDIFF;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.DAY_OF_MONTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.COALESCE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SUBTRACT;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MULTIPLY;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DIVIDE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MODULUS;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DAY_OF_WEEK;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.DAY_OF_MONTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DAY_OF_YEAR;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.WEEK_OF_YEAR;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.WEEK;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.MONTH_OF_YEAR;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.HOUR_OF_DAY;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NOT_NULL;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NULL;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.LENGTH;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.LOCALTIME;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MINUTE_OF_HOUR;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.MONTH_OF_YEAR;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SECOND_OF_MINUTE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SUBDATE;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADDDATE;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATEDIFF;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.LOCALTIME;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NULL;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NOT_NULL;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.TRIM;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.WEEK;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.WEEK_OF_YEAR;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static scala.Option.empty;
 
@@ -69,6 +71,8 @@ public interface BuiltinFunctionTranslator {
             .put(IS_NOT_NULL, "isnotnull")
             .put(BuiltinFunctionName.ISPRESENT, "isnotnull")
             .put(COALESCE, "coalesce")
+            .put(LENGTH, "length")
+            .put(TRIM, "trim")
             .build();
 
     static Expression builtinFunction(org.opensearch.sql.ast.expression.Function function, List<Expression> args) {

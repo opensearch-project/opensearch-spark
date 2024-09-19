@@ -338,6 +338,7 @@ LOCATE:                             'LOCATE';
 REPLACE:                            'REPLACE';
 REVERSE:                            'REVERSE';
 CAST:                               'CAST';
+ISEMPTY:                            'ISEMPTY';
 
 // BOOL FUNCTIONS
 LIKE:                               'LIKE';

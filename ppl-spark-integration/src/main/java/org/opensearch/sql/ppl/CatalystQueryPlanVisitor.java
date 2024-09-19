@@ -10,6 +10,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
+import org.apache.spark.sql.catalyst.expressions.CaseWhen;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
@@ -37,6 +38,7 @@ import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
+import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
@@ -45,6 +47,7 @@ import org.opensearch.sql.ast.expression.ParseMethod;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
+import org.opensearch.sql.ast.expression.When;
 import org.opensearch.sql.ast.expression.WindowFunction;
 import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.ast.statement.Explain;
@@ -74,17 +77,16 @@ import org.opensearch.sql.ppl.utils.ParseStrategy;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import scala.Option;
 import scala.Option$;
+import scala.Tuple2;
 import scala.collection.Seq;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static java.util.List.of;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
 import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
@@ -352,11 +354,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     @Override
-    public LogicalPlan visitCase(Case node, CatalystPlanContext context) {
-        throw new IllegalStateException("Not Supported operation : Case");
-    }
-
-    @Override
     public LogicalPlan visitRareTopN(RareTopN node, CatalystPlanContext context) {
         throw new IllegalStateException("Not Supported operation : RareTopN");
     }
@@ -581,6 +578,18 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         }
 
         @Override
+        public Expression visitIsEmpty(IsEmpty node, CatalystPlanContext context) {
+            Stack<Expression> namedParseExpressions = new Stack<>();
+            namedParseExpressions.addAll(context.getNamedParseExpressions());
+            Expression expression = visitCase(node.getCaseValue(), context);
+            namedParseExpressions.add(expression);
+            context.setNamedParseExpressions(namedParseExpressions);
+            return expression;
+        }
+
+
+
+        @Override
         public Expression visitInterval(Interval node, CatalystPlanContext context) {
             throw new IllegalStateException("Not Supported operation : Interval");
         }
@@ -602,7 +611,29 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         @Override
         public Expression visitCase(Case node, CatalystPlanContext context) {
-            throw new IllegalStateException("Not Supported operation : Case");
+            analyze(node.getElseClause(), context);
+            Expression elseValue = context.getNamedParseExpressions().pop();
+            List<Tuple2<Expression, Expression>> whens = new ArrayList<>();
+            for (When when : node.getWhenClauses()) {
+                if (node.getCaseValue() == null) {
+                    whens.add(
+                            new Tuple2<>(
+                                    analyze(when.getCondition(), context),
+                                    analyze(when.getResult(), context)
+                            )
+                    );
+                } else {
+                    // Merge case value and condition (compare value) into a single equal condition
+                    Compare compare = new Compare(EQUAL.getName().getFunctionName(), node.getCaseValue(), when.getCondition());
+                    whens.add(
+                            new Tuple2<>(
+                                    analyze(compare, context), analyze(when.getResult(), context)
+                            )
+                    );
+                }
+                context.retainAllNamedParseExpressions(e -> e);
+            }
+            return context.getNamedParseExpressions().push(new CaseWhen(seq(whens), Option.apply(elseValue)));
         }
 
         @Override
