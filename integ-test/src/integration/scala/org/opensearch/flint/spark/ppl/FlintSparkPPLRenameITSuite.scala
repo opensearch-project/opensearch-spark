@@ -7,10 +7,10 @@ package org.opensearch.flint.spark.ppl
 
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 
-import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
+import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, LessThan, Literal, SortOrder}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, LogicalPlan, Project, Sort}
+import org.apache.spark.sql.catalyst.expressions.Alias
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Project}
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLRenameITSuite
@@ -97,15 +97,15 @@ class FlintSparkPPLRenameITSuite
 
   test("test renamed fields without fields command") {
     val frame = sql(s"""
-         | source = $testTable | rename state as _state, country as _country
+         | source = $testTable | rename age as user_age, country as user_country
          | """.stripMargin)
 
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] = Array(
-      Row("Jake", 70, "California", "USA", 2023, 4, "California", "USA"),
-      Row("Hello", 30, "New York", "USA", 2023, 4, "New York", "USA"),
-      Row("John", 25, "Ontario", "Canada", 2023, 4, "Ontario", "Canada"),
-      Row("Jane", 20, "Quebec", "Canada", 2023, 4, "Quebec", "Canada"))
+      Row("Jake", 70, "California", "USA", 2023, 4, 70, "USA"),
+      Row("Hello", 30, "New York", "USA", 2023, 4, 30, "USA"),
+      Row("John", 25, "Ontario", "Canada", 2023, 4, 25, "Canada"),
+      Row("Jane", 20, "Quebec", "Canada", 2023, 4, 20, "Canada"))
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
 
@@ -113,9 +113,40 @@ class FlintSparkPPLRenameITSuite
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val renameProjectList = Seq(
       UnresolvedStar(None),
-      Alias(UnresolvedAttribute("state"), "_state")(),
-      Alias(UnresolvedAttribute("country"), "_country")())
+      Alias(UnresolvedAttribute("age"), "user_age")(),
+      Alias(UnresolvedAttribute("country"), "user_country")())
     val expectedPlan = Project(seq(UnresolvedStar(None)), Project(renameProjectList, table))
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test renamed field used in aggregation") {
+    val frame = sql(s"""
+         | source = $testTable | rename age as user_age | stats avg(user_age) by country
+         | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(22.5, "Canada"), Row(50.0, "USA"))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val renameProjectList =
+      Seq(UnresolvedStar(None), Alias(UnresolvedAttribute("age"), "user_age")())
+    val aggregateExpressions =
+      Seq(
+        Alias(
+          UnresolvedFunction(
+            Seq("AVG"),
+            Seq(UnresolvedAttribute("user_age")),
+            isDistinct = false),
+          "avg(user_age)")(),
+        Alias(UnresolvedAttribute("country"), "country")())
+    val aggregatePlan = Aggregate(
+      Seq(Alias(UnresolvedAttribute("country"), "country")()),
+      aggregateExpressions,
+      Project(renameProjectList, table))
+    val expectedPlan = Project(seq(UnresolvedStar(None)), aggregatePlan)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 }
