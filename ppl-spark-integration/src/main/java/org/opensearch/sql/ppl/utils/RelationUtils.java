@@ -15,7 +15,7 @@ public interface RelationUtils {
      *
      * @param relations
      * @param node
-     * @param contextRelations
+     * @param tables
      * @return
      */
     static Optional<QualifiedName> resolveField(List<UnresolvedRelation> relations, QualifiedName node, List<LogicalPlan> tables) {

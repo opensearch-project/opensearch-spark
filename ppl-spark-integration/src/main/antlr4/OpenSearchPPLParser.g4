@@ -28,6 +28,7 @@ queryStatement
 pplCommands
    : searchCommand
    | describeCommand
+   | inputCommand
    ;
 
 commands
@@ -55,6 +56,14 @@ searchCommand
 
 describeCommand
    : DESCRIBE tableSourceClause
+   ;
+
+inputCommand
+   : INPUT urlList
+   ;
+
+urlList
+   : stringLiteral (COMMA stringLiteral)*
    ;
 
 showDataSourcesCommand
@@ -863,6 +872,7 @@ keywordsCanBeId
    // commands
    | SEARCH
    | DESCRIBE
+   | INPUT
    | SHOW
    | FROM
    | WHERE

@@ -45,6 +45,7 @@ import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Limit;
 import org.opensearch.sql.ast.tree.Parse;
+import org.opensearch.sql.ast.tree.FileSourceRelation;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
@@ -225,7 +226,12 @@ public abstract class AbstractNodeVisitor<T, C> {
   public T visitRareTopN(RareTopN node, C context) {
     return visitChildren(node, context);
   }
+
   public T visitValues(Values node, C context) {
+    return visitChildren(node, context);
+  }
+
+  public T visitFileSourceRelation(FileSourceRelation node, C context) {
     return visitChildren(node, context);
   }
 

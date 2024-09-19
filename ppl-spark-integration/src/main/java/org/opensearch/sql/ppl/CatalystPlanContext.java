@@ -12,6 +12,7 @@ import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
+import org.apache.spark.sql.execution.datasources.LogicalRelation;
 import org.apache.spark.sql.types.Metadata;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.data.type.ExprType;
@@ -125,7 +126,7 @@ public class CatalystPlanContext {
     }
 
     /**
-     * append relation to relations list
+     * append unresolved relation to relations list
      *
      * @param relation
      * @return
@@ -137,6 +138,17 @@ public class CatalystPlanContext {
 
     public void withSubqueryAlias(SubqueryAlias subqueryAlias) {
         this.subqueryAlias.add(subqueryAlias);
+    }
+
+    /**
+     * append logical relation to relations list
+     *
+     * @param relation
+     * @return
+     */
+    public LogicalPlan withRelation(LogicalRelation relation) {
+        this.relations.add(relation);
+        return with(relation);
     }
 
     /**
