@@ -144,7 +144,7 @@ object FlintDataType {
       case FloatType => JObject("type" -> JString("float"))
 
       // Date
-      case TimestampType =>
+      case TimestampType | _: TimestampNTZType =>
         JObject(
           "type" -> JString("date"),
           "format" -> JString("strict_date_optional_time_nanos"));

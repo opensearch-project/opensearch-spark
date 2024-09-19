@@ -197,6 +197,21 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
     FlintDataType.serialize(sparkStructType) shouldBe compactJson(flintDataType)
   }
 
+  test("flint timestamp_ntz serialize") {
+    val flintDataType = """{
+                          |  "properties": {
+                          |    "timestampField": {
+                          |      "type": "date",
+                          |      "format": "strict_date_optional_time_nanos"
+                          |    }
+                          |  }
+                          |}""".stripMargin
+    val sparkStructType = StructType(
+      StructField("timestampField", TimestampNTZType, true) ::
+        Nil)
+    FlintDataType.serialize(sparkStructType) shouldBe compactJson(flintDataType)
+  }
+
   test("spark array type map to should map to array element type in OpenSearch") {
     val flintDataType = """{
                           |  "properties": {
