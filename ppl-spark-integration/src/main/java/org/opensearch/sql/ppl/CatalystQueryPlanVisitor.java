@@ -57,6 +57,7 @@ import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
+import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Parse;
 import org.opensearch.sql.ast.tree.Project;
@@ -64,6 +65,7 @@ import org.opensearch.sql.ast.tree.RareAggregation;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Sort;
+import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.TopAggregation;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
@@ -148,7 +150,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                             true,
                             DescribeRelation$.MODULE$.getOutputAttrs()));
         }
-        //regular sql algebraic relations 
+        //regular sql algebraic relations
         node.getTableName().forEach(t ->
                 // Resolving the qualifiedName which is composed of a datasource.schema.table
                 context.withRelation(new UnresolvedRelation(seq(of(t.split("\\."))), CaseInsensitiveStringMap.empty(), false))
@@ -182,6 +184,29 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             return join(node.getCorrelationType(), fields, mapping, left, right);
         });
         return context.getPlan();
+    }
+
+    @Override
+    public LogicalPlan visitJoin(Join node, CatalystPlanContext context) {
+        node.getChild().get(0).accept(this, context);
+        return context.apply(left -> {
+            LogicalPlan right = node.getRight().accept(this, context);
+            Optional<Expression> joinCondition = node.getJoinCondition().map(c -> visitExpression(c, context));
+            context.retainAllNamedParseExpressions(p -> p);
+            context.retainAllPlans(p -> p);
+            return join(left, right, node.getJoinType(), joinCondition, node.getJoinHint());
+        });
+    }
+
+    @Override
+    public LogicalPlan visitSubqueryAlias(SubqueryAlias node, CatalystPlanContext context) {
+        node.getChild().get(0).accept(this, context);
+        return context.apply(p -> {
+            var alias = org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$.MODULE$.apply(node.getAlias(), p);
+            context.withSubqueryAlias(alias);
+            return alias;
+        });
+
     }
 
     @Override
@@ -476,9 +501,29 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             if (!relation.isEmpty()) {
                 Optional<QualifiedName> resolveField = resolveField(relation, node, context.getRelations());
                 return resolveField.map(qualifiedName -> context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(qualifiedName.getParts()))))
-                        .orElse(null);
+                    .orElse(resolveQualifiedNameWithSubqueryAlias(node, context));
             }
             return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
+        }
+
+        /**
+         * Resolve the qualified name with subquery alias: <br/>
+         * - subqueryAlias1.joinKey = subqueryAlias2.joinKey <br/>
+         * - tableName1.joinKey = subqueryAlias2.joinKey <br/>
+         * - subqueryAlias1.joinKey = tableName2.joinKey <br/>
+         */
+        private Expression resolveQualifiedNameWithSubqueryAlias(QualifiedName node, CatalystPlanContext context) {
+            if (node.getPrefix().isPresent() &&
+                context.traversalContext().peek() instanceof org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias) {
+                if (context.getSubqueryAlias().stream().map(p -> (org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias) p)
+                    .anyMatch(a -> a.alias().equalsIgnoreCase(node.getPrefix().get().toString()))) {
+                    return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
+                } else if (context.getRelations().stream().map(p -> (UnresolvedRelation) p)
+                    .anyMatch(a -> a.tableName().equalsIgnoreCase(node.getPrefix().get().toString()))) {
+                    return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
+                }
+            }
+            return null;
         }
 
         @Override

@@ -342,8 +342,18 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 _- **Limitation: Overriding existing field is unsupported:**_
   - `source=accounts | grok address '%{NUMBER} %{GREEDYDATA:address}' | fields address`
 
+**Join**
+- `source = table1 | inner join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
+- `source = table1 | left join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
+- `source = table1 | right join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
+- `source = table1 | full left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
+- `source = table1 | cross join left = l right = r table2`
+- `source = table1 | left semi join left = l right = r on l.a = r.a table2`
+- `source = table1 | left anti join left = l right = r on l.a = r.a table2`
 
-> For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
+_- **Limitation: sub-searches is unsupported in join right side now**_
+
+Details of Join command, see [PPL-Join-Command](../docs/PPL-Join-command.md)
 
 ---
 #### Experimental Commands:
@@ -352,6 +362,8 @@ _- **Limitation: Overriding existing field is unsupported:**_
 
 ---
 ### Documentations 
+
+For additional details on PPL commands, see [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
 
 For additional details on Spark PPL commands project, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
 

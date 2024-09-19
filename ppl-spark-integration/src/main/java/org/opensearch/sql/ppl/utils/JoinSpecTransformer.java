@@ -1,9 +1,14 @@
 package org.opensearch.sql.ppl.utils;
 
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.plans.Cross$;
 import org.apache.spark.sql.catalyst.plans.FullOuter$;
 import org.apache.spark.sql.catalyst.plans.Inner$;
 import org.apache.spark.sql.catalyst.plans.JoinType;
+import org.apache.spark.sql.catalyst.plans.LeftAnti$;
+import org.apache.spark.sql.catalyst.plans.LeftOuter$;
+import org.apache.spark.sql.catalyst.plans.LeftSemi$;
+import org.apache.spark.sql.catalyst.plans.RightOuter$;
 import org.apache.spark.sql.catalyst.plans.logical.Join;
 import org.apache.spark.sql.catalyst.plans.logical.JoinHint;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
@@ -12,6 +17,7 @@ import scala.Option;
 import scala.collection.Seq;
 
 import java.util.List;
+import java.util.Optional;
 
 import static scala.collection.JavaConverters.seqAsJavaListConverter;
 
@@ -82,4 +88,33 @@ public interface JoinSpecTransformer {
         }
         return Inner$.MODULE$;
     }
+
+    // +----------------------------------------------------------------------------+
+    // | Native Join Syntax (https://github.com/opensearch-project/sql/issues/2913) |
+    // +----------------------------------------------------------------------------+
+
+    static LogicalPlan join(LogicalPlan left, LogicalPlan right, org.opensearch.sql.ast.tree.Join.JoinType joinType, Optional<Expression> joinCondition, org.opensearch.sql.ast.tree.Join.JoinHint joinHint) {
+        return new Join(left, right, getType(joinType), Option.apply(joinCondition.orElse(null)), JoinHint.NONE());
+    }
+
+    static JoinType getType(org.opensearch.sql.ast.tree.Join.JoinType joinType) {
+        switch (joinType) {
+            case INNER:
+                return Inner$.MODULE$;
+            case LEFT:
+                return LeftOuter$.MODULE$;
+            case RIGHT:
+                return RightOuter$.MODULE$;
+            case FULL:
+                return FullOuter$.MODULE$;
+            case SEMI:
+                return LeftSemi$.MODULE$;
+            case ANTI:
+                return LeftAnti$.MODULE$;
+            case CROSS:
+                return Cross$.MODULE$;
+        }
+        return Inner$.MODULE$;
+    }
+
 }

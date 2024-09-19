@@ -33,6 +33,7 @@ pplCommands
 commands
    : whereCommand
    | correlateCommand
+   | joinCommand
    | fieldsCommand
    | statsCommand
    | dedupCommand
@@ -190,6 +191,38 @@ fromClause
 tableSourceClause
    : tableSource (COMMA tableSource)*
    ;
+
+// join
+joinCommand
+   : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableSource
+   ;
+
+joinType
+   : INNER?
+   | CROSS
+   | LEFT OUTER?
+   | RIGHT OUTER?
+   | FULL OUTER?
+   | LEFT? SEMI
+   | LEFT? ANTI
+   ;
+
+sideAlias
+   : LEFT EQUAL leftAlias = ident COMMA? RIGHT EQUAL rightAlias = ident
+   ;
+
+joinCriteria
+   : ON logicalExpression
+   ;
+
+joinHintList
+    : hintPair (COMMA? hintPair)*
+    ;
+
+hintPair
+    : leftHintKey = LEFT_HINT DOT ID EQUAL leftHintValue = ident             #leftHint
+    | rightHintKey = RIGHT_HINT DOT ID EQUAL rightHintValue = ident          #rightHint
+    ;
 
 renameClasue
    : orignalField = wcFieldExpression AS renamedField = wcFieldExpression
