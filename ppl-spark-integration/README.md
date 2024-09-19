@@ -404,6 +404,10 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | fields message, no_numbers`
 - `source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | stats count() by no_numbers`
 
+**Rename**
+- `source=accounts | rename email as user_email | fields id, user_email`
+- `source=accounts | rename id as user_id, email as user_email | fields user_id, user_email`
+
 _- **Limitation: Overriding existing field is unsupported:**_
   - `source=accounts | grok address '%{NUMBER} %{GREEDYDATA:address}' | fields address`
 
