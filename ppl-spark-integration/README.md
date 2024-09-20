@@ -244,6 +244,7 @@ See the next samples of PPL queries :
  - `source = table | where c = 'test' | fields a,b,c | head 3`
  - `source = table | where ispresent(b)`
  - `source = table | where isnull(coalesce(a, b)) | fields a,b,c | head 3`
+ - `source = table | where isempty(a)`
 
 **Filters With Logical Conditions**
  - `source = table | where c = 'test' AND a = 1 | fields a,b,c`
@@ -262,7 +263,8 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
  - `source = table | eval f = a * 2, h = f * 2 | fields a,f,h`
  - `source = table | eval f = a * 2, h = b | stats avg(f) by h`
  - `source = table | eval f = ispresent(a)`
- - `source = table | eval r = coalesce(a, b, c) | fields r
+ - `source = table | eval r = coalesce(a, b, c) | fields r`
+ - `source = table | eval e = isempty(a) | fields e`
 
 Limitation: Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous" 
  - `source = table | eval a = 10 | fields a,b,c`
@@ -342,8 +344,18 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 _- **Limitation: Overriding existing field is unsupported:**_
   - `source=accounts | grok address '%{NUMBER} %{GREEDYDATA:address}' | fields address`
 
+**Join**
+- `source = table1 | inner join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
+- `source = table1 | left join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
+- `source = table1 | right join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
+- `source = table1 | full left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
+- `source = table1 | cross join left = l right = r table2`
+- `source = table1 | left semi join left = l right = r on l.a = r.a table2`
+- `source = table1 | left anti join left = l right = r on l.a = r.a table2`
 
-> For additional details on PPL commands - view [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
+_- **Limitation: sub-searches is unsupported in join right side now**_
+
+Details of Join command, see [PPL-Join-Command](../docs/PPL-Join-command.md)
 
 ---
 #### Experimental Commands:
@@ -352,6 +364,8 @@ _- **Limitation: Overriding existing field is unsupported:**_
 
 ---
 ### Documentations 
+
+For additional details on PPL commands, see [PPL Commands Docs](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst)
 
 For additional details on Spark PPL commands project, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
 

@@ -50,6 +50,18 @@ KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
 
+//Native JOIN KEYWORDS
+JOIN:                               'JOIN';
+ON:                                 'ON';
+INNER:                              'INNER';
+OUTER:                              'OUTER';
+FULL:                               'FULL';
+SEMI:                               'SEMI';
+ANTI:                               'ANTI';
+CROSS:                              'CROSS';
+LEFT_HINT:                          'HINT.LEFT';
+RIGHT_HINT:                         'HINT.RIGHT';
+
 //CORRELATION KEYWORDS
 CORRELATE:                          'CORRELATE';
 SELF:                               'SELF';
@@ -343,6 +355,7 @@ LOCATE:                             'LOCATE';
 REPLACE:                            'REPLACE';
 REVERSE:                            'REVERSE';
 CAST:                               'CAST';
+ISEMPTY:                            'ISEMPTY';
 
 // BOOL FUNCTIONS
 LIKE:                               'LIKE';

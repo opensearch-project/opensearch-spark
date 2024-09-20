@@ -32,6 +32,18 @@ public class Case extends UnresolvedExpression {
     this.elseClause = elseClause;
   }
 
+  public UnresolvedExpression getCaseValue() {
+    return caseValue;
+  }
+
+  public List<When> getWhenClauses() {
+    return whenClauses;
+  }
+
+  public UnresolvedExpression getElseClause() {
+    return elseClause;
+  }
+
   @Override
   public List<? extends Node> getChild() {
     ImmutableList.Builder<Node> children = ImmutableList.builder();

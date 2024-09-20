@@ -10,6 +10,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
+import org.apache.spark.sql.catalyst.expressions.CaseWhen;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
@@ -38,6 +39,7 @@ import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
+import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
@@ -46,6 +48,7 @@ import org.opensearch.sql.ast.expression.ParseMethod;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
+import org.opensearch.sql.ast.expression.When;
 import org.opensearch.sql.ast.expression.WindowFunction;
 import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.ast.statement.Explain;
@@ -59,6 +62,7 @@ import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
+import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Parse;
 import org.opensearch.sql.ast.tree.Project;
@@ -66,6 +70,7 @@ import org.opensearch.sql.ast.tree.RareAggregation;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Sort;
+import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.TopAggregation;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
@@ -74,17 +79,16 @@ import org.opensearch.sql.ppl.utils.ParseStrategy;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import scala.Option;
 import scala.Option$;
+import scala.Tuple2;
 import scala.collection.Seq;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static java.util.List.of;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
 import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
@@ -150,7 +154,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                             true,
                             DescribeRelation$.MODULE$.getOutputAttrs()));
         }
-        //regular sql algebraic relations 
+        //regular sql algebraic relations
         node.getTableName().forEach(t ->
                 // Resolving the qualifiedName which is composed of a datasource.schema.table
                 context.withRelation(new UnresolvedRelation(seq(of(t.split("\\."))), CaseInsensitiveStringMap.empty(), false))
@@ -184,6 +188,29 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             return join(node.getCorrelationType(), fields, mapping, left, right);
         });
         return context.getPlan();
+    }
+
+    @Override
+    public LogicalPlan visitJoin(Join node, CatalystPlanContext context) {
+        node.getChild().get(0).accept(this, context);
+        return context.apply(left -> {
+            LogicalPlan right = node.getRight().accept(this, context);
+            Optional<Expression> joinCondition = node.getJoinCondition().map(c -> visitExpression(c, context));
+            context.retainAllNamedParseExpressions(p -> p);
+            context.retainAllPlans(p -> p);
+            return join(left, right, node.getJoinType(), joinCondition, node.getJoinHint());
+        });
+    }
+
+    @Override
+    public LogicalPlan visitSubqueryAlias(SubqueryAlias node, CatalystPlanContext context) {
+        node.getChild().get(0).accept(this, context);
+        return context.apply(p -> {
+            var alias = org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$.MODULE$.apply(node.getAlias(), p);
+            context.withSubqueryAlias(alias);
+            return alias;
+        });
+
     }
 
     @Override
@@ -333,11 +360,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     @Override
-    public LogicalPlan visitCase(Case node, CatalystPlanContext context) {
-        throw new IllegalStateException("Not Supported operation : Case");
-    }
-
-    @Override
     public LogicalPlan visitRareTopN(RareTopN node, CatalystPlanContext context) {
         throw new IllegalStateException("Not Supported operation : RareTopN");
     }
@@ -482,9 +504,29 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             if (!relation.isEmpty()) {
                 Optional<QualifiedName> resolveField = resolveField(relation, node, context.getRelations());
                 return resolveField.map(qualifiedName -> context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(qualifiedName.getParts()))))
-                        .orElse(null);
+                    .orElse(resolveQualifiedNameWithSubqueryAlias(node, context));
             }
             return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
+        }
+
+        /**
+         * Resolve the qualified name with subquery alias: <br/>
+         * - subqueryAlias1.joinKey = subqueryAlias2.joinKey <br/>
+         * - tableName1.joinKey = subqueryAlias2.joinKey <br/>
+         * - subqueryAlias1.joinKey = tableName2.joinKey <br/>
+         */
+        private Expression resolveQualifiedNameWithSubqueryAlias(QualifiedName node, CatalystPlanContext context) {
+            if (node.getPrefix().isPresent() &&
+                context.traversalContext().peek() instanceof org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias) {
+                if (context.getSubqueryAlias().stream().map(p -> (org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias) p)
+                    .anyMatch(a -> a.alias().equalsIgnoreCase(node.getPrefix().get().toString()))) {
+                    return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
+                } else if (context.getRelations().stream().map(p -> (UnresolvedRelation) p)
+                    .anyMatch(a -> a.tableName().equalsIgnoreCase(node.getPrefix().get().toString()))) {
+                    return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
+                }
+            }
+            return null;
         }
 
         @Override
@@ -542,6 +584,18 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         }
 
         @Override
+        public Expression visitIsEmpty(IsEmpty node, CatalystPlanContext context) {
+            Stack<Expression> namedParseExpressions = new Stack<>();
+            namedParseExpressions.addAll(context.getNamedParseExpressions());
+            Expression expression = visitCase(node.getCaseValue(), context);
+            namedParseExpressions.add(expression);
+            context.setNamedParseExpressions(namedParseExpressions);
+            return expression;
+        }
+
+
+
+        @Override
         public Expression visitInterval(Interval node, CatalystPlanContext context) {
             throw new IllegalStateException("Not Supported operation : Interval");
         }
@@ -563,7 +617,29 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         @Override
         public Expression visitCase(Case node, CatalystPlanContext context) {
-            throw new IllegalStateException("Not Supported operation : Case");
+            analyze(node.getElseClause(), context);
+            Expression elseValue = context.getNamedParseExpressions().pop();
+            List<Tuple2<Expression, Expression>> whens = new ArrayList<>();
+            for (When when : node.getWhenClauses()) {
+                if (node.getCaseValue() == null) {
+                    whens.add(
+                            new Tuple2<>(
+                                    analyze(when.getCondition(), context),
+                                    analyze(when.getResult(), context)
+                            )
+                    );
+                } else {
+                    // Merge case value and condition (compare value) into a single equal condition
+                    Compare compare = new Compare(EQUAL.getName().getFunctionName(), node.getCaseValue(), when.getCondition());
+                    whens.add(
+                            new Tuple2<>(
+                                    analyze(compare, context), analyze(when.getResult(), context)
+                            )
+                    );
+                }
+                context.retainAllNamedParseExpressions(e -> e);
+            }
+            return context.getNamedParseExpressions().push(new CaseWhen(seq(whens), Option.apply(elseValue)));
         }
 
         @Override

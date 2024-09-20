@@ -10,9 +10,9 @@ import java.sql.{Date, Time, Timestamp}
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
-import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation}
-import org.apache.spark.sql.catalyst.expressions.{EqualTo, GreaterThan, Literal}
-import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CaseWhen, EqualTo, GreaterThan, Literal, NamedExpression}
+import org.apache.spark.sql.catalyst.plans.logical.{Filter, GlobalLimit, LocalLimit, LogicalPlan, Project}
 import org.apache.spark.sql.streaming.StreamTest
 import org.apache.spark.sql.types.DoubleType
 
@@ -25,6 +25,7 @@ class FlintSparkPPLBuiltinFunctionITSuite
   /** Test table and index name */
   private val testTable = "spark_catalog.default.flint_ppl_test"
   private val testNullTable = "spark_catalog.default.flint_ppl_test_null"
+  private val testTextSizeTable = "spark_catalog.default.flint_ppl_text_size"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -267,6 +268,96 @@ class FlintSparkPPLBuiltinFunctionITSuite
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
     val expectedPlan = Project(projectList, filterPlan)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test string functions - isempty eval") {
+    val frame = sql(s"""
+                       | source = $testNullTable | head 1 | eval a = isempty('full'), b = isempty(''), c = isempty(' ') | fields a, b, c
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(false, true, true))
+    assert(results.sameElements(expectedResults))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_null"))
+    val localLimit = LocalLimit(Literal(1), table)
+    val globalLimit = GlobalLimit(Literal(1), localLimit)
+
+    //    val projectList = Seq(UnresolvedStar(None))
+
+    val caseOne = CaseWhen(
+      Seq(
+        (
+          EqualTo(
+            UnresolvedFunction(
+              "length",
+              Seq(UnresolvedFunction("trim", Seq(Literal("full")), isDistinct = false)),
+              isDistinct = false),
+            Literal(0)),
+          Literal(true))),
+      Literal(false))
+    val aliasOne = Alias(caseOne, "a")()
+
+    val caseTwo = CaseWhen(
+      Seq(
+        (
+          EqualTo(
+            UnresolvedFunction(
+              "length",
+              Seq(UnresolvedFunction("trim", Seq(Literal("")), isDistinct = false)),
+              isDistinct = false),
+            Literal(0)),
+          Literal(true))),
+      Literal(false))
+    val aliasTwo = Alias(caseTwo, "b")()
+
+    val caseThree = CaseWhen(
+      Seq(
+        (
+          EqualTo(
+            UnresolvedFunction(
+              "length",
+              Seq(UnresolvedFunction("trim", Seq(Literal(" ")), isDistinct = false)),
+              isDistinct = false),
+            Literal(0)),
+          Literal(true))),
+      Literal(false))
+    val aliasThree = Alias(caseThree, "c")()
+
+    val projectList = Seq(UnresolvedStar(None), aliasOne, aliasTwo, aliasThree)
+    val innerProject = Project(projectList, globalLimit)
+
+    val expectedPlan = Project(
+      Seq(UnresolvedAttribute("a"), UnresolvedAttribute("b"), UnresolvedAttribute("c")),
+      innerProject)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test string functions - isempty where") {
+    val frame = sql(s"""
+                       | source = $testNullTable | where isempty('I am not empty');
+                       | """.stripMargin)
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 0)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_null"))
+    val caseIsEmpty = CaseWhen(
+      Seq(
+        (
+          EqualTo(
+            UnresolvedFunction(
+              "length",
+              Seq(UnresolvedFunction("trim", Seq(Literal("I am not empty")), isDistinct = false)),
+              isDistinct = false),
+            Literal(0)),
+          Literal(true))),
+      Literal(false))
+    val filterPlan = Filter(caseIsEmpty, table)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), filterPlan)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
