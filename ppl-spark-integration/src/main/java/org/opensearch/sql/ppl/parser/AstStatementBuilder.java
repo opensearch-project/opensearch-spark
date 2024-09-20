@@ -19,22 +19,26 @@ import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+
 /** Build {@link Statement} from PPL Query. */
 
 public class AstStatementBuilder extends OpenSearchPPLParserBaseVisitor<Statement> {
 
-  private AstBuilder astBuilder;
+  private List<OpenSearchPPLParserBaseVisitor<UnresolvedPlan>> astBuilder;
 
   private StatementBuilderContext context;
 
-  public AstStatementBuilder(AstBuilder astBuilder, StatementBuilderContext context) {
-    this.astBuilder = astBuilder;
+  public AstStatementBuilder(StatementBuilderContext context, OpenSearchPPLParserBaseVisitor<UnresolvedPlan> ... astBuilders) {
+    this.astBuilder = Arrays.asList(astBuilders);
     this.context = context;
   }
 
   @Override
   public Statement visitDmlStatement(OpenSearchPPLParser.DmlStatementContext ctx) {
-    Query query = new Query(addSelectAll(astBuilder.visit(ctx)), context.getFetchSize());
+    Query query = new Query(addSelectAll(visit(ctx)), context.getFetchSize());
     return context.isExplain ? new Explain(query) : query;
   }
 
@@ -43,14 +47,17 @@ public class AstStatementBuilder extends OpenSearchPPLParserBaseVisitor<Statemen
     return nextResult != null ? nextResult : aggregate;
   }
 
-  public AstBuilder builder() {
-    return astBuilder;
-  }
-
   public StatementBuilderContext getContext() {
     return context;
   }
-
+  
+  public UnresolvedPlan visit(OpenSearchPPLParser.DmlStatementContext ctx) {
+    return astBuilder.stream()
+            .map(builder -> builder.visit(ctx))
+            .filter(Objects::nonNull)
+            .findAny().get();
+  }
+  
   public static class StatementBuilderContext {
     private boolean isExplain;
     private int fetchSize;

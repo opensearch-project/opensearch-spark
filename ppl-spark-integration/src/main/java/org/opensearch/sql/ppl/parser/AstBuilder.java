@@ -38,7 +38,6 @@ import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Parse;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.RareAggregation;
-import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
@@ -68,7 +67,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
    */
   private String query;
 
-  public AstBuilder(AstExpressionBuilder expressionBuilder, String query) {
+  public AstBuilder(AstExpressionBuilder expressionBuilder, String query, String version) {
     this.expressionBuilder = expressionBuilder;
     this.query = query;
   }
@@ -96,7 +95,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     return new Filter(internalVisitExpression(ctx.logicalExpression()))
         .attach(visit(ctx.fromClause()));
   }
-
+  
   @Override
   public UnresolvedPlan visitDescribeCommand(OpenSearchPPLParser.DescribeCommandContext ctx) {
     final Relation table = (Relation) visitTableSourceClause(ctx.tableSourceClause());

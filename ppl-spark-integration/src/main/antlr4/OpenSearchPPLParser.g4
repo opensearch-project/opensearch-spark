@@ -5,6 +5,18 @@
 
 parser grammar OpenSearchPPLParser;
 
+@parser::members {
+    public static final String GRAMMAR_VERSION = "1.0.0";
+    public static final String LAST_UPDATED = "2024-09-18";
+
+    public static String getGrammarVersion() {
+        return GRAMMAR_VERSION;
+    }
+
+    public static String getLastUpdated() {
+        return LAST_UPDATED;
+    }
+}
 
 options { tokenVocab = OpenSearchPPLLexer; }
 root
@@ -50,6 +62,7 @@ searchCommand
    : (SEARCH)? fromClause                       # searchFrom
    | (SEARCH)? fromClause logicalExpression     # searchFromFilter
    | (SEARCH)? logicalExpression fromClause     # searchFilterFrom
+   | (SEARCH)? MINUS_HELP                       # searchHelp
    ;
 
 describeCommand
@@ -827,8 +840,11 @@ keywordsCanBeId
    | textFunctionName
    | mathematicalFunctionName
    | positionFunctionName
-   // commands
-   | SEARCH
+   | commandNames 
+   ; 
+   
+commandNames
+   : SEARCH // commands
    | DESCRIBE
    | SHOW
    | FROM
