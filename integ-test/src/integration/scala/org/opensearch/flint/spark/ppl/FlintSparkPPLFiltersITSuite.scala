@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Descending, Divide, EqualTo, Floor, GreaterThan, LessThanOrEqual, Literal, Multiply, Not, Or, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, CaseWhen, Descending, Divide, EqualTo, Floor, GreaterThan, LessThanOrEqual, Literal, Multiply, Not, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -348,4 +348,38 @@ class FlintSparkPPLFiltersITSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
+  test("case function used as filter") {
+    val frame = sql(s"""
+                       |  source = $testTable case(country = 'USA', 'The United States of America' else 'Other country') = 'The United States of America'
+                       | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("Jake", 70, "California", "USA", 2023, 4),
+      Row("Hello", 30, "New York", "USA", 2023, 4))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    val sorted = results.sorted
+    assert(sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val conditionValueSequence = Seq(
+      (
+        EqualTo(Literal(true), EqualTo(UnresolvedAttribute("country"), Literal("USA"))),
+        Literal("The United States of America")))
+    val elseValue = Literal("Other country")
+    val caseFunction = CaseWhen(conditionValueSequence, elseValue)
+    val filterExpr = EqualTo(caseFunction, Literal("The United States of America"))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, filterPlan)
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
 }

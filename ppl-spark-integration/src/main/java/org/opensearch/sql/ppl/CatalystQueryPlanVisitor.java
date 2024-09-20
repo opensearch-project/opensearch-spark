@@ -611,6 +611,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         @Override
         public Expression visitCase(Case node, CatalystPlanContext context) {
+            Stack<Expression> initialNameExpressions = new Stack<>();
+            initialNameExpressions.addAll(context.getNamedParseExpressions());
             analyze(node.getElseClause(), context);
             Expression elseValue = context.getNamedParseExpressions().pop();
             List<Tuple2<Expression, Expression>> whens = new ArrayList<>();
@@ -633,6 +635,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 }
                 context.retainAllNamedParseExpressions(e -> e);
             }
+            context.setNamedParseExpressions(initialNameExpressions);
             return context.getNamedParseExpressions().push(new CaseWhen(seq(whens), Option.apply(elseValue)));
         }
 

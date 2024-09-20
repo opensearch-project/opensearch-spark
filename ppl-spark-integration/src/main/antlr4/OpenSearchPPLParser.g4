@@ -312,6 +312,7 @@ valueExpression
    | left = valueExpression binaryOperator = (PLUS | MINUS) right = valueExpression             # binaryArithmetic
    | primaryExpression                                                                          # valueExpressionDefault
    | positionFunction                                                                           # positionFunctionCall
+   | caseFunction                                                                               # caseExpr
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    ;
 
@@ -332,6 +333,10 @@ booleanExpression
  isEmptyExpression
    : ISEMPTY LT_PRTHS functionArg RT_PRTHS
    ;
+
+ caseFunction
+    : CASE LT_PRTHS logicalExpression COMMA valueExpression (COMMA logicalExpression COMMA valueExpression)* (ELSE valueExpression)? RT_PRTHS
+    ;
 
 relevanceExpression
    : singleFieldRelevanceFunction

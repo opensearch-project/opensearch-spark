@@ -9,7 +9,7 @@ import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, LessThan, Literal, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, CaseWhen, Descending, EqualTo, GreaterThanOrEqual, LessThan, Literal, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, LogicalPlan, Project, Sort}
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -21,12 +21,14 @@ class FlintSparkPPLEvalITSuite
 
   /** Test table and index name */
   private val testTable = "spark_catalog.default.flint_ppl_test"
+  private val testTableHttpLog = "spark_catalog.default.flint_ppl_test_http_log"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
     // Create test table
     createPartitionedStateCountryTable(testTable)
+    createTableHttpLog(testTableHttpLog)
   }
 
   protected override def afterEach(): Unit = {
@@ -504,7 +506,63 @@ class FlintSparkPPLEvalITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
+  test("eval case function") {
+    val frame = sql(s"""
+                       | source = $testTableHttpLog |
+                       | eval status_category =
+                       | case(status_code >= 200 AND status_code < 300, 'Success',
+                       |  status_code >= 300 AND status_code < 400, 'Redirection',
+                       |  status_code >= 400 AND status_code < 500, 'Client Error',
+                       |  status_code >= 500, 'Server Error'
+                       |  else 'Unknown'
+                       | )
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(
+        Row(1, 200, "/home", "2023-10-01 10:00:00", "Success"),
+        Row(2, null, "/about", "2023-10-01 10:05:00", "Unknown"),
+        Row(3, 500, "/contact", "2023-10-01 10:10:00", "Server Error"),
+        Row(4, 301, "/home", "2023-10-01 10:15:00", "Redirection"),
+        Row(5, 200, "/services", "2023-10-01 10:20:00", "Success"),
+        Row(6, 403, "/home", "2023-10-01 10:25:00", "Client Error"))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getInt(0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+    val expectedColumns =
+      Array[String]("id", "status_code", "request_path", "timestamp", "status_category")
+    assert(frame.columns.sameElements(expectedColumns))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_http_log"))
+    val conditionValueSequence = Seq(
+      (graterOrEqualAndLessThan("status_code", 200, 300), Literal("Success")),
+      (graterOrEqualAndLessThan("status_code", 300, 400), Literal("Redirection")),
+      (graterOrEqualAndLessThan("status_code", 400, 500), Literal("Client Error")),
+      (
+        EqualTo(
+          Literal(true),
+          GreaterThanOrEqual(UnresolvedAttribute("status_code"), Literal(500))),
+        Literal("Server Error")))
+    val elseValue = Literal("Unknown")
+    val caseFunction = CaseWhen(conditionValueSequence, elseValue)
+    val aliasStatusCategory = Alias(caseFunction, "status_category")()
+    val evalProjectList = Seq(UnresolvedStar(None), aliasStatusCategory)
+    val evalProject = Project(evalProjectList, table)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), evalProject)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  private def graterOrEqualAndLessThan(fieldName: String, min: Int, max: Int) = {
+    val and = And(
+      GreaterThanOrEqual(UnresolvedAttribute("status_code"), Literal(min)),
+      LessThan(UnresolvedAttribute(fieldName), Literal(max)))
+    EqualTo(Literal(true), and)
+  }
+
   // Todo excluded fields not support yet
+
   ignore("test single eval expression with excluded fields") {
     val frame = sql(s"""
          | source = $testTable | eval new_field = "New Field" | fields - age

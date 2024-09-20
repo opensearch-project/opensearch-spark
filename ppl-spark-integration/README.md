@@ -245,6 +245,7 @@ See the next samples of PPL queries :
  - `source = table | where ispresent(b)`
  - `source = table | where isnull(coalesce(a, b)) | fields a,b,c | head 3`
  - `source = table | where isempty(a)`
+ - `source = table | where case(length(a) > 6, 'True' else 'False') = 'True'`;
 
 **Filters With Logical Conditions**
  - `source = table | where c = 'test' AND a = 1 | fields a,b,c`
@@ -265,6 +266,15 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
  - `source = table | eval f = ispresent(a)`
  - `source = table | eval r = coalesce(a, b, c) | fields r`
  - `source = table | eval e = isempty(a) | fields e`
+   ```
+   source = table | eval e = eval status_category =
+   case(a >= 200 AND a < 300, 'Success',
+   a >= 300 AND a < 400, 'Redirection',
+   a >= 400 AND a < 500, 'Client Error',
+   a >= 500, 'Server Error'
+   else 'Unknown'
+   )
+   ```
 
 Limitation: Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous" 
  - `source = table | eval a = 10 | fields a,b,c`

@@ -171,6 +171,8 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitChildren(node, context);
   }
 
+  // TODO add case
+
   public T visitWindowFunction(WindowFunction node, C context) {
     return visitChildren(node, context);
   }

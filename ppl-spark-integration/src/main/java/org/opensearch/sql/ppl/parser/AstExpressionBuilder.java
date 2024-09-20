@@ -44,6 +44,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
@@ -197,6 +198,25 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         return buildFunction(
                 FUNCTION_NAME_MAPPING.getOrDefault(functionName, functionName),
                 ctx.functionArgs().functionArg());
+    }
+
+    @Override
+    public UnresolvedExpression visitCaseExpr(OpenSearchPPLParser.CaseExprContext ctx) {
+        List<When> whens = IntStream.range(0, ctx.caseFunction().logicalExpression().size())
+                .mapToObj(index -> {
+                    OpenSearchPPLParser.LogicalExpressionContext logicalExpressionContext = ctx.caseFunction().logicalExpression(index);
+                    OpenSearchPPLParser.ValueExpressionContext valueExpressionContext = ctx.caseFunction().valueExpression(index);
+                    UnresolvedExpression condition = visit(logicalExpressionContext);
+                    UnresolvedExpression result = visit(valueExpressionContext);
+                    return new When(condition, result);
+                })
+                .collect(Collectors.toList());
+        UnresolvedExpression elseValue = new Literal(null, DataType.NULL);
+        if(ctx.caseFunction().valueExpression().size() > ctx.caseFunction().logicalExpression().size()) {
+            // else value is present
+            elseValue = visit(ctx.caseFunction().valueExpression(ctx.caseFunction().valueExpression().size() - 1));
+        }
+        return new Case(new Literal(true, DataType.BOOLEAN), whens, elseValue);
     }
 
     @Override
