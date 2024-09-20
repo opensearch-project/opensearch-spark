@@ -5,9 +5,12 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.opensearch.flint.spark.PrintLiteralCommandDescriptionLogicalPlan
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
+import org.opensearch.sql.ppl.parser.AstCommandDescriptionVisitor
 import org.scalatest.matchers.should.Matchers
+
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
@@ -18,8 +21,6 @@ import org.apache.spark.sql.execution.command.DescribeTableCommand
 import org.apache.spark.sql.types
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.unsafe.types.UTF8String
-import org.opensearch.flint.spark.PrintLiteralCommandDescriptionLogicalPlan
-import org.opensearch.sql.ppl.parser.AstCommandDescriptionVisitor
 
 class PPLLogicalPlanHelpCommandTranslatorTestSuite
     extends SparkFunSuite
@@ -50,8 +51,10 @@ class PPLLogicalPlanHelpCommandTranslatorTestSuite
                      |- The order of FROM clause and logical expression can be interchanged.
     """.stripMargin.trim
     // Expected plan should match the produced custom logical plan
-    val expectedPlan: LogicalPlan = PrintLiteralCommandDescriptionLogicalPlan(AstCommandDescriptionVisitor.describeCommand(helpText, pplParser.getParserVersion()))
+    val expectedPlan: LogicalPlan = PrintLiteralCommandDescriptionLogicalPlan(
+      AstCommandDescriptionVisitor.describeCommand(helpText, pplParser.getParserVersion()))
 
     // Compare the plans
     comparePlans(expectedPlan, logPlan, false)
-  }}
+  }
+}

@@ -5,15 +5,16 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.opensearch.flint.spark.PrintLiteralCommandDescriptionLogicalPlan
+import org.opensearch.sql.ppl.parser.AstCommandDescriptionVisitor
+
+import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Literal, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.command.DescribeTableCommand
 import org.apache.spark.sql.streaming.StreamTest
-import org.apache.spark.sql.{QueryTest, Row}
-import org.opensearch.flint.spark.PrintLiteralCommandDescriptionLogicalPlan
-import org.opensearch.sql.ppl.parser.AstCommandDescriptionVisitor
 
 class FlintSparkPPLHelpCommandITSuite
     extends QueryTest
@@ -50,7 +51,7 @@ class FlintSparkPPLHelpCommandITSuite
         |- You can add filters using logical expressions.
         |- The order of FROM clause and logical expression can be interchanged.
 """.stripMargin.trim
-    
+
     val pplParser = new PPLSyntaxParser()
     val frame = sql(s"""
            search -help
@@ -66,7 +67,8 @@ class FlintSparkPPLHelpCommandITSuite
     val actualValues = results.map(_.getAs[String](0))
     val expectedValues = expectedResults.map(_.getAs[String](0))
 
-    assert(actualValues.sameElements(expectedValues),
+    assert(
+      actualValues.sameElements(expectedValues),
       s"""
          |Expected: ${expectedValues.mkString(", ")}
          |Actual: ${actualValues.mkString(", ")}
@@ -74,8 +76,9 @@ class FlintSparkPPLHelpCommandITSuite
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
-     // Expected plan should match the produced custom logical plan
-    val expectedPlan: LogicalPlan = PrintLiteralCommandDescriptionLogicalPlan(AstCommandDescriptionVisitor.describeCommand(helpText, pplParser.getParserVersion()))
+    // Expected plan should match the produced custom logical plan
+    val expectedPlan: LogicalPlan = PrintLiteralCommandDescriptionLogicalPlan(
+      AstCommandDescriptionVisitor.describeCommand(helpText, pplParser.getParserVersion()))
 
     // Compare the plans
     comparePlans(expectedPlan, logicalPlan, false)

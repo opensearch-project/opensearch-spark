@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark
 
 import org.opensearch.flint.spark.ppl.FlintSparkPPLParser
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.catalyst.InternalRow
@@ -16,16 +17,19 @@ import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.types.UTF8String
 
 // Logical plan to represent printing of a literal
-case class PrintLiteralCommandDescriptionLogicalPlan(text: String) extends LogicalPlan with LeafNode {
+case class PrintLiteralCommandDescriptionLogicalPlan(text: String)
+    extends LogicalPlan
+    with LeafNode {
   // Create a consistent AttributeReference
-  override def output: Seq[Attribute] = Seq(AttributeReference("output_text", StringType, nullable = false)(ExprId.apply(1)))
+  override def output: Seq[Attribute] = Seq(
+    AttributeReference("output_text", StringType, nullable = false)(ExprId.apply(1)))
 }
-
 
 // Physical plan to print the literal
 case class PrintLiteralExec(text: String) extends SparkPlan with LeafExecNode {
   // Use the provided attribute as the output
-  override def output: Seq[Attribute] = Seq(AttributeReference("output_text", StringType, nullable = false)(ExprId.apply(1)))
+  override def output: Seq[Attribute] = Seq(
+    AttributeReference("output_text", StringType, nullable = false)(ExprId.apply(1)))
 
   override protected def doExecute(): RDD[InternalRow] = {
     // Create a row with the text as a UTF8String
