@@ -62,7 +62,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
     indexData.count() shouldBe 2
   }
 
-  ignore("create skipping index with auto refresh and external scheduler") {
+  test("create skipping index with auto refresh and external scheduler") {
     withTempDir { checkpointDir =>
       sql(s"""
            | CREATE SKIPPING INDEX ON $testTable
@@ -73,6 +73,11 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
            |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
            | )
            | """.stripMargin)
+
+      val indexData = flint.queryIndex(testIndex)
+
+      flint.describeIndex(testIndex) shouldBe defined
+      indexData.count() shouldBe 0
 
       // Refresh all present source data as of now
       sql(s"REFRESH SKIPPING INDEX ON $testTable")

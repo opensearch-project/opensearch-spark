@@ -143,7 +143,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     indexData.count() shouldBe 2
   }
 
-  ignore("create covering index with external scheduler") {
+  test("create covering index with external scheduler") {
     withTempDir { checkpointDir =>
       sql(s"""
            | CREATE INDEX $testIndex ON $testTable
@@ -154,6 +154,11 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
            |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
            | )
            | """.stripMargin)
+
+      val indexData = flint.queryIndex(testFlintIndex)
+
+      flint.describeIndex(testFlintIndex) shouldBe defined
+      indexData.count() shouldBe 0
 
       // Refresh all present source data as of now
       sql(s"REFRESH INDEX $testIndex ON $testTable")

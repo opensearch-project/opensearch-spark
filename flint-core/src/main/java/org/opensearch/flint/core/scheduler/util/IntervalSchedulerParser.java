@@ -12,8 +12,6 @@ import org.opensearch.jobscheduler.spi.schedule.Schedule;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
-import static org.opensearch.flint.core.logging.CustomLogging.logInfo;
-
 public class IntervalSchedulerParser {
 
   public static Schedule parse(Object schedule) {
@@ -24,8 +22,6 @@ public class IntervalSchedulerParser {
     if (schedule instanceof Schedule) {
       return (Schedule) schedule;
     }
-
-    logInfo(schedule.getClass().getSimpleName());
 
     if (schedule instanceof scala.Option) {
       scala.Option<?> option = (scala.Option<?>) schedule;

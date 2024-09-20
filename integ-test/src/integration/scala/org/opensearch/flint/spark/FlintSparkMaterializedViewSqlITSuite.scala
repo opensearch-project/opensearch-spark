@@ -82,7 +82,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     }
   }
 
-  ignore("create materialized view with auto refresh and external scheduler") {
+  test("create materialized view with auto refresh and external scheduler") {
     withTempDir { checkpointDir =>
       sql(s"""
            | CREATE MATERIALIZED VIEW $testMvName
@@ -94,6 +94,11 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
            |   watermark_delay = '1 Second'
            | )
            | """.stripMargin)
+
+      val indexData = flint.queryIndex(testFlintIndex)
+
+      flint.describeIndex(testFlintIndex) shouldBe defined
+      indexData.count() shouldBe 0
 
       // Refresh all present source data as of now
       sql(s"REFRESH MATERIALIZED VIEW $testMvName")
