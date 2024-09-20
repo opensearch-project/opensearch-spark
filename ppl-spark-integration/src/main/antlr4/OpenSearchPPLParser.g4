@@ -45,6 +45,7 @@ commands
    | grokCommand
    | parseCommand
    | patternsCommand
+   | lookupCommand
    ;
 
 searchCommand
@@ -143,6 +144,26 @@ patternsParameter
 patternsMethod
    : PUNCT
    | REGEX
+   ;
+
+// lookup
+lookupCommand
+   : LOOKUP tableSource lookupMappingList ((APPEND | REPLACE) outputCandidateList)?
+   ;
+
+lookupMappingList
+   : lookupPair (COMMA lookupPair)*
+   ;
+
+outputCandidateList
+   : lookupPair (COMMA lookupPair)*
+   ;
+
+ // The lookup pair will generate a K-V pair. For example:
+ // 1. When lookupPair is "name AS cName", the key will be Alias(cName, Field(name)), the value will be Field(cName)
+ // 2. When lookupPair is "dept", the key is Alias(dept, Field(dept)), value is Field(dept)
+lookupPair
+   : lookupField = fieldExpression (AS searchField = fieldExpression)?
    ;
 
 kmeansCommand

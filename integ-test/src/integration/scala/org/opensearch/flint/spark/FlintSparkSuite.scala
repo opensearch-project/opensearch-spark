@@ -277,6 +277,30 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          | """.stripMargin)
   }
 
+  protected def createWorkInformationTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   firstname STRING,
+           |   department STRING,
+           |   uid INT,
+           |   salary INT,
+           |   newSalary INT
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+
+    // Insert data into the new table
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES ('Jake', 'IT', 1000 , 100000, 150000),
+           |        ('John', 'HR', 1001, 120000, 170000),
+           |        ('David', 'HR', 1002, 120000, 100000),
+           |        ('Tom', 'SALES', 1003, 0, 200000),
+           |        ('Jane', 'DATA', 1004, 90000, 110000)
+           | """.stripMargin)
+  }
+
   protected def createOccupationTopRareTable(testTable: String): Unit = {
     sql(s"""
       | CREATE TABLE $testTable

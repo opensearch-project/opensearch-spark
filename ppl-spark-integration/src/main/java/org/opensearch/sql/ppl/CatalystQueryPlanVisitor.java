@@ -8,19 +8,23 @@ package org.opensearch.sql.ppl;
 import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
 import org.apache.spark.sql.catalyst.expressions.CaseWhen;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
+import org.apache.spark.sql.catalyst.expressions.EqualTo$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
+import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns$;
 import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.Project$;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
@@ -62,6 +66,7 @@ import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.ast.tree.Kmeans;
+import org.opensearch.sql.ast.tree.Lookup;
 import org.opensearch.sql.ast.tree.Parse;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.RareAggregation;
@@ -168,6 +173,84 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             Optional<Expression> innerConditionExpression = context.popNamedParseExpressions();
             return innerConditionExpression.map(expression -> new org.apache.spark.sql.catalyst.plans.logical.Filter(innerConditionExpression.get(), p)).orElse(null);
         });
+    }
+
+    @Override
+    public LogicalPlan visitLookup(Lookup node, CatalystPlanContext context) {
+        node.getChild().get(0).accept(this, context);
+
+        return context.apply( searchSide -> {
+            LogicalPlan lookupTable = node.getLookupRelation().accept(this, context);
+            // If no output field is specified, all fields from lookup table are applied to the output.
+            // If the output fields are specified, build a project list for lookup table.
+            // The mapping fields of lookup table should be added in this project list, otherwise join will fail.
+            // So the mapping fields of lookup table should be dropped after join.
+            List<NamedExpression> lookupTableProjectList = buildLookupRelationProjectList(node, context);
+            LogicalPlan lookupTableWithProject = Project$.MODULE$.apply(seq(lookupTableProjectList), lookupTable);
+
+//            // Drop the output fields in search relation TODO Stop!
+//            List<UnresolvedExpression> searchFieldToReplace = new ArrayList<>(node.getOutputCandidateMap().values());
+//            Seq<Expression> toDropInSearch = seq(visitExpressionList(searchFieldToReplace, context));
+//            LogicalPlan searchSideWithDrop = DataFrameDropColumns$.MODULE$.apply(toDropInSearch, searchSide);
+
+            Expression lookupExpression = buildLookupMappingCondition(node.getLookupMappingMap(), context);
+//            Seq<Expression> check = context.retainAllNamedParseExpressions(p -> p);
+//            context.retainAllPlans(p -> p);
+
+            LogicalPlan join = join(searchSide, lookupTableWithProject, Join.JoinType.LEFT, Optional.of(lookupExpression), new Join.JoinHint());
+
+            if (node.allFieldsShouldAppliedToOutputList()) {
+                // TODO how to get all field list from the lookup relation before logical plan analyzing
+                throw new UnsupportedOperationException("all fields should applied to output list");
+            }
+
+            // Drop the mapping fields of lookup table
+            List<Expression> dropListOfLookupMappingFields =
+                buildProjectListFromFields(new ArrayList<>(node.getLookupMappingMap().keySet()), context).stream()
+                    .map(Expression.class::cast).collect(Collectors.toList());
+            LogicalPlan dropped = DataFrameDropColumns$.MODULE$.apply(seq(dropListOfLookupMappingFields), join);
+
+            // TODO will and case functions
+            context.retainAllNamedParseExpressions(p -> p);
+            context.retainAllPlans(p -> p);
+            return dropped;
+        });
+//        switch (node.getOutputStrategy()) {
+//            case APPEND:
+//            case REPLACE:
+//
+//            default:
+//                throw new IllegalArgumentException("Unsupported output strategy");
+//        }
+    }
+
+    /** lookup fields (left side join keys) + replace fields in lookup relation */
+    private List<NamedExpression> buildLookupRelationProjectList(Lookup node, CatalystPlanContext context) {
+        List<Field> lookupOutputFields = new ArrayList<>(node.getLookupOutputFieldList());
+        if (lookupOutputFields.isEmpty()) {
+            // All fields will be applied to the output if no lookup output field is specified.
+            return Collections.singletonList(new UnresolvedStar(Option.empty()));
+        }
+        lookupOutputFields.addAll(node.getLookupMappingMap().keySet());
+        return buildProjectListFromFields(lookupOutputFields, context);
+    }
+
+    private List<NamedExpression> buildProjectListFromFields(List<Field> fields, CatalystPlanContext context) {
+        return fields.stream().map(field -> expressionAnalyzer.visitField(field, context))
+            .map(NamedExpression.class::cast)
+            .collect(Collectors.toList());
+    }
+
+    private Expression buildLookupMappingCondition(Map<Field, Field> mappingMap, CatalystPlanContext context) {
+        List<Expression> equiConditions = new ArrayList<>();
+        for (Map.Entry<Field, Field> entry : mappingMap.entrySet()) {
+            Expression lookupNamedExpression = visitExpression(entry.getKey(), context);
+            Expression searchNamedExpression = visitExpression(entry.getValue(), context);
+            Expression equal = EqualTo$.MODULE$.apply(lookupNamedExpression, searchNamedExpression);
+            equiConditions.add(equal);
+        }
+        context.retainAllNamedParseExpressions(e -> e);
+        return equiConditions.stream().reduce(org.apache.spark.sql.catalyst.expressions.And::new).orElse(null);
     }
 
     @Override
