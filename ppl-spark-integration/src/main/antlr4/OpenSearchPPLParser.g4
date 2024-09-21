@@ -17,7 +17,7 @@ pplStatement
    ;
 
 dmlStatement
-   : queryStatement
+   : (EXPLAIN EQUAL explain = booleanLiteral)? queryStatement
    ;
 
 queryStatement

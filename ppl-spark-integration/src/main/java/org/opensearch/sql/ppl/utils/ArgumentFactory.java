@@ -119,6 +119,19 @@ public class ArgumentFactory {
   }
 
   /**
+   * Get list of {@link Argument}.
+   *
+   * @param ctx DmlStatementContext instance
+   * @return the list of arguments fetched from the dml statement
+   */
+  public static List<Argument> getArgumentList(OpenSearchPPLParser.DmlStatementContext ctx) {
+    return Collections.singletonList(
+            ctx.explain != null
+                    ? new Argument("explain", getArgumentValue(ctx.explain))
+                    : new Argument("explain", new Literal(false, DataType.BOOLEAN)));
+  }
+
+  /**
    * parse argument value into Literal.
    *
    * @param ctx ParserRuleContext instance
