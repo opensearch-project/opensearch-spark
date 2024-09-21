@@ -9,6 +9,8 @@ import org.junit.Test;
 import org.opensearch.flint.common.scheduler.AsyncQueryScheduler;
 import org.opensearch.flint.common.scheduler.model.AsyncQuerySchedulerRequest;
 import org.opensearch.flint.core.FlintOptions;
+import org.opensearch.flint.spark.scheduler.AsyncQuerySchedulerBuilder;
+import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler;
 
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;

@@ -27,9 +27,9 @@ object RefreshQueryGenerator {
       case skippingIndex: FlintSparkSkippingIndex =>
         s"REFRESH SKIPPING INDEX ON ${skippingIndex.tableName}"
       case coveringIndex: FlintSparkCoveringIndex =>
-        s"REFRESH INDEX ${index.name()} ON ${coveringIndex.tableName}"
-      case _: FlintSparkMaterializedView =>
-        s"REFRESH MATERIALIZED VIEW ${index.name()}"
+        s"REFRESH INDEX ${coveringIndex.indexName} ON ${coveringIndex.tableName}"
+      case materializedView: FlintSparkMaterializedView =>
+        s"REFRESH MATERIALIZED VIEW ${materializedView.mvName}"
       case _ =>
         throw new IllegalArgumentException(
           s"Unsupported index type: ${index.getClass.getSimpleName}")

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.core.scheduler;
+package org.opensearch.flint.spark.scheduler;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,7 +30,7 @@ public class AsyncQuerySchedulerBuilder {
 
   public static AsyncQueryScheduler build(FlintOptions options) {
     String className = options.getCustomAsyncQuerySchedulerClass();
-    logger.info("className: {}", className);
+    logger.info("Attempting to instantiate AsyncQueryScheduler with class name: {}", className);
 
     if (className.isEmpty()) {
       return new OpenSearchAsyncQueryScheduler(options);

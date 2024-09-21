@@ -21,6 +21,7 @@ import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
+import org.apache.spark.sql.flint.config.FlintSparkConf
 
 class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
@@ -84,6 +85,11 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
   test("create materialized view with auto refresh and external scheduler") {
     withTempDir { checkpointDir =>
+      setFlintSparkConf(
+        FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS,
+        "org.opensearch.flint.spark.scheduler.AsyncQuerySchedulerForSqlIT")
+      setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, true)
+
       sql(s"""
            | CREATE MATERIALIZED VIEW $testMvName
            | AS $testQuery
@@ -100,8 +106,8 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       flint.describeIndex(testFlintIndex) shouldBe defined
       indexData.count() shouldBe 0
 
-      // Refresh all present source data as of now
-      sql(s"REFRESH MATERIALIZED VIEW $testMvName")
+      // query index after 25 sec
+      Thread.sleep(25000)
       flint.queryIndex(testFlintIndex).count() shouldBe 3
 
       // New data won't be refreshed until refresh statement triggered
@@ -111,9 +117,10 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
            | """.stripMargin)
       flint.queryIndex(testFlintIndex).count() shouldBe 3
 
-      // New data is refreshed incrementally
-      sql(s"REFRESH MATERIALIZED VIEW $testMvName")
-      flint.queryIndex(testFlintIndex).count() shouldBe 4
+      // Drop index with test scheduler
+      sql(s"DROP MATERIALIZED VIEW $testMvName")
+      conf.unsetConf(FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key)
+      conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     }
   }
 

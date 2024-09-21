@@ -10,7 +10,6 @@ import java.util.Collections
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkIndexOptions, FlintSparkValidationHelper}
 import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, StreamingRefresh}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{AUTO, RefreshMode}
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
@@ -109,9 +108,7 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
         .addCheckpointLocation(options.checkpointLocation(), flintSparkConf.isCheckpointMandatory)
         .addRefreshInterval(options.refreshInterval())
         .addAvailableNowTrigger(
-          options
-            .isExternalSchedulerEnabled() || options
-            .incrementalRefresh())
+          options.isExternalSchedulerEnabled() || options.incrementalRefresh())
         .addOutputMode(options.outputMode())
         .options(options.extraSinkOptions())
     }

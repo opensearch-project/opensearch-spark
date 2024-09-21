@@ -20,6 +20,7 @@ import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.{ExplainSuiteHelper, Row}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
 
 class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuiteHelper {
@@ -64,6 +65,11 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
 
   test("create skipping index with auto refresh and external scheduler") {
     withTempDir { checkpointDir =>
+      setFlintSparkConf(
+        FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS,
+        "org.opensearch.flint.spark.scheduler.AsyncQuerySchedulerForSqlIT")
+      setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, true)
+
       sql(s"""
            | CREATE SKIPPING INDEX ON $testTable
            | ( year PARTITION )
@@ -79,8 +85,8 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
       flint.describeIndex(testIndex) shouldBe defined
       indexData.count() shouldBe 0
 
-      // Refresh all present source data as of now
-      sql(s"REFRESH SKIPPING INDEX ON $testTable")
+      // query index after 25 sec
+      Thread.sleep(25000)
       flint.queryIndex(testIndex).count() shouldBe 2
 
       // New data won't be refreshed until refresh statement triggered
@@ -91,8 +97,9 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
            |""".stripMargin)
       flint.queryIndex(testIndex).count() shouldBe 2
 
-      sql(s"REFRESH SKIPPING INDEX ON $testTable")
-      flint.queryIndex(testIndex).count() shouldBe 3
+      sql(s"DROP SKIPPING INDEX ON $testTable")
+      conf.unsetConf(FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key)
+      conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     }
   }
 

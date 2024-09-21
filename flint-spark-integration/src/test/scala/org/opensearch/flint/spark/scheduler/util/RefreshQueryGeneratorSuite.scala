@@ -26,7 +26,7 @@ class RefreshQueryGeneratorTest extends SparkFunSuite with Matchers {
 
   test("generateRefreshQuery should return correct query for FlintSparkCoveringIndex") {
     val mockIndex = mock(classOf[FlintSparkCoveringIndex])
-    when(mockIndex.name()).thenReturn("testIndex")
+    when(mockIndex.indexName).thenReturn("testIndex")
     when(mockIndex.tableName).thenReturn("testTable")
 
     val result = RefreshQueryGenerator.generateRefreshQuery(mockIndex)
@@ -35,7 +35,7 @@ class RefreshQueryGeneratorTest extends SparkFunSuite with Matchers {
 
   test("generateRefreshQuery should return correct query for FlintSparkMaterializedView") {
     val mockIndex = mock(classOf[FlintSparkMaterializedView])
-    when(mockIndex.name()).thenReturn("testMV")
+    when(mockIndex.mvName).thenReturn("testMV")
 
     val result = RefreshQueryGenerator.generateRefreshQuery(mockIndex)
     result shouldBe "REFRESH MATERIALIZED VIEW testMV"

@@ -3,13 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.core.scheduler;
+package org.opensearch.flint.spark.scheduler;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
-import lombok.SneakyThrows;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,9 +31,8 @@ import org.opensearch.flint.common.scheduler.AsyncQueryScheduler;
 import org.opensearch.flint.common.scheduler.model.AsyncQuerySchedulerRequest;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
-import org.opensearch.flint.core.scheduler.util.IntervalSchedulerParser;
+import org.opensearch.flint.spark.scheduler.util.IntervalSchedulerParser;
 import org.opensearch.flint.core.storage.OpenSearchClientUtils;
-import org.opensearch.index.engine.DocumentMissingException;
 import org.opensearch.jobscheduler.spi.schedule.IntervalSchedule;
 import org.opensearch.jobscheduler.spi.schedule.Schedule;
 import org.opensearch.rest.RestStatus;
@@ -43,6 +41,11 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
+/**
+ * OpenSearch implementation of the AsyncQueryScheduler interface.
+ * This class manages the scheduling, unscheduling, updating, and removal of asynchronous query jobs
+ * using OpenSearch as the backend storage and scheduling mechanism.
+ */
 public class OpenSearchAsyncQueryScheduler implements AsyncQueryScheduler {
     public static final String SCHEDULER_INDEX_NAME = ".async-query-scheduler";
     private static final String SCHEDULER_INDEX_MAPPING_FILE_NAME = "async-query-scheduler-index-mapping.yml";
@@ -248,8 +251,8 @@ public class OpenSearchAsyncQueryScheduler implements AsyncQueryScheduler {
                 json.put("jitter", request.getJitter());
             }
 
-            if (request.getSchedule() != null) {
-                Schedule parsedSchedule = IntervalSchedulerParser.parse(request.getSchedule());
+            if (request.getInterval() != null) {
+                Schedule parsedSchedule = IntervalSchedulerParser.parse(request.getInterval());
                 json.set("schedule", serializeSchedule(parsedSchedule));
             }
 

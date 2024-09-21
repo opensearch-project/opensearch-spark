@@ -18,6 +18,7 @@ import org.opensearch.flint.common.scheduler.model.AsyncQuerySchedulerRequest
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.OpenSearchClientUtils
 import org.opensearch.flint.spark.FlintSparkSuite
+import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler
 import org.scalatest.matchers.should.Matchers
 
 class OpenSearchAsyncQuerySchedulerITSuite extends FlintSparkSuite with Matchers {
@@ -49,7 +50,7 @@ class OpenSearchAsyncQuerySchedulerITSuite extends FlintSparkSuite with Matchers
 
     // Update job with new query and schedule
     val updatedRequest =
-      AsyncQuerySchedulerRequest.builder().jobId(testJobId).schedule("5 minutes").build()
+      AsyncQuerySchedulerRequest.builder().jobId(testJobId).interval("5 minutes").build()
     scheduler.updateJob(updatedRequest)
     val (_, _, _, updatedSchedule) = verifyJob(testJobId)
     updatedSchedule shouldBe "5 minutes"
@@ -73,7 +74,7 @@ class OpenSearchAsyncQuerySchedulerITSuite extends FlintSparkSuite with Matchers
       AsyncQuerySchedulerRequest
         .builder()
         .jobId(testJobId)
-        .schedule("2 minutes")
+        .interval("2 minutes")
         .lastUpdateTime(Instant.now())
         .build()
     assertThrows[IllegalArgumentException] {
@@ -121,7 +122,7 @@ class OpenSearchAsyncQuerySchedulerITSuite extends FlintSparkSuite with Matchers
       .dataSource("test_datasource")
       .scheduledQuery("SELECT * FROM test_table")
       .queryLang("SQL")
-      .schedule("1 minutes")
+      .interval("1 minutes")
       .enabled(true)
       .lastUpdateTime(Instant.now())
       .build()

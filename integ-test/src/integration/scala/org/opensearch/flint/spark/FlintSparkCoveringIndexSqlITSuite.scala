@@ -19,6 +19,7 @@ import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
 
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, OPTIMIZER_RULE_COVERING_INDEX_ENABLED}
 
 class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
@@ -145,6 +146,11 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
   test("create covering index with external scheduler") {
     withTempDir { checkpointDir =>
+      setFlintSparkConf(
+        FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS,
+        "org.opensearch.flint.spark.scheduler.AsyncQuerySchedulerForSqlIT")
+      setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, true)
+
       sql(s"""
            | CREATE INDEX $testIndex ON $testTable
            | (name, age)
@@ -160,8 +166,8 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
       flint.describeIndex(testFlintIndex) shouldBe defined
       indexData.count() shouldBe 0
 
-      // Refresh all present source data as of now
-      sql(s"REFRESH INDEX $testIndex ON $testTable")
+      // query index after 25 sec
+      Thread.sleep(25000)
       flint.queryIndex(testFlintIndex).count() shouldBe 2
 
       // New data won't be refreshed until refresh statement triggered
@@ -172,9 +178,10 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
            |""".stripMargin)
       flint.queryIndex(testFlintIndex).count() shouldBe 2
 
-      // New data is refreshed incrementally
-      sql(s"REFRESH INDEX $testIndex ON $testTable")
-      flint.queryIndex(testFlintIndex).count() shouldBe 3
+      // Drop index with test scheduler
+      sql(s"DROP INDEX $testIndex ON $testTable")
+      conf.unsetConf(FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key)
+      conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     }
   }
 

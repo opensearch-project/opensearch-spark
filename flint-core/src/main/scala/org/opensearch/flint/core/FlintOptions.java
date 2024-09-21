@@ -178,8 +178,13 @@ public class FlintOptions implements Serializable {
   public String getDataSourceName() {
     return options.getOrDefault(DATA_SOURCE_NAME, "");
   }
-
-  public String getClientId() {
+  
+  /**
+   * Get the AWS accountId from the cluster name.
+   * Flint cluster name is in the format of "accountId:clusterName".
+   * @return the AWS accountId
+   */
+  public String getAWSAccountId() {
     String clusterName = System.getenv().getOrDefault("FLINT_CLUSTER_NAME", "");
     String[] parts = clusterName.split(":");
     return parts.length == 2 ? parts[0] : "";
