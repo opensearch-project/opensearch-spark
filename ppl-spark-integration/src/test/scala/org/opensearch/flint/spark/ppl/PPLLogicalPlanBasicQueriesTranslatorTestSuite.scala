@@ -118,7 +118,9 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val context = new CatalystPlanContext
     val logicalPlan =
       planTransformer.visit(
-        plan(pplParser, "source = spark_catalog.default.flint_ppl_test | where struct_col.field2 > 200 | sort  - struct_col.field2 | fields  int_col, struct_col.field2"),
+        plan(
+          pplParser,
+          "source = spark_catalog.default.flint_ppl_test | where struct_col.field2 > 200 | sort  - struct_col.field2 | fields  int_col, struct_col.field2"),
         context)
 
     // Define the expected logical plan
@@ -143,9 +145,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   test("test simple search with schema.table and one nested field projected") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=schema.table | fields A.nested"),
-        context)
+      planTransformer.visit(plan(pplParser, "source=schema.table | fields A.nested"), context)
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("A.nested"))
     val expectedPlan = Project(projectList, UnresolvedRelation(Seq("schema", "table")))

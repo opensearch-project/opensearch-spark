@@ -35,9 +35,8 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
 
   test("test concat") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(
-      plan(pplParser, "source=t a = CONCAT('hello', 'world')"),
-      context)
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=t a = CONCAT('hello', 'world')"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -206,9 +205,8 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
 
   test("test replace") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(
-      plan(pplParser, "source=t a=replace('hello', 'l', 'x')"),
-      context)
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=t a=replace('hello', 'l', 'x')"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(

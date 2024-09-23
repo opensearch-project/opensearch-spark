@@ -59,7 +59,8 @@ class PPLLogicalPlanTimeFunctionsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser,
+        plan(
+          pplParser,
           s"""
              | source = t
              | | eval a = DAY_OF_WEEK(DATE('2020-08-26'))

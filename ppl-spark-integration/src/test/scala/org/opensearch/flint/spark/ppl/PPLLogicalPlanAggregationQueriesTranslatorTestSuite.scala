@@ -117,7 +117,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table country ='USA' | stats avg(price) by product | sort product"),
+      plan(
+        pplParser,
+        "source = table country ='USA' | stats avg(price) by product | sort product"),
       context)
     // SQL: SELECT product, AVG(price) AS avg_price FROM table GROUP BY product
     val star = Seq(UnresolvedStar(None))
@@ -216,7 +218,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("create ppl query count sales by weeks window and productId with sorting test") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date | sort age_date"),
+      plan(
+        pplParser,
+        "source = table | stats sum(productsAmount) by span(transactionDate, 1w) as age_date | sort age_date"),
       context)
 
     // Define the expected logical plan
@@ -252,7 +256,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("create ppl query count sales by days window and productId with sorting test") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats sum(productsAmount) by span(transactionDate, 1d) as age_date, productId | sort age_date"),
+      plan(
+        pplParser,
+        "source = table | stats sum(productsAmount) by span(transactionDate, 1d) as age_date, productId | sort age_date"),
       context)
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -287,7 +293,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("create ppl query count status amount by day window and group by status test") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats sum(status) by span(@timestamp, 1d) as status_count_by_day, status | head 100"),
+      plan(
+        pplParser,
+        "source = table | stats sum(status) by span(@timestamp, 1d) as status_count_by_day, status | head 100"),
       context)
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -320,7 +328,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     "create ppl query count only error (status >= 400) status amount by day window and group by status test") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | where status >= 400 | stats sum(status) by span(@timestamp, 1d) as status_count_by_day, status | head 100"),
+      plan(
+        pplParser,
+        "source = table | where status >= 400 | stats sum(status) by span(@timestamp, 1d) as status_count_by_day, status | head 100"),
       context)
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -380,7 +390,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test price sample stddev with alias and filter") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table category = 'vegetable' | stats stddev_samp(price) as dev_samp"),
+      plan(
+        pplParser,
+        "source = table category = 'vegetable' | stats stddev_samp(price) as dev_samp"),
       context)
     val star = Seq(UnresolvedStar(None))
     val categoryField = UnresolvedAttribute("category")
@@ -402,7 +414,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test age sample stddev by span of interval of 5 years query with sort ") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats stddev_samp(age) by span(age, 5) as age_span | sort age"),
+      plan(
+        pplParser,
+        "source = table | stats stddev_samp(age) by span(age, 5) as age_span | sort age"),
       context)
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -427,7 +441,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test number of flights sample stddev by airport with alias and limit") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats stddev_samp(no_of_flights) as dev_samp_flights by airport | head 10"),
+      plan(
+        pplParser,
+        "source = table | stats stddev_samp(no_of_flights) as dev_samp_flights by airport | head 10"),
       context)
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -479,7 +495,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test price population stddev with alias and filter") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table category = 'vegetable' | stats stddev_pop(price) as dev_pop"),
+      plan(
+        pplParser,
+        "source = table category = 'vegetable' | stats stddev_pop(price) as dev_pop"),
       context)
     val star = Seq(UnresolvedStar(None))
     val categoryField = UnresolvedAttribute("category")
@@ -501,7 +519,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test age population stddev by span of interval of 5 years query with sort ") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats stddev_pop(age) by span(age, 5) as age_span | sort age"),
+      plan(
+        pplParser,
+        "source = table | stats stddev_pop(age) by span(age, 5) as age_span | sort age"),
       context)
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -526,7 +546,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test number of flights population stddev by airport with alias and limit") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats stddev_pop(no_of_flights) as dev_pop_flights by airport | head 50"),
+      plan(
+        pplParser,
+        "source = table | stats stddev_pop(no_of_flights) as dev_pop_flights by airport | head 50"),
       context)
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -579,7 +601,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test price 20th percentile with alias and filter") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table category = 'vegetable' | stats percentile(price, 20) as price_20_percentile"),
+      plan(
+        pplParser,
+        "source = table category = 'vegetable' | stats percentile(price, 20) as price_20_percentile"),
       context)
     val star = Seq(UnresolvedStar(None))
     val categoryField = UnresolvedAttribute("category")
@@ -602,7 +626,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test age 40th percentile by span of interval of 5 years query with sort ") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats percentile(age, 40) by span(age, 5) as age_span | sort age"),
+      plan(
+        pplParser,
+        "source = table | stats percentile(age, 40) by span(age, 5) as age_span | sort age"),
       context)
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -628,7 +654,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test sum number of flights by airport and calculate 30th percentile with aliases") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats sum(no_of_flights) as flights_count by airport | stats percentile(flights_count, 30) as percentile_30"),
+      plan(
+        pplParser,
+        "source = table | stats sum(no_of_flights) as flights_count by airport | stats percentile(flights_count, 30) as percentile_30"),
       context)
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -665,7 +693,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     "test sum number of flights by airport and calculate 30th percentile approx with aliases") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats sum(no_of_flights) as flights_count by airport | stats percentile_approx(flights_count, 30) as percentile_approx_30"),
+      plan(
+        pplParser,
+        "source = table | stats sum(no_of_flights) as flights_count by airport | stats percentile_approx(flights_count, 30) as percentile_approx_30"),
       context)
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -749,7 +779,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test distinct count age by span of interval of 10 years query with sort ") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats distinct_count(age) by span(age, 10) as age_span | sort age"),
+      plan(
+        pplParser,
+        "source = table | stats distinct_count(age) by span(age, 10) as age_span | sort age"),
       context)
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -774,7 +806,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("test distinct count status by week window and group by status with limit") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats distinct_count(status) by span(@timestamp, 1w) as status_count_by_week, status | head 100"),
+      plan(
+        pplParser,
+        "source = table | stats distinct_count(status) by span(@timestamp, 1w) as status_count_by_week, status | head 100"),
       context)
     // Define the expected logical plan
     val star = Seq(UnresolvedStar(None))
@@ -829,7 +863,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("multiple stats - test average price and average age with Alias") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats avg(price) as avg_price | stats avg(age) as avg_age"),
+      plan(
+        pplParser,
+        "source = table | stats avg(price) as avg_price | stats avg(age) as avg_age"),
       context)
     val star = Seq(UnresolvedStar(None))
 
@@ -851,7 +887,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     "multiple stats - test average price group by product and average age by span of interval of 10 years") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats avg(price) by product | stats avg(age) by span(age, 10) as age_span"),
+      plan(
+        pplParser,
+        "source = table | stats avg(price) by product | stats avg(age) by span(age, 10) as age_span"),
       context)
     val star = Seq(UnresolvedStar(None))
     val productField = UnresolvedAttribute("product")
@@ -882,7 +920,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
   test("multiple levels stats") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats avg(response_time) as avg_response_time by host, service | stats avg(avg_response_time) as avg_host_response_time by service"),
+      plan(
+        pplParser,
+        "source = table | stats avg(response_time) as avg_response_time by host, service | stats avg(avg_response_time) as avg_host_response_time by service"),
       context)
     val star = Seq(UnresolvedStar(None))
     val hostField = UnresolvedAttribute("host")

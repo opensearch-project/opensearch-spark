@@ -48,15 +48,12 @@ class FlintSparkPPLBasicITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
     val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
-    val filter = Filter(Not(EqualTo(UnresolvedAttribute("state"), Literal("California"))), relation)
+    val filter =
+      Filter(Not(EqualTo(UnresolvedAttribute("state"), Literal("California"))), relation)
     val expectedPlan: LogicalPlan =
       ExplainCommand(
-        Project(
-          Seq(UnresolvedAttribute("name")),
-          filter
-        ),
-        ExplainMode.fromString("simple")
-      )
+        Project(Seq(UnresolvedAttribute("name")), filter),
+        ExplainMode.fromString("simple"))
     // Compare the two plans
     assert(expectedPlan === logicalPlan)
   }

@@ -32,7 +32,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     val context = new CatalystPlanContext
     val thrown = intercept[IllegalStateException] {
       planTransformer.visit(
-        plan(pplParser,
+        plan(
+          pplParser,
           s"""
              | source = $testTable1, $testTable2| correlate exact fields(name, country) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
              | """.stripMargin),
@@ -47,7 +48,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     val context = new CatalystPlanContext
     val thrown = intercept[IllegalStateException] {
       planTransformer.visit(
-        plan(pplParser,
+        plan(
+          pplParser,
           s"""
              | source = $testTable1, $testTable2| correlate exact fields(name, country) mapping($testTable1.name = $testTable2.name)
              | """.stripMargin),
@@ -62,7 +64,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     val context = new CatalystPlanContext
     val thrown = intercept[IllegalStateException] {
       planTransformer.visit(
-        plan(pplParser,
+        plan(
+          pplParser,
           s"""
              | source = $testTable1, $testTable2| correlate self fields(name, country) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
              | """.stripMargin),
@@ -77,7 +80,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     val context = new CatalystPlanContext
     val thrown = intercept[IllegalStateException] {
       planTransformer.visit(
-        plan(pplParser,
+        plan(
+          pplParser,
           s"""
              | source = $testTable1| correlate approximate fields(name) scope(month, 1W) mapping($testTable1.name = $testTable1.inner_name)
              | """.stripMargin),
@@ -91,7 +95,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     "create ppl correlation exact query with filters and two tables correlating on a single field test") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
-      plan(pplParser,
+      plan(
+        pplParser,
         s"""
            | source = $testTable1, $testTable2| where year = 2023 AND month = 4 | correlate exact fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
            | """.stripMargin),
@@ -130,7 +135,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     "create ppl correlation approximate query with filters and two tables correlating on a single field test") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
-      plan(pplParser,
+      plan(
+        pplParser,
         s"""
            | source = $testTable1, $testTable2| correlate approximate fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
            | """.stripMargin),
@@ -157,7 +163,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     "create ppl correlation approximate query with two tables correlating on a single field and not scope test") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
-      plan(pplParser,
+      plan(
+        pplParser,
         s"""
            | source = $testTable1, $testTable2| correlate approximate fields(name) mapping($testTable1.name = $testTable2.name)
            | """.stripMargin),
@@ -183,7 +190,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     "create ppl correlation query with with filters and two tables correlating on a two fields test") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
-      plan(pplParser,
+      plan(
+        pplParser,
         s"""
            | source = $testTable1, $testTable2| where year = 2023 AND month = 4 | correlate exact fields(name, country) scope(month, 1W)
            | mapping($testTable1.name = $testTable2.name, $testTable1.country = $testTable2.country)
@@ -228,7 +236,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     "create ppl correlation query with two tables correlating on a two fields and disjoint filters test") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
-      plan(pplParser,
+      plan(
+        pplParser,
         s"""
            | source = $testTable1, $testTable2| where year = 2023 AND month = 4 AND $testTable2.salary > 100000 | correlate exact fields(name, country) scope(month, 1W)
            | mapping($testTable1.name = $testTable2.name, $testTable1.country = $testTable2.country)
@@ -275,7 +284,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     "create ppl correlation (exact) query with two tables correlating by name and group by avg salary by age span (10 years bucket) test") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
-      plan(pplParser,
+      plan(
+        pplParser,
         s"""
            | source = $testTable1, $testTable2| correlate exact fields(name) scope(month, 1W)
            | mapping($testTable1.name = $testTable2.name) |
@@ -313,7 +323,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     "create ppl correlation (exact) query with two tables correlating by name and group by avg salary by age span (10 years bucket) and country test") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
-      plan(pplParser,
+      plan(
+        pplParser,
         s"""
            | source = $testTable1, $testTable2| correlate exact fields(name) scope(month, 1W)
            | mapping($testTable1.name = $testTable2.name) |
@@ -353,7 +364,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     "create ppl correlation (exact) query with two tables correlating by name,country and group by avg salary by age span (10 years bucket) with country filter test") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
-      plan(pplParser,
+      plan(
+        pplParser,
         s"""
            | source = $testTable1, $testTable2| where country = 'USA' OR country = 'England' |
            | correlate exact fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name) |
@@ -404,7 +416,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     "create ppl correlation (exact) query with two tables correlating by name,country and group by avg salary by age span (10 years bucket) with country filter without scope test") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
-      plan(pplParser,
+      plan(
+        pplParser,
         s"""
            | source = $testTable1, $testTable2| where country = 'USA' OR country = 'England' |
            | correlate exact fields(name) mapping($testTable1.name = $testTable2.name) |
@@ -456,7 +469,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
     "create ppl correlation (approximate) query with two tables correlating by name,country and group by avg salary by age span (10 years bucket) test") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
-      plan(pplParser,
+      plan(
+        pplParser,
         s"""
            | source = $testTable1, $testTable2| correlate approximate fields(name, country) scope(month, 1W)
            | mapping($testTable1.name = $testTable2.name, $testTable1.country = $testTable2.country) |

@@ -118,9 +118,8 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
   test(
     "test simple search with only one table with one field literal string none equality filtered and one field projected") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(
-      plan(pplParser, """source=t a != 'bye'  | fields a"""),
-      context)
+    val logPlan =
+      planTransformer.visit(plan(pplParser, """source=t a != 'bye'  | fields a"""), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = Not(EqualTo(UnresolvedAttribute("a"), Literal("bye")))
@@ -204,9 +203,8 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
   test(
     "test simple search with only one table with one field not equal filtered and one field projected and sorted") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(
-      plan(pplParser, "source=t a != 1  | fields a | sort a"),
-      context)
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=t a != 1  | fields a | sort a"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = Not(EqualTo(UnresolvedAttribute("a"), Literal(1)))

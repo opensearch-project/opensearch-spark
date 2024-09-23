@@ -128,7 +128,9 @@ class PPLLogicalPlanMathFunctionsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | where sqrt(pow(a, 2)) + sqrt(pow(a, 2)) / 1 - sqrt(pow(a, 2)) * 1 = sqrt(pow(a, 2)) % 1"),
+        plan(
+          pplParser,
+          "source=t | where sqrt(pow(a, 2)) + sqrt(pow(a, 2)) / 1 - sqrt(pow(a, 2)) * 1 = sqrt(pow(a, 2)) % 1"),
         context)
     val table = UnresolvedRelation(Seq("t"))
     // sqrt(pow(a, 2))
@@ -162,7 +164,9 @@ class PPLLogicalPlanMathFunctionsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = age = 30, b = age != 70, c = 30 < age, d = 30 <= age, e = 30 > age, f = 30 >= age | fields age, a, b, c, d, e, f"),
+        plan(
+          pplParser,
+          "source=t | eval a = age = 30, b = age != 70, c = 30 < age, d = 30 <= age, e = 30 > age, f = 30 >= age | fields age, a, b, c, d, e, f"),
         context)
 
     val table = UnresolvedRelation(Seq("t"))

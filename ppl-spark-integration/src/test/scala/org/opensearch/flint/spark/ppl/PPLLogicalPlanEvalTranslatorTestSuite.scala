@@ -28,9 +28,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
   test("test eval expressions not included in fields expressions") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=t | eval a = 1, b = 1 | fields c"),
-        context)
+      planTransformer.visit(plan(pplParser, "source=t | eval a = 1, b = 1 | fields c"), context)
     val evalProjectList: Seq[NamedExpression] =
       Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(1), "b")())
     val expectedPlan = Project(
@@ -139,9 +137,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
   test("test complex eval expressions - math function") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=t | eval a = RAND() | fields a"),
-        context)
+      planTransformer.visit(plan(pplParser, "source=t | eval a = RAND() | fields a"), context)
 
     val evalProjectList: Seq[NamedExpression] = Seq(
       UnresolvedStar(None),
@@ -185,9 +181,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
   ignore("test eval expressions with fields-excluded command") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=t | eval a = 1, b = 2 | fields - b"),
-        context)
+      planTransformer.visit(plan(pplParser, "source=t | eval a = 1, b = 2 | fields - b"), context)
 
     val projectList: Seq[NamedExpression] =
       Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(2), "b")())
@@ -199,9 +193,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
   ignore("test eval expressions with fields-included command") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=t | eval a = 1, b = 2 | fields + b"),
-        context)
+      planTransformer.visit(plan(pplParser, "source=t | eval a = 1, b = 2 | fields + b"), context)
 
     val projectList: Seq[NamedExpression] =
       Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(2), "b")())

@@ -67,7 +67,9 @@ class PPLLogicalPlanParseTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source = t | parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host"),
+        plan(
+          pplParser,
+          "source = t | parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host"),
         context)
 
     // Define the expected logical plan
@@ -94,7 +96,9 @@ class PPLLogicalPlanParseTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | parse email '.+@(?<host>.+)' | eval eval_result=1 | fields host, eval_result"),
+        plan(
+          pplParser,
+          "source=t | parse email '.+@(?<host>.+)' | eval eval_result=1 | fields host, eval_result"),
         context)
 
     val emailAttribute = UnresolvedAttribute("email")
@@ -120,7 +124,9 @@ class PPLLogicalPlanParseTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | parse address '(?<streetNumber>\\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street"),
+        plan(
+          pplParser,
+          "source=t | parse address '(?<streetNumber>\\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street"),
         context)
 
     val addressAttribute = UnresolvedAttribute("address")

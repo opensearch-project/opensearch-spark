@@ -121,9 +121,8 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
 
   test("test dedup 1 a") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(
-      plan(pplParser, "source=table | dedup 1 a | fields a"),
-      context)
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=table | dedup 1 a | fields a"), context)
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("a"))
     val filter = Filter(IsNotNull(UnresolvedAttribute("a")), UnresolvedRelation(Seq("table")))
@@ -217,18 +216,15 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
   test("test dedup 0") {
     val context = new CatalystPlanContext
     val ex = intercept[IllegalArgumentException] {
-      planTransformer.visit(
-        plan(pplParser, "source=table | dedup 0 a | fields a"),
-        context)
+      planTransformer.visit(plan(pplParser, "source=table | dedup 0 a | fields a"), context)
     }
     assert(ex.getMessage === "Number of duplicate events must be greater than 0")
   }
 
   test("test dedup 2 a") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(
-      plan(pplParser, "source=table | dedup 2 a | fields a"),
-      context)
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=table | dedup 2 a | fields a"), context)
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("a"))
     val isNotNullFilter =

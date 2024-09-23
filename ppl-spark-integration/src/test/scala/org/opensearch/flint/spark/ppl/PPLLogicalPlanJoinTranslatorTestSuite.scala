@@ -32,7 +32,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test two-tables inner join: join condition with aliases") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | source = $testTable1| JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin)
@@ -49,7 +50,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test two-tables inner join: join condition with table names") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | source = $testTable1| JOIN left = l right = r ON $testTable1.id = $testTable2.id $testTable2
          | """.stripMargin)
@@ -67,7 +69,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test inner join: join condition without prefix") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | source = $testTable1| JOIN left = l right = r ON id = name $testTable2
          | """.stripMargin)
@@ -85,7 +88,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test inner join: join condition with aliases and predicates") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | source = $testTable1| JOIN left = l right = r ON l.id = r.id AND l.count > 10 AND lower(r.name) = 'hello' $testTable2
          | """.stripMargin)
@@ -111,7 +115,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test inner join: join condition with table names and predicates") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | source = $testTable1| INNER JOIN left = l right = r ON $testTable1.id = $testTable2.id AND $testTable1.count > 10 AND lower($testTable2.name) = 'hello' $testTable2
          | """.stripMargin)
@@ -137,7 +142,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test left outer join") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | source = $testTable1| LEFT OUTER JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin)
@@ -154,7 +160,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test right outer join") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | source = $testTable1| RIGHT JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin)
@@ -171,7 +178,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test left semi join") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | source = $testTable1| LEFT SEMI JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin)
@@ -188,7 +196,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test left anti join") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | source = $testTable1| LEFT ANTI JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin)
@@ -205,7 +214,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test full outer join") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | source = $testTable1| FULL JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin)
@@ -222,7 +232,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test cross join") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | source = $testTable1| CROSS JOIN left = l right = r $testTable2
          | """.stripMargin)
@@ -238,7 +249,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test cross join with join condition") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | source = $testTable1| CROSS JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin)
@@ -255,7 +267,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test multiple joins") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | source = $testTable1
          | | inner JOIN left = l,right = r ON l.id = r.id $testTable2
@@ -284,7 +297,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
 
   test("test complex join: TPC-H Q13") {
     val context = new CatalystPlanContext
-    val logPlan = plan(pplParser,
+    val logPlan = plan(
+      pplParser,
       s"""
          | SEARCH source = $testTable1
          | | FIELDS id, name

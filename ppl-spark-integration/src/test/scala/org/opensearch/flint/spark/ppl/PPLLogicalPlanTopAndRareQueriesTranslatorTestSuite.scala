@@ -30,9 +30,7 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=accounts | rare address"),
-        context)
+      planTransformer.visit(plan(pplParser, "source=accounts | rare address"), context)
     val addressField = UnresolvedAttribute("address")
     val tableRelation = UnresolvedRelation(Seq("accounts"))
 
@@ -65,9 +63,7 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logicalPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=accounts | rare address by age"),
-        context)
+      planTransformer.visit(plan(pplParser, "source=accounts | rare address by age"), context)
     // Retrieve the logical plan
     // Define the expected logical plan
     val addressField = UnresolvedAttribute("address")
@@ -106,9 +102,7 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=accounts | top address"),
-        context)
+      planTransformer.visit(plan(pplParser, "source=accounts | top address"), context)
     val addressField = UnresolvedAttribute("address")
     val tableRelation = UnresolvedRelation(Seq("accounts"))
 
@@ -141,9 +135,7 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=accounts | top 1 address by age"),
-        context)
+      planTransformer.visit(plan(pplParser, "source=accounts | top 1 address by age"), context)
 
     val addressField = UnresolvedAttribute("address")
     val ageField = UnresolvedAttribute("age")
