@@ -112,7 +112,7 @@ public interface LookupTransformer {
             // for the unmatched rows of left outer join, the outputs are null, so fall back to source output.
             Expression nullSafeOutput = Coalesce$.MODULE$.apply(seq(child, sourceOutputCol));
             NamedExpression nullSafeOutputCol = Alias$.MODULE$.apply(nullSafeOutput,
-                lookupOutputFieldWithAlias.getAlias(),
+                lookupOutputFieldWithAlias.getName(),
                 NamedExpression.newExprId(),
                 seq(new java.util.ArrayList<String>()),
                 Option.empty(),
