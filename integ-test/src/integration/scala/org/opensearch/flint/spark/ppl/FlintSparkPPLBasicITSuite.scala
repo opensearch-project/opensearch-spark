@@ -41,7 +41,7 @@ class FlintSparkPPLBasicITSuite
 
   test("explain test") {
     val frame = sql(s"""
-                       | explain = true source = $testTable | fields name
+                       | explain | source = $testTable | fields name
                        | """.stripMargin)
 
     // Retrieve the results

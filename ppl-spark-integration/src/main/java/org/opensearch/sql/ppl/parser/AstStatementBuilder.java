@@ -12,16 +12,12 @@ import com.google.common.collect.ImmutableList;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParserBaseVisitor;
 import org.opensearch.sql.ast.expression.AllFields;
-import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
-import org.opensearch.sql.ppl.utils.ArgumentFactory;
-
-import java.util.List;
 
 /** Build {@link Statement} from PPL Query. */
 
@@ -38,8 +34,7 @@ public class AstStatementBuilder extends OpenSearchPPLParserBaseVisitor<Statemen
 
   @Override
   public Statement visitDmlStatement(OpenSearchPPLParser.DmlStatementContext ctx) {
-    List<Argument> args = ArgumentFactory.getArgumentList(ctx);
-    Boolean explain = (Boolean) args.get(0).getValue().getValue();
+    boolean explain = ctx.explainCommand() != null;
     Query query = new Query(addSelectAll(astBuilder.visit(ctx)), context.getFetchSize());
     return explain ? new Explain(query) : query;
   }

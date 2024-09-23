@@ -17,7 +17,7 @@ pplStatement
    ;
 
 dmlStatement
-   : (EXPLAIN EQUAL explain = booleanLiteral)? queryStatement
+   : (explainCommand PIPE)? queryStatement
    ;
 
 queryStatement
@@ -57,6 +57,10 @@ searchCommand
 describeCommand
    : DESCRIBE tableSourceClause
    ;
+
+explainCommand
+    : EXPLAIN
+    ;
 
 showDataSourcesCommand
     : SHOW DATASOURCES
