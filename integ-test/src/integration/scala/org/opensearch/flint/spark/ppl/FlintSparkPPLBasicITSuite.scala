@@ -8,7 +8,7 @@ package org.opensearch.flint.spark.ppl
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, Literal, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, EqualTo, Literal, Not, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.ExplainMode
 import org.apache.spark.sql.execution.command.{DescribeTableCommand, ExplainCommand}
@@ -41,29 +41,20 @@ class FlintSparkPPLBasicITSuite
 
   test("explain test") {
     val frame = sql(s"""
-                       | explain | source = $testTable | fields name
+                       | explain | source = $testTable | where state != 'California' | fields name
                        | """.stripMargin)
-
-    // Retrieve the results
-    val results: Array[Row] = frame.collect()
-    // Define the expected results
-//    val expectedResults: Array[Row] = Array(
-//      Row("Jake", 70, "California", "USA", 2023, 4),
-//      Row("Hello", 30, "New York", "USA", 2023, 4),
-//      Row("John", 25, "Ontario", "Canada", 2023, 4),
-//      Row("Jane", 20, "Quebec", "Canada", 2023, 4))
-//    // Compare the results
-//    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
-//    assert(results.sorted.sameElements(expectedResults.sorted))
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val filter = Filter(Not(EqualTo(UnresolvedAttribute("state"), Literal("California"))), relation)
     val expectedPlan: LogicalPlan =
       ExplainCommand(
         Project(
           Seq(UnresolvedAttribute("name")),
-          UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))),
+          filter
+        ),
         ExplainMode.fromString("simple")
       )
     // Compare the two plans
