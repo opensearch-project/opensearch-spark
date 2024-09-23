@@ -87,8 +87,8 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitLookupPair(OpenSearchPPLParser.LookupPairContext ctx) {
         Field lookupField = (Field) visitFieldExpression(ctx.lookupField);
-        Field searchField = (Field) visitFieldExpression(ctx.searchField);
         if (ctx.AS() != null) {
+            Field searchField = (Field) visitFieldExpression(ctx.searchField);
             return new And(new Alias(ctx.searchField.getText(), lookupField), searchField);
         } else {
             return new And(new Alias(ctx.lookupField.getText(), lookupField), lookupField);

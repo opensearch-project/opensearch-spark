@@ -10,7 +10,9 @@ import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.Field;
+import org.opensearch.sql.ast.expression.QualifiedName;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -18,13 +20,13 @@ import java.util.stream.Collectors;
 /** AST node represent Lookup operation. */
 public class Lookup extends UnresolvedPlan {
     private UnresolvedPlan child;
-    private final Relation lookupRelation;
+    private final UnresolvedPlan lookupRelation;
     private final Map<Alias, Field> lookupMappingMap;
     private final OutputStrategy outputStrategy;
     private final Map<Alias, Field> outputCandidateMap;
 
     public Lookup(
-        Relation lookupRelation,
+        UnresolvedPlan lookupRelation,
         Map<Alias, Field> lookupMappingMap,
         OutputStrategy outputStrategy,
         Map<Alias, Field> outputCandidateMap) {
@@ -37,7 +39,6 @@ public class Lookup extends UnresolvedPlan {
     @Override
     public UnresolvedPlan attach(UnresolvedPlan child) {
         this.child = new SubqueryAlias(child, "_s"); // add a auto generated alias name
-//        this.child = child;
         return this;
     }
 
@@ -56,8 +57,16 @@ public class Lookup extends UnresolvedPlan {
         REPLACE
     }
 
-    public Relation getLookupRelation() {
+    public UnresolvedPlan getLookupRelation() {
         return lookupRelation;
+    }
+
+    public String getLookupSubqueryAliasName() {
+        return ((SubqueryAlias) lookupRelation).getAlias();
+    }
+
+    public String getSourceSubqueryAliasName() {
+        return ((SubqueryAlias) child).getAlias();
     }
 
     /**
@@ -71,7 +80,11 @@ public class Lookup extends UnresolvedPlan {
      */
     public Map<Field, Field> getLookupMappingMap() {
         return lookupMappingMap.entrySet().stream()
-            .collect(Collectors.toMap(entry -> (Field) (entry.getKey()).getDelegated(), Map.Entry::getValue));
+            .collect(Collectors.toMap(
+                entry -> (Field) (entry.getKey()).getDelegated(),
+                Map.Entry::getValue,
+                (k, y) -> y,
+                LinkedHashMap::new));
     }
 
     public OutputStrategy getOutputStrategy() {
@@ -85,6 +98,12 @@ public class Lookup extends UnresolvedPlan {
      */
     public Map<Alias, Field> getOutputCandidateMap() {
         return outputCandidateMap;
+    }
+
+    public List<Field> getSourceOutputFieldListWithSubqueryAlias() {
+        return outputCandidateMap.values().stream().map(f ->
+            new Field(QualifiedName.of(getSourceSubqueryAliasName(), f.getField().toString()), f.getFieldArgs()))
+            .collect(Collectors.toList());
     }
 
     /** Return the lookup output Field list instead of Alias list */

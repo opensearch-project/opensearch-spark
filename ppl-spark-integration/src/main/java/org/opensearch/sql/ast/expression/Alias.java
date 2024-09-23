@@ -33,6 +33,7 @@ public class Alias extends UnresolvedExpression {
   public Alias(String name, UnresolvedExpression delegated) {
     this.name = name;
     this.delegated = delegated;
+    this.alias = name; // alias should equal name if no specific alias assigned
   }
 
   public String getName() {

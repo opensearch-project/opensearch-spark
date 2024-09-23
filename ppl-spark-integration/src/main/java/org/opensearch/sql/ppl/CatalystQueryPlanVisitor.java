@@ -8,12 +8,10 @@ package org.opensearch.sql.ppl;
 import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
-import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
 import org.apache.spark.sql.catalyst.expressions.CaseWhen;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
-import org.apache.spark.sql.catalyst.expressions.EqualTo$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
@@ -25,6 +23,7 @@ import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Project$;
+import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
@@ -100,6 +99,11 @@ import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDupli
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainOneDuplicateEvent;
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainOneDuplicateEventAndKeepEmpty;
 import static org.opensearch.sql.ppl.utils.JoinSpecTransformer.join;
+import static org.opensearch.sql.ppl.utils.LookupTransformer.buildFieldWithLookupSubqueryAlias;
+import static org.opensearch.sql.ppl.utils.LookupTransformer.buildLookupMappingCondition;
+import static org.opensearch.sql.ppl.utils.LookupTransformer.buildLookupRelationProjectList;
+import static org.opensearch.sql.ppl.utils.LookupTransformer.buildOutputProjectList;
+import static org.opensearch.sql.ppl.utils.LookupTransformer.buildProjectListFromFields;
 import static org.opensearch.sql.ppl.utils.RelationUtils.resolveField;
 import static org.opensearch.sql.ppl.utils.WindowSpecTransformer.window;
 
@@ -175,82 +179,70 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         });
     }
 
+    /**
+     * source=<sourceIndex>
+     * | LOOKUP <lookupIndex> (<lookupMappingField> [AS <sourceMappingField>])...
+     *    [(APPEND | REPLACE) (<lookupOutputField> [AS sourceOutputField])...]
+     */
     @Override
     public LogicalPlan visitLookup(Lookup node, CatalystPlanContext context) {
         node.getChild().get(0).accept(this, context);
 
         return context.apply( searchSide -> {
             LogicalPlan lookupTable = node.getLookupRelation().accept(this, context);
+            Expression lookupCondition = buildLookupMappingCondition(node, expressionAnalyzer, context);
             // If no output field is specified, all fields from lookup table are applied to the output.
+            if (node.allFieldsShouldAppliedToOutputList()) {
+                // TODO how to get all field list from the lookup relation before logical plan analyzing
+//                throw new UnsupportedOperationException("all fields should applied to output list");
+                context.retainAllNamedParseExpressions(p -> p);
+                context.retainAllPlans(p -> p);
+                return join(searchSide, lookupTable, Join.JoinType.LEFT, Optional.of(lookupCondition), new Join.JoinHint());
+            }
+
             // If the output fields are specified, build a project list for lookup table.
             // The mapping fields of lookup table should be added in this project list, otherwise join will fail.
             // So the mapping fields of lookup table should be dropped after join.
-            List<NamedExpression> lookupTableProjectList = buildLookupRelationProjectList(node, context);
+            List<NamedExpression> lookupTableProjectList = buildLookupRelationProjectList(node, expressionAnalyzer, context);
             LogicalPlan lookupTableWithProject = Project$.MODULE$.apply(seq(lookupTableProjectList), lookupTable);
 
-//            // Drop the output fields in search relation TODO Stop!
-//            List<UnresolvedExpression> searchFieldToReplace = new ArrayList<>(node.getOutputCandidateMap().values());
-//            Seq<Expression> toDropInSearch = seq(visitExpressionList(searchFieldToReplace, context));
-//            LogicalPlan searchSideWithDrop = DataFrameDropColumns$.MODULE$.apply(toDropInSearch, searchSide);
+//            Expression lookupCondition = buildLookupMappingCondition(node, expressionAnalyzer, context);
 
-            Expression lookupExpression = buildLookupMappingCondition(node.getLookupMappingMap(), context);
-//            Seq<Expression> check = context.retainAllNamedParseExpressions(p -> p);
-//            context.retainAllPlans(p -> p);
+            LogicalPlan join = join(searchSide, lookupTableWithProject, Join.JoinType.LEFT, Optional.of(lookupCondition), new Join.JoinHint());
 
-            LogicalPlan join = join(searchSide, lookupTableWithProject, Join.JoinType.LEFT, Optional.of(lookupExpression), new Join.JoinHint());
+            // Add all sourceOutputFields by __auto_generated_subquery_name_s.*
+            List<NamedExpression> outputFieldsWithNewAdded = new ArrayList<>();
+            outputFieldsWithNewAdded.add(UnresolvedStar$.MODULE$.apply(Option.apply(seq(node.getSourceSubqueryAliasName()))));
 
-            if (node.allFieldsShouldAppliedToOutputList()) {
-                // TODO how to get all field list from the lookup relation before logical plan analyzing
-                throw new UnsupportedOperationException("all fields should applied to output list");
-            }
+            // Add new columns based on different strategies:
+            // Append:  coalesce($sourceOutputField, $"lookupOutputField").as(sourceOutputFieldName)
+            // Replace: $lookupOutputField.as(sourceOutputFieldName)
+            outputFieldsWithNewAdded.addAll(buildOutputProjectList(node, node.getOutputStrategy(), expressionAnalyzer, context));
 
-            // Drop the mapping fields of lookup table
+            org.apache.spark.sql.catalyst.plans.logical.Project outputWithNewAdded = Project$.MODULE$.apply(seq(outputFieldsWithNewAdded), join);
+
+            // Drop the mapping fields of lookup table in result:
+            // For example, in command "LOOKUP lookTbl Field1 AS Field2, Field3",
+            // the Field1 and Field3 are projection fields and join keys which will be dropped in result.
+            List<Field> mappingFieldsOfLookup = node.getLookupMappingMap().entrySet().stream()
+                .map(kv -> kv.getKey().getField() == kv.getValue().getField() ? buildFieldWithLookupSubqueryAlias(node, kv.getKey()) : kv.getKey())
+                .collect(Collectors.toList());
+//            List<Field> mappingFieldsOfLookup = new ArrayList<>(node.getLookupMappingMap().keySet());
             List<Expression> dropListOfLookupMappingFields =
-                buildProjectListFromFields(new ArrayList<>(node.getLookupMappingMap().keySet()), context).stream()
+                buildProjectListFromFields(mappingFieldsOfLookup, expressionAnalyzer, context).stream()
                     .map(Expression.class::cast).collect(Collectors.toList());
-            LogicalPlan dropped = DataFrameDropColumns$.MODULE$.apply(seq(dropListOfLookupMappingFields), join);
+            // Drop the $sourceOutputField if existing
+            List<Expression> dropListOfSourceFields =
+                visitExpressionList(new ArrayList<>(node.getSourceOutputFieldListWithSubqueryAlias()), context);
+            List<Expression> toDrop = new ArrayList<>(dropListOfLookupMappingFields);
+            toDrop.addAll(dropListOfSourceFields);
 
-            // TODO will and case functions
+            LogicalPlan outputWithDropped = DataFrameDropColumns$.MODULE$.apply(seq(toDrop), outputWithNewAdded);
+
             context.retainAllNamedParseExpressions(p -> p);
             context.retainAllPlans(p -> p);
-            return dropped;
+            return outputWithDropped;
         });
-//        switch (node.getOutputStrategy()) {
-//            case APPEND:
-//            case REPLACE:
-//
-//            default:
-//                throw new IllegalArgumentException("Unsupported output strategy");
-//        }
-    }
-
-    /** lookup fields (left side join keys) + replace fields in lookup relation */
-    private List<NamedExpression> buildLookupRelationProjectList(Lookup node, CatalystPlanContext context) {
-        List<Field> lookupOutputFields = new ArrayList<>(node.getLookupOutputFieldList());
-        if (lookupOutputFields.isEmpty()) {
-            // All fields will be applied to the output if no lookup output field is specified.
-            return Collections.singletonList(new UnresolvedStar(Option.empty()));
-        }
-        lookupOutputFields.addAll(node.getLookupMappingMap().keySet());
-        return buildProjectListFromFields(lookupOutputFields, context);
-    }
-
-    private List<NamedExpression> buildProjectListFromFields(List<Field> fields, CatalystPlanContext context) {
-        return fields.stream().map(field -> expressionAnalyzer.visitField(field, context))
-            .map(NamedExpression.class::cast)
-            .collect(Collectors.toList());
-    }
-
-    private Expression buildLookupMappingCondition(Map<Field, Field> mappingMap, CatalystPlanContext context) {
-        List<Expression> equiConditions = new ArrayList<>();
-        for (Map.Entry<Field, Field> entry : mappingMap.entrySet()) {
-            Expression lookupNamedExpression = visitExpression(entry.getKey(), context);
-            Expression searchNamedExpression = visitExpression(entry.getValue(), context);
-            Expression equal = EqualTo$.MODULE$.apply(lookupNamedExpression, searchNamedExpression);
-            equiConditions.add(equal);
-        }
-        context.retainAllNamedParseExpressions(e -> e);
-        return equiConditions.stream().reduce(org.apache.spark.sql.catalyst.expressions.And::new).orElse(null);
     }
 
     @Override

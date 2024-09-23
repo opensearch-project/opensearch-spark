@@ -347,16 +347,15 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
         ctx.APPEND() != null ? Lookup.OutputStrategy.APPEND : Lookup.OutputStrategy.REPLACE;
     java.util.Map<Alias, Field> lookupMappingList = buildLookupPair(ctx.lookupMappingList().lookupPair());
     java.util.Map<Alias, Field> outputCandidateList =
-        ctx.APPEND() == null && ctx.REPLACE() == null ? emptyMap()
-            : buildLookupPair(ctx.outputCandidateList().lookupPair());
-    return new Lookup(lookupRelation, lookupMappingList, strategy, outputCandidateList);
+        ctx.APPEND() == null && ctx.REPLACE() == null ? emptyMap() : buildLookupPair(ctx.outputCandidateList().lookupPair());
+    return new Lookup(new SubqueryAlias(lookupRelation, "_l"), lookupMappingList, strategy, outputCandidateList);
   }
 
   private java.util.Map<Alias, Field> buildLookupPair(List<OpenSearchPPLParser.LookupPairContext> ctx) {
     return ctx.stream()
       .map(of -> expressionBuilder.visitLookupPair(of))
       .map(And.class::cast)
-      .collect(Collectors.toMap(and -> (Alias) and.getLeft(), and -> (Field) and.getRight()));
+      .collect(Collectors.toMap(and -> (Alias) and.getLeft(), and -> (Field) and.getRight(), (x, y) -> y, LinkedHashMap::new));
   }
 
   /** Top command. */
