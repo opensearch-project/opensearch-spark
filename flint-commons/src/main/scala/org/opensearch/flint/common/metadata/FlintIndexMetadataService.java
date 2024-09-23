@@ -26,13 +26,21 @@ public interface FlintIndexMetadataService {
   FlintMetadata getIndexMetadata(String indexName);
 
   /**
-   * Retrieve all metadata for Flint index whose name matches the given pattern.
+   * Whether the service supports retrieving metadata for Flint indexes by index pattern.
    *
-   * @param indexNamePattern index name pattern
-   * @return map where the keys are the matched index names, and the values are
+   * @return true if supported, otherwise false
+   */
+  boolean supportsGetByIndexPattern();
+
+  /**
+   * Retrieve all metadata for Flint index whose name matches the given pattern.
+   * If get by index pattern is not supported, then the provided names must be full index names.
+   *
+   * @param indexNamePatterns index full names or patterns
+   * @return map where the keys are the (matched) index names, and the values are
    *         corresponding index metadata
    */
-  Map<String, FlintMetadata> getAllIndexMetadata(String... indexNamePattern);
+  Map<String, FlintMetadata> getAllIndexMetadata(String... indexNamePatterns);
 
   /**
    * Update metadata for a Flint index.
