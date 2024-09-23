@@ -168,9 +168,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   def describeIndexes(indexNamePattern: String): Seq[FlintSparkIndex] = {
     logInfo(s"Describing indexes with pattern $indexNamePattern")
     if (flintClient.exists(indexNamePattern)) {
-      flintIndexMetadataService
-        .getAllIndexMetadata(indexNamePattern)
-        .asScala
+      getAllIndexMetadata(indexNamePattern)
         .map { case (indexName, metadata) =>
           attachLatestLogEntry(indexName, metadata)
         }
@@ -365,6 +363,21 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       job.get.stop()
     } else {
       logWarning("Refreshing job not found")
+    }
+  }
+
+  private def getAllIndexMetadata(indexNamePattern: String): Map[String, FlintMetadata] = {
+    if (flintIndexMetadataService.supportsGetByIndexPattern) {
+      flintIndexMetadataService
+        .getAllIndexMetadata(indexNamePattern)
+        .asScala
+        .toMap
+    } else {
+      val indexNames = flintClient.getIndexNames(indexNamePattern).asScala.toArray
+      flintIndexMetadataService
+        .getAllIndexMetadata(indexNames: _*)
+        .asScala
+        .toMap
     }
   }
 

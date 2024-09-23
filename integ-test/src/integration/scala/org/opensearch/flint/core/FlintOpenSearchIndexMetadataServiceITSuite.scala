@@ -108,13 +108,12 @@ class FlintOpenSearchIndexMetadataServiceITSuite
 }
 
 class TestIndexMetadataService extends FlintIndexMetadataService {
-  override def getIndexMetadata(indexName: String): FlintMetadata = {
-    null
-  }
+  override def getIndexMetadata(indexName: String): FlintMetadata = null
 
-  override def getAllIndexMetadata(indexNamePattern: String*): util.Map[String, FlintMetadata] = {
+  override def supportsGetByIndexPattern(): Boolean = true
+
+  override def getAllIndexMetadata(indexNamePattern: String*): util.Map[String, FlintMetadata] =
     null
-  }
 
   override def updateIndexMetadata(indexName: String, metadata: FlintMetadata): Unit = {}
 
