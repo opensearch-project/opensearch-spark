@@ -919,6 +919,7 @@ keywordsCanBeId
    | KMEANS
    | AD
    | ML
+   | EXPLAIN
    // commands assist keywords
    | SOURCE
    | INDEX
