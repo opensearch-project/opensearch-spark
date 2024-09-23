@@ -28,10 +28,7 @@ class PPLLogicalPlanPatternsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=accounts | patterns email | fields email, patterns_field ",
-          isExplain = false),
+        plan(pplParser, "source=accounts | patterns email | fields email, patterns_field "),
         context)
 
     val emailAttribute = UnresolvedAttribute("email")
@@ -52,10 +49,7 @@ class PPLLogicalPlanPatternsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | fields message, no_numbers",
-          false),
+        plan(pplParser, "source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | fields message, no_numbers"),
         context)
 
     val emailAttribute = UnresolvedAttribute("message")
@@ -75,10 +69,7 @@ class PPLLogicalPlanPatternsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=accounts | patterns email | where age > 45 | sort - age | fields email, patterns_field",
-          isExplain = false),
+        plan(pplParser, "source=accounts | patterns email | where age > 45 | sort - age | fields email, patterns_field"),
         context)
 
     // Define the expected logical plan
@@ -107,10 +98,7 @@ class PPLLogicalPlanPatternsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | stats count() by no_numbers",
-          false),
+        plan(pplParser, "source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | stats count() by no_numbers"),
         context)
 
     val messageAttribute = UnresolvedAttribute("message")
@@ -140,10 +128,7 @@ class PPLLogicalPlanPatternsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | top 1 no_numbers",
-          false),
+        plan(pplParser, "source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | top 1 no_numbers"),
         context)
 
     val messageAttribute = UnresolvedAttribute("message")

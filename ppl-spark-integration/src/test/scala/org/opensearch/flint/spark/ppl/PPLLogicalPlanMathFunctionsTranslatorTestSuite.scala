@@ -27,7 +27,7 @@ class PPLLogicalPlanMathFunctionsTranslatorTestSuite
 
   test("test abs") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = abs(b)", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = abs(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -41,7 +41,7 @@ class PPLLogicalPlanMathFunctionsTranslatorTestSuite
 
   test("test ceil") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = ceil(b)", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = ceil(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -55,7 +55,7 @@ class PPLLogicalPlanMathFunctionsTranslatorTestSuite
 
   test("test floor") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = floor(b)", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = floor(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -69,7 +69,7 @@ class PPLLogicalPlanMathFunctionsTranslatorTestSuite
 
   test("test ln") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = ln(b)", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = ln(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -84,7 +84,7 @@ class PPLLogicalPlanMathFunctionsTranslatorTestSuite
   test("test mod") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=t a = mod(10, 4)", false), context)
+      planTransformer.visit(plan(pplParser, "source=t a = mod(10, 4)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -98,7 +98,7 @@ class PPLLogicalPlanMathFunctionsTranslatorTestSuite
 
   test("test pow") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = pow(2, 3)", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = pow(2, 3)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -112,7 +112,7 @@ class PPLLogicalPlanMathFunctionsTranslatorTestSuite
 
   test("test sqrt") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = sqrt(b)", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = sqrt(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -128,10 +128,7 @@ class PPLLogicalPlanMathFunctionsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=t | where sqrt(pow(a, 2)) + sqrt(pow(a, 2)) / 1 - sqrt(pow(a, 2)) * 1 = sqrt(pow(a, 2)) % 1",
-          false),
+        plan(pplParser, "source=t | where sqrt(pow(a, 2)) + sqrt(pow(a, 2)) / 1 - sqrt(pow(a, 2)) * 1 = sqrt(pow(a, 2)) % 1"),
         context)
     val table = UnresolvedRelation(Seq("t"))
     // sqrt(pow(a, 2))
@@ -165,10 +162,7 @@ class PPLLogicalPlanMathFunctionsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=t | eval a = age = 30, b = age != 70, c = 30 < age, d = 30 <= age, e = 30 > age, f = 30 >= age | fields age, a, b, c, d, e, f",
-          false),
+        plan(pplParser, "source=t | eval a = age = 30, b = age != 70, c = 30 < age, d = 30 <= age, e = 30 > age, f = 30 >= age | fields age, a, b, c, d, e, f"),
         context)
 
     val table = UnresolvedRelation(Seq("t"))

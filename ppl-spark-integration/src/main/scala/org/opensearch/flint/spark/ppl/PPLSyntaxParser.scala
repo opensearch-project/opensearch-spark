@@ -28,7 +28,7 @@ class PPLSyntaxParser extends Parser {
 }
 
 object PlaneUtils {
-  def plan(parser: PPLSyntaxParser, query: String, isExplain: Boolean): Statement = {
+  def plan(parser: PPLSyntaxParser, query: String): Statement = {
     val builder = new AstStatementBuilder(
       new AstBuilder(new AstExpressionBuilder(), query),
       AstStatementBuilder.StatementBuilderContext.builder())

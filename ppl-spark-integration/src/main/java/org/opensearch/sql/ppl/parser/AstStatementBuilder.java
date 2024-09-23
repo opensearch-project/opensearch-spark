@@ -53,22 +53,15 @@ public class AstStatementBuilder extends OpenSearchPPLParserBaseVisitor<Statemen
   }
 
   public static class StatementBuilderContext {
-    private boolean isExplain;
     private int fetchSize;
 
-    public StatementBuilderContext(boolean isExplain, int fetchSize) {
-      this.isExplain = isExplain;
+    public StatementBuilderContext(int fetchSize) {
       this.fetchSize = fetchSize;
     }
 
     public static StatementBuilderContext builder() {
       //todo set the default statement builder init params configurable
-      return new StatementBuilderContext(false,1000);
-    }
-
-    public StatementBuilderContext explain(boolean isExplain) {
-      this.isExplain = isExplain;
-      return this;
+      return new StatementBuilderContext(1000);
     }
 
     public int getFetchSize() {

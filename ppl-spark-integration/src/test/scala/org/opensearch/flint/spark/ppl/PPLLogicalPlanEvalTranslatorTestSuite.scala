@@ -29,7 +29,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = 1, b = 1 | fields c", false),
+        plan(pplParser, "source=t | eval a = 1, b = 1 | fields c"),
         context)
     val evalProjectList: Seq[NamedExpression] =
       Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(1), "b")())
@@ -43,7 +43,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = 1, c = 1 | fields a, b, c", false),
+        plan(pplParser, "source=t | eval a = 1, c = 1 | fields a, b, c"),
         context)
 
     val evalProjectList: Seq[NamedExpression] =
@@ -57,7 +57,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
   test("test eval expressions without fields command") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=t | eval a = 1, b = 1", false), context)
+      planTransformer.visit(plan(pplParser, "source=t | eval a = 1, b = 1"), context)
 
     val evalProjectList: Seq[NamedExpression] =
       Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(1), "b")())
@@ -70,7 +70,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = 1, b = 1 | sort - a | fields b", false),
+        plan(pplParser, "source=t | eval a = 1, b = 1 | sort - a | fields b"),
         context)
 
     val evalProjectList: Seq[NamedExpression] =
@@ -86,7 +86,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = 1, a = a | sort - a | fields b", false),
+        plan(pplParser, "source=t | eval a = 1, a = a | sort - a | fields b"),
         context)
 
     val evalProjectList: Seq[NamedExpression] =
@@ -102,10 +102,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=t | eval a = 1, b = 'hello' | eval b = a | sort - b | fields b",
-          false),
+        plan(pplParser, "source=t | eval a = 1, b = 'hello' | eval b = a | sort - b | fields b"),
         context)
 
     val evalProjectList1: Seq[NamedExpression] =
@@ -125,7 +122,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = TIMESTAMP('2020-09-16 17:30:00') | fields a", false),
+        plan(pplParser, "source=t | eval a = TIMESTAMP('2020-09-16 17:30:00') | fields a"),
         context)
 
     val evalProjectList: Seq[NamedExpression] = Seq(
@@ -143,7 +140,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = RAND() | fields a", false),
+        plan(pplParser, "source=t | eval a = RAND() | fields a"),
         context)
 
     val evalProjectList: Seq[NamedExpression] = Seq(
@@ -161,10 +158,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=t | eval a = if(like(b, '%Hello%'), 'World', 'Hi') | fields a",
-          false),
+        plan(pplParser, "source=t | eval a = if(like(b, '%Hello%'), 'World', 'Hi') | fields a"),
         context)
 
     val evalProjectList: Seq[NamedExpression] = Seq(
@@ -192,7 +186,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = 1, b = 2 | fields - b", false),
+        plan(pplParser, "source=t | eval a = 1, b = 2 | fields - b"),
         context)
 
     val projectList: Seq[NamedExpression] =
@@ -206,7 +200,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = 1, b = 2 | fields + b", false),
+        plan(pplParser, "source=t | eval a = 1, b = 2 | fields + b"),
         context)
 
     val projectList: Seq[NamedExpression] =
