@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import Dependencies._
+import sbtassembly.AssemblyPlugin.autoImport.ShadeRule
 
 lazy val scala212 = "2.12.14"
 lazy val sparkVersion = "3.3.2"
@@ -43,7 +44,8 @@ lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")
 // Run as part of test task.
 lazy val testScalastyle = taskKey[Unit]("testScalastyle")
 
-
+ThisBuild / assemblyShadeRules := Seq(
+  ShadeRule.rename("com.fasterxml.jackson.**" -> "shaded.com.fasterxml.jackson.@1").inAll)
 
 lazy val commonSettings = Seq(
   javacOptions ++= Seq("-source", "11"),
