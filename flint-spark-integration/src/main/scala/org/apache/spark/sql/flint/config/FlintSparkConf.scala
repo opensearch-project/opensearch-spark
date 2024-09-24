@@ -167,6 +167,15 @@ object FlintSparkConf {
     .doc("Enable hybrid scan to include latest source data not refreshed to index yet")
     .createWithDefault("false")
 
+  val EXTERNAL_SCHEDULER_ENABLED = FlintConfig("spark.flint.job.externalScheduler.enabled")
+    .doc("Enable external scheduler for index refresh")
+    .createWithDefault("false")
+
+  val EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD =
+    FlintConfig("spark.flint.job.externalScheduler.interval")
+      .doc("Interval threshold in minutes for external scheduler to trigger index refresh")
+      .createWithDefault("5 minutes")
+
   val CHECKPOINT_LOCATION_ROOT_DIR = FlintConfig("spark.flint.index.checkpointLocation.rootDir")
     .doc("Root directory of a user specified checkpoint location for index refresh")
     .createOptional()
@@ -206,6 +215,11 @@ object FlintSparkConf {
       s"spark.datasource.flint.${FlintOptions.CUSTOM_FLINT_INDEX_METADATA_SERVICE_CLASS}")
       .datasourceOption()
       .doc("custom Flint index metadata service class")
+      .createOptional()
+  val CUSTOM_FLINT_SCHEDULER_CLASS =
+    FlintConfig(s"spark.datasource.flint.${FlintOptions.CUSTOM_FLINT_SCHEDULER_CLASS}")
+      .datasourceOption()
+      .doc("custom Flint scheduler class")
       .createOptional()
   val QUERY =
     FlintConfig("spark.flint.job.query")
@@ -278,6 +292,11 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
 
   def isHybridScanEnabled: Boolean = HYBRID_SCAN_ENABLED.readFrom(reader).toBoolean
 
+  def isExternalSchedulerEnabled: Boolean = EXTERNAL_SCHEDULER_ENABLED.readFrom(reader).toBoolean
+
+  def externalSchedulerIntervalThreshold(): String =
+    EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD.readFrom(reader)
+
   def checkpointLocationRootDir: Option[String] = CHECKPOINT_LOCATION_ROOT_DIR.readFrom(reader)
 
   def isCheckpointMandatory: Boolean = CHECKPOINT_MANDATORY.readFrom(reader).toBoolean
@@ -324,6 +343,7 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       DATA_SOURCE_NAME,
       CUSTOM_FLINT_METADATA_LOG_SERVICE_CLASS,
       CUSTOM_FLINT_INDEX_METADATA_SERVICE_CLASS,
+      CUSTOM_FLINT_SCHEDULER_CLASS,
       SESSION_ID,
       REQUEST_INDEX,
       METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER,

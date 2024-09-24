@@ -426,6 +426,7 @@ WITH (
 
 User can provide the following options in `WITH` clause of alter statement:
 + `auto_refresh`: This is required for alter statement. Currently, we restrict that an alter statement must change the auto refresh option from its original value.
++ `scheduler_mode`: A mode string (`internal` or `external`) that describes how `auto_refresh` is scheduled. `checkpoint_location` is required for the external scheduler.
 + `refresh_interval`
 + `incremental_refresh`
 + `checkpoint_location`
@@ -524,6 +525,9 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.datasource.flint.customAWSCredentialsProvider`: default is empty.
 - `spark.datasource.flint.customFlintMetadataLogServiceClass`: default is empty.
 - `spark.datasource.flint.customFlintIndexMetadataServiceClass`: default is empty.
+- `spark.datasource.flint.customFlintSchedulerClass`: default is empty.
+- `spark.flint.job.externalScheduler.enabled`: default is false. enable external scheduler for flint auto refresh to schedule refresh job outside of spark.
+- `spark.flint.job.externalScheduler.interval`: default is 5 minutes. a string of refresh interval for external scheduler to trigger index refresh.
 - `spark.datasource.flint.write.id_name`: no default value.
 - `spark.datasource.flint.ignore.id_column` : default value is true.
 - `spark.datasource.flint.write.batch_size`: "The number of documents written to Flint in a single batch request. Default value is Integer.MAX_VALUE.
