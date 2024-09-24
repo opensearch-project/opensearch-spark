@@ -24,22 +24,10 @@ trait FlintSparkJobSchedulingService {
    *   The FlintSparkIndex to be processed
    * @param action
    *   The AsyncQuerySchedulerAction to be performed
-   */
-  def handleJob(index: FlintSparkIndex, action: AsyncQuerySchedulerAction): Unit
-
-  /**
-   * Checks if the external scheduler is enabled for a given Flint Spark index.
-   *
-   * @param index
-   *   The FlintSparkIndex to check
    * @return
-   *   true if external scheduler is enabled, false otherwise
+   *   JobId for the scheduled job if it exists, None otherwise
    */
-  def isExternalSchedulerEnabled(index: FlintSparkIndex): Boolean = {
-    val autoRefresh = index.options.autoRefresh()
-    val schedulerModeExternal = index.options.isExternalSchedulerEnabled()
-    autoRefresh && schedulerModeExternal
-  }
+  def handleJob(index: FlintSparkIndex, action: AsyncQuerySchedulerAction): Option[String]
 }
 
 /**
@@ -70,10 +58,24 @@ object FlintSparkJobSchedulingService {
       flintAsyncQueryScheduler: AsyncQueryScheduler,
       flintSparkConf: FlintSparkConf,
       flintIndexMonitor: FlintSparkIndexMonitor): FlintSparkJobSchedulingService = {
-    if (index.options.isExternalSchedulerEnabled()) {
+    if (isExternalSchedulerEnabled(index)) {
       new FlintSparkJobExternalSchedulingService(flintAsyncQueryScheduler, flintSparkConf)
     } else {
       new FlintSparkJobInternalSchedulingService(spark, flintIndexMonitor)
     }
+  }
+
+  /**
+   * Checks if the external scheduler is enabled for a given Flint Spark index.
+   *
+   * @param index
+   *   The FlintSparkIndex to check
+   * @return
+   *   true if external scheduler is enabled, false otherwise
+   */
+  def isExternalSchedulerEnabled(index: FlintSparkIndex): Boolean = {
+    val autoRefresh = index.options.autoRefresh()
+    val schedulerModeExternal = index.options.isExternalSchedulerEnabled()
+    autoRefresh && schedulerModeExternal
   }
 }

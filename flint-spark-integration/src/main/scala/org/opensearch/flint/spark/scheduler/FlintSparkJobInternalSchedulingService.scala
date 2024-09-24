@@ -44,13 +44,13 @@ class FlintSparkJobInternalSchedulingService(
    * @param action
    *   The AsyncQuerySchedulerAction to be performed
    */
-  override def handleJob(index: FlintSparkIndex, action: AsyncQuerySchedulerAction): Unit = {
+  override def handleJob(
+      index: FlintSparkIndex,
+      action: AsyncQuerySchedulerAction): Option[String] = {
     val indexName = index.name()
 
     action match {
-      case AsyncQuerySchedulerAction.SCHEDULE =>
-        logInfo("Scheduling index state monitor")
-        flintIndexMonitor.startMonitor(indexName)
+      case AsyncQuerySchedulerAction.SCHEDULE => None // No-op
       case AsyncQuerySchedulerAction.UPDATE =>
         logInfo("Updating index state monitor")
         flintIndexMonitor.startMonitor(indexName)
@@ -59,7 +59,8 @@ class FlintSparkJobInternalSchedulingService(
         logInfo("Stopping index state monitor")
         flintIndexMonitor.stopMonitor(indexName)
         stopRefreshingJob(indexName)
-      case AsyncQuerySchedulerAction.REMOVE => // No-op
+        None
+      case AsyncQuerySchedulerAction.REMOVE => None // No-op
       case _ => throw new IllegalArgumentException(s"Unsupported action: $action")
     }
   }
@@ -70,7 +71,7 @@ class FlintSparkJobInternalSchedulingService(
    * @param index
    *   The FlintSparkIndex for which to start the refreshing job
    */
-  private def startRefreshingJob(index: FlintSparkIndex): Unit = {
+  private def startRefreshingJob(index: FlintSparkIndex): Option[String] = {
     logInfo(s"Starting refreshing job for index ${index.name()}")
     val indexRefresh = FlintSparkIndexRefresh.create(index.name(), index)
     indexRefresh.start(spark, new FlintSparkConf(spark.conf.getAll.toMap.asJava))

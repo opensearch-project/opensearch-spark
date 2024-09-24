@@ -5,7 +5,8 @@
 
 package org.opensearch.flint.spark
 
-import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.CHECKPOINT_LOCATION
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{CHECKPOINT_LOCATION, REFRESH_INTERVAL, SCHEDULER_MODE}
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
@@ -139,6 +140,66 @@ class FlintSparkIndexBuilderSuite extends FlintSuite {
       sql("DROP DATABASE mydb CASCADE")
       sql("USE default")
     }
+  }
+
+  test(
+    "updateOptionsWithDefaults should set internal scheduler mode when auto refresh is false") {
+    val options = FlintSparkIndexOptions(Map("auto_refresh" -> "false"))
+    val builder = new FakeFlintSparkIndexBuilder
+
+    val updatedOptions = builder.options(options, indexName).testOptions
+    updatedOptions.options.get(SCHEDULER_MODE.toString) shouldBe None
+  }
+
+  test(
+    "updateOptionsWithDefaults should set internal scheduler mode when external scheduler is disabled") {
+    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, false)
+    val options = FlintSparkIndexOptions(Map("auto_refresh" -> "true"))
+    val builder = new FakeFlintSparkIndexBuilder
+
+    val updatedOptions = builder.options(options, indexName).testOptions
+    updatedOptions.options(SCHEDULER_MODE.toString) shouldBe SchedulerMode.INTERNAL.toString
+  }
+
+  test(
+    "updateOptionsWithDefaults should set external scheduler mode when interval is above threshold") {
+    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, true)
+    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD, "5 minutes")
+    val options =
+      FlintSparkIndexOptions(Map("auto_refresh" -> "true", "refresh_interval" -> "10 minutes"))
+    val builder = new FakeFlintSparkIndexBuilder
+
+    val updatedOptions = builder.options(options, indexName).testOptions
+    updatedOptions.options(SCHEDULER_MODE.toString) shouldBe SchedulerMode.EXTERNAL.toString
+  }
+
+  test(
+    "updateOptionsWithDefaults should set external scheduler mode and default interval when no interval is provided") {
+    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, true)
+    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD, "5 minutes")
+    val options = FlintSparkIndexOptions(Map("auto_refresh" -> "true"))
+    val builder = new FakeFlintSparkIndexBuilder
+
+    val updatedOptions = builder.options(options, indexName).testOptions
+    updatedOptions.options(SCHEDULER_MODE.toString) shouldBe SchedulerMode.EXTERNAL.toString
+    updatedOptions.options(REFRESH_INTERVAL.toString) shouldBe "5 minutes"
+  }
+
+  test("updateOptionsWithDefaults should set external scheduler mode when explicitly specified") {
+    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, true)
+    val options =
+      FlintSparkIndexOptions(Map("auto_refresh" -> "true", "scheduler_mode" -> "external"))
+    val builder = new FakeFlintSparkIndexBuilder
+
+    val updatedOptions = builder.options(options, indexName).testOptions
+    updatedOptions.options(SCHEDULER_MODE.toString) shouldBe SchedulerMode.EXTERNAL.toString
+  }
+
+  override def afterEach(): Unit = {
+    super.afterEach()
+    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
+    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD.key)
+    conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
   }
 
   private def builder(): FakeFlintSparkIndexBuilder = {

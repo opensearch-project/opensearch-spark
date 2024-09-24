@@ -34,7 +34,9 @@ class FlintSparkJobExternalSchedulingService(
     extends FlintSparkJobSchedulingService
     with Logging {
 
-  override def handleJob(index: FlintSparkIndex, action: AsyncQuerySchedulerAction): Unit = {
+  override def handleJob(
+      index: FlintSparkIndex,
+      action: AsyncQuerySchedulerAction): Option[String] = {
     val dataSource = flintSparkConf.flintOptions().getDataSourceName()
     val clientId = flintSparkConf.flintOptions().getAWSAccountId()
     val indexName = index.name()
@@ -68,5 +70,7 @@ class FlintSparkJobExternalSchedulingService(
       case AsyncQuerySchedulerAction.REMOVE => flintAsyncQueryScheduler.removeJob(request)
       case _ => throw new IllegalArgumentException(s"Unsupported action: $action")
     }
+
+    None // Return None for all cases
   }
 }

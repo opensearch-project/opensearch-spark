@@ -384,16 +384,6 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     new DataTypeSkippingStrategy().analyzeSkippingIndexColumns(tableName, spark)
   }
 
-  private def stopRefreshingJob(indexName: String): Unit = {
-    logInfo(s"Terminating refreshing job $indexName")
-    val job = spark.streams.active.find(_.name == indexName)
-    if (job.isDefined) {
-      job.get.stop()
-    } else {
-      logWarning("Refreshing job not found")
-    }
-  }
-
   private def getAllIndexMetadata(indexNamePattern: String): Map[String, FlintMetadata] = {
     if (flintIndexMetadataService.supportsGetByIndexPattern) {
       flintIndexMetadataService
@@ -523,7 +513,6 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
         logInfo("Update index options complete")
         jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.UPDATE)
-        None
       })
   }
 }
