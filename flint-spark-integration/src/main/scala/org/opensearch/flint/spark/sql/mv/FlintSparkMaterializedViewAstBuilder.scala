@@ -47,7 +47,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
 
       // Trigger auto refresh if enabled and not using external scheduler
       if (indexOptions
-          .autoRefresh() && SchedulerMode.INTERNAL == indexOptions.schedulerMode()) {
+          .autoRefresh() && !mvBuilder.isExternalSchedulerEnabled()) {
         flint.refreshIndex(flintIndexName)
       }
       Seq.empty

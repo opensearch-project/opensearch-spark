@@ -19,7 +19,7 @@ import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.sql.SparkHiveSupportSuite
 import org.apache.spark.sql.execution.streaming.CheckpointFileManager
-import org.apache.spark.sql.flint.config.FlintSparkConf.CHECKPOINT_MANDATORY
+import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, EXTERNAL_SCHEDULER_ENABLED}
 import org.apache.spark.sql.internal.SQLConf
 
 class FlintSparkIndexValidationITSuite extends FlintSparkSuite with SparkHiveSupportSuite {
@@ -96,13 +96,18 @@ class FlintSparkIndexValidationITSuite extends FlintSparkSuite with SparkHiveSup
           sql(s"CREATE TABLE $testTable (name STRING) USING JSON")
 
           the[IllegalArgumentException] thrownBy {
-            sql(s"""
-                 | $statement
-                 | WITH (
-                 |   auto_refresh = true,
-                 |   scheduler_mode = 'external'
-                 | )
-                 |""".stripMargin)
+            try {
+              setFlintSparkConf(EXTERNAL_SCHEDULER_ENABLED, "true")
+              sql(s"""
+                   | $statement
+                   | WITH (
+                   |   auto_refresh = true,
+                   |   scheduler_mode = 'external'
+                   | )
+                   |""".stripMargin)
+            } finally {
+              setFlintSparkConf(EXTERNAL_SCHEDULER_ENABLED, "false")
+            }
           } should have message
             "requirement failed: Checkpoint location is required"
         }
