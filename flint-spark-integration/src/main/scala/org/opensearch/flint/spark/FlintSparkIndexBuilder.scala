@@ -203,6 +203,9 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
         updatedOptions += (SCHEDULER_MODE.toString -> SchedulerMode.EXTERNAL.toString)
         updatedOptions += (REFRESH_INTERVAL.toString -> flintSparkConf
           .externalSchedulerIntervalThreshold())
+      case (false, _, Some("external")) =>
+        throw new IllegalArgumentException(
+          "External scheduler mode spark conf is not enabled but refresh interval is set to external scheduler mode")
       case _ =>
         updatedOptions += (SCHEDULER_MODE.toString -> SchedulerMode.INTERNAL.toString)
     }

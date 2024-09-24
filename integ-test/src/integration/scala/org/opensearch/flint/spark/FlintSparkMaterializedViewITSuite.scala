@@ -8,11 +8,17 @@ package org.opensearch.flint.spark
 import java.sql.Timestamp
 import java.util.Base64
 
+import scala.jdk.CollectionConverters.mapAsJavaMapConverter
+
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
+import org.opensearch.action.get.GetRequest
+import org.opensearch.client.RequestOptions
 import org.opensearch.flint.common.FlintVersion.current
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
+import org.opensearch.flint.core.FlintOptions
+import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.CHECKPOINT_LOCATION
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
+import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
@@ -329,6 +335,58 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
         s"Checkpoint location dir should contain ${testFlintIndex}")
 
       conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
+    }
+  }
+
+  test("create materialized view with external scheduler") {
+    withTempDir { checkpointDir =>
+      setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, "true")
+      flint
+        .materializedView()
+        .name(testMvName)
+        .query(testQuery)
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "scheduler_mode" -> "external",
+              "watermark_delay" -> "1 Minute",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testFlintIndex)
+        .create()
+
+      // Verify the job is scheduled
+      val client = OpenSearchClientUtils.createClient(new FlintOptions(openSearchOptions.asJava))
+      val response = client.get(
+        new GetRequest(OpenSearchAsyncQueryScheduler.SCHEDULER_INDEX_NAME, testFlintIndex),
+        RequestOptions.DEFAULT)
+
+      response.isExists shouldBe true
+      val sourceMap = response.getSourceAsMap
+
+      sourceMap.get("jobId") shouldBe testFlintIndex
+      sourceMap.get("scheduledQuery") shouldBe s"REFRESH MATERIALIZED VIEW $testMvName"
+      sourceMap.get("enabled") shouldBe true
+      sourceMap.get("queryLang") shouldBe "sql"
+
+      val schedule = sourceMap.get("schedule").asInstanceOf[java.util.Map[String, Any]]
+      val interval = schedule.get("interval").asInstanceOf[java.util.Map[String, Any]]
+      interval.get("period") shouldBe 5
+      interval.get("unit") shouldBe "MINUTES"
+
+      // Refresh the index and get the job ID
+      val jobId = flint.refreshIndex(testFlintIndex)
+      jobId shouldBe None
+
+      val indexData = flint.queryIndex(testFlintIndex)
+      checkAnswer(
+        indexData.select("startTime", "count"),
+        Seq(
+          Row(timestamp("2023-10-01 00:00:00"), 1),
+          Row(timestamp("2023-10-01 00:10:00"), 2),
+          Row(timestamp("2023-10-01 01:00:00"), 1)))
+
+      conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     }
   }
 

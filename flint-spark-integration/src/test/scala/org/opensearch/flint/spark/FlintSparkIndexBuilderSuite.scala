@@ -8,6 +8,7 @@ package org.opensearch.flint.spark
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{CHECKPOINT_LOCATION, REFRESH_INTERVAL, SCHEDULER_MODE}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.matchers.should.Matchers.not.include
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -193,6 +194,20 @@ class FlintSparkIndexBuilderSuite extends FlintSuite {
 
     val updatedOptions = builder.options(options, indexName).testOptions
     updatedOptions.options(SCHEDULER_MODE.toString) shouldBe SchedulerMode.EXTERNAL.toString
+  }
+
+  test(
+    "updateOptionsWithDefaults should throw exception when external scheduler is disabled but mode is external") {
+    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, false)
+    val options =
+      FlintSparkIndexOptions(Map("auto_refresh" -> "true", "scheduler_mode" -> "external"))
+    val builder = new FakeFlintSparkIndexBuilder
+
+    val exception = intercept[IllegalArgumentException] {
+      builder.options(options, indexName)
+    }
+    exception.getMessage should include(
+      "External scheduler mode is not enabled in the configuration")
   }
 
   override def afterEach(): Unit = {

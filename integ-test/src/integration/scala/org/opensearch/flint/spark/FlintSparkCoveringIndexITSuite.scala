@@ -7,11 +7,17 @@ package org.opensearch.flint.spark
 
 import java.util.Base64
 
+import scala.jdk.CollectionConverters.mapAsJavaMapConverter
+
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
+import org.opensearch.action.get.GetRequest
+import org.opensearch.client.RequestOptions
 import org.opensearch.flint.common.FlintVersion.current
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
+import org.opensearch.flint.core.FlintOptions
+import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
-import org.scalatest.matchers.must.Matchers.defined
+import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler
+import org.scalatest.matchers.must.Matchers.{contain, defined}
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.sql.Row
@@ -163,6 +169,7 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
 
   test("auto refresh covering index successfully with external scheduler") {
     withTempDir { checkpointDir =>
+      setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, "true")
       flint
         .coveringIndex()
         .name(testIndex)
@@ -177,11 +184,32 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
           testIndex)
         .create()
 
+      // Verify the job is scheduled
+      val client = OpenSearchClientUtils.createClient(new FlintOptions(openSearchOptions.asJava))
+      val response = client.get(
+        new GetRequest(OpenSearchAsyncQueryScheduler.SCHEDULER_INDEX_NAME, testFlintIndex),
+        RequestOptions.DEFAULT)
+
+      response.isExists shouldBe true
+      val sourceMap = response.getSourceAsMap
+
+      sourceMap.get("jobId") shouldBe testFlintIndex
+      sourceMap.get("scheduledQuery") shouldBe s"REFRESH INDEX $testIndex ON $testTable"
+      sourceMap.get("enabled") shouldBe true
+      sourceMap.get("queryLang") shouldBe "sql"
+
+      val schedule = sourceMap.get("schedule").asInstanceOf[java.util.Map[String, Any]]
+      val interval = schedule.get("interval").asInstanceOf[java.util.Map[String, Any]]
+      interval.get("period") shouldBe 5
+      interval.get("unit") shouldBe "MINUTES"
+
+      // Refresh the index and get the job ID
       val jobId = flint.refreshIndex(testFlintIndex)
       jobId shouldBe None
 
       val indexData = flint.queryIndex(testFlintIndex)
       checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
+      conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     }
   }
 
