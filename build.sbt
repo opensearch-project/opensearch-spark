@@ -13,6 +13,7 @@ lazy val jacksonVersion = "2.15.2"
 // The transitive opensearch jackson-databind dependency version should align with Spark jackson databind dependency version.
 // Issue: https://github.com/opensearch-project/opensearch-spark/issues/442
 lazy val opensearchVersion = "2.6.0"
+lazy val opensearchMavenVersion = "2.6.0.0"
 lazy val icebergVersion = "1.5.0"
 
 val scalaMinorVersion = scala212.split("\\.").take(2).mkString(".")
@@ -81,6 +82,7 @@ lazy val flintCore = (project in file("flint-core"))
         exclude ("com.fasterxml.jackson.core", "jackson-databind")
         exclude ("com.fasterxml.jackson.core", "jackson-core")
         exclude ("org.apache.httpcomponents.client5", "httpclient5"),
+      "org.opensearch" % "opensearch-job-scheduler-spi" % opensearchMavenVersion,
       "dev.failsafe" % "failsafe" % "3.3.2",
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
@@ -115,6 +117,7 @@ lazy val flintCommons = (project in file("flint-commons"))
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
       "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
+      "org.projectlombok" % "lombok" % "1.18.30",
     ),
     libraryDependencies ++= deps(sparkVersion),
     publish / skip := true,

@@ -7,12 +7,17 @@ package org.opensearch.flint.spark
 
 import java.util.Base64
 
+import scala.jdk.CollectionConverters.mapAsJavaMapConverter
+
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.native.JsonMethods._
+import org.opensearch.action.get.GetRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.flint.common.FlintVersion.current
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
+import org.opensearch.flint.core.FlintOptions
+import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
+import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.opensearch.flint.spark.skipping.bloomfilter.BloomFilterMightContain.bloom_filter_might_contain
@@ -309,6 +314,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
 
   test("auto refresh skipping index successfully with external scheduler") {
     withTempDir { checkpointDir =>
+      setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, "true")
       flint
         .skippingIndex()
         .onTable(testTable)
@@ -321,6 +327,25 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
               "checkpoint_location" -> checkpointDir.getAbsolutePath)),
           testIndex)
         .create()
+
+      // Verify the job is scheduled
+      val client = OpenSearchClientUtils.createClient(new FlintOptions(openSearchOptions.asJava))
+      val response = client.get(
+        new GetRequest(OpenSearchAsyncQueryScheduler.SCHEDULER_INDEX_NAME, testIndex),
+        RequestOptions.DEFAULT)
+
+      response.isExists shouldBe true
+      val sourceMap = response.getSourceAsMap
+
+      sourceMap.get("jobId") shouldBe testIndex
+      sourceMap.get("scheduledQuery") shouldBe s"REFRESH SKIPPING INDEX ON $testTable"
+      sourceMap.get("enabled") shouldBe true
+      sourceMap.get("queryLang") shouldBe "sql"
+
+      val schedule = sourceMap.get("schedule").asInstanceOf[java.util.Map[String, Any]]
+      val interval = schedule.get("interval").asInstanceOf[java.util.Map[String, Any]]
+      interval.get("period") shouldBe 5
+      interval.get("unit") shouldBe "MINUTES"
 
       flint.refreshIndex(testIndex) shouldBe empty
       flint.queryIndex(testIndex).collect().toSet should have size 2
@@ -338,6 +363,7 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       // Expect to only refresh the new file
       flint.refreshIndex(testIndex) shouldBe empty
       flint.queryIndex(testIndex).collect().toSet should have size 1
+      conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     }
   }
 

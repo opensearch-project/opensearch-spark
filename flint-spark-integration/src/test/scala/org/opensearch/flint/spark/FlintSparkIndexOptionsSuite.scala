@@ -48,7 +48,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
             | }""".stripMargin))
 
     options.autoRefresh() shouldBe true
-    options.schedulerMode() shouldBe SchedulerMode.EXTERNAL
+    options.isExternalSchedulerEnabled() shouldBe true
     options.refreshInterval() shouldBe Some("1 Minute")
     options.incrementalRefresh() shouldBe true
     options.checkpointLocation() shouldBe Some("s3://test/")
@@ -77,7 +77,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     val options = FlintSparkIndexOptions(Map.empty)
 
     options.autoRefresh() shouldBe false
-    options.schedulerMode() shouldBe SchedulerMode.INTERNAL
+    options.isExternalSchedulerEnabled() shouldBe false
     options.refreshInterval() shouldBe empty
     options.checkpointLocation() shouldBe empty
     options.watermarkDelay() shouldBe empty
@@ -97,15 +97,6 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
       "refresh_interval" -> "1 Minute")
   }
 
-  test("should return include default scheduler_mode option when auto refresh is set to true") {
-    val options = FlintSparkIndexOptions(Map("auto_refresh" -> "true"))
-
-    options.optionsWithDefault shouldBe Map(
-      "auto_refresh" -> "true",
-      "scheduler_mode" -> "internal",
-      "incremental_refresh" -> "false")
-  }
-
   test(
     "should return include default refresh_interval option with auto_refresh=true and scheduler_mode=external") {
     val options =
@@ -114,7 +105,6 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     options.optionsWithDefault shouldBe Map(
       "auto_refresh" -> "true",
       "scheduler_mode" -> "external",
-      "refresh_interval" -> "15 minutes",
       "incremental_refresh" -> "false")
   }
 
