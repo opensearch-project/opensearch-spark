@@ -983,7 +983,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       resultIndexOption: Option[String]): SessionManager = {
     instantiate(
       new SessionManagerImpl(spark, resultIndexOption),
-      spark.conf.get(FlintSparkConf.CUSTOM_SESSION_MANAGER.key, ""))
+      spark.conf.get(FlintSparkConf.CUSTOM_SESSION_MANAGER.key, ""),
+      resultIndexOption.getOrElse(""))
   }
 
   private def instantiateStatementExecutionManager(
