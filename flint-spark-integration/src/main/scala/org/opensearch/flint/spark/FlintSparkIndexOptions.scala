@@ -38,16 +38,13 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
   def autoRefresh(): Boolean = getOptionValue(AUTO_REFRESH).getOrElse("false").toBoolean
 
   /**
-   * The scheduler mode for the Flint index refresh.
+   * Is Flint index refresh in external scheduler mode. This only applies to auto refresh.
    *
    * @return
-   *   scheduler mode option value
+   *   true if external scheduler is enabled, false otherwise
    */
-  def schedulerMode(): SchedulerMode.Value = {
-    // TODO: Change default value to external once the external scheduler is enabled
-    val defaultMode = "internal"
-    val modeStr = getOptionValue(SCHEDULER_MODE).getOrElse(defaultMode)
-    SchedulerMode.fromString(modeStr)
+  def isExternalSchedulerEnabled(): Boolean = {
+    getOptionValue(SCHEDULER_MODE).contains(SchedulerMode.EXTERNAL.toString)
   }
 
   /**
@@ -130,20 +127,6 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
 
     if (!options.contains(AUTO_REFRESH.toString)) {
       map += (AUTO_REFRESH.toString -> autoRefresh().toString)
-    }
-
-    // Add default option only when auto refresh is TRUE
-    if (autoRefresh() == true) {
-      if (!options.contains(SCHEDULER_MODE.toString)) {
-        map += (SCHEDULER_MODE.toString -> schedulerMode().toString)
-      }
-
-      // The query will be executed in micro-batch mode using the internal scheduler
-      // The default interval for the external scheduler is 15 minutes.
-      if (SchedulerMode.EXTERNAL == schedulerMode() && !options.contains(
-          REFRESH_INTERVAL.toString)) {
-        map += (REFRESH_INTERVAL.toString -> "15 minutes")
-      }
     }
 
     if (!options.contains(INCREMENTAL_REFRESH.toString)) {
