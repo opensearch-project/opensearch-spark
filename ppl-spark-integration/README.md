@@ -227,6 +227,10 @@ See the next samples of PPL queries :
 **Describe**
  - `describe table`  This command is equal to the `DESCRIBE EXTENDED table` SQL command
 
+**Explain**
+ - `explain | source = table | where a = 1 | fields a,b,c`
+ - `explain | describe table`
+
 **Fields**
  - `source = table`
  - `source = table | fields a,b,c`
