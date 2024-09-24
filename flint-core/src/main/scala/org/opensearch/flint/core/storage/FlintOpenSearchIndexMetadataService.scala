@@ -46,9 +46,12 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
       }
   }
 
-  override def getAllIndexMetadata(indexNamePattern: String*): util.Map[String, FlintMetadata] = {
-    logInfo(s"Fetching all Flint index metadata for pattern ${indexNamePattern.mkString(",")}");
-    val indexNames = indexNamePattern.map(OpenSearchClientUtils.sanitizeIndexName)
+  override def supportsGetByIndexPattern(): Boolean = true
+
+  override def getAllIndexMetadata(
+      indexNamePatterns: String*): util.Map[String, FlintMetadata] = {
+    logInfo(s"Fetching all Flint index metadata for pattern ${indexNamePatterns.mkString(",")}");
+    val indexNames = indexNamePatterns.map(OpenSearchClientUtils.sanitizeIndexName)
     var client: IRestHighLevelClient = null
     try {
       client = OpenSearchClientUtils.createClient(options)
