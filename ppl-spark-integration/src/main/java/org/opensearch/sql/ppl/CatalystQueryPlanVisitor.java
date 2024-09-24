@@ -23,7 +23,6 @@ import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Project$;
-import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
@@ -180,9 +179,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     /**
-     * source=<sourceIndex>
      * | LOOKUP <lookupIndex> (<lookupMappingField> [AS <sourceMappingField>])...
-     *    [(APPEND | REPLACE) (<lookupOutputField> [AS sourceOutputField])...]
+     *    [(REPLACE | APPEND) (<inputField> [AS <outputField])...]
      */
     @Override
     public LogicalPlan visitLookup(Lookup node, CatalystPlanContext context) {
@@ -193,8 +191,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             Expression lookupCondition = buildLookupMappingCondition(node, expressionAnalyzer, context);
             // If no output field is specified, all fields from lookup table are applied to the output.
             if (node.allFieldsShouldAppliedToOutputList()) {
-                // TODO how to get all field list from the lookup relation before logical plan analyzing
-//                throw new UnsupportedOperationException("all fields should applied to output list");
                 context.retainAllNamedParseExpressions(p -> p);
                 context.retainAllPlans(p -> p);
                 return join(searchSide, lookupTable, Join.JoinType.LEFT, Optional.of(lookupCondition), new Join.JoinHint());
@@ -206,17 +202,15 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             List<NamedExpression> lookupTableProjectList = buildLookupRelationProjectList(node, expressionAnalyzer, context);
             LogicalPlan lookupTableWithProject = Project$.MODULE$.apply(seq(lookupTableProjectList), lookupTable);
 
-//            Expression lookupCondition = buildLookupMappingCondition(node, expressionAnalyzer, context);
-
             LogicalPlan join = join(searchSide, lookupTableWithProject, Join.JoinType.LEFT, Optional.of(lookupCondition), new Join.JoinHint());
 
-            // Add all sourceOutputFields by __auto_generated_subquery_name_s.*
+            // Add all outputFields by __auto_generated_subquery_name_s.*
             List<NamedExpression> outputFieldsWithNewAdded = new ArrayList<>();
             outputFieldsWithNewAdded.add(UnresolvedStar$.MODULE$.apply(Option.apply(seq(node.getSourceSubqueryAliasName()))));
 
             // Add new columns based on different strategies:
-            // Append:  coalesce($sourceOutputField, $"lookupOutputField").as(sourceOutputFieldName)
-            // Replace: $lookupOutputField.as(sourceOutputFieldName)
+            // Append:  coalesce($outputField, $"inputField").as(outputFieldName)
+            // Replace: $outputField.as(outputFieldName)
             outputFieldsWithNewAdded.addAll(buildOutputProjectList(node, node.getOutputStrategy(), expressionAnalyzer, context));
 
             org.apache.spark.sql.catalyst.plans.logical.Project outputWithNewAdded = Project$.MODULE$.apply(seq(outputFieldsWithNewAdded), join);
@@ -233,7 +227,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     .map(Expression.class::cast).collect(Collectors.toList());
             // Drop the $sourceOutputField if existing
             List<Expression> dropListOfSourceFields =
-                visitExpressionList(new ArrayList<>(node.getSourceOutputFieldListWithSubqueryAlias()), context);
+                visitExpressionList(new ArrayList<>(node.getFieldListWithSourceSubqueryAlias()), context);
             List<Expression> toDrop = new ArrayList<>(dropListOfLookupMappingFields);
             toDrop.addAll(dropListOfSourceFields);
 

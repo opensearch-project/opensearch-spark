@@ -159,11 +159,12 @@ outputCandidateList
    : lookupPair (COMMA lookupPair)*
    ;
 
- // The lookup pair will generate a K-V pair. For example:
+ // The lookup pair will generate a K-V pair.
+ // The format is Key -> Alias(outputFieldName, inputField), Value -> outputField. For example:
  // 1. When lookupPair is "name AS cName", the key will be Alias(cName, Field(name)), the value will be Field(cName)
  // 2. When lookupPair is "dept", the key is Alias(dept, Field(dept)), value is Field(dept)
 lookupPair
-   : lookupField = fieldExpression (AS searchField = fieldExpression)?
+   : inputField = fieldExpression (AS outputField = fieldExpression)?
    ;
 
 kmeansCommand

@@ -29,18 +29,18 @@ import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 
 public interface LookupTransformer {
 
-    /** lookup fields (left side join keys) + replace fields in lookup relation */
+    /** lookup mapping fields + input fields*/
     static List<NamedExpression> buildLookupRelationProjectList(
         Lookup node,
         CatalystQueryPlanVisitor.ExpressionAnalyzer expressionAnalyzer,
         CatalystPlanContext context) {
-        List<Field> lookupOutputFields = new ArrayList<>(node.getLookupOutputFieldList());
-        if (lookupOutputFields.isEmpty()) {
-            // All fields will be applied to the output if no lookup output field is specified.
+        List<Field> inputFields = new ArrayList<>(node.getInputFieldList());
+        if (inputFields.isEmpty()) {
+            // All fields will be applied to the output if no input field is specified.
             return Collections.singletonList(new UnresolvedStar(Option.empty()));
         }
-        lookupOutputFields.addAll(node.getLookupMappingMap().keySet());
-        return buildProjectListFromFields(lookupOutputFields, expressionAnalyzer, context);
+        inputFields.addAll(node.getLookupMappingMap().keySet());
+        return buildProjectListFromFields(inputFields, expressionAnalyzer, context);
     }
 
     static List<NamedExpression> buildProjectListFromFields(
@@ -85,34 +85,23 @@ public interface LookupTransformer {
         CatalystPlanContext context) {
         List<NamedExpression> outputProjectList = new ArrayList<>();
         for (Map.Entry<Alias, Field> entry : node.getOutputCandidateMap().entrySet()) {
-            Alias lookupOutputFieldWithAlias = entry.getKey();
-            Field lookupOutputField = (Field) lookupOutputFieldWithAlias.getDelegated();
-            Field sourceOutputField = entry.getValue();
-            Expression lookupOutputCol = expressionAnalyzer.visitField(lookupOutputField, context);
-            Expression sourceOutputCol = expressionAnalyzer.visitField(sourceOutputField, context);
-//            Expression lookupOutputCol;
-//            Expression sourceOutputCol;
-//            if (lookupOutputField.getField() == sourceOutputField.getField()) {
-//                Field sourceWithAlias = buildFieldWithSourceSubqueryAlias(node, sourceOutputField);
-//                Field lookupWithAlias = buildFieldWithLookupSubqueryAlias(node, lookupOutputField);
-//                sourceOutputCol = expressionAnalyzer.visitField(sourceWithAlias, context);
-//                lookupOutputCol = expressionAnalyzer.visitField(lookupWithAlias, context);
-//            } else {
-//                lookupOutputCol = expressionAnalyzer.visitField(lookupOutputField, context);
-//                sourceOutputCol = expressionAnalyzer.visitField(sourceOutputField, context);
-//            }
+            Alias inputFieldWithAlias = entry.getKey();
+            Field inputField = (Field) inputFieldWithAlias.getDelegated();
+            Field outputField = entry.getValue();
+            Expression inputCol = expressionAnalyzer.visitField(inputField, context);
+            Expression outputCol = expressionAnalyzer.visitField(outputField, context);
 
             Expression child;
             if (strategy == Lookup.OutputStrategy.APPEND) {
-                child = Coalesce$.MODULE$.apply(seq(sourceOutputCol, lookupOutputCol));
+                child = Coalesce$.MODULE$.apply(seq(outputCol, inputCol));
             } else {
-                child = lookupOutputCol;
+                child = inputCol;
             }
             // The result output project list we build here is used to replace the source output,
             // for the unmatched rows of left outer join, the outputs are null, so fall back to source output.
-            Expression nullSafeOutput = Coalesce$.MODULE$.apply(seq(child, sourceOutputCol));
+            Expression nullSafeOutput = Coalesce$.MODULE$.apply(seq(child, outputCol));
             NamedExpression nullSafeOutputCol = Alias$.MODULE$.apply(nullSafeOutput,
-                lookupOutputFieldWithAlias.getName(),
+                inputFieldWithAlias.getName(),
                 NamedExpression.newExprId(),
                 seq(new java.util.ArrayList<String>()),
                 Option.empty(),

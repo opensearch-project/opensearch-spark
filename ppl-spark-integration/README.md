@@ -357,6 +357,20 @@ _- **Limitation: sub-searches is unsupported in join right side now**_
 
 Details of Join command, see [PPL-Join-Command](../docs/PPL-Join-command.md)
 
+**Lookup**
+- `source = table1 | lookup table2 id`
+- `source = table1 | lookup table2 id, name`
+- `source = table1 | lookup table2 id as cid, name`
+- `source = table1 | lookup table2 id as cid, name replace dept as department`
+- `source = table1 | lookup table2 id as cid, name replace dept as department, city as location`
+- `source = table1 | lookup table2 id as cid, name append dept as department`
+- `source = table1 | lookup table2 id as cid, name append dept as department, city as location`
+- `source = table1 | lookup table2 id as cid, name replace dept` (dept without "as" is unsupported)
+
+_- **Limitation: "REPLACE" or "APPEND" clause must contain "AS"**_
+
+Details of Lookup command syntax, see [PPL-Lookup-Command](../docs/PPL-Lookup-command.md)
+
 ---
 #### Experimental Commands:
 - `correlation` - [See details](../docs/PPL-Correlation-command.md)

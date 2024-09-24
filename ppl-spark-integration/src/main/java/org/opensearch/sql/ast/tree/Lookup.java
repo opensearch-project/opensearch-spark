@@ -92,23 +92,26 @@ public class Lookup extends UnresolvedPlan {
     }
 
     /**
-     * Output candidate field map. For example:
-     *  1. When output candidate is "name AS cName", the key will be Alias(cName, Field(name)), the value will be Field(cName)
-     *  2. When output candidate is "dept", the key is Alias(dept, Field(dept)), value is Field(dept)
+     * Output candidate field map.
+     *  Format: Key -> Alias(outputFieldName, inputField), Value -> Field(outputField). For example:
+     *  1. When output candidate is "name AS cName", the key will be Alias("cName", Field(name)), the value will be Field(cName)
+     *  2. When output candidate is "dept", the key is Alias("dept", Field(dept)), value is Field(dept)
      */
     public Map<Alias, Field> getOutputCandidateMap() {
         return outputCandidateMap;
     }
 
-    public List<Field> getSourceOutputFieldListWithSubqueryAlias() {
-        return outputCandidateMap.values().stream().map(f ->
+    /** Return a new input field list with source side SubqueryAlias */
+    public List<Field> getFieldListWithSourceSubqueryAlias() {
+        return getOutputCandidateMap().values().stream().map(f ->
             new Field(QualifiedName.of(getSourceSubqueryAliasName(), f.getField().toString()), f.getFieldArgs()))
             .collect(Collectors.toList());
     }
 
-    /** Return the lookup output Field list instead of Alias list */
-    public List<Field> getLookupOutputFieldList() {
-        return outputCandidateMap.keySet().stream().map(alias -> (Field) alias.getDelegated()).collect(Collectors.toList());
+    /** Return the input field list instead of Alias list */
+    public List<Field> getInputFieldList() {
+        return getOutputCandidateMap().keySet().stream()
+            .map(alias -> (Field) alias.getDelegated()).collect(Collectors.toList());
     }
 
     public boolean allFieldsShouldAppliedToOutputList() {
