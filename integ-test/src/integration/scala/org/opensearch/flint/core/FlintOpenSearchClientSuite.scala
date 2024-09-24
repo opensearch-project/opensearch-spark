@@ -65,6 +65,17 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
 
+  it should "get all index names with the given index name pattern" in {
+    val metadata = FlintOpenSearchIndexMetadataService.deserialize(
+      """{"properties": {"test": { "type": "integer" } } }""")
+    flintClient.createIndex("flint_test_1_index", metadata)
+    flintClient.createIndex("flint_test_2_index", metadata)
+
+    val indexNames = flintClient.getIndexNames("flint_*_index")
+    indexNames should have size 2
+    indexNames should contain allOf ("flint_test_1_index", "flint_test_2_index")
+  }
+
   it should "convert index name to all lowercase" in {
     val indexName = "flint_ELB_logs_index"
     flintClient.createIndex(

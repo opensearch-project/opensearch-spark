@@ -8,6 +8,8 @@ package org.opensearch.flint.core;
 import org.opensearch.flint.common.metadata.FlintMetadata;
 import org.opensearch.flint.core.storage.FlintWriter;
 
+import java.util.List;
+
 /**
  * Flint index client that provides API for metadata and data operations
  * on a Flint index regardless of concrete storage.
@@ -29,6 +31,14 @@ public interface FlintClient {
    * @return true if the index exists, otherwise false
    */
   boolean exists(String indexName);
+
+  /**
+   * Get all index names that match the given pattern.
+   *
+   * @param indexNamePatterns index name patterns
+   * @return list of index names
+   */
+  List<String> getIndexNames(String... indexNamePatterns);
 
   /**
    * Delete a Flint index.
