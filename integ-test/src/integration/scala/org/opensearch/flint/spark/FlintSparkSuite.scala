@@ -277,6 +277,54 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          | """.stripMargin)
   }
 
+  protected def createPeopleTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   id INT,
+           |   name STRING,
+           |   occupation STRING,
+           |   country STRING,
+           |   salary INT
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+
+    // Insert data into the new table
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES (1000, 'Jake', 'Engineer', 'England' , 100000),
+           |        (1001, 'Hello', 'Artist', 'USA', 70000),
+           |        (1002, 'John', 'Doctor', 'Canada', 120000),
+           |        (1003, 'David', 'Doctor', null, 120000),
+           |        (1004, 'David', null, 'Canada', 0),
+           |        (1005, 'Jane', 'Scientist', 'Canada', 90000)
+           | """.stripMargin)
+  }
+
+  protected def createWorkInformationTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   uid INT,
+           |   name STRING,
+           |   department STRING,
+           |   occupation STRING
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+
+    // Insert data into the new table
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES (1000, 'Jake', 'IT', 'Engineer'),
+           |        (1002, 'John', 'DATA', 'Scientist'),
+           |        (1003, 'David', 'HR', 'Doctor'),
+           |        (1005, 'Jane', 'DATA', 'Engineer'),
+           |        (1006, 'Tom', 'SALES', 'Artist')
+           | """.stripMargin)
+  }
+
   protected def createOccupationTopRareTable(testTable: String): Unit = {
     sql(s"""
       | CREATE TABLE $testTable

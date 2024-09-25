@@ -14,6 +14,7 @@ import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParserBaseVisitor;
 import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Alias;
+import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
@@ -37,10 +38,10 @@ import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.ast.tree.Kmeans;
+import org.opensearch.sql.ast.tree.Lookup;
 import org.opensearch.sql.ast.tree.Parse;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.RareAggregation;
-import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
@@ -48,7 +49,6 @@ import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.TableFunction;
 import org.opensearch.sql.ast.tree.TopAggregation;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
-import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
 import java.util.ArrayList;
@@ -60,6 +60,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
 
 
 /** Class of building the AST. Refines the visit path and build the AST nodes */
@@ -336,6 +337,25 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     Literal pattern = arguments.getOrDefault("pattern", new Literal("", DataType.STRING));
 
     return new Parse(ParseMethod.PATTERNS, sourceField, pattern, arguments);
+  }
+
+  /** Lookup command */
+  @Override
+  public UnresolvedPlan visitLookupCommand(OpenSearchPPLParser.LookupCommandContext ctx) {
+    Relation lookupRelation = new Relation(this.internalVisitExpression(ctx.tableSource()));
+    Lookup.OutputStrategy strategy =
+        ctx.APPEND() != null ? Lookup.OutputStrategy.APPEND : Lookup.OutputStrategy.REPLACE;
+    java.util.Map<Alias, Field> lookupMappingList = buildLookupPair(ctx.lookupMappingList().lookupPair());
+    java.util.Map<Alias, Field> outputCandidateList =
+        ctx.APPEND() == null && ctx.REPLACE() == null ? emptyMap() : buildLookupPair(ctx.outputCandidateList().lookupPair());
+    return new Lookup(new SubqueryAlias(lookupRelation, "_l"), lookupMappingList, strategy, outputCandidateList);
+  }
+
+  private java.util.Map<Alias, Field> buildLookupPair(List<OpenSearchPPLParser.LookupPairContext> ctx) {
+    return ctx.stream()
+      .map(of -> expressionBuilder.visitLookupPair(of))
+      .map(And.class::cast)
+      .collect(Collectors.toMap(and -> (Alias) and.getLeft(), and -> (Field) and.getRight(), (x, y) -> y, LinkedHashMap::new));
   }
 
   /** Top command. */

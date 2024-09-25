@@ -20,6 +20,14 @@ public class SubqueryAlias extends UnresolvedPlan {
         this.child = child;
     }
 
+    /**
+     * Create an alias (SubqueryAlias) for a sub-query with a default alias name
+     */
+    public SubqueryAlias(UnresolvedPlan child, String suffix) {
+        this.alias = "__auto_generated_subquery_name" + suffix;
+        this.child = child;
+    }
+
     public String getAlias() {
         return alias;
     }
