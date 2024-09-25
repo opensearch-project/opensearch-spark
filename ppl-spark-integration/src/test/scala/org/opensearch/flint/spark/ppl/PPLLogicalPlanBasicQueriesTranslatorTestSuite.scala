@@ -267,4 +267,38 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
     comparePlans(expectedPlan, logPlan, false)
   }
+
+  test("test fields + field list") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(pplParser, "source=t | sort - A | fields + A, B | head 5", false),
+      context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val sortOrder = Seq(SortOrder(UnresolvedAttribute("A"), Descending))
+    val sorted = Sort(sortOrder, true, table)
+    val projectList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
+    val projection = Project(projectList, sorted)
+
+    val planWithLimit = GlobalLimit(Literal(5), LocalLimit(Literal(5), projection))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test fields - field list") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(pplParser, "source=t | sort - A | fields - A, B | head 5", false),
+      context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val sortOrder = Seq(SortOrder(UnresolvedAttribute("A"), Descending))
+    val sorted = Sort(sortOrder, true, table)
+    val dropList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
+    val dropAB = DataFrameDropColumns(dropList, sorted)
+
+    val planWithLimit = GlobalLimit(Literal(5), LocalLimit(Literal(5), dropAB))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
+    comparePlans(expectedPlan, logPlan, false)
+  }
 }
