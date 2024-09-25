@@ -17,4 +17,12 @@ trait QueryResultWriter {
    * data storage based on the provided FlintStatement metadata.
    */
   def writeDataFrame(dataFrame: DataFrame, flintStatement: FlintStatement): Unit
+
+  /**
+   * Reformat the given DataFrame to the desired format.
+   */
+  def reformatDataFrame(
+      dataFrame: DataFrame,
+      flintStatement: FlintStatement,
+      queryStartTime: Long): DataFrame
 }
