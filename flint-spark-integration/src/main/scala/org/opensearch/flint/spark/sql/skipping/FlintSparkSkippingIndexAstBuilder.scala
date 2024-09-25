@@ -10,7 +10,6 @@ import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.core.field.bloomfilter.BloomFilterFactory._
 import org.opensearch.flint.spark.FlintSpark
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{BLOOM_FILTER, MIN_MAX, PARTITION, VALUE_SET}
@@ -80,7 +79,7 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
 
       // Trigger auto refresh if enabled and not using external scheduler
       if (indexOptions
-          .autoRefresh() && SchedulerMode.INTERNAL == indexOptions.schedulerMode()) {
+          .autoRefresh() && !indexBuilder.isExternalSchedulerEnabled()) {
         flint.refreshIndex(indexName)
       }
       Seq.empty

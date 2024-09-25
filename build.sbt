@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import Dependencies._
+import sbtassembly.AssemblyPlugin.autoImport.ShadeRule
 
 lazy val scala212 = "2.12.14"
 lazy val sparkVersion = "3.3.2"
@@ -13,6 +14,7 @@ lazy val jacksonVersion = "2.13.4"
 // The transitive opensearch jackson-databind dependency version should align with Spark jackson databind dependency version.
 // Issue: https://github.com/opensearch-project/opensearch-spark/issues/442
 lazy val opensearchVersion = "2.6.0"
+lazy val opensearchMavenVersion = "2.6.0.0"
 lazy val icebergVersion = "1.5.0"
 
 val scalaMinorVersion = scala212.split("\\.").take(2).mkString(".")
@@ -42,7 +44,8 @@ lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")
 // Run as part of test task.
 lazy val testScalastyle = taskKey[Unit]("testScalastyle")
 
-
+ThisBuild / assemblyShadeRules := Seq(
+  ShadeRule.rename("com.fasterxml.jackson.**" -> "shaded.com.fasterxml.jackson.@1").inAll)
 
 lazy val commonSettings = Seq(
   javacOptions ++= Seq("-source", "11"),
@@ -81,6 +84,7 @@ lazy val flintCore = (project in file("flint-core"))
         exclude ("com.fasterxml.jackson.core", "jackson-databind")
         exclude ("com.fasterxml.jackson.core", "jackson-core")
         exclude ("org.apache.httpcomponents.client5", "httpclient5"),
+      "org.opensearch" % "opensearch-job-scheduler-spi" % opensearchMavenVersion,
       "dev.failsafe" % "failsafe" % "3.3.2",
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
@@ -115,6 +119,7 @@ lazy val flintCommons = (project in file("flint-commons"))
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
       "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
+      "org.projectlombok" % "lombok" % "1.18.30",
     ),
     libraryDependencies ++= deps(sparkVersion),
     publish / skip := true,
