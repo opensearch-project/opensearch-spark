@@ -230,6 +230,8 @@ See the next samples of PPL queries :
 **Fields**
  - `source = table`
  - `source = table | fields a,b,c`
+ - `source = table | fields + a,b,c`
+ - `source = table | fields - b,c`
 
 **Nested-Fields**
  - `source = catalog.schema.table1, catalog.schema.table2 | fields A.nested1, B.nested1`
