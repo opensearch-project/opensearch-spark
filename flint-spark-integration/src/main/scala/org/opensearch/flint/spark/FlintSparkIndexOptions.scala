@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import java.util.UUID
+import java.util.{Collections, UUID}
 
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods._
@@ -13,6 +13,7 @@ import org.json4s.native.Serialization
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, INCREMENTAL_REFRESH, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, SCHEDULER_MODE, WATERMARK_DELAY}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
+import org.opensearch.flint.spark.scheduler.util.IntervalSchedulerParser
 
 import org.apache.spark.sql.flint.config.FlintSparkConf
 
@@ -200,5 +201,61 @@ object FlintSparkIndexOptions {
     val invalidOptions = options.keys.filterNot(allOptions.contains)
 
     require(invalidOptions.isEmpty, s"option name ${invalidOptions.mkString(",")} is invalid")
+  }
+
+  /**
+   * Updates the options with default values.
+   *
+   * @param indexName
+   *   The index name string
+   * @param options
+   *   The original FlintSparkIndexOptions
+   * @return
+   *   Updated FlintSparkIndexOptions
+   */
+  def updateOptionsWithDefaults(
+      indexName: String,
+      options: FlintSparkIndexOptions): FlintSparkIndexOptions = {
+    val flintSparkConf = new FlintSparkConf(Collections.emptyMap[String, String])
+
+    val updatedOptions =
+      new scala.collection.mutable.HashMap[String, String]() ++= options.options
+
+    // Add checkpoint location if not present
+    options.checkpointLocation(indexName, flintSparkConf).foreach { location =>
+      updatedOptions += (CHECKPOINT_LOCATION.toString -> location)
+    }
+
+    // Update scheduler mode and refresh interval only if auto refresh is enabled
+    if (!options.autoRefresh()) {
+      return FlintSparkIndexOptions(updatedOptions.toMap)
+    }
+
+    val externalSchedulerEnabled = flintSparkConf.isExternalSchedulerEnabled
+    val thresholdInterval =
+      IntervalSchedulerParser.parse(flintSparkConf.externalSchedulerIntervalThreshold())
+    val currentInterval = options.refreshInterval().map(IntervalSchedulerParser.parse)
+
+    (
+      externalSchedulerEnabled,
+      currentInterval,
+      updatedOptions.get(SCHEDULER_MODE.toString)) match {
+      case (true, Some(interval), _) if interval.getInterval >= thresholdInterval.getInterval =>
+        updatedOptions += (SCHEDULER_MODE.toString -> SchedulerMode.EXTERNAL.toString)
+      case (true, None, Some("external")) =>
+        updatedOptions += (REFRESH_INTERVAL.toString -> flintSparkConf
+          .externalSchedulerIntervalThreshold())
+      case (true, None, None) =>
+        updatedOptions += (SCHEDULER_MODE.toString -> SchedulerMode.EXTERNAL.toString)
+        updatedOptions += (REFRESH_INTERVAL.toString -> flintSparkConf
+          .externalSchedulerIntervalThreshold())
+      case (false, _, Some("external")) =>
+        throw new IllegalArgumentException(
+          "External scheduler mode spark conf is not enabled but refresh interval is set to external scheduler mode")
+      case _ =>
+        updatedOptions += (SCHEDULER_MODE.toString -> SchedulerMode.INTERNAL.toString)
+    }
+
+    FlintSparkIndexOptions(updatedOptions.toMap)
   }
 }

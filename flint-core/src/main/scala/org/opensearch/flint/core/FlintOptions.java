@@ -107,6 +107,7 @@ public class FlintOptions implements Serializable {
 
   public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE = "bulkRequestRateLimitPerNode";
   public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE = "0";
+  public static final String DEFAULT_EXTERNAL_SCHEDULER_INTERVAL = "5 minutes";
 
   public FlintOptions(Map<String, String> options) {
     this.options = options;

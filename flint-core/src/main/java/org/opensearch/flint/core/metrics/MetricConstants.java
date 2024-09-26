@@ -108,6 +108,21 @@ public final class MetricConstants {
     public static final String STREAMING_SUCCESS_METRIC = "streaming.success.count";
 
     /**
+     * Metric for tracking the count of successful refresh operations.
+     */
+    public static final String REFRESH_SUCCESS_METRIC = "refresh.success.count";
+
+    /**
+     * Metric for tracking the count of failed refresh operations.
+     */
+    public static final String REFRESH_FAILED_METRIC = "refresh.failed.count";
+
+    /**
+     * Metric for tracking the processing time of refresh operations.
+     */
+    public static final String REFRESH_PROCESSING_TIME_METRIC = "refresh.processingTime";
+
+    /**
      * Metric for tracking the count of failed heartbeat signals in streaming jobs.
      */
     public static final String STREAMING_HEARTBEAT_FAILED_METRIC = "streaming.heartbeat.failed.count";

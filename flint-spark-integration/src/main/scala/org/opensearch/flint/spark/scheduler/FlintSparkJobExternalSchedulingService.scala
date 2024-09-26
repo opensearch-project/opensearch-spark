@@ -7,8 +7,10 @@ package org.opensearch.flint.spark.scheduler
 
 import java.time.Instant
 
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
 import org.opensearch.flint.common.scheduler.AsyncQueryScheduler
 import org.opensearch.flint.common.scheduler.model.{AsyncQuerySchedulerRequest, LangType}
+import org.opensearch.flint.core.storage.OpenSearchClientUtils
 import org.opensearch.flint.spark.FlintSparkIndex
 import org.opensearch.flint.spark.scheduler.AsyncQuerySchedulerBuilder.AsyncQuerySchedulerAction
 import org.opensearch.flint.spark.scheduler.util.RefreshQueryGenerator
@@ -34,12 +36,19 @@ class FlintSparkJobExternalSchedulingService(
     extends FlintSparkJobSchedulingService
     with Logging {
 
+  initialStateForUpdate = IndexState.ACTIVE
+  finalStateForUpdate = IndexState.ACTIVE
+
+  initialStateForUnschedule = IndexState.ACTIVE
+  finalStateForUnschedule = IndexState.ACTIVE
+
   override def handleJob(
       index: FlintSparkIndex,
       action: AsyncQuerySchedulerAction): Option[String] = {
     val dataSource = flintSparkConf.flintOptions().getDataSourceName()
     val clientId = flintSparkConf.flintOptions().getAWSAccountId()
-    val indexName = index.name()
+    // This is to make sure jobId is consistent with the index name
+    val indexName = OpenSearchClientUtils.sanitizeIndexName(index.name())
 
     logInfo(s"handleAsyncQueryScheduler invoked: $action")
 
