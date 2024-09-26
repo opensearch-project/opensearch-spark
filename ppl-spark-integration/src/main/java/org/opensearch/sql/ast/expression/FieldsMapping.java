@@ -1,16 +1,17 @@
 package org.opensearch.sql.ast.expression;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.List;
 
+@Getter
+@RequiredArgsConstructor
 public class FieldsMapping extends UnresolvedExpression {
 
     private final List<UnresolvedExpression> fieldsMappingList;
 
-    public <R> FieldsMapping(List<UnresolvedExpression> fieldsMappingList) {
-        this.fieldsMappingList = fieldsMappingList;
-    }
     public List<UnresolvedExpression> getChild() {
         return fieldsMappingList;
     }

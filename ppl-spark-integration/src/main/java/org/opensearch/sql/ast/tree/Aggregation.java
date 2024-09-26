@@ -6,6 +6,10 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
@@ -14,6 +18,10 @@ import java.util.Collections;
 import java.util.List;
 
 /** Logical plan node of Aggregation, the interface for building aggregation actions in queries. */
+@Getter
+@Setter
+@ToString
+@EqualsAndHashCode(callSuper = false)
 public class Aggregation extends UnresolvedPlan {
   private List<UnresolvedExpression> aggExprList;
   private List<UnresolvedExpression> sortExprList;
@@ -42,26 +50,6 @@ public class Aggregation extends UnresolvedPlan {
     this.groupExprList = groupExprList;
     this.span = span;
     this.argExprList = argExprList;
-  }
-
-  public List<UnresolvedExpression> getAggExprList() {
-    return aggExprList;
-  }
-
-  public List<UnresolvedExpression> getSortExprList() {
-    return sortExprList;
-  }
-
-  public List<UnresolvedExpression> getGroupExprList() {
-    return groupExprList;
-  }
-
-  public UnresolvedExpression getSpan() {
-    return span;
-  }
-
-  public List<Argument> getArgExprList() {
-    return argExprList;
   }
 
   public boolean hasArgument() {

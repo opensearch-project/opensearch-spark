@@ -6,6 +6,10 @@
 package org.opensearch.sql.ast.expression;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.List;
@@ -13,24 +17,13 @@ import java.util.List;
 /**
  * Represent the assign operation. e.g. velocity = distance/speed.
  */
-
-
+@Getter
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
 public class Let extends UnresolvedExpression {
-    private Field var;
-    private UnresolvedExpression expression;
-
-    public Let(Field var, UnresolvedExpression expression) {
-        this.var = var;
-        this.expression = expression;
-    }
-
-    public Field getVar() {
-        return var;
-    }
-
-    public UnresolvedExpression getExpression() {
-        return expression;
-    }
+    private final Field var;
+    private final UnresolvedExpression expression;
 
     @Override
     public List<UnresolvedExpression> getChild() {

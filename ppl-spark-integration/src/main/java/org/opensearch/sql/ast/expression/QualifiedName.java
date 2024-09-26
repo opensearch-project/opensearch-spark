@@ -6,19 +6,22 @@
 package org.opensearch.sql.ast.expression;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.StreamSupport;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
+@Getter
+@EqualsAndHashCode(callSuper = false)
 public class QualifiedName extends UnresolvedExpression {
   private final List<String> parts;
 
@@ -33,10 +36,6 @@ public class QualifiedName extends UnresolvedExpression {
       throw new IllegalArgumentException("parts is empty");
     }
     this.parts = partsList;
-  }
-
-  public List<String> getParts() {
-    return parts;
   }
 
   /** Construct {@link QualifiedName} from list of string. */
@@ -107,18 +106,5 @@ public class QualifiedName extends UnresolvedExpression {
   @Override
   public <R, C> R accept(AbstractNodeVisitor<R, C> nodeVisitor, C context) {
     return nodeVisitor.visitQualifiedName(this, context);
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    QualifiedName that = (QualifiedName) o;
-    return Objects.equals(parts, that.parts);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hashCode(parts);
   }
 }

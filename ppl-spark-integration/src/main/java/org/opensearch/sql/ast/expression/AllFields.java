@@ -5,6 +5,8 @@
 
 package org.opensearch.sql.ast.expression;
 
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
 
@@ -12,6 +14,8 @@ import java.util.Collections;
 import java.util.List;
 
 /** Represent the All fields which is been used in SELECT *. */
+@ToString
+@EqualsAndHashCode(callSuper = false)
 public class AllFields extends UnresolvedExpression {
   public static final AllFields INSTANCE = new AllFields();
 

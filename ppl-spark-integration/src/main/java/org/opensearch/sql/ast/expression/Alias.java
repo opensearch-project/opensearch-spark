@@ -5,6 +5,11 @@
 
 package org.opensearch.sql.ast.expression;
 
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 /**
@@ -13,39 +18,21 @@ import org.opensearch.sql.ast.AbstractNodeVisitor;
  * eventually. This can avoid restoring the info in toString() method which is inaccurate because
  * original info is already lost.
  */
+@AllArgsConstructor
+@EqualsAndHashCode(callSuper = false)
+@Getter
+@RequiredArgsConstructor
+@ToString
 public class Alias extends UnresolvedExpression {
 
   /** Original field name. */
-  private String name;
+  private final String name;
 
   /** Expression aliased. */
-  private UnresolvedExpression delegated;
+  private final UnresolvedExpression delegated;
 
   /** Optional field alias. */
   private String alias;
-
-  public Alias(String name, UnresolvedExpression delegated, String alias) {
-    this.name = name;
-    this.delegated = delegated;
-    this.alias = alias;
-  }
-
-  public Alias(String name, UnresolvedExpression delegated) {
-    this.name = name;
-    this.delegated = delegated;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public UnresolvedExpression getDelegated() {
-    return delegated;
-  }
-
-  public String getAlias() {
-    return alias;
-  }
 
   @Override
   public <T, C> T accept(AbstractNodeVisitor<T, C> nodeVisitor, C context) {

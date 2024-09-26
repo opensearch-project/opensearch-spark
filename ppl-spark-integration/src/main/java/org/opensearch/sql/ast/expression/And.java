@@ -5,18 +5,19 @@
 
 package org.opensearch.sql.ast.expression;
 
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
-import java.util.Arrays;
-import java.util.List;
-
 /** Expression node of logic AND. */
+@ToString
+@EqualsAndHashCode(callSuper = true)
 public class And extends BinaryExpression {
 
   public And(UnresolvedExpression left, UnresolvedExpression right) {
-    super(left,right);
+    super(left, right);
   }
-  
+
   @Override
   public <R, C> R accept(AbstractNodeVisitor<R, C> nodeVisitor, C context) {
     return nodeVisitor.visitAnd(this, context);

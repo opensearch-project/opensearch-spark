@@ -5,6 +5,12 @@
 
 package org.opensearch.sql.ast.tree;
 
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.Field;
@@ -14,42 +20,24 @@ import java.util.Collections;
 import java.util.List;
 
 /** AST node represent RareTopN operation. */
-
+@Getter
+@Setter
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
+@AllArgsConstructor
 public class RareTopN extends UnresolvedPlan {
 
   private UnresolvedPlan child;
-  private CommandType commandType;
-  private List<Argument> noOfResults;
-  private List<Field> fields;
-  private List<UnresolvedExpression> groupExprList;
-
-  public RareTopN( CommandType commandType, List<Argument> noOfResults, List<Field> fields, List<UnresolvedExpression> groupExprList) {
-    this.commandType = commandType;
-    this.noOfResults = noOfResults;
-    this.fields = fields;
-    this.groupExprList = groupExprList;
-  }
+  private final CommandType commandType;
+  private final List<Argument> noOfResults;
+  private final List<Field> fields;
+  private final List<UnresolvedExpression> groupExprList;
 
   @Override
   public RareTopN attach(UnresolvedPlan child) {
     this.child = child;
     return this;
-  }
-
-  public CommandType getCommandType() {
-    return commandType;
-  }
-
-  public List<Argument> getNoOfResults() {
-    return noOfResults;
-  }
-
-  public List<Field> getFields() {
-    return fields;
-  }
-
-  public List<UnresolvedExpression> getGroupExprList() {
-    return groupExprList;
   }
 
   @Override

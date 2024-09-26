@@ -5,14 +5,15 @@
 
 package org.opensearch.sql.ast.expression;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
 public enum ParseMethod {
   REGEX("regex"),
   GROK("grok"),
   PATTERNS("patterns");
 
-   private final String name;
-
-    ParseMethod(String name) {
-        this.name = name;
-    }
+  private final String name;
 }
