@@ -246,6 +246,28 @@ See the next samples of PPL queries :
  - `source = table | where isnull(coalesce(a, b)) | fields a,b,c | head 3`
  - `source = table | where isempty(a)`
  - `source = table | where case(length(a) > 6, 'True' else 'False') = 'True'`;
+ - 
+   ```
+    source = table | eval status_category =
+    case(a >= 200 AND a < 300, 'Success',
+    a >= 300 AND a < 400, 'Redirection',
+    a >= 400 AND a < 500, 'Client Error',
+    a >= 500, 'Server Error'
+    else 'Incorrect HTTP status code')
+    | where case(a >= 200 AND a < 300, 'Success',
+    a >= 300 AND a < 400, 'Redirection',
+    a >= 400 AND a < 500, 'Client Error',
+    a >= 500, 'Server Error'
+    else 'Incorrect HTTP status code'
+    ) = 'Incorrect HTTP status code'
+   ```
+-
+   ```
+   source = table
+   | eval factor = case(a > 15, a - 14, isnull(b), a - 7, a < 3, a + 1 else 1)
+   | where case(factor = 2, 'even', factor = 4, 'even', factor = 6, 'even', factor = 8, 'even' else 'odd') = 'even'
+   |  stats count() by factor
+   ```
 
 **Filters With Logical Conditions**
  - `source = table | where c = 'test' AND a = 1 | fields a,b,c`
@@ -266,6 +288,10 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
  - `source = table | eval f = ispresent(a)`
  - `source = table | eval r = coalesce(a, b, c) | fields r`
  - `source = table | eval e = isempty(a) | fields e`
+ - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one', a = 2, 'two', a = 3, 'three', a = 4, 'four', a = 5, 'five', a = 6, 'six', a = 7, 'se7en', a = 8, 'eight', a = 9, 'nine')`
+ - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else 'unknown')`
+ - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else concat(a, ' is an incorrect binary digit'))`
+ - 
    ```
    source = table | eval e = eval status_category =
    case(a >= 200 AND a < 300, 'Success',
@@ -275,6 +301,18 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
    else 'Unknown'
    )
    ```
+-
+  ```
+  source = table |  where ispresent(a) |
+  eval status_category =
+   case(a >= 200 AND a < 300, 'Success',
+    a >= 300 AND a < 400, 'Redirection',
+    a >= 400 AND a < 500, 'Client Error',
+    a >= 500, 'Server Error'
+    else 'Incorrect HTTP status code'
+   )
+   | stats count() by status_category
+  ```
 
 Limitation: Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous" 
  - `source = table | eval a = 10 | fields a,b,c`

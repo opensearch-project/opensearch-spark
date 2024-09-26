@@ -514,7 +514,7 @@ class FlintSparkPPLEvalITSuite
                        |  status_code >= 300 AND status_code < 400, 'Redirection',
                        |  status_code >= 400 AND status_code < 500, 'Client Error',
                        |  status_code >= 500, 'Server Error'
-                       |  else 'Unknown'
+                       |  else concat('Incorrect HTTP status code for request ', request_path)
                        | )
                        | """.stripMargin)
 
@@ -522,7 +522,12 @@ class FlintSparkPPLEvalITSuite
     val expectedResults: Array[Row] =
       Array(
         Row(1, 200, "/home", "2023-10-01 10:00:00", "Success"),
-        Row(2, null, "/about", "2023-10-01 10:05:00", "Unknown"),
+        Row(
+          2,
+          null,
+          "/about",
+          "2023-10-01 10:05:00",
+          "Incorrect HTTP status code for request /about"),
         Row(3, 500, "/contact", "2023-10-01 10:10:00", "Server Error"),
         Row(4, 301, "/home", "2023-10-01 10:15:00", "Redirection"),
         Row(5, 200, "/services", "2023-10-01 10:20:00", "Success"),
@@ -545,12 +550,78 @@ class FlintSparkPPLEvalITSuite
           Literal(true),
           GreaterThanOrEqual(UnresolvedAttribute("status_code"), Literal(500))),
         Literal("Server Error")))
-    val elseValue = Literal("Unknown")
+    val elseValue = UnresolvedFunction(
+      "concat",
+      Seq(
+        Literal("Incorrect HTTP status code for request "),
+        UnresolvedAttribute("request_path")),
+      isDistinct = false)
     val caseFunction = CaseWhen(conditionValueSequence, elseValue)
     val aliasStatusCategory = Alias(caseFunction, "status_category")()
     val evalProjectList = Seq(UnresolvedStar(None), aliasStatusCategory)
     val evalProject = Project(evalProjectList, table)
     val expectedPlan = Project(Seq(UnresolvedStar(None)), evalProject)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("eval case function in complex pipeline") {
+    val frame = sql(s"""
+                       | source = $testTableHttpLog
+                       | | where ispresent(status_code)
+                       | | eval status_category =
+                       | case(status_code >= 200 AND status_code < 300, 'Success',
+                       |  status_code >= 300 AND status_code < 400, 'Redirection',
+                       |  status_code >= 400 AND status_code < 500, 'Client Error',
+                       |  status_code >= 500, 'Server Error'
+                       |  else 'Unknown'
+                       | )
+                       | | stats count() by status_category
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(
+        Row(1L, "Redirection"),
+        Row(1L, "Client Error"),
+        Row(1L, "Server Error"),
+        Row(2L, "Success"))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getString(1))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+    val expectedColumns = Array[String]("count()", "status_category")
+    assert(frame.columns.sameElements(expectedColumns))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_http_log"))
+    val filter = Filter(
+      UnresolvedFunction(
+        "isnotnull",
+        Seq(UnresolvedAttribute("status_code")),
+        isDistinct = false),
+      table)
+    val conditionValueSequence = Seq(
+      (graterOrEqualAndLessThan("status_code", 200, 300), Literal("Success")),
+      (graterOrEqualAndLessThan("status_code", 300, 400), Literal("Redirection")),
+      (graterOrEqualAndLessThan("status_code", 400, 500), Literal("Client Error")),
+      (
+        EqualTo(
+          Literal(true),
+          GreaterThanOrEqual(UnresolvedAttribute("status_code"), Literal(500))),
+        Literal("Server Error")))
+    val elseValue = Literal("Unknown")
+    val caseFunction = CaseWhen(conditionValueSequence, elseValue)
+    val aliasStatusCategory = Alias(caseFunction, "status_category")()
+    val evalProjectList = Seq(UnresolvedStar(None), aliasStatusCategory)
+    val evalProject = Project(evalProjectList, filter)
+    val aggregation = Aggregate(
+      Seq(Alias(UnresolvedAttribute("status_category"), "status_category")()),
+      Seq(
+        Alias(
+          UnresolvedFunction("COUNT", Seq(UnresolvedStar(None)), isDistinct = false),
+          "count()")(),
+        Alias(UnresolvedAttribute("status_category"), "status_category")()),
+      evalProject)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregation)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 

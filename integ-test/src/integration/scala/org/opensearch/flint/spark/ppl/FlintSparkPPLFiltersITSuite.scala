@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, CaseWhen, Descending, Divide, EqualTo, Floor, GreaterThan, LessThanOrEqual, Literal, Multiply, Not, Or, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, CaseWhen, Descending, Divide, EqualTo, Floor, GreaterThan, LessThan, LessThanOrEqual, Literal, Multiply, Not, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -19,11 +19,13 @@ class FlintSparkPPLFiltersITSuite
 
   /** Test table and index name */
   private val testTable = "spark_catalog.default.flint_ppl_test"
+  private val duplicationTable = "spark_catalog.default.flint_ppl_test_duplication_table"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
     // Create test table
     createPartitionedStateCountryTable(testTable)
+    createDuplicationNullableTable(duplicationTable)
   }
 
   protected override def afterEach(): Unit = {
@@ -362,8 +364,8 @@ class FlintSparkPPLFiltersITSuite
 
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
-    val sorted = results.sorted
-    assert(sorted.sameElements(expectedResults.sorted))
+
+    assert(results.sorted.sameElements(expectedResults.sorted))
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
@@ -381,5 +383,74 @@ class FlintSparkPPLFiltersITSuite
     val expectedPlan = Project(projectList, filterPlan)
     // Compare the two plans
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+
+  test("case function used as filter complex filter") {
+    val frame = sql(s"""
+                       |  source = $duplicationTable
+                       |  | eval factor = case(id > 15, id - 14, isnull(name), id - 7, id < 3, id + 1 else 1)
+                       |  | where case(factor = 2, 'even', factor = 4, 'even', factor = 6, 'even', factor = 8, 'even' else 'odd') = 'even'
+                       |  |  stats count() by factor
+                       | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect() // count(), factor
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(Row(1, 4), Row(1, 6), Row(2, 2))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](1))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val table =
+      UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_duplication_table"))
+
+    // case function used in eval command
+    val conditionValueEval = Seq(
+      (
+        EqualTo(Literal(true), GreaterThan(UnresolvedAttribute("id"), Literal(15))),
+        UnresolvedFunction("-", Seq(UnresolvedAttribute("id"), Literal(14)), isDistinct = false)),
+      (
+        EqualTo(
+          Literal(true),
+          UnresolvedFunction("isnull", Seq(UnresolvedAttribute("name")), isDistinct = false)),
+        UnresolvedFunction("-", Seq(UnresolvedAttribute("id"), Literal(7)), isDistinct = false)),
+      (
+        EqualTo(Literal(true), LessThan(UnresolvedAttribute("id"), Literal(3))),
+        UnresolvedFunction("+", Seq(UnresolvedAttribute("id"), Literal(1)), isDistinct = false)))
+    val aliasCaseFactor = Alias(CaseWhen(conditionValueEval, Literal(1)), "factor")()
+    val evalProject = Project(Seq(UnresolvedStar(None), aliasCaseFactor), table)
+
+    // case in where clause
+    val conditionValueWhere = Seq(
+      (
+        EqualTo(Literal(true), EqualTo(UnresolvedAttribute("factor"), Literal(2))),
+        Literal("even")),
+      (
+        EqualTo(Literal(true), EqualTo(UnresolvedAttribute("factor"), Literal(4))),
+        Literal("even")),
+      (
+        EqualTo(Literal(true), EqualTo(UnresolvedAttribute("factor"), Literal(6))),
+        Literal("even")),
+      (
+        EqualTo(Literal(true), EqualTo(UnresolvedAttribute("factor"), Literal(8))),
+        Literal("even")))
+    val caseFunctionWhere = CaseWhen(conditionValueWhere, Literal("odd"))
+    val filterPlan = Filter(EqualTo(caseFunctionWhere, Literal("even")), evalProject)
+
+    val aggregation = Aggregate(
+      Seq(Alias(UnresolvedAttribute("factor"), "factor")()),
+      Seq(
+        Alias(
+          UnresolvedFunction("COUNT", Seq(UnresolvedStar(None)), isDistinct = false),
+          "count()")(),
+        Alias(UnresolvedAttribute("factor"), "factor")()),
+      filterPlan)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregation)
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 }
