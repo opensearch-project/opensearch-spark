@@ -105,10 +105,7 @@ class FlintSparkPPLBasicITSuite
     // Define the expected logical plan
     val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val sort: LogicalPlan =
-      Sort(
-        Seq(SortOrder(UnresolvedAttribute("name"), Ascending)),
-        global = true,
-        relation)
+      Sort(Seq(SortOrder(UnresolvedAttribute("name"), Ascending)), global = true, relation)
     val expectedPlan: LogicalPlan =
       ExplainCommand(
         Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")), sort),
@@ -126,9 +123,7 @@ class FlintSparkPPLBasicITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
     val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
-    val dropColumns = DataFrameDropColumns(
-      Seq(UnresolvedAttribute("name")), relation
-    )
+    val dropColumns = DataFrameDropColumns(Seq(UnresolvedAttribute("name")), relation)
     val expectedPlan: LogicalPlan =
       ExplainCommand(
         Project(Seq(UnresolvedStar(Option.empty)), dropColumns),
