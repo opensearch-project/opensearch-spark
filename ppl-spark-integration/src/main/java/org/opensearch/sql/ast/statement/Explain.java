@@ -25,10 +25,6 @@ public class Explain extends Statement {
     this.explainMode = ExplainMode.valueOf(explainMode);
   }
 
-  public Statement getStatement() {
-    return statement;
-  }
-
   @Override
   public <R, C> R accept(AbstractNodeVisitor<R, C> visitor, C context) {
     return visitor.visitExplain(this, context);
