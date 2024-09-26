@@ -397,6 +397,7 @@ positionFunction
 
 booleanExpression
    : booleanFunctionCall
+   | cidrFunctionCall
    ;
 
  isEmptyExpression
@@ -474,6 +475,10 @@ dataTypeFunctionCall
 // boolean functions
 booleanFunctionCall
    : conditionFunctionBase LT_PRTHS functionArgs RT_PRTHS
+   ;
+
+cidrFunctionCall
+   : CIDR LT_PRTHS ipAddress = functionArg COMMA cidrBlock = functionArg RT_PRTHS
    ;
 
 convertedDataType
