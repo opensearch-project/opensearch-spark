@@ -5,16 +5,19 @@
 
 package org.opensearch.sql.ast.expression;
 
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Expression node of the logic OR. */
-
+@ToString
+@EqualsAndHashCode(callSuper = true)
 public class Or extends BinaryExpression {
   public Or(UnresolvedExpression left, UnresolvedExpression right) {
-    super(left,right);
+    super(left, right);
   }
   @Override
   public <R, C> R accept(AbstractNodeVisitor<R, C> nodeVisitor, C context) {

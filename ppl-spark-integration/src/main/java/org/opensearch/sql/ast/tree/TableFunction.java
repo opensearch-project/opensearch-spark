@@ -6,6 +6,10 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
@@ -15,22 +19,14 @@ import java.util.List;
 /**
  * AST Node for Table Function.
  */
-
-
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
 public class TableFunction extends UnresolvedPlan {
 
-    private UnresolvedExpression functionName;
+    private final UnresolvedExpression functionName;
 
-    private List<UnresolvedExpression> arguments;
-
-    public TableFunction(UnresolvedExpression functionName, List<UnresolvedExpression> arguments) {
-        this.functionName = functionName;
-        this.arguments = arguments;
-    }
-
-    public List<UnresolvedExpression> getArguments() {
-        return arguments;
-    }
+    @Getter private final List<UnresolvedExpression> arguments;
 
     public QualifiedName getFunctionName() {
         return (QualifiedName) functionName;

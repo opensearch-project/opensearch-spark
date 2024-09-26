@@ -1,6 +1,10 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.FieldsMapping;
@@ -10,7 +14,10 @@ import org.opensearch.sql.ast.expression.Scope;
 import java.util.List;
 
 /** Logical plan node of correlation , the interface for building the searching sources. */
-
+@ToString
+@Getter
+@RequiredArgsConstructor
+@EqualsAndHashCode(callSuper = false)
 public class Correlation extends UnresolvedPlan {
     private final CorrelationType correlationType;
     private final List<QualifiedName> fieldsList;
@@ -40,27 +47,9 @@ public class Correlation extends UnresolvedPlan {
         return this;
     }
 
-    public CorrelationType getCorrelationType() {
-        return correlationType;
-    }
-
-    public List<QualifiedName> getFieldsList() {
-        return fieldsList;
-    }
-
-    public Scope getScope() {
-        return scope;
-    }
-
-    public FieldsMapping getMappingListContext() {
-        return mappingListContext;
-    }
-
     public enum CorrelationType {
         self,
         exact,
         approximate
     }
-
-    
 }

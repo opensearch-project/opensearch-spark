@@ -5,10 +5,13 @@
 
 package org.opensearch.sql.ast.expression;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.opensearch.sql.data.type.ExprCoreType;
 
 /** The DataType defintion in AST. Question, could we use {@link ExprCoreType} directly in AST? */
 
+@RequiredArgsConstructor
 public enum DataType {
   TYPE_ERROR(ExprCoreType.UNKNOWN),
   NULL(ExprCoreType.UNDEFINED),
@@ -26,13 +29,5 @@ public enum DataType {
   TIMESTAMP(ExprCoreType.TIMESTAMP),
   INTERVAL(ExprCoreType.INTERVAL);
 
-   private final ExprCoreType coreType;
-
-  DataType(ExprCoreType type) {
-      this.coreType = type;
-  }
-
-  public ExprCoreType getCoreType() {
-    return coreType;
-  }
+  @Getter private final  ExprCoreType coreType;
 }

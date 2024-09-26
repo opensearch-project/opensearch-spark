@@ -5,29 +5,23 @@
 
 package org.opensearch.sql.ast.expression;
 
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Expression node of one-to-one mapping relation. */
-
+@Getter
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
 public class Map extends UnresolvedExpression {
-  private UnresolvedExpression origin;
-  private UnresolvedExpression target;
-
-  public Map(UnresolvedExpression origin, UnresolvedExpression target) {
-    this.origin = origin;
-    this.target = target;
-  }
-
-  public UnresolvedExpression getOrigin() {
-    return origin;
-  }
-
-  public UnresolvedExpression getTarget() {
-    return target;
-  }
+  private final UnresolvedExpression origin;
+  private final UnresolvedExpression target;
 
   @Override
   public List<UnresolvedExpression> getChild() {

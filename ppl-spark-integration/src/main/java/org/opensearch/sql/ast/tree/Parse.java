@@ -6,6 +6,12 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.ParseMethod;
@@ -15,54 +21,27 @@ import java.util.List;
 import java.util.Map;
 
 /** AST node represent Parse with regex operation. */
-
+@Getter
+@Setter
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
+@AllArgsConstructor
 public class Parse extends UnresolvedPlan {
   /** Method used to parse a field. */
-  private  ParseMethod parseMethod;
+  private final ParseMethod parseMethod;
 
   /** Field. */
-  private  UnresolvedExpression sourceField;
+  private final UnresolvedExpression sourceField;
 
   /** Pattern. */
-  private  Literal pattern;
+  private final Literal pattern;
 
   /** Optional arguments. */
-  private  Map<String, Literal> arguments;
+  private final Map<String, Literal> arguments;
 
   /** Child Plan. */
   private UnresolvedPlan child;
-
-  public Parse(ParseMethod parseMethod, UnresolvedExpression sourceField, Literal pattern, Map<String, Literal> arguments, UnresolvedPlan child) {
-    this.parseMethod = parseMethod;
-    this.sourceField = sourceField;
-    this.pattern = pattern;
-    this.arguments = arguments;
-    this.child = child;
-  }
-
-  public Parse(ParseMethod parseMethod, UnresolvedExpression sourceField, Literal pattern, Map<String, Literal> arguments) {
-
-    this.parseMethod = parseMethod;
-    this.sourceField = sourceField;
-    this.pattern = pattern;
-    this.arguments = arguments;
-  }
-
-  public ParseMethod getParseMethod() {
-    return parseMethod;
-  }
-
-  public UnresolvedExpression getSourceField() {
-    return sourceField;
-  }
-
-  public Literal getPattern() {
-    return pattern;
-  }
-
-  public Map<String, Literal> getArguments() {
-    return arguments;
-  }
 
   @Override
   public Parse attach(UnresolvedPlan child) {

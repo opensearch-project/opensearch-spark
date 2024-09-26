@@ -6,32 +6,27 @@
 package org.opensearch.sql.ast.expression;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
 
 import java.util.List;
 
 /** AST node that represents WHEN clause. */
+@EqualsAndHashCode(callSuper = false)
+@Getter
+@RequiredArgsConstructor
+@ToString
 public class When extends UnresolvedExpression {
 
   /** WHEN condition, either a search condition or compare value if case value present. */
-  private UnresolvedExpression condition;
+  private final UnresolvedExpression condition;
 
   /** Result to return if condition matched. */
-  private UnresolvedExpression result;
-
-  public When(UnresolvedExpression condition, UnresolvedExpression result) {
-    this.condition = condition;
-    this.result = result;
-  }
-
-  public UnresolvedExpression getCondition() {
-    return condition;
-  }
-
-  public UnresolvedExpression getResult() {
-    return result;
-  }
+  private final UnresolvedExpression result;
 
   @Override
   public List<? extends Node> getChild() {

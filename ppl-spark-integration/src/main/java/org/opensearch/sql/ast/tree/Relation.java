@@ -6,6 +6,10 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
@@ -15,7 +19,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** Logical plan node of Relation, the interface for building the searching sources. */
-
+@AllArgsConstructor
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
 public class Relation extends UnresolvedPlan {
   private static final String COMMA = ",";
 
@@ -23,10 +30,6 @@ public class Relation extends UnresolvedPlan {
 
   public Relation(UnresolvedExpression tableName) {
     this(tableName, null);
-  }
-
-  public Relation(List<UnresolvedExpression> tableName) {
-    this.tableName = tableName;
   }
 
   public Relation(UnresolvedExpression tableName, String alias) {
@@ -46,7 +49,6 @@ public class Relation extends UnresolvedPlan {
     return tableName.stream().map(Object::toString).collect(Collectors.toList());
   }
 
- 
   /**
    * Return alias.
    *

@@ -151,7 +151,9 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
       "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
       "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
       "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
-      "com.github.sbt" % "junit-interface" % "0.13.3" % "test"),
+      "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
+      "org.projectlombok" % "lombok" % "1.18.30",
+    ),
     libraryDependencies ++= deps(sparkVersion),
     // ANTLR settings
     Antlr4 / antlr4Version := "4.8",

@@ -6,6 +6,10 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Literal;
@@ -15,16 +19,13 @@ import java.util.List;
 /**
  * AST node class for a sequence of literal values.
  */
-
-
+@ToString
+@Getter
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
 public class Values extends UnresolvedPlan {
 
-    private List<List<Literal>> values;
-
-    public <T> Values(List<T> list) {
-        
-    }
-
+    private final List<List<Literal>> values;
 
     @Override
     public UnresolvedPlan attach(UnresolvedPlan child) {

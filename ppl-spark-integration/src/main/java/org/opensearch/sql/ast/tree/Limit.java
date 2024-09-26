@@ -6,19 +6,22 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.List;
 
+@RequiredArgsConstructor
+@Getter
+@ToString
+@EqualsAndHashCode(callSuper = false)
 public class Limit extends UnresolvedPlan {
     private UnresolvedPlan child;
-    private Integer limit;
-    private Integer offset;
-
-    public Limit(Integer limit, Integer offset) {
-        this.limit = limit;
-        this.offset = offset;
-    }
+    private final Integer limit;
+    private final Integer offset;
 
     @Override
     public Limit attach(UnresolvedPlan child) {

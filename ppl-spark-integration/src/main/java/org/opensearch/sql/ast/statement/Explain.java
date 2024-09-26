@@ -8,20 +8,16 @@
 
 package org.opensearch.sql.ast.statement;
 
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 /** Explain Statement. */
+@Data
+@EqualsAndHashCode(callSuper = false)
 public class Explain extends Statement {
 
-  private Statement statement;
-
-  public Explain(Query statement) {
-    this.statement = statement;
-  }
-
-  public Statement getStatement() {
-    return statement;
-  }
+  private final Statement statement;
 
   @Override
   public <R, C> R accept(AbstractNodeVisitor<R, C> visitor, C context) {

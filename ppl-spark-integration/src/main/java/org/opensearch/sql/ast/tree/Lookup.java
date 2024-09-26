@@ -6,6 +6,10 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Alias;
@@ -18,23 +22,22 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /** AST node represent Lookup operation. */
+@ToString
+@Getter
+@RequiredArgsConstructor
+@EqualsAndHashCode(callSuper = false)
 public class Lookup extends UnresolvedPlan {
     private UnresolvedPlan child;
     private final UnresolvedPlan lookupRelation;
     private final Map<Alias, Field> lookupMappingMap;
     private final OutputStrategy outputStrategy;
+    /**
+     * Output candidate field map.
+     *  Format: Key -> Alias(outputFieldName, inputField), Value -> Field(outputField). For example:
+     *  1. When output candidate is "name AS cName", the key will be Alias("cName", Field(name)), the value will be Field(cName)
+     *  2. When output candidate is "dept", the key is Alias("dept", Field(dept)), value is Field(dept)
+     */
     private final Map<Alias, Field> outputCandidateMap;
-
-    public Lookup(
-        UnresolvedPlan lookupRelation,
-        Map<Alias, Field> lookupMappingMap,
-        OutputStrategy outputStrategy,
-        Map<Alias, Field> outputCandidateMap) {
-        this.lookupRelation = lookupRelation;
-        this.lookupMappingMap = lookupMappingMap;
-        this.outputStrategy = outputStrategy;
-        this.outputCandidateMap = outputCandidateMap;
-    }
 
     @Override
     public UnresolvedPlan attach(UnresolvedPlan child) {
@@ -55,10 +58,6 @@ public class Lookup extends UnresolvedPlan {
     public enum OutputStrategy {
         APPEND,
         REPLACE
-    }
-
-    public UnresolvedPlan getLookupRelation() {
-        return lookupRelation;
     }
 
     public String getLookupSubqueryAliasName() {
@@ -85,20 +84,6 @@ public class Lookup extends UnresolvedPlan {
                 Map.Entry::getValue,
                 (k, y) -> y,
                 LinkedHashMap::new));
-    }
-
-    public OutputStrategy getOutputStrategy() {
-        return outputStrategy;
-    }
-
-    /**
-     * Output candidate field map.
-     *  Format: Key -> Alias(outputFieldName, inputField), Value -> Field(outputField). For example:
-     *  1. When output candidate is "name AS cName", the key will be Alias("cName", Field(name)), the value will be Field(cName)
-     *  2. When output candidate is "dept", the key is Alias("dept", Field(dept)), value is Field(dept)
-     */
-    public Map<Alias, Field> getOutputCandidateMap() {
-        return outputCandidateMap;
     }
 
     /** Return a new input field list with source side SubqueryAlias */

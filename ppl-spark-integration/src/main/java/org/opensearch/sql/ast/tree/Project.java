@@ -6,6 +6,10 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
@@ -14,8 +18,11 @@ import java.util.Collections;
 import java.util.List;
 
 /** Logical plan node of Project, the interface for building the list of searching fields. */
+@ToString
+@Getter
+@EqualsAndHashCode(callSuper = false)
 public class Project extends UnresolvedPlan {
-   private List<UnresolvedExpression> projectList;
+  @Setter private List<UnresolvedExpression> projectList;
   private List<Argument> argExprList;
   private UnresolvedPlan child;
 
@@ -27,14 +34,6 @@ public class Project extends UnresolvedPlan {
   public Project(List<UnresolvedExpression> projectList, List<Argument> argExprList) {
     this.projectList = projectList;
     this.argExprList = argExprList;
-  }
-
-  public List<UnresolvedExpression> getProjectList() {
-    return projectList;
-  }
-
-  public List<Argument> getArgExprList() {
-    return argExprList;
   }
 
   public boolean hasArgument() {
