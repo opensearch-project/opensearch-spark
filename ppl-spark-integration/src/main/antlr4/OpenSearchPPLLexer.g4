@@ -368,6 +368,7 @@ LIKE:                               'LIKE';
 ISNULL:                             'ISNULL';
 ISNOTNULL:                          'ISNOTNULL';
 ISPRESENT:                          'ISPRESENT';
+CIDR:                               'CIDR';
 
 // FLOWCONTROL FUNCTIONS
 IFNULL:                             'IFNULL';
