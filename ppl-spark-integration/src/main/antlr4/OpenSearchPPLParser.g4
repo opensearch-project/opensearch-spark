@@ -59,7 +59,15 @@ describeCommand
    ;
 
 explainCommand
-    : EXPLAIN
+    : EXPLAIN explainMode
+    ;
+
+explainMode
+    : FORMATTED
+    | COST
+    | CODEGEN
+    | EXTENDED
+    | SIMPLE
     ;
 
 showDataSourcesCommand

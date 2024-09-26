@@ -281,7 +281,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   test("test fields + field list") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=t | sort - A | fields + A, B | head 5", false),
+      plan(pplParser, "source=t | sort - A | fields + A, B | head 5"),
       context)
 
     val table = UnresolvedRelation(Seq("t"))
@@ -298,7 +298,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   test("test fields - field list") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=t | sort - A | fields - A, B | head 5", false),
+      plan(pplParser, "source=t | sort - A | fields - A, B | head 5"),
       context)
 
     val table = UnresolvedRelation(Seq("t"))

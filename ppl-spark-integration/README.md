@@ -228,8 +228,12 @@ See the next samples of PPL queries :
  - `describe table`  This command is equal to the `DESCRIBE EXTENDED table` SQL command
 
 **Explain**
- - `explain | source = table | where a = 1 | fields a,b,c`
- - `explain | describe table`
+ - `explain simple | source = table | where a = 1 | fields a,b,c`
+ - `explain extended | source = table`
+ - `explain codegen | source = table | dedup a | fields a,b,c`
+ - `explain cost | source = table | sort a | fields a,b,c`
+ - `explain formatted | source = table | fields - a`
+ - `explain simple | describe table`
 
 **Fields**
  - `source = table`

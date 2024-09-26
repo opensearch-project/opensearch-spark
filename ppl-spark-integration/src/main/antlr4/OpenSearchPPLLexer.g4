@@ -35,7 +35,6 @@ NEW_FIELD:                          'NEW_FIELD';
 KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
-EXPLAIN:                            'EXPLAIN';
 
 //Native JOIN KEYWORDS
 JOIN:                               'JOIN';
@@ -56,6 +55,14 @@ EXACT:                              'EXACT';
 APPROXIMATE:                        'APPROXIMATE';
 SCOPE:                              'SCOPE';
 MAPPING:                            'MAPPING';
+
+//EXPLAIN KEYWORDS
+EXPLAIN:                            'EXPLAIN';
+FORMATTED:                          'FORMATTED';
+COST:                               'COST';
+CODEGEN:                            'CODEGEN';
+EXTENDED:                           'EXTENDED';
+SIMPLE:                             'SIMPLE';
 
 // COMMAND ASSIST KEYWORDS
 AS:                                 'AS';

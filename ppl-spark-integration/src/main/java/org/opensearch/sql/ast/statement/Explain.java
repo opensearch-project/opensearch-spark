@@ -18,9 +18,27 @@ import org.opensearch.sql.ast.AbstractNodeVisitor;
 public class Explain extends Statement {
 
   private final Statement statement;
+  private final ExplainMode explainMode;
+
+  public Explain(Query statement, String explainMode) {
+    this.statement = statement;
+    this.explainMode = ExplainMode.valueOf(explainMode);
+  }
+
+  public Statement getStatement() {
+    return statement;
+  }
 
   @Override
   public <R, C> R accept(AbstractNodeVisitor<R, C> visitor, C context) {
     return visitor.visitExplain(this, context);
+  }
+
+  public enum ExplainMode {
+    formatted,
+    cost,
+    codegen,
+    extended,
+    simple
   }
 }
