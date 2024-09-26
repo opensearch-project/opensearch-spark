@@ -19,6 +19,7 @@ import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.AttributeList;
 import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.Case;
+import org.opensearch.sql.ast.expression.Cidr;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
@@ -419,6 +420,12 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         UnresolvedExpression expr = new In(visit(ctx.valueExpression()),
             ctx.valueList().literalValue().stream().map(this::visit).collect(Collectors.toList()));
         return ctx.NOT() != null ? new Not(expr) : expr;
+    }
+
+
+    @Override
+    public UnresolvedExpression visitCidrFunctionCall(OpenSearchPPLParser.CidrFunctionCallContext ctx) {
+        return new Cidr(visit(ctx.ipAddress), visit(ctx.cidrBlock));
     }
 
     private QualifiedName visitIdentifiers(List<? extends ParserRuleContext> ctx) {
