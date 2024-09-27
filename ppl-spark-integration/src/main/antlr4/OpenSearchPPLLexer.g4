@@ -36,6 +36,7 @@ KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
 FILLNULL:                           'FILLNULL';
+TRENDLINE:                          'TRENDLINE';
 
 //Native JOIN KEYWORDS
 JOIN:                               'JOIN';
@@ -85,6 +86,10 @@ AUTO:                               'AUTO';
 STR:                                'STR';
 IP:                                 'IP';
 NUM:                                'NUM';
+
+//TRENDLINE KEYWORDS
+SMA:                                'SMA';
+WMA:                                'WMA';
 
 // ARGUMENT KEYWORDS
 KEEPEMPTY:                          'KEEPEMPTY';
