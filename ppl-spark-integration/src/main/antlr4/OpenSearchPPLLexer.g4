@@ -56,6 +56,14 @@ APPROXIMATE:                        'APPROXIMATE';
 SCOPE:                              'SCOPE';
 MAPPING:                            'MAPPING';
 
+//EXPLAIN KEYWORDS
+EXPLAIN:                            'EXPLAIN';
+FORMATTED:                          'FORMATTED';
+COST:                               'COST';
+CODEGEN:                            'CODEGEN';
+EXTENDED:                           'EXTENDED';
+SIMPLE:                             'SIMPLE';
+
 // COMMAND ASSIST KEYWORDS
 AS:                                 'AS';
 BY:                                 'BY';

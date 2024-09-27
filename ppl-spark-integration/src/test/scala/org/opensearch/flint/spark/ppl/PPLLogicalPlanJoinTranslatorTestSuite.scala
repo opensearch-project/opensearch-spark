@@ -35,9 +35,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-       | source = $testTable1 | JOIN left = l right = r ON l.id = r.id $testTable2
-       | """.stripMargin,
-      isExplain = false)
+         | source = $testTable1| JOIN left = l right = r ON l.id = r.id $testTable2
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -54,9 +53,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | JOIN left = l right = r ON $testTable1.id = $testTable2.id $testTable2
-         | """.stripMargin,
-      isExplain = false)
+         | source = $testTable1| JOIN left = l right = r ON $testTable1.id = $testTable2.id $testTable2
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -74,9 +72,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | JOIN left = l right = r ON id = name $testTable2
-         | """.stripMargin,
-      isExplain = false)
+         | source = $testTable1| JOIN left = l right = r ON id = name $testTable2
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -94,9 +91,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | JOIN left = l right = r ON l.id = r.id AND l.count > 10 AND lower(r.name) = 'hello' $testTable2
-         | """.stripMargin,
-      isExplain = false)
+         | source = $testTable1| JOIN left = l right = r ON l.id = r.id AND l.count > 10 AND lower(r.name) = 'hello' $testTable2
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -122,9 +118,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | INNER JOIN left = l right = r ON $testTable1.id = $testTable2.id AND $testTable1.count > 10 AND lower($testTable2.name) = 'hello' $testTable2
-         | """.stripMargin,
-      isExplain = false)
+         | source = $testTable1| INNER JOIN left = l right = r ON $testTable1.id = $testTable2.id AND $testTable1.count > 10 AND lower($testTable2.name) = 'hello' $testTable2
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -150,9 +145,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | LEFT OUTER JOIN left = l right = r ON l.id = r.id $testTable2
-         | """.stripMargin,
-      isExplain = false)
+         | source = $testTable1| LEFT OUTER JOIN left = l right = r ON l.id = r.id $testTable2
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -169,9 +163,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | RIGHT JOIN left = l right = r ON l.id = r.id $testTable2
-         | """.stripMargin,
-      isExplain = false)
+         | source = $testTable1| RIGHT JOIN left = l right = r ON l.id = r.id $testTable2
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -188,9 +181,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | LEFT SEMI JOIN left = l right = r ON l.id = r.id $testTable2
-         | """.stripMargin,
-      isExplain = false)
+         | source = $testTable1| LEFT SEMI JOIN left = l right = r ON l.id = r.id $testTable2
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -207,9 +199,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | LEFT ANTI JOIN left = l right = r ON l.id = r.id $testTable2
-         | """.stripMargin,
-      isExplain = false)
+         | source = $testTable1| LEFT ANTI JOIN left = l right = r ON l.id = r.id $testTable2
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -226,9 +217,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | FULL JOIN left = l right = r ON l.id = r.id $testTable2
-         | """.stripMargin,
-      isExplain = false)
+         | source = $testTable1| FULL JOIN left = l right = r ON l.id = r.id $testTable2
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -245,9 +235,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | CROSS JOIN left = l right = r $testTable2
-         | """.stripMargin,
-      isExplain = false)
+         | source = $testTable1| CROSS JOIN left = l right = r $testTable2
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -263,9 +252,8 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | CROSS JOIN left = l right = r ON l.id = r.id $testTable2
-         | """.stripMargin,
-      isExplain = false)
+         | source = $testTable1| CROSS JOIN left = l right = r ON l.id = r.id $testTable2
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -286,8 +274,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
          | | inner JOIN left = l,right = r ON l.id = r.id $testTable2
          | | left JOIN left = l,right = r ON l.name = r.name $testTable3
          | | cross JOIN left = l,right = r $testTable4
-         | """.stripMargin,
-      isExplain = false)
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
@@ -319,8 +306,7 @@ class PPLLogicalPlanJoinTranslatorTestSuite
          | | STATS count(o.orderkey) AS o_count BY c.custkey
          | | STATS count(1) AS custdist BY o_count
          | | SORT - custdist, - o_count
-         | """.stripMargin,
-      isExplain = false)
+         | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val tableC = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val tableO = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))

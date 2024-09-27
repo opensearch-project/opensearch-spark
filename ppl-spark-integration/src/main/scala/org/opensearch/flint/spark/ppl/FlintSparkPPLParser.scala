@@ -55,7 +55,7 @@ class FlintSparkPPLParser(sparkParser: ParserInterface) extends ParserInterface 
     try {
       // if successful build ppl logical plan and translate to catalyst logical plan
       val context = new CatalystPlanContext
-      planTransformer.visit(plan(pplParser, sqlText, false), context)
+      planTransformer.visit(plan(pplParser, sqlText), context)
       context.getPlan
     } catch {
       // Fall back to Spark parse plan logic if flint cannot parse

@@ -17,7 +17,7 @@ pplStatement
    ;
 
 dmlStatement
-   : queryStatement
+   : (explainCommand PIPE)? queryStatement
    ;
 
 queryStatement
@@ -57,6 +57,18 @@ searchCommand
 describeCommand
    : DESCRIBE tableSourceClause
    ;
+
+explainCommand
+    : EXPLAIN explainMode
+    ;
+
+explainMode
+    : FORMATTED
+    | COST
+    | CODEGEN
+    | EXTENDED
+    | SIMPLE
+    ;
 
 showDataSourcesCommand
     : SHOW DATASOURCES
@@ -920,6 +932,7 @@ keywordsCanBeId
    | KMEANS
    | AD
    | ML
+   | EXPLAIN
    // commands assist keywords
    | SOURCE
    | INDEX

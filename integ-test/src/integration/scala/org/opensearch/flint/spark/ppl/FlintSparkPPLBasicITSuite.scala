@@ -8,9 +8,10 @@ package org.opensearch.flint.spark.ppl
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, Literal, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, EqualTo, IsNotNull, Literal, Not, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.execution.command.DescribeTableCommand
+import org.apache.spark.sql.execution.ExplainMode
+import org.apache.spark.sql.execution.command.{DescribeTableCommand, ExplainCommand}
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLBasicITSuite
@@ -36,6 +37,100 @@ class FlintSparkPPLBasicITSuite
       job.stop()
       job.awaitTermination()
     }
+  }
+
+  test("explain simple mode test") {
+    val frame = sql(s"""
+                       | explain simple | source = $testTable | where state != 'California' | fields name
+                       | """.stripMargin)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val filter =
+      Filter(Not(EqualTo(UnresolvedAttribute("state"), Literal("California"))), relation)
+    val expectedPlan: LogicalPlan =
+      ExplainCommand(
+        Project(Seq(UnresolvedAttribute("name")), filter),
+        ExplainMode.fromString("simple"))
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("explain extended mode test") {
+    val frame = sql(s"""
+                       | explain extended | source = $testTable
+                       | """.stripMargin)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val expectedPlan: LogicalPlan =
+      ExplainCommand(
+        Project(Seq(UnresolvedStar(None)), relation),
+        ExplainMode.fromString("extended"))
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("explain codegen mode test") {
+    val frame = sql(s"""
+                       | explain codegen | source = $testTable | dedup name | fields name, state
+                       | """.stripMargin)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val nameAttribute = UnresolvedAttribute("name")
+    val dedup =
+      Deduplicate(Seq(nameAttribute), Filter(IsNotNull(nameAttribute), relation))
+    val expectedPlan: LogicalPlan =
+      ExplainCommand(
+        Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("state")), dedup),
+        ExplainMode.fromString("codegen"))
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("explain cost mode test") {
+    val frame = sql(s"""
+                       | explain cost | source = $testTable | sort name | fields name, age
+                       | """.stripMargin)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val sort: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("name"), Ascending)), global = true, relation)
+    val expectedPlan: LogicalPlan =
+      ExplainCommand(
+        Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")), sort),
+        ExplainMode.fromString("cost"))
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("explain formatted mode test") {
+    val frame = sql(s"""
+                       | explain formatted | source = $testTable | fields - name
+                       | """.stripMargin)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val dropColumns = DataFrameDropColumns(Seq(UnresolvedAttribute("name")), relation)
+    val expectedPlan: LogicalPlan =
+      ExplainCommand(
+        Project(Seq(UnresolvedStar(Option.empty)), dropColumns),
+        ExplainMode.fromString("formatted"))
+
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
   test("describe (extended) table query test") {

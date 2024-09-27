@@ -29,15 +29,14 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
   test("test unknown function") {
     val context = new CatalystPlanContext
     intercept[SyntaxCheckException] {
-      planTransformer.visit(plan(pplParser, "source=t a = unknown(b)", false), context)
+      planTransformer.visit(plan(pplParser, "source=t a = unknown(b)"), context)
     }
   }
 
   test("test concat") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(
-      plan(pplParser, "source=t a = CONCAT('hello', 'world')", false),
-      context)
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=t a = CONCAT('hello', 'world')"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -52,7 +51,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
   test("test concat with field") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=t a = CONCAT('hello', b)", false), context)
+      planTransformer.visit(plan(pplParser, "source=t a = CONCAT('hello', b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -69,7 +68,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
 
   test("test length") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = LENGTH(b)", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = LENGTH(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -83,7 +82,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
 
   test("test lower") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = LOWER(b)", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = LOWER(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -97,7 +96,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
 
   test("test upper - case insensitive") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = uPPer(b)", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = uPPer(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -111,7 +110,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
 
   test("test trim") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = trim(b)", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = trim(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -125,7 +124,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
 
   test("test ltrim") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = ltrim(b)", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = ltrim(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -139,7 +138,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
 
   test("test rtrim") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = rtrim(b)", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = rtrim(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -154,7 +153,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
   test("test substring") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=t a = substring(b)", false), context)
+      planTransformer.visit(plan(pplParser, "source=t a = substring(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -169,7 +168,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
   test("test like") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=t a=like(b, 'Hatti_')", false), context)
+      planTransformer.visit(plan(pplParser, "source=t a=like(b, 'Hatti_')"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val likeExpr = new Like(UnresolvedAttribute("a"), Literal("Hatti_"))
@@ -188,7 +187,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
   test("test position") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=t a=position('world' IN 'helloworld')", false),
+      plan(pplParser, "source=t a=position('world' IN 'helloworld')"),
       context)
 
     val table = UnresolvedRelation(Seq("t"))
@@ -206,9 +205,8 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
 
   test("test replace") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(
-      plan(pplParser, "source=t a=replace('hello', 'l', 'x')", false),
-      context)
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=t a=replace('hello', 'l', 'x')"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -226,7 +224,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
   test("test ispresent") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=t a = ispresent(b)", false), context)
+      planTransformer.visit(plan(pplParser, "source=t a = ispresent(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -241,7 +239,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
   test("test coalesce") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=t a = coalesce(b)", false), context)
+      planTransformer.visit(plan(pplParser, "source=t a = coalesce(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -256,7 +254,7 @@ class PPLLogicalPlanStringFunctionsTranslatorTestSuite
   test("test coalesce two args") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=t a = coalesce(b, c)", false), context)
+      planTransformer.visit(plan(pplParser, "source=t a = coalesce(b, c)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
