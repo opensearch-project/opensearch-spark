@@ -37,6 +37,7 @@ KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
 FILLNULL:                           'FILLNULL';
+TRENDLINE:                          'TRENDLINE';
 
 //Native JOIN KEYWORDS
 JOIN:                               'JOIN';
@@ -88,6 +89,10 @@ NUM:                                'NUM';
 FIELDSUMMARY:                       'FIELDSUMMARY';
 INCLUDEFIELDS:                      'INCLUDEFIELDS';
 NULLS:                              'NULLS';
+
+//TRENDLINE KEYWORDS
+SMA:                                'SMA';
+WMA:                                'WMA';
 
 // ARGUMENT KEYWORDS
 KEEPEMPTY:                          'KEEPEMPTY';

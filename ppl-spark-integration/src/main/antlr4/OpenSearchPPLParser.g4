@@ -53,6 +53,7 @@ commands
    | renameCommand
    | fillnullCommand
    | fieldsummaryCommand
+   | trendlineCommand
    ;
 
 commandName
@@ -82,6 +83,7 @@ commandName
    | RENAME
    | FILLNULL
    | FIELDSUMMARY
+   | TRENDLINE
    ;
 
 searchCommand
@@ -89,7 +91,7 @@ searchCommand
    | (SEARCH)? fromClause logicalExpression     # searchFromFilter
    | (SEARCH)? logicalExpression fromClause     # searchFilterFrom
    ;
-   
+
 fieldsummaryCommand
    : FIELDSUMMARY (fieldsummaryParameter)*
    ;
@@ -246,6 +248,19 @@ fillnullCommand
    : expression
    ;
 
+
+trendlineCommand
+   : TRENDLINE trendlineClause (trendlineClause)*
+   ;
+
+trendlineClause
+   : trendlineType LT_PRTHS numberOfDataPoints = integerLiteral COMMA field = fieldExpression RT_PRTHS AS alias = fieldExpression
+   ;
+
+trendlineType
+   : SMA
+   | WMA
+   ;
 
 kmeansCommand
    : KMEANS (kmeansParameter)*

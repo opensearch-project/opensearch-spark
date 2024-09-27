@@ -42,6 +42,7 @@ import org.opensearch.sql.ast.expression.UnresolvedArgument;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.expression.When;
 import org.opensearch.sql.ast.expression.Xor;
+import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
@@ -115,6 +116,15 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitEvalClause(OpenSearchPPLParser.EvalClauseContext ctx) {
         return new Let((Field) visit(ctx.fieldExpression()), visit(ctx.expression()));
+    }
+
+    @Override
+    public UnresolvedExpression visitTrendlineClause(OpenSearchPPLParser.TrendlineClauseContext ctx) {
+        Integer numberOfDataPoints = Integer.parseInt(ctx.numberOfDataPoints.getText());
+        Field dataField = (Field) this.visitFieldExpression(ctx.field);
+        String alias = ctx.alias.getText();
+        String computationType = ctx.trendlineType().getText();
+        return new Trendline.TrendlineComputation(numberOfDataPoints, dataField, alias, computationType);
     }
 
     /**
