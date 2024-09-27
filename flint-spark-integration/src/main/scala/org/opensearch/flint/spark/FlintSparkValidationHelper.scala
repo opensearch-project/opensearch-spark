@@ -8,7 +8,6 @@ package org.opensearch.flint.spark
 import java.io.IOException
 
 import org.apache.hadoop.fs.Path
-
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
@@ -17,7 +16,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.execution.command.DDLUtils
-
 import org.apache.spark.sql.flint.{loadTable, parseTableName, qualifyTableName}
 
 /**

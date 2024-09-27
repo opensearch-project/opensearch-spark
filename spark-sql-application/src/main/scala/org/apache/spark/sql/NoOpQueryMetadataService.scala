@@ -9,8 +9,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.flint.config.FlintSparkConf
 
 /**
- *  Temporary default implementation for QueryMetadataService. This should be replaced with an
- *  implementation which write status to OpenSearch index
+ * Temporary default implementation for QueryMetadataService. This should be replaced with an
+ * implementation which write status to OpenSearch index
  */
 class NoOpQueryMetadataService(flintSparkConf: FlintSparkConf)
     extends QueryMetadataService
