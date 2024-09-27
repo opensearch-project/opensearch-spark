@@ -619,4 +619,27 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            | (6, 403, '/home', '2023-10-01 10:25:00')
            | """.stripMargin)
   }
+
+  protected def createNullableTableHttpLog(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           |(
+           |    id INT,
+           |    status_code INT,
+           |    request_path STRING,
+           |    timestamp STRING
+           |)
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES (1, 200, '/home', null),
+           | (2, null, '/about', '2023-10-01 10:05:00'),
+           | (3, null, '/contact', '2023-10-01 10:10:00'),
+           | (4, 301, null, '2023-10-01 10:15:00'),
+           | (5, 200, null, '2023-10-01 10:20:00'),
+           | (6, 403, '/home', null)
+           | """.stripMargin)
+  }
 }
