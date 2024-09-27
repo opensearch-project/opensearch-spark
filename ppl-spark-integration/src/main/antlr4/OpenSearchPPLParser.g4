@@ -54,6 +54,7 @@ commands
    | fillnullCommand
    | fieldsummaryCommand
    | flattenCommand
+   | trendlineCommand
    ;
 
 commandName
@@ -84,6 +85,7 @@ commandName
    | FILLNULL
    | FIELDSUMMARY
    | FLATTEN
+   | TRENDLINE
    ;
 
 searchCommand
@@ -252,6 +254,18 @@ flattenCommand
     : FLATTEN fieldExpression
     ;
 
+trendlineCommand
+   : TRENDLINE trendlineClause (trendlineClause)*
+   ;
+
+trendlineClause
+   : trendlineType LT_PRTHS numberOfDataPoints = integerLiteral COMMA field = fieldExpression RT_PRTHS AS alias = fieldExpression
+   ;
+
+trendlineType
+   : SMA
+   | WMA
+   ;
 
 kmeansCommand
    : KMEANS (kmeansParameter)*

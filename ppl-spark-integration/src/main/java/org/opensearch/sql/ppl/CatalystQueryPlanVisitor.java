@@ -12,6 +12,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
 import org.apache.spark.sql.catalyst.expressions.CaseWhen;
+import org.apache.spark.sql.catalyst.expressions.CurrentRow$;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Exists$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
@@ -26,9 +27,18 @@ import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.ScalarSubquery$;
 import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
+import org.apache.spark.sql.catalyst.expressions.RowFrame$;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
-import org.apache.spark.sql.catalyst.plans.logical.*;
+import org.apache.spark.sql.catalyst.expressions.SpecifiedWindowFrame;
+import org.apache.spark.sql.catalyst.expressions.WindowExpression;
+import org.apache.spark.sql.catalyst.expressions.WindowSpecDefinition;
+import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
+import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns$;
+import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
+import org.apache.spark.sql.catalyst.plans.logical.Limit;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.Project$;
 import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
@@ -45,6 +55,7 @@ import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.BinaryExpression;
 import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
+import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
@@ -90,6 +101,7 @@ import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.TopAggregation;
+import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
@@ -253,6 +265,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.retainAllPlans(p -> p);
             return outputWithDropped;
         });
+    }
+
+    @Override
+    public LogicalPlan visitTrendline(Trendline node, CatalystPlanContext context) {
+        LogicalPlan child = node.getChild().get(0).accept(this, context);
+        visitExpressionList(node.getComputations(), context);
+        return child;
     }
 
     @Override

@@ -9,6 +9,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.CaseWhen;
+import org.apache.spark.sql.catalyst.expressions.CurrentRow$;
 import org.apache.spark.sql.catalyst.expressions.Exists$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
@@ -19,8 +20,12 @@ import org.apache.spark.sql.catalyst.expressions.ListQuery$;
 import org.apache.spark.sql.catalyst.expressions.MakeInterval$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
+import org.apache.spark.sql.catalyst.expressions.RowFrame$;
 import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.catalyst.expressions.ScalarSubquery$;
+import org.apache.spark.sql.catalyst.expressions.SpecifiedWindowFrame;
+import org.apache.spark.sql.catalyst.expressions.WindowExpression;
+import org.apache.spark.sql.catalyst.expressions.WindowSpecDefinition;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.types.DataTypes;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
@@ -32,6 +37,7 @@ import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.BinaryExpression;
 import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
+import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
@@ -54,7 +60,9 @@ import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.FillNull;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.RareTopN;
+import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
+import org.opensearch.sql.expression.function.BuiltinFunctionName;
 import org.opensearch.sql.expression.function.SerializableUdf;
 import org.opensearch.sql.ppl.utils.AggregatorTransformer;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTransformer;
@@ -421,6 +429,31 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
                 true);
 
         return context.getNamedParseExpressions().push(udf);
+    }
+
+    @Override
+    public Expression visitTrendlineComputation(Trendline.TrendlineComputation node, CatalystPlanContext context) {
+        this.visitAggregateFunction(new AggregateFunction(BuiltinFunctionName.AVG.name(), node.getDataField()), context);
+        Expression avgFunction = context.popNamedParseExpressions().get();
+        this.visitLiteral(new Literal(Math.negateExact(node.getNumberOfDataPoints() - 1), DataType.INTEGER), context);
+        Expression windowLowerBoundary = context.popNamedParseExpressions().get();
+        if (node.getComputationType() == Trendline.TrendlineType.SMA) {
+            WindowExpression sma = new WindowExpression(
+                    avgFunction,
+                    new WindowSpecDefinition(
+                            seq(),
+                            seq(),
+                            new SpecifiedWindowFrame(RowFrame$.MODULE$, windowLowerBoundary, CurrentRow$.MODULE$)));
+            return context.getNamedParseExpressions().push(
+                    org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(sma,
+                            node.getAlias(),
+                            NamedExpression.newExprId(),
+                            seq(new java.util.ArrayList<String>()),
+                            Option.empty(),
+                            seq(new java.util.ArrayList<String>())));
+        } else {
+            throw new IllegalArgumentException("WMA is not supported");
+        }
     }
 
     private List<Expression> visitExpressionList(List<UnresolvedExpression> expressionList, CatalystPlanContext context) {
