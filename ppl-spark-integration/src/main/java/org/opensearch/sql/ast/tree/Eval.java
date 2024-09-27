@@ -6,23 +6,25 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.Let;
 
 import java.util.List;
 
 /** AST node represent Eval operation. */
+@Getter
+@Setter
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
 public class Eval extends UnresolvedPlan {
-  private List<Let> expressionList;
+  private final List<Let> expressionList;
   private UnresolvedPlan child;
-
-  public Eval(List<Let> expressionList) {
-    this.expressionList = expressionList;
-  }
-
-  public List<Let> getExpressionList() {
-    return expressionList;
-  }
 
   @Override
   public Eval attach(UnresolvedPlan child) {

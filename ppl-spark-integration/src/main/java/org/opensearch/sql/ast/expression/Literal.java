@@ -6,6 +6,9 @@
 package org.opensearch.sql.ast.expression;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.List;
@@ -14,16 +17,13 @@ import java.util.List;
  * Expression node of literal type Params include literal value (@value) and literal data type
  * (@type) which can be selected from {@link DataType}.
  */
-
+@Getter
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
 public class Literal extends UnresolvedExpression {
 
-    private Object value;
-    private DataType type;
-
-    public Literal(Object value, DataType dataType) {
-        this.value = value;
-        this.type = dataType;
-    }
+    private final Object value;
+    private final DataType type;
 
     @Override
     public List<UnresolvedExpression> getChild() {
@@ -33,14 +33,6 @@ public class Literal extends UnresolvedExpression {
     @Override
     public <R, C> R accept(AbstractNodeVisitor<R, C> nodeVisitor, C context) {
         return nodeVisitor.visitLiteral(this, context);
-    }
-
-    public Object getValue() {
-        return value;
-    }
-
-    public DataType getType() {
-        return type;
     }
 
     @Override

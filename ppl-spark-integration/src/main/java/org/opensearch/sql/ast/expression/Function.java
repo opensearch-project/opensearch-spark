@@ -5,6 +5,9 @@
 
 package org.opensearch.sql.ast.expression;
 
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.Collections;
@@ -15,15 +18,12 @@ import java.util.stream.Collectors;
  * Expression node of scalar function. Params include function name (@funcName) and function
  * arguments (@funcArgs)
  */
-
+@Getter
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
 public class Function extends UnresolvedExpression {
-  private String funcName;
-  private List<UnresolvedExpression> funcArgs;
-
-  public Function(String funcName, List<UnresolvedExpression> funcArgs) {
-    this.funcName = funcName;
-    this.funcArgs = funcArgs;
-  }
+  private final String funcName;
+  private final List<UnresolvedExpression> funcArgs;
 
   @Override
   public List<UnresolvedExpression> getChild() {
@@ -33,14 +33,6 @@ public class Function extends UnresolvedExpression {
   @Override
   public <R, C> R accept(AbstractNodeVisitor<R, C> nodeVisitor, C context) {
     return nodeVisitor.visitFunction(this, context);
-  }
-
-  public String getFuncName() {
-    return funcName;
-  }
-
-  public List<UnresolvedExpression> getFuncArgs() {
-    return funcArgs;
   }
 
   @Override

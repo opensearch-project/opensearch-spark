@@ -6,10 +6,13 @@
 package org.opensearch.sql.ast.expression;
 
 import com.google.common.collect.ImmutableList;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
-
+@Getter
+@RequiredArgsConstructor
 public enum SpanUnit {
   UNKNOWN("unknown"),
   NONE(""),
@@ -38,10 +41,6 @@ public enum SpanUnit {
   static {
     ImmutableList.Builder<SpanUnit> builder = ImmutableList.builder();
     SPAN_UNITS = builder.add(SpanUnit.values()).build();
-  }
-
-  SpanUnit(String name) {
-    this.name = name;
   }
 
   /** Util method to get span unit given the unit name. */

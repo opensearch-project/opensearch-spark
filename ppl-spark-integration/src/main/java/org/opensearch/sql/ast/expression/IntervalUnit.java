@@ -6,10 +6,13 @@
 package org.opensearch.sql.ast.expression;
 
 import com.google.common.collect.ImmutableList;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
-
+@Getter
+@RequiredArgsConstructor
 public enum IntervalUnit {
   UNKNOWN,
 

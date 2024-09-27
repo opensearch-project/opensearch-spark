@@ -35,9 +35,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
         plan(
           pplParser,
           s"""
-                                             | source = $testTable1, $testTable2| correlate exact fields(name, country) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
-                                             | """.stripMargin,
-          isExplain = false),
+             | source = $testTable1, $testTable2| correlate exact fields(name, country) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
+             | """.stripMargin),
         context)
     }
     assert(
@@ -52,9 +51,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
         plan(
           pplParser,
           s"""
-           | source = $testTable1, $testTable2| correlate exact fields(name, country) mapping($testTable1.name = $testTable2.name)
-           | """.stripMargin,
-          isExplain = false),
+             | source = $testTable1, $testTable2| correlate exact fields(name, country) mapping($testTable1.name = $testTable2.name)
+             | """.stripMargin),
         context)
     }
     assert(
@@ -69,9 +67,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
         plan(
           pplParser,
           s"""
-           | source = $testTable1, $testTable2| correlate self fields(name, country) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
-           | """.stripMargin,
-          isExplain = false),
+             | source = $testTable1, $testTable2| correlate self fields(name, country) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
+             | """.stripMargin),
         context)
     }
     assert(
@@ -86,9 +83,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
         plan(
           pplParser,
           s"""
-           | source = $testTable1| correlate approximate fields(name) scope(month, 1W) mapping($testTable1.name = $testTable1.inner_name)
-           | """.stripMargin,
-          isExplain = false),
+             | source = $testTable1| correlate approximate fields(name) scope(month, 1W) mapping($testTable1.name = $testTable1.inner_name)
+             | """.stripMargin),
         context)
     }
     assert(
@@ -103,8 +99,7 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
         pplParser,
         s"""
            | source = $testTable1, $testTable2| where year = 2023 AND month = 4 | correlate exact fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
-           | """.stripMargin,
-        isExplain = false),
+           | """.stripMargin),
       context)
 
     // Define unresolved relations
@@ -143,9 +138,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
       plan(
         pplParser,
         s"""
-         | source = $testTable1, $testTable2| correlate approximate fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
-         | """.stripMargin,
-        isExplain = false),
+           | source = $testTable1, $testTable2| correlate approximate fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
+           | """.stripMargin),
       context)
 
     // Define unresolved relations
@@ -172,9 +166,8 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
       plan(
         pplParser,
         s"""
-         | source = $testTable1, $testTable2| correlate approximate fields(name) mapping($testTable1.name = $testTable2.name)
-         | """.stripMargin,
-        isExplain = false),
+           | source = $testTable1, $testTable2| correlate approximate fields(name) mapping($testTable1.name = $testTable2.name)
+           | """.stripMargin),
       context)
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
@@ -200,10 +193,9 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
       plan(
         pplParser,
         s"""
-         | source = $testTable1, $testTable2| where year = 2023 AND month = 4 | correlate exact fields(name, country) scope(month, 1W)
-         | mapping($testTable1.name = $testTable2.name, $testTable1.country = $testTable2.country)
-         | """.stripMargin,
-        isExplain = false),
+           | source = $testTable1, $testTable2| where year = 2023 AND month = 4 | correlate exact fields(name, country) scope(month, 1W)
+           | mapping($testTable1.name = $testTable2.name, $testTable1.country = $testTable2.country)
+           | """.stripMargin),
       context)
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
@@ -247,10 +239,9 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
       plan(
         pplParser,
         s"""
-         | source = $testTable1, $testTable2| where year = 2023 AND month = 4 AND $testTable2.salary > 100000 | correlate exact fields(name, country) scope(month, 1W)
-         | mapping($testTable1.name = $testTable2.name, $testTable1.country = $testTable2.country)
-         | """.stripMargin,
-        isExplain = false),
+           | source = $testTable1, $testTable2| where year = 2023 AND month = 4 AND $testTable2.salary > 100000 | correlate exact fields(name, country) scope(month, 1W)
+           | mapping($testTable1.name = $testTable2.name, $testTable1.country = $testTable2.country)
+           | """.stripMargin),
       context)
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
@@ -296,11 +287,10 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
       plan(
         pplParser,
         s"""
-         | source = $testTable1, $testTable2| correlate exact fields(name) scope(month, 1W)
-         | mapping($testTable1.name = $testTable2.name) |
-         | stats avg(salary) by span(age, 10) as age_span
-         | """.stripMargin,
-        isExplain = false),
+           | source = $testTable1, $testTable2| correlate exact fields(name) scope(month, 1W)
+           | mapping($testTable1.name = $testTable2.name) |
+           | stats avg(salary) by span(age, 10) as age_span
+           | """.stripMargin),
       context)
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
@@ -336,11 +326,10 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
       plan(
         pplParser,
         s"""
-         | source = $testTable1, $testTable2| correlate exact fields(name) scope(month, 1W)
-         | mapping($testTable1.name = $testTable2.name) |
-         | stats avg(salary) by span(age, 10) as age_span, $testTable2.country
-         | """.stripMargin,
-        isExplain = false),
+           | source = $testTable1, $testTable2| correlate exact fields(name) scope(month, 1W)
+           | mapping($testTable1.name = $testTable2.name) |
+           | stats avg(salary) by span(age, 10) as age_span, $testTable2.country
+           | """.stripMargin),
       context)
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
@@ -378,11 +367,10 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
       plan(
         pplParser,
         s"""
-         | source = $testTable1, $testTable2| where country = 'USA' OR country = 'England' |
-         | correlate exact fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name) |
-         | stats avg(salary) by span(age, 10) as age_span, $testTable2.country
-         | """.stripMargin,
-        isExplain = false),
+           | source = $testTable1, $testTable2| where country = 'USA' OR country = 'England' |
+           | correlate exact fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name) |
+           | stats avg(salary) by span(age, 10) as age_span, $testTable2.country
+           | """.stripMargin),
       context)
     // Define unresolved relations
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
@@ -431,11 +419,10 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
       plan(
         pplParser,
         s"""
-         | source = $testTable1, $testTable2| where country = 'USA' OR country = 'England' |
-         | correlate exact fields(name) mapping($testTable1.name = $testTable2.name) |
-         | stats avg(salary) by span(age, 10) as age_span, $testTable2.country
-         | """.stripMargin,
-        isExplain = false),
+           | source = $testTable1, $testTable2| where country = 'USA' OR country = 'England' |
+           | correlate exact fields(name) mapping($testTable1.name = $testTable2.name) |
+           | stats avg(salary) by span(age, 10) as age_span, $testTable2.country
+           | """.stripMargin),
       context)
 
     // Define unresolved relations
@@ -485,11 +472,10 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
       plan(
         pplParser,
         s"""
-         | source = $testTable1, $testTable2| correlate approximate fields(name, country) scope(month, 1W)
-         | mapping($testTable1.name = $testTable2.name, $testTable1.country = $testTable2.country) |
-         | stats avg(salary) by span(age, 10) as age_span, $testTable2.country | sort - age_span | head 5
-         | """.stripMargin,
-        isExplain = false),
+           | source = $testTable1, $testTable2| correlate approximate fields(name, country) scope(month, 1W)
+           | mapping($testTable1.name = $testTable2.name, $testTable1.country = $testTable2.country) |
+           | stats avg(salary) by span(age, 10) as age_span, $testTable2.country | sort - age_span | head 5
+           | """.stripMargin),
       context)
 
     // Define unresolved relations

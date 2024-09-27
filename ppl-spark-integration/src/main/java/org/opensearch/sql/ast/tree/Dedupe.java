@@ -6,6 +6,12 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.Field;
@@ -13,33 +19,21 @@ import org.opensearch.sql.ast.expression.Field;
 import java.util.List;
 
 /** AST node represent Dedupe operation. */
+@Getter
+@Setter
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
+@AllArgsConstructor
 public class Dedupe extends UnresolvedPlan {
   private UnresolvedPlan child;
-  private List<Argument> options;
-  private List<Field> fields;
-
-  public Dedupe(UnresolvedPlan child, List<Argument> options, List<Field> fields) {
-    this.child = child;
-    this.options = options;
-    this.fields = fields;
-  }
-  public Dedupe(List<Argument> options, List<Field> fields) {
-    this.options = options;
-    this.fields = fields;
-  }
+  private final List<Argument> options;
+  private final List<Field> fields;
 
   @Override
   public Dedupe attach(UnresolvedPlan child) {
     this.child = child;
     return this;
-  }
-
-  public List<Argument> getOptions() {
-    return options;
-  }
-
-  public List<Field> getFields() {
-    return fields;
   }
 
   @Override

@@ -28,7 +28,7 @@ class PPLLogicalPlanTimeFunctionsTranslatorTestSuite
   test("test from_unixtime") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=t a = from_unixtime(b)", false), context)
+      planTransformer.visit(plan(pplParser, "source=t a = from_unixtime(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -43,7 +43,7 @@ class PPLLogicalPlanTimeFunctionsTranslatorTestSuite
   test("test unix_timestamp") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=t a = unix_timestamp(b)", false), context)
+      planTransformer.visit(plan(pplParser, "source=t a = unix_timestamp(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
@@ -62,22 +62,21 @@ class PPLLogicalPlanTimeFunctionsTranslatorTestSuite
         plan(
           pplParser,
           s"""
-           | source = t
-           | | eval a = DAY_OF_WEEK(DATE('2020-08-26'))
-           | | eval b = DAY_OF_MONTH(DATE('2020-08-26'))
-           | | eval c = DAY_OF_YEAR(DATE('2020-08-26'))
-           | | eval d = WEEK_OF_YEAR(DATE('2020-08-26'))
-           | | eval e = WEEK(DATE('2020-08-26'))
-           | | eval f = MONTH_OF_YEAR(DATE('2020-08-26'))
-           | | eval g = HOUR_OF_DAY(DATE('2020-08-26'))
-           | | eval h = MINUTE_OF_HOUR(DATE('2020-08-26'))
-           | | eval i = SECOND_OF_MINUTE(DATE('2020-08-26'))
-           | | eval j = SUBDATE(DATE('2020-08-26'), 1)
-           | | eval k = ADDDATE(DATE('2020-08-26'), 1)
-           | | eval l = DATEDIFF(TIMESTAMP('2000-01-02 00:00:00'), TIMESTAMP('2000-01-01 23:59:59'))
-           | | eval m = LOCALTIME()
-           | """.stripMargin,
-          false),
+             | source = t
+             | | eval a = DAY_OF_WEEK(DATE('2020-08-26'))
+             | | eval b = DAY_OF_MONTH(DATE('2020-08-26'))
+             | | eval c = DAY_OF_YEAR(DATE('2020-08-26'))
+             | | eval d = WEEK_OF_YEAR(DATE('2020-08-26'))
+             | | eval e = WEEK(DATE('2020-08-26'))
+             | | eval f = MONTH_OF_YEAR(DATE('2020-08-26'))
+             | | eval g = HOUR_OF_DAY(DATE('2020-08-26'))
+             | | eval h = MINUTE_OF_HOUR(DATE('2020-08-26'))
+             | | eval i = SECOND_OF_MINUTE(DATE('2020-08-26'))
+             | | eval j = SUBDATE(DATE('2020-08-26'), 1)
+             | | eval k = ADDDATE(DATE('2020-08-26'), 1)
+             | | eval l = DATEDIFF(TIMESTAMP('2000-01-02 00:00:00'), TIMESTAMP('2000-01-01 23:59:59'))
+             | | eval m = LOCALTIME()
+             | """.stripMargin),
         context)
 
     val table = UnresolvedRelation(Seq("t"))

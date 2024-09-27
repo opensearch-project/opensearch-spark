@@ -5,6 +5,9 @@
 
 package org.opensearch.sql.ast.expression;
 
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.Collections;
@@ -16,6 +19,9 @@ import static java.lang.String.format;
  * Expression node of aggregate functions. Params include aggregate function name (AVG, SUM, MAX
  * etc.) and the field to aggregate.
  */
+@Getter
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
 public class AggregateFunction extends UnresolvedExpression {
   private final String funcName;
   private final UnresolvedExpression field;
@@ -51,35 +57,9 @@ public class AggregateFunction extends UnresolvedExpression {
     this.distinct = distinct;
   }
 
-  public AggregateFunction(String funcName, UnresolvedExpression field, List<UnresolvedExpression> argList) {
-    this.funcName = funcName;
-    this.field = field;
-    this.argList = argList;
-  }
-
   @Override
   public List<UnresolvedExpression> getChild() {
     return Collections.singletonList(field);
-  }
-
-  public String getFuncName() {
-    return funcName;
-  }
-
-  public UnresolvedExpression getField() {
-    return field;
-  }
-
-  public List<UnresolvedExpression> getArgList() {
-    return argList;
-  }
-
-  public UnresolvedExpression getCondition() {
-    return condition;
-  }
-
-  public Boolean getDistinct() {
-    return distinct;
   }
 
   @Override

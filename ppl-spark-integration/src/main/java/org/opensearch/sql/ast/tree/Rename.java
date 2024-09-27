@@ -6,11 +6,19 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.Map;
 
 import java.util.List;
 
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@Getter
+@RequiredArgsConstructor
 public class Rename extends UnresolvedPlan {
   private final List<Map> renameList;
   private UnresolvedPlan child;
@@ -18,14 +26,6 @@ public class Rename extends UnresolvedPlan {
   public Rename(List<Map> renameList, UnresolvedPlan child) {
     this.renameList = renameList;
     this.child = child;
-  }
-
-  public Rename(List<Map> renameList) {
-    this.renameList = renameList;
-  }
-
-  public List<Map> getRenameList() {
-    return renameList;
   }
 
   @Override

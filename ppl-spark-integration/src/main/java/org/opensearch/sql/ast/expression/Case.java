@@ -6,12 +6,20 @@
 package org.opensearch.sql.ast.expression;
 
 import com.google.common.collect.ImmutableList;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
 
 import java.util.List;
 
 /** AST node that represents CASE clause similar as Switch statement in programming language. */
+@AllArgsConstructor
+@EqualsAndHashCode(callSuper = false)
+@Getter
+@ToString
 public class Case extends UnresolvedExpression {
 
   /** Value to be compared by WHEN statements. Null in the case of CASE WHEN conditions. */
@@ -25,12 +33,6 @@ public class Case extends UnresolvedExpression {
 
   /** Expression that represents ELSE statement result. */
   private UnresolvedExpression elseClause;
-
-  public Case(UnresolvedExpression caseValue, List<When> whenClauses, UnresolvedExpression elseClause) {
-    this.caseValue =caseValue;
-    this.whenClauses = whenClauses;
-    this.elseClause = elseClause;
-  }
 
   @Override
   public List<? extends Node> getChild() {

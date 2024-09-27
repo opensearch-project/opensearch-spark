@@ -6,33 +6,23 @@
 package org.opensearch.sql.ast.expression;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.List;
 
 /** Span expression node. Params include field expression and the span value. */
+@Getter
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
+@ToString
 public class Span extends UnresolvedExpression {
-  private UnresolvedExpression field;
-  private UnresolvedExpression value;
-  private SpanUnit unit;
-
-  public Span(UnresolvedExpression field, UnresolvedExpression value, SpanUnit unit) {
-    this.field = field;
-    this.value = value;
-    this.unit = unit;
-  }
-
-  public UnresolvedExpression getField() {
-    return field;
-  }
-
-  public UnresolvedExpression getValue() {
-    return value;
-  }
-
-  public SpanUnit getUnit() {
-    return unit;
-  }
+  private final UnresolvedExpression field;
+  private final UnresolvedExpression value;
+  private final SpanUnit unit;
 
   @Override
   public List<UnresolvedExpression> getChild() {

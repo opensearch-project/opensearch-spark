@@ -5,21 +5,23 @@
 
 package org.opensearch.sql.ast.expression;
 
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Argument. */
-
+@Getter
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
 public class UnresolvedArgument extends UnresolvedExpression {
   private final String argName;
   private final UnresolvedExpression value;
-
-  public UnresolvedArgument(String argName, UnresolvedExpression value) {
-    this.argName = argName;
-    this.value = value;
-  }
 
   @Override
   public List<UnresolvedExpression> getChild() {

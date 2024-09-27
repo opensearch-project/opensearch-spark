@@ -6,41 +6,33 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.List;
 
 /** AST node represent Head operation. */
-
+@Getter
+@Setter
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
+@AllArgsConstructor
 public class Head extends UnresolvedPlan {
 
   private UnresolvedPlan child;
-  private Integer size;
-  private Integer from;
-
-  public Head(UnresolvedPlan child, Integer size, Integer from) {
-    this.child = child;
-    this.size = size;
-    this.from = from;
-  }
-
-  public Head(Integer size, Integer from) {
-    this.size = size;
-    this.from = from;
-  }
+  private final Integer size;
+  private final Integer from;
 
   @Override
   public Head attach(UnresolvedPlan child) {
     this.child = child;
     return this;
-  }
-
-  public Integer getSize() {
-    return size;
-  }
-
-  public Integer getFrom() {
-    return from;
   }
 
   @Override

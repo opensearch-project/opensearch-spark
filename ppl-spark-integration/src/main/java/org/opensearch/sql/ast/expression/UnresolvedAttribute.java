@@ -6,6 +6,10 @@
 package org.opensearch.sql.ast.expression;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.List;
@@ -14,13 +18,11 @@ import java.util.List;
  * Expression node, representing the syntax that is not resolved to any other expression nodes yet
  * but non-negligible This expression is often created as the index name, field name etc.
  */
-
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
+@Getter
 public class UnresolvedAttribute extends UnresolvedExpression {
-  private String attr;
-
-  public UnresolvedAttribute(String attr) {
-    this.attr = attr;
-  }
 
   @Override
   public List<UnresolvedExpression> getChild() {

@@ -6,6 +6,12 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.Field;
 
@@ -19,19 +25,14 @@ import static org.opensearch.sql.ast.tree.Sort.SortOrder.DESC;
 /**
  * AST node for Sort {@link Sort#sortList} represent a list of sort expression and sort options.
  */
-
-
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@Getter
+@RequiredArgsConstructor
+@AllArgsConstructor
 public class Sort extends UnresolvedPlan {
     private UnresolvedPlan child;
-    private List<Field> sortList;
-
-    public Sort(List<Field> sortList) {
-        this.sortList = sortList;
-    }
-    public Sort(UnresolvedPlan child, List<Field> sortList) {
-        this.child = child;
-        this.sortList = sortList;
-    }
+    private final List<Field> sortList;
 
     @Override
     public Sort attach(UnresolvedPlan child) {
@@ -49,14 +50,10 @@ public class Sort extends UnresolvedPlan {
         return nodeVisitor.visitSort(this, context);
     }
 
-    public List<Field> getSortList() {
-        return sortList;
-    }
-
     /**
      * Sort Options.
      */
-
+    @Data
     public static class SortOption {
 
         /**
@@ -69,13 +66,8 @@ public class Sort extends UnresolvedPlan {
          */
         public static SortOption DEFAULT_DESC = new SortOption(DESC, NULL_LAST);
 
-        private SortOrder sortOrder;
-        private NullOrder nullOrder;
-
-        public SortOption(SortOrder sortOrder, NullOrder nullOrder) {
-            this.sortOrder = sortOrder;
-            this.nullOrder = nullOrder;
-        }
+        private final SortOrder sortOrder;
+        private final NullOrder nullOrder;
     }
 
     public enum SortOrder {

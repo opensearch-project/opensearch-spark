@@ -50,6 +50,18 @@ KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
 
+//Native JOIN KEYWORDS
+JOIN:                               'JOIN';
+ON:                                 'ON';
+INNER:                              'INNER';
+OUTER:                              'OUTER';
+FULL:                               'FULL';
+SEMI:                               'SEMI';
+ANTI:                               'ANTI';
+CROSS:                              'CROSS';
+LEFT_HINT:                          'HINT.LEFT';
+RIGHT_HINT:                         'HINT.RIGHT';
+
 //CORRELATION KEYWORDS
 CORRELATE:                          'CORRELATE';
 SELF:                               'SELF';
@@ -57,6 +69,14 @@ EXACT:                              'EXACT';
 APPROXIMATE:                        'APPROXIMATE';
 SCOPE:                              'SCOPE';
 MAPPING:                            'MAPPING';
+
+//EXPLAIN KEYWORDS
+EXPLAIN:                            'EXPLAIN';
+FORMATTED:                          'FORMATTED';
+COST:                               'COST';
+CODEGEN:                            'CODEGEN';
+EXTENDED:                           'EXTENDED';
+SIMPLE:                             'SIMPLE';
 
 // COMMAND ASSIST KEYWORDS
 AS:                                 'AS';
@@ -100,9 +120,11 @@ TIME_FIELD:                         'TIME_FIELD';
 TIME_ZONE:                          'TIME_ZONE';
 TRAINING_DATA_SIZE:                 'TRAINING_DATA_SIZE';
 ANOMALY_SCORE_THRESHOLD:            'ANOMALY_SCORE_THRESHOLD';
+APPEND:                             'APPEND';
 
 // COMPARISON FUNCTION KEYWORDS
 CASE:                               'CASE';
+ELSE:                               'ELSE';
 IN:                                 'IN';
 
 // LOGICAL KEYWORDS
@@ -343,6 +365,7 @@ LOCATE:                             'LOCATE';
 REPLACE:                            'REPLACE';
 REVERSE:                            'REVERSE';
 CAST:                               'CAST';
+ISEMPTY:                            'ISEMPTY';
 
 // BOOL FUNCTIONS
 LIKE:                               'LIKE';

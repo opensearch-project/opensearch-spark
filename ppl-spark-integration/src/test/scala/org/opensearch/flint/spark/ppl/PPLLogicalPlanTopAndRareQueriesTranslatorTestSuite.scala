@@ -14,7 +14,7 @@ import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, _}
+import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.command.DescribeTableCommand
 
 class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
@@ -30,9 +30,7 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=accounts | rare address", isExplain = false),
-        context)
+      planTransformer.visit(plan(pplParser, "source=accounts | rare address"), context)
     val addressField = UnresolvedAttribute("address")
     val tableRelation = UnresolvedRelation(Seq("accounts"))
 
@@ -65,9 +63,7 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logicalPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=accounts | rare address by age", isExplain = false),
-        context)
+      planTransformer.visit(plan(pplParser, "source=accounts | rare address by age"), context)
     // Retrieve the logical plan
     // Define the expected logical plan
     val addressField = UnresolvedAttribute("address")
@@ -106,9 +102,7 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=accounts | top address", isExplain = false),
-        context)
+      planTransformer.visit(plan(pplParser, "source=accounts | top address"), context)
     val addressField = UnresolvedAttribute("address")
     val tableRelation = UnresolvedRelation(Seq("accounts"))
 
@@ -141,9 +135,7 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=accounts | top 1 address by age", false),
-        context)
+      planTransformer.visit(plan(pplParser, "source=accounts | top 1 address by age"), context)
 
     val addressField = UnresolvedAttribute("address")
     val ageField = UnresolvedAttribute("age")
@@ -181,7 +173,7 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=accounts | top 3 country by occupation", false),
+        plan(pplParser, "source=accounts | top 3 country by occupation"),
         context)
 
     val countryField = UnresolvedAttribute("country")

@@ -8,23 +8,33 @@
 
 package org.opensearch.sql.ast.statement;
 
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 /** Explain Statement. */
+@Data
+@EqualsAndHashCode(callSuper = false)
 public class Explain extends Statement {
 
-  private Statement statement;
+  private final Statement statement;
+  private final ExplainMode explainMode;
 
-  public Explain(Query statement) {
+  public Explain(Query statement, String explainMode) {
     this.statement = statement;
-  }
-
-  public Statement getStatement() {
-    return statement;
+    this.explainMode = ExplainMode.valueOf(explainMode);
   }
 
   @Override
   public <R, C> R accept(AbstractNodeVisitor<R, C> visitor, C context) {
     return visitor.visitExplain(this, context);
+  }
+
+  public enum ExplainMode {
+    formatted,
+    cost,
+    codegen,
+    extended,
+    simple
   }
 }

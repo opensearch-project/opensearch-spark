@@ -7,10 +7,11 @@ package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar, UnresolvedTableOrView}
-import org.apache.spark.sql.catalyst.expressions.{Ascending, Literal, SortOrder}
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, EqualTo, IsNotNull, Literal, Not, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.execution.command.DescribeTableCommand
+import org.apache.spark.sql.execution.ExplainMode
+import org.apache.spark.sql.execution.command.{DescribeTableCommand, ExplainCommand}
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLBasicITSuite
@@ -36,6 +37,100 @@ class FlintSparkPPLBasicITSuite
       job.stop()
       job.awaitTermination()
     }
+  }
+
+  test("explain simple mode test") {
+    val frame = sql(s"""
+                       | explain simple | source = $testTable | where state != 'California' | fields name
+                       | """.stripMargin)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val filter =
+      Filter(Not(EqualTo(UnresolvedAttribute("state"), Literal("California"))), relation)
+    val expectedPlan: LogicalPlan =
+      ExplainCommand(
+        Project(Seq(UnresolvedAttribute("name")), filter),
+        ExplainMode.fromString("simple"))
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("explain extended mode test") {
+    val frame = sql(s"""
+                       | explain extended | source = $testTable
+                       | """.stripMargin)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val expectedPlan: LogicalPlan =
+      ExplainCommand(
+        Project(Seq(UnresolvedStar(None)), relation),
+        ExplainMode.fromString("extended"))
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("explain codegen mode test") {
+    val frame = sql(s"""
+                       | explain codegen | source = $testTable | dedup name | fields name, state
+                       | """.stripMargin)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val nameAttribute = UnresolvedAttribute("name")
+    val dedup =
+      Deduplicate(Seq(nameAttribute), Filter(IsNotNull(nameAttribute), relation))
+    val expectedPlan: LogicalPlan =
+      ExplainCommand(
+        Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("state")), dedup),
+        ExplainMode.fromString("codegen"))
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("explain cost mode test") {
+    val frame = sql(s"""
+                       | explain cost | source = $testTable | sort name | fields name, age
+                       | """.stripMargin)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val sort: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("name"), Ascending)), global = true, relation)
+    val expectedPlan: LogicalPlan =
+      ExplainCommand(
+        Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")), sort),
+        ExplainMode.fromString("cost"))
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("explain formatted mode test") {
+    val frame = sql(s"""
+                       | explain formatted | source = $testTable | fields - name
+                       | """.stripMargin)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val dropColumns = DataFrameDropColumns(Seq(UnresolvedAttribute("name")), relation)
+    val expectedPlan: LogicalPlan =
+      ExplainCommand(
+        Project(Seq(UnresolvedStar(Option.empty)), dropColumns),
+        ExplainMode.fromString("formatted"))
+
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
   test("describe (extended) table query test") {
@@ -294,5 +389,131 @@ class FlintSparkPPLBasicITSuite
         // Compare the two plans
         assert(compareByString(expectedPlan) === compareByString(logicalPlan))
     }
+  }
+
+  test("fields plus command") {
+    Seq(("name, age", "age"), ("`name`, `age`", "`age`")).foreach {
+      case (selectFields, sortField) =>
+        val frame = sql(s"""
+             | source = $testTable| fields + $selectFields | head 1 | sort $sortField
+             | """.stripMargin)
+        frame.show()
+        val results: Array[Row] = frame.collect()
+        assert(results.length == 1)
+
+        val logicalPlan: LogicalPlan = frame.queryExecution.logical
+        val project = Project(
+          Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
+          UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
+        // Define the expected logical plan
+        val limitPlan: LogicalPlan = Limit(Literal(1), project)
+        val sortedPlan: LogicalPlan =
+          Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, limitPlan)
+
+        val expectedPlan = Project(Seq(UnresolvedStar(None)), sortedPlan)
+        // Compare the two plans
+        comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+    }
+  }
+
+  test("fields minus command") {
+    Seq(("state, country", "age"), ("`state`, `country`", "`age`")).foreach {
+      case (selectFields, sortField) =>
+        val frame = sql(s"""
+             | source = $testTable| fields - $selectFields | sort - $sortField | head 1
+             | """.stripMargin)
+
+        val results: Array[Row] = frame.collect()
+        assert(results.length == 1)
+        val expectedResults: Array[Row] = Array(Row("Jake", 70, 2023, 4))
+        assert(results.sameElements(expectedResults))
+
+        val logicalPlan: LogicalPlan = frame.queryExecution.logical
+        val drop = DataFrameDropColumns(
+          Seq(UnresolvedAttribute("state"), UnresolvedAttribute("country")),
+          UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))
+        val sortedPlan: LogicalPlan =
+          Sort(Seq(SortOrder(UnresolvedAttribute("age"), Descending)), global = true, drop)
+        val limitPlan: LogicalPlan = Limit(Literal(1), sortedPlan)
+
+        val expectedPlan = Project(Seq(UnresolvedStar(None)), limitPlan)
+        // Compare the two plans
+        comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+    }
+  }
+
+  test("fields minus new field added by eval") {
+    val frame = sql(s"""
+         | source = $testTable| eval national = country, newAge = age
+         | | fields - state, national, newAge | sort - age | head 1
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 1)
+    val expectedResults: Array[Row] = Array(Row("Jake", 70, "USA", 2023, 4))
+    assert(results.sameElements(expectedResults))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val evalProject = Project(
+      Seq(
+        UnresolvedStar(None),
+        Alias(UnresolvedAttribute("country"), "national")(),
+        Alias(UnresolvedAttribute("age"), "newAge")()),
+      table)
+    val drop = DataFrameDropColumns(
+      Seq(
+        UnresolvedAttribute("state"),
+        UnresolvedAttribute("national"),
+        UnresolvedAttribute("newAge")),
+      evalProject)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Descending)), global = true, drop)
+    val limitPlan: LogicalPlan = Limit(Literal(1), sortedPlan)
+
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), limitPlan)
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  // TODO this test should work when the bug https://issues.apache.org/jira/browse/SPARK-49782 fixed.
+  ignore("fields minus new function expression added by eval") {
+    val frame = sql(s"""
+         | source = $testTable| eval national = lower(country), newAge = age + 1
+         | | fields - state, national, newAge | sort - age | head 1
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 1)
+    val expectedResults: Array[Row] = Array(Row("Jake", 70, "USA", 2023, 4))
+    assert(results.sameElements(expectedResults))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val lowerFunction =
+      UnresolvedFunction("lower", Seq(UnresolvedAttribute("country")), isDistinct = false)
+    val addFunction =
+      UnresolvedFunction("+", Seq(UnresolvedAttribute("age"), Literal(1)), isDistinct = false)
+    val evalProject = Project(
+      Seq(
+        UnresolvedStar(None),
+        Alias(lowerFunction, "national")(),
+        Alias(addFunction, "newAge")()),
+      table)
+    val drop = DataFrameDropColumns(
+      Seq(
+        UnresolvedAttribute("state"),
+        UnresolvedAttribute("national"),
+        UnresolvedAttribute("newAge")),
+      evalProject)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Descending)), global = true, drop)
+    val limitPlan: LogicalPlan = Limit(Literal(1), sortedPlan)
+
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), limitPlan)
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 }

@@ -16,24 +16,26 @@ import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Argument;
+import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.DataType;
+import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.IntervalUnit;
+import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
-import org.opensearch.sql.ast.expression.ParseMethod;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.SpanUnit;
 import org.opensearch.sql.ast.expression.UnresolvedArgument;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
+import org.opensearch.sql.ast.expression.When;
 import org.opensearch.sql.ast.expression.Xor;
-import org.opensearch.sql.ast.tree.Parse;
 import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
@@ -42,11 +44,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NOT_NULL;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NULL;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.LENGTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.POSITION;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.TRIM;
 
 
 /**
@@ -74,6 +80,20 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitMappingList(OpenSearchPPLParser.MappingListContext ctx) {
         return super.visitMappingList(ctx);
+    }
+
+    /**
+     * Lookup.
+     */
+    @Override
+    public UnresolvedExpression visitLookupPair(OpenSearchPPLParser.LookupPairContext ctx) {
+        Field inputField = (Field) visitFieldExpression(ctx.inputField);
+        if (ctx.AS() != null) {
+            Field outputField = (Field) visitFieldExpression(ctx.outputField);
+            return new And(new Alias(ctx.outputField.getText(), inputField), outputField);
+        } else {
+            return new And(new Alias(ctx.inputField.getText(), inputField), inputField);
+        }
     }
 
     /**
@@ -194,6 +214,38 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                 ctx.functionArgs().functionArg());
     }
 
+    @Override
+    public UnresolvedExpression visitCaseExpr(OpenSearchPPLParser.CaseExprContext ctx) {
+        List<When> whens = IntStream.range(0, ctx.caseFunction().logicalExpression().size())
+                .mapToObj(index -> {
+                    OpenSearchPPLParser.LogicalExpressionContext logicalExpressionContext = ctx.caseFunction().logicalExpression(index);
+                    OpenSearchPPLParser.ValueExpressionContext valueExpressionContext = ctx.caseFunction().valueExpression(index);
+                    UnresolvedExpression condition = visit(logicalExpressionContext);
+                    UnresolvedExpression result = visit(valueExpressionContext);
+                    return new When(condition, result);
+                })
+                .collect(Collectors.toList());
+        UnresolvedExpression elseValue = new Literal(null, DataType.NULL);
+        if(ctx.caseFunction().valueExpression().size() > ctx.caseFunction().logicalExpression().size()) {
+            // else value is present
+            elseValue = visit(ctx.caseFunction().valueExpression(ctx.caseFunction().valueExpression().size() - 1));
+        }
+        return new Case(new Literal(true, DataType.BOOLEAN), whens, elseValue);
+    }
+
+    @Override
+    public UnresolvedExpression visitIsEmptyExpression(OpenSearchPPLParser.IsEmptyExpressionContext ctx) {
+        Function trimFunction = new Function(TRIM.getName().getFunctionName(), Collections.singletonList(this.visitFunctionArg(ctx.functionArg())));
+        Function lengthFunction = new Function(LENGTH.getName().getFunctionName(), Collections.singletonList(trimFunction));
+        Compare lengthEqualsZero = new Compare(EQUAL.getName().getFunctionName(), lengthFunction, new Literal(0, DataType.INTEGER));
+        Literal whenCompareValue = new Literal(0, DataType.INTEGER);
+        Literal isEmptyFalse = new Literal(false, DataType.BOOLEAN);
+        Literal isEmptyTrue = new Literal(true, DataType.BOOLEAN);
+        When when = new When(whenCompareValue, isEmptyTrue);
+        Case caseWhen = new Case(lengthFunction, Collections.singletonList(when), isEmptyFalse);
+        return new IsEmpty(caseWhen);
+    }
+
     /**
      * Eval function.
      */
@@ -306,6 +358,16 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     public UnresolvedExpression visitSpanClause(OpenSearchPPLParser.SpanClauseContext ctx) {
         String unit = ctx.unit != null ? ctx.unit.getText() : "";
         return new Span(visit(ctx.fieldExpression()), visit(ctx.value), SpanUnit.of(unit));
+    }
+
+    @Override
+    public UnresolvedExpression visitLeftHint(OpenSearchPPLParser.LeftHintContext ctx) {
+        return new EqualTo(new Literal(ctx.leftHintKey.getText(), DataType.STRING), visit(ctx.leftHintValue));
+    }
+
+    @Override
+    public UnresolvedExpression visitRightHint(OpenSearchPPLParser.RightHintContext ctx) {
+        return new EqualTo(new Literal(ctx.rightHintKey.getText(), DataType.STRING), visit(ctx.rightHintValue));
     }
 
     private QualifiedName visitIdentifiers(List<? extends ParserRuleContext> ctx) {

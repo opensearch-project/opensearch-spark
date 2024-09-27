@@ -28,7 +28,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
   test("test dedup a") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=table | dedup a | fields a", false), context)
+      planTransformer.visit(plan(pplParser, "source=table | dedup a | fields a"), context)
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("a"))
     val filter = Filter(IsNotNull(UnresolvedAttribute("a")), UnresolvedRelation(Seq("table")))
@@ -40,7 +40,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
   test("test dedup a, b, c") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=table | dedup a, b, c | fields a, b, c", false),
+      plan(pplParser, "source=table | dedup a, b, c | fields a, b, c"),
       context)
 
     val projectList: Seq[NamedExpression] =
@@ -60,7 +60,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
   test("test dedup a keepempty=true") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=table | dedup a keepempty=true | fields a", false),
+      plan(pplParser, "source=table | dedup a keepempty=true | fields a"),
       context)
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("a"))
@@ -76,7 +76,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
   test("test dedup a, b, c keepempty=true") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=table | dedup a, b, c keepempty=true | fields a, b, c", false),
+      plan(pplParser, "source=table | dedup a, b, c keepempty=true | fields a, b, c"),
       context)
 
     val projectList: Seq[NamedExpression] =
@@ -103,7 +103,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
     val context = new CatalystPlanContext
     val ex = intercept[UnsupportedOperationException] {
       planTransformer.visit(
-        plan(pplParser, "source=table | dedup a consecutive=true | fields a", false),
+        plan(pplParser, "source=table | dedup a consecutive=true | fields a"),
         context)
     }
     assert(ex.getMessage === "Consecutive deduplication is not supported")
@@ -113,10 +113,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
     val context = new CatalystPlanContext
     val ex = intercept[UnsupportedOperationException] {
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=table | dedup a keepempty=true consecutive=true | fields a",
-          false),
+        plan(pplParser, "source=table | dedup a keepempty=true consecutive=true | fields a"),
         context)
     }
     assert(ex.getMessage === "Consecutive deduplication is not supported")
@@ -124,9 +121,8 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
 
   test("test dedup 1 a") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(
-      plan(pplParser, "source=table | dedup 1 a | fields a", false),
-      context)
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=table | dedup 1 a | fields a"), context)
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("a"))
     val filter = Filter(IsNotNull(UnresolvedAttribute("a")), UnresolvedRelation(Seq("table")))
@@ -138,7 +134,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
   test("test dedup 1 a, b, c") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=table | dedup 1 a, b, c | fields a, b, c", false),
+      plan(pplParser, "source=table | dedup 1 a, b, c | fields a, b, c"),
       context)
 
     val projectList: Seq[NamedExpression] =
@@ -158,7 +154,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
   test("test dedup 1 a keepempty=true") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=table | dedup 1 a keepempty=true | fields a", false),
+      plan(pplParser, "source=table | dedup 1 a keepempty=true | fields a"),
       context)
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("a"))
@@ -174,7 +170,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
   test("test dedup 1 a, b, c keepempty=true") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=table | dedup 1 a, b, c keepempty=true | fields a, b, c", false),
+      plan(pplParser, "source=table | dedup 1 a, b, c keepempty=true | fields a, b, c"),
       context)
 
     val projectList: Seq[NamedExpression] =
@@ -201,7 +197,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
     val context = new CatalystPlanContext
     val ex = intercept[UnsupportedOperationException] {
       planTransformer.visit(
-        plan(pplParser, "source=table | dedup 1 a consecutive=true | fields a", false),
+        plan(pplParser, "source=table | dedup 1 a consecutive=true | fields a"),
         context)
     }
     assert(ex.getMessage === "Consecutive deduplication is not supported")
@@ -211,10 +207,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
     val context = new CatalystPlanContext
     val ex = intercept[UnsupportedOperationException] {
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=table | dedup 1 a keepempty=true consecutive=true | fields a",
-          false),
+        plan(pplParser, "source=table | dedup 1 a keepempty=true consecutive=true | fields a"),
         context)
     }
     assert(ex.getMessage === "Consecutive deduplication is not supported")
@@ -223,18 +216,15 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
   test("test dedup 0") {
     val context = new CatalystPlanContext
     val ex = intercept[IllegalArgumentException] {
-      planTransformer.visit(
-        plan(pplParser, "source=table | dedup 0 a | fields a", false),
-        context)
+      planTransformer.visit(plan(pplParser, "source=table | dedup 0 a | fields a"), context)
     }
     assert(ex.getMessage === "Number of duplicate events must be greater than 0")
   }
 
   test("test dedup 2 a") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(
-      plan(pplParser, "source=table | dedup 2 a | fields a", false),
-      context)
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=table | dedup 2 a | fields a"), context)
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("a"))
     val isNotNullFilter =
@@ -266,7 +256,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
   test("test dedup 2 a, b, c") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=table | dedup 2 a, b, c | fields a, b, c", false),
+      plan(pplParser, "source=table | dedup 2 a, b, c | fields a, b, c"),
       context)
 
     val projectList: Seq[NamedExpression] =
@@ -308,7 +298,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
   test("test dedup 2 a keepempty=true") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=table | dedup 2 a keepempty=true | fields a", false),
+      plan(pplParser, "source=table | dedup 2 a keepempty=true | fields a"),
       context)
 
     val projectList: Seq[NamedExpression] = Seq(UnresolvedAttribute("a"))
@@ -344,7 +334,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
   test("test dedup 2 a, b, c keepempty=true") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=table | dedup 2 a, b, c keepempty=true | fields a, b, c", false),
+      plan(pplParser, "source=table | dedup 2 a, b, c keepempty=true | fields a, b, c"),
       context)
 
     val projectList: Seq[NamedExpression] =
@@ -394,7 +384,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
     val context = new CatalystPlanContext
     val ex = intercept[UnsupportedOperationException] {
       planTransformer.visit(
-        plan(pplParser, "source=table | dedup 2 a consecutive=true | fields a | fields a", false),
+        plan(pplParser, "source=table | dedup 2 a consecutive=true | fields a | fields a"),
         context)
     }
     assert(ex.getMessage === "Consecutive deduplication is not supported")
@@ -404,10 +394,7 @@ class PPLLogicalPlanDedupeTranslatorTestSuite
     val context = new CatalystPlanContext
     val ex = intercept[UnsupportedOperationException] {
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=table | dedup 2 a keepempty=true consecutive=true | fields a",
-          false),
+        plan(pplParser, "source=table | dedup 2 a keepempty=true consecutive=true | fields a"),
         context)
     }
     assert(ex.getMessage === "Consecutive deduplication is not supported")

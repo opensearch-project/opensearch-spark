@@ -6,11 +6,17 @@
 package org.opensearch.sql.ast.expression;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.Collections;
 import java.util.List;
 
+@Getter
+@ToString
+@EqualsAndHashCode(callSuper = false)
 public class Field extends UnresolvedExpression {
   private final QualifiedName field;
   private final List<Argument> fieldArgs;
@@ -24,14 +30,6 @@ public class Field extends UnresolvedExpression {
   public Field(QualifiedName field, List<Argument> fieldArgs) {
     this.field = field;
     this.fieldArgs = fieldArgs;
-  }
-
-  public QualifiedName getField() {
-    return field;
-  }
-
-  public List<Argument> getFieldArgs() {
-    return fieldArgs;
   }
 
   public boolean hasArgument() {

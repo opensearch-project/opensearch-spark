@@ -9,6 +9,7 @@ import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.GetIndexRequest;
+import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.flint.common.metadata.FlintMetadata;
@@ -18,7 +19,10 @@ import org.opensearch.flint.core.IRestHighLevelClient;
 import scala.Option;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Flint client implementation for OpenSearch storage.
@@ -62,6 +66,19 @@ public class FlintOpenSearchClient implements FlintClient {
       return client.doesIndexExist(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to check if Flint index exists " + osIndexName, e);
+    }
+  }
+
+  @Override
+  public List<String> getIndexNames(String... indexNamePatterns) {
+    LOG.info("Getting Flint index names for pattern " + String.join(",", indexNamePatterns));
+    String[] osIndexNamePatterns = Arrays.stream(indexNamePatterns).map(this::sanitizeIndexName).toArray(String[]::new);
+    try (IRestHighLevelClient client = createClient()) {
+      GetIndexRequest request = new GetIndexRequest(osIndexNamePatterns);
+      GetIndexResponse response = client.getIndex(request, RequestOptions.DEFAULT);
+      return Arrays.stream(response.getIndices()).collect(Collectors.toList());
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to get Flint index names for pattern " + String.join(", ", indexNamePatterns), e);
     }
   }
 

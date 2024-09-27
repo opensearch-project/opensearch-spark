@@ -46,8 +46,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          "source=accounts | grok email '.+@%{HOSTNAME:host}' | fields email, host",
-          isExplain = false),
+          "source=accounts | grok email '.+@%{HOSTNAME:host}' | fields email, host"),
         context)
 
     val emailAttribute = UnresolvedAttribute("email")
@@ -73,8 +72,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          "source=t | grok message '%{COMMONAPACHELOG}' | fields COMMONAPACHELOG, timestamp, response, bytes",
-          false),
+          "source=t | grok message '%{COMMONAPACHELOG}' | fields COMMONAPACHELOG, timestamp, response, bytes"),
         context)
 
     val messageAttribute = UnresolvedAttribute("message")
@@ -111,8 +109,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          "source=accounts | grok email '.+@%{HOSTNAME:host}' | where age > 45 | sort - age | fields age, email, host",
-          isExplain = false),
+          "source=accounts | grok email '.+@%{HOSTNAME:host}' | where age > 45 | sort - age | fields age, email, host"),
         context)
 
     // Define the expected logical plan
@@ -146,8 +143,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          "source=accounts | grok email '.+@%{HOSTNAME:host}' | eval eval_result=1 | fields host, eval_result",
-          false),
+          "source=accounts | grok email '.+@%{HOSTNAME:host}' | eval eval_result=1 | fields host, eval_result"),
         context)
 
     val emailAttribute = UnresolvedAttribute("email")
@@ -178,10 +174,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=t | grok email '.+@%{HOSTNAME:host}' | stats count() by host",
-          false),
+        plan(pplParser, "source=t | grok email '.+@%{HOSTNAME:host}' | stats count() by host"),
         context)
 
     val emailAttribute = UnresolvedAttribute("email")
@@ -216,7 +209,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t |  grok email '.+@%{HOSTNAME:host}' | top 1 host", false),
+        plan(pplParser, "source=t |  grok email '.+@%{HOSTNAME:host}' | top 1 host"),
         context)
 
     val emailAttribute = UnresolvedAttribute("email")
@@ -263,8 +256,7 @@ class PPLLogicalPlanGrokTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          "source=accounts | grok street_address '%{NUMBER} %{GREEDYDATA:address}' | fields address ",
-          false),
+          "source=accounts | grok street_address '%{NUMBER} %{GREEDYDATA:address}' | fields address "),
         context)
 
     val street_addressAttribute = UnresolvedAttribute("street_address")

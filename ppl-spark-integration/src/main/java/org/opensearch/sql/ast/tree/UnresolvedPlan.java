@@ -5,12 +5,14 @@
 
 package org.opensearch.sql.ast.tree;
 
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
 
 /** Abstract unresolved plan. */
-
-
+@EqualsAndHashCode(callSuper = false)
+@ToString
 public abstract class UnresolvedPlan extends Node {
   @Override
   public <T, C> T accept(AbstractNodeVisitor<T, C> nodeVisitor, C context) {

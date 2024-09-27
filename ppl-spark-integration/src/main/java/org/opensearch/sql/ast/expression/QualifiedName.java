@@ -6,6 +6,8 @@
 package org.opensearch.sql.ast.expression;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.ArrayList;
@@ -18,6 +20,8 @@ import java.util.stream.StreamSupport;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
+@Getter
+@EqualsAndHashCode(callSuper = false)
 public class QualifiedName extends UnresolvedExpression {
   private final List<String> parts;
 
@@ -32,10 +36,6 @@ public class QualifiedName extends UnresolvedExpression {
       throw new IllegalArgumentException("parts is empty");
     }
     this.parts = partsList;
-  }
-
-  public List<String> getParts() {
-    return parts;
   }
 
   /** Construct {@link QualifiedName} from list of string. */

@@ -6,13 +6,18 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
 import java.util.List;
 
 /** Logical plan node of Filter, the interface for building filters in queries. */
-
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@Getter
 public class Filter extends UnresolvedPlan {
   private UnresolvedExpression condition;
   private UnresolvedPlan child;
@@ -25,10 +30,6 @@ public class Filter extends UnresolvedPlan {
   public Filter attach(UnresolvedPlan child) {
     this.child = child;
     return this;
-  }
-
-  public UnresolvedExpression getCondition() {
-    return condition;
   }
 
   @Override

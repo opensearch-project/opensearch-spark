@@ -29,7 +29,7 @@ pplStatement
    ;
 
 dmlStatement
-   : queryStatement
+   : (explainCommand PIPE)? queryStatement
    ;
 
 queryStatement
@@ -45,6 +45,7 @@ pplCommands
 commands
    : whereCommand
    | correlateCommand
+   | joinCommand
    | fieldsCommand
    | statsCommand
    | dedupCommand
@@ -56,6 +57,7 @@ commands
    | grokCommand
    | parseCommand
    | patternsCommand
+   | lookupCommand
    ;
 
 searchCommand
@@ -68,6 +70,18 @@ searchCommand
 describeCommand
    : DESCRIBE tableSourceClause
    ;
+
+explainCommand
+    : EXPLAIN explainMode
+    ;
+
+explainMode
+    : FORMATTED
+    | COST
+    | CODEGEN
+    | EXTENDED
+    | SIMPLE
+    ;
 
 showDataSourcesCommand
     : SHOW DATASOURCES
@@ -157,6 +171,27 @@ patternsMethod
    | REGEX
    ;
 
+// lookup
+lookupCommand
+   : LOOKUP tableSource lookupMappingList ((APPEND | REPLACE) outputCandidateList)?
+   ;
+
+lookupMappingList
+   : lookupPair (COMMA lookupPair)*
+   ;
+
+outputCandidateList
+   : lookupPair (COMMA lookupPair)*
+   ;
+
+ // The lookup pair will generate a K-V pair.
+ // The format is Key -> Alias(outputFieldName, inputField), Value -> outputField. For example:
+ // 1. When lookupPair is "name AS cName", the key will be Alias(cName, Field(name)), the value will be Field(cName)
+ // 2. When lookupPair is "dept", the key is Alias(dept, Field(dept)), value is Field(dept)
+lookupPair
+   : inputField = fieldExpression (AS outputField = fieldExpression)?
+   ;
+
 kmeansCommand
    : KMEANS (kmeansParameter)*
    ;
@@ -203,6 +238,38 @@ fromClause
 tableSourceClause
    : tableSource (COMMA tableSource)*
    ;
+
+// join
+joinCommand
+   : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableSource
+   ;
+
+joinType
+   : INNER?
+   | CROSS
+   | LEFT OUTER?
+   | RIGHT OUTER?
+   | FULL OUTER?
+   | LEFT? SEMI
+   | LEFT? ANTI
+   ;
+
+sideAlias
+   : LEFT EQUAL leftAlias = ident COMMA? RIGHT EQUAL rightAlias = ident
+   ;
+
+joinCriteria
+   : ON logicalExpression
+   ;
+
+joinHintList
+    : hintPair (COMMA? hintPair)*
+    ;
+
+hintPair
+    : leftHintKey = LEFT_HINT DOT ID EQUAL leftHintValue = ident             #leftHint
+    | rightHintKey = RIGHT_HINT DOT ID EQUAL rightHintValue = ident          #rightHint
+    ;
 
 renameClasue
    : orignalField = wcFieldExpression AS renamedField = wcFieldExpression
@@ -279,6 +346,7 @@ logicalExpression
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
    | left = logicalExpression XOR right = logicalExpression     # logicalXor
    | booleanExpression                                          # booleanExpr
+   | isEmptyExpression                                          # isEmptyExpr
    ;
 
 comparisonExpression
@@ -291,6 +359,7 @@ valueExpression
    | left = valueExpression binaryOperator = (PLUS | MINUS) right = valueExpression             # binaryArithmetic
    | primaryExpression                                                                          # valueExpressionDefault
    | positionFunction                                                                           # positionFunctionCall
+   | caseFunction                                                                               # caseExpr
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    ;
 
@@ -307,6 +376,14 @@ positionFunction
 booleanExpression
    : booleanFunctionCall
    ;
+
+ isEmptyExpression
+   : ISEMPTY LT_PRTHS functionArg RT_PRTHS
+   ;
+
+ caseFunction
+    : CASE LT_PRTHS logicalExpression COMMA valueExpression (COMMA logicalExpression COMMA valueExpression)* (ELSE valueExpression)? RT_PRTHS
+    ;
 
 relevanceExpression
    : singleFieldRelevanceFunction
@@ -668,6 +745,7 @@ textFunctionName
    | LOCATE
    | REPLACE
    | REVERSE
+   | ISEMPTY
    ;
 
 positionFunctionName
@@ -870,6 +948,7 @@ commandNames
    | KMEANS
    | AD
    | ML
+   | EXPLAIN
    // commands assist keywords
    | SOURCE
    | INDEX

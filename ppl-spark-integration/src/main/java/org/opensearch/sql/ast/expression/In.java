@@ -5,6 +5,10 @@
 
 package org.opensearch.sql.ast.expression;
 
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.Arrays;
@@ -15,15 +19,13 @@ import java.util.List;
  * wildcard field expression, nested field expression (@field). And the values that the field is
  * mapped to (@valueList).
  */
-
+@Getter
+@ToString
+@EqualsAndHashCode(callSuper = false)
+@RequiredArgsConstructor
 public class In extends UnresolvedExpression {
-  private UnresolvedExpression field;
-  private List<UnresolvedExpression> valueList;
-
-  public In(UnresolvedExpression field, List<UnresolvedExpression> valueList) {
-    this.field = field;
-    this.valueList = valueList;
-  }
+  private final UnresolvedExpression field;
+  private final List<UnresolvedExpression> valueList;
 
   @Override
   public List<UnresolvedExpression> getChild() {

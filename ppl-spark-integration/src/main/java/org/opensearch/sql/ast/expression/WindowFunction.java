@@ -6,6 +6,11 @@
 package org.opensearch.sql.ast.expression;
 
 import com.google.common.collect.ImmutableList;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.apache.commons.lang3.tuple.Pair;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
@@ -13,16 +18,15 @@ import org.opensearch.sql.ast.tree.Sort.SortOption;
 
 import java.util.List;
 
+@AllArgsConstructor
+@EqualsAndHashCode(callSuper = false)
+@Getter
+@RequiredArgsConstructor
+@ToString
 public class WindowFunction extends UnresolvedExpression {
-  private UnresolvedExpression function;
+  private final UnresolvedExpression function;
   private List<UnresolvedExpression> partitionByList;
   private List<Pair<SortOption, UnresolvedExpression>> sortList;
-
-  public WindowFunction(UnresolvedExpression function, List<UnresolvedExpression> partitionByList, List<Pair<SortOption, UnresolvedExpression>> sortList) {
-    this.function = function;
-    this.partitionByList = partitionByList;
-    this.sortList = sortList;
-  }
 
   @Override
   public List<? extends Node> getChild() {
