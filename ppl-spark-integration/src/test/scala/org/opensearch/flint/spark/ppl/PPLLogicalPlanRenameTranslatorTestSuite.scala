@@ -29,7 +29,7 @@ class PPLLogicalPlanRenameTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | rename a as r_a, b as r_b | fields c", false),
+        plan(pplParser, "source=t | rename a as r_a, b as r_b | fields c"),
         context)
     val renameProjectList: Seq[NamedExpression] =
       Seq(
@@ -46,7 +46,7 @@ class PPLLogicalPlanRenameTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | rename a as r_a, b as r_b | fields r_a, r_b, c", false),
+        plan(pplParser, "source=t | rename a as r_a, b as r_b | fields r_a, r_b, c"),
         context)
 
     val renameProjectList: Seq[NamedExpression] =
@@ -64,7 +64,7 @@ class PPLLogicalPlanRenameTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | rename a as r_a, b as r_b", false),
+        plan(pplParser, "source=t | rename a as r_a, b as r_b"),
         context)
 
     val renameProjectList: Seq[NamedExpression] =
@@ -81,7 +81,7 @@ class PPLLogicalPlanRenameTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | rename a as r_a, b as r_b | sort - r_a | fields r_b", false),
+        plan(pplParser, "source=t | rename a as r_a, b as r_b | sort - r_a | fields r_b"),
         context)
 
     val renameProjectList: Seq[NamedExpression] =
@@ -102,8 +102,7 @@ class PPLLogicalPlanRenameTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          "source=t | eval a = RAND() | rename a as eval_rand | fields eval_rand",
-          false),
+          "source=t | eval a = RAND() | rename a as eval_rand | fields eval_rand"),
         context)
 
     val evalProjectList: Seq[NamedExpression] = Seq(
