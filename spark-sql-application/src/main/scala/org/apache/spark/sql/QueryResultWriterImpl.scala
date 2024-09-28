@@ -26,14 +26,15 @@ class QueryResultWriterImpl(commandContext: CommandContext)
     writeDataFrameToOpensearch(dataFrame, resultIndex, osClient)
   }
 
-  /**
-   * Reformat the given DataFrame to the desired format.
-   */
-  override def reformatDataFrame(
+  override def processDataFrame(
       dataFrame: DataFrame,
       statement: FlintStatement,
       queryStartTime: Long): DataFrame = {
     import commandContext._
+
+    /**
+     * Reformat the given DataFrame to the desired format for OpenSearch storage.
+     */
     getFormattedData(
       applicationId,
       jobId,

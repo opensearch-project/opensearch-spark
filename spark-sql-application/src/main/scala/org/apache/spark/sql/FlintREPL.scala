@@ -810,8 +810,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
     } else {
       val futureQueryExecution = Future {
         val startTime = System.currentTimeMillis()
+        // Execute the statement and get the resulting DataFrame
+        // This step may involve Spark transformations, but not necessarily actions
         val df = statementsExecutionManager.executeStatement(flintStatement)
-        queryResultWriter.reformatDataFrame(df, flintStatement, startTime)
+        // Process the DataFrame, applying any necessary transformations
+        // and triggering Spark actions to materialize the results
+        // This is where the actual data processing occurs
+        queryResultWriter.processDataFrame(df, flintStatement, startTime)
       }(executionContext)
       // time out after 10 minutes
       ThreadUtils.awaitResult(futureQueryExecution, queryExecutionTimeOut)
