@@ -34,7 +34,7 @@ class PPLLogicalPlanHelpCommandTranslatorTestSuite
   test("test help search command") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "search -help", false), context)
+      planTransformer.visit(plan(pplParser, "search -help"), context)
 
     val helpText = """
                      |SEARCH Command:

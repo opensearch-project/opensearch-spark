@@ -32,7 +32,7 @@ class PPLSyntaxParser extends Parser {
 }
 
 object PlaneUtils {
-  def plan(parser: PPLSyntaxParser, query: String, isExplain: Boolean): Statement = {
+  def plan(parser: PPLSyntaxParser, query: String): Statement = {
     val parsedTree = parser.parse(query)
 
     // Create an instance of each visitor
