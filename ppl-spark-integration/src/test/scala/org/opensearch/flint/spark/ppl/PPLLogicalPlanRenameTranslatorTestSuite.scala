@@ -63,9 +63,7 @@ class PPLLogicalPlanRenameTranslatorTestSuite
   test("test renamed fields without fields command") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=t | rename a as r_a, b as r_b"),
-        context)
+      planTransformer.visit(plan(pplParser, "source=t | rename a as r_a, b as r_b"), context)
 
     val renameProjectList: Seq[NamedExpression] =
       Seq(
@@ -100,9 +98,7 @@ class PPLLogicalPlanRenameTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=t | eval a = RAND() | rename a as eval_rand | fields eval_rand"),
+        plan(pplParser, "source=t | eval a = RAND() | rename a as eval_rand | fields eval_rand"),
         context)
 
     val evalProjectList: Seq[NamedExpression] = Seq(
