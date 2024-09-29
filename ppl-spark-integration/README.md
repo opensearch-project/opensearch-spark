@@ -434,6 +434,16 @@ _- **Limitation: "REPLACE" or "APPEND" clause must contain "AS"**_
 
 Details of Lookup command syntax, see [PPL-Lookup-Command](../docs/PPL-Lookup-command.md)
 
+**InSubquery**
+- `source = outer | where a in [ source = inner | fields b ]`
+- `source = outer | where (a) in [ source = inner | fields b ]`
+- `source = outer | where (a,b,c) in [ source = inner | fields d,e,f ]`
+- `source = outer | where a not in [ source = inner | fields b ]`
+- `source = outer | where (a) not in [ source = inner | fields b ]`
+- `source = outer | where (a,b,c) not in [ source = inner | fields d,e,f ]`
+- `source = outer | where a in [ source = inner1 | where b not in [ source = inner2 | fields c ] | fields b ]` (nested)
+- `source = table1 | inner join left = l right = r on l.a = r.a AND r.a in [ source = inner | fields d ] | fields l.a, r.a, b, c` (as join filter)
+
 ---
 #### Experimental Commands:
 - `correlation` - [See details](../docs/PPL-Correlation-command.md)
