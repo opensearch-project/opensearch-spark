@@ -14,7 +14,7 @@ import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Descending, ExprId, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
-import org.apache.spark.sql.catalyst.plans.logical.{Project, Sort}
+import org.apache.spark.sql.catalyst.plans.logical.{DataFrameDropColumns, Project, Sort}
 
 class PPLLogicalPlanRenameTranslatorTestSuite
     extends SparkFunSuite
@@ -36,9 +36,10 @@ class PPLLogicalPlanRenameTranslatorTestSuite
         UnresolvedStar(None),
         Alias(UnresolvedAttribute("a"), "r_a")(),
         Alias(UnresolvedAttribute("b"), "r_b")())
-    val expectedPlan = Project(
-      seq(UnresolvedAttribute("c")),
-      Project(renameProjectList, UnresolvedRelation(Seq("t"))))
+    val innerProject = Project(renameProjectList, UnresolvedRelation(Seq("t")))
+    val planDropColumn =
+      DataFrameDropColumns(Seq(UnresolvedAttribute("a"), UnresolvedAttribute("b")), innerProject)
+    val expectedPlan = Project(seq(UnresolvedAttribute("c")), planDropColumn)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
@@ -54,9 +55,12 @@ class PPLLogicalPlanRenameTranslatorTestSuite
         UnresolvedStar(None),
         Alias(UnresolvedAttribute("a"), "r_a")(),
         Alias(UnresolvedAttribute("b"), "r_b")())
+    val innerProject = Project(renameProjectList, UnresolvedRelation(Seq("t")))
+    val planDropColumn =
+      DataFrameDropColumns(Seq(UnresolvedAttribute("a"), UnresolvedAttribute("b")), innerProject)
     val expectedPlan = Project(
       seq(UnresolvedAttribute("r_a"), UnresolvedAttribute("r_b"), UnresolvedAttribute("c")),
-      Project(renameProjectList, UnresolvedRelation(Seq("t"))))
+      planDropColumn)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
@@ -70,8 +74,11 @@ class PPLLogicalPlanRenameTranslatorTestSuite
         UnresolvedStar(None),
         Alias(UnresolvedAttribute("a"), "r_a")(),
         Alias(UnresolvedAttribute("b"), "r_b")())
+    val innerProject = Project(renameProjectList, UnresolvedRelation(Seq("t")))
+    val planDropColumn =
+      DataFrameDropColumns(Seq(UnresolvedAttribute("a"), UnresolvedAttribute("b")), innerProject)
     val expectedPlan =
-      Project(seq(UnresolvedStar(None)), Project(renameProjectList, UnresolvedRelation(Seq("t"))))
+      Project(seq(UnresolvedStar(None)), planDropColumn)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
@@ -88,8 +95,10 @@ class PPLLogicalPlanRenameTranslatorTestSuite
         Alias(UnresolvedAttribute("a"), "r_a")(),
         Alias(UnresolvedAttribute("b"), "r_b")())
     val renameProject = Project(renameProjectList, UnresolvedRelation(Seq("t")))
+    val planDropColumn =
+      DataFrameDropColumns(Seq(UnresolvedAttribute("a"), UnresolvedAttribute("b")), renameProject)
     val sortOrder = SortOrder(UnresolvedAttribute("r_a"), Descending, Seq.empty)
-    val sort = Sort(seq(sortOrder), global = true, renameProject)
+    val sort = Sort(seq(sortOrder), global = true, planDropColumn)
     val expectedPlan = Project(seq(UnresolvedAttribute("r_b")), sort)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
@@ -109,8 +118,10 @@ class PPLLogicalPlanRenameTranslatorTestSuite
     val evalProject = Project(evalProjectList, UnresolvedRelation(Seq("t")))
     val renameProjectList: Seq[NamedExpression] =
       Seq(UnresolvedStar(None), Alias(UnresolvedAttribute("a"), "eval_rand")())
+    val innerProject = Project(renameProjectList, evalProject)
+    val planDropColumn = DataFrameDropColumns(Seq(UnresolvedAttribute("a")), innerProject)
     val expectedPlan =
-      Project(seq(UnresolvedAttribute("eval_rand")), Project(renameProjectList, evalProject))
+      Project(seq(UnresolvedAttribute("eval_rand")), planDropColumn)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 }
