@@ -160,10 +160,10 @@ class FlintSparkIndexMonitor(
       logInfo(s"Scheduler trigger index monitor task for $indexName")
       try {
         if (isStreamingJobActive(indexName)) {
-          logInfo("Streaming job is still active")
-          flintMetadataLogService.recordHeartbeat(indexName)
-
-          if (!flintClient.exists(indexName)) {
+          if (flintClient.exists(indexName)) {
+            logInfo("Streaming job is still active")
+            flintMetadataLogService.recordHeartbeat(indexName)
+          } else {
             logWarning("Streaming job is active but data is deleted")
             stopStreamingJobAndMonitor(indexName)
           }
