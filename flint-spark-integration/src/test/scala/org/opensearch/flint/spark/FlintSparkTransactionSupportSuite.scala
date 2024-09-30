@@ -6,9 +6,13 @@
 package org.opensearch.flint.spark
 
 import java.util.Optional
+import java.util.function.{Function, Predicate}
 
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
-import org.opensearch.flint.common.metadata.log.{FlintMetadataLog, FlintMetadataLogEntry, FlintMetadataLogService}
+import org.mockito.invocation.InvocationOnMock
+import org.opensearch.flint.common.metadata.log.{FlintMetadataLog, FlintMetadataLogEntry, FlintMetadataLogService, OptimisticTransaction}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState._
 import org.opensearch.flint.core.FlintClient
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar.mock
@@ -18,8 +22,9 @@ import org.apache.spark.FlintSuite
 class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
 
   private val mockFlintClient: FlintClient = mock[FlintClient]
-  private val mockFlintMetadataLogService: FlintMetadataLogService =
-    mock[FlintMetadataLogService](RETURNS_DEEP_STUBS)
+  private val mockFlintMetadataLogService: FlintMetadataLogService = mock[FlintMetadataLogService]
+  private val mockTransaction = mock[OptimisticTransaction[_]]
+  private val mockLogEntry = mock[FlintMetadataLogEntry]
   private val testIndex = "test_index"
   private val testOpName = "test operation"
 
@@ -34,48 +39,95 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
     super.beforeEach()
 
     val logEntry = mock[FlintMetadataLog[FlintMetadataLogEntry]]
-    when(logEntry.getLatest).thenReturn(Optional.of(mock[FlintMetadataLogEntry]))
+    when(logEntry.getLatest).thenReturn(Optional.of(mockLogEntry))
     when(mockFlintMetadataLogService.getIndexMetadataLog(testIndex))
       .thenReturn(Optional.of(logEntry))
+    when(mockFlintMetadataLogService.startTransaction(any[String]))
+      .thenAnswer((_: InvocationOnMock) => mockTransaction)
+
+    // Mock transaction method chain
+    when(mockTransaction.initialLog(any[Predicate[FlintMetadataLogEntry]]))
+      .thenAnswer((_: InvocationOnMock) => mockTransaction)
+    when(mockTransaction.finalLog(any[Function[FlintMetadataLogEntry, FlintMetadataLogEntry]]))
+      .thenAnswer((_: InvocationOnMock) => mockTransaction)
   }
 
   override protected def afterEach(): Unit = {
-    reset(mockFlintClient, mockFlintMetadataLogService)
+    reset(mockFlintClient, mockFlintMetadataLogService, mockTransaction, mockLogEntry)
     super.afterEach()
   }
 
-  test("execute transaction without force initialization") {
+  test("execute transaction") {
     assertIndexOperation()
       .withForceInit(false)
       .withResult("test")
       .whenIndexDataExists()
       .expectResult("test")
       .verifyTransaction(forceInit = false)
+      .verifyLogEntryCleanup(false)
   }
 
-  test("execute transaction with force initialization") {
+  test("execute fore init transaction") {
     assertIndexOperation()
       .withForceInit(true)
       .withResult("test")
       .whenIndexDataExists()
       .expectResult("test")
       .verifyTransaction(forceInit = true)
+      .verifyLogEntryCleanup(false)
   }
 
-  test("bypass transaction without force initialization when index corrupted") {
-    assertIndexOperation()
-      .withForceInit(false)
-      .withResult("test")
-      .whenIndexDataNotExist()
-      .expectNoResult()
+  Seq(EMPTY, CREATING, VACUUMING).foreach { indexState =>
+    test(s"execute transaction when corrupted index in $indexState") {
+      assertIndexOperation()
+        .withForceInit(false)
+        .withResult("test")
+        .withIndexState(indexState)
+        .whenIndexDataNotExist()
+        .expectResult("test")
+        .verifyTransaction(forceInit = false)
+        .verifyLogEntryCleanup(false)
+    }
   }
 
-  test("execute transaction with force initialization even if index corrupted") {
-    assertIndexOperation()
-      .withForceInit(true)
-      .withResult("test")
-      .whenIndexDataNotExist()
-      .expectResult("test")
+  Seq(EMPTY, CREATING, VACUUMING).foreach { indexState =>
+    test(s"execute force init transaction if corrupted index in $indexState") {
+      assertIndexOperation()
+        .withForceInit(true)
+        .withResult("test")
+        .withIndexState(indexState)
+        .whenIndexDataNotExist()
+        .expectResult("test")
+        .verifyTransaction(forceInit = true)
+        .verifyLogEntryCleanup(false)
+    }
+  }
+
+  Seq(ACTIVE, UPDATING, REFRESHING, DELETING, DELETED, RECOVERING, FAILED).foreach { indexState =>
+    test(s"clean up log entry and bypass transaction when corrupted index in $indexState") {
+      assertIndexOperation()
+        .withForceInit(false)
+        .withResult("test")
+        .withIndexState(indexState)
+        .whenIndexDataNotExist()
+        .expectNoResult()
+        .verifyLogEntryCleanup(true)
+    }
+  }
+
+  Seq(ACTIVE, UPDATING, REFRESHING, DELETING, DELETED, RECOVERING, FAILED).foreach { indexState =>
+    test(
+      s"clean up log entry and execute force init transaction when corrupted index in $indexState") {
+      assertIndexOperation()
+        .withForceInit(true)
+        .withResult("test")
+        .withIndexState(indexState)
+        .whenIndexDataNotExist()
+        .expectResult("test")
+        .verifyLogEntryCleanup(true)
+        .verifyTransaction(forceInit = true)
+        .verifyLogEntryCleanup(true)
+    }
   }
 
   test("propagate original exception thrown within transaction") {
@@ -106,6 +158,11 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
       this
     }
 
+    def withIndexState(expectedState: IndexState): FlintIndexAssertion = {
+      when(mockLogEntry.state).thenReturn(expectedState)
+      this
+    }
+
     def whenIndexDataExists(): FlintIndexAssertion = {
       when(mockFlintClient.exists(testIndex)).thenReturn(true)
       this
@@ -113,6 +170,12 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
 
     def whenIndexDataNotExist(): FlintIndexAssertion = {
       when(mockFlintClient.exists(testIndex)).thenReturn(false)
+      this
+    }
+
+    def verifyLogEntryCleanup(cleanup: Boolean): FlintIndexAssertion = {
+      verify(mockTransaction, if (cleanup) times(1) else never())
+        .commit(any())
       this
     }
 
@@ -129,11 +192,12 @@ class FlintSparkTransactionSupportSuite extends FlintSuite with Matchers {
       this
     }
 
-    def expectNoResult(): Unit = {
+    def expectNoResult(): FlintIndexAssertion = {
       val result = transactionSupport.withTransaction[String](testIndex, testOpName, forceInit) {
         _ => expectedResult.getOrElse("")
       }
       result shouldBe None
+      this
     }
   }
 }

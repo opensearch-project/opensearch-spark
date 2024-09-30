@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark
 
 import org.opensearch.flint.common.metadata.log.{FlintMetadataLogService, OptimisticTransaction}
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.{CREATING, EMPTY, VACUUMING}
 import org.opensearch.flint.common.metadata.log.OptimisticTransaction.NO_LOG_ENTRY
 import org.opensearch.flint.core.FlintClient
 
@@ -54,7 +55,6 @@ trait FlintSparkTransactionSupport extends Logging {
     try {
       val isCorrupted = isIndexCorrupted(indexName)
       if (isCorrupted) {
-        logWarning(s"Cleaning up for index operation [$opName $indexName] as index is corrupted")
         cleanupCorruptedIndex(indexName)
       }
 
@@ -82,18 +82,32 @@ trait FlintSparkTransactionSupport extends Logging {
 
   /**
    * Determines if the index is corrupted, meaning metadata log entry exists but the corresponding
-   * data index does not. There is no race condition with index creation, as it always creates the
-   * data index first. However, there is a very small chance with the vacuum operation, which
-   * deletes the data index before removing the metadata log entry.
+   * data index does not. For indexes creating or vacuuming, the check for a corrupted index is
+   * skipped to reduce the possibility of race condition. This is because the index may be in a
+   * transitional phase where the data index is temporarily missing before the process completes.
    */
   private def isIndexCorrupted(indexName: String): Boolean = {
-    val logEntryExists =
+    val logEntry =
       flintMetadataLogService
         .getIndexMetadataLog(indexName)
         .flatMap(_.getLatest)
-        .isPresent
+    val logEntryExists = logEntry.isPresent
     val dataIndexExists = flintClient.exists(indexName)
-    logEntryExists && !dataIndexExists
+    val isCreatingOrVacuuming =
+      logEntry
+        .filter(e => e.state == EMPTY || e.state == CREATING || e.state == VACUUMING)
+        .isPresent
+    val isCorrupted = logEntryExists && !dataIndexExists && !isCreatingOrVacuuming
+
+    if (isCorrupted) {
+      logWarning(s"""
+           | Cleaning up corrupted index:
+           | - logEntryExists [$logEntryExists]
+           | - dataIndexExists [$dataIndexExists]
+           | - isCreatingOrVacuuming [$isCreatingOrVacuuming]
+           |""".stripMargin)
+    }
+    isCorrupted
   }
 
   /*
