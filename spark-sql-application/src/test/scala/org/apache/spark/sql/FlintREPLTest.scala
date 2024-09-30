@@ -675,7 +675,6 @@ class FlintREPLTest
         INTERACTIVE_JOB_TYPE,
         sessionId,
         sessionManager,
-        queryResultWriter,
         Duration(10, MINUTES),
         60,
         60,
@@ -748,7 +747,6 @@ class FlintREPLTest
         INTERACTIVE_JOB_TYPE,
         sessionId,
         sessionManager,
-        queryResultWriter,
         Duration(10, MINUTES),
         60,
         60,
@@ -761,6 +759,7 @@ class FlintREPLTest
         mockSparkSession,
         flintStatement,
         statementExecutionManager,
+        queryResultWriter,
         dataSource,
         sessionId,
         executionContext,
@@ -809,7 +808,6 @@ class FlintREPLTest
       when(mockSparkSession.sparkContext).thenReturn(sparkContext)
 
       // Assume handleQueryException logs the error and returns an error message string
-      val mockErrorString = "Error due to syntax"
       when(mockSparkSession.createDataFrame(any[Seq[Product]])(any[TypeTag[Product]]))
         .thenReturn(expectedDataFrame)
       when(expectedDataFrame.toDF(any[Seq[String]]: _*)).thenReturn(expectedDataFrame)
@@ -824,7 +822,6 @@ class FlintREPLTest
         INTERACTIVE_JOB_TYPE,
         sessionId,
         sessionManager,
-        queryResultWriter,
         Duration(10, MINUTES),
         60,
         60,
@@ -837,6 +834,7 @@ class FlintREPLTest
         mockSparkSession,
         flintStatement,
         statementExecutionManager,
+        queryResultWriter,
         dataSource,
         sessionId,
         executionContext,
@@ -1076,7 +1074,6 @@ class FlintREPLTest
       INTERACTIVE_JOB_TYPE,
       sessionId,
       sessionManager,
-      queryResultWriter,
       Duration(10, MINUTES),
       shortInactivityLimit,
       60,
@@ -1146,7 +1143,6 @@ class FlintREPLTest
       INTERACTIVE_JOB_TYPE,
       sessionId,
       sessionManager,
-      queryResultWriter,
       Duration(10, MINUTES),
       longInactivityLimit,
       60,
@@ -1212,7 +1208,6 @@ class FlintREPLTest
       INTERACTIVE_JOB_TYPE,
       sessionId,
       sessionManager,
-      queryResultWriter,
       Duration(10, MINUTES),
       inactivityLimit,
       60,
@@ -1283,7 +1278,6 @@ class FlintREPLTest
       INTERACTIVE_JOB_TYPE,
       sessionId,
       sessionManager,
-      queryResultWriter,
       Duration(10, MINUTES),
       inactivityLimit,
       60,
@@ -1367,7 +1361,6 @@ class FlintREPLTest
       override val osClient: OSClient = mockOSClient
       override lazy val flintSessionIndexUpdater: OpenSearchUpdater = mockOpenSearchUpdater
     }
-    val queryResultWriter = mock[QueryResultWriter]
 
     val commandContext = CommandContext(
       applicationId,
@@ -1377,7 +1370,6 @@ class FlintREPLTest
       INTERACTIVE_JOB_TYPE,
       sessionId,
       sessionManager,
-      queryResultWriter,
       Duration(10, MINUTES),
       inactivityLimit,
       60,
@@ -1453,7 +1445,6 @@ class FlintREPLTest
         INTERACTIVE_JOB_TYPE,
         sessionId,
         sessionManager,
-        queryResultWriter,
         Duration(10, MINUTES),
         inactivityLimit,
         60,
