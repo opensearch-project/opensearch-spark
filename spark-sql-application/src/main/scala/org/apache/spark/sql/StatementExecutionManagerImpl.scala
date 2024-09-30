@@ -54,16 +54,13 @@ class StatementExecutionManagerImpl(commandContext: CommandContext)
   }
 
   override def executeStatement(statement: FlintStatement): DataFrame = {
-    import commandContext._
-    executeQuery(
-      applicationId,
-      jobId,
-      spark,
-      statement.query,
-      dataSource,
+    import commandContext.spark
+    // we have to set job group in the same thread that started the query according to spark doc
+    spark.sparkContext.setJobGroup(
       statement.queryId,
-      sessionId,
-      false)
+      "Job group for " + statement.queryId,
+      interruptOnCancel = true)
+    spark.sql(statement.query)
   }
 
   private def createOpenSearchQueryReader() = {
