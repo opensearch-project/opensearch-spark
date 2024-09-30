@@ -444,6 +444,87 @@ Details of Lookup command syntax, see [PPL-Lookup-Command](../docs/PPL-Lookup-co
 - `source = outer | where a in [ source = inner1 | where b not in [ source = inner2 | fields c ] | fields b ]` (nested)
 - `source = table1 | inner join left = l right = r on l.a = r.a AND r.a in [ source = inner | fields d ] | fields l.a, r.a, b, c` (as join filter)
 
+SQL Migration examples with IN-Subquery PPL:
+1. tpch q4 (in-subquery with aggregation)
+```sql
+select
+  o_orderpriority,
+  count(*) as order_count
+from
+  orders
+where
+  o_orderdate >= date '1993-07-01'
+  and o_orderdate < date '1993-07-01' + interval '3' month
+  and o_orderkey in (
+    select
+      l_orderkey
+    from
+      lineitem
+    where l_commitdate < l_receiptdate
+  )
+group by
+  o_orderpriority
+order by
+  o_orderpriority
+```
+Rewritten by PPL InSubquery query:
+```sql
+source = orders
+| where o_orderdate >= "1993-07-01" and o_orderdate < "1993-10-01" and o_orderkey IN
+  [ source = lineitem
+    | where l_commitdate < l_receiptdate
+    | fields l_orderkey
+  ]
+| stats count(1) as order_count by o_orderpriority
+| sort o_orderpriority
+| fields o_orderpriority, order_count
+```
+2.tpch q20 (nested in-subquery)
+```sql
+select
+  s_name,
+  s_address
+from
+  supplier,
+  nation
+where
+  s_suppkey in (
+    select
+      ps_suppkey
+    from
+      partsupp
+    where
+      ps_partkey in (
+        select
+          p_partkey
+        from
+          part
+        where
+          p_name like 'forest%'
+      )
+  )
+  and s_nationkey = n_nationkey
+  and n_name = 'CANADA'
+order by
+  s_name
+```
+Rewritten by PPL InSubquery query:
+```sql
+source = supplier
+| where s_suppkey IN [
+    source = partsupp
+    | where ps_partkey IN [
+        source = part
+        | where like(p_name, "forest%")
+        | fields p_partkey
+      ]
+    | fields ps_suppkey
+  ]
+| inner join left=l right=r on s_nationkey = n_nationkey and n_name = 'CANADA'
+  nation
+| sort s_name
+```
+
 ---
 #### Experimental Commands:
 - `correlation` - [See details](../docs/PPL-Correlation-command.md)
