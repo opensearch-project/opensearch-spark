@@ -194,7 +194,7 @@ class PPLLogicalPlanMathFunctionsTranslatorTestSuite
 
   test("test signum") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = signum(b)", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "source=t a = signum(b)"), context)
 
     val table = UnresolvedRelation(Seq("t"))
     val filterExpr = EqualTo(
