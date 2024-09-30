@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark.ppl
 
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.sql.common.antlr.SyntaxCheckException
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
 
@@ -228,7 +229,7 @@ class PPLLogicalPlanInSubqueryTranslatorTestSuite
   // TODO throw exception with syntax check, now it throw AnalysisException in Spark
   ignore("The number of columns not match output of subquery") {
     val context = new CatalystPlanContext
-    val ex = intercept[UnsupportedOperationException] {
+    val ex = intercept[SyntaxCheckException] {
       planTransformer.visit(
         plan(
           pplParser,

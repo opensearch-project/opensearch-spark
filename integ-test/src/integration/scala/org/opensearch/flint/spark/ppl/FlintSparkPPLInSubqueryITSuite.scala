@@ -88,8 +88,8 @@ class FlintSparkPPLInSubqueryITSuite
   }
 
   test("test where (id) in (select uid from inner)") {
-    // id (0, 1, 2, 3, 4, 5), uid (0, 2, 3, 5, 6)
-    // InSubquery: (0, 2, 3, 5)
+    // id (0, 1, 2, 3, 4, 5, 6), uid (0, 2, 3, 5, 6)
+    // InSubquery: (0, 2, 3, 5, 6)
     val frame = sql(s"""
           source = $outerTable
          | | where (id) in [
