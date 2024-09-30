@@ -253,6 +253,10 @@ object FlintSparkConf {
     FlintConfig("spark.metadata.accessAWSCredentialsProvider")
       .doc("AWS credentials provider for metadata access permission")
       .createOptional()
+  val METADATA_CACHE_WRITE = FlintConfig("spark.flint.metadataCacheWrite.enabled")
+    .doc("Enable Flint metadata cache write to Flint index mappings")
+    .createWithDefault("false")
+
   val CUSTOM_SESSION_MANAGER =
     FlintConfig("spark.flint.job.customSessionManager")
       .createOptional()
@@ -306,6 +310,8 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
   def monitorIntervalSeconds(): Int = MONITOR_INTERVAL_SECONDS.readFrom(reader).toInt
 
   def monitorMaxErrorCount(): Int = MONITOR_MAX_ERROR_COUNT.readFrom(reader).toInt
+
+  def isMetadataCacheWriteEnabled: Boolean = METADATA_CACHE_WRITE.readFrom(reader).toBoolean
 
   /**
    * spark.sql.session.timeZone

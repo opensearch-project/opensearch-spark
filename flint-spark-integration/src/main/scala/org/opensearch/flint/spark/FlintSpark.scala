@@ -17,6 +17,7 @@ import org.opensearch.flint.common.scheduler.AsyncQueryScheduler
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.FlintIndexMetadataServiceBuilder
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogServiceBuilder
+import org.opensearch.flint.core.storage.FlintOpenSearchMetadataCacheWriter
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
@@ -53,6 +54,9 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   private val flintIndexMetadataService: FlintIndexMetadataService = {
     FlintIndexMetadataServiceBuilder.build(flintSparkConf.flintOptions())
   }
+
+  private val flintMetadataCacheWriteService = new FlintOpenSearchMetadataCacheWriter(
+    flintSparkConf.flintOptions())
 
   private val flintAsyncQueryScheduler: AsyncQueryScheduler = {
     AsyncQuerySchedulerBuilder.build(flintSparkConf.flintOptions())
@@ -135,6 +139,9 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
               flintClient.createIndex(indexName, metadata.copy(latestId = Some(latest.id)))
               flintIndexMetadataService
                 .updateIndexMetadata(indexName, metadata.copy(latestId = Some(latest.id)))
+            }
+            if (isMetadataCacheWriteEnabled) {
+              flintMetadataCacheWriteService.updateMetadataCache(indexName, metadata)
             }
             jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.SCHEDULE)
           })
@@ -384,6 +391,10 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     new DataTypeSkippingStrategy().analyzeSkippingIndexColumns(tableName, spark)
   }
 
+  private def isMetadataCacheWriteEnabled: Boolean = {
+    FlintSparkConf().isMetadataCacheWriteEnabled
+  }
+
   private def getAllIndexMetadata(indexNamePattern: String): Map[String, FlintMetadata] = {
     if (flintIndexMetadataService.supportsGetByIndexPattern) {
       flintIndexMetadataService
@@ -511,6 +522,9 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       })
       .commit(_ => {
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
+        if (isMetadataCacheWriteEnabled) {
+          flintMetadataCacheWriteService.updateMetadataCache(indexName, index.metadata)
+        }
         logInfo("Update index options complete")
         jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.UPDATE)
       })
