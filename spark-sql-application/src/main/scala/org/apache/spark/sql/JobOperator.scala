@@ -61,7 +61,6 @@ case class JobOperator(
       jobType,
       "", // FlintJob doesn't have sessionId
       null, // FlintJob doesn't have SessionManager
-      null, // FlintJob doesn't have QueryResultWriter
       Duration.Inf, // FlintJob doesn't have queryExecutionTimeout
       -1, // FlintJob doesn't have inactivityLimitMillis
       -1, // FlintJob doesn't have queryWaitTimeMillis

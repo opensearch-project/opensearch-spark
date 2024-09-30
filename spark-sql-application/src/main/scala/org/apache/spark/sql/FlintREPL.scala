@@ -169,8 +169,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
           return
         }
 
-        val queryResultWriter =
-          instantiateQueryResultWriter(conf, sessionManager.getSessionContext)
         val commandContext = CommandContext(
           applicationId,
           jobId,
@@ -179,7 +177,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
           jobType,
           sessionId,
           sessionManager,
-          queryResultWriter,
           queryExecutionTimeoutSecs,
           inactivityLimitMillis,
           queryWaitTimeoutMillis,
@@ -316,7 +313,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     // 1 thread for async query execution
     val threadPool = threadPoolFactory.newDaemonThreadPoolScheduledExecutor("flint-repl-query", 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
-
+    val queryResultWriter = instantiateQueryResultWriter(spark, commandContext)
     var futurePrepareQueryExecution: Future[Either[String, Unit]] = null
     try {
       logInfo(s"""Executing session with sessionId: ${sessionId}""")
@@ -342,7 +339,11 @@ object FlintREPL extends Logging with FlintJobExecutor {
             executionContext,
             lastCanPickCheckTime)
           val result: (Long, VerificationResult, Boolean, Long) =
-            processCommands(statementsExecutionManager, commandContext, commandState)
+            processCommands(
+              statementsExecutionManager,
+              queryResultWriter,
+              commandContext,
+              commandState)
 
           val (
             updatedLastActivityTime,
@@ -491,6 +492,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
   private def processCommands(
       statementExecutionManager: StatementExecutionManager,
+      queryResultWriter: QueryResultWriter,
       context: CommandContext,
       state: CommandState): (Long, VerificationResult, Boolean, Long) = {
     import context._
@@ -525,6 +527,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
             val (dataToWrite, returnedVerificationResult) =
               processStatementOnVerification(
                 statementExecutionManager,
+                queryResultWriter,
                 flintStatement,
                 state,
                 context)
@@ -532,7 +535,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
             verificationResult = returnedVerificationResult
             finalizeCommand(
               statementExecutionManager,
-              context,
+              queryResultWriter,
               dataToWrite,
               flintStatement,
               statementTimerContext)
@@ -558,11 +561,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
    */
   private def finalizeCommand(
       statementExecutionManager: StatementExecutionManager,
-      commandContext: CommandContext,
+      queryResultWriter: QueryResultWriter,
       dataToWrite: Option[DataFrame],
       flintStatement: FlintStatement,
       statementTimerContext: Timer.Context): Unit = {
-    import commandContext._
     try {
       dataToWrite.foreach(df => queryResultWriter.writeDataFrame(df, flintStatement))
       if (flintStatement.isRunning || flintStatement.isWaiting) {
@@ -626,6 +628,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       spark: SparkSession,
       flintStatement: FlintStatement,
       statementExecutionManager: StatementExecutionManager,
+      queryResultWriter: QueryResultWriter,
       dataSource: String,
       sessionId: String,
       executionContext: ExecutionContextExecutor,
@@ -640,6 +643,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           spark,
           flintStatement,
           statementExecutionManager,
+          queryResultWriter,
           dataSource,
           sessionId,
           executionContext,
@@ -677,6 +681,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
   private def processStatementOnVerification(
       statementExecutionManager: StatementExecutionManager,
+      queryResultWriter: QueryResultWriter,
       flintStatement: FlintStatement,
       commandState: CommandState,
       commandContext: CommandContext) = {
@@ -698,6 +703,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
                 spark,
                 flintStatement,
                 statementExecutionManager,
+                queryResultWriter,
                 dataSource,
                 sessionId,
                 executionContext,
@@ -764,6 +770,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
           spark,
           flintStatement,
           statementExecutionManager,
+          queryResultWriter,
           dataSource,
           sessionId,
           executionContext,
@@ -782,6 +789,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       spark: SparkSession,
       flintStatement: FlintStatement,
       statementsExecutionManager: StatementExecutionManager,
+      queryResultWriter: QueryResultWriter,
       dataSource: String,
       sessionId: String,
       executionContext: ExecutionContextExecutor,
@@ -801,7 +809,14 @@ object FlintREPL extends Logging with FlintJobExecutor {
         startTime)
     } else {
       val futureQueryExecution = Future {
-        statementsExecutionManager.executeStatement(flintStatement)
+        val startTime = System.currentTimeMillis()
+        // Execute the statement and get the resulting DataFrame
+        // This step may involve Spark transformations, but not necessarily actions
+        val df = statementsExecutionManager.executeStatement(flintStatement)
+        // Process the DataFrame, applying any necessary transformations
+        // and triggering Spark actions to materialize the results
+        // This is where the actual data processing occurs
+        queryResultWriter.processDataFrame(df, flintStatement, startTime)
       }(executionContext)
       // time out after 10 minutes
       ThreadUtils.awaitResult(futureQueryExecution, queryExecutionTimeOut)
@@ -998,11 +1013,11 @@ object FlintREPL extends Logging with FlintJobExecutor {
   }
 
   private def instantiateQueryResultWriter(
-      sparkConf: SparkConf,
-      context: Map[String, Any]): QueryResultWriter = {
+      spark: SparkSession,
+      commandContext: CommandContext): QueryResultWriter = {
     instantiate(
-      new QueryResultWriterImpl(context),
-      sparkConf.get(FlintSparkConf.CUSTOM_QUERY_RESULT_WRITER.key, ""))
+      new QueryResultWriterImpl(commandContext),
+      spark.conf.get(FlintSparkConf.CUSTOM_QUERY_RESULT_WRITER.key, ""))
   }
 
   private def recordSessionSuccess(sessionTimerContext: Timer.Context): Unit = {
