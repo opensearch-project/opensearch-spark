@@ -44,8 +44,18 @@ lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")
 // Run as part of test task.
 lazy val testScalastyle = taskKey[Unit]("testScalastyle")
 
+// Explanation:
+// - ThisBuild / assemblyShadeRules sets the shading rules for the entire build
+// - ShadeRule.rename(...) creates a rule to rename multiple package patterns
+// - "shaded.@0" means prepend "shaded." to the original package name
+// - .inAll applies the rule to all dependencies, not just direct dependencies
 ThisBuild / assemblyShadeRules := Seq(
-  ShadeRule.rename("com.fasterxml.jackson.**" -> "shaded.com.fasterxml.jackson.@1").inAll)
+  ShadeRule.rename(
+    "com.fasterxml.jackson.**" -> "shaded.@0",
+    "com.amazonaws.**"         -> "shaded.@0",
+    "software.amazon.**"       -> "shaded.@0"
+  ).inAll
+)
 
 lazy val commonSettings = Seq(
   javacOptions ++= Seq("-source", "11"),
@@ -90,7 +100,9 @@ lazy val flintCore = (project in file("flint-core"))
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
       "com.amazonaws" % "aws-java-sdk-cloudwatch" % "1.12.593"
         exclude("com.fasterxml.jackson.core", "jackson-databind"),
-      "software.amazon.awssdk" % "auth-crt" % "2.28.10" % "provided",
+      "software.amazon.awssdk" % "auth-crt" % "2.28.10",
+      "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
+      "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.scalactic" %% "scalactic" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
