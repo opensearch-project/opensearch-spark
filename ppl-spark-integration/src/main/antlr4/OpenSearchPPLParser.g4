@@ -131,58 +131,58 @@ fieldsCommand
    ;
 
 renameCommand
-   : RENAME renameClasue (COMMA renameClasue)*
-   | RENAME HELP                       
+   : RENAME renameClasue (COMMA renameClasue)*  # renameClause    
+   | RENAME HELP                                # renameHelp
    ;
 
 statsCommand
-   : STATS (PARTITIONS EQUAL partitions = integerLiteral)? (ALLNUM EQUAL allnum = booleanLiteral)? (DELIM EQUAL delim = stringLiteral)? statsAggTerm (COMMA statsAggTerm)* (statsByClause)? (DEDUP_SPLITVALUES EQUAL dedupsplit = booleanLiteral)?
-   | STATS HELP                       
+   : STATS (PARTITIONS EQUAL partitions = integerLiteral)? (ALLNUM EQUAL allnum = booleanLiteral)? (DELIM EQUAL delim = stringLiteral)? statsAggTerm (COMMA statsAggTerm)* (statsByClause)? (DEDUP_SPLITVALUES EQUAL dedupsplit = booleanLiteral)?  # statsClause
+   | STATS HELP                                                                                                                                                                                                                                     # statsHelp   
    ;
 
 dedupCommand
-   : DEDUP (number = integerLiteral)? fieldList (KEEPEMPTY EQUAL keepempty = booleanLiteral)? (CONSECUTIVE EQUAL consecutive = booleanLiteral)?
-   | DEDUP HELP                       
+   : DEDUP (number = integerLiteral)? fieldList (KEEPEMPTY EQUAL keepempty = booleanLiteral)? (CONSECUTIVE EQUAL consecutive = booleanLiteral)?    # dedupClause
+   | DEDUP HELP                                                                                                                                    # dedupHelp 
    ;
 
 sortCommand
-   : SORT sortbyClause
-   | SORT HELP                       
+   : SORT sortbyClause                                                                                                                             # sortClause
+   | SORT HELP                                                                                                                                     # sortHelp 
    ;
 
 evalCommand
-   : EVAL evalClause (COMMA evalClause)*
-   | EVAL HELP                       
+   : EVAL evalClause (COMMA evalClause)*                                                                                                           # evalCommandClause 
+   | EVAL HELP                                                                                                                                     # evalHelp 
    ;
 
 headCommand
-   : HEAD (number = integerLiteral)? (FROM from = integerLiteral)?
-   | HEAD HELP                       
+   : HEAD (number = integerLiteral)? (FROM from = integerLiteral)?                                                                                 # headClause 
+   | HEAD HELP                                                                                                                                     # headHelp 
    ;
 
-topCommand
-   : TOP (number = integerLiteral)? fieldList (byClause)?
-   | TOP HELP                       
+topCommand 
+   : TOP (number = integerLiteral)? fieldList (byClause)?                                                                                             # topClause                                                           
+   | TOP HELP                                                                                                                                      # topHelp                        
    ;
 
-rareCommand
-   : RARE fieldList (byClause)?
-   | RARE HELP                       
+rareCommand                                                                                                                                         
+   : RARE fieldList (byClause)?                                                                                                                    # rareClause
+   | RARE HELP                                                                                                                                     # rareHelp 
    ;
 
 grokCommand
-   : GROK (source_field = expression) (pattern = stringLiteral)
-   | GROK HELP                       
+   : GROK (source_field = expression) (pattern = stringLiteral)                                                                                    # grokClause 
+   | GROK HELP                                                                                                                                     # grokHelp                                                                                                                                   
    ;
 
 parseCommand
-   : PARSE (source_field = expression) (pattern = stringLiteral)
-   | PARSE HELP                       
+   : PARSE (source_field = expression) (pattern = stringLiteral)                                                                                   # parseClause 
+   | PARSE HELP                                                                                                                                    # parseHelp     
    ;
 
 patternsCommand
-   : PATTERNS (patternsParameter)* (source_field = expression)
-   | PATTERNS HELP                       
+   : PATTERNS (patternsParameter)* (source_field = expression)                                                                                     # patternsClause 
+   | PATTERNS HELP                                                                                                                                 # patternsHelp 
    ;
 
 patternsParameter
@@ -197,8 +197,8 @@ patternsMethod
 
 // lookup
 lookupCommand
-   : LOOKUP tableSource lookupMappingList ((APPEND | REPLACE) outputCandidateList)?
-   | LOOKUP HELP                       
+   : LOOKUP tableSource lookupMappingList ((APPEND | REPLACE) outputCandidateList)?                                                                # lookupClause
+   | LOOKUP HELP                                                                                                                                   # lookupHelp 
    ;
 
 lookupMappingList
@@ -266,8 +266,8 @@ tableSourceClause
 
 // join
 joinCommand
-   : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableSource
-   | JOIN HELP                       
+   : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableSource                                          # joinClause                           
+   | JOIN HELP                                                                                                          # joinHelp 
    ;
 
 joinType
@@ -316,8 +316,7 @@ bySpanClause
    ;
 
 spanClause
-   : SPAN LT_PRTHS fieldExpression COMMA value = literalValue (unit = timespanUnit)? RT_PRTHS
-   | SPAN HELP                       
+   : SPAN LT_PRTHS fieldExpression COMMA value = literalValue (unit = timespanUnit)? RT_PRTHS                           
    ;
 
 sortbyClause

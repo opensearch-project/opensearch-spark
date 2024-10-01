@@ -147,7 +147,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   }
 
   @Override
-  public UnresolvedPlan visitJoinCommand(OpenSearchPPLParser.JoinCommandContext ctx) {
+  public UnresolvedPlan visitJoinClause(OpenSearchPPLParser.JoinClauseContext ctx) {
     Join.JoinType joinType = getJoinType(ctx.joinType());
     if (ctx.joinCriteria() == null) {
       joinType = Join.JoinType.CROSS;
@@ -218,7 +218,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   /** Rename command. */
   @Override
-  public UnresolvedPlan visitRenameCommand(OpenSearchPPLParser.RenameCommandContext ctx) {
+  public UnresolvedPlan visitRenameClause(OpenSearchPPLParser.RenameClauseContext ctx) {
     return new Rename(
         ctx.renameClasue().stream()
             .map(
@@ -231,7 +231,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   /** Stats command. */
   @Override
-  public UnresolvedPlan visitStatsCommand(OpenSearchPPLParser.StatsCommandContext ctx) {
+  public UnresolvedPlan visitStatsClause(OpenSearchPPLParser.StatsClauseContext ctx) {
     ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
     for (OpenSearchPPLParser.StatsAggTermContext aggCtx : ctx.statsAggTerm()) {
       UnresolvedExpression aggExpression = internalVisitExpression(aggCtx.statsFunction());
@@ -276,13 +276,13 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   /** Dedup command. */
   @Override
-  public UnresolvedPlan visitDedupCommand(OpenSearchPPLParser.DedupCommandContext ctx) {
+  public UnresolvedPlan visitDedupClause(OpenSearchPPLParser.DedupClauseContext ctx) {
     return new Dedupe(ArgumentFactory.getArgumentList(ctx), getFieldList(ctx.fieldList()));
   }
 
   /** Head command visitor. */
   @Override
-  public UnresolvedPlan visitHeadCommand(OpenSearchPPLParser.HeadCommandContext ctx) {
+  public UnresolvedPlan visitHeadClause(OpenSearchPPLParser.HeadClauseContext ctx) {
     Integer size = ctx.number != null ? Integer.parseInt(ctx.number.getText()) : 10;
     Integer from = ctx.from != null ? Integer.parseInt(ctx.from.getText()) : 0;
     return new Head(size, from);
@@ -290,7 +290,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   /** Sort command. */
   @Override
-  public UnresolvedPlan visitSortCommand(OpenSearchPPLParser.SortCommandContext ctx) {
+  public UnresolvedPlan visitSortClause(OpenSearchPPLParser.SortClauseContext ctx) {
     return new Sort(
         ctx.sortbyClause().sortField().stream()
             .map(sort -> (Field) internalVisitExpression(sort))
@@ -299,7 +299,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   /** Eval command. */
   @Override
-  public UnresolvedPlan visitEvalCommand(OpenSearchPPLParser.EvalCommandContext ctx) {
+  public UnresolvedPlan visitEvalCommandClause(OpenSearchPPLParser.EvalCommandClauseContext ctx) {
     return new Eval(
         ctx.evalClause().stream()
             .map(ct -> (Let) internalVisitExpression(ct))
@@ -319,7 +319,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   }
 
   @Override
-  public UnresolvedPlan visitGrokCommand(OpenSearchPPLParser.GrokCommandContext ctx) {
+  public UnresolvedPlan visitGrokClause(OpenSearchPPLParser.GrokClauseContext ctx) {
     UnresolvedExpression sourceField = internalVisitExpression(ctx.source_field);
     Literal pattern = (Literal) internalVisitExpression(ctx.pattern);
 
@@ -327,7 +327,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   }
 
   @Override
-  public UnresolvedPlan visitParseCommand(OpenSearchPPLParser.ParseCommandContext ctx) {
+  public UnresolvedPlan visitParseClause(OpenSearchPPLParser.ParseClauseContext ctx) {
     UnresolvedExpression sourceField = internalVisitExpression(ctx.source_field);
     Literal pattern = (Literal) internalVisitExpression(ctx.pattern);
 
@@ -335,7 +335,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   }
 
   @Override
-  public UnresolvedPlan visitPatternsCommand(OpenSearchPPLParser.PatternsCommandContext ctx) {
+  public UnresolvedPlan visitPatternsClause(OpenSearchPPLParser.PatternsClauseContext ctx) {
     UnresolvedExpression sourceField = internalVisitExpression(ctx.source_field);
     ImmutableMap.Builder<String, Literal> builder = ImmutableMap.builder();
     ctx.patternsParameter()
@@ -353,7 +353,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   /** Lookup command */
   @Override
-  public UnresolvedPlan visitLookupCommand(OpenSearchPPLParser.LookupCommandContext ctx) {
+  public UnresolvedPlan visitLookupClause(OpenSearchPPLParser.LookupClauseContext ctx) {
     Relation lookupRelation = new Relation(this.internalVisitExpression(ctx.tableSource()));
     Lookup.OutputStrategy strategy =
         ctx.APPEND() != null ? Lookup.OutputStrategy.APPEND : Lookup.OutputStrategy.REPLACE;
@@ -372,7 +372,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   /** Top command. */
   @Override
-  public UnresolvedPlan visitTopCommand(OpenSearchPPLParser.TopCommandContext ctx) {
+  public UnresolvedPlan visitTopClause(OpenSearchPPLParser.TopClauseContext ctx) {
     ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
     ImmutableList.Builder<UnresolvedExpression> groupListBuilder = new ImmutableList.Builder<>();
     ctx.fieldList().fieldExpression().forEach(field -> {
@@ -413,7 +413,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   
   /** Rare command. */
   @Override
-  public UnresolvedPlan visitRareCommand(OpenSearchPPLParser.RareCommandContext ctx) {
+  public UnresolvedPlan visitRareClause(OpenSearchPPLParser.RareClauseContext ctx) {
     ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
     ImmutableList.Builder<UnresolvedExpression> groupListBuilder = new ImmutableList.Builder<>();
     ctx.fieldList().fieldExpression().forEach(field -> {

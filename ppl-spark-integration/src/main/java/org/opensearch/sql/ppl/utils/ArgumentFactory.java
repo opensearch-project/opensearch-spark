@@ -37,7 +37,7 @@ public class ArgumentFactory {
    * @param ctx StatsCommandContext instance
    * @return the list of arguments fetched from the stats command
    */
-  public static List<Argument> getArgumentList(OpenSearchPPLParser.StatsCommandContext ctx) {
+  public static List<Argument> getArgumentList(OpenSearchPPLParser.StatsClauseContext ctx) {
     return Arrays.asList(
         ctx.partitions != null
             ? new Argument("partitions", getArgumentValue(ctx.partitions))
@@ -59,7 +59,7 @@ public class ArgumentFactory {
    * @param ctx DedupCommandContext instance
    * @return the list of arguments fetched from the dedup command
    */
-  public static List<Argument> getArgumentList(OpenSearchPPLParser.DedupCommandContext ctx) {
+  public static List<Argument> getArgumentList(OpenSearchPPLParser.DedupClauseContext ctx) {
     return Arrays.asList(
         ctx.number != null
             ? new Argument("number", getArgumentValue(ctx.number))
@@ -100,7 +100,7 @@ public class ArgumentFactory {
    * @param ctx TopCommandContext instance
    * @return the list of arguments fetched from the top command
    */
-  public static List<Argument> getArgumentList(OpenSearchPPLParser.TopCommandContext ctx) {
+  public static List<Argument> getArgumentList(OpenSearchPPLParser.TopClauseContext ctx) {
     return Collections.singletonList(
         ctx.number != null
             ? new Argument("noOfResults", getArgumentValue(ctx.number))
