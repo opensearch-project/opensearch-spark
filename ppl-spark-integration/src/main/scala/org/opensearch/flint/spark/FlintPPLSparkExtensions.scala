@@ -1,9 +1,6 @@
 /*
+ * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
- *
- * The OpenSearch Contributors require contributions made to
- * this file be licensed under the Apache-2.0 license or a
- * compatible open source license.
  */
 
 package org.opensearch.flint.spark
@@ -56,6 +53,9 @@ object PrintLiteralStrategy extends SparkStrategy {
   }
 }
 
+/**
+ * Flint PPL Spark extension entrypoint.
+ */
 class FlintPPLSparkExtensions extends (SparkSessionExtensions => Unit) {
 
   override def apply(extensions: SparkSessionExtensions): Unit = {
