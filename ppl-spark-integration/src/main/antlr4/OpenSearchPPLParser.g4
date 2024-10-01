@@ -82,8 +82,7 @@ helpCommand
    ;
 
 explainCommand
-    : EXPLAIN explainMode                       # explainClause
-    | EXPLAIN HELP                              # explainHelp
+    : EXPLAIN explainMode
     ;
 
 explainMode
