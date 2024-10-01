@@ -19,12 +19,7 @@ import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
-import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
-import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns$;
-import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
-import org.apache.spark.sql.catalyst.plans.logical.Limit;
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
-import org.apache.spark.sql.catalyst.plans.logical.Project$;
+import org.apache.spark.sql.catalyst.plans.logical.*;
 import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
@@ -75,6 +70,7 @@ import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.RareAggregation;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
+import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.TopAggregation;
@@ -415,6 +411,23 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         java.util.Map<String, Literal> arguments = node.getArguments();
         String pattern = (String) node.getPattern().getValue();
         return ParseStrategy.visitParseCommand(node, sourceField, parseMethod, arguments, pattern, context);
+    }
+
+    @Override
+    public LogicalPlan visitRename(Rename node, CatalystPlanContext context) {
+        node.getChild().get(0).accept(this, context);
+        if (context.getNamedParseExpressions().isEmpty()) {
+            // Create an UnresolvedStar for all-fields projection
+            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.empty()));
+        }
+        List<Expression> fieldsToRemove = visitExpressionList(node.getRenameList(), context).stream()
+                .map(expression -> (org.apache.spark.sql.catalyst.expressions.Alias) expression)
+                .map(org.apache.spark.sql.catalyst.expressions.Alias::child)
+                .collect(Collectors.toList());
+        Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+        // build the plan with the projection step
+        LogicalPlan outputWithSourceColumns = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+        return context.apply(p -> DataFrameDropColumns$.MODULE$.apply(seq(fieldsToRemove), outputWithSourceColumns));
     }
 
     @Override

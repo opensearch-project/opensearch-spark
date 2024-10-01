@@ -50,6 +50,7 @@ commands
    | parseCommand
    | patternsCommand
    | lookupCommand
+   | renameCommand
    ;
 
 searchCommand

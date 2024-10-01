@@ -22,7 +22,6 @@ import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
-import org.opensearch.sql.ast.expression.Map;
 import org.opensearch.sql.ast.expression.ParseMethod;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.Scope;
@@ -217,9 +216,9 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
         ctx.renameClasue().stream()
             .map(
                 ct ->
-                    new Map(
-                        internalVisitExpression(ct.orignalField),
-                        internalVisitExpression(ct.renamedField)))
+                    new Alias(
+                        ct.renamedField.getText(),
+                        internalVisitExpression(ct.orignalField)))
             .collect(Collectors.toList()));
   }
 
