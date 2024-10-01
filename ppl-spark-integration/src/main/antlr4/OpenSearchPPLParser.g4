@@ -36,6 +36,10 @@ queryStatement
    : pplCommands (PIPE commands)*
    ;
 
+subSearch
+   : searchCommand (PIPE commands)*
+   ;
+
 // commands
 pplCommands
    : searchCommand
@@ -377,6 +381,12 @@ logicalExpression
 comparisonExpression
    : left = valueExpression comparisonOperator right = valueExpression  # compareExpr
    | valueExpression IN valueList                                       # inExpr
+   | valueExpressionList NOT? IN LT_SQR_PRTHS subSearch RT_SQR_PRTHS    # inSubqueryExpr
+   ;
+
+valueExpressionList
+   : valueExpression
+   | LT_PRTHS valueExpression (COMMA valueExpression)* RT_PRTHS
    ;
 
 valueExpression
@@ -599,6 +609,7 @@ mathematicalFunctionName
    | RAND
    | ROUND
    | SIGN
+   | SIGNUM
    | SQRT
    | TRUNCATE
    | trigonometricFunctionName
@@ -1049,4 +1060,13 @@ commandNames
    | SPARKLINE
    | C
    | DC
+   // JOIN TYPE
+   | OUTER
+   | INNER
+   | CROSS
+   | LEFT
+   | RIGHT
+   | FULL
+   | SEMI
+   | ANTI
    ;

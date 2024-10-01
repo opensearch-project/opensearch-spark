@@ -13,6 +13,8 @@ import org.apache.spark.sql.catalyst.expressions.Ascending$;
 import org.apache.spark.sql.catalyst.expressions.CaseWhen;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.InSubquery$;
+import org.apache.spark.sql.catalyst.expressions.ListQuery$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
@@ -42,6 +44,7 @@ import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
+import org.opensearch.sql.ast.expression.InSubquery;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Let;
@@ -77,6 +80,8 @@ import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.TopAggregation;
+import org.opensearch.sql.ast.tree.UnresolvedPlan;
+import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
@@ -122,6 +127,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     public LogicalPlan visit(Statement plan, CatalystPlanContext context) {
+        return plan.accept(this, context);
+    }
+
+    public LogicalPlan visitSubSearch(UnresolvedPlan plan, CatalystPlanContext context) {
         return plan.accept(this, context);
     }
 
@@ -342,7 +351,16 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         if(node instanceof DescribeCommand) {
             return context.with(new PrintLiteralCommandDescriptionLogicalPlan(((DescribeCommand) node).getDescription()));
         }
-        if (!node.isExcluded()) {
+        if (node.isExcluded()) {
+            List<UnresolvedExpression> intersect = context.getProjectedFields().stream()
+                    .filter(node.getProjectList()::contains)
+                    .collect(Collectors.toList());
+            if (!intersect.isEmpty()) {
+                // Fields in parent projection, but they have be excluded in child. For example,
+                // source=t | fields - A, B | fields A, B, C will throw "[Field A, Field B] can't be resolved"
+                throw new SyntaxCheckException(intersect + " can't be resolved");
+            }
+        } else {
             context.withProjectedFields(node.getProjectList());
         }
         LogicalPlan child = node.getChild().get(0).accept(this, context);
@@ -482,7 +500,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     /**
      * Expression Analyzer.
      */
-    public static class ExpressionAnalyzer extends AbstractNodeVisitor<Expression, CatalystPlanContext> {
+    public class ExpressionAnalyzer extends AbstractNodeVisitor<Expression, CatalystPlanContext> {
 
         public Expression analyze(UnresolvedExpression unresolved, CatalystPlanContext context) {
             return unresolved.accept(this, context);
@@ -728,6 +746,25 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         @Override
         public Expression visitWindowFunction(WindowFunction node, CatalystPlanContext context) {
             throw new IllegalStateException("Not Supported operation : WindowFunction");
+        }
+
+        @Override
+        public Expression visitInSubquery(InSubquery node, CatalystPlanContext outerContext) {
+            CatalystPlanContext innerContext = new CatalystPlanContext();
+            visitExpressionList(node.getChild(), innerContext);
+            Seq<Expression> values = innerContext.retainAllNamedParseExpressions(p -> p);
+            UnresolvedPlan outerPlan = node.getQuery();
+            LogicalPlan subSearch = CatalystQueryPlanVisitor.this.visitSubSearch(outerPlan, innerContext);
+            Expression inSubQuery = InSubquery$.MODULE$.apply(
+                values,
+                ListQuery$.MODULE$.apply(
+                    subSearch,
+                    seq(new java.util.ArrayList<Expression>()),
+                    NamedExpression.newExprId(),
+                    -1,
+                    seq(new java.util.ArrayList<Expression>()),
+                    Option.empty()));
+            return outerContext.getNamedParseExpressions().push(inSubQuery);
         }
     }
 }

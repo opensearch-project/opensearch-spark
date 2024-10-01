@@ -5,7 +5,6 @@
  * this file be licensed under the Apache-2.0 license or a
  * compatible open source license.
  */
-
 package org.opensearch.flint.spark.ppl
 
 import org.antlr.v4.runtime.{CommonTokenStream, Lexer}
@@ -42,8 +41,11 @@ object PlaneUtils {
     // Create an instance of each visitor
     val expressionBuilder = new AstExpressionBuilder()
     val astBuilder = new AstBuilder(expressionBuilder, query, parser.getParserVersion())
+    expressionBuilder.setAstBuilder(astBuilder)
+    // description visitor
     val astDescriptionBuilder =
       new AstCommandDescriptionVisitor(expressionBuilder, query, parser.getParserVersion())
+    // statement visitor
     val statementContext = AstStatementBuilder.StatementBuilderContext.builder()
 
     // Chain visitors
