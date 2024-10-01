@@ -568,6 +568,7 @@ mathematicalFunctionName
    | RAND
    | ROUND
    | SIGN
+   | SIGNUM
    | SQRT
    | TRUNCATE
    | trigonometricFunctionName
