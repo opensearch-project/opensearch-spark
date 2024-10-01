@@ -24,7 +24,7 @@ public class ArgumentFactory {
    * @param ctx FieldsCommandContext instance
    * @return the list of arguments fetched from the fields command
    */
-  public static List<Argument> getArgumentList(OpenSearchPPLParser.FieldsCommandContext ctx) {
+  public static List<Argument> getArgumentList(OpenSearchPPLParser.FieldsClauseContext ctx) {
     return Collections.singletonList(
         ctx.MINUS() != null
             ? new Argument("exclude", new Literal(true, DataType.BOOLEAN))

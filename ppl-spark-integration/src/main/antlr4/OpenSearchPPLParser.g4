@@ -126,8 +126,8 @@ mappingClause
     ;
 
 fieldsCommand
-   : FIELDS (PLUS | MINUS)? fieldList
-   | FIELDS HELP                       
+   : FIELDS (PLUS | MINUS)? fieldList           # fieldsClause
+   | FIELDS HELP                                # fieldsHelp
    ;
 
 renameCommand
