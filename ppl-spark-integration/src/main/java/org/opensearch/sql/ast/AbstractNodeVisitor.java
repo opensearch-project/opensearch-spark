@@ -19,6 +19,7 @@ import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
+import org.opensearch.sql.ast.expression.InSubquery;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Let;
@@ -289,4 +290,7 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitStatement(node, context);
   }
 
+  public T visitInSubquery(InSubquery node, C context) {
+    return visitChildren(node, context);
+  }
 }

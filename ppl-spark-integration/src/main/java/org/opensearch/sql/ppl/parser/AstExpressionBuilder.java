@@ -22,6 +22,7 @@ import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.Function;
+import org.opensearch.sql.ast.expression.InSubquery;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.IntervalUnit;
 import org.opensearch.sql.ast.expression.IsEmpty;
@@ -61,6 +62,13 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.TRIM;
 public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedExpression> {
 
     private static final int DEFAULT_TAKE_FUNCTION_SIZE_VALUE = 10;
+
+    private AstBuilder astBuilder;
+
+    /** Set AstBuilder back to AstExpressionBuilder for resolving the subquery plan in subquery expression */
+    public void setAstBuilder(AstBuilder astBuilder) {
+        this.astBuilder = astBuilder;
+    }
 
     /**
      * The function name mapping between fronted and core engine.
@@ -368,6 +376,15 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitRightHint(OpenSearchPPLParser.RightHintContext ctx) {
         return new EqualTo(new Literal(ctx.rightHintKey.getText(), DataType.STRING), visit(ctx.rightHintValue));
+    }
+
+    @Override
+    public UnresolvedExpression visitInSubqueryExpr(OpenSearchPPLParser.InSubqueryExprContext ctx) {
+        UnresolvedExpression expr = new InSubquery(
+            ctx.valueExpressionList().valueExpression().stream()
+                .map(this::visit).collect(Collectors.toList()),
+            astBuilder.visitSubSearch(ctx.subSearch()));
+        return ctx.NOT() != null ? new Not(expr) : expr;
     }
 
     private QualifiedName visitIdentifiers(List<? extends ParserRuleContext> ctx) {
