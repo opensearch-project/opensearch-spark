@@ -40,6 +40,7 @@ queryStatement
 pplCommands
    : searchCommand
    | describeCommand
+   | helpCommand
    ;
 
 commands
@@ -64,15 +65,21 @@ searchCommand
    : (SEARCH)? fromClause                       # searchFrom
    | (SEARCH)? fromClause logicalExpression     # searchFromFilter
    | (SEARCH)? logicalExpression fromClause     # searchFilterFrom
-   | (SEARCH)? MINUS_HELP                       # searchHelp
+   | (SEARCH)? HELP                             # searchHelp
    ;
 
 describeCommand
-   : DESCRIBE tableSourceClause
+   : DESCRIBE tableSourceClause                 # describeClause
+   | DESCRIBE HELP                              # describeHelp
+   ;
+
+helpCommand
+   : HELP commandNames                          # helpCommandName
    ;
 
 explainCommand
-    : EXPLAIN explainMode
+    : EXPLAIN explainMode                       # explainClause
+    | EXPLAIN HELP                              # explainHelp
     ;
 
 explainMode
@@ -88,11 +95,13 @@ showDataSourcesCommand
     ;
 
 whereCommand
-    : WHERE logicalExpression
+    : WHERE logicalExpression                   # whereClause         
+    | WHERE HELP                                # whereHelp
     ;
 
 correlateCommand
-    : CORRELATE correlationType FIELDS LT_PRTHS fieldList RT_PRTHS (scopeClause)? mappingList
+    : CORRELATE correlationType FIELDS LT_PRTHS fieldList RT_PRTHS (scopeClause)? mappingList       # correlateClause
+    | CORRELATE HELP                                                                                # correlateHelp
     ;
 
 correlationType
@@ -115,50 +124,62 @@ mappingClause
 
 fieldsCommand
    : FIELDS (PLUS | MINUS)? fieldList
+   | FIELDS HELP                       
    ;
 
 renameCommand
    : RENAME renameClasue (COMMA renameClasue)*
+   | RENAME HELP                       
    ;
 
 statsCommand
    : STATS (PARTITIONS EQUAL partitions = integerLiteral)? (ALLNUM EQUAL allnum = booleanLiteral)? (DELIM EQUAL delim = stringLiteral)? statsAggTerm (COMMA statsAggTerm)* (statsByClause)? (DEDUP_SPLITVALUES EQUAL dedupsplit = booleanLiteral)?
+   | STATS HELP                       
    ;
 
 dedupCommand
    : DEDUP (number = integerLiteral)? fieldList (KEEPEMPTY EQUAL keepempty = booleanLiteral)? (CONSECUTIVE EQUAL consecutive = booleanLiteral)?
+   | DEDUP HELP                       
    ;
 
 sortCommand
    : SORT sortbyClause
+   | SORT HELP                       
    ;
 
 evalCommand
    : EVAL evalClause (COMMA evalClause)*
+   | EVAL HELP                       
    ;
 
 headCommand
    : HEAD (number = integerLiteral)? (FROM from = integerLiteral)?
+   | HEAD HELP                       
    ;
 
 topCommand
    : TOP (number = integerLiteral)? fieldList (byClause)?
+   | TOP HELP                       
    ;
 
 rareCommand
    : RARE fieldList (byClause)?
+   | RARE HELP                       
    ;
 
 grokCommand
    : GROK (source_field = expression) (pattern = stringLiteral)
+   | GROK HELP                       
    ;
 
 parseCommand
    : PARSE (source_field = expression) (pattern = stringLiteral)
+   | PARSE HELP                       
    ;
 
 patternsCommand
    : PATTERNS (patternsParameter)* (source_field = expression)
+   | PATTERNS HELP                       
    ;
 
 patternsParameter
@@ -174,6 +195,7 @@ patternsMethod
 // lookup
 lookupCommand
    : LOOKUP tableSource lookupMappingList ((APPEND | REPLACE) outputCandidateList)?
+   | LOOKUP HELP                       
    ;
 
 lookupMappingList
@@ -242,6 +264,7 @@ tableSourceClause
 // join
 joinCommand
    : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableSource
+   | JOIN HELP                       
    ;
 
 joinType
@@ -291,6 +314,7 @@ bySpanClause
 
 spanClause
    : SPAN LT_PRTHS fieldExpression COMMA value = literalValue (unit = timespanUnit)? RT_PRTHS
+   | SPAN HELP                       
    ;
 
 sortbyClause
@@ -326,6 +350,7 @@ statsFunctionName
 
 takeAggFunction
    : TAKE LT_PRTHS fieldExpression (COMMA size = integerLiteral)? RT_PRTHS
+   | TAKE HELP                       
    ;
 
 percentileAggFunction
@@ -379,10 +404,12 @@ booleanExpression
 
  isEmptyExpression
    : ISEMPTY LT_PRTHS functionArg RT_PRTHS
+   | ISEMPTY HELP                       
    ;
 
  caseFunction
     : CASE LT_PRTHS logicalExpression COMMA valueExpression (COMMA logicalExpression COMMA valueExpression)* (ELSE valueExpression)? RT_PRTHS
+    | CASE HELP                       
     ;
 
 relevanceExpression
@@ -447,6 +474,7 @@ evalFunctionCall
 // cast function
 dataTypeFunctionCall
    : CAST LT_PRTHS expression AS convertedDataType RT_PRTHS
+   | CAST HELP                       
    ;
 
 // boolean functions
@@ -754,6 +782,7 @@ positionFunctionName
 
 coalesceFunctionName
    : COALESCE
+   | COALESCE HELP                       
    ;
 
 // operators

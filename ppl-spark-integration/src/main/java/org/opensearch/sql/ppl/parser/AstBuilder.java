@@ -1,6 +1,9 @@
 /*
- * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
  */
 
 package org.opensearch.sql.ppl.parser;
@@ -102,9 +105,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     return new Filter(internalVisitExpression(ctx.logicalExpression()))
         .attach(visit(ctx.fromClause()));
   }
-  
+
+  /**
+   * Describe Command clause 
+   */
   @Override
-  public UnresolvedPlan visitDescribeCommand(OpenSearchPPLParser.DescribeCommandContext ctx) {
+  public UnresolvedPlan visitDescribeClause(OpenSearchPPLParser.DescribeClauseContext ctx) {
     final Relation table = (Relation) visitTableSourceClause(ctx.tableSourceClause());
     QualifiedName tableQualifiedName = table.getTableQualifiedName();
     ArrayList<String> parts = new ArrayList<>(tableQualifiedName.getParts());
@@ -113,12 +119,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   /** Where command. */
   @Override
-  public UnresolvedPlan visitWhereCommand(OpenSearchPPLParser.WhereCommandContext ctx) {
+  public UnresolvedPlan visitWhereClause(OpenSearchPPLParser.WhereClauseContext ctx) {
     return new Filter(internalVisitExpression(ctx.logicalExpression()));
   }
 
   @Override
-  public UnresolvedPlan visitCorrelateCommand(OpenSearchPPLParser.CorrelateCommandContext ctx) {
+  public UnresolvedPlan visitCorrelateClause(OpenSearchPPLParser.CorrelateClauseContext ctx) {
     return new Correlation(ctx.correlationType().getText(),
             ctx.fieldList().fieldExpression().stream()
                     .map(OpenSearchPPLParser.FieldExpressionContext::qualifiedName)

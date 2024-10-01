@@ -91,7 +91,7 @@ DATASOURCES:                        'DATASOURCES';
 SORTBY:                             'SORTBY';
 
 // HELP COMMAND
-MINUS_HELP:                         '-' 'HELP';
+HELP:                               'HELP';
 
 // FIELD KEYWORDS
 AUTO:                               'AUTO';
