@@ -50,18 +50,20 @@ lazy val testScalastyle = taskKey[Unit]("testScalastyle")
 // - "shaded.@0" means prepend "shaded." to the original package name
 // - .inAll applies the rule to all dependencies, not just direct dependencies
 val packagesToShade = Seq(
-  "com.amazonaws.**",
-  "com.fasterxml.jackson.**",
+  "com.amazonaws.cloudwatch.**",
+  "com.fasterxml.jackson.core.**",
+  "com.fasterxml.jackson.dataformat.**",
+  "com.fasterxml.jackson.databind.**",
   "com.sun.jna.**",
   "com.thoughtworks.paranamer.**",
   "javax.annotation.**",
-  "org.antlr.v4.**",
-  "org.apache.**",
+  "org.apache.commons.codec.**",
+  "org.apache.commons.logging.**",
+  "org.apache.hc.**",
+  "org.apache.http.**",
   "org.glassfish.json.**",
   "org.joda.time.**",
-  "org.json4s.**",
   "org.reactivestreams.**",
-  "org.slf4j.**",
   "org.yaml.**",
   "software.amazon.**"
 )
