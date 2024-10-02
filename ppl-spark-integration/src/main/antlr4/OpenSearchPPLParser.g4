@@ -41,6 +41,9 @@ commands
    | topCommand
    | rareCommand
    | evalCommand
+   | grokCommand
+   | parseCommand
+   | patternsCommand
    ;
 
 searchCommand
