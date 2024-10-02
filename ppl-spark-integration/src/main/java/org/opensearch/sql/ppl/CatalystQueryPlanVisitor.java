@@ -238,20 +238,24 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitProject(Project node, CatalystPlanContext context) {
-        context.withProjectedFields(node.getProjectList());
+        if (!node.isExcluded()) {
+            context.withProjectedFields(node.getProjectList());
+        }
         LogicalPlan child = node.getChild().get(0).accept(this, context);
         visitExpressionList(node.getProjectList(), context);
 
         // Create a projection list from the existing expressions
         Seq<?> projectList = seq(context.getNamedParseExpressions());
         if (!projectList.isEmpty()) {
-            Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
-            // build the plan with the projection step
-            child = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
-        }
-        if (node.hasArgument()) {
-            Argument argument = node.getArgExprList().get(0);
-            //todo exclude the argument from the projected arguments list
+            if (node.isExcluded()) {
+                Seq<Expression> dropList = context.retainAllNamedParseExpressions(p -> p);
+                // build the DataFrameDropColumns plan with drop list
+                child = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns(dropList, p));
+            } else {
+                Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+                // build the plan with the projection step
+                child = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+            }
         }
         return child;
     }

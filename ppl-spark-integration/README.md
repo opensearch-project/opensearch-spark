@@ -230,6 +230,13 @@ See the next samples of PPL queries :
 **Fields**
  - `source = table`
  - `source = table | fields a,b,c`
+ - `source = table | fields + a,b,c`
+ - `source = table | fields - b,c`
+ - `source = table | eval b1 = b | fields - b1,c`
+
+_- **Limitation: new field added by eval command with a function cannot be dropped in current version:**_
+ - `source = table | eval b1 = b + 1 | fields - b1,c` (Field `b1` cannot be dropped caused by SPARK-49782)
+ - `source = table | eval b1 = lower(b) | fields - b1,c` (Field `b1` cannot be dropped caused by SPARK-49782)
 
 **Nested-Fields**
  - `source = catalog.schema.table1, catalog.schema.table2 | fields A.nested1, B.nested1`
