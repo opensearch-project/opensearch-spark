@@ -319,7 +319,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   test("test fields + then - field list") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source=t | fields + A, B, C | fields - A, B"),
+      plan(pplParser, "source=t | fields + A, B, C | fields - A, B", false),
       context)
 
     val table = UnresolvedRelation(Seq("t"))
@@ -337,7 +337,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val context = new CatalystPlanContext
     val thrown = intercept[SyntaxCheckException] {
       planTransformer.visit(
-        plan(pplParser, "source=t | fields - A, B | fields + A, B, C"),
+        plan(pplParser, "source=t | fields - A, B | fields + A, B, C", false),
         context)
     }
     assert(

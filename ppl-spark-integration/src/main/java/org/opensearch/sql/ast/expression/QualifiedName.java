@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.StreamSupport;
 
@@ -106,5 +107,18 @@ public class QualifiedName extends UnresolvedExpression {
   @Override
   public <R, C> R accept(AbstractNodeVisitor<R, C> nodeVisitor, C context) {
     return nodeVisitor.visitQualifiedName(this, context);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    QualifiedName that = (QualifiedName) o;
+    return Objects.equals(parts, that.parts);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(parts);
   }
 }
