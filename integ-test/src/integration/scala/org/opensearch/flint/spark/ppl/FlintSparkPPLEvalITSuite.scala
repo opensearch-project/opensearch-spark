@@ -480,12 +480,7 @@ class FlintSparkPPLEvalITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-  // +--------------------------------+
-  // | Below tests are not supported  |
-  // +--------------------------------+
-  // Todo: Upgrading spark version to 3.4.0 and above could fix this test.
-  // https://issues.apache.org/jira/browse/SPARK-27561
-  ignore("test lateral eval expressions references - SPARK-27561 required") {
+  test("test lateral eval expressions references") {
     val frame = sql(s"""
          | source = $testTable | eval col1 = 1, col2 = col1 | fields name, age, col2
          | """.stripMargin)
