@@ -6,9 +6,13 @@
 package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
+import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
+import org.apache.spark.sql.types.Metadata;
+import org.opensearch.sql.data.type.ExprType;
 import scala.collection.Iterator;
 import scala.collection.Seq;
 
@@ -30,6 +34,10 @@ import static scala.collection.JavaConverters.asScalaBuffer;
  * The context used for Catalyst logical plan.
  */
 public class CatalystPlanContext {
+    /**
+     * Catalyst relations list
+     **/
+    private List<Expression> projectedFields = new ArrayList<>();
     /**
      * Catalyst relations list
      **/
@@ -61,6 +69,10 @@ public class CatalystPlanContext {
         return relations;
     }
 
+    public List<Expression> getProjectedFields() {
+        return projectedFields;
+    }
+
     public LogicalPlan getPlan() {
         if (this.planBranches.size() == 1) {
             return planBranches.peek();
@@ -89,7 +101,16 @@ public class CatalystPlanContext {
     public Stack<Expression> getGroupingParseExpressions() {
         return groupingParseExpressions;
     }
-
+    
+    /**
+     * define new field
+     * @param symbol
+     * @return
+     */
+    public LogicalPlan define(Expression symbol) {
+        namedParseExpressions.push(symbol);
+        return getPlan();
+    }
     /**
      * append relation to relations list
      *
@@ -99,6 +120,16 @@ public class CatalystPlanContext {
     public LogicalPlan withRelation(UnresolvedRelation relation) {
         this.relations.add(relation);
         return with(relation);
+    }
+    /**
+     * append projected fields
+     *
+     * @param projectedFields
+     * @return
+     */
+    public LogicalPlan withProjectedFields(List<Expression> projectedFields) {
+        this.projectedFields.addAll(projectedFields);
+        return getPlan();
     }
 
     /**
