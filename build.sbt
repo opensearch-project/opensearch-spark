@@ -49,11 +49,26 @@ lazy val testScalastyle = taskKey[Unit]("testScalastyle")
 // - ShadeRule.rename(...) creates a rule to rename multiple package patterns
 // - "shaded.@0" means prepend "shaded." to the original package name
 // - .inAll applies the rule to all dependencies, not just direct dependencies
+val packagesToShade = Seq(
+  "com.amazonaws.**",
+  "com.fasterxml.jackson.**",
+  "com.sun.jna.**",
+  "com.thoughtworks.paranamer.**",
+  "javax.annotation.**",
+  "org.antlr.v4.**",
+  "org.apache.**",
+  "org.glassfish.json.**",
+  "org.joda.time.**",
+  "org.json4s.**",
+  "org.reactivestreams.**",
+  "org.slf4j.**",
+  "org.yaml.**",
+  "software.amazon.**"
+)
+
 ThisBuild / assemblyShadeRules := Seq(
   ShadeRule.rename(
-    "com.fasterxml.jackson.**" -> "shaded.@0",
-    "com.amazonaws.**"         -> "shaded.@0",
-    "software.amazon.**"       -> "shaded.@0"
+    packagesToShade.map(_ -> "shaded.flint.@0"): _*
   ).inAll
 )
 
