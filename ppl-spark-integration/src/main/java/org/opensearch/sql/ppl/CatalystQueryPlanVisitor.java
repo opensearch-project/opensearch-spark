@@ -65,6 +65,7 @@ import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.TopAggregation;
+import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
@@ -238,7 +239,16 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitProject(Project node, CatalystPlanContext context) {
-        if (!node.isExcluded()) {
+        if (node.isExcluded()) {
+            List<UnresolvedExpression> intersect = context.getProjectedFields().stream()
+                .filter(node.getProjectList()::contains)
+                .collect(Collectors.toList());
+            if (!intersect.isEmpty()) {
+                // Fields in parent projection, but they have be excluded in child. For example,
+                // source=t | fields - A, B | fields A, B, C will throw "[Field A, Field B] can't be resolved"
+                throw new SyntaxCheckException(intersect + " can't be resolved");
+            }
+        } else {
             context.withProjectedFields(node.getProjectList());
         }
         LogicalPlan child = node.getChild().get(0).accept(this, context);

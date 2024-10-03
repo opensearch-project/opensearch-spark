@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark.ppl
 
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.sql.common.antlr.SyntaxCheckException
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
 
@@ -313,5 +314,34 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     val planWithLimit = GlobalLimit(Literal(5), LocalLimit(Literal(5), dropAB))
     val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
     comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test fields + then - field list") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(pplParser, "source=t | fields + A, B, C | fields - A, B", false),
+      context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val projectABC = Project(
+      Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"), UnresolvedAttribute("C")),
+      table)
+    val dropList = Seq(UnresolvedAttribute("A"), UnresolvedAttribute("B"))
+    val dropAB = DataFrameDropColumns(dropList, projectABC)
+
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), dropAB)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test fields - then + field list") {
+    val context = new CatalystPlanContext
+    val thrown = intercept[SyntaxCheckException] {
+      planTransformer.visit(
+        plan(pplParser, "source=t | fields - A, B | fields + A, B, C", false),
+        context)
+    }
+    assert(
+      thrown.getMessage
+        === "[Field(field=A, fieldArgs=[]), Field(field=B, fieldArgs=[])] can't be resolved")
   }
 }
