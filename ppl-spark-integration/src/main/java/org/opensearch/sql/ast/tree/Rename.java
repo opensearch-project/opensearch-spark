@@ -11,7 +11,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
-import org.opensearch.sql.ast.expression.Map;
+import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
 import java.util.List;
 
@@ -20,10 +20,10 @@ import java.util.List;
 @Getter
 @RequiredArgsConstructor
 public class Rename extends UnresolvedPlan {
-  private final List<Map> renameList;
+  private final List<UnresolvedExpression> renameList;
   private UnresolvedPlan child;
 
-  public Rename(List<Map> renameList, UnresolvedPlan child) {
+  public Rename(List<UnresolvedExpression> renameList, UnresolvedPlan child) {
     this.renameList = renameList;
     this.child = child;
   }
