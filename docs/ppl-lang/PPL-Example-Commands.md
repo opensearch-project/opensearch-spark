@@ -86,6 +86,14 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else 'unknown')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else concat(a, ' is an incorrect binary digit'))`
 
+#### Fillnull
+Assumptions: `a`, `b`, `c`, `d`, `e` are existing fields in `table`
+- `source = table | fillnull with 0 in a`
+- `source = table | fillnull with 'N/A' in a, b, c`
+- `source = table | fillnull with concat(a, b) in c, d`
+- `source = table | fillnull using a = 101`
+- `source = table | fillnull using a = 101, b = 102`
+- `source = table | fillnull using a = concat(b, c), d = 2 * pi() * e`
 
 ```sql
 source = table | eval e = eval status_category =

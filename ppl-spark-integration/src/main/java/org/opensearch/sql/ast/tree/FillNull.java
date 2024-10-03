@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Field;
-import org.opensearch.sql.ast.expression.Literal;
+import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
 import java.util.List;
 import java.util.Objects;
@@ -21,7 +21,7 @@ public class FillNull extends UnresolvedPlan {
         @NonNull
         private final Field nullableFieldReference;
         @NonNull
-        private final Literal replaceNullWithMe;
+        private final UnresolvedExpression replaceNullWithMe;
     }
 
     public interface ContainNullableFieldFill {
@@ -31,7 +31,7 @@ public class FillNull extends UnresolvedPlan {
             return new VariousValueNullFill(replacements);
         }
 
-        static ContainNullableFieldFill ofSameValue(Literal replaceNullWithMe, List<Field> nullableFieldReferences) {
+        static ContainNullableFieldFill ofSameValue(UnresolvedExpression replaceNullWithMe, List<Field> nullableFieldReferences) {
             return new SameValueNullFill(replaceNullWithMe, nullableFieldReferences);
         }
     }
@@ -40,7 +40,7 @@ public class FillNull extends UnresolvedPlan {
         @Getter(onMethod_ = @Override)
         private final List<NullableFieldFill> nullFieldFill;
 
-        public SameValueNullFill(Literal replaceNullWithMe, List<Field> nullableFieldReferences) {
+        public SameValueNullFill(UnresolvedExpression replaceNullWithMe, List<Field> nullableFieldReferences) {
             Objects.requireNonNull(replaceNullWithMe, "Null replacement is required");
             this.nullFieldFill = Objects.requireNonNull(nullableFieldReferences, "Nullable field reference is required")
                     .stream()

@@ -191,11 +191,11 @@ fillnullCommand
    ;
 
  fillNullWithTheSameValue
- : VALUE EQUAL nullReplacement nullableField (COMMA nullableField)*
+ : WITH nullReplacement IN nullableField (COMMA nullableField)*
  ;
 
  fillNullWithFieldVariousValues
- : FIELDS nullableField EQUAL nullReplacement (COMMA nullableField EQUAL nullReplacement)*
+ : USING nullableField EQUAL nullReplacement (COMMA nullableField EQUAL nullReplacement)*
  ;
 
 
@@ -204,7 +204,7 @@ fillnullCommand
    ;
 
    nullReplacement
-   : literalValue
+   : expression
    ;
 
 

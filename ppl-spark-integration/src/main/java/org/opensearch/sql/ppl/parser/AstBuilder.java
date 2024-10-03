@@ -513,7 +513,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     FillNullWithFieldVariousValuesContext variousValuesContext = ctx.fillNullWithFieldVariousValues();
     if (sameValueContext != null) {
       // todo consider using expression instead of Literal
-      Literal replaceNullWithMe = (Literal) internalVisitExpression(sameValueContext.nullReplacement().literalValue());
+      UnresolvedExpression replaceNullWithMe = internalVisitExpression(sameValueContext.nullReplacement().expression());
       List<Field> fieldsToReplace = sameValueContext.nullableField()
               .stream()
               .map(this::internalVisitExpression)
@@ -524,7 +524,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
       List<NullableFieldFill> nullableFieldFills = IntStream.range(0, variousValuesContext.nullableField().size())
               .mapToObj(index -> {
                 variousValuesContext.nullableField(index);
-                Literal replaceNullWithMe = (Literal) internalVisitExpression(variousValuesContext.nullReplacement(index).literalValue());
+                UnresolvedExpression replaceNullWithMe = internalVisitExpression(variousValuesContext.nullReplacement(index).expression());
                 Field nullableFieldReference = (Field) internalVisitExpression(variousValuesContext.nullableField(index));
                 return new NullableFieldFill(nullableFieldReference, replaceNullWithMe);
               })

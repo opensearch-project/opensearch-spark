@@ -8,8 +8,8 @@ import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Literal, NamedExpression, SortOrder}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, DataFrameDropColumns, LogicalPlan, Project, Sort, UnaryNode}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Expression, Literal, SortOrder}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, DataFrameDropColumns, LogicalPlan, Project, Sort}
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLFillnullITSuite
@@ -38,7 +38,7 @@ class FlintSparkPPLFillnullITSuite
 
   test("test fillnull with one null replacement value and one column") {
     val frame = sql(s"""
-                       | source = $testTable | fillnull value = 0 status_code
+                       | source = $testTable | fillnull with 0 in status_code
                        | """.stripMargin)
 
     assert(frame.columns.sameElements(Array("id", "request_path", "timestamp", "status_code")))
@@ -57,13 +57,13 @@ class FlintSparkPPLFillnullITSuite
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    val expectedPlan = fillNullExpectedPlan(Seq(("status_code", 0)))
+    val expectedPlan = fillNullExpectedPlan(Seq(("status_code", Literal(0))))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
   test("test fillnull with various null replacement values and one column") {
     val frame = sql(s"""
-                       | source = $testTable | fillnull fields status_code=101
+                       | source = $testTable | fillnull using status_code=101
                        | """.stripMargin)
 
     assert(frame.columns.sameElements(Array("id", "request_path", "timestamp", "status_code")))
@@ -82,13 +82,13 @@ class FlintSparkPPLFillnullITSuite
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    val expectedPlan = fillNullExpectedPlan(Seq(("status_code", 101)))
+    val expectedPlan = fillNullExpectedPlan(Seq(("status_code", Literal(101))))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
   test("test fillnull with one null replacement value and two columns") {
     val frame = sql(s"""
-                       | source = $testTable | fillnull value = '???' request_path, timestamp | fields id, request_path, timestamp
+                       | source = $testTable | fillnull with concat('??', '?') in request_path, timestamp | fields id, request_path, timestamp
                        | """.stripMargin)
 
     assert(frame.columns.sameElements(Array("id", "request_path", "timestamp")))
@@ -108,7 +108,13 @@ class FlintSparkPPLFillnullITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val fillNullPlan = fillNullExpectedPlan(
-      Seq(("request_path", "???"), ("timestamp", "???")),
+      Seq(
+        (
+          "request_path",
+          UnresolvedFunction("concat", Seq(Literal("??"), Literal("?")), isDistinct = false)),
+        (
+          "timestamp",
+          UnresolvedFunction("concat", Seq(Literal("??"), Literal("?")), isDistinct = false))),
       addDefaultProject = false)
     val expectedPlan = Project(
       Seq(
@@ -121,7 +127,7 @@ class FlintSparkPPLFillnullITSuite
 
   test("test fillnull with various null replacement values and two columns") {
     val frame = sql(s"""
-                       | source = $testTable | fillnull fields request_path='/not_found', timestamp='*' | fields id, request_path, timestamp
+                       | source = $testTable | fillnull using request_path=upper('/not_found'), timestamp='*' | fields id, request_path, timestamp
                        | """.stripMargin)
 
     assert(frame.columns.sameElements(Array("id", "request_path", "timestamp")))
@@ -131,8 +137,8 @@ class FlintSparkPPLFillnullITSuite
         Row(1, "/home", "*"),
         Row(2, "/about", "2023-10-01 10:05:00"),
         Row(3, "/contact", "2023-10-01 10:10:00"),
-        Row(4, "/not_found", "2023-10-01 10:15:00"),
-        Row(5, "/not_found", "2023-10-01 10:20:00"),
+        Row(4, "/NOT_FOUND", "2023-10-01 10:15:00"),
+        Row(5, "/NOT_FOUND", "2023-10-01 10:20:00"),
         Row(6, "/home", "*"))
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](0))
@@ -141,7 +147,11 @@ class FlintSparkPPLFillnullITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val fillNullPlan = fillNullExpectedPlan(
-      Seq(("request_path", "/not_found"), ("timestamp", "*")),
+      Seq(
+        (
+          "request_path",
+          UnresolvedFunction("upper", Seq(Literal("/not_found")), isDistinct = false)),
+        ("timestamp", Literal("*"))),
       addDefaultProject = false)
     val expectedPlan = Project(
       Seq(
@@ -154,7 +164,7 @@ class FlintSparkPPLFillnullITSuite
 
   test("test fillnull with one null replacement value and stats and sort command") {
     val frame = sql(s"""
-                       | source = $testTable | fillnull value = 500 status_code
+                       | source = $testTable | fillnull with 500 in status_code
                        | |  stats count(status_code) by status_code, request_path
                        | |  sort request_path, status_code
                        | """.stripMargin)
@@ -174,7 +184,8 @@ class FlintSparkPPLFillnullITSuite
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    val fillNullPlan = fillNullExpectedPlan(Seq(("status_code", 500)), addDefaultProject = false)
+    val fillNullPlan =
+      fillNullExpectedPlan(Seq(("status_code", Literal(500))), addDefaultProject = false)
     val aggregateExpressions =
       Seq(
         Alias(
@@ -203,7 +214,7 @@ class FlintSparkPPLFillnullITSuite
 
   test("test fillnull with various null replacement value and stats and sort command") {
     val frame = sql(s"""
-                       | source = $testTable | fillnull fields  status_code = 500, request_path = '/home'
+                       | source = $testTable | fillnull using  status_code = 500, request_path = '/home'
                        | |  stats count(status_code) by status_code, request_path
                        | |  sort request_path, status_code
                        | """.stripMargin)
@@ -222,7 +233,7 @@ class FlintSparkPPLFillnullITSuite
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val fillNullPlan = fillNullExpectedPlan(
-      Seq(("status_code", 500), ("request_path", "/home")),
+      Seq(("status_code", Literal(500)), ("request_path", Literal("/home"))),
       addDefaultProject = false)
     val aggregateExpressions =
       Seq(
@@ -252,7 +263,7 @@ class FlintSparkPPLFillnullITSuite
 
   test("test fillnull with one null replacement value and missing columns") {
     val ex = intercept[AnalysisException](sql(s"""
-                       | source = $testTable | fillnull value = '!!!'
+                       | source = $testTable | fillnull with '!!!' in
                        | """.stripMargin))
 
     assert(ex.getMessage().contains("Syntax error "))
@@ -260,14 +271,14 @@ class FlintSparkPPLFillnullITSuite
 
   test("test fillnull with various null replacement values and missing columns") {
     val ex = intercept[AnalysisException](sql(s"""
-                                                 | source = $testTable | fillnull fields
+                                                 | source = $testTable | fillnull using
                                                  | """.stripMargin))
 
     assert(ex.getMessage().contains("Syntax error "))
   }
 
   private def fillNullExpectedPlan(
-      nullReplacements: Seq[(String, Any)],
+      nullReplacements: Seq[(String, Expression)],
       addDefaultProject: Boolean = true): LogicalPlan = {
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val renameProjectList = UnresolvedStar(None) +: nullReplacements.map {
@@ -275,7 +286,7 @@ class FlintSparkPPLFillnullITSuite
         Alias(
           UnresolvedFunction(
             "coalesce",
-            Seq(UnresolvedAttribute(nullableColumn), Literal(nullReplacement)),
+            Seq(UnresolvedAttribute(nullableColumn), nullReplacement),
             isDistinct = false),
           nullableColumn)()
     }

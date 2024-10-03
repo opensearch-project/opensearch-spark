@@ -397,7 +397,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         List<UnresolvedExpression> aliases = new ArrayList<>();
         for(FillNull.NullableFieldFill nullableFieldFill : fillNull.getNullableFieldFills()) {
             Field field = nullableFieldFill.getNullableFieldReference();
-            Literal replaceNullWithMe = nullableFieldFill.getReplaceNullWithMe();
+            UnresolvedExpression replaceNullWithMe = nullableFieldFill.getReplaceNullWithMe();
             Function coalesce = new Function("coalesce", of(field, replaceNullWithMe));
             String fieldName = field.getField().toString();
             Alias alias = new Alias(fieldName, coalesce);

@@ -74,6 +74,8 @@ D:                                  'D';
 DESC:                               'DESC';
 DATASOURCES:                        'DATASOURCES';
 VALUE:                              'VALUE';
+USING:                              'USING';
+WITH:                               'WITH';
 
 // CLAUSE KEYWORDS
 SORTBY:                             'SORTBY';
