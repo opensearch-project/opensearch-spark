@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark.ppl
 
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.sql.common.antlr.SyntaxCheckException
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
 
@@ -266,5 +267,34 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
       Union(Seq(projectedTable1, projectedTable2), byName = true, allowMissingCol = true)
 
     comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("for 0.5-nexus: test fields minus one field") {
+    val context = new CatalystPlanContext
+    val thrown = intercept[SyntaxCheckException] {
+      planTransformer.visit(plan(pplParser, "source=table | fields - A", false), context)
+    }
+
+    assert(thrown.getMessage.contains("Failed to parse query due to offending symbol [-]"))
+  }
+
+  test("for 0.5-nexus: test fields minus multiple fields") {
+    val context = new CatalystPlanContext
+    val thrown = intercept[SyntaxCheckException] {
+      planTransformer.visit(plan(pplParser, "source=table | fields - A, B", false), context)
+    }
+
+    assert(thrown.getMessage.contains("Failed to parse query due to offending symbol [-]"))
+  }
+
+  test("for 0.5-nexus: test fields minus with other commands") {
+    val context = new CatalystPlanContext
+    val thrown = intercept[SyntaxCheckException] {
+      planTransformer.visit(
+        plan(pplParser, "source=table | sort - A | where B > 0 | fields - C | head 1", false),
+        context)
+    }
+
+    assert(thrown.getMessage.contains("Failed to parse query due to offending symbol [-]"))
   }
 }
