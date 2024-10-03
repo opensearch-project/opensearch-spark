@@ -32,8 +32,6 @@ import org.opensearch.sql.ast.expression.UnresolvedArgument;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.tree.*;
 import org.opensearch.sql.ast.tree.FillNull.NullableFieldFill;
-import org.opensearch.sql.ast.tree.FillNull.SameValueNullFill;
-import org.opensearch.sql.ast.tree.FillNull.VariousValueNullFill;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.ast.tree.Aggregation;
 import org.opensearch.sql.ast.tree.Correlation;
@@ -68,6 +66,8 @@ import java.util.stream.IntStream;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
+import static org.opensearch.sql.ast.tree.FillNull.ContainNullableFieldFill.ofSameValue;
+import static org.opensearch.sql.ast.tree.FillNull.ContainNullableFieldFill.ofVariousValue;
 
 
 /** Class of building the AST. Refines the visit path and build the AST nodes */
@@ -519,8 +519,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
               .map(this::internalVisitExpression)
               .map(Field.class::cast)
               .collect(Collectors.toList());
-      SameValueNullFill sameValueNullFill = new SameValueNullFill(replaceNullWithMe, fieldsToReplace);
-      return new FillNull(sameValueNullFill, null);
+      return new FillNull(ofSameValue(replaceNullWithMe, fieldsToReplace));
     } else if (variousValuesContext != null) {
       List<NullableFieldFill> nullableFieldFills = IntStream.range(0, variousValuesContext.nullableField().size())
               .mapToObj(index -> {
@@ -530,7 +529,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                 return new NullableFieldFill(nullableFieldReference, replaceNullWithMe);
               })
               .collect(Collectors.toList());
-      return new FillNull(null, new VariousValueNullFill(nullableFieldFills));
+      return new FillNull(ofVariousValue(nullableFieldFills));
     } else {
       throw new SyntaxCheckException("Invalid fillnull command");
     }

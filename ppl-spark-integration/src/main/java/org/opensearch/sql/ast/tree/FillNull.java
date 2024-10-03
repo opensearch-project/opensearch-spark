@@ -1,5 +1,8 @@
 package org.opensearch.sql.ast.tree;
 
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Field;
@@ -8,76 +11,58 @@ import org.opensearch.sql.ast.expression.Literal;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-public class FillNull extends UnresolvedPlan { ;
+@RequiredArgsConstructor
+public class FillNull extends UnresolvedPlan {
 
+    @Getter
+    @RequiredArgsConstructor
     public static class NullableFieldFill {
+        @NonNull
         private final Field nullableFieldReference;
+        @NonNull
         private final Literal replaceNullWithMe;
+    }
 
-        public NullableFieldFill(Field nullableFieldReference, Literal replaceNullWithMe) {
-            this.nullableFieldReference = Objects.requireNonNull(nullableFieldReference, "Field to replace is required");
-            this.replaceNullWithMe = Objects.requireNonNull(replaceNullWithMe, "Null replacement is required");
+    public interface ContainNullableFieldFill {
+        List<NullableFieldFill> getNullFieldFill();
+
+        static ContainNullableFieldFill ofVariousValue(List<NullableFieldFill> replacements) {
+            return new VariousValueNullFill(replacements);
         }
 
-        public Field getNullableFieldReference() {
-            return nullableFieldReference;
-        }
-
-        public Literal getReplaceNullWithMe() {
-            return replaceNullWithMe;
+        static ContainNullableFieldFill ofSameValue(Literal replaceNullWithMe, List<Field> nullableFieldReferences) {
+            return new SameValueNullFill(replaceNullWithMe, nullableFieldReferences);
         }
     }
 
-    private interface ContainNullableFieldFill {
-        Stream<NullableFieldFill> getNullFieldFill();
-    }
-
-    public static class SameValueNullFill implements ContainNullableFieldFill {
-        private final List<NullableFieldFill> replacements;
+    private static class SameValueNullFill implements ContainNullableFieldFill {
+        @Getter(onMethod_ = @Override)
+        private final List<NullableFieldFill> nullFieldFill;
 
         public SameValueNullFill(Literal replaceNullWithMe, List<Field> nullableFieldReferences) {
             Objects.requireNonNull(replaceNullWithMe, "Null replacement is required");
-            this.replacements = Objects.requireNonNull(nullableFieldReferences, "Nullable field reference is required")
+            this.nullFieldFill = Objects.requireNonNull(nullableFieldReferences, "Nullable field reference is required")
                     .stream()
                     .map(nullableReference -> new NullableFieldFill(nullableReference, replaceNullWithMe))
                     .collect(Collectors.toList());
         }
-
-        @Override
-        public Stream<NullableFieldFill> getNullFieldFill() {
-            return replacements.stream();
-        }
     }
 
-    public static class VariousValueNullFill implements ContainNullableFieldFill {
-        private final List<NullableFieldFill> replacements;
-
-        public VariousValueNullFill(List<NullableFieldFill> replacements) {
-            this.replacements = replacements;
-        }
-
-        @Override
-        public Stream<NullableFieldFill> getNullFieldFill() {
-            return replacements.stream();
-        }
+    @RequiredArgsConstructor
+    private static class VariousValueNullFill implements ContainNullableFieldFill {
+        @NonNull
+        @Getter(onMethod_ = @Override)
+        private final List<NullableFieldFill> nullFieldFill;
     }
 
     private UnresolvedPlan child;
-    private final SameValueNullFill sameValueNullFill;
-    private final VariousValueNullFill variousValueNullFill;
 
-    public FillNull(SameValueNullFill sameValueNullFill, VariousValueNullFill variousValueNullFill) {
-        this.sameValueNullFill = sameValueNullFill;
-        this.variousValueNullFill = variousValueNullFill;
-    }
+    @NonNull
+    private final ContainNullableFieldFill containNullableFieldFill;
 
     public List<NullableFieldFill> getNullableFieldFills() {
-        return Stream.of(sameValueNullFill, variousValueNullFill)
-                .filter(Objects::nonNull)
-                .flatMap(ContainNullableFieldFill::getNullFieldFill)
-                .collect(Collectors.toList());
+        return containNullableFieldFill.getNullFieldFill();
     }
 
     @Override
@@ -88,7 +73,6 @@ public class FillNull extends UnresolvedPlan { ;
 
     @Override
     public List<? extends Node> getChild() {
-
         return child == null ? List.of() : List.of(child);
     }
 

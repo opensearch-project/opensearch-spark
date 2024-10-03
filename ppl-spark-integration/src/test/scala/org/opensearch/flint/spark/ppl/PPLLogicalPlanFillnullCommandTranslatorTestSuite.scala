@@ -16,7 +16,7 @@ import org.apache.spark.sql.catalyst.expressions.{Alias, Literal, NamedExpressio
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical.{DataFrameDropColumns, Project}
 
-class PPLLogicalPlanRenameCommandTranslatorTestSuite
+class PPLLogicalPlanFillnullCommandTranslatorTestSuite
     extends SparkFunSuite
     with PlanTest
     with LogicalPlanTestUtils
