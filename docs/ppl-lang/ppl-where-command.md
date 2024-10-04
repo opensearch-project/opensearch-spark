@@ -10,7 +10,6 @@ The ``where`` command bool-expression to filter the search result. The ``where``
 * bool-expression: optional. any expression which could be evaluated to boolean value.
 
 ### Example 1: Filter result set with condition
-===========================================
 
 The example show fetch all the document from accounts index with .
 
