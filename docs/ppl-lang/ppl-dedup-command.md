@@ -126,7 +126,7 @@ PPL query:
 
 ### Limitation:
 
-**Spark Support** (3.4)
+**Spark Support** ( >= 3.4)
 
 To translate `dedup` command with `allowedDuplication > 1`, such as `| dedup 2 a,b` to Spark plan, the solution is translating to a plan with Window function (e.g row_number) and a new column `row_number_col` as Filter.
  
