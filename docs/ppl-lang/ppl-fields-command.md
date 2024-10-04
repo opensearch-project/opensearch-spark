@@ -56,13 +56,16 @@ PPL query:
 - `source = table | eval b1 = b | fields - b1,c`
 
 ### Limitation: 
-new field added by eval command with a function cannot be dropped in current version:**_
+ - `fields - list` shows incorrect results for spark version 3.3 - see [issue](https://github.com/opensearch-project/opensearch-spark/pull/732)
+ - new field added by eval command with a function cannot be dropped in current version:**_
+
 ```sql
  `source = table | eval b1 = b + 1 | fields - b1,c` (Field `b1` cannot be dropped caused by SPARK-49782)
  `source = table | eval b1 = lower(b) | fields - b1,c` (Field `b1` cannot be dropped caused by SPARK-49782)
 ```
 
 **Nested-Fields**
+ - nested field shows incorrect results for spark version 3.3 - see [issue](https://github.com/opensearch-project/opensearch-spark/issues/739) 
 ```sql
 `source = catalog.schema.table1, catalog.schema.table2 | fields A.nested1, B.nested1`
 `source = catalog.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield`

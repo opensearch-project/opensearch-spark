@@ -47,6 +47,8 @@ PPL query:
     +------+---------+
 
 ### Limitation:
-Overriding existing field is unsupported:
+- `rename` command needs spark version >= 3.4
+
+- Overriding existing field is unsupported:
 
 `source=accounts | grok address '%{NUMBER} %{GREEDYDATA:address}' | fields address`

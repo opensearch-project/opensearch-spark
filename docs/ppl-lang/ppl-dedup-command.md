@@ -124,3 +124,34 @@ PPL query:
 - `source = table | dedup 2 a,b keepempty=true | fields a,b,c`
 - `source = table | dedup 1 a consecutive=true| fields a,b,c` (Consecutive deduplication is unsupported)
 
+### Limitation:
+
+**Spark Support** (3.4)
+
+To translate `dedup` command with `allowedDuplication > 1`, such as `| dedup 2 a,b` to Spark plan, the solution is translating to a plan with Window function (e.g row_number) and a new column `row_number_col` as Filter.
+ 
+- For `| dedup 2 a, b keepempty=false`
+
+```
+DataFrameDropColumns('_row_number_)
++- Filter ('_row_number_ <= 2) // allowed duplication = 2
+   +- Window [row_number() windowspecdefinition('a, 'b, 'a ASC NULLS FIRST, 'b ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_], ['a, 'b], ['a ASC NULLS FIRST, 'b ASC NULLS FIRST]
+       +- Filter (isnotnull('a) AND isnotnull('b)) // keepempty=false
+          +- Project
+             +- UnresolvedRelation
+```
+- For `| dedup 2 a, b keepempty=true`
+```
+Union
+:- DataFrameDropColumns('_row_number_)
+:  +- Filter ('_row_number_ <= 2)
+:     +- Window [row_number() windowspecdefinition('a, 'b, 'a ASC NULLS FIRST, 'b ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_], ['a, 'b], ['a ASC NULLS FIRST, 'b ASC NULLS FIRST]
+:        +- Filter (isnotnull('a) AND isnotnull('b))
+:           +- Project
+:              +- UnresolvedRelation
++- Filter (isnull('a) OR isnull('b))
+   +- Project
+      +- UnresolvedRelation
+```
+
+ - this `dedup` command with `allowedDuplication > 1` feature needs spark version >= 3.4 

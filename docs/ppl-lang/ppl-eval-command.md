@@ -105,7 +105,9 @@ eval status_category =
 ```
 
 ### Limitation:
-Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous"
+ - `eval` with comma separated expression needs spark version >= 3.4
+
+ - Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous"
 
 ```sql
 - `source = table | eval a = 10 | fields a,b,c`
