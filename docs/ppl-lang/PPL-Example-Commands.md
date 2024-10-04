@@ -39,26 +39,27 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where isempty(a)`
 - `source = table | where case(length(a) > 6, 'True' else 'False') = 'True'`
 
-```
+```sql
  source = table | eval status_category =
  case(a >= 200 AND a < 300, 'Success',
- a >= 300 AND a < 400, 'Redirection',
- a >= 400 AND a < 500, 'Client Error',
- a >= 500, 'Server Error'
- else 'Incorrect HTTP status code')
+         a >= 300 AND a < 400, 'Redirection',
+         a >= 400 AND a < 500, 'Client Error',
+         a >= 500, 'Server Error'
+     else 'Incorrect HTTP status code')
  | where case(a >= 200 AND a < 300, 'Success',
- a >= 300 AND a < 400, 'Redirection',
- a >= 400 AND a < 500, 'Client Error',
- a >= 500, 'Server Error'
- else 'Incorrect HTTP status code'
+         a >= 300 AND a < 400, 'Redirection',
+         a >= 400 AND a < 500, 'Client Error',
+         a >= 500, 'Server Error'
+    else 'Incorrect HTTP status code'
  ) = 'Incorrect HTTP status code'
 ```
--
- ```
+
+
+```sql
  source = table
- | eval factor = case(a > 15, a - 14, isnull(b), a - 7, a < 3, a + 1 else 1)
- | where case(factor = 2, 'even', factor = 4, 'even', factor = 6, 'even', factor = 8, 'even' else 'odd') = 'even'
- |  stats count() by factor
+     | eval factor = case(a > 15, a - 14, isnull(b), a - 7, a < 3, a + 1 else 1)
+     | where case(factor = 2, 'even', factor = 4, 'even', factor = 6, 'even', factor = 8, 'even' else 'odd') = 'even'
+     | stats count() by factor
  ```
 
 #### **Filters With Logical Conditions**
@@ -84,30 +85,33 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one', a = 2, 'two', a = 3, 'three', a = 4, 'four', a = 5, 'five', a = 6, 'six', a = 7, 'se7en', a = 8, 'eight', a = 9, 'nine')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else 'unknown')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else concat(a, ' is an incorrect binary digit'))`
--
-```
+
+
+```sql
 source = table | eval e = eval status_category =
-case(a >= 200 AND a < 300, 'Success',
-a >= 300 AND a < 400, 'Redirection',
-a >= 400 AND a < 500, 'Client Error',
-a >= 500, 'Server Error'
-else 'Unknown'
-)
-```
--
-```
-source = table |  where ispresent(a) |
-eval status_category =
- case(a >= 200 AND a < 300, 'Success',
-  a >= 300 AND a < 400, 'Redirection',
-  a >= 400 AND a < 500, 'Client Error',
-  a >= 500, 'Server Error'
-  else 'Incorrect HTTP status code'
- )
- | stats count() by status_category
+        case(a >= 200 AND a < 300, 'Success',
+            a >= 300 AND a < 400, 'Redirection',
+            a >= 400 AND a < 500, 'Client Error',
+            a >= 500, 'Server Error'
+        else 'Unknown'
+    )
 ```
 
-Limitation: Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous"
+```sql
+source = table |  where ispresent(a) |
+    eval status_category =
+         case(a >= 200 AND a < 300, 'Success',
+          a >= 300 AND a < 400, 'Redirection',
+          a >= 400 AND a < 500, 'Client Error',
+          a >= 500, 'Server Error'
+          else 'Incorrect HTTP status code'
+         )
+    | stats count() by status_category
+```
+
+**Limitation**:
+    Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous"
+
 - `source = table | eval a = 10 | fields a,b,c`
 - `source = table | eval a = a * 2 | stats avg(a)`
 - `source = table | eval a = abs(a) | where a > 0`
@@ -140,6 +144,7 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source = table | stats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | stats avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | stats avg(avg_state_age) as avg_adult_country_age by country`
 
 #### **Dedup**
+
 [See additional command details](ppl-dedup-command)
 
 - `source = table | dedup a | fields a,b,c`
@@ -178,7 +183,7 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source=accounts | parse email '.+@(?<host>.+)' | eval eval_result=1 | fields host, eval_result`
 - `source=accounts | parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host`
 - `source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street`
-- **Limitation: [see limitations](ppl-parse-command.md#limitations)
+- Limitation: [see limitations](ppl-parse-command.md#limitations)
 
 #### **Grok**
 [See additional command details](ppl-grok-command)
@@ -192,7 +197,7 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 
 - **Limitation: Overriding existing field is unsupported:**_
 - `source=accounts | grok address '%{NUMBER} %{GREEDYDATA:address}' | fields address`
-- **[see limitations](ppl-parse-command.md#limitations)
+- [see limitations](ppl-parse-command.md#limitations)
 
 #### **Patterns**
 [See additional command details](ppl-patterns-command)
@@ -201,7 +206,7 @@ Limitation: Overriding existing field is unsupported, following queries throw ex
 - `source=accounts | patterns email | where age > 45 | sort - age | fields email, patterns_field`
 - `source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | fields message, no_numbers`
 - `source=apache | patterns new_field='no_numbers' pattern='[0-9]' message | stats count() by no_numbers`
-- **Limitation: [see limitations](ppl-parse-command.md#limitations)
+- Limitation: [see limitations](ppl-parse-command.md#limitations)
 
 #### **Rename**
 [See additional command details](ppl-rename-command)
@@ -251,7 +256,8 @@ _- **Limitation: "REPLACE" or "APPEND" clause must contain "AS"**_
 - `source = outer | where a in [ source = inner1 | where b not in [ source = inner2 | fields c ] | fields b ]` (nested)
 - `source = table1 | inner join left = l right = r on l.a = r.a AND r.a in [ source = inner | fields d ] | fields l.a, r.a, b, c` (as join filter)
 
-SQL Migration examples with IN-Subquery PPL:
+**SQL Migration examples with IN-Subquery PPL:**
+
 1. tpch q4 (in-subquery with aggregation)
 ```sql
 select
@@ -274,6 +280,7 @@ group by
 order by
   o_orderpriority
 ```
+
 Rewritten by PPL InSubquery query:
 ```sql
 source = orders
@@ -286,6 +293,7 @@ source = orders
 | sort o_orderpriority
 | fields o_orderpriority, order_count
 ```
+
 2.tpch q20 (nested in-subquery)
 ```sql
 select
@@ -315,6 +323,7 @@ where
 order by
   s_name
 ```
+
 Rewritten by PPL InSubquery query:
 ```sql
 source = supplier
