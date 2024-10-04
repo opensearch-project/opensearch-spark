@@ -55,5 +55,5 @@ spark-sql --conf "spark.sql.extensions='org.opensearch.flint.spark.FlintPPLSpark
 ```
 
 Once this is done, spark will allow both extensions to parse the query (SQL / PPL) and allow the correct execution of the query.
-In addition, PPL queries will enjoy the acceleration capabilities supported by the Flint plugins as described [here](index.md)
+In addition, PPL queries will enjoy the acceleration capabilities supported by the Flint plugins as described [here](../index.md)
 
