@@ -27,8 +27,18 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
 
   private val mockMetadataCacheData = FlintMetadataCache.mock
 
-  test("write metadata cache to index mappings") {
+  override def beforeAll(): Unit = {
+    super.beforeAll()
     setFlintSparkConf(FlintSparkConf.METADATA_CACHE_WRITE, "true")
+  }
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+    // TODO: unset if default is false
+    // conf.unsetConf(FlintSparkConf.METADATA_CACHE_WRITE.key)
+  }
+
+  test("write metadata cache to index mappings") {
     val indexName = "flint_test_index"
     val metadata = FlintOpenSearchIndexMetadataService.deserialize("{}")
     flintClient.createIndex(indexName, metadata)
@@ -48,7 +58,6 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
   }
 
   test("write metadata cache to index mappings and preserve other index metadata") {
-    setFlintSparkConf(FlintSparkConf.METADATA_CACHE_WRITE, "true")
     val indexName = "test_update"
     val content =
       """ {
