@@ -119,7 +119,6 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           throw new IllegalStateException(s"Flint index $indexName already exists")
         }
       } else {
-        val metadata = index.metadata()
         val jobSchedulingService = FlintSparkJobSchedulingService.create(
           index,
           spark,
@@ -131,15 +130,15 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           .transientLog(latest => latest.copy(state = CREATING))
           .finalLog(latest => latest.copy(state = ACTIVE))
           .commit(latest => {
-            if (latest == null) { // in case transaction capability is disabled
-              flintClient.createIndex(indexName, metadata)
-              flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
-            } else {
-              logInfo(s"Creating index with metadata log entry ID ${latest.id}")
-              flintClient.createIndex(indexName, metadata.copy(latestId = Some(latest.id)))
-              flintIndexMetadataService
-                .updateIndexMetadata(indexName, metadata.copy(latestId = Some(latest.id)))
+            val metadata = latest match {
+              case null => // in case transaction capability is disabled
+                index.metadata()
+              case latestEntry =>
+                logInfo(s"Creating index with metadata log entry ID ${latestEntry.id}")
+                index.metadata().copy(latestId = Some(latestEntry.id))
             }
+            flintClient.createIndex(indexName, metadata)
+            flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
             if (isMetadataCacheWriteEnabled) {
               flintMetadataCacheWriteService.updateMetadataCache(indexName, metadata)
             }

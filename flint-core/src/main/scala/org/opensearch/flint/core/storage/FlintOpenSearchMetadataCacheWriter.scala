@@ -52,6 +52,7 @@ class FlintOpenSearchMetadataCacheWriter(options: FlintOptions) extends Logging 
       client = OpenSearchClientUtils.createClient(options)
       val request = new PutMappingRequest(osIndexName)
       // TODO: make sure to preserve existing lastRefreshTime
+      // Note that currently lastUpdateTime isn't used to construct FlintMetadataLogEntry
       request.source(serialize(metadata), XContentType.JSON)
       client.updateIndexMapping(request, RequestOptions.DEFAULT)
     } catch {
