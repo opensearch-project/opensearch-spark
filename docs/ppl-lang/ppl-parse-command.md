@@ -76,14 +76,14 @@ There are a few limitations with parse command:
 
   The following command will not work:
 
-    source=accounts | parse address '\d+ (?<street>.+)' | parse street '\w+ (?<road>\w+)' ;
+    `source=accounts | parse address '\d+ (?<street>.+)' | parse street '\w+ (?<road>\w+)'`
 
 - Fields defined by parse cannot be overridden with other commands.
 
   ``where`` will not match any documents since ``street`` cannot be overridden:
 
 ```sql
-source=accounts | parse address '\d+ (?<street>.+)' | eval street='1' | where street='1' ;
+   source=accounts | parse address '\d+ (?<street>.+)' | eval street='1' | where street='1' ;
 ```
 
 - The text field used by parse cannot be overridden.

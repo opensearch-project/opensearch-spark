@@ -58,6 +58,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
   
     - [`lookup commands`](ppl-lookup-command.md)
   
+    - [`subquery commands`](ppl-subquery-command.md)
+  
     - [`correlation commands`](ppl-correlation-command.md)
 
 

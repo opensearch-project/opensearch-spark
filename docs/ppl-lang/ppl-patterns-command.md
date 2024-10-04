@@ -63,7 +63,6 @@ PPL query:
     | 210.204.15.104 - - [28/Sep/2022:10:15:57 -0700] "POST /users HTTP/1.1" 301 9481                                             | ... - - [/Sep/::: -] "POST /users HTTP/."                                            |
     +-----------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------+
 
-Limitation
-==========
+**Limitation**
 
 The patterns command has the same limitations as the parse command, see ``parse limitations` for details.
