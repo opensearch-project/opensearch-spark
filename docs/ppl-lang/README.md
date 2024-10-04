@@ -65,21 +65,17 @@ source=accounts
 
 * **Functions**
 
-    - `Expressions <functions/expressions.rst>`_
+    - [`Expressions`](functions/ppl-expressions.md)
 
-    - `Math Functions <functions/math.rst>`_
+    - [`Math Functions`](functions/ppl-math.md)
 
-    - `Date and Time Functions <functions/datetime.rst>`_
+    - [`Date and Time Functions`](functions/ppl-datetime.md) 
 
-    - `String Functions <functions/string.rst>`_
+    - [`String Functions`](functions/ppl-string.md)
 
-    - `Condition Functions <functions/condition.rst>`_
+    - [`Condition Functions`](functions/ppl-condition.md)
 
-    - `Relevance Functions <functions/relevance.rst>`_
-
-    - `Type Conversion Functions <functions/conversion.rst>`_
-
-    - `System Functions <functions/system.rst>`_
+    - [`Type Conversion Functions`](functions/ppl-conversion.md)
 
 
 ---
