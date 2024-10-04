@@ -39,7 +39,8 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
 
   override def afterEach(): Unit = {
     super.afterEach()
-
+    conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
+    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     // Delete all test indices
     deleteTestIndex(testFlintIndex)
   }
@@ -162,8 +163,6 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
       assert(
         checkpointLocation.get.contains(testFlintIndex),
         s"Checkpoint location dir should contain ${testFlintIndex}")
-
-      conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
     }
   }
 
@@ -209,7 +208,6 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
 
       val indexData = flint.queryIndex(testFlintIndex)
       checkAnswer(indexData, Seq(Row("Hello", 30), Row("World", 25)))
-      conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     }
   }
 
@@ -289,8 +287,6 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
       assert(
         checkpointLocation.get.contains(testFlintIndex),
         s"Checkpoint location dir should contain ${testFlintIndex}")
-
-      conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
     }
   }
 

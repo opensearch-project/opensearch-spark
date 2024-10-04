@@ -48,6 +48,8 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
   override def afterEach(): Unit = {
     super.afterEach()
+    conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
+    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     deleteTestIndex(testFlintIndex)
   }
 
@@ -130,8 +132,6 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
       assert(
         checkpointLocation.get.contains(testFlintIndex),
         s"Checkpoint location dir should contain ${testFlintIndex}")
-
-      conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
     }
   }
 
@@ -333,8 +333,6 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
       assert(
         checkpointLocation.get.contains(testFlintIndex),
         s"Checkpoint location dir should contain ${testFlintIndex}")
-
-      conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
     }
   }
 
@@ -385,8 +383,6 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
           Row(timestamp("2023-10-01 00:00:00"), 1),
           Row(timestamp("2023-10-01 00:10:00"), 2),
           Row(timestamp("2023-10-01 01:00:00"), 1)))
-
-      conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     }
   }
 

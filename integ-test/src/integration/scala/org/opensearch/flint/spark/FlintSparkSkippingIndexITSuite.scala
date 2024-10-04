@@ -49,6 +49,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
   }
 
   override def afterEach(): Unit = {
+    conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
+    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     // Delete all test indices
     deleteTestIndex(testIndex)
     sql(s"DROP TABLE $testTable")
@@ -215,8 +217,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       assert(
         checkpointLocation.get.contains(testIndex),
         s"Checkpoint location dir should contain ${testIndex}")
-
-      conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
     }
   }
 
@@ -363,7 +363,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       // Expect to only refresh the new file
       flint.refreshIndex(testIndex) shouldBe empty
       flint.queryIndex(testIndex).collect().toSet should have size 1
-      conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     }
   }
 
@@ -442,8 +441,6 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       assert(
         checkpointLocation.get.contains(testIndex),
         s"Checkpoint location dir should contain ${testIndex}")
-
-      conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
     }
   }
 

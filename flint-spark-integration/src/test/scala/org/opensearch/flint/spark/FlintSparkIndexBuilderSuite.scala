@@ -38,6 +38,13 @@ class FlintSparkIndexBuilderSuite extends FlintSuite {
     super.afterAll()
   }
 
+  override def afterEach(): Unit = {
+    super.afterEach()
+    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
+    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD.key)
+    conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
+  }
+
   test("indexOptions should not have checkpoint location when no conf") {
     assert(!conf.contains(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key))
 
@@ -208,13 +215,6 @@ class FlintSparkIndexBuilderSuite extends FlintSuite {
     }
     exception.getMessage should include(
       "External scheduler mode is not enabled in the configuration")
-  }
-
-  override def afterEach(): Unit = {
-    super.afterEach()
-    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
-    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD.key)
-    conf.unsetConf(FlintSparkConf.CHECKPOINT_LOCATION_ROOT_DIR.key)
   }
 
   private def builder(): FakeFlintSparkIndexBuilder = {

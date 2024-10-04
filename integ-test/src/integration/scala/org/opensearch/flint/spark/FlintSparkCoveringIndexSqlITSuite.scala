@@ -37,7 +37,8 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
   override def afterEach(): Unit = {
     super.afterEach()
-
+    conf.unsetConf(FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key)
+    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     // Delete all test indices
     deleteTestIndex(testFlintIndex)
     sql(s"DROP TABLE $testTable")
@@ -180,8 +181,6 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
       // Drop index with test scheduler
       sql(s"DROP INDEX $testIndex ON $testTable")
-      conf.unsetConf(FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key)
-      conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     }
   }
 

@@ -45,6 +45,8 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
   override def afterEach(): Unit = {
     super.afterEach()
+    conf.unsetConf(FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key)
+    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     deleteTestIndex(testFlintIndex)
     sql(s"DROP TABLE $testTable")
   }
@@ -119,8 +121,6 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
 
       // Drop index with test scheduler
       sql(s"DROP MATERIALIZED VIEW $testMvName")
-      conf.unsetConf(FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key)
-      conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     }
   }
 

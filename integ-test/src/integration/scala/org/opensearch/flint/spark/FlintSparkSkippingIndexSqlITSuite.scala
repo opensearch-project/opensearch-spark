@@ -37,7 +37,8 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
 
   protected override def afterEach(): Unit = {
     super.afterEach()
-
+    conf.unsetConf(FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key)
+    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     deleteTestIndex(testIndex)
     sql(s"DROP TABLE $testTable")
   }
@@ -98,8 +99,6 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
       flint.queryIndex(testIndex).count() shouldBe 2
 
       sql(s"DROP SKIPPING INDEX ON $testTable")
-      conf.unsetConf(FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key)
-      conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
     }
   }
 
