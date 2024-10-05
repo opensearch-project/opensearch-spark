@@ -1,6 +1,8 @@
 # OpenSearch PPL Command Development Process
 This document outlines the formal process for proposing and implementing new PPL commands or syntax changes in OpenSearch.
+
 ## Phase 1: Proposal
+
 ### 1.1 Create GitHub Issue
 
 Start by creating a new GitHub issue using the following [template](.github/ISSUE_TEMPLATE/ppl_command_request.md):
@@ -38,13 +40,13 @@ Create a Pull Request that adds a new markdown file under the `docs/ppl-lang/pla
 4) Implementation considerations 
 5) Potential limitations or edge cases
 
-### Phase 2: Review and Approval
+## Phase 2: Review and Approval
 
 1) Community members and maintainers review the proposal 
 2) Feedback is incorporated into the planning document / PR comments
 3) Proposal is either accepted, rejected, or sent back for revision
 
-### Phase 3: Experimental Implementation
+## Phase 3: Experimental Implementation
 Once approved, the command enters the experimental phase:
 
 1) Create implementation PR with:
@@ -56,7 +58,7 @@ Once approved, the command enters the experimental phase:
 3) Documentation indicates experimental status 
 4) Experimental features are disabled by default in production
 
-### Phase 4: Maturation
+## Phase 4: Maturation
 During the experimental phase:
 
 1) Gather user feedback 
@@ -64,7 +66,7 @@ During the experimental phase:
 3) Refine implementation and documentation 
 4) Regular review of usage and stability
 
-### Phase 5: Formal Integration
+## Phase 5: Formal Integration
 When the command has matured:
 
 1) Create PR to remove experimental status
@@ -72,7 +74,9 @@ When the command has matured:
 3) Ensure backward compatibility
 4) Merge into main PPL command set
 
-### Best Practices
+---
+
+## Best Practices
 
 * Follow existing PPL command patterns and conventions
 * Ensure comprehensive test coverage
@@ -80,8 +84,8 @@ When the command has matured:
 * Consider performance implications
 * Maintain backward compatibility when possible
 
-### Timeline Expectations
+## Timeline Expectations
 
 * Proposal Review: 1-2 weeks
 * Experimental Phase: 1-3 months
-* Maturation to Formal Integration: Based on community feedback and stabilityOpenSearch PPL Command Development Process
+* Maturation to Formal Integration: Based on community feedback and stability
