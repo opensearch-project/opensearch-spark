@@ -10,6 +10,7 @@ import java.util.{Collections, UUID}
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
+import org.opensearch.flint.core.logging.CustomLogging.logInfo
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, INCREMENTAL_REFRESH, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, SCHEDULER_MODE, WATERMARK_DELAY}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
@@ -236,16 +237,25 @@ object FlintSparkIndexOptions {
       IntervalSchedulerParser.parse(flintSparkConf.externalSchedulerIntervalThreshold())
     val currentInterval = options.refreshInterval().map(IntervalSchedulerParser.parse)
 
+    logInfo(s"updateOptionsWithDefaults - before updatedOptions: ${updatedOptions}")
+    logInfo(s"currentInterval.isDefined: ${currentInterval.isDefined}")
+    logInfo(s"${updatedOptions.get(SCHEDULER_MODE.toString).equals(Some("external"))}")
     (
       externalSchedulerEnabled,
-      currentInterval,
+      currentInterval.isDefined,
       updatedOptions.get(SCHEDULER_MODE.toString)) match {
-      case (true, Some(interval), _) if interval.getInterval >= thresholdInterval.getInterval =>
+      case (true, true, None | Some("external"))
+          if currentInterval.get.getInterval >= thresholdInterval.getInterval =>
         updatedOptions += (SCHEDULER_MODE.toString -> SchedulerMode.EXTERNAL.toString)
-      case (true, None, Some("external")) =>
+      case (true, true, Some("external"))
+          if currentInterval.get.getInterval < thresholdInterval.getInterval =>
+        throw new IllegalArgumentException(
+          s"Input refresh_interval is ${options.refreshInterval().get}, required above the interval threshold of external scheduler: ${flintSparkConf
+              .externalSchedulerIntervalThreshold()}")
+      case (true, false, Some("external")) =>
         updatedOptions += (REFRESH_INTERVAL.toString -> flintSparkConf
           .externalSchedulerIntervalThreshold())
-      case (true, None, None) =>
+      case (true, false, None) =>
         updatedOptions += (SCHEDULER_MODE.toString -> SchedulerMode.EXTERNAL.toString)
         updatedOptions += (REFRESH_INTERVAL.toString -> flintSparkConf
           .externalSchedulerIntervalThreshold())
@@ -253,9 +263,10 @@ object FlintSparkIndexOptions {
         throw new IllegalArgumentException(
           "External scheduler mode spark conf is not enabled but refresh interval is set to external scheduler mode")
       case _ =>
+        logInfo("Debug only")
         updatedOptions += (SCHEDULER_MODE.toString -> SchedulerMode.INTERNAL.toString)
     }
-
+    logInfo(s"updateOptionsWithDefaults - updatedOptions: ${updatedOptions}")
     FlintSparkIndexOptions(updatedOptions.toMap)
   }
 }

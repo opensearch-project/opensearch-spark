@@ -30,13 +30,13 @@ public class AsyncQuerySchedulerBuilder {
 
   public static AsyncQueryScheduler build(FlintOptions options) {
     String className = options.getCustomAsyncQuerySchedulerClass();
-    logger.info("Attempting to instantiate AsyncQueryScheduler with class name: {}", className);
 
     if (className.isEmpty()) {
       return new OpenSearchAsyncQueryScheduler(options);
     }
 
     // Attempts to instantiate AsyncQueryScheduler using reflection
+    logger.info("Attempting to instantiate AsyncQueryScheduler with class name: {}", className);
     try {
       Class<?> asyncQuerySchedulerClass = Class.forName(className);
       Constructor<?> constructor = asyncQuerySchedulerClass.getConstructor();

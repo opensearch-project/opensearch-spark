@@ -7,13 +7,20 @@ package org.opensearch.flint.spark
 
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{CHECKPOINT_LOCATION, REFRESH_INTERVAL, SCHEDULER_MODE}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
+import org.scalatest.Inspectors.forAll
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.matchers.should.Matchers.not.include
+import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.wordspec.AnyWordSpec
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.flint.config.FlintSparkConf
 
-class FlintSparkIndexBuilderSuite extends FlintSuite {
+class FlintSparkIndexBuilderSuite
+    extends FlintSuite
+    with Matchers
+    with TableDrivenPropertyChecks {
 
   val indexName: String = "test_index"
   val testCheckpointLocation = "/test/checkpoints/"
@@ -143,71 +150,148 @@ class FlintSparkIndexBuilderSuite extends FlintSuite {
     }
   }
 
-  test(
-    "updateOptionsWithDefaults should set internal scheduler mode when auto refresh is false") {
-    val options = FlintSparkIndexOptions(Map("auto_refresh" -> "false"))
-    val builder = new FakeFlintSparkIndexBuilder
+  test("updateOptionsWithDefaults scenarios") {
+    val scenarios = Table(
+      (
+        "testName",
+        "externalSchedulerEnabled",
+        "thresholdInterval",
+        "inputOptions",
+        "expectedMode",
+        "expectedInterval",
+        "expectedException"),
+      (
+        "set internal mode when auto refresh is false",
+        false,
+        "5 minutes",
+        Map("auto_refresh" -> "false"),
+        None,
+        None,
+        None),
+      (
+        "set internal mode when external scheduler is disabled",
+        false,
+        "5 minutes",
+        Map("auto_refresh" -> "true"),
+        Some(SchedulerMode.INTERNAL.toString),
+        None,
+        None),
+      (
+        "set external mode when interval is above threshold",
+        true,
+        "5 minutes",
+        Map("auto_refresh" -> "true", "refresh_interval" -> "10 minutes"),
+        Some(SchedulerMode.EXTERNAL.toString),
+        Some("10 minutes"),
+        None),
+      (
+        "set external mode and default interval when no interval provided",
+        true,
+        "5 minutes",
+        Map("auto_refresh" -> "true"),
+        Some(SchedulerMode.EXTERNAL.toString),
+        Some("5 minutes"),
+        None),
+      (
+        "set external mode when explicitly specified",
+        true,
+        "5 minutes",
+        Map("auto_refresh" -> "true", "scheduler_mode" -> "external"),
+        Some(SchedulerMode.EXTERNAL.toString),
+        None,
+        None),
+      (
+        "throw exception when external scheduler disabled but mode is external",
+        false,
+        "5 minutes",
+        Map("auto_refresh" -> "true", "scheduler_mode" -> "external"),
+        None,
+        None,
+        Some(
+          "External scheduler mode spark conf is not enabled but refresh interval is set to external schedule")),
+      (
+        "set external mode when interval above threshold and no mode specified",
+        true,
+        "5 minutes",
+        Map("auto_refresh" -> "true", "refresh_interval" -> "10 minutes"),
+        Some(SchedulerMode.EXTERNAL.toString),
+        Some("10 minutes"),
+        None),
+      (
+        "throw exception when interval below threshold but mode is external",
+        true,
+        "5 minutes",
+        Map(
+          "auto_refresh" -> "true",
+          "refresh_interval" -> "1 minute",
+          "scheduler_mode" -> "external"),
+        None,
+        None,
+        Some("Input refresh_interval is 1 minute, required above the interval threshold")),
+      (
+        "set external mode when interval above threshold and mode specified",
+        true,
+        "5 minutes",
+        Map(
+          "auto_refresh" -> "true",
+          "refresh_interval" -> "10 minute",
+          "scheduler_mode" -> "external"),
+        Some(SchedulerMode.EXTERNAL.toString),
+        None,
+        None),
+      (
+        "set default interval when mode is external but no interval provided",
+        true,
+        "5 minutes",
+        Map("auto_refresh" -> "true", "scheduler_mode" -> "external"),
+        Some(SchedulerMode.EXTERNAL.toString),
+        Some("5 minutes"),
+        None),
+      (
+        "set external mode when external scheduler enabled but no mode or interval specified",
+        true,
+        "5 minutes",
+        Map("auto_refresh" -> "true"),
+        Some(SchedulerMode.EXTERNAL.toString),
+        None,
+        None))
 
-    val updatedOptions = builder.options(options, indexName).testOptions
-    updatedOptions.options.get(SCHEDULER_MODE.toString) shouldBe None
-  }
+    forAll(scenarios) {
+      (
+          testName,
+          externalSchedulerEnabled,
+          thresholdInterval,
+          inputOptions,
+          expectedMode,
+          expectedInterval,
+          expectedException) =>
+        withClue(s"Scenario: $testName - ") {
+          setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, externalSchedulerEnabled)
+          setFlintSparkConf(
+            FlintSparkConf.EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD,
+            thresholdInterval)
 
-  test(
-    "updateOptionsWithDefaults should set internal scheduler mode when external scheduler is disabled") {
-    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, false)
-    val options = FlintSparkIndexOptions(Map("auto_refresh" -> "true"))
-    val builder = new FakeFlintSparkIndexBuilder
+          val options = FlintSparkIndexOptions(inputOptions)
+          val builder = new FakeFlintSparkIndexBuilder
 
-    val updatedOptions = builder.options(options, indexName).testOptions
-    updatedOptions.options(SCHEDULER_MODE.toString) shouldBe SchedulerMode.INTERNAL.toString
-  }
+          expectedException match {
+            case Some(exceptionMessage) =>
+              val exception = intercept[IllegalArgumentException] {
+                builder.options(options, indexName)
+              }
+              exception.getMessage should include(exceptionMessage)
 
-  test(
-    "updateOptionsWithDefaults should set external scheduler mode when interval is above threshold") {
-    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, true)
-    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD, "5 minutes")
-    val options =
-      FlintSparkIndexOptions(Map("auto_refresh" -> "true", "refresh_interval" -> "10 minutes"))
-    val builder = new FakeFlintSparkIndexBuilder
-
-    val updatedOptions = builder.options(options, indexName).testOptions
-    updatedOptions.options(SCHEDULER_MODE.toString) shouldBe SchedulerMode.EXTERNAL.toString
-  }
-
-  test(
-    "updateOptionsWithDefaults should set external scheduler mode and default interval when no interval is provided") {
-    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, true)
-    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD, "5 minutes")
-    val options = FlintSparkIndexOptions(Map("auto_refresh" -> "true"))
-    val builder = new FakeFlintSparkIndexBuilder
-
-    val updatedOptions = builder.options(options, indexName).testOptions
-    updatedOptions.options(SCHEDULER_MODE.toString) shouldBe SchedulerMode.EXTERNAL.toString
-    updatedOptions.options(REFRESH_INTERVAL.toString) shouldBe "5 minutes"
-  }
-
-  test("updateOptionsWithDefaults should set external scheduler mode when explicitly specified") {
-    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, true)
-    val options =
-      FlintSparkIndexOptions(Map("auto_refresh" -> "true", "scheduler_mode" -> "external"))
-    val builder = new FakeFlintSparkIndexBuilder
-
-    val updatedOptions = builder.options(options, indexName).testOptions
-    updatedOptions.options(SCHEDULER_MODE.toString) shouldBe SchedulerMode.EXTERNAL.toString
-  }
-
-  test(
-    "updateOptionsWithDefaults should throw exception when external scheduler is disabled but mode is external") {
-    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, false)
-    val options =
-      FlintSparkIndexOptions(Map("auto_refresh" -> "true", "scheduler_mode" -> "external"))
-    val builder = new FakeFlintSparkIndexBuilder
-
-    val exception = intercept[IllegalArgumentException] {
-      builder.options(options, indexName)
+            case None =>
+              val updatedOptions = builder.options(options, indexName).testOptions
+              expectedMode.foreach { mode =>
+                updatedOptions.options(SCHEDULER_MODE.toString) shouldBe mode
+              }
+              expectedInterval.foreach { interval =>
+                updatedOptions.options(REFRESH_INTERVAL.toString) shouldBe interval
+              }
+          }
+        }
     }
-    exception.getMessage should include(
-      "External scheduler mode is not enabled in the configuration")
   }
 
   override def afterEach(): Unit = {
