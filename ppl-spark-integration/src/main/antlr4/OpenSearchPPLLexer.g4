@@ -350,6 +350,7 @@ REPLACE:                            'REPLACE';
 REVERSE:                            'REVERSE';
 CAST:                               'CAST';
 ISEMPTY:                            'ISEMPTY';
+ISBLANK:                            'ISBLANK';
 
 // BOOL FUNCTIONS
 LIKE:                               'LIKE';
