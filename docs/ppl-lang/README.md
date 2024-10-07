@@ -89,6 +89,10 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 See samples of [PPL queries](PPL-Example-Commands.md) 
 
 ---
+### Planned PPL Commands
 
+ - [`FillNull`](planning/ppl-fillnull-command.md)
+
+---
 ### PPL Project Roadmap
 [PPL Github Project Roadmap](https://github.com/orgs/opensearch-project/projects/214)

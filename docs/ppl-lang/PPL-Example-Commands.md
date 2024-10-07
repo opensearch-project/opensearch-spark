@@ -12,7 +12,7 @@
 - `explain simple | describe table`
 
 #### **Fields**
-[See additional command details](ppl-fields-command)
+[See additional command details](ppl-fields-command.md)
 - `source = table`
 - `source = table | fields a,b,c`
 - `source = table | fields + a,b,c`
@@ -69,7 +69,7 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 
 
 #### **Eval**:
-[See additional command details](ppl-eval-command)
+[See additional command details](ppl-eval-command.md)
 
 Assumptions: `a`, `b`, `c` are existing fields in `table`
 - `source = table | eval f = 1 | fields a,b,c,f`
@@ -118,7 +118,7 @@ source = table |  where ispresent(a) |
 - `source = table | eval a = signum(a) | where a < 0`
 
 #### **Aggregations**
-[See additional command details](ppl-stats-command)
+[See additional command details](ppl-stats-command.md)
 
 - `source = table | stats avg(a) `
 - `source = table | where a < 50 | stats avg(c) `
@@ -145,7 +145,7 @@ source = table |  where ispresent(a) |
 
 #### **Dedup**
 
-[See additional command details](ppl-dedup-command)
+[See additional command details](ppl-dedup-command.md)
 
 - `source = table | dedup a | fields a,b,c`
 - `source = table | dedup a,b | fields a,b,c`
@@ -162,20 +162,20 @@ source = table |  where ispresent(a) |
 - `source = table | dedup 1 a consecutive=true| fields a,b,c` (Consecutive deduplication is unsupported)
 
 #### **Rare**
-[See additional command details](ppl-rare-command)
+[See additional command details](ppl-rare-command.md)
 
 - `source=accounts | rare gender`
 - `source=accounts | rare age by gender`
 
 #### **Top**
-[See additional command details](ppl-top-command)
+[See additional command details](ppl-top-command.md)
 
 - `source=accounts | top gender`
 - `source=accounts | top 1 gender`
 - `source=accounts | top 1 age by gender`
 
 #### **Parse**
-[See additional command details](ppl-parse-command)
+[See additional command details](ppl-parse-command.md)
 
 - `source=accounts | parse email '.+@(?<host>.+)' | fields email, host `
 - `source=accounts | parse email '.+@(?<host>.+)' | top 1 host `
@@ -186,7 +186,7 @@ source = table |  where ispresent(a) |
 - Limitation: [see limitations](ppl-parse-command.md#limitations)
 
 #### **Grok**
-[See additional command details](ppl-grok-command)
+[See additional command details](ppl-grok-command.md)
 
 - `source=accounts | grok email '.+@%{HOSTNAME:host}' | top 1 host`
 - `source=accounts | grok email '.+@%{HOSTNAME:host}' | stats count() by host`
@@ -200,7 +200,7 @@ source = table |  where ispresent(a) |
 - [see limitations](ppl-parse-command.md#limitations)
 
 #### **Patterns**
-[See additional command details](ppl-patterns-command)
+[See additional command details](ppl-patterns-command.md)
 
 - `source=accounts | patterns email | fields email, patterns_field `
 - `source=accounts | patterns email | where age > 45 | sort - age | fields email, patterns_field`
@@ -209,14 +209,14 @@ source = table |  where ispresent(a) |
 - Limitation: [see limitations](ppl-parse-command.md#limitations)
 
 #### **Rename**
-[See additional command details](ppl-rename-command)
+[See additional command details](ppl-rename-command.md)
 
 - `source=accounts | rename email as user_email | fields id, user_email`
 - `source=accounts | rename id as user_id, email as user_email | fields user_id, user_email`
 
 
 #### **Join**
-[See additional command details](ppl-join-command)
+[See additional command details](ppl-join-command.md)
 
 - `source = table1 | inner join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
 - `source = table1 | left join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
@@ -230,7 +230,7 @@ _- **Limitation: sub-searches is unsupported in join right side now**_
 
 
 #### **Lookup**
-[See additional command details](ppl-lookup-command)
+[See additional command details](ppl-lookup-command.md)
 
 - `source = table1 | lookup table2 id`
 - `source = table1 | lookup table2 id, name`
@@ -245,7 +245,7 @@ _- **Limitation: "REPLACE" or "APPEND" clause must contain "AS"**_
 
 
 #### **InSubquery**
-[See additional command details](ppl-inSubquery-command)
+[See additional command details](ppl-subquery-command.md)
 
 - `source = outer | where a in [ source = inner | fields b ]`
 - `source = outer | where (a) in [ source = inner | fields b ]`
@@ -353,3 +353,16 @@ source = supplier
 
 > ppl-correlation-command is an experimental command - it may be removed in future versions
 
+---
+### Planned Commands:
+
+#### **fillnull**
+
+```sql
+   -  `source=accounts | fillnull fields status_code=101`
+   -  `source=accounts | fillnull fields request_path='/not_found', timestamp='*'`
+    - `source=accounts | fillnull using field1=101`
+    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5`
+    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5, field6 = 'N/A'`
+```
+[See additional command details](planning/ppl-fillnull-command.md)
