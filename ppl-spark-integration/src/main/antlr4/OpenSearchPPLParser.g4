@@ -376,7 +376,7 @@ booleanExpression
    ;
 
  isEmptyExpression
-   : ISEMPTY LT_PRTHS functionArg RT_PRTHS
+   : (ISEMPTY | ISBLANK) LT_PRTHS functionArg RT_PRTHS
    ;
 
  caseFunction
@@ -745,6 +745,7 @@ textFunctionName
    | REPLACE
    | REVERSE
    | ISEMPTY
+   | ISBLANK
    ;
 
 positionFunctionName
