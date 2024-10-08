@@ -391,7 +391,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   }
 
   private def isMetadataCacheWriteEnabled: Boolean = {
-    FlintSparkConf().isMetadataCacheWriteEnabled
+    flintSparkConf.isMetadataCacheWriteEnabled
   }
 
   private def getAllIndexMetadata(indexNamePattern: String): Map[String, FlintMetadata] = {
