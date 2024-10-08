@@ -27,6 +27,8 @@ For the PPL planned release content [release-plan](planning/release-plan.md)
     - [`dedup command `](commands/ppl-dedup-command.md)
 
     - [`describe command`](PPL-Example-Commands.md/#describe)
+  
+    - [`fillnull command`](ppl-fillnull-command.md)
 
     - [`eval command`](commands/ppl-eval-command.md)
 
