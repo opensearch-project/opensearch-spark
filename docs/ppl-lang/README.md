@@ -15,7 +15,7 @@ source=accounts
 ```
 
 For additional examples see the next [documentation](PPL-Example-Commands.md). 
-
+For the PPL planned release content [release-plan](planning/release-plan.md)
 ---
 ### Commands Specifications
 
@@ -24,43 +24,43 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`explain command `](PPL-Example-Commands.md/#explain)
   
-    - [`dedup command `](ppl-dedup-command.md)
+    - [`dedup command `](commands/ppl-dedup-command.md)
 
     - [`describe command`](PPL-Example-Commands.md/#describe)
 
-    - [`eval command`](ppl-eval-command.md)
+    - [`eval command`](commands/ppl-eval-command.md)
 
-    - [`fields command`](ppl-fields-command.md)
+    - [`fields command`](commands/ppl-fields-command.md)
 
-    - [`grok command`](ppl-grok-command.md)
+    - [`grok command`](commands/ppl-grok-command.md)
 
-    - [`parse command`](ppl-parse-command.md)
+    - [`parse command`](commands/ppl-parse-command.md)
 
-    - [`patterns command`](ppl-patterns-command.md)
+    - [`patterns command`](commands/ppl-patterns-command.md)
 
-    - [`rename command`](ppl-rename-command.md)
+    - [`rename command`](commands/ppl-rename-command.md)
 
-    - [`search command`](ppl-search-command.md)
+    - [`search command`](commands/ppl-search-command.md)
 
-    - [`sort command`](ppl-sort-command.md)
+    - [`sort command`](commands/ppl-sort-command.md)
 
-    - [`stats command`](ppl-stats-command.md)
+    - [`stats command`](commands/ppl-stats-command.md)
 
-    - [`where command`](ppl-where-command.md)
+    - [`where command`](commands/ppl-where-command.md)
 
-    - [`head command`](ppl-head-command.md)
+    - [`head command`](commands/ppl-head-command.md)
 
-    - [`rare command`](ppl-rare-command.md)
+    - [`rare command`](commands/ppl-rare-command.md)
 
-    - [`top command`](ppl-top-command.md)
+    - [`top command`](commands/ppl-top-command.md)
 
-    - [`join commands`](ppl-join-command.md)
+    - [`join commands`](commands/ppl-join-command.md)
   
-    - [`lookup commands`](ppl-lookup-command.md)
+    - [`lookup commands`](commands/ppl-lookup-command.md)
   
-    - [`subquery commands`](ppl-subquery-command.md)
+    - [`subquery commands`](commands/ppl-subquery-command.md)
   
-    - [`correlation commands`](ppl-correlation-command.md)
+    - [`correlation commands`](commands/ppl-correlation-command.md)
 
 
 * **Functions**

@@ -4,11 +4,6 @@
 
 - [Description](#description)
 - [Syntax](#syntax)
-- [Examples](#examples)
-    - [Example 1: Dedup by one field](#example-1-dedup-by-one-field)
-    - [Example 2: Keep 2 duplicates documents](#example-2-keep-2-duplicates-documents)
-    - [Example 3: Keep or Ignore the empty field by default](#example-3-keep-or-ignore-the-empty-field-by-default)
-    - [Example 4: Dedup in consecutive document](#example-4-dedup-in-consecutive-document)
 - [Limitation](#limitation)
 
 ## Description
