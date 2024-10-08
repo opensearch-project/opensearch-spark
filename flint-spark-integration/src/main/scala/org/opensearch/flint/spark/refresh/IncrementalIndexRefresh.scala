@@ -5,8 +5,11 @@
 
 package org.opensearch.flint.spark.refresh
 
+import org.opensearch.flint.core.metrics.MetricConstants
+import org.opensearch.flint.core.metrics.MetricsUtil
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkValidationHelper}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{INCREMENTAL, RefreshMode}
+import org.opensearch.flint.spark.refresh.util.RefreshMetricsHelper
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -43,15 +46,35 @@ class IncrementalIndexRefresh(indexName: String, index: FlintSparkIndex)
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {
     logInfo(s"Start refreshing index $indexName in incremental mode")
 
-    // Reuse auto refresh which uses AvailableNow trigger and will stop once complete
-    val jobId =
-      new AutoIndexRefresh(indexName, index)
-        .start(spark, flintSparkConf)
+    val clientId = flintSparkConf.flintOptions().getAWSAccountId()
+    val dataSource = flintSparkConf.flintOptions().getDataSourceName()
 
-    // Blocks the calling thread until the streaming query finishes
-    spark.streams
-      .get(jobId.get)
-      .awaitTermination()
-    None
+    val refreshMetricsHelper = new RefreshMetricsHelper(clientId, dataSource, indexName)
+
+    // Start timer for processing time metric
+    val timerContext = refreshMetricsHelper.getTimerContext(
+      MetricConstants.INCREMENTAL_REFRESH_PROCESSING_TIME_METRIC)
+
+    try {
+      // Reuse auto refresh which uses AvailableNow trigger and will stop once complete
+      val jobId =
+        new AutoIndexRefresh(indexName, index)
+          .start(spark, flintSparkConf)
+
+      // Blocks the calling thread until the streaming query finishes
+      spark.streams
+        .get(jobId.get)
+        .awaitTermination()
+
+      refreshMetricsHelper.incrementCounter(MetricConstants.INCREMENTAL_REFRESH_SUCCESS_METRIC)
+      None
+    } catch {
+      case e: Exception =>
+        refreshMetricsHelper.incrementCounter(MetricConstants.INCREMENTAL_REFRESH_FAILED_METRIC)
+        throw e
+    } finally {
+      // Stop timer and record processing time
+      MetricsUtil.stopTimer(timerContext)
+    }
   }
 }

@@ -10,8 +10,10 @@ import java.time.Instant
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
 import org.opensearch.flint.common.scheduler.AsyncQueryScheduler
 import org.opensearch.flint.common.scheduler.model.{AsyncQuerySchedulerRequest, LangType}
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 import org.opensearch.flint.core.storage.OpenSearchClientUtils
 import org.opensearch.flint.spark.FlintSparkIndex
+import org.opensearch.flint.spark.refresh.util.RefreshMetricsHelper
 import org.opensearch.flint.spark.scheduler.AsyncQuerySchedulerBuilder.AsyncQuerySchedulerAction
 import org.opensearch.flint.spark.scheduler.util.RefreshQueryGenerator
 
@@ -49,6 +51,7 @@ class FlintSparkJobExternalSchedulingService(
     val clientId = flintSparkConf.flintOptions().getAWSAccountId()
     // This is to make sure jobId is consistent with the index name
     val indexName = OpenSearchClientUtils.sanitizeIndexName(index.name())
+    val refreshMetricsHelper = new RefreshMetricsHelper(clientId, dataSource, indexName)
 
     logInfo(s"handleAsyncQueryScheduler invoked: $action")
 
@@ -80,6 +83,7 @@ class FlintSparkJobExternalSchedulingService(
       case _ => throw new IllegalArgumentException(s"Unsupported action: $action")
     }
 
+    refreshMetricsHelper.incrementCounter(MetricConstants.EXTERNAL_SCHEDULER_REQUEST_CNT_METRIC)
     None // Return None for all cases
   }
 }

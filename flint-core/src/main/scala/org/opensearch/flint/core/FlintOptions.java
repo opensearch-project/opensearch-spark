@@ -105,6 +105,8 @@ public class FlintOptions implements Serializable {
 
   public static final String DEFAULT_SUPPORT_SHARD = "true";
 
+  private static final String UNKNOWN = "UNKNOWN";
+
   public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE = "bulkRequestRateLimitPerNode";
   public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE = "0";
   public static final String DEFAULT_EXTERNAL_SCHEDULER_INTERVAL = "5 minutes";
@@ -186,9 +188,9 @@ public class FlintOptions implements Serializable {
    * @return the AWS accountId
    */
   public String getAWSAccountId() {
-    String clusterName = System.getenv().getOrDefault("FLINT_CLUSTER_NAME", "");
+    String clusterName = System.getenv().getOrDefault("FLINT_CLUSTER_NAME", UNKNOWN + ":" + UNKNOWN);
     String[] parts = clusterName.split(":");
-    return parts.length == 2 ? parts[0] : "";
+    return parts.length == 2 ? parts[0] : UNKNOWN;
   }
 
   public String getSystemIndexName() {

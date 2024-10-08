@@ -108,19 +108,24 @@ public final class MetricConstants {
     public static final String STREAMING_SUCCESS_METRIC = "streaming.success.count";
 
     /**
-     * Metric for tracking the count of successful refresh operations.
+     * Metric for tracking the count of requests to external scheduler.
      */
-    public static final String REFRESH_SUCCESS_METRIC = "refresh.success.count";
+    public static final String EXTERNAL_SCHEDULER_REQUEST_CNT_METRIC = "externalScheduler.request.count";
 
     /**
-     * Metric for tracking the count of failed refresh operations.
+     * Metric for tracking the count of successful incremental refresh operations.
      */
-    public static final String REFRESH_FAILED_METRIC = "refresh.failed.count";
+    public static final String INCREMENTAL_REFRESH_SUCCESS_METRIC = "incrementalRefresh.success.count";
 
     /**
-     * Metric for tracking the processing time of refresh operations.
+     * Metric for tracking the count of failed incremental refresh operations.
      */
-    public static final String REFRESH_PROCESSING_TIME_METRIC = "refresh.processingTime";
+    public static final String INCREMENTAL_REFRESH_FAILED_METRIC = "incrementalRefresh.failed.count";
+
+    /**
+     * Metric for tracking the processing time of incremental refresh operations.
+     */
+    public static final String INCREMENTAL_REFRESH_PROCESSING_TIME_METRIC = "incrementalRefresh.processingTime";
 
     /**
      * Metric for tracking the count of failed heartbeat signals in streaming jobs.
