@@ -39,6 +39,7 @@ PPL query:
 - `source = table | where ispresent(b)`
 - `source = table | where isnull(coalesce(a, b)) | fields a,b,c | head 3`
 - `source = table | where isempty(a)`
+- `source = table | where isblank(a)`
 - `source = table | where case(length(a) > 6, 'True' else 'False') = 'True'`
 
 - `source = table | eval status_category =
