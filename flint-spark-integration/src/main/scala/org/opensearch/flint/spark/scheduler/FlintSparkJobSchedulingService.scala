@@ -18,11 +18,13 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
  */
 trait FlintSparkJobSchedulingService {
 
-  var initialStateForUpdate: IndexState = _
-  var finalStateForUpdate: IndexState = _
+  case class StateTransitions(
+      initialStateForUpdate: IndexState,
+      finalStateForUpdate: IndexState,
+      initialStateForUnschedule: IndexState,
+      finalStateForUnschedule: IndexState)
 
-  var initialStateForUnschedule: IndexState = _
-  var finalStateForUnschedule: IndexState = _
+  val stateTransitions: StateTransitions
 
   /**
    * Handles a job action for a given Flint Spark index.

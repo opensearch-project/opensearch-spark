@@ -347,7 +347,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           .transientLog(latest =>
             latest.copy(state = RECOVERING, createTime = System.currentTimeMillis()))
           .finalLog(latest => {
-            latest.copy(state = jobSchedulingService.finalStateForUpdate)
+            latest.copy(state = jobSchedulingService.stateTransitions.finalStateForUpdate)
           })
           .commit(_ => {
             flintIndexMetadataService.updateIndexMetadata(indexName, updatedIndex.metadata())
@@ -536,10 +536,11 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     tx
       .initialLog(latest =>
         // Index in external scheduler mode should be in active or refreshing state
-        Set(jobSchedulingService.initialStateForUnschedule).contains(
+        Set(jobSchedulingService.stateTransitions.initialStateForUnschedule).contains(
           latest.state) && latest.entryVersion == indexLogEntry.entryVersion)
       .transientLog(latest => latest.copy(state = UPDATING))
-      .finalLog(latest => latest.copy(state = jobSchedulingService.finalStateForUnschedule))
+      .finalLog(latest =>
+        latest.copy(state = jobSchedulingService.stateTransitions.finalStateForUnschedule))
       .commit(_ => {
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
         logInfo("Update index options complete")
@@ -561,11 +562,11 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       flintIndexMonitor)
     tx
       .initialLog(latest =>
-        latest.state == jobSchedulingService.initialStateForUpdate && latest.entryVersion == indexLogEntry.entryVersion)
+        latest.state == jobSchedulingService.stateTransitions.initialStateForUpdate && latest.entryVersion == indexLogEntry.entryVersion)
       .transientLog(latest =>
         latest.copy(state = UPDATING, createTime = System.currentTimeMillis()))
       .finalLog(latest => {
-        latest.copy(state = jobSchedulingService.finalStateForUpdate)
+        latest.copy(state = jobSchedulingService.stateTransitions.finalStateForUpdate)
       })
       .commit(_ => {
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)

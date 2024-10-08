@@ -34,11 +34,11 @@ class FlintSparkJobInternalSchedulingService(
     extends FlintSparkJobSchedulingService
     with Logging {
 
-  initialStateForUpdate = IndexState.ACTIVE
-  finalStateForUpdate = IndexState.REFRESHING
-
-  initialStateForUnschedule = IndexState.REFRESHING
-  finalStateForUnschedule = IndexState.ACTIVE
+  override val stateTransitions: StateTransitions = StateTransitions(
+    initialStateForUpdate = IndexState.ACTIVE,
+    finalStateForUpdate = IndexState.REFRESHING,
+    initialStateForUnschedule = IndexState.REFRESHING,
+    finalStateForUnschedule = IndexState.ACTIVE)
 
   /**
    * Handles job-related actions for a given Flint Spark index.

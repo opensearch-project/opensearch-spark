@@ -36,11 +36,11 @@ class FlintSparkJobExternalSchedulingService(
     extends FlintSparkJobSchedulingService
     with Logging {
 
-  initialStateForUpdate = IndexState.ACTIVE
-  finalStateForUpdate = IndexState.ACTIVE
-
-  initialStateForUnschedule = IndexState.ACTIVE
-  finalStateForUnschedule = IndexState.ACTIVE
+  override val stateTransitions: StateTransitions = StateTransitions(
+    initialStateForUpdate = IndexState.ACTIVE,
+    finalStateForUpdate = IndexState.ACTIVE,
+    initialStateForUnschedule = IndexState.ACTIVE,
+    finalStateForUnschedule = IndexState.ACTIVE)
 
   override def handleJob(
       index: FlintSparkIndex,
