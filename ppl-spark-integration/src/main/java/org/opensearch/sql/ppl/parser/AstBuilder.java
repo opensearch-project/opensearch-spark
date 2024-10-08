@@ -11,6 +11,8 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
+import org.opensearch.flint.spark.ppl.OpenSearchPPLParser.FillNullWithFieldVariousValuesContext;
+import org.opensearch.flint.spark.ppl.OpenSearchPPLParser.FillNullWithTheSameValueContext;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParserBaseVisitor;
 import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Alias;
@@ -28,6 +30,9 @@ import org.opensearch.sql.ast.expression.Scope;
 import org.opensearch.sql.ast.expression.SpanUnit;
 import org.opensearch.sql.ast.expression.UnresolvedArgument;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
+import org.opensearch.sql.ast.tree.*;
+import org.opensearch.sql.ast.tree.FillNull.NullableFieldFill;
+import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.ast.tree.Aggregation;
 import org.opensearch.sql.ast.tree.Correlation;
 import org.opensearch.sql.ast.tree.Dedupe;
@@ -57,9 +62,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
+import static org.opensearch.sql.ast.tree.FillNull.ContainNullableFieldFill.ofSameValue;
+import static org.opensearch.sql.ast.tree.FillNull.ContainNullableFieldFill.ofVariousValue;
 
 
 /** Class of building the AST. Refines the visit path and build the AST nodes */
@@ -496,6 +504,35 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                   (Literal) internalVisitExpression(x.children.get(2)));
             });
     return new Kmeans(builder.build());
+  }
+
+  @Override
+  public UnresolvedPlan visitFillnullCommand(OpenSearchPPLParser.FillnullCommandContext ctx) {
+    // ctx contain result of parsing fillnull command. Lets transform it to UnresolvedPlan which is FillNull
+    FillNullWithTheSameValueContext sameValueContext = ctx.fillNullWithTheSameValue();
+    FillNullWithFieldVariousValuesContext variousValuesContext = ctx.fillNullWithFieldVariousValues();
+    if (sameValueContext != null) {
+      // todo consider using expression instead of Literal
+      UnresolvedExpression replaceNullWithMe = internalVisitExpression(sameValueContext.nullReplacement().expression());
+      List<Field> fieldsToReplace = sameValueContext.nullableField()
+              .stream()
+              .map(this::internalVisitExpression)
+              .map(Field.class::cast)
+              .collect(Collectors.toList());
+      return new FillNull(ofSameValue(replaceNullWithMe, fieldsToReplace));
+    } else if (variousValuesContext != null) {
+      List<NullableFieldFill> nullableFieldFills = IntStream.range(0, variousValuesContext.nullableField().size())
+              .mapToObj(index -> {
+                variousValuesContext.nullableField(index);
+                UnresolvedExpression replaceNullWithMe = internalVisitExpression(variousValuesContext.nullReplacement(index).expression());
+                Field nullableFieldReference = (Field) internalVisitExpression(variousValuesContext.nullableField(index));
+                return new NullableFieldFill(nullableFieldReference, replaceNullWithMe);
+              })
+              .collect(Collectors.toList());
+      return new FillNull(ofVariousValue(nullableFieldFills));
+    } else {
+      throw new SyntaxCheckException("Invalid fillnull command");
+    }
   }
 
   /** AD command. */

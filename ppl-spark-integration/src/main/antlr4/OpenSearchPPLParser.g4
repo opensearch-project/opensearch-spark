@@ -51,6 +51,7 @@ commands
    | patternsCommand
    | lookupCommand
    | renameCommand
+   | fillnullCommand
    ;
 
 searchCommand
@@ -183,6 +184,29 @@ outputCandidateList
 lookupPair
    : inputField = fieldExpression (AS outputField = fieldExpression)?
    ;
+
+fillnullCommand
+   : FILLNULL (fillNullWithTheSameValue
+   | fillNullWithFieldVariousValues)
+   ;
+
+ fillNullWithTheSameValue
+ : WITH nullReplacement IN nullableField (COMMA nullableField)*
+ ;
+
+ fillNullWithFieldVariousValues
+ : USING nullableField EQUAL nullReplacement (COMMA nullableField EQUAL nullReplacement)*
+ ;
+
+
+   nullableField
+   : fieldExpression
+   ;
+
+   nullReplacement
+   : expression
+   ;
+
 
 kmeansCommand
    : KMEANS (kmeansParameter)*
