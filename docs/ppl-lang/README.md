@@ -27,6 +27,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`dedup command `](ppl-dedup-command.md)
 
     - [`describe command`](PPL-Example-Commands.md/#describe)
+  
+    - [`fillnull command`](ppl-fillnull-command.md)
 
     - [`eval command`](ppl-eval-command.md)
 
