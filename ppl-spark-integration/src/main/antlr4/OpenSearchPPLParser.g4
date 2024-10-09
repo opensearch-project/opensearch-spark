@@ -356,13 +356,14 @@ expression
    ;
 
 logicalExpression
-   : comparisonExpression                                       # comparsion
-   | NOT logicalExpression                                      # logicalNot
-   | left = logicalExpression OR right = logicalExpression      # logicalOr
-   | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
-   | left = logicalExpression XOR right = logicalExpression     # logicalXor
-   | booleanExpression                                          # booleanExpr
-   | isEmptyExpression                                          # isEmptyExpr
+   : comparisonExpression                                                           # comparsion
+   | NOT logicalExpression                                                          # logicalNot
+   | left = logicalExpression OR right = logicalExpression                          # logicalOr
+   | left = logicalExpression (AND)? right = logicalExpression                      # logicalAnd
+   | left = logicalExpression XOR right = logicalExpression                         # logicalXor
+   | booleanExpression                                                              # booleanExpr
+   | isEmptyExpression                                                              # isEmptyExpr
+   | expr1 = functionArg NOT? BETWEEN expr2 = functionArg AND expr3 = functionArg   # between
    ;
 
 comparisonExpression
