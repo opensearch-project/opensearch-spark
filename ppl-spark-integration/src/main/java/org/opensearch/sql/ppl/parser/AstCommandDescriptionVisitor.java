@@ -11,6 +11,8 @@ package org.opensearch.sql.ppl.parser;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParserBaseVisitor;
 import org.opensearch.sql.ast.tree.DescribeCommand;
+import org.opensearch.sql.ast.tree.Parse;
+import org.opensearch.sql.ast.tree.Search;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 
 import java.util.Objects;
@@ -67,19 +69,7 @@ public class AstCommandDescriptionVisitor extends OpenSearchPPLParserBaseVisitor
 
     @Override
     public UnresolvedPlan visitSearchHelp(OpenSearchPPLParser.SearchHelpContext ctx) {
-        String description = "SEARCH Command:\n" +
-                "\n" +
-                "Syntax:\n" +
-                "   (SEARCH)? fromClause\n" +
-                "   | (SEARCH)? fromClause logicalExpression\n" +
-                "   | (SEARCH)? logicalExpression fromClause\n" +
-                "\n" +
-                "Description:\n" +
-                "The SEARCH command is used to retrieve data from a specified source. It can be used with or without additional filters.\n" +
-                "- You can specify the data source using the FROM clause.\n" +
-                "- You can add filters using logical expressions.\n" +
-                "- The order of FROM clause and logical expression can be interchanged.";
-        return new DescribeCommand(describeCommand(description, version));
+        return new DescribeCommand(describeCommand(new Search.Helper().describe(), version));
     }
 
     @Override
@@ -129,7 +119,7 @@ public class AstCommandDescriptionVisitor extends OpenSearchPPLParserBaseVisitor
 
     @Override
     public UnresolvedPlan visitParseHelp(OpenSearchPPLParser.ParseHelpContext ctx) {
-        return super.visitParseHelp(ctx);
+        return new DescribeCommand(describeCommand(new Parse.Helper().describe(), version));
     }
 
     @Override
