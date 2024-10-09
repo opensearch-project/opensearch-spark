@@ -3,7 +3,7 @@
 ## Overview
 Lookup command enriches your search data by adding or replacing data from a lookup index (dimension table).
 You can extend fields of an index with values from a dimension table, append or replace values when lookup condition is matched.
-As an alternative of [Join command](../docs/PPL-Join-command.md), lookup command is more suitable for enriching the source data with a static dataset.
+As an alternative of [Join command](ppl-join-command), lookup command is more suitable for enriching the source data with a static dataset.
 
 
 ### Syntax of Lookup Command

@@ -10,7 +10,14 @@ OpenSearch Flint is ... It consists of four modules:
 ## Documentation
 
 Please refer to the [Flint Index Reference Manual](./docs/index.md) for more information.
-For PPL language see [PPL Reference Manual](https://github.com/opensearch-project/sql/blob/main/docs/user/ppl/index.rst) for more information.
+
+### PPL-Language
+
+* For additional details on PPL commands, see [PPL Commands Docs](docs/ppl-lang/README.md)
+
+* For additional details on Spark PPL Architecture, see [PPL Architecture](docs/ppl-lang/PPL-on-Spark.md)
+
+* For additional details on Spark PPL commands project, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
 
 ## Prerequisites
 
