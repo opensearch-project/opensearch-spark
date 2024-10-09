@@ -21,11 +21,3 @@ logs/
 *.zip
 
 gen/
-/add-opensearch-data.sh
-/rebase.sh
-/run-opensearch.sh
-/run-spark.sh
-/sync_fork.sh
-/commands.scala
-/opensearch-3.0.0/
-/spark-bin/
