@@ -34,6 +34,12 @@ public class SerializableUdfTest {
     public void cidrInvalidCidrTest() {
         SerializableUdf.cidrFunction.apply("192.168.0.0", "xxx");
     }
+    
+    @Test(expected = RuntimeException.class)
+    public void cirdMixedIpVersionTest() {
+        SerializableUdf.cidrFunction.apply("2001:0db8:85a3:0000:0000:8a2e:0370:7334", "192.168.0.0/24");
+        SerializableUdf.cidrFunction.apply("192.168.0.0", "2001:db8::/324");
+    }
 
     @Test
     public void cidrBasicTest() {
