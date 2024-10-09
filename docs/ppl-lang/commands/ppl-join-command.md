@@ -162,7 +162,7 @@ SEARCH source=customer
 | SORT - custdist, - c_count
 ```
 
-### Comparison with [Correlation](ppl-correlation-command)
+### Comparison with [Correlation](ppl-correlation-command.md)
 
 A primary difference between `correlate` and `join` is that both sides of `correlate` are tables, but both sides of `join` are subqueries. 
 For example:
