@@ -76,6 +76,7 @@ import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.TopAggregation;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
+import org.opensearch.sql.expression.function.BuiltinFunctionName;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
@@ -439,9 +440,16 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             Alias alias = new Alias(let.getVar().getField().toString(), let.getExpression());
             aliases.add(alias);
         }
-        if (context.getNamedParseExpressions().isEmpty()) {
-            // Create an UnresolvedStar for all-fields projection
-            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+        long statsFunctionsCount = node.getExpressionList().stream().map(Let::getExpression)
+            .filter(e -> e instanceof Function).map(f -> ((Function) f).getFuncName())
+            .filter(n -> BuiltinFunctionName.ofAggregation(n).isPresent()).count();
+        // An eval expression equals to add a projection to existing project list.
+        // So it must start with an UnresolvedStar except all eval expressions are aggregation functions with no fields command
+        if (statsFunctionsCount == node.getExpressionList().size() &&
+                context.getProjectedFields().stream().noneMatch(f -> f instanceof AllFields)) {
+            // do nothing
+        } else {
+            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.empty()));
         }
         List<Expression> expressionList = visitExpressionList(aliases, context);
         Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);

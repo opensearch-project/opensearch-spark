@@ -14,7 +14,7 @@ import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Descending, ExprId, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
-import org.apache.spark.sql.catalyst.plans.logical.{Project, Sort}
+import org.apache.spark.sql.catalyst.plans.logical.{DataFrameDropColumns, Project, Sort}
 
 class PPLLogicalPlanEvalTranslatorTestSuite
     extends SparkFunSuite
@@ -150,6 +150,96 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
+  test("test complex eval expressions - stats function") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source=t | eval a = max(l) | eval b = avg(l) | eval c = min(l) | eval d = sum(l) | eval e = count(l) | fields a, b, c, d, e"),
+        context)
+
+    val evalProjectListA = Seq(
+      Alias(UnresolvedFunction("max", Seq(UnresolvedAttribute("l")), isDistinct = false), "a")())
+    val evalProjectListB = Seq(
+      Alias(UnresolvedFunction("avg", Seq(UnresolvedAttribute("l")), isDistinct = false), "b")())
+    val evalProjectListC = Seq(
+      Alias(UnresolvedFunction("min", Seq(UnresolvedAttribute("l")), isDistinct = false), "c")())
+    val evalProjectListD = Seq(
+      Alias(UnresolvedFunction("sum", Seq(UnresolvedAttribute("l")), isDistinct = false), "d")())
+    val evalProjectListE = Seq(
+      Alias(
+        UnresolvedFunction("count", Seq(UnresolvedAttribute("l")), isDistinct = false),
+        "e")())
+    val projectA = Project(evalProjectListA, UnresolvedRelation(Seq("t")))
+    val projectB = Project(evalProjectListB, projectA)
+    val projectC = Project(evalProjectListC, projectB)
+    val projectD = Project(evalProjectListD, projectC)
+    val projectE = Project(evalProjectListE, projectD)
+    val expectedPlan = Project(
+      seq(
+        UnresolvedAttribute("a"),
+        UnresolvedAttribute("b"),
+        UnresolvedAttribute("c"),
+        UnresolvedAttribute("d"),
+        UnresolvedAttribute("e")),
+      projectE)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test complex eval comma separated expressions - stats function") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source=t | eval a = max(l), b = avg(l), c = min(l), d = sum(l), e = count(l) | fields a, b, c, d, e"),
+        context)
+
+    val evalProjectList = Seq(
+      Alias(UnresolvedFunction("max", Seq(UnresolvedAttribute("l")), isDistinct = false), "a")(),
+      Alias(UnresolvedFunction("avg", Seq(UnresolvedAttribute("l")), isDistinct = false), "b")(),
+      Alias(UnresolvedFunction("min", Seq(UnresolvedAttribute("l")), isDistinct = false), "c")(),
+      Alias(UnresolvedFunction("sum", Seq(UnresolvedAttribute("l")), isDistinct = false), "d")(),
+      Alias(
+        UnresolvedFunction("count", Seq(UnresolvedAttribute("l")), isDistinct = false),
+        "e")())
+    val project = Project(evalProjectList, UnresolvedRelation(Seq("t")))
+    val expectedPlan = Project(
+      seq(
+        UnresolvedAttribute("a"),
+        UnresolvedAttribute("b"),
+        UnresolvedAttribute("c"),
+        UnresolvedAttribute("d"),
+        UnresolvedAttribute("e")),
+      project)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test(
+    "test complex eval comma separated expressions - stats function - without fields command") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source=t | eval a = max(l), b = avg(l), c = min(l), d = sum(l), e = count(l)"),
+        context)
+
+    val evalProjectList = Seq(
+      UnresolvedStar(None),
+      Alias(UnresolvedFunction("max", Seq(UnresolvedAttribute("l")), isDistinct = false), "a")(),
+      Alias(UnresolvedFunction("avg", Seq(UnresolvedAttribute("l")), isDistinct = false), "b")(),
+      Alias(UnresolvedFunction("min", Seq(UnresolvedAttribute("l")), isDistinct = false), "c")(),
+      Alias(UnresolvedFunction("sum", Seq(UnresolvedAttribute("l")), isDistinct = false), "d")(),
+      Alias(
+        UnresolvedFunction("count", Seq(UnresolvedAttribute("l")), isDistinct = false),
+        "e")())
+    val project = Project(evalProjectList, UnresolvedRelation(Seq("t")))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), project)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
   test("test complex eval expressions - compound function") {
     val context = new CatalystPlanContext
     val logPlan =
@@ -177,27 +267,30 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
-  // Todo fields-excluded command not supported
-  ignore("test eval expressions with fields-excluded command") {
+  test("test eval expressions with fields-excluded command") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(plan(pplParser, "source=t | eval a = 1, b = 2 | fields - b"), context)
 
     val projectList: Seq[NamedExpression] =
       Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(2), "b")())
-    val expectedPlan = Project(projectList, UnresolvedRelation(Seq("t")))
+    val expectedPlan = Project(
+      Seq(UnresolvedStar(None)),
+      DataFrameDropColumns(
+        Seq(UnresolvedAttribute("b")),
+        Project(projectList, UnresolvedRelation(Seq("t")))))
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
-  // Todo fields-included command not supported
-  ignore("test eval expressions with fields-included command") {
+  test("test eval expressions with fields-included command") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(plan(pplParser, "source=t | eval a = 1, b = 2 | fields + b"), context)
 
     val projectList: Seq[NamedExpression] =
       Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(2), "b")())
-    val expectedPlan = Project(projectList, UnresolvedRelation(Seq("t")))
+    val expectedPlan =
+      Project(Seq(UnresolvedAttribute("b")), Project(projectList, UnresolvedRelation(Seq("t"))))
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 }

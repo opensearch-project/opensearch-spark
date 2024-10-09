@@ -473,6 +473,7 @@ evalFunctionName
    | systemFunctionName
    | positionFunctionName
    | coalesceFunctionName
+   | statsFunctionName
    ;
 
 functionArgs

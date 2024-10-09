@@ -429,6 +429,61 @@ class FlintSparkPPLEvalITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
+  test("test eval comma separated expressions with stats functions") {
+    val frame = sql(s"""
+         | source = $testTable | eval col1 = max(age), col2 = avg(age), col3 = min(age), col4 = sum(age), col5 = count(age) | fields col1, col2, col3, col4, col5
+         | """.stripMargin)
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(70, 36.25, 20, 145, 4))
+
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val evalProjectList = Seq(
+      Alias(
+        UnresolvedFunction("max", Seq(UnresolvedAttribute("age")), isDistinct = false),
+        "col1")(),
+      Alias(
+        UnresolvedFunction("avg", Seq(UnresolvedAttribute("age")), isDistinct = false),
+        "col2")(),
+      Alias(
+        UnresolvedFunction("min", Seq(UnresolvedAttribute("age")), isDistinct = false),
+        "col3")(),
+      Alias(
+        UnresolvedFunction("sum", Seq(UnresolvedAttribute("age")), isDistinct = false),
+        "col4")(),
+      Alias(
+        UnresolvedFunction("count", Seq(UnresolvedAttribute("age")), isDistinct = false),
+        "col5")())
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val project = Project(evalProjectList, table)
+    val expectedPlan = Project(
+      seq(
+        UnresolvedAttribute("col1"),
+        UnresolvedAttribute("col2"),
+        UnresolvedAttribute("col3"),
+        UnresolvedAttribute("col4"),
+        UnresolvedAttribute("col5")),
+      project)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("eval stats functions adding other field list should throw exception") {
+    val ex = intercept[AnalysisException](sql(s"""
+         | source = $testTable | eval col1 = max(age), col2 = avg(age), col3 = min(age), col4 = sum(age), col5 = count(age) | fields age, col1, col2, col3, col4, col5
+         | """.stripMargin))
+    assert(ex.getMessage().contains("UNRESOLVED_COLUMN"))
+  }
+
+  test("eval stats functions without fields command should throw exception") {
+    val ex = intercept[AnalysisException](sql(s"""
+         | source = $testTable | eval col1 = max(age), col2 = avg(age), col3 = min(age), col4 = sum(age), col5 = count(age)
+         | """.stripMargin))
+    assert(ex.getMessage().contains("MISSING_GROUP_BY"))
+  }
+
   test("test complex eval expressions with fields command") {
     val frame = sql(s"""
          | source = $testTable | eval new_name = upper(name) | eval compound_field = concat('Hello ', if(like(new_name, 'HEL%'), 'World', name)) | fields new_name, compound_field
@@ -672,8 +727,7 @@ class FlintSparkPPLEvalITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-  // Todo excluded fields not support yet
-  ignore("test single eval expression with excluded fields") {
+  test("test single eval expression with excluded fields") {
     val frame = sql(s"""
          | source = $testTable | eval new_field = "New Field" | fields - age
          | """.stripMargin)
