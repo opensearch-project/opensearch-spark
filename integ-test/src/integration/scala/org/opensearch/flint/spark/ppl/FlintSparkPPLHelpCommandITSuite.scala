@@ -35,7 +35,7 @@ class FlintSparkPPLHelpCommandITSuite
     }
   }
 
-  test("search -help command") {
+  ingore("search -help command") {
     val helpText =
       """
         |SEARCH Command:

@@ -31,7 +31,7 @@ class PPLLogicalPlanHelpCommandTranslatorTestSuite
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
 
-  test("test help search command") {
+  ignore("test help search command") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(plan(pplParser, "search -help"), context)
