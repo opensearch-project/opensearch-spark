@@ -28,3 +28,4 @@ gen/
 /sync_fork.sh
 /commands.scala
 /opensearch-3.0.0/
+/spark-bin/
