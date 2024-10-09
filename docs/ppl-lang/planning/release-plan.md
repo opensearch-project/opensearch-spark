@@ -3,15 +3,27 @@ The next doc present a release plan summarizing the commands / features planned 
 
 Each release will have a list of all the next parts:
  - commands / functions
- - limitations
+ - limitations:
+   - deprecated
+   - breaking-changes
  - comments
+ - 
 
 Each command / function would have the following properties:
  - `status`: the maturity of the feature (experimental, stable, deprecated)
  - `since`: the version it was introduced 
 
+#### SemVer Support in PPL Releases:
+Each release will follow the SemVer versioning system:
+
+- `MAJOR` version when there are incompatible API changes or breaking changes to existing commands and functionality.
+- `MINOR` version when adding new features in a backward-compatible manner, including new commands or enhancements to the existing system.
+- `PATCH` version when making backward-compatible bug fixes, performance improvements, or minor updates.
+
 ---
-## Version 0.4
+## [Version 0.4.1](https://github.com/opensearch-project/opensearch-spark/releases/tag/v0.4.1)
+
+**Status**: latest
 
 ### Commands
 | command           | status       | since |
@@ -34,7 +46,9 @@ Each command / function would have the following properties:
 
 
 ---
-## Version 0.5
+## [Version 0.5.0](https://github.com/opensearch-project/opensearch-spark/releases/tag/v0.5.0)
+
+**Status**: pre-release 
 
 ### Commands
 | command           | status       | since |
@@ -76,7 +90,8 @@ Each command / function would have the following properties:
 - `dedup` command with `allowedDuplication > 1` feature needs spark version >= 3.4
 
 ---
-## Version 0.6
+## Version 0.6.0 (planned)
+**Status**: planned
 
 ### Commands
 | command               | status       | since |
@@ -122,7 +137,8 @@ Each command / function would have the following properties:
 | coalesce           | experimental | 0.6   |
 
 ---
-## Version 0.7
+## Version 0.7.0 (planned)
+**Status**: planned
 
 ### Commands
 | command               | status       | since |
@@ -177,9 +193,3 @@ Each command / function would have the following properties:
 | between            | experimental | 0.7   |
 
 
----
-## Version 0.7
-
-### Commands
-
-### Functions
