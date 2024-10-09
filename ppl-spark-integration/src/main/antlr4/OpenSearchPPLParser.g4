@@ -64,6 +64,7 @@ commands
    | patternsCommand
    | lookupCommand
    | renameCommand
+   | fillnullCommand
    ;
 
 searchCommand
@@ -217,6 +218,29 @@ outputCandidateList
 lookupPair
    : inputField = fieldExpression (AS outputField = fieldExpression)?
    ;
+
+fillnullCommand
+   : FILLNULL (fillNullWithTheSameValue
+   | fillNullWithFieldVariousValues)
+   ;
+
+ fillNullWithTheSameValue
+ : WITH nullReplacement IN nullableField (COMMA nullableField)*
+ ;
+
+ fillNullWithFieldVariousValues
+ : USING nullableField EQUAL nullReplacement (COMMA nullableField EQUAL nullReplacement)*
+ ;
+
+
+   nullableField
+   : fieldExpression
+   ;
+
+   nullReplacement
+   : expression
+   ;
+
 
 kmeansCommand
    : KMEANS (kmeansParameter)*
@@ -412,13 +436,11 @@ booleanExpression
    ;
 
  isEmptyExpression
-   : ISEMPTY LT_PRTHS functionArg RT_PRTHS
-   | ISEMPTY HELP                       
+   : (ISEMPTY | ISBLANK)  LT_PRTHS functionArg RT_PRTHS
    ;
 
  caseFunction
     : CASE LT_PRTHS logicalExpression COMMA valueExpression (COMMA logicalExpression COMMA valueExpression)* (ELSE valueExpression)? RT_PRTHS
-    | CASE HELP                       
     ;
 
 relevanceExpression
@@ -483,7 +505,6 @@ evalFunctionCall
 // cast function
 dataTypeFunctionCall
    : CAST LT_PRTHS expression AS convertedDataType RT_PRTHS
-   | CAST HELP                       
    ;
 
 // boolean functions
@@ -784,6 +805,7 @@ textFunctionName
    | REPLACE
    | REVERSE
    | ISEMPTY
+   | ISBLANK
    ;
 
 positionFunctionName
@@ -792,7 +814,6 @@ positionFunctionName
 
 coalesceFunctionName
    : COALESCE
-   | COALESCE HELP                       
    ;
 
 // operators

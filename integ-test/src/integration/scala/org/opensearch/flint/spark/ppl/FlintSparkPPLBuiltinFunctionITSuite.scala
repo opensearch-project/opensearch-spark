@@ -382,6 +382,96 @@ class FlintSparkPPLBuiltinFunctionITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
+  test("test string functions - isblank eval") {
+    val frame = sql(s"""
+                       | source = $testNullTable | head 1 | eval a = isblank('full'), b = isblank(''), c = isblank(' ') | fields a, b, c
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(false, true, true))
+    assert(results.sameElements(expectedResults))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_null"))
+    val localLimit = LocalLimit(Literal(1), table)
+    val globalLimit = GlobalLimit(Literal(1), localLimit)
+
+    //    val projectList = Seq(UnresolvedStar(None))
+
+    val caseOne = CaseWhen(
+      Seq(
+        (
+          EqualTo(
+            UnresolvedFunction(
+              "length",
+              Seq(UnresolvedFunction("trim", Seq(Literal("full")), isDistinct = false)),
+              isDistinct = false),
+            Literal(0)),
+          Literal(true))),
+      Literal(false))
+    val aliasOne = Alias(caseOne, "a")()
+
+    val caseTwo = CaseWhen(
+      Seq(
+        (
+          EqualTo(
+            UnresolvedFunction(
+              "length",
+              Seq(UnresolvedFunction("trim", Seq(Literal("")), isDistinct = false)),
+              isDistinct = false),
+            Literal(0)),
+          Literal(true))),
+      Literal(false))
+    val aliasTwo = Alias(caseTwo, "b")()
+
+    val caseThree = CaseWhen(
+      Seq(
+        (
+          EqualTo(
+            UnresolvedFunction(
+              "length",
+              Seq(UnresolvedFunction("trim", Seq(Literal(" ")), isDistinct = false)),
+              isDistinct = false),
+            Literal(0)),
+          Literal(true))),
+      Literal(false))
+    val aliasThree = Alias(caseThree, "c")()
+
+    val projectList = Seq(UnresolvedStar(None), aliasOne, aliasTwo, aliasThree)
+    val innerProject = Project(projectList, globalLimit)
+
+    val expectedPlan = Project(
+      Seq(UnresolvedAttribute("a"), UnresolvedAttribute("b"), UnresolvedAttribute("c")),
+      innerProject)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test string functions - isblank where") {
+    val frame = sql(s"""
+                       | source = $testNullTable | where isblank('I am not blank');
+                       | """.stripMargin)
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 0)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_null"))
+    val caseIsEmpty = CaseWhen(
+      Seq(
+        (
+          EqualTo(
+            UnresolvedFunction(
+              "length",
+              Seq(UnresolvedFunction("trim", Seq(Literal("I am not blank")), isDistinct = false)),
+              isDistinct = false),
+            Literal(0)),
+          Literal(true))),
+      Literal(false))
+    val filterPlan = Filter(caseIsEmpty, table)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), filterPlan)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
   test("test math functions - abs with field") {
     val frame = sql(s"""
        | source = $testTable |where abs(age) = 30 | fields name, age

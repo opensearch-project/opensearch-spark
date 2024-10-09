@@ -37,6 +37,7 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where ispresent(b)`
 - `source = table | where isnull(coalesce(a, b)) | fields a,b,c | head 3`
 - `source = table | where isempty(a)`
+- `source = table | where isblank(a)`
 - `source = table | where case(length(a) > 6, 'True' else 'False') = 'True'`
 
 ```sql
@@ -82,10 +83,19 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
 - `source = table | eval f = ispresent(a)`
 - `source = table | eval r = coalesce(a, b, c) | fields r`
 - `source = table | eval e = isempty(a) | fields e`
+- `source = table | eval e = isblank(a) | fields e`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one', a = 2, 'two', a = 3, 'three', a = 4, 'four', a = 5, 'five', a = 6, 'six', a = 7, 'se7en', a = 8, 'eight', a = 9, 'nine')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else 'unknown')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else concat(a, ' is an incorrect binary digit'))`
 
+#### Fillnull
+Assumptions: `a`, `b`, `c`, `d`, `e` are existing fields in `table`
+- `source = table | fillnull with 0 in a`
+- `source = table | fillnull with 'N/A' in a, b, c`
+- `source = table | fillnull with concat(a, b) in c, d`
+- `source = table | fillnull using a = 101`
+- `source = table | fillnull using a = 101, b = 102`
+- `source = table | fillnull using a = concat(b, c), d = 2 * pi() * e`
 
 ```sql
 source = table | eval e = eval status_category =

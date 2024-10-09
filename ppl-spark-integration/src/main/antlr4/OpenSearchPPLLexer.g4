@@ -49,6 +49,7 @@ NEW_FIELD:                          'NEW_FIELD';
 KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
+FILLNULL:                           'FILLNULL';
 
 //Native JOIN KEYWORDS
 JOIN:                               'JOIN';
@@ -86,6 +87,9 @@ INDEX:                              'INDEX';
 D:                                  'D';
 DESC:                               'DESC';
 DATASOURCES:                        'DATASOURCES';
+VALUE:                              'VALUE';
+USING:                              'USING';
+WITH:                               'WITH';
 
 // CLAUSE KEYWORDS
 SORTBY:                             'SORTBY';
@@ -367,6 +371,7 @@ REPLACE:                            'REPLACE';
 REVERSE:                            'REVERSE';
 CAST:                               'CAST';
 ISEMPTY:                            'ISEMPTY';
+ISBLANK:                            'ISBLANK';
 
 // BOOL FUNCTIONS
 LIKE:                               'LIKE';
