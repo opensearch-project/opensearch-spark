@@ -236,10 +236,6 @@ object FlintSparkIndexOptions {
     val thresholdInterval =
       IntervalSchedulerParser.parse(flintSparkConf.externalSchedulerIntervalThreshold())
     val currentInterval = options.refreshInterval().map(IntervalSchedulerParser.parse)
-
-    logInfo(s"updateOptionsWithDefaults - before updatedOptions: ${updatedOptions}")
-    logInfo(s"currentInterval.isDefined: ${currentInterval.isDefined}")
-    logInfo(s"${updatedOptions.get(SCHEDULER_MODE.toString).equals(Some("external"))}")
     (
       externalSchedulerEnabled,
       currentInterval.isDefined,
@@ -263,10 +259,8 @@ object FlintSparkIndexOptions {
         throw new IllegalArgumentException(
           "External scheduler mode spark conf is not enabled but refresh interval is set to external scheduler mode")
       case _ =>
-        logInfo("Debug only")
         updatedOptions += (SCHEDULER_MODE.toString -> SchedulerMode.INTERNAL.toString)
     }
-    logInfo(s"updateOptionsWithDefaults - updatedOptions: ${updatedOptions}")
     FlintSparkIndexOptions(updatedOptions.toMap)
   }
 }

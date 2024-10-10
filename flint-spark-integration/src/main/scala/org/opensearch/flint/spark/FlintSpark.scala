@@ -238,7 +238,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       // 2. any manual-to-manual updates
       // 3. both refresh_mode and scheduler_mode updated
       (index.options.autoRefresh(), isSchedulerModeChanged) match {
-        case (true, true) => updateIndexSchedulerMode(index, tx)
+        case (true, true) => updateSchedulerMode(index, tx)
         case (true, false) => updateIndexManualToAuto(index, tx)
         case (false, false) => updateIndexAutoToManual(index, tx)
       }
@@ -575,17 +575,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       })
   }
 
-  private def updateIndexSchedulerMode(
-      index: FlintSparkIndex,
-      tx: OptimisticTransaction[Option[String]]): Option[String] = {
-    if (index.options.isExternalSchedulerEnabled()) {
-      updateSchedulerModeToExternal(index, tx)
-    } else {
-      updateSchedulerModeToInternal(index, tx)
-    }
-  }
-
-  private def updateSchedulerModeToInternal(
+  private def updateSchedulerMode(
       index: FlintSparkIndex,
       tx: OptimisticTransaction[Option[String]]): Option[String] = {
     val indexName = index.name
@@ -595,43 +585,25 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     val externalSchedulingService =
       new FlintSparkJobExternalSchedulingService(flintAsyncQueryScheduler, flintSparkConf)
 
-    tx
-      .initialLog(latest =>
-        latest.state == ACTIVE && latest.entryVersion == indexLogEntry.entryVersion)
-      .transientLog(latest => latest.copy(state = UPDATING))
-      .finalLog(latest => {
-        latest.copy(state = REFRESHING)
-      })
-      .commit(_ => {
-        flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
-        logInfo("Update index options complete")
-        externalSchedulingService.handleJob(index, AsyncQuerySchedulerAction.UNSCHEDULE)
-        logInfo("Unscheduled external jobs")
-        internalSchedulingService.handleJob(index, AsyncQuerySchedulerAction.UPDATE)
-      })
-  }
-
-  private def updateSchedulerModeToExternal(
-      index: FlintSparkIndex,
-      tx: OptimisticTransaction[Option[String]]): Option[String] = {
-    val indexName = index.name
-    val indexLogEntry = index.latestLogEntry.get
-    val externalSchedulingService =
-      new FlintSparkJobExternalSchedulingService(flintAsyncQueryScheduler, flintSparkConf)
-    val internalSchedulingService =
-      new FlintSparkJobInternalSchedulingService(spark, flintIndexMonitor)
+    val isExternal = index.options.isExternalSchedulerEnabled()
+    val (initialState, finalState, oldService, newService) =
+      if (isExternal) {
+        (REFRESHING, ACTIVE, internalSchedulingService, externalSchedulingService)
+      } else {
+        (ACTIVE, REFRESHING, externalSchedulingService, internalSchedulingService)
+      }
 
     tx
       .initialLog(latest =>
-        latest.state == REFRESHING && latest.entryVersion == indexLogEntry.entryVersion)
+        latest.state == initialState && latest.entryVersion == indexLogEntry.entryVersion)
       .transientLog(latest => latest.copy(state = UPDATING))
-      .finalLog(latest => latest.copy(state = ACTIVE))
+      .finalLog(latest => latest.copy(state = finalState))
       .commit(_ => {
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
         logInfo("Update index options complete")
-        internalSchedulingService.handleJob(index, AsyncQuerySchedulerAction.UNSCHEDULE)
-        logInfo("Unscheduled internal jobs")
-        externalSchedulingService.handleJob(index, AsyncQuerySchedulerAction.UPDATE)
+        oldService.handleJob(index, AsyncQuerySchedulerAction.UNSCHEDULE)
+        logInfo(s"Unscheduled ${if (isExternal) "internal" else "external"} jobs")
+        newService.handleJob(index, AsyncQuerySchedulerAction.UPDATE)
       })
   }
 }
