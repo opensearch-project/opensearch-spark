@@ -18,6 +18,7 @@ import org.apache.spark.sql.catalyst.expressions.InSubquery$;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
+import org.apache.spark.sql.catalyst.expressions.ScalarSubquery$;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.*;
@@ -48,6 +49,7 @@ import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
 import org.opensearch.sql.ast.expression.ParseMethod;
 import org.opensearch.sql.ast.expression.QualifiedName;
+import org.opensearch.sql.ast.expression.ScalarSubquery;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.expression.When;
@@ -810,6 +812,21 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     seq(new java.util.ArrayList<Expression>()),
                     Option.empty()));
             return outerContext.getNamedParseExpressions().push(inSubQuery);
+        }
+
+        @Override
+        public Expression visitScalarSubquery(ScalarSubquery node, CatalystPlanContext context) {
+            CatalystPlanContext innerContext = new CatalystPlanContext();
+            UnresolvedPlan outerPlan = node.getQuery();
+            LogicalPlan subSearch = CatalystQueryPlanVisitor.this.visitSubSearch(outerPlan, innerContext);
+            Expression scalarSubQuery = ScalarSubquery$.MODULE$.apply(
+                subSearch,
+                seq(new java.util.ArrayList<Expression>()),
+                NamedExpression.newExprId(),
+                seq(new java.util.ArrayList<Expression>()),
+                Option.empty(),
+                Option.empty());
+            return context.getNamedParseExpressions().push(scalarSubQuery);
         }
     }
 }

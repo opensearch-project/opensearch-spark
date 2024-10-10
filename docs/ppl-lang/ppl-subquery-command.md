@@ -4,7 +4,7 @@
 The subquery command should be implemented using a clean, logical syntax that integrates with existing PPL structure.
 
 ```sql
-source=logs | where field in (subquery source=events | where condition | return field)
+source=logs | where field in [ subquery source=events | where condition | fields field ]
 ```
 
 In this example, the primary search (`source=logs`) is filtered by results from the subquery (`source=events`).
@@ -14,7 +14,7 @@ The subquery command should allow nested queries to be as complex as necessary, 
 Example:
 
 ```sql
-  source=logs | where field in (subquery source=users | where user in (subquery source=actions | where action="login"))
+  source=logs | where id in [ subquery source=users | where user in [ subquery source=actions | where action="login" | fields user] | fields uid ]
 ```
 
 For additional info See [Issue](https://github.com/opensearch-project/opensearch-spark/issues/661)
@@ -110,6 +110,83 @@ source = supplier
 | inner join left=l right=r on s_nationkey = n_nationkey and n_name = 'CANADA'
   nation
 | sort s_name
+```
+
+**ScalarSubquery usage**
+
+Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table inner,  `e`, `f` are fields of table nested
+
+**Uncorrelated scalar subquery in Select**
+- `source = outer | eval m = [ source = inner | stats max(c) ] | fields m, a`
+- `source = outer | eval m = [ source = inner | stats max(c) ] + b | fields m, a`
+
+**Uncorrelated scalar subquery in Select and Where**
+- `source = outer | where a > [ source = inner | stats min(c) ] | eval m = [ source = inner | stats max(c) ] | fields m, a`
+
+**Correlated scalar subquery in Select**
+- `source = outer | eval m = [ source = inner | where outer.b = inner.d | stats max(c) ] | fields m, a`
+- `source = outer | eval m = [ source = inner | where b = d | stats max(c) ] | fields m, a`
+- `source = outer | eval m = [ source = inner | where outer.b > inner.d | stats max(c) ] | fields m, a`
+
+**Correlated scalar subquery in Where**
+- `source = outer | where a = [ source = inner | where outer.b = inner.d | stats max(c) ]`
+- `source = outer | where a = [ source = inner | where b = d | stats max(c) ]`
+- `source = outer | where [ source = inner | where outer.b = inner.d OR inner.d = 1 | stats count() ] > 0 | fields a`
+
+**Nested scalar subquery**
+- `source = outer | where a = [ source = inner | stats max(c) | sort c ] OR b = [ source = inner | where c = 1 | stats min(d) | sort d ]`
+- `source = outer | where a = [ source = inner | where c =  [ source = nested | stats max(e) by f | sort f ] | stats max(d) by c | sort c | head 1 ]`
+
+_SQL Migration examples with Scalar-Subquery PPL:_
+Example 1
+```sql
+SELECT *
+FROM   outer
+WHERE  a = (SELECT   max(c)
+            FROM     inner1
+            WHERE c = (SELECT   max(e)
+                       FROM     inner2
+                       GROUP BY f
+                       ORDER BY f
+                       )
+            GROUP BY c
+            ORDER BY c
+            LIMIT 1)
+```
+Rewritten by PPL ScalarSubquery query:
+```sql
+source = spark_catalog.default.outer
+| where a = [
+    source = spark_catalog.default.inner1
+    | where c = [
+        source = spark_catalog.default.inner2
+        | stats max(e) by f
+        | sort f
+      ]
+    | stats max(d) by c
+    | sort c
+    | head 1
+  ]
+```
+Example 2
+```sql
+SELECT * FROM outer
+WHERE  a = (SELECT max(c)
+            FROM   inner
+            ORDER BY c)
+OR     b = (SELECT min(d)
+            FROM   inner
+            WHERE  c = 1
+            ORDER BY d)
+```
+Rewritten by PPL ScalarSubquery query:
+```sql
+source = spark_catalog.default.outer
+| where a = [
+    source = spark_catalog.default.inner | stats max(c) | sort c
+  ] OR b = [
+    source = spark_catalog.default.inner | where c = 1 | stats min(d) | sort d
+  ]
 ```
 
 ### **Additional Context**

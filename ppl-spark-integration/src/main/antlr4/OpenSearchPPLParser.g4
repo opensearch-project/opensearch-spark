@@ -383,6 +383,7 @@ valueExpression
    | positionFunction                                                                           # positionFunctionCall
    | caseFunction                                                                               # caseExpr
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
+   | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
    ;
 
 primaryExpression
