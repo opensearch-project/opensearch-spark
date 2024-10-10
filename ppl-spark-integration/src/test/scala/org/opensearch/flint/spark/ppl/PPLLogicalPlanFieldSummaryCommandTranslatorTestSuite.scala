@@ -15,7 +15,7 @@ import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
 
-class PPLLogicalPlanFieldsummaryCommandTranslatorTestSuite
+class PPLLogicalPlanFieldSummaryCommandTranslatorTestSuite
     extends SparkFunSuite
     with PlanTest
     with LogicalPlanTestUtils

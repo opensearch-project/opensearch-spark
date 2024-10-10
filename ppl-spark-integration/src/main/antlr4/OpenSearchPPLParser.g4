@@ -67,7 +67,6 @@ fieldsummaryCommand
 
 fieldsummaryParameter
    : INCLUDEFIELDS EQUAL fieldList          # fieldsummaryIncludeFields
-   | EXCLUDEFIELDS EQUAL fieldList          # fieldsummaryExcludeFields
    | TOPVALUES EQUAL integerLiteral         # fieldsummaryTopValues
    | NULLS EQUAL booleanLiteral             # fieldsummaryNulls
    ;

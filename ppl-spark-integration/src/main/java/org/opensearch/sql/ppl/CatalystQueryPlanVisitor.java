@@ -82,6 +82,7 @@ import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
+import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
 import org.opensearch.sql.ppl.utils.ParseStrategy;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import scala.Option;
@@ -395,7 +396,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitFieldSummary(FieldSummary fieldSummary, CatalystPlanContext context) {
         fieldSummary.getChild().get(0).accept(this, context);
-        return super.visitFieldSummary(fieldSummary, context);
+        return FieldSummaryTransformer.translate(fieldSummary, context);
     }
 
     @Override

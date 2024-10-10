@@ -51,7 +51,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.EXCLUDEFIELDS;
 import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.INCLUDEFIELDS;
 import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.NULLS;
 import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.TOPVALUES;
@@ -193,14 +192,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         return new NamedExpression(INCLUDEFIELDS,new FieldList(includeFields));
     }
 
-    @Override
-    public UnresolvedExpression visitFieldsummaryExcludeFields(OpenSearchPPLParser.FieldsummaryExcludeFieldsContext ctx) {
-        List<Field> excludeFields = ctx.fieldList().fieldExpression().stream()
-                .map(this::visitFieldExpression)
-                .map(p->(Field)p)
-                .collect(Collectors.toList());
-        return new NamedExpression(EXCLUDEFIELDS,new FieldList(excludeFields));
-    }
 
     @Override
     public UnresolvedExpression visitFieldsummaryTopValues(OpenSearchPPLParser.FieldsummaryTopValuesContext ctx) {

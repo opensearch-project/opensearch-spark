@@ -10,6 +10,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
+import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldList;
 import org.opensearch.sql.ast.expression.Literal;
@@ -19,7 +20,6 @@ import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
 import java.util.List;
 
-import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.EXCLUDEFIELDS;
 import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.INCLUDEFIELDS;
 import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.NULLS;
 import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.TOPVALUES;
@@ -29,7 +29,6 @@ import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.TOPVALUES;
 @EqualsAndHashCode(callSuper = false)
 public class FieldSummary extends UnresolvedPlan {
     private List<Field> includeFields;
-    private List<Field> excludeFields;
     private int topValues;
     private boolean nulls;
     private List<UnresolvedExpression> collect;
@@ -46,9 +45,6 @@ public class FieldSummary extends UnresolvedPlan {
                 case TOPVALUES:
                     this.topValues = (int) ((Literal) exp.getChild().get(0)).getValue();
                     break;
-                case EXCLUDEFIELDS:
-                    this.excludeFields = ((FieldList) exp.getChild().get(0)).getFieldList();
-                    break;
                 case INCLUDEFIELDS:
                     this.includeFields = ((FieldList) exp.getChild().get(0)).getFieldList();
                     break;
@@ -58,8 +54,8 @@ public class FieldSummary extends UnresolvedPlan {
 
 
     @Override
-    public List<UnresolvedExpression> getChild() {
-        return ImmutableList.of();
+    public List<? extends Node> getChild() {
+        return child == null ? List.of() : List.of(child);
     }
 
     @Override
