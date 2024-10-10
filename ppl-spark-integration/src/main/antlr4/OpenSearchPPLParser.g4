@@ -52,12 +52,24 @@ commands
    | lookupCommand
    | renameCommand
    | fillnullCommand
+   | fieldsummaryCommand
    ;
 
 searchCommand
    : (SEARCH)? fromClause                       # searchFrom
    | (SEARCH)? fromClause logicalExpression     # searchFromFilter
    | (SEARCH)? logicalExpression fromClause     # searchFilterFrom
+   ;
+   
+fieldsummaryCommand
+   : FIELDSUMMARY (fieldsummaryParameter)*
+   ;
+
+fieldsummaryParameter
+   : INCLUDEFIELDS EQUAL fieldList          # fieldsummaryIncludeFields
+   | EXCLUDEFIELDS EQUAL fieldList          # fieldsummaryExcludeFields
+   | TOPVALUES EQUAL integerLiteral         # fieldsummaryTopValues
+   | NULLS EQUAL booleanLiteral             # fieldsummaryNulls
    ;
 
 describeCommand

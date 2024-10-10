@@ -16,6 +16,8 @@ import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
+import org.opensearch.sql.ast.expression.FieldList;
+import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
@@ -204,6 +206,10 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitChildren(node, context);
   }
 
+  public T visitFieldList(FieldList node, C context) {
+    return visitChildren(node, context);
+  }
+
   public T visitQualifiedName(QualifiedName node, C context) {
     return visitChildren(node, context);
   }
@@ -294,7 +300,12 @@ public abstract class AbstractNodeVisitor<T, C> {
   public T visitInSubquery(InSubquery node, C context) {
     return visitChildren(node, context);
   }
+  
   public T visitFillNull(FillNull fillNull, C context) {
     return visitChildren(fillNull, context);
+  }
+  
+  public T visitFieldSummary(FieldSummary fieldSummary, C context) {
+    return visitChildren(fieldSummary, context);
   }
 }

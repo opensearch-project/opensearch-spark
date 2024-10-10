@@ -61,6 +61,7 @@ import org.opensearch.sql.ast.tree.Correlation;
 import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Eval;
+import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.tree.FillNull;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
@@ -389,6 +390,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         node.getChild().get(0).accept(this, context);
         return context.apply(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
                 node.getSize(), DataTypes.IntegerType), p));
+    }
+
+    @Override
+    public LogicalPlan visitFieldSummary(FieldSummary fieldSummary, CatalystPlanContext context) {
+        fieldSummary.getChild().get(0).accept(this, context);
+        return super.visitFieldSummary(fieldSummary, context);
     }
 
     @Override
