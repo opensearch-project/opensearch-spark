@@ -7,6 +7,7 @@ package org.opensearch.flint.spark.scheduler
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkIndexMonitor}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 import org.opensearch.flint.spark.scheduler.AsyncQuerySchedulerBuilder.AsyncQuerySchedulerAction
@@ -33,6 +34,12 @@ class FlintSparkJobInternalSchedulingService(
     extends FlintSparkJobSchedulingService
     with Logging {
 
+  override val stateTransitions: StateTransitions = StateTransitions(
+    initialStateForUpdate = IndexState.ACTIVE,
+    finalStateForUpdate = IndexState.REFRESHING,
+    initialStateForUnschedule = IndexState.REFRESHING,
+    finalStateForUnschedule = IndexState.ACTIVE)
+
   /**
    * Handles job-related actions for a given Flint Spark index.
    *
@@ -52,7 +59,7 @@ class FlintSparkJobInternalSchedulingService(
     action match {
       case AsyncQuerySchedulerAction.SCHEDULE => None // No-op
       case AsyncQuerySchedulerAction.UPDATE =>
-        logInfo("Updating index state monitor")
+        logInfo("Scheduling index state monitor")
         flintIndexMonitor.startMonitor(indexName)
         startRefreshingJob(index)
       case AsyncQuerySchedulerAction.UNSCHEDULE =>

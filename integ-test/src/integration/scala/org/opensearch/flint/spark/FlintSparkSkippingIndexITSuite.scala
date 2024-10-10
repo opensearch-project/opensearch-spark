@@ -16,7 +16,7 @@ import org.opensearch.client.RequestOptions
 import org.opensearch.flint.common.FlintVersion.current
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
-import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
+import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, ID_COLUMN}
 import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingFileIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
@@ -338,7 +338,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
       val sourceMap = response.getSourceAsMap
 
       sourceMap.get("jobId") shouldBe testIndex
-      sourceMap.get("scheduledQuery") shouldBe s"REFRESH SKIPPING INDEX ON $testTable"
+      sourceMap
+        .get("scheduledQuery") shouldBe s"REFRESH SKIPPING INDEX ON ${quotedTableName(testTable)}"
       sourceMap.get("enabled") shouldBe true
       sourceMap.get("queryLang") shouldBe "sql"
 

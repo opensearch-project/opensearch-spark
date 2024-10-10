@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.spark.scheduler
 
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.IndexState
 import org.opensearch.flint.common.scheduler.AsyncQueryScheduler
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkIndexMonitor}
 import org.opensearch.flint.spark.scheduler.AsyncQuerySchedulerBuilder.AsyncQuerySchedulerAction
@@ -16,6 +17,14 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
  * Trait defining the interface for Flint Spark job scheduling services.
  */
 trait FlintSparkJobSchedulingService {
+
+  case class StateTransitions(
+      initialStateForUpdate: IndexState,
+      finalStateForUpdate: IndexState,
+      initialStateForUnschedule: IndexState,
+      finalStateForUnschedule: IndexState)
+
+  val stateTransitions: StateTransitions
 
   /**
    * Handles a job action for a given Flint Spark index.

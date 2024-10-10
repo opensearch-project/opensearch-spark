@@ -16,6 +16,7 @@ import org.opensearch.client.RequestOptions
 import org.opensearch.flint.common.FlintVersion.current
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
+import org.opensearch.flint.spark.FlintSparkIndex.quotedTableName
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.CHECKPOINT_LOCATION
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
 import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler
@@ -365,7 +366,8 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
       val sourceMap = response.getSourceAsMap
 
       sourceMap.get("jobId") shouldBe testFlintIndex
-      sourceMap.get("scheduledQuery") shouldBe s"REFRESH MATERIALIZED VIEW $testMvName"
+      sourceMap
+        .get("scheduledQuery") shouldBe s"REFRESH MATERIALIZED VIEW ${quotedTableName(testMvName)}"
       sourceMap.get("enabled") shouldBe true
       sourceMap.get("queryLang") shouldBe "sql"
 
