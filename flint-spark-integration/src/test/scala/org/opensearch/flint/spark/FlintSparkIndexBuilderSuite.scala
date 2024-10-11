@@ -208,7 +208,7 @@ class FlintSparkIndexBuilderSuite
         None,
         None,
         Some(
-          "External scheduler mode spark conf is not enabled but refresh interval is set to external schedule")),
+          "spark.flint.job.externalScheduler.enabled is false but refresh interval is set to external scheduler mode")),
       (
         "set external mode when interval above threshold and no mode specified",
         true,

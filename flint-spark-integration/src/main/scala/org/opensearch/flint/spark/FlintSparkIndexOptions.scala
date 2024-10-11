@@ -257,7 +257,7 @@ object FlintSparkIndexOptions {
           .externalSchedulerIntervalThreshold())
       case (false, _, Some("external")) =>
         throw new IllegalArgumentException(
-          "External scheduler mode spark conf is not enabled but refresh interval is set to external scheduler mode")
+          "spark.flint.job.externalScheduler.enabled is false but refresh interval is set to external scheduler mode")
       case _ =>
         updatedOptions += (SCHEDULER_MODE.toString -> SchedulerMode.INTERNAL.toString)
     }

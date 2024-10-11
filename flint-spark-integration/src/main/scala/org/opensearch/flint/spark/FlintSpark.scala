@@ -446,27 +446,24 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       originalOptions: FlintSparkIndexOptions,
       updatedOptions: FlintSparkIndexOptions): Unit = {
     val isAutoRefreshChanged = updatedOptions.autoRefresh() != originalOptions.autoRefresh()
-    val isSchedulerModeChanged =
-      updatedOptions.isExternalSchedulerEnabled() != originalOptions.isExternalSchedulerEnabled()
-
-    // Prevent changing both auto_refresh and scheduler_mode simultaneously
-    if (isAutoRefreshChanged && isSchedulerModeChanged) {
-      throw new IllegalArgumentException(
-        "Cannot change both auto_refresh and scheduler_mode simultaneously")
-    }
 
     val changedOptions = updatedOptions.options.filterNot { case (k, v) =>
       originalOptions.options.get(k).contains(v)
     }.keySet
 
     if (changedOptions.isEmpty) {
-      throw new IllegalArgumentException("No options updated")
+      throw new IllegalArgumentException("No index option updated")
     }
 
     // Validate based on auto_refresh state and changes
     (isAutoRefreshChanged, updatedOptions.autoRefresh()) match {
       case (true, true) =>
         // Changing from manual to auto refresh
+        if (updatedOptions.incrementalRefresh()) {
+          throw new IllegalArgumentException(
+            "Altering index to auto refresh while incremental refresh remains true")
+        }
+
         val allowedOptions = Set(
           AUTO_REFRESH,
           INCREMENTAL_REFRESH,
@@ -474,15 +471,13 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           REFRESH_INTERVAL,
           CHECKPOINT_LOCATION,
           WATERMARK_DELAY)
-        validateChangedOptions(changedOptions, allowedOptions, "Changing to auto refresh")
-
+        validateChangedOptions(changedOptions, allowedOptions, s"Altering index to auto refresh")
       case (true, false) =>
         val allowedOptions = if (updatedOptions.incrementalRefresh()) {
           // Changing from auto refresh to incremental refresh
           Set(
             AUTO_REFRESH,
             INCREMENTAL_REFRESH,
-            SCHEDULER_MODE,
             REFRESH_INTERVAL,
             CHECKPOINT_LOCATION,
             WATERMARK_DELAY)
@@ -493,11 +488,14 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         validateChangedOptions(
           changedOptions,
           allowedOptions,
-          "Changing to full/incremental refresh")
+          "Altering index to full/incremental refresh")
 
       case (false, true) =>
         // original refresh_mode is auto, only allow changing scheduler_mode
-        validateChangedOptions(changedOptions, Set(SCHEDULER_MODE), "Auto refresh remains true")
+        validateChangedOptions(
+          changedOptions,
+          Set(SCHEDULER_MODE),
+          "Altering index when auto_refresh remains true")
 
       case (false, false) =>
         // original refresh_mode is full/incremental, not allowed to change any options
