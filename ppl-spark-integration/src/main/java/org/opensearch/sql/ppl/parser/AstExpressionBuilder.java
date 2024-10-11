@@ -43,6 +43,7 @@ import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.expression.When;
 import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.ast.tree.Trendline;
+import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
@@ -120,7 +121,10 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
 
     @Override
     public UnresolvedExpression visitTrendlineClause(OpenSearchPPLParser.TrendlineClauseContext ctx) {
-        Integer numberOfDataPoints = Integer.parseInt(ctx.numberOfDataPoints.getText());
+        int numberOfDataPoints = Integer.parseInt(ctx.numberOfDataPoints.getText());
+        if (numberOfDataPoints < 0) {
+            throw new SyntaxCheckException("Number of trendline data-points must be greater than or equal to 0");
+        }
         Field dataField = (Field) this.visitFieldExpression(ctx.field);
         String alias = ctx.alias.getText();
         String computationType = ctx.trendlineType().getText();
