@@ -226,7 +226,11 @@ See the next samples of PPL queries :
 
 **Describe**
  - `describe table`  This command is equal to the `DESCRIBE EXTENDED table` SQL command
-
+ - `describe schema.table`
+ - `` describe schema.`table` ``
+ - `describe catalog.schema.table`
+ - `` describe catalog.schema.`table` ``
+ - `` describe `catalog`.`schema`.`table` ``
 **Fields**
  - `source = table`
  - `source = table | fields a,b,c`
