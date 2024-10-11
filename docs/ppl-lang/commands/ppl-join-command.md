@@ -1,5 +1,20 @@
 ## PPL Join Command
 
+<table>
+  <tr>
+    <th style="color:gainsboro;">Spark</th>
+    <th style="color:greenyellow;">3.0.0+ </th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Status</th>
+    <th style="color:yellow;">Experimental</th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Introduced In</th>
+    <th style="color:lightgreen;">0.6.0</th>
+  </tr>
+</table>
+
 ## Overview
 
 [Trace analytics](https://opensearch.org/docs/latest/observability-plugin/trace/ta-dashboards/) considered using SQL/PPL for its queries, but some graphs rely on joining two indices (span index and service map index) together which is not supported by SQL/PPL. Trace analytics was implemented with DSL + javascript, would be good if `join` being added to SQL could support this use case.

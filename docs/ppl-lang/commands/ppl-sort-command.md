@@ -1,5 +1,20 @@
 ## PPL `sort`command
 
+<table>
+  <tr>
+    <th style="color:gainsboro;">Spark</th>
+    <th style="color:greenyellow;">3.0.0+ </th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Status</th>
+    <th style="color:greenyellow;">Stable</th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Introduced In</th>
+    <th style="color:lightgreen;">0.4.0</th>
+  </tr>
+</table>
+
 ### Description
 Using ``sort`` command to sorts all the search result by the specified fields.
 

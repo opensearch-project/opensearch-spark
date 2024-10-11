@@ -1,5 +1,20 @@
 ## PPL SubQuery Commands:
 
+<table>
+  <tr>
+    <th style="color:gainsboro;">Spark</th>
+    <th style="color:greenyellow;">3.0.0+ </th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Status</th>
+    <th style="color:yellow;">Experimental</th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Introduced In</th>
+    <th style="color:lightgreen;">0.6.0</th>
+  </tr>
+</table>
+
 **Syntax**
 The subquery command should be implemented using a clean, logical syntax that integrates with existing PPL structure.
 

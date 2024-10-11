@@ -1,5 +1,21 @@
 ## PPL Lookup Command
 
+<table>
+  <tr>
+    <th style="color:gainsboro;">Spark</th>
+    <th style="color:greenyellow;">3.5.1+ </th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Status</th>
+    <th style="color:yellow;">Experimental</th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Introduced In</th>
+    <th style="color:lightgreen;">0.6.0</th>
+  </tr>
+</table>
+
+
 ## Overview
 Lookup command enriches your search data by adding or replacing data from a lookup index (dimension table).
 You can extend fields of an index with values from a dimension table, append or replace values when lookup condition is matched.
