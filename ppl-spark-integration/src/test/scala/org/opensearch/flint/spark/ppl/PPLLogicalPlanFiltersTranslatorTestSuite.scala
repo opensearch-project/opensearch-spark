@@ -5,23 +5,15 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.junit.Assert.assertEquals
-import org.mockito.Mockito.when
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry, TableFunctionRegistry, UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.catalog._
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Descending, Divide, EqualTo, Floor, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Like, Literal, NamedExpression, Not, Or, SortOrder, UnixTimestamp}
-import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.parser.ParserInterface
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
+import org.apache.spark.sql.catalyst.expressions.{And, Ascending, EqualTo, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Literal, Not, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 
 class PPLLogicalPlanFiltersTranslatorTestSuite
     extends SparkFunSuite
@@ -217,6 +209,28 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
         Project(projectList, filterPlan))
     val expectedPlan = Project(Seq(UnresolvedStar(None)), sortedPlan)
 
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test order of evaluation of predicate expression") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source=employees | where department = 'HR' OR job_title = 'Manager' AND salary > 50000"),
+      context)
+
+    val table = UnresolvedRelation(Seq("employees"))
+    val filter =
+      Filter(
+        Or(
+          EqualTo(UnresolvedAttribute("department"), Literal("HR")),
+          And(
+            EqualTo(UnresolvedAttribute("job_title"), Literal("Manager")),
+            GreaterThan(UnresolvedAttribute("salary"), Literal(50000)))),
+        table)
+
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), filter)
     comparePlans(expectedPlan, logPlan, false)
   }
 }
