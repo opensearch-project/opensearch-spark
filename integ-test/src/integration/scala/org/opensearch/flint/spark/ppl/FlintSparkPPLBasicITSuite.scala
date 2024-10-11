@@ -5,12 +5,13 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.apache.spark.sql.{QueryTest, Row}
+import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar, UnresolvedTableOrView}
-import org.apache.spark.sql.catalyst.expressions.{Ascending, Literal, SortOrder}
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, Literal, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.execution.command.DescribeTableCommand
+import org.apache.spark.sql.execution.ExplainMode
+import org.apache.spark.sql.execution.command.{DescribeTableCommand, ExplainCommand}
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLBasicITSuite
@@ -21,12 +22,20 @@ class FlintSparkPPLBasicITSuite
 
   /** Test table and index name */
   private val testTable = "spark_catalog.default.flint_ppl_test"
-
+  private val t1 = "`spark_catalog`.`default`.`flint_ppl_test1`"
+  private val t2 = "`spark_catalog`.default.`flint_ppl_test2`"
+  private val t3 = "spark_catalog.`default`.`flint_ppl_test3`"
+  private val t4 = "`spark_catalog`.`default`.flint_ppl_test4"
+  
   override def beforeAll(): Unit = {
     super.beforeAll()
 
     // Create test table
     createPartitionedStateCountryTable(testTable)
+    createPartitionedStateCountryTable(t1)
+    createPartitionedStateCountryTable(t2)
+    createPartitionedStateCountryTable(t3)
+    createPartitionedStateCountryTable(t4)
   }
 
   protected override def afterEach(): Unit = {
@@ -39,48 +48,135 @@ class FlintSparkPPLBasicITSuite
   }
 
   test("describe (extended) table query test") {
-    val testTableQuoted = "`spark_catalog`.`default`.`flint_ppl_test`"
-    Seq(testTable, testTableQuoted).foreach { table =>
-      val frame = sql(s"""
+    val frame = sql(s"""
            describe flint_ppl_test
            """.stripMargin)
 
-      // Retrieve the results
-      val results: Array[Row] = frame.collect()
-      // Define the expected results
-      val expectedResults: Array[Row] = Array(
-        Row("name", "string", null),
-        Row("age", "int", null),
-        Row("state", "string", null),
-        Row("country", "string", null),
-        Row("year", "int", null),
-        Row("month", "int", null),
-        Row("# Partition Information", "", ""),
-        Row("# col_name", "data_type", "comment"),
-        Row("year", "int", null),
-        Row("month", "int", null))
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("name", "string", null),
+      Row("age", "int", null),
+      Row("state", "string", null),
+      Row("country", "string", null),
+      Row("year", "int", null),
+      Row("month", "int", null),
+      Row("# Partition Information", "", ""),
+      Row("# col_name", "data_type", "comment"),
+      Row("year", "int", null),
+      Row("month", "int", null))
 
-      // Convert actual results to a Set for quick lookup
-      val resultsSet: Set[Row] = results.toSet
-      // Check that each expected row is present in the actual results
-      expectedResults.foreach { expectedRow =>
-        assert(
-          resultsSet.contains(expectedRow),
-          s"Expected row $expectedRow not found in results")
-      }
-      // Retrieve the logical plan
-      val logicalPlan: LogicalPlan =
-        frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
-      // Define the expected logical plan
-      val expectedPlan: LogicalPlan =
-        DescribeTableCommand(
-          TableIdentifier("flint_ppl_test"),
-          Map.empty[String, String],
-          isExtended = true,
-          output = DescribeRelation.getOutputAttrs)
-      // Compare the two plans
-      comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+    // Convert actual results to a Set for quick lookup
+    val resultsSet: Set[Row] = results.toSet
+    // Check that each expected row is present in the actual results
+    expectedResults.foreach { expectedRow =>
+      assert(resultsSet.contains(expectedRow), s"Expected row $expectedRow not found in results")
     }
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan =
+      frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
+    // Define the expected logical plan
+    val expectedPlan: LogicalPlan =
+      DescribeTableCommand(
+        TableIdentifier("flint_ppl_test"),
+        Map.empty[String, String],
+        isExtended = true,
+        output = DescribeRelation.getOutputAttrs)
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("describe (extended) FQN (2 parts) table query test") {
+    val frame = sql(s"""
+           describe default.flint_ppl_test
+           """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("name", "string", null),
+      Row("age", "int", null),
+      Row("state", "string", null),
+      Row("country", "string", null),
+      Row("year", "int", null),
+      Row("month", "int", null),
+      Row("# Partition Information", "", ""),
+      Row("# col_name", "data_type", "comment"),
+      Row("year", "int", null),
+      Row("month", "int", null))
+
+    // Convert actual results to a Set for quick lookup
+    val resultsSet: Set[Row] = results.toSet
+    // Check that each expected row is present in the actual results
+    expectedResults.foreach { expectedRow =>
+      assert(resultsSet.contains(expectedRow), s"Expected row $expectedRow not found in results")
+    }
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan =
+      frame.queryExecution.commandExecuted.asInstanceOf[CommandResult].commandLogicalPlan
+    // Define the expected logical plan
+    val expectedPlan: LogicalPlan =
+      DescribeTableCommand(
+        TableIdentifier("flint_ppl_test", Option("default")),
+        Map.empty[String, String],
+        isExtended = true,
+        output = DescribeRelation.getOutputAttrs)
+    // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test backtick table names and name contains '.'") {
+    Seq(t1, t2, t3, t4).foreach { table =>
+      val frame = sql(
+        s"""
+           | source = $table| head 2
+           | """.stripMargin)
+      assert(frame.collect().length == 2)
+    }
+    // test read table which is unable to create
+    val t5 = "`spark_catalog`.default.`flint/ppl/test5.log`"
+    val t6 = "spark_catalog.default.`flint_ppl_test6.log`"
+    Seq(t5, t6).foreach { table =>
+      val ex = intercept[AnalysisException](sql(
+        s"""
+           | source = $table| head 2
+           | """.stripMargin))
+      assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
+    }
+    val t7 = "spark_catalog.default.flint_ppl_test7.log"
+    val ex = intercept[IllegalArgumentException](sql(
+      s"""
+         | source = $t7| head 2
+         | """.stripMargin))
+    assert(ex.getMessage().contains("Invalid table name"))
+  }
+
+  test("test describe backtick table names and name contains '.'") {
+    Seq(t1, t2, t3, t4).foreach { table =>
+      val frame = sql(
+        s"""
+           | describe $table
+           | """.stripMargin)
+      assert(frame.collect().length > 0)
+    }
+    // test read table which is unable to create
+    val t5 = "`spark_catalog`.default.`flint/ppl/test5.log`"
+    val t6 = "spark_catalog.default.`flint_ppl_test6.log`"
+    Seq(t5, t6).foreach { table =>
+      val ex = intercept[AnalysisException](sql(
+        s"""
+           | describe $table
+           | """.stripMargin))
+      assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
+    }
+    val t7 = "spark_catalog.default.flint_ppl_test7.log"
+    val ex = intercept[IllegalArgumentException](sql(
+      s"""
+         | describe $t7
+         | """.stripMargin))
+    assert(ex.getMessage().contains("Invalid table name"))
   }
 
   test("create ppl simple query test") {

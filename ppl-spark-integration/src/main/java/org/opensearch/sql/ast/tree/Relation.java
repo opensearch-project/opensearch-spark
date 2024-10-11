@@ -38,7 +38,6 @@ public class Relation extends UnresolvedPlan {
   private String alias;
 
   /**
-   * Return table name.
    *
    * @return table name
    */
@@ -46,7 +45,11 @@ public class Relation extends UnresolvedPlan {
     return tableName.stream().map(Object::toString).collect(Collectors.toList());
   }
 
- 
+
+  public List<QualifiedName> getQualifiedNames() {
+    return tableName.stream().map(t -> (QualifiedName) t).collect(Collectors.toList());
+  }
+  
   /**
    * Return alias.
    *
