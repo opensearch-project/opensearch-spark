@@ -36,29 +36,50 @@ public interface FieldSummaryTransformer {
 
     /**
      * translate the field summary into the following query:
-     * SELECT
-     *     -- For column1 ---
-     *     'column1' AS Field,
-     *     COUNT(column1) AS Count,
-     *     COUNT(DISTINCT column1) AS Distinct,
-     *     MIN(column1) AS Min,
-     *     MAX(column1) AS Max,
-     *     AVG(CAST(column1 AS DOUBLE)) AS Avg,
-     *     typeof(column1) AS Type,
-     *     COLLECT_LIST(STRUCT(column1, COUNT(column1))) AS top_values,
-     *     COUNT(*) - COUNT(column1) AS Nulls,
+     * -----------------------------------------------------
+     *  // for each column create statement:
+     *  SELECT
+     *      'column-1' AS Field,
+     *      COUNT(column-1) AS Count,
+     *      COUNT(DISTINCT column-1) AS Distinct,
+     *      MIN(column-1) AS Min,
+     *      MAX(column-1) AS Max,
+     *      AVG(CAST(column-1 AS DOUBLE)) AS Avg,
+     *      typeof(column-1) AS Type,
+     *      (SELECT COLLECT_LIST(STRUCT(column-1, count_status))
+     *       FROM (
+     *          SELECT column-1, COUNT(*) AS count_status
+     *          FROM $testTable
+     *          GROUP BY column-1
+     *          ORDER BY count_status DESC
+     *          LIMIT 5
+     *      )) AS top_values,
+     *      COUNT(*) - COUNT(column-1) AS Nulls
+     *  FROM $testTable
+     *  GROUP BY typeof(column-1)                       
+     *  
+     *  // union all queries
+     *  UNION ALL
      *
-     *     -- For column2 ---
-     *     'column2' AS Field,
-     *     COUNT(column2) AS Count,
-     *     COUNT(DISTINCT column2) AS Distinct,
-     *     MIN(column2) AS Min,
-     *     MAX(column2) AS Max,
-     *     AVG(CAST(column2 AS DOUBLE)) AS Avg,
-     *     typeof(column2) AS Type,
-     *     COLLECT_LIST(STRUCT(column2, COUNT(column2))) AS top_values,
-     *     COUNT(*) - COUNT(column2) AS Nulls
-     *  FROM ...
+     *  SELECT
+     *      'column-2' AS Field,
+     *      COUNT(column-2) AS Count,
+     *      COUNT(DISTINCT column-2) AS Distinct,
+     *      MIN(column-2) AS Min,
+     *      MAX(column-2) AS Max,
+     *      AVG(CAST(column-2 AS DOUBLE)) AS Avg,
+     *      typeof(column-2) AS Type,
+     *      (SELECT COLLECT_LIST(STRUCT(column-2, count_column-2))
+     *       FROM (
+     *          SELECT column-, COUNT(*) AS count_column-
+     *          FROM $testTable
+     *          GROUP BY column-2
+     *          ORDER BY count_column- DESC
+     *          LIMIT 5
+     *      )) AS top_values,
+     *      COUNT(*) - COUNT(column-2) AS Nulls
+     *  FROM $testTable
+     *  GROUP BY typeof(column-2) 
      */
     static LogicalPlan translate(FieldSummary fieldSummary, CatalystPlanContext context) {
         fieldSummary.getIncludeFields().forEach(field -> {
@@ -154,25 +175,27 @@ public interface FieldSummaryTransformer {
                             Option.empty(),
                             seq(new java.util.ArrayList<String>())
                     ));
+            
+            if (fieldSummary.isNulls()) {
+                // Alias COUNT(*) - COUNT(column2) AS Nulls
+                UnresolvedFunction countStar = new UnresolvedFunction(
+                        seq("COUNT"),
+                        seq(org.apache.spark.sql.catalyst.expressions.Literal.create(1, IntegerType)),
+                        false,
+                        empty(),
+                        false
+                );
 
-            // Alias COUNT(*) - COUNT(column2) AS Nulls
-            UnresolvedFunction countStar = new UnresolvedFunction(
-                    seq("COUNT"),         
-                    seq(org.apache.spark.sql.catalyst.expressions.Literal.create(1, IntegerType)), 
-                    false,               
-                    empty(),                
-                    false                   
-            );
-
-            context.getNamedParseExpressions().push(
-                    org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(
-                            new Subtract(countStar, count), 
-                            NULLS,
-                            NamedExpression.newExprId(),
-                            seq(new java.util.ArrayList<String>()),
-                            Option.empty(), 
-                            seq(new java.util.ArrayList<String>()) 
-                    ));      
+                context.getNamedParseExpressions().push(
+                        org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(
+                                new Subtract(countStar, count),
+                                NULLS,
+                                NamedExpression.newExprId(),
+                                seq(new java.util.ArrayList<String>()),
+                                Option.empty(),
+                                seq(new java.util.ArrayList<String>())
+                        ));
+            }
         });
 
         return context.getPlan();

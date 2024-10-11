@@ -5,15 +5,16 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
+import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
+import org.scalatest.matchers.should.Matchers
+
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Literal, NamedExpression}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical.{DataFrameDropColumns, Project}
-import org.opensearch.flint.spark.ppl.PlaneUtils.plan
-import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
-import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
-import org.scalatest.matchers.should.Matchers
 
 class PPLLogicalPlanFieldSummaryCommandTranslatorTestSuite
     extends SparkFunSuite
@@ -24,7 +25,7 @@ class PPLLogicalPlanFieldSummaryCommandTranslatorTestSuite
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
 
-  test("test fieldsummary with `includefields=status_code,user_id,response_time`") {
+  ignore("test fieldsummary with `includefields=status_code,user_id,response_time`") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(

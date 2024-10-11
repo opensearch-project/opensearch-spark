@@ -5,20 +5,20 @@
 
 package org.opensearch.sql.ast.tree;
 
-import com.google.common.collect.ImmutableList;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
+import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldList;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.NamedExpression;
-import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.INCLUDEFIELDS;
 import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.NULLS;
