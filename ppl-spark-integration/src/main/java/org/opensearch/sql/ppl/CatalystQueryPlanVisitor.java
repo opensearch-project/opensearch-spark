@@ -151,7 +151,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     public LogicalPlan visitRelation(Relation node, CatalystPlanContext context) {
         if (node instanceof DescribeRelation) {
             TableIdentifier identifier;
-            if (node.getTableQualifiedName().getParts().size() == 1) {
+            if (node.getTableQualifiedName().getParts().isEmpty()) {
+                throw new IllegalArgumentException("Empty table name is invalid");
+            } else if (node.getTableQualifiedName().getParts().size() == 1) {
                 identifier = new TableIdentifier(node.getTableQualifiedName().getParts().get(0));
             } else if (node.getTableQualifiedName().getParts().size() == 2) {
                 identifier = new TableIdentifier(
@@ -160,8 +162,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             } else if (node.getTableQualifiedName().getParts().size() == 3) {
                 identifier = new TableIdentifier(
                         node.getTableQualifiedName().getParts().get(2),
-                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(0)),
-                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(1)));
+                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(1)),
+                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(0)));
             } else {
                 throw new IllegalArgumentException("Invalid table name: " + node.getTableQualifiedName()
                         + " Syntax: [ database_name. ] table_name");
@@ -176,7 +178,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         //regular sql algebraic relations
         node.getTableName().forEach(t ->
                 // Resolving the qualifiedName which is composed of a datasource.schema.table
-                context.withRelation(new UnresolvedRelation(seq(of(t.split("\\."))), CaseInsensitiveStringMap.empty(), false))
+                context.withRelation(new UnresolvedRelation(seq(node.getTableQualifiedName().getParts()), CaseInsensitiveStringMap.empty(), false))
         );
         return context.getPlan();
     }
