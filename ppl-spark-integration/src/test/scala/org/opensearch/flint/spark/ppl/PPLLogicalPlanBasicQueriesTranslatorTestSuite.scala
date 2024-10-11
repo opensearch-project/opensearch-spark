@@ -43,7 +43,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
       planTransformer.visit(plan(pplParser, "describe schema.default.http_logs"), context)
 
     val expectedPlan = DescribeTableCommand(
-      TableIdentifier("http_logs", Option("schema"), Option("default")),
+      TableIdentifier("http_logs", Option("default"), Option("schema")),
       Map.empty[String, String].empty,
       isExtended = true,
       output = DescribeRelation.getOutputAttrs)

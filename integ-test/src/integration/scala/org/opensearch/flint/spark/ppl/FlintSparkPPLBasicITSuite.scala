@@ -541,6 +541,11 @@ class FlintSparkPPLBasicITSuite
            | """.stripMargin))
       assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
     }
+    val t7 = "spark_catalog.default.flint_ppl_test7.log"
+    val ex = intercept[IllegalArgumentException](sql(s"""
+           | source = $t7| head 2
+           | """.stripMargin))
+    assert(ex.getMessage().contains("Invalid table name"))
   }
 
   test("test describe backtick table names and name contains '.'") {
@@ -551,14 +556,19 @@ class FlintSparkPPLBasicITSuite
       assert(frame.collect().length > 0)
     }
     // test read table which is unable to create
-    val t5 = "`spark_catalog`.default.`flint/ppl/test4.log`"
-    val t6 = "spark_catalog.default.`flint_ppl_test5.log`"
+    val t5 = "`spark_catalog`.default.`flint/ppl/test5.log`"
+    val t6 = "spark_catalog.default.`flint_ppl_test6.log`"
     Seq(t5, t6).foreach { table =>
       val ex = intercept[AnalysisException](sql(s"""
            | describe $table
            | """.stripMargin))
       assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
     }
+    val t7 = "spark_catalog.default.flint_ppl_test7.log"
+    val ex = intercept[IllegalArgumentException](sql(s"""
+           | describe $t7
+           | """.stripMargin))
+    assert(ex.getMessage().contains("Invalid table name"))
   }
 
   test("test explain backtick table names and name contains '.'") {
@@ -573,15 +583,18 @@ class FlintSparkPPLBasicITSuite
     val frame = sql(s"""
            | explain extended | source = $table
            | """.stripMargin)
-    // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    // Define the expected logical plan
     val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint/ppl/test4.log"))
     val expectedPlan: LogicalPlan =
       ExplainCommand(
         Project(Seq(UnresolvedStar(None)), relation),
         ExplainMode.fromString("extended"))
-    // Compare the two plans
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+
+    val t7 = "spark_catalog.default.flint_ppl_test7.log"
+    val ex = intercept[IllegalArgumentException](sql(s"""
+          | explain extended | source = $t7
+          | """.stripMargin))
+    assert(ex.getMessage().contains("Invalid table name"))
   }
 }
