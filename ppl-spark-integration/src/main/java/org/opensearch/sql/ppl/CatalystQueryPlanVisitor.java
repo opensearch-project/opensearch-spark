@@ -271,6 +271,14 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     public LogicalPlan visitTrendline(Trendline node, CatalystPlanContext context) {
         node.getChild().get(0).accept(this, context);
 
+        Optional.ofNullable(node.getSortByField())
+                .ifPresent(sortField -> {
+                    Expression sortFieldExpression = visitExpression(sortField, context);
+                    Seq<SortOrder> sortOrder = context
+                            .retainAllNamedParseExpressions(exp -> SortUtils.sortOrder(sortFieldExpression, SortUtils.isSortedAscending(sortField)));
+                    context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Sort(sortOrder, true, p));
+                });
+
         if (context.getNamedParseExpressions().isEmpty()) {
             // Create an UnresolvedStar for all-fields projection
             context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.empty()));

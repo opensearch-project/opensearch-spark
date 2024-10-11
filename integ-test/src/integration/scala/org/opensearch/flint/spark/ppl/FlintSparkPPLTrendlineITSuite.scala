@@ -71,7 +71,7 @@ class FlintSparkPPLTrendlineITSuite
 
   test("test trendline sma command with fields command") {
     val frame = sql(s"""
-                       | source = $testTable | sort - age | trendline sma(3, age) as age_sma | fields name, age, age_sma
+                       | source = $testTable | trendline sort - age sma(3, age) as age_sma | fields name, age, age_sma
                        | """.stripMargin)
 
     assert(frame.columns.sameElements(Array("name", "age", "age_sma")))
@@ -105,7 +105,7 @@ class FlintSparkPPLTrendlineITSuite
 
   test("test multiple trendline sma commands") {
     val frame = sql(s"""
-                       | source = $testTable | sort + age | trendline sma(2, age) as two_points_sma sma(3, age) as three_points_sma | fields name, age, two_points_sma, three_points_sma
+                       | source = $testTable | trendline sort + age sma(2, age) as two_points_sma sma(3, age) as three_points_sma | fields name, age, two_points_sma, three_points_sma
                        | """.stripMargin)
 
     assert(frame.columns.sameElements(Array("name", "age", "two_points_sma", "three_points_sma")))
@@ -147,8 +147,7 @@ class FlintSparkPPLTrendlineITSuite
 
   test("test trendline sma command on evaluated column") {
     val frame = sql(s"""
-                       | source = $testTable | sort + age
-                       | | eval doubled_age = age * 2 | trendline sma(2, doubled_age) as doubled_age_sma | fields name, doubled_age, doubled_age_sma
+                       | source = $testTable | eval doubled_age = age * 2 | trendline sort + age sma(2, doubled_age) as doubled_age_sma | fields name, doubled_age, doubled_age_sma
                        | """.stripMargin)
 
     assert(frame.columns.sameElements(Array("name", "doubled_age", "doubled_age_sma")))
@@ -171,8 +170,8 @@ class FlintSparkPPLTrendlineITSuite
     val ageField = UnresolvedAttribute("age")
     val doubledAgeField = UnresolvedAttribute("doubled_age")
     val doubledAgeSmaField = UnresolvedAttribute("doubled_age_sma")
-    val sort = Sort(Seq(SortOrder(ageField, Ascending)), global = true, table)
-    val evalProject = Project(Seq(UnresolvedStar(None), Alias(UnresolvedFunction("*", Seq(ageField, Literal(2)), isDistinct = false), "doubled_age")()), sort)
+    val evalProject = Project(Seq(UnresolvedStar(None), Alias(UnresolvedFunction("*", Seq(ageField, Literal(2)), isDistinct = false), "doubled_age")()), table)
+    val sort = Sort(Seq(SortOrder(ageField, Ascending)), global = true, evalProject)
     val doubleAgeSmaWindow = WindowExpression(
       UnresolvedFunction("AVG", Seq(doubledAgeField), isDistinct = false),
       WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-1), CurrentRow)))
@@ -181,7 +180,7 @@ class FlintSparkPPLTrendlineITSuite
       Alias(doubleAgeSmaWindow, "doubled_age_sma")())
     val expectedPlan = Project(
       Seq(nameField, doubledAgeField, doubledAgeSmaField),
-      Project(trendlineProjectList, evalProject))
+      Project(trendlineProjectList, sort))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 }
