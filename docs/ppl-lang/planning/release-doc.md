@@ -28,6 +28,33 @@ Each release will follow the SemVer versioning system:
 - `MINOR` version when adding new features in a backward-compatible manner, including new commands or enhancements to the existing system.
 - `PATCH` version when making backward-compatible bug fixes, performance improvements, or minor updates.
 
+
+### Release Process in OpenSearch - Spark
+The following process defines the release strategy that OpenSearch Spark will follow:
+
+#### Alignment with OpenSearch Project:
+OpenSearch Spark will align its release cadence with the OpenSearch project, ensuring consistency in versions and support between the two projects.
+
+#### Branching Strategy:
+A new release tag and branch will be created for each major release cycle, following the completion of the previous release.
+
+#### Code Freeze and Pre-release Artifact:
+
+- Code Freeze: Prior to the official release, there will be a designated code freeze period. During this time, only critical bug fixes will be permitted, and no new features will be added - designated to the pre-release.
+- Pre-release Artifact: A pre-release artifact will be generated and made available for testing. This artifact will be thoroughly tested, and the associated documentation will be updated to reflect the changes.
+- Testing and Validation: Rigorous testing (including regression, integration, and performance tests) will be conducted on the pre-release artifact
+
+#### Release Preparation:
+
+- Final updates to documentation, including version notes, will be made.
+- Release artifacts will be built, and the final release branch will be created.
+- The new release will be announced and made available to the community via the OpenSearch release channels.
+
+#### Post-release:
+
+Post-release monitoring will be conducted to ensure no critical issues are found after the release.
+Any identified issues will be fixed in PATCH versions, which will be released as necessary.
+
 ---
 ## [Version 0.4.1](https://github.com/opensearch-project/opensearch-spark/releases/tag/v0.4.1)
 
