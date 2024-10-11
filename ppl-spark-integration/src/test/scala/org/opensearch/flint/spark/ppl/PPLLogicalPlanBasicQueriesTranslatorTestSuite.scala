@@ -36,7 +36,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     assert(
       thrown.getMessage === "Invalid table name: t.b.c.d Syntax: [ database_name. ] table_name")
   }
-  
+
   test("test describe with backticks") {
     val context = new CatalystPlanContext
     val logPlan =
@@ -49,7 +49,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
       output = DescribeRelation.getOutputAttrs)
     comparePlans(expectedPlan, logPlan, false)
   }
-  
+
   test("test describe FQN table clause") {
     val context = new CatalystPlanContext
     val logPlan =
