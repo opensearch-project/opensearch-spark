@@ -31,6 +31,7 @@ import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
 import org.opensearch.sql.ast.expression.QualifiedName;
+import org.opensearch.sql.ast.expression.ScalarSubquery;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.SpanUnit;
 import org.opensearch.sql.ast.expression.UnresolvedArgument;
@@ -385,6 +386,11 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                 .map(this::visit).collect(Collectors.toList()),
             astBuilder.visitSubSearch(ctx.subSearch()));
         return ctx.NOT() != null ? new Not(expr) : expr;
+    }
+
+    @Override
+    public UnresolvedExpression visitScalarSubqueryExpr(OpenSearchPPLParser.ScalarSubqueryExprContext ctx) {
+        return new ScalarSubquery(astBuilder.visitSubSearch(ctx.subSearch()));
     }
 
     private QualifiedName visitIdentifiers(List<? extends ParserRuleContext> ctx) {

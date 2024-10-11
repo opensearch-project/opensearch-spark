@@ -358,8 +358,8 @@ expression
 logicalExpression
    : comparisonExpression                                       # comparsion
    | NOT logicalExpression                                      # logicalNot
-   | left = logicalExpression OR right = logicalExpression      # logicalOr
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
+   | left = logicalExpression OR right = logicalExpression      # logicalOr
    | left = logicalExpression XOR right = logicalExpression     # logicalXor
    | booleanExpression                                          # booleanExpr
    | isEmptyExpression                                          # isEmptyExpr
@@ -383,6 +383,7 @@ valueExpression
    | positionFunction                                                                           # positionFunctionCall
    | caseFunction                                                                               # caseExpr
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
+   | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
    ;
 
 primaryExpression

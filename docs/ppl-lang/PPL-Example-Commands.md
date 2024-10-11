@@ -2,6 +2,11 @@
 
 #### **Describe**
 - `describe table`  This command is equal to the `DESCRIBE EXTENDED table` SQL command
+- `describe schema.table`
+- `` describe schema.`table` ``
+- `describe catalog.schema.table`
+- `` describe catalog.schema.`table` ``
+- `` describe `catalog`.`schema`.`table` ``
 
 #### **Explain**
 - `explain simple | source = table | where a = 1 | fields a,b,c`
@@ -350,6 +355,31 @@ source = supplier
   nation
 | sort s_name
 ```
+#### **ScalarSubquery**
+[See additional command details](ppl-subquery-command.md)
+
+Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table inner,  `e`, `f` are fields of table nested
+**Uncorrelated scalar subquery in Select**
+- `source = outer | eval m = [ source = inner | stats max(c) ] | fields m, a`
+- `source = outer | eval m = [ source = inner | stats max(c) ] + b | fields m, a`
+
+**Uncorrelated scalar subquery in Select and Where**
+- `source = outer | where a > [ source = inner | stats min(c) ] | eval m = [ source = inner | stats max(c) ] | fields m, a`
+
+**Correlated scalar subquery in Select**
+- `source = outer | eval m = [ source = inner | where outer.b = inner.d | stats max(c) ] | fields m, a`
+- `source = outer | eval m = [ source = inner | where b = d | stats max(c) ] | fields m, a`
+- `source = outer | eval m = [ source = inner | where outer.b > inner.d | stats max(c) ] | fields m, a`
+
+**Correlated scalar subquery in Where**
+- `source = outer | where a = [ source = inner | where outer.b = inner.d | stats max(c) ]`
+- `source = outer | where a = [ source = inner | where b = d | stats max(c) ]`
+- `source = outer | where [ source = inner | where outer.b = inner.d OR inner.d = 1 | stats count() ] > 0 | fields a`
+
+**Nested scalar subquery**
+- `source = outer | where a = [ source = inner | stats max(c) | sort c ] OR b = [ source = inner | where c = 1 | stats min(d) | sort d ]`
+- `source = outer | where a = [ source = inner | where c =  [ source = nested | stats max(e) by f | sort f ] | stats max(d) by c | sort c | head 1 ]`
+
 
 ---
 #### Experimental Commands:
