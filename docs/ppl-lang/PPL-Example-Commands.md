@@ -268,7 +268,7 @@ _- **Limitation: "REPLACE" or "APPEND" clause must contain "AS"**_
 
 **SQL Migration examples with IN-Subquery PPL:**
 
-1. tpch q4 (in-subquery with aggregation)
+tpch q4 (in-subquery with aggregation)
 ```sql
 select
   o_orderpriority,
@@ -304,52 +304,21 @@ source = orders
 | fields o_orderpriority, order_count
 ```
 
-2.tpch q20 (nested in-subquery)
-```sql
-select
-  s_name,
-  s_address
-from
-  supplier,
-  nation
-where
-  s_suppkey in (
-    select
-      ps_suppkey
-    from
-      partsupp
-    where
-      ps_partkey in (
-        select
-          p_partkey
-        from
-          part
-        where
-          p_name like 'forest%'
-      )
-  )
-  and s_nationkey = n_nationkey
-  and n_name = 'CANADA'
-order by
-  s_name
-```
+#### **ExistsSubquery**
+[See additional command details](ppl-subquery-command.md)
 
-Rewritten by PPL InSubquery query:
-```sql
-source = supplier
-| where s_suppkey IN [
-    source = partsupp
-    | where ps_partkey IN [
-        source = part
-        | where like(p_name, "forest%")
-        | fields p_partkey
-      ]
-    | fields ps_suppkey
-  ]
-| inner join left=l right=r on s_nationkey = n_nationkey and n_name = 'CANADA'
-  nation
-| sort s_name
-```
+Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table inner,  `e`, `f` are fields of table inner2
+- `source = outer | where exists [ source = inner | where a = c ]`
+- `source = outer | where not exists [ source = inner | where a = c ]`
+- `source = outer | where exists [ source = inner | where a = c and b = d ]`
+- `source = outer | where not exists [ source = inner | where a = c and b = d ]`
+- `source = outer | where exists [ source = inner1 | where a = c and exists [ source = inner2 | where c = e ] ]` (nested)
+- `source = outer | where exists [ source = inner1 | where a = c | where exists [ source = inner2 | where c = e ] ]` (nested)
+- `source = outer | where exists [ source = inner | where c > 10 ]` (uncorrelated exists)
+- `source = outer | where not exists [ source = inner | where c > 10 ]` (uncorrelated exists)
+- `source = outer | where exists [ source = inner ] | eval l = "Bala" | fields l` (special uncorrelated exists)
+
+
 #### **ScalarSubquery**
 [See additional command details](ppl-subquery-command.md)
 

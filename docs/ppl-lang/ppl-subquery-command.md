@@ -112,6 +112,58 @@ source = supplier
 | sort s_name
 ```
 
+**ExistsSubquery usage**
+
+Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table inner,  `e`, `f` are fields of table inner2
+
+- `source = outer | where exists [ source = inner | where a = c ]`
+- `source = outer | where not exists [ source = inner | where a = c ]`
+- `source = outer | where exists [ source = inner | where a = c and b = d ]`
+- `source = outer | where not exists [ source = inner | where a = c and b = d ]`
+- `source = outer | where exists [ source = inner1 | where a = c and exists [ source = inner2 | where c = e ] ]` (nested)
+- `source = outer | where exists [ source = inner1 | where a = c | where exists [ source = inner2 | where c = e ] ]` (nested)
+- `source = outer | where exists [ source = inner | where c > 10 ]` (uncorrelated exists)
+- `source = outer | where not exists [ source = inner | where c > 10 ]` (uncorrelated exists)
+- `source = outer | where exists [ source = inner ] | eval l = "nonEmpty" | fields l` (special uncorrelated exists)
+
+**_SQL Migration examples with Exists-Subquery PPL:_**
+
+tpch q4 (exists subquery with aggregation)
+```sql
+select
+  o_orderpriority,
+  count(*) as order_count
+from
+  orders
+where
+  o_orderdate >= date '1993-07-01'
+  and o_orderdate < date '1993-07-01' + interval '3' month
+  and exists (
+    select
+      l_orderkey
+    from
+      lineitem
+    where l_orderkey = o_orderkey
+      and l_commitdate < l_receiptdate
+  )
+group by
+  o_orderpriority
+order by
+  o_orderpriority
+```
+Rewritten by PPL ExistsSubquery query:
+```sql
+source = orders
+| where o_orderdate >= "1993-07-01" and o_orderdate < "1993-10-01"
+    and exists [
+      source = lineitem
+      | where l_orderkey = o_orderkey and l_commitdate < l_receiptdate
+    ]
+| stats count(1) as order_count by o_orderpriority
+| sort o_orderpriority
+| fields o_orderpriority, order_count
+```
+
 **ScalarSubquery usage**
 
 Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table inner,  `e`, `f` are fields of table nested
@@ -191,14 +243,14 @@ source = spark_catalog.default.outer
 
 ### **Additional Context**
 
-The most cases in the description is to request a `InSubquery` expression.
+`InSubquery`, `ExistsSubquery` and `ScalarSubquery` are all subquery expression. The common usage of subquery expression is in `where` clause:
 
 The `where` command syntax is:
 
 ```
 | where <boolean expression>
 ```
-So the subquery in description is part of boolean expression, such as
+So the subquery is part of boolean expression, such as
 
 ```sql
 | where orders.order_id in (subquery source=returns | where return_reason="damaged" | return order_id)
@@ -217,10 +269,11 @@ In issue description is a `ScalarSubquery`:
 ```sql
 source=employees
 | join source=sales on employees.employee_id = sales.employee_id
-| where sales.sale_amount > (subquery source=targets | where target_met="true" | return target_value)
+| where sales.sale_amount > [ source=targets | where target_met="true" | fields target_value ]
 ```
 
-Recall the join command doc: https://github.com/opensearch-project/opensearch-spark/blob/main/docs/PPL-Join-command.md#more-examples, the example is a subquery/subsearch **plan**, rather than a **expression**.
+But `RelationSubquery` is not a subquery expression, it is a subquery plan.
+[Recall the join command doc](ppl-join-command.md), the example is a subquery/subsearch **plan**, rather than a **expression**.
 
 ```sql
 SEARCH source=customer
@@ -245,7 +298,32 @@ SEARCH <leftPlan>
 Apply the syntax here and simply into
 
 ```sql
-search <leftPlan> | left join on <condition> (subquery search ...)
+search <leftPlan> | left join on <condition> [ search ... ]
 ```
 
-The `(subquery search ...)` is not a `expression`, it's `plan`, similar to the `relation` plan
+The `[ search ...]` is not a `expression`, it's `plan`, similar to the `relation` plan
+
+**Uncorrelated Subquery**
+
+An uncorrelated subquery is independent of the outer query. It is executed once, and the result is used by the outer query.
+It's **less common** when using `ExistsSubquery` because `ExistsSubquery` typically checks for the presence of rows that are dependent on the outer query’s row.
+
+There is a very special exists subquery which highlight by `(special uncorrelated exists)`:
+```sql
+SELECT 'nonEmpty'
+FROM outer
+    WHERE EXISTS (
+        SELECT *
+        FROM inner
+    );
+```
+Rewritten by PPL ExistsSubquery query:
+```sql
+source = outer
+| where exists [
+    source = inner
+  ]
+| eval l = "nonEmpty"
+| fields l
+```
+This query just print "nonEmpty" if the inner table is not empty.
