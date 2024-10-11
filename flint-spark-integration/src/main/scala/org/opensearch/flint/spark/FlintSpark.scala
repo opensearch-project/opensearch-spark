@@ -175,7 +175,13 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
             latest.copy(state = ACTIVE)
           }
         })
-        .commit(_ => indexRefresh.start(spark, flintSparkConf))
+        .commit(latest => {
+          if (isMetadataCacheWriteEnabled) {
+            flintMetadataCacheWriteService
+              .updateMetadataCache(indexName, index.metadata.copy(latestLogEntry = Some(latest)))
+          }
+          indexRefresh.start(spark, flintSparkConf)
+        })
     }
 
   /**
@@ -340,7 +346,12 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
             flintIndexMonitor.startMonitor(indexName)
             latest.copy(state = REFRESHING)
           })
-          .commit(_ => {
+          .commit(latest => {
+            if (isMetadataCacheWriteEnabled) {
+              flintMetadataCacheWriteService.updateMetadataCache(
+                indexName,
+                index.get.metadata.copy(latestLogEntry = Some(latest)))
+            }
             FlintSparkIndexRefresh
               .create(indexName, index.get)
               .start(spark, flintSparkConf)
@@ -519,10 +530,11 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         flintIndexMonitor.startMonitor(indexName)
         latest.copy(state = REFRESHING)
       })
-      .commit(_ => {
+      .commit(latest => {
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
         if (isMetadataCacheWriteEnabled) {
-          flintMetadataCacheWriteService.updateMetadataCache(indexName, index.metadata)
+          flintMetadataCacheWriteService
+            .updateMetadataCache(indexName, index.metadata.copy(latestLogEntry = Some(latest)))
         }
         logInfo("Update index options complete")
         jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.UPDATE)

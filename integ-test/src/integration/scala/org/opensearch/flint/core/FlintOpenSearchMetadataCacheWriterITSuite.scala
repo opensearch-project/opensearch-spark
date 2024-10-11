@@ -25,7 +25,13 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
   lazy val flintMetadataCacheWriter = new FlintOpenSearchMetadataCacheWriter(options)
   lazy val flintIndexMetadataService = new FlintOpenSearchIndexMetadataService(options)
 
-  private val mockMetadataCacheData = FlintMetadataCache.mock
+  // TODO: don't use mock; fix tests
+  private val mockMetadataCacheData = FlintMetadataCache(
+    "1.0",
+    Some(900),
+    Array(
+      "dataSourceName.default.logGroups(logGroupIdentifier:['arn:aws:logs:us-east-1:123456:test-llt-xa', 'arn:aws:logs:us-east-1:123456:sample-lg-1'])"),
+    Some(1727395328283L))
 
   override def beforeAll(): Unit = {
     super.beforeAll()

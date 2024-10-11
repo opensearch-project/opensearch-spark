@@ -104,7 +104,7 @@ class FlintOpenSearchMetadataCacheWriter(options: FlintOptions) extends Logging 
    * two maps.
    */
   private def buildPropertiesMap(metadata: FlintMetadata): util.Map[String, AnyRef] = {
-    val metadataCacheProperties = FlintMetadataCache.mock.toMap
+    val metadataCacheProperties = FlintMetadataCache(metadata).toMap
 
     if (includeSpec) {
       (metadataCacheProperties ++ metadata.properties.asScala).asJava

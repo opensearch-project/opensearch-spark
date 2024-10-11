@@ -28,8 +28,9 @@ import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
 case class FlintMetadataLogEntry(
     id: String,
     /**
-     * This is currently used as streaming job start time. In future, this should represent the
-     * create timestamp of the log entry
+     * This is currently used as streaming job start time for internal scheduler, and last refresh
+     * time for manual refresh and external scheduler. In future, this should represent the create
+     * timestamp of the log entry
      */
     createTime: Long,
     state: IndexState,
@@ -59,6 +60,8 @@ case class FlintMetadataLogEntry(
 }
 
 object FlintMetadataLogEntry {
+
+  val EMPTY_CREATE_TIME = 0L
 
   /**
    * Flint index state enum.

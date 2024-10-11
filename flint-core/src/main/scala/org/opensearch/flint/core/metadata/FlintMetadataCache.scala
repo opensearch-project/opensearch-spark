@@ -5,6 +5,9 @@
 
 package org.opensearch.flint.core.metadata
 
+import org.opensearch.flint.common.metadata.FlintMetadata
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
+
 /**
  * Flint metadata cache defines metadata required to store in read cache for frontend user to
  * access.
@@ -38,15 +41,24 @@ case class FlintMetadataCache(
 }
 
 object FlintMetadataCache {
-  // TODO: construct FlintMetadataCache from FlintMetadata
 
-  def mock: FlintMetadataCache = {
-    // Fixed dummy data
-    FlintMetadataCache(
-      "1.0",
-      Some(900),
-      Array(
-        "dataSourceName.default.logGroups(logGroupIdentifier:['arn:aws:logs:us-east-1:123456:test-llt-xa', 'arn:aws:logs:us-east-1:123456:sample-lg-1'])"),
-      Some(1727395328283L))
+  def apply(metadata: FlintMetadata): FlintMetadataCache = {
+    val refreshInterval: Option[Int] = {
+      // TODO: FlintSparkIndexOptions not available here, hence using literals directly
+      if (metadata.options.get("auto_refresh") == "true" && metadata.options.containsKey(
+          "refresh_interval")) {
+        val tmp = metadata.options.get("refresh_interval").toString
+        Some(900) // TODO: parser
+      } else {
+        None
+      }
+    }
+    val lastRefreshTime: Option[Long] = {
+      metadata.latestLogEntry.get.createTime match {
+        case FlintMetadataLogEntry.EMPTY_CREATE_TIME => None
+        case timestamp => Some(timestamp)
+      }
+    }
+    FlintMetadataCache("1.0", refreshInterval, Array("mock.mock.mock"), lastRefreshTime)
   }
 }

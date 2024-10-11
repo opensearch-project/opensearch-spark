@@ -132,7 +132,7 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   public FlintMetadataLogEntry emptyLogEntry() {
     return new FlintMetadataLogEntry(
         "",
-        0L,
+        FlintMetadataLogEntry.EMPTY_CREATE_TIME(),
         FlintMetadataLogEntry.IndexState$.MODULE$.EMPTY(),
         Map.of("seqNo", UNASSIGNED_SEQ_NO, "primaryTerm", UNASSIGNED_PRIMARY_TERM),
         "",
