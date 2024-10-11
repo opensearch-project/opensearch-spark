@@ -30,6 +30,7 @@ import org.opensearch.sql.ast.expression.Map;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
 import org.opensearch.sql.ast.expression.QualifiedName;
+import org.opensearch.sql.ast.expression.ScalarSubquery;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.UnresolvedArgument;
 import org.opensearch.sql.ast.expression.UnresolvedAttribute;
@@ -307,5 +308,9 @@ public abstract class AbstractNodeVisitor<T, C> {
   
   public T visitFieldSummary(FieldSummary fieldSummary, C context) {
     return visitChildren(fieldSummary, context);
+  }
+
+  public T visitScalarSubquery(ScalarSubquery node, C context) {
+    return visitChildren(node, context);
   }
 }
