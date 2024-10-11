@@ -269,9 +269,16 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitTrendline(Trendline node, CatalystPlanContext context) {
-        LogicalPlan child = node.getChild().get(0).accept(this, context);
+        node.getChild().get(0).accept(this, context);
+
+        if (context.getNamedParseExpressions().isEmpty()) {
+            // Create an UnresolvedStar for all-fields projection
+            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.empty()));
+        }
         visitExpressionList(node.getComputations(), context);
-        return child;
+        Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+
+        return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
     }
 
     @Override
