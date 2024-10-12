@@ -37,13 +37,26 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
       thrown.getMessage === "Invalid table name: t.b.c.d Syntax: [ database_name. ] table_name")
   }
 
+  test("test describe with backticks") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "describe t.b.`c.d`", false), context)
+
+    val expectedPlan = DescribeTableCommand(
+      TableIdentifier("c.d", Option("b"), Option("t")),
+      Map.empty[String, String].empty,
+      isExtended = true,
+      output = DescribeRelation.getOutputAttrs)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
   test("test describe FQN table clause") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "describe schema.default.http_logs", false), context)
+      planTransformer.visit(plan(pplParser, "describe catalog.schema.http_logs", false), context)
 
     val expectedPlan = DescribeTableCommand(
-      TableIdentifier("http_logs", Option("schema"), Option("default")),
+      TableIdentifier("http_logs", Option("schema"), Option("catalog")),
       Map.empty[String, String].empty,
       isExtended = true,
       output = DescribeRelation.getOutputAttrs)
@@ -64,10 +77,10 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
   test("test FQN table describe table clause") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "describe catalog.t", false), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "describe schema.t", false), context)
 
     val expectedPlan = DescribeTableCommand(
-      TableIdentifier("t", Option("catalog")),
+      TableIdentifier("t", Option("schema")),
       Map.empty[String, String].empty,
       isExtended = true,
       output = DescribeRelation.getOutputAttrs)

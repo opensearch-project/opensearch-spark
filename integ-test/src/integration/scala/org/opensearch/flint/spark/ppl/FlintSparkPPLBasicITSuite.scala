@@ -5,12 +5,13 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.apache.spark.sql.{QueryTest, Row}
+import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, Literal, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.execution.command.DescribeTableCommand
+import org.apache.spark.sql.execution.ExplainMode
+import org.apache.spark.sql.execution.command.{DescribeTableCommand, ExplainCommand}
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLBasicITSuite
@@ -21,12 +22,20 @@ class FlintSparkPPLBasicITSuite
 
   /** Test table and index name */
   private val testTable = "spark_catalog.default.flint_ppl_test"
+  private val t1 = "`spark_catalog`.`default`.`flint_ppl_test1`"
+  private val t2 = "`spark_catalog`.default.`flint_ppl_test2`"
+  private val t3 = "spark_catalog.`default`.`flint_ppl_test3`"
+  private val t4 = "`spark_catalog`.`default`.flint_ppl_test4"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
     // Create test table
     createPartitionedStateCountryTable(testTable)
+    createPartitionedStateCountryTable(t1)
+    createPartitionedStateCountryTable(t2)
+    createPartitionedStateCountryTable(t3)
+    createPartitionedStateCountryTable(t4)
   }
 
   protected override def afterEach(): Unit = {
@@ -116,6 +125,52 @@ class FlintSparkPPLBasicITSuite
         output = DescribeRelation.getOutputAttrs)
     // Compare the two plans
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test backtick table names and name contains '.'") {
+    Seq(t1, t2, t3, t4).foreach { table =>
+      val frame = sql(s"""
+           | source = $table| head 2
+           | """.stripMargin)
+      assert(frame.collect().length == 2)
+    }
+    // test read table which is unable to create
+    val t5 = "`spark_catalog`.default.`flint/ppl/test5.log`"
+    val t6 = "spark_catalog.default.`flint_ppl_test6.log`"
+    Seq(t5, t6).foreach { table =>
+      val ex = intercept[AnalysisException](sql(s"""
+           | source = $table| head 2
+           | """.stripMargin))
+      assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
+    }
+    val t7 = "spark_catalog.default.flint_ppl_test7.log"
+    val ex = intercept[IllegalArgumentException](sql(s"""
+         | source = $t7| head 2
+         | """.stripMargin))
+    assert(ex.getMessage().contains("Invalid table name"))
+  }
+
+  test("test describe backtick table names and name contains '.'") {
+    Seq(t1, t2, t3, t4).foreach { table =>
+      val frame = sql(s"""
+           | describe $table
+           | """.stripMargin)
+      assert(frame.collect().length > 0)
+    }
+    // test read table which is unable to create
+    val t5 = "`spark_catalog`.default.`flint/ppl/test5.log`"
+    val t6 = "spark_catalog.default.`flint_ppl_test6.log`"
+    Seq(t5, t6).foreach { table =>
+      val ex = intercept[AnalysisException](sql(s"""
+           | describe $table
+           | """.stripMargin))
+      assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
+    }
+    val t7 = "spark_catalog.default.flint_ppl_test7.log"
+    val ex = intercept[IllegalArgumentException](sql(s"""
+         | describe $t7
+         | """.stripMargin))
+    assert(ex.getMessage().contains("Invalid table name"))
   }
 
   test("create ppl simple query test") {
