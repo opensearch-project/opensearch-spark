@@ -1,6 +1,6 @@
 ## PPL SubQuery Commands:
 
-**Syntax**
+### Syntax
 The subquery command should be implemented using a clean, logical syntax that integrates with existing PPL structure.
 
 ```sql
@@ -21,7 +21,7 @@ For additional info See [Issue](https://github.com/opensearch-project/opensearch
 
 ---
 
-**InSubquery usage**
+### InSubquery usage
 - `source = outer | where a in [ source = inner | fields b ]`
 - `source = outer | where (a) in [ source = inner | fields b ]`
 - `source = outer | where (a,b,c) in [ source = inner | fields d,e,f ]`
@@ -111,8 +111,9 @@ source = supplier
   nation
 | sort s_name
 ```
+---
 
-**ExistsSubquery usage**
+### ExistsSubquery usage
 
 Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table inner,  `e`, `f` are fields of table inner2
 
@@ -163,8 +164,9 @@ source = orders
 | sort o_orderpriority
 | fields o_orderpriority, order_count
 ```
+---
 
-**ScalarSubquery usage**
+### ScalarSubquery usage
 
 Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table inner,  `e`, `f` are fields of table nested
 
@@ -240,10 +242,59 @@ source = spark_catalog.default.outer
     source = spark_catalog.default.inner | where c = 1 | stats min(d) | sort d
   ]
 ```
+---
 
-### **Additional Context**
+### (Relation) Subquery
+`InSubquery`, `ExistsSubquery` and `ScalarSubquery` are all subquery expressions. But `RelationSubquery` is not a subquery expression, it is a subquery plan which is common used in Join or From clause.
 
-`InSubquery`, `ExistsSubquery` and `ScalarSubquery` are all subquery expression. The common usage of subquery expression is in `where` clause:
+- `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]` (subquery in join right side)
+- `source = [ source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ] | stats count(a) by b ] as outer | head 1`
+
+**_SQL Migration examples with Exists-Subquery PPL:_**
+
+tpch q13
+```sql
+select
+    c_count,
+    count(*) as custdist
+from
+    (
+        select
+            c_custkey,
+            count(o_orderkey) as c_count
+        from
+            customer left outer join orders on
+                c_custkey = o_custkey
+                and o_comment not like '%special%requests%'
+        group by
+            c_custkey
+    ) as c_orders
+group by
+    c_count
+order by
+    custdist desc,
+    c_count desc
+```
+Rewritten by PPL (Relation) Subquery:
+```sql
+SEARCH source = [
+  SEARCH source = customer
+  | LEFT OUTER JOIN left = c right = o ON c_custkey = o_custkey
+    [
+      SEARCH source = orders
+      | WHERE not like(o_comment, '%special%requests%')
+    ]
+  | STATS COUNT(o_orderkey) AS c_count BY c_custkey
+] AS c_orders
+| STATS COUNT(o_orderkey) AS c_count BY c_custkey
+| STATS COUNT(1) AS custdist BY c_count
+| SORT - custdist, - c_count
+```
+---
+
+### Additional Context
+
+`InSubquery`, `ExistsSubquery` and `ScalarSubquery` as subquery expressions, their common usage is in `where` clause.
 
 The `where` command syntax is:
 

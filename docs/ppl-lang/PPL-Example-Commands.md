@@ -240,8 +240,7 @@ source = table |  where ispresent(a) |
 - `source = table1 | cross join left = l right = r table2`
 - `source = table1 | left semi join left = l right = r on l.a = r.a table2`
 - `source = table1 | left anti join left = l right = r on l.a = r.a table2`
-
-_- **Limitation: sub-searches is unsupported in join right side now**_
+- `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]`
 
 
 #### **Lookup**
@@ -349,6 +348,15 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 - `source = outer | where a = [ source = inner | stats max(c) | sort c ] OR b = [ source = inner | where c = 1 | stats min(d) | sort d ]`
 - `source = outer | where a = [ source = inner | where c =  [ source = nested | stats max(e) by f | sort f ] | stats max(d) by c | sort c | head 1 ]`
 
+#### **(Relation) Subquery**
+[See additional command details](ppl-subquery-command.md)
+
+`InSubquery`, `ExistsSubquery` and `ScalarSubquery` are all subquery expressions. But `RelationSubquery` is not a subquery expression, it is a subquery plan which is common used in Join or From clause.
+
+- `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]` (subquery in join right side)
+- `source = [ source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ] | stats count(a) by b ] as outer | head 1`
+
+_- **Limitation: another command usage of (relation) subquery is in `appendcols` commands which is unsupported**_
 
 ---
 #### Experimental Commands:
