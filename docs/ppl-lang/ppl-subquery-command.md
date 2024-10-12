@@ -250,7 +250,7 @@ source = spark_catalog.default.outer
 - `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]` (subquery in join right side)
 - `source = [ source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ] | stats count(a) by b ] as outer | head 1`
 
-**_SQL Migration examples with Exists-Subquery PPL:_**
+**_SQL Migration examples with Subquery PPL:_**
 
 tpch q13
 ```sql
