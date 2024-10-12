@@ -1,8 +1,10 @@
 package org.opensearch.sql.ppl.utils;
 
+import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.opensearch.sql.ast.expression.QualifiedName;
+import scala.Option$;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,7 +17,7 @@ public interface RelationUtils {
      *
      * @param relations
      * @param node
-     * @param contextRelations
+     * @param tables
      * @return
      */
     static Optional<QualifiedName> resolveField(List<UnresolvedRelation> relations, QualifiedName node, List<LogicalPlan> tables) {
@@ -28,5 +30,27 @@ public interface RelationUtils {
                                 .orElse(false))
                 .findFirst()
                 .map(rel -> node);
+    }
+
+    static TableIdentifier getTableIdentifier(QualifiedName qualifiedName) {
+        TableIdentifier identifier;
+        if (qualifiedName.getParts().isEmpty()) {
+            throw new IllegalArgumentException("Empty table name is invalid");
+        } else if (qualifiedName.getParts().size() == 1) {
+            identifier = new TableIdentifier(qualifiedName.getParts().get(0));
+        } else if (qualifiedName.getParts().size() == 2) {
+            identifier = new TableIdentifier(
+                qualifiedName.getParts().get(1),
+                Option$.MODULE$.apply(qualifiedName.getParts().get(0)));
+        } else if (qualifiedName.getParts().size() == 3) {
+            identifier = new TableIdentifier(
+                qualifiedName.getParts().get(2),
+                Option$.MODULE$.apply(qualifiedName.getParts().get(1)),
+                Option$.MODULE$.apply(qualifiedName.getParts().get(0)));
+        } else {
+            throw new IllegalArgumentException("Invalid table name: " + qualifiedName
+                + " Syntax: [ database_name. ] table_name");
+        }
+        return identifier;
     }
 }

@@ -88,7 +88,6 @@ import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import org.opensearch.sql.ppl.utils.ParseStrategy;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import scala.Option;
-import scala.Option$;
 import scala.Tuple2;
 import scala.collection.IterableLike;
 import scala.collection.Seq;
@@ -113,6 +112,7 @@ import static org.opensearch.sql.ppl.utils.LookupTransformer.buildLookupMappingC
 import static org.opensearch.sql.ppl.utils.LookupTransformer.buildLookupRelationProjectList;
 import static org.opensearch.sql.ppl.utils.LookupTransformer.buildOutputProjectList;
 import static org.opensearch.sql.ppl.utils.LookupTransformer.buildProjectListFromFields;
+import static org.opensearch.sql.ppl.utils.RelationUtils.getTableIdentifier;
 import static org.opensearch.sql.ppl.utils.RelationUtils.resolveField;
 import static org.opensearch.sql.ppl.utils.WindowSpecTransformer.window;
 
@@ -152,22 +152,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitRelation(Relation node, CatalystPlanContext context) {
         if (node instanceof DescribeRelation) {
-            TableIdentifier identifier;
-            if (node.getTableQualifiedName().getParts().size() == 1) {
-                identifier = new TableIdentifier(node.getTableQualifiedName().getParts().get(0));
-            } else if (node.getTableQualifiedName().getParts().size() == 2) {
-                identifier = new TableIdentifier(
-                        node.getTableQualifiedName().getParts().get(1),
-                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(0)));
-            } else if (node.getTableQualifiedName().getParts().size() == 3) {
-                identifier = new TableIdentifier(
-                        node.getTableQualifiedName().getParts().get(2),
-                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(0)),
-                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(1)));
-            } else {
-                throw new IllegalArgumentException("Invalid table name: " + node.getTableQualifiedName()
-                        + " Syntax: [ database_name. ] table_name");
-            }
+            TableIdentifier identifier = getTableIdentifier(node.getTableQualifiedName());
             return context.with(
                     new DescribeTableCommand(
                             identifier,
@@ -176,9 +161,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                             DescribeRelation$.MODULE$.getOutputAttrs()));
         }
         //regular sql algebraic relations
-        node.getTableName().forEach(t ->
+        node.getQualifiedNames().forEach(q ->
                 // Resolving the qualifiedName which is composed of a datasource.schema.table
-                context.withRelation(new UnresolvedRelation(seq(of(t.split("\\."))), CaseInsensitiveStringMap.empty(), false))
+                context.withRelation(new UnresolvedRelation(getTableIdentifier(q).nameParts(), CaseInsensitiveStringMap.empty(), false))
         );
         return context.getPlan();
     }
@@ -327,7 +312,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                             seq(new ArrayList<Expression>())));
             context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Sort(sortElements, true, logicalPlan));
         }
-        //visit TopAggregation results limit 
+        //visit TopAggregation results limit
         if ((node instanceof TopAggregation) && ((TopAggregation) node).getResults().isPresent()) {
             context.apply(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
                     ((TopAggregation) node).getResults().get().getValue(), org.apache.spark.sql.types.DataTypes.IntegerType), p));

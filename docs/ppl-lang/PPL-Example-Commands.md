@@ -2,6 +2,11 @@
 
 #### **Describe**
 - `describe table`  This command is equal to the `DESCRIBE EXTENDED table` SQL command
+- `describe schema.table`
+- `` describe schema.`table` ``
+- `describe catalog.schema.table`
+- `` describe catalog.schema.`table` ``
+- `` describe `catalog`.`schema`.`table` ``
 
 #### **Explain**
 - `explain simple | source = table | where a = 1 | fields a,b,c`

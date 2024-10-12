@@ -357,8 +357,8 @@ expression
 logicalExpression
    : NOT logicalExpression                                      # logicalNot
    | comparisonExpression                                       # comparsion
-   | left = logicalExpression OR right = logicalExpression      # logicalOr
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
+   | left = logicalExpression OR right = logicalExpression      # logicalOr
    | left = logicalExpression XOR right = logicalExpression     # logicalXor
    | booleanExpression                                          # booleanExpr
    ;
