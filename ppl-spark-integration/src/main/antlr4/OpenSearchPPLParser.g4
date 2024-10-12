@@ -387,24 +387,21 @@ percentileAggFunction
 // expressions
 expression
    : logicalExpression
-   | comparisonExpression
    | valueExpression
    ;
 
 logicalExpression
-   : comparisonExpression                                       # comparsion
-   | NOT logicalExpression                                      # logicalNot
+   : NOT logicalExpression                                      # logicalNot
+   | comparisonExpression                                       # comparsion
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
    | left = logicalExpression OR right = logicalExpression      # logicalOr
    | left = logicalExpression XOR right = logicalExpression     # logicalXor
    | booleanExpression                                          # booleanExpr
-   | isEmptyExpression                                          # isEmptyExpr
    ;
 
 comparisonExpression
    : left = valueExpression comparisonOperator right = valueExpression  # compareExpr
    | valueExpression IN valueList                                       # inExpr
-   | valueExpressionList NOT? IN LT_SQR_PRTHS subSearch RT_SQR_PRTHS    # inSubqueryExpr
    ;
 
 valueExpressionList
@@ -433,7 +430,10 @@ positionFunction
    ;
 
 booleanExpression
-   : booleanFunctionCall
+   : booleanFunctionCall                                                # booleanFunctionCallExpr
+   | isEmptyExpression                                                  # isEmptyExpr
+   | valueExpressionList NOT? IN LT_SQR_PRTHS subSearch RT_SQR_PRTHS    # inSubqueryExpr
+   | EXISTS LT_SQR_PRTHS subSearch RT_SQR_PRTHS                         # existsSubqueryExpr
    ;
 
  isEmptyExpression
