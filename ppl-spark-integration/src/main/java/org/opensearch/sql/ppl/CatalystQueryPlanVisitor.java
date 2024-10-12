@@ -98,6 +98,7 @@ import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
 import static org.opensearch.sql.ppl.utils.JoinSpecTransformer.join;
 import static org.opensearch.sql.ppl.utils.RelationUtils.getTableIdentifier;
+import static org.opensearch.sql.ppl.utils.RelationUtils.namedParts;
 import static org.opensearch.sql.ppl.utils.RelationUtils.resolveField;
 import static org.opensearch.sql.ppl.utils.WindowSpecTransformer.window;
 
@@ -143,7 +144,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         //regular sql algebraic relations
         node.getQualifiedNames().forEach(q ->
                 // Resolving the qualifiedName which is composed of a datasource.schema.table
-                context.withRelation(new UnresolvedRelation(getTableIdentifier(q).nameParts(), CaseInsensitiveStringMap.empty(), false))
+                context.withRelation(new UnresolvedRelation(namedParts(q), CaseInsensitiveStringMap.empty(), false))
         );
         return context.getPlan();
     }

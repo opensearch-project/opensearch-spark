@@ -6,14 +6,13 @@
 package org.opensearch.flint.spark.ppl
 
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
-import org.opensearch.sql.common.antlr.SyntaxCheckException
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, Descending, GreaterThan, Literal, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Ascending, Descending, GreaterThan, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.command.DescribeTableCommand
@@ -30,33 +29,33 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   test("test error describe clause") {
     val context = new CatalystPlanContext
     val thrown = intercept[IllegalArgumentException] {
-      planTransformer.visit(plan(pplParser, "describe t.b.c.d", false), context)
+      planTransformer.visit(plan(pplParser, "describe b.c.d", false), context)
     }
 
     assert(
-      thrown.getMessage === "Invalid table name: t.b.c.d Syntax: [ database_name. ] table_name")
+      thrown.getMessage === "Invalid table name: b.c.d Syntax: [ database_name. ] table_name")
   }
-  
+
   test("test describe with backticks") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "describe t.b.`c.d`", false), context)
+      planTransformer.visit(plan(pplParser, "describe b.`c.d`", false), context)
 
     val expectedPlan = DescribeTableCommand(
-      TableIdentifier("c.d", Option("b"), Option("t")),
+      TableIdentifier("c.d", Option("b")),
       Map.empty[String, String].empty,
       isExtended = true,
       output = DescribeRelation.getOutputAttrs)
     comparePlans(expectedPlan, logPlan, false)
   }
-  
+
   test("test describe FQN table clause") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "describe catalog.schema.http_logs", false), context)
+      planTransformer.visit(plan(pplParser, "describe default.http_logs", false), context)
 
     val expectedPlan = DescribeTableCommand(
-      TableIdentifier("http_logs", Option("schema"), Option("catalog")),
+      TableIdentifier("http_logs", Option("default")),
       Map.empty[String, String].empty,
       isExtended = true,
       output = DescribeRelation.getOutputAttrs)
