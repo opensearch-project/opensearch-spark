@@ -210,12 +210,12 @@ class FlintSparkIndexBuilderSuite
         Some(
           "spark.flint.job.externalScheduler.enabled is false but refresh interval is set to external scheduler mode")),
       (
-        "set external mode when interval above threshold and no mode specified",
+        "set external mode when interval below threshold and no mode specified",
         true,
         "5 minutes",
-        Map("auto_refresh" -> "true", "refresh_interval" -> "10 minutes"),
-        Some(SchedulerMode.EXTERNAL.toString),
-        Some("10 minutes"),
+        Map("auto_refresh" -> "true", "refresh_interval" -> "1 minutes"),
+        Some(SchedulerMode.INTERNAL.toString),
+        Some("1 minutes"),
         None),
       (
         "throw exception when interval below threshold but mode is external",
