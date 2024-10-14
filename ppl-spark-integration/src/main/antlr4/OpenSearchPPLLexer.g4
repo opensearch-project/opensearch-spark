@@ -393,7 +393,7 @@ ISNULL:                             'ISNULL';
 ISNOTNULL:                          'ISNOTNULL';
 ISPRESENT:                          'ISPRESENT';
 BETWEEN:                            'BETWEEN';
-CIDR:                               'CIDR';
+CIDRMATCH:                          'CIDRMATCH';
 
 // FLOWCONTROL FUNCTIONS
 IFNULL:                             'IFNULL';

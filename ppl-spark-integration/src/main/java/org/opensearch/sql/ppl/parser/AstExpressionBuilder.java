@@ -28,14 +28,6 @@ import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
 import org.opensearch.sql.ast.expression.subquery.InSubquery;
-import org.opensearch.sql.ast.expression.Interval;
-import org.opensearch.sql.ast.expression.IntervalUnit;
-import org.opensearch.sql.ast.expression.IsEmpty;
-import org.opensearch.sql.ast.expression.Let;
-import org.opensearch.sql.ast.expression.Literal;
-import org.opensearch.sql.ast.expression.Not;
-import org.opensearch.sql.ast.expression.Or;
-import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.SpanUnit;
@@ -68,14 +60,6 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.TRIM;
 public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedExpression> {
 
     private static final int DEFAULT_TAKE_FUNCTION_SIZE_VALUE = 10;
-
-    private AstBuilder astBuilder;
-
-    /** Set AstBuilder back to AstExpressionBuilder for resolving the subquery plan in subquery expression */
-    public void setAstBuilder(AstBuilder astBuilder) {
-        this.astBuilder = astBuilder;
-    }
-
     /**
      * The function name mapping between fronted and core engine.
      */
@@ -85,6 +69,17 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                     .put("isnotnull", IS_NOT_NULL.getName().getFunctionName())
                     .put("ispresent", IS_NOT_NULL.getName().getFunctionName())
                     .build();
+    private AstBuilder astBuilder;
+
+    public AstExpressionBuilder() {
+    }
+
+    /**
+     * Set AstBuilder back to AstExpressionBuilder for resolving the subquery plan in subquery expression
+     */
+    public void setAstBuilder(AstBuilder astBuilder) {
+        this.astBuilder = astBuilder;
+    }
 
     @Override
     public UnresolvedExpression visitMappingCompareExpr(OpenSearchPPLParser.MappingCompareExprContext ctx) {
@@ -155,7 +150,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitBinaryArithmetic(OpenSearchPPLParser.BinaryArithmeticContext ctx) {
         return new Function(
-            ctx.binaryOperator.getText(), Arrays.asList(visit(ctx.left), visit(ctx.right)));
+                ctx.binaryOperator.getText(), Arrays.asList(visit(ctx.left), visit(ctx.right)));
     }
 
     @Override
@@ -246,7 +241,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                 })
                 .collect(Collectors.toList());
         UnresolvedExpression elseValue = new Literal(null, DataType.NULL);
-        if(ctx.caseFunction().valueExpression().size() > ctx.caseFunction().logicalExpression().size()) {
+        if (ctx.caseFunction().valueExpression().size() > ctx.caseFunction().logicalExpression().size()) {
             // else value is present
             elseValue = visit(ctx.caseFunction().valueExpression(ctx.caseFunction().valueExpression().size() - 1));
         }
@@ -291,9 +286,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                 functionName, args.stream().map(this::visitFunctionArg).collect(Collectors.toList()));
     }
 
-    public AstExpressionBuilder() {
-    }
-
     @Override
     public UnresolvedExpression visitMultiFieldRelevanceFunction(
             OpenSearchPPLParser.MultiFieldRelevanceFunctionContext ctx) {
@@ -307,7 +299,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         if (ctx.getChild(0) instanceof OpenSearchPPLParser.IdentsAsTableQualifiedNameContext) {
             return visitIdentsAsTableQualifiedName((OpenSearchPPLParser.IdentsAsTableQualifiedNameContext) ctx.getChild(0));
         } else {
-            return visitIdentifiers(Arrays.asList(ctx));
+            return visitIdentifiers(List.of(ctx));
         }
     }
 
@@ -399,9 +391,9 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitInSubqueryExpr(OpenSearchPPLParser.InSubqueryExprContext ctx) {
         UnresolvedExpression expr = new InSubquery(
-            ctx.valueExpressionList().valueExpression().stream()
-                .map(this::visit).collect(Collectors.toList()),
-            astBuilder.visitSubSearch(ctx.subSearch()));
+                ctx.valueExpressionList().valueExpression().stream()
+                        .map(this::visit).collect(Collectors.toList()),
+                astBuilder.visitSubSearch(ctx.subSearch()));
         return ctx.NOT() != null ? new Not(expr) : expr;
     }
 
@@ -424,7 +416,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
 
 
     @Override
-    public UnresolvedExpression visitCidrFunctionCall(OpenSearchPPLParser.CidrFunctionCallContext ctx) {
+    public UnresolvedExpression visitCidrMatchFunctionCall(OpenSearchPPLParser.CidrMatchFunctionCallContext ctx) {
         return new Cidr(visit(ctx.ipAddress), visit(ctx.cidrBlock));
     }
 

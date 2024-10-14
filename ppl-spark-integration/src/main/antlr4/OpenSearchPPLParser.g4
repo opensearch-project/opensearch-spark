@@ -440,7 +440,7 @@ booleanExpression
    | isEmptyExpression                                                  # isEmptyExpr
    | valueExpressionList NOT? IN LT_SQR_PRTHS subSearch RT_SQR_PRTHS    # inSubqueryExpr
    | EXISTS LT_SQR_PRTHS subSearch RT_SQR_PRTHS                         # existsSubqueryExpr
-   | cidrFunctionCall                                                   # cidrFunctionCallExpr
+   | cidrMatchFunctionCall                                              # cidrFunctionCallExpr
    ;
 
  isEmptyExpression
@@ -520,8 +520,8 @@ booleanFunctionCall
    : conditionFunctionBase LT_PRTHS functionArgs RT_PRTHS
    ;
 
-cidrFunctionCall
-   : CIDR LT_PRTHS ipAddress = functionArg COMMA cidrBlock = functionArg RT_PRTHS
+cidrMatchFunctionCall
+   : CIDRMATCH LT_PRTHS ipAddress = functionArg COMMA cidrBlock = functionArg RT_PRTHS
    ;
 
 convertedDataType
