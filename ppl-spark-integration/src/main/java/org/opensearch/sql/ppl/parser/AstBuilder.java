@@ -512,7 +512,6 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     FillNullWithTheSameValueContext sameValueContext = ctx.fillNullWithTheSameValue();
     FillNullWithFieldVariousValuesContext variousValuesContext = ctx.fillNullWithFieldVariousValues();
     if (sameValueContext != null) {
-      // todo consider using expression instead of Literal
       UnresolvedExpression replaceNullWithMe = internalVisitExpression(sameValueContext.nullReplacement().expression());
       List<Field> fieldsToReplace = sameValueContext.nullableField()
               .stream()
@@ -533,6 +532,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     } else {
       throw new SyntaxCheckException("Invalid fillnull command");
     }
+  }
+
+  @Override
+  public UnresolvedPlan visitFlattenCommand(OpenSearchPPLParser.FlattenCommandContext ctx) {
+    Field unresolvedExpression = (Field) internalVisitExpression(ctx.fieldExpression());
+    return new Flatten(unresolvedExpression);
   }
 
   /** AD command. */

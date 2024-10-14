@@ -15,6 +15,7 @@ import org.apache.spark.sql.catalyst.expressions.CaseWhen;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
+import org.apache.spark.sql.catalyst.expressions.Inline;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
@@ -63,6 +64,7 @@ import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.FillNull;
 import org.opensearch.sql.ast.tree.Filter;
+import org.opensearch.sql.ast.tree.Flatten;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.ast.tree.Kmeans;
@@ -83,6 +85,7 @@ import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import org.opensearch.sql.ppl.utils.ParseStrategy;
 import org.opensearch.sql.ppl.utils.SortUtils;
+import scala.None$;
 import scala.Option;
 import scala.Option$;
 import scala.Tuple2;
@@ -420,6 +423,20 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
         LogicalPlan resultWithoutDuplicatedColumns = context.apply(logicalPlan -> DataFrameDropColumns$.MODULE$.apply(seq(toDrop), logicalPlan));
         return Objects.requireNonNull(resultWithoutDuplicatedColumns, "FillNull operation failed");
+    }
+
+    @Override
+    public LogicalPlan visitFlatten(Flatten flatten, CatalystPlanContext context) {
+        flatten.getChild().get(0).accept(this, context);
+        if (context.getNamedParseExpressions().isEmpty()) {
+            // Create an UnresolvedStar for all-fields projection
+            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+        }
+        Expression field = visitExpression(flatten.getFieldToBeFlattened(), context);
+        Inline inline = new Inline(field);
+        Option<String> x = (Option) None$.MODULE$;
+        LogicalPlan apply = context.apply(p -> new Generate(inline, seq(), true, x, seq(),p));
+        return apply;
     }
 
     private void visitFieldList(List<Field> fieldList, CatalystPlanContext context) {

@@ -52,6 +52,7 @@ commands
    | lookupCommand
    | renameCommand
    | fillnullCommand
+   | flattenCommand
    ;
 
 searchCommand
@@ -206,6 +207,10 @@ fillnullCommand
    nullReplacement
    : expression
    ;
+
+flattenCommand
+    : FLATTEN fieldExpression
+    ;
 
 
 kmeansCommand

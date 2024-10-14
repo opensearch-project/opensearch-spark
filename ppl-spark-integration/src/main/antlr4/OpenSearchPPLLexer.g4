@@ -36,6 +36,7 @@ KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
 FILLNULL:                           'FILLNULL';
+FLATTEN:                            'FLATTEN';
 
 //Native JOIN KEYWORDS
 JOIN:                               'JOIN';

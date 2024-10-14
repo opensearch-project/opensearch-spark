@@ -297,4 +297,8 @@ public abstract class AbstractNodeVisitor<T, C> {
   public T visitFillNull(FillNull fillNull, C context) {
     return visitChildren(fillNull, context);
   }
+
+  public T visitFlatten(Flatten flatten, C context) {
+    return visitChildren(flatten, context);
+  }
 }
