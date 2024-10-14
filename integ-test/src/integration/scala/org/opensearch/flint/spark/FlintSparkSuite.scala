@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
 import java.util.Comparator
 import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture}
 
@@ -694,5 +694,101 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            |        (8, '2001:db8::ff00:13:3457', true, true),
            |        (9, '2001:db8::ff00:12:', true, false)
            | """.stripMargin)
+  }
+
+  protected def createSimpleNestedJsonContentTable(tempFile: Path, testTable: String): Unit = {
+    val json =
+      """
+        |[
+        |  {
+        |    "_time": "2024-09-13T12:00:00",
+        |    "bridges": [
+        |      {"name": "Tower Bridge", "length": 801},
+        |      {"name": "London Bridge", "length": 928}
+        |    ],
+        |    "city": "London",
+        |    "country": "England",
+        |    "coor": {
+        |      "lat": 51.5074,
+        |      "long": -0.1278,
+        |      "alt": 35
+        |    }
+        |  },
+        |  {
+        |    "_time": "2024-09-13T12:00:00",
+        |    "bridges": [
+        |      {"name": "Pont Neuf", "length": 232},
+        |      {"name": "Pont Alexandre III", "length": 160}
+        |    ],
+        |    "city": "Paris",
+        |    "country": "France",
+        |    "coor": {
+        |      "lat": 48.8566,
+        |      "long": 2.3522,
+        |      "alt": 35
+        |    }
+        |  },
+        |  {
+        |    "_time": "2024-09-13T12:00:00",
+        |    "bridges": [
+        |      {"name": "Rialto Bridge", "length": 48},
+        |      {"name": "Bridge of Sighs", "length": 11}
+        |    ],
+        |    "city": "Venice",
+        |    "country": "Italy",
+        |    "coor": {
+        |      "lat": 45.4408,
+        |      "long": 12.3155,
+        |      "alt": 2
+        |    }
+        |  },
+        |  {
+        |    "_time": "2024-09-13T12:00:00",
+        |    "bridges": [
+        |      {"name": "Charles Bridge", "length": 516},
+        |      {"name": "Legion Bridge", "length": 343}
+        |    ],
+        |    "city": "Prague",
+        |    "country": "Czech Republic",
+        |    "coor": {
+        |      "lat": 50.0755,
+        |      "long": 14.4378,
+        |      "alt": 200
+        |    }
+        |  },
+        |  {
+        |    "_time": "2024-09-13T12:00:00",
+        |    "bridges": [
+        |      {"name": "Chain Bridge", "length": 375},
+        |      {"name": "Liberty Bridge", "length": 333}
+        |    ],
+        |    "city": "Budapest",
+        |    "country": "Hungary",
+        |    "coor": {
+        |      "lat": 47.4979,
+        |      "long": 19.0402,
+        |      "alt": 96
+        |    }
+        |  },
+        |  {
+        |    "_time": "1990-09-13T12:00:00",
+        |    "bridges": null,
+        |    "city": "Warsaw",
+        |    "country": "Poland",
+        |    "coor": null
+        |  }
+        |]
+        |""".stripMargin
+    val tempFile = Files.createTempFile("jsonTestData", ".json")
+    val absolutPath = tempFile.toAbsolutePath.toString;
+    Files.write(tempFile, json.getBytes)
+    sql(s"""
+         | CREATE TEMPORARY VIEW $testTable
+         | USING org.apache.spark.sql.json
+         | OPTIONS (
+         |  path "$absolutPath",
+         |  multiLine true
+         | );
+         |""".stripMargin)
   }
 }
