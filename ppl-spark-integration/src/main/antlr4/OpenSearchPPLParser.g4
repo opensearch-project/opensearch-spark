@@ -440,7 +440,7 @@ booleanExpression
    | isEmptyExpression                                                  # isEmptyExpr
    | valueExpressionList NOT? IN LT_SQR_PRTHS subSearch RT_SQR_PRTHS    # inSubqueryExpr
    | EXISTS LT_SQR_PRTHS subSearch RT_SQR_PRTHS                         # existsSubqueryExpr
-   | cidrFunctionCall
+   | cidrFunctionCall                                                   # cidrFunctionCallExpr
    ;
 
  isEmptyExpression
