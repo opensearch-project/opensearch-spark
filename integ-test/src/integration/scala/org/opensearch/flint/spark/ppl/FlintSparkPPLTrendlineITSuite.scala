@@ -170,14 +170,19 @@ class FlintSparkPPLTrendlineITSuite
     val ageField = UnresolvedAttribute("age")
     val doubledAgeField = UnresolvedAttribute("doubled_age")
     val doubledAgeSmaField = UnresolvedAttribute("doubled_age_sma")
-    val evalProject = Project(Seq(UnresolvedStar(None), Alias(UnresolvedFunction("*", Seq(ageField, Literal(2)), isDistinct = false), "doubled_age")()), table)
+    val evalProject = Project(
+      Seq(
+        UnresolvedStar(None),
+        Alias(
+          UnresolvedFunction("*", Seq(ageField, Literal(2)), isDistinct = false),
+          "doubled_age")()),
+      table)
     val sort = Sort(Seq(SortOrder(ageField, Ascending)), global = true, evalProject)
     val doubleAgeSmaWindow = WindowExpression(
       UnresolvedFunction("AVG", Seq(doubledAgeField), isDistinct = false),
       WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-1), CurrentRow)))
-    val trendlineProjectList = Seq(
-      UnresolvedStar(None),
-      Alias(doubleAgeSmaWindow, "doubled_age_sma")())
+    val trendlineProjectList =
+      Seq(UnresolvedStar(None), Alias(doubleAgeSmaWindow, "doubled_age_sma")())
     val expectedPlan = Project(
       Seq(nameField, doubledAgeField, doubledAgeSmaField),
       Project(trendlineProjectList, sort))
