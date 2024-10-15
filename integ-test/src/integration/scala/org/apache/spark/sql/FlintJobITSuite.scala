@@ -23,6 +23,7 @@ import org.scalatest.matchers.must.Matchers.{contain, defined}
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf._
 import org.apache.spark.sql.streaming.StreamingQueryListener
 import org.apache.spark.sql.streaming.StreamingQueryListener._
@@ -207,6 +208,50 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
       // Reset so Flint index can be cleaned up in afterEach
       setFlintIndexReadOnly(false)
     }
+  }
+
+  test("create skipping index with invalid refresh interval") {
+    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, "true")
+
+    val query =
+      s"""
+         | CREATE SKIPPING INDEX ON $testTable
+         | (
+         |   year PARTITION,
+         |   name VALUE_SET,
+         |   age MIN_MAX
+         | )
+         | WITH (auto_refresh = true, refresh_interval = '2 minutes', scheduler_mode = 'external')
+         | """.stripMargin
+    val queryStartTime = System.currentTimeMillis()
+    val jobRunId = "00ff4o3b5091080t"
+    threadLocalFuture.set(startJob(query, jobRunId))
+
+    val validation: REPLResult => Boolean = result => {
+      assert(
+        result.results.size == 0,
+        s"expected result size is 0, but got ${result.results.size}")
+      assert(
+        result.schemas.size == 0,
+        s"expected schema size is 0, but got ${result.schemas.size}")
+
+      assert(result.status == "FAILED", s"expected status is FAILED, but got ${result.status}")
+      assert(!result.error.isEmpty, s"we expect error, but got ${result.error}")
+
+      // Check for the specific error message
+      assert(
+        result.error.contains(
+          "Input refresh_interval is 2 minutes, required above the interval threshold of external scheduler: 5 minutes"),
+        s"Expected error message about invalid refresh interval, but got: ${result.error}")
+
+      commonAssert(result, jobRunId, query, queryStartTime)
+      true
+    }
+    pollForResultAndAssert(validation, jobRunId)
+
+    // Ensure no streaming job was started
+    assert(spark.streams.active.isEmpty, "No streaming job should have been started")
+    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
   }
 
   test("create skipping index with auto refresh and streaming job early exit") {

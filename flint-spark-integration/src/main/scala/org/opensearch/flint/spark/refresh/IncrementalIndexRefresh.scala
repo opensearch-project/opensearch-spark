@@ -7,6 +7,7 @@ package org.opensearch.flint.spark.refresh
 
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkValidationHelper}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{INCREMENTAL, RefreshMode}
+import org.opensearch.flint.spark.refresh.util.RefreshMetricsAspect
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -19,9 +20,10 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
  * @param index
  *   Flint index
  */
-class IncrementalIndexRefresh(indexName: String, index: FlintSparkIndex)
+class IncrementalIndexRefresh(val indexName: String, index: FlintSparkIndex)
     extends FlintSparkIndexRefresh
-    with FlintSparkValidationHelper {
+    with FlintSparkValidationHelper
+    with RefreshMetricsAspect {
 
   override def refreshMode: RefreshMode = INCREMENTAL
 
@@ -43,15 +45,21 @@ class IncrementalIndexRefresh(indexName: String, index: FlintSparkIndex)
   override def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String] = {
     logInfo(s"Start refreshing index $indexName in incremental mode")
 
-    // Reuse auto refresh which uses AvailableNow trigger and will stop once complete
-    val jobId =
-      new AutoIndexRefresh(indexName, index)
-        .start(spark, flintSparkConf)
+    val clientId = flintSparkConf.flintOptions().getAWSAccountId()
+    val dataSource = flintSparkConf.flintOptions().getDataSourceName()
 
-    // Blocks the calling thread until the streaming query finishes
-    spark.streams
-      .get(jobId.get)
-      .awaitTermination()
-    None
+    withMetrics(clientId, dataSource, indexName, "incrementalRefresh") {
+      // Reuse auto refresh which uses AvailableNow trigger and will stop once complete
+      val jobId =
+        new AutoIndexRefresh(indexName, index)
+          .start(spark, flintSparkConf)
+
+      // Blocks the calling thread until the streaming query finishes
+      spark.streams
+        .get(jobId.get)
+        .awaitTermination()
+
+      None
+    }
   }
 }
