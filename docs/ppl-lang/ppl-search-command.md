@@ -5,9 +5,9 @@ Using ``search`` command to retrieve document from the index. ``search`` command
 
 
 ### Syntax
-`(search | from)? source=[<remote-cluster>:]<index> [boolean-expression]`
+`search source=[<remote-cluster>:]<index> [boolean-expression]`
 
-* search or from: search keywords, which could be ignore.
+* search: search keywords, which could be ignore.
 * index: mandatory. search command must specify which index to query from. The index name can be prefixed by "<cluster name>:" for cross-cluster search.
 * bool-expression: optional. any expression which could be evaluated to boolean value.
 
@@ -17,7 +17,7 @@ The example show fetch all the document from accounts index.
 
 PPL query:
 
-    os> SEARCH source=accounts;
+    os> source=accounts;
     +------------------+-------------+----------------------+-----------+----------+--------+------------+---------+-------+-----------------------+------------+
     | account_number   | firstname   | address              | balance   | gender   | city   | employer   | state   | age   | email                 | lastname   |
     |------------------+-------------+----------------------+-----------+----------+--------+------------+---------+-------+-----------------------+------------|
@@ -32,7 +32,7 @@ The example show fetch all the document from accounts index with .
 
 PPL query:
 
-    os> FROM source=accounts account_number=1 or gender="F";
+    os> SEARCH source=accounts account_number=1 or gender="F";
     +------------------+-------------+--------------------+-----------+----------+--------+------------+---------+-------+----------------------+------------+
     | account_number   | firstname   | address            | balance   | gender   | city   | employer   | state   | age   | email                | lastname   |
     |------------------+-------------+--------------------+-----------+----------+--------+------------+---------+-------+----------------------+------------|

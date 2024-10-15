@@ -55,9 +55,9 @@ commands
    ;
 
 searchCommand
-   : (SEARCH | FROM)? fromClause                       # searchFrom
-   | (SEARCH | FROM)? fromClause logicalExpression     # searchFromFilter
-   | (SEARCH | FROM)? logicalExpression fromClause     # searchFilterFrom
+   : (SEARCH)? fromClause                       # searchFrom
+   | (SEARCH)? fromClause logicalExpression     # searchFromFilter
+   | (SEARCH)? logicalExpression fromClause     # searchFilterFrom
    ;
 
 describeCommand
