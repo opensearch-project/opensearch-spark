@@ -174,7 +174,7 @@ object FlintSparkConf {
   val EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD =
     FlintConfig("spark.flint.job.externalScheduler.interval")
       .doc("Interval threshold in minutes for external scheduler to trigger index refresh")
-      .createWithDefault("5 minutes")
+      .createWithDefault(FlintOptions.DEFAULT_EXTERNAL_SCHEDULER_INTERVAL)
 
   val CHECKPOINT_LOCATION_ROOT_DIR = FlintConfig("spark.flint.index.checkpointLocation.rootDir")
     .doc("Root directory of a user specified checkpoint location for index refresh")
@@ -294,8 +294,10 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
 
   def isExternalSchedulerEnabled: Boolean = EXTERNAL_SCHEDULER_ENABLED.readFrom(reader).toBoolean
 
-  def externalSchedulerIntervalThreshold(): String =
-    EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD.readFrom(reader)
+  def externalSchedulerIntervalThreshold(): String = {
+    val value = EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD.readFrom(reader)
+    if (value.trim.isEmpty) FlintOptions.DEFAULT_EXTERNAL_SCHEDULER_INTERVAL else value
+  }
 
   def checkpointLocationRootDir: Option[String] = CHECKPOINT_LOCATION_ROOT_DIR.readFrom(reader)
 
