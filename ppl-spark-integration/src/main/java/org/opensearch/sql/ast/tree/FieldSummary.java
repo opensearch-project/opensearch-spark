@@ -8,7 +8,6 @@ package org.opensearch.sql.ast.tree;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Field;
@@ -18,7 +17,6 @@ import org.opensearch.sql.ast.expression.NamedExpression;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.INCLUDEFIELDS;
 import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.NULLS;
@@ -30,7 +28,7 @@ import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.TOPVALUES;
 public class FieldSummary extends UnresolvedPlan {
     private List<Field> includeFields;
     private int topValues;
-    private boolean nulls;
+    private boolean ignoreNull;
     private List<UnresolvedExpression> collect;
     private UnresolvedPlan child;
 
@@ -40,7 +38,7 @@ public class FieldSummary extends UnresolvedPlan {
                 .forEach(exp -> {
             switch (((NamedExpression) exp).getExpressionId()) {
                 case NULLS:
-                    this.nulls = (boolean) ((Literal) exp.getChild().get(0)).getValue();
+                    this.ignoreNull = (boolean) ((Literal) exp.getChild().get(0)).getValue();
                     break;
                 case TOPVALUES:
                     this.topValues = (int) ((Literal) exp.getChild().get(0)).getValue();
