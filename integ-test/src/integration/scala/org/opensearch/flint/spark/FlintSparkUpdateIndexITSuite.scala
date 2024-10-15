@@ -15,6 +15,8 @@ import org.opensearch.index.reindex.DeleteByQueryRequest
 import org.scalatest.matchers.must.Matchers._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
+import org.apache.spark.sql.flint.config.FlintSparkConf
+
 class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
 
   /** Test table and index name */
@@ -32,6 +34,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     // Delete all test indices
     deleteTestIndex(testIndex)
     sql(s"DROP TABLE $testTable")
+    conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
   }
 
   test("update index with index options successfully") {
@@ -176,6 +179,121 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       }
     }
   }
+
+  // Test update options validation failure with external scheduler
+  Seq(
+    (
+      "update index without changing index option",
+      Seq(
+        (
+          Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
+          Map("auto_refresh" -> "true")),
+        (
+          Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
+          Map("checkpoint_location" -> "s3a://test/")),
+        (
+          Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
+          Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/"))),
+      "No index option updated"),
+    (
+      "update index option when auto_refresh is false",
+      Seq(
+        (
+          Map.empty[String, String],
+          Map("auto_refresh" -> "false", "checkpoint_location" -> "s3a://test/")),
+        (
+          Map.empty[String, String],
+          Map("incremental_refresh" -> "true", "checkpoint_location" -> "s3a://test/")),
+        (Map.empty[String, String], Map("checkpoint_location" -> "s3a://test/"))),
+      "No options can be updated when auto_refresh remains false"),
+    (
+      "update other index option besides scheduler_mode when auto_refresh is true",
+      Seq(
+        (
+          Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
+          Map("watermark_delay" -> "1 Minute"))),
+      "Altering index when auto_refresh remains true only allows changing: Set(scheduler_mode). Invalid options"),
+    (
+      "convert to full refresh with disallowed options",
+      Seq(
+        (
+          Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
+          Map("auto_refresh" -> "false", "scheduler_mode" -> "internal")),
+        (
+          Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
+          Map("auto_refresh" -> "false", "refresh_interval" -> "5 Minute")),
+        (
+          Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
+          Map("auto_refresh" -> "false", "watermark_delay" -> "1 Minute"))),
+      "Altering index to full/incremental refresh only allows changing"),
+    (
+      "convert to auto refresh with disallowed options",
+      Seq(
+        (
+          Map.empty[String, String],
+          Map(
+            "auto_refresh" -> "true",
+            "output_mode" -> "complete",
+            "checkpoint_location" -> "s3a://test/"))),
+      "Altering index to auto refresh only allows changing: Set(auto_refresh, watermark_delay, scheduler_mode, " +
+        "refresh_interval, incremental_refresh, checkpoint_location). Invalid options: Set(output_mode)"),
+    (
+      "convert to invalid refresh mode",
+      Seq(
+        (
+          Map.empty[String, String],
+          Map(
+            "auto_refresh" -> "true",
+            "incremental_refresh" -> "true",
+            "checkpoint_location" -> "s3a://test/"))),
+      "Altering index to auto refresh while incremental refresh remains true"))
+    .foreach { case (testName, testCases, expectedErrorMessage) =>
+      test(s"should fail if $testName and external scheduler enabled") {
+        setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, "true")
+        testCases.foreach { case (initialOptionsMap, updateOptionsMap) =>
+          logInfo(s"initialOptionsMap: ${initialOptionsMap}")
+          logInfo(s"updateOptionsMap: ${updateOptionsMap}")
+
+          withTempDir { checkpointDir =>
+            flint
+              .skippingIndex()
+              .onTable(testTable)
+              .addPartitions("year", "month")
+              .options(
+                FlintSparkIndexOptions(
+                  initialOptionsMap
+                    .get("checkpoint_location")
+                    .map(_ =>
+                      initialOptionsMap
+                        .updated("checkpoint_location", checkpointDir.getAbsolutePath))
+                    .getOrElse(initialOptionsMap)),
+                testIndex)
+              .create()
+            flint.refreshIndex(testIndex)
+
+            val index = flint.describeIndex(testIndex).get
+            val exception = the[IllegalArgumentException] thrownBy {
+              val updatedIndex = flint
+                .skippingIndex()
+                .copyWithUpdate(
+                  index,
+                  FlintSparkIndexOptions(
+                    updateOptionsMap
+                      .get("checkpoint_location")
+                      .map(_ =>
+                        updateOptionsMap
+                          .updated("checkpoint_location", checkpointDir.getAbsolutePath))
+                      .getOrElse(updateOptionsMap)))
+              flint.updateIndex(updatedIndex)
+            }
+
+            exception.getMessage should include(expectedErrorMessage)
+
+            deleteTestIndex(testIndex)
+          }
+        }
+      }
+    }
 
   // Test update options validation success
   Seq(

@@ -21,7 +21,8 @@ import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
-import org.opensearch.sql.ast.expression.InSubquery;
+import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
+import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Let;
@@ -30,7 +31,7 @@ import org.opensearch.sql.ast.expression.Map;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
 import org.opensearch.sql.ast.expression.QualifiedName;
-import org.opensearch.sql.ast.expression.ScalarSubquery;
+import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.UnresolvedArgument;
 import org.opensearch.sql.ast.expression.UnresolvedAttribute;
@@ -311,6 +312,10 @@ public abstract class AbstractNodeVisitor<T, C> {
   }
 
   public T visitScalarSubquery(ScalarSubquery node, C context) {
+    return visitChildren(node, context);
+  }
+
+  public T visitExistsSubquery(ExistsSubquery node, C context) {
     return visitChildren(node, context);
   }
 }

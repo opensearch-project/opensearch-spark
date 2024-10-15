@@ -120,6 +120,7 @@ APPEND:                             'APPEND';
 CASE:                               'CASE';
 ELSE:                               'ELSE';
 IN:                                 'IN';
+EXISTS:                             'EXISTS';
 
 // LOGICAL KEYWORDS
 NOT:                                'NOT';

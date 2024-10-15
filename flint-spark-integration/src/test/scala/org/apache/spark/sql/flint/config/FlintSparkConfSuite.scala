@@ -114,6 +114,19 @@ class FlintSparkConfSuite extends FlintSuite {
     }
   }
 
+  test("externalSchedulerIntervalThreshold should return default value when empty") {
+    val options = FlintSparkConf(Map("spark.flint.job.externalScheduler.interval" -> "").asJava)
+    assert(options
+      .externalSchedulerIntervalThreshold() === FlintOptions.DEFAULT_EXTERNAL_SCHEDULER_INTERVAL)
+  }
+
+  test("externalSchedulerIntervalThreshold should return configured value when set") {
+    val configuredValue = "30"
+    val options =
+      FlintSparkConf(Map("spark.flint.job.externalScheduler.interval" -> configuredValue).asJava)
+    assert(options.externalSchedulerIntervalThreshold() === configuredValue)
+  }
+
   /**
    * Delete index `indexNames` after calling `f`.
    */

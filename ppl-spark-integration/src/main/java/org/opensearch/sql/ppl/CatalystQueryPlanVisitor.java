@@ -13,6 +13,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
 import org.apache.spark.sql.catalyst.expressions.CaseWhen;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
+import org.apache.spark.sql.catalyst.expressions.Exists$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
@@ -40,7 +41,8 @@ import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
-import org.opensearch.sql.ast.expression.InSubquery;
+import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
+import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Let;
@@ -49,7 +51,7 @@ import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
 import org.opensearch.sql.ast.expression.ParseMethod;
 import org.opensearch.sql.ast.expression.QualifiedName;
-import org.opensearch.sql.ast.expression.ScalarSubquery;
+import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.expression.When;
@@ -88,7 +90,6 @@ import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
 import org.opensearch.sql.ppl.utils.ParseStrategy;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import scala.Option;
-import scala.Option$;
 import scala.Tuple2;
 import scala.collection.IterableLike;
 import scala.collection.Seq;
@@ -113,6 +114,7 @@ import static org.opensearch.sql.ppl.utils.LookupTransformer.buildLookupMappingC
 import static org.opensearch.sql.ppl.utils.LookupTransformer.buildLookupRelationProjectList;
 import static org.opensearch.sql.ppl.utils.LookupTransformer.buildOutputProjectList;
 import static org.opensearch.sql.ppl.utils.LookupTransformer.buildProjectListFromFields;
+import static org.opensearch.sql.ppl.utils.RelationUtils.getTableIdentifier;
 import static org.opensearch.sql.ppl.utils.RelationUtils.resolveField;
 import static org.opensearch.sql.ppl.utils.WindowSpecTransformer.window;
 
@@ -152,22 +154,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitRelation(Relation node, CatalystPlanContext context) {
         if (node instanceof DescribeRelation) {
-            TableIdentifier identifier;
-            if (node.getTableQualifiedName().getParts().size() == 1) {
-                identifier = new TableIdentifier(node.getTableQualifiedName().getParts().get(0));
-            } else if (node.getTableQualifiedName().getParts().size() == 2) {
-                identifier = new TableIdentifier(
-                        node.getTableQualifiedName().getParts().get(1),
-                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(0)));
-            } else if (node.getTableQualifiedName().getParts().size() == 3) {
-                identifier = new TableIdentifier(
-                        node.getTableQualifiedName().getParts().get(2),
-                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(0)),
-                        Option$.MODULE$.apply(node.getTableQualifiedName().getParts().get(1)));
-            } else {
-                throw new IllegalArgumentException("Invalid table name: " + node.getTableQualifiedName()
-                        + " Syntax: [ database_name. ] table_name");
-            }
+            TableIdentifier identifier = getTableIdentifier(node.getTableQualifiedName());
             return context.with(
                     new DescribeTableCommand(
                             identifier,
@@ -176,9 +163,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                             DescribeRelation$.MODULE$.getOutputAttrs()));
         }
         //regular sql algebraic relations
-        node.getTableName().forEach(t ->
+        node.getQualifiedNames().forEach(q ->
                 // Resolving the qualifiedName which is composed of a datasource.schema.table
-                context.withRelation(new UnresolvedRelation(seq(of(t.split("\\."))), CaseInsensitiveStringMap.empty(), false))
+                context.withRelation(new UnresolvedRelation(getTableIdentifier(q).nameParts(), CaseInsensitiveStringMap.empty(), false))
         );
         return context.getPlan();
     }
@@ -327,7 +314,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                             seq(new ArrayList<Expression>())));
             context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Sort(sortElements, true, logicalPlan));
         }
-        //visit TopAggregation results limit 
+        //visit TopAggregation results limit
         if ((node instanceof TopAggregation) && ((TopAggregation) node).getResults().isPresent()) {
             context.apply(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
                     ((TopAggregation) node).getResults().get().getValue(), org.apache.spark.sql.types.DataTypes.IntegerType), p));
@@ -835,6 +822,20 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 Option.empty(),
                 Option.empty());
             return context.getNamedParseExpressions().push(scalarSubQuery);
+        }
+
+        @Override
+        public Expression visitExistsSubquery(ExistsSubquery node, CatalystPlanContext context) {
+            CatalystPlanContext innerContext = new CatalystPlanContext();
+            UnresolvedPlan outerPlan = node.getQuery();
+            LogicalPlan subSearch = CatalystQueryPlanVisitor.this.visitSubSearch(outerPlan, innerContext);
+            Expression existsSubQuery = Exists$.MODULE$.apply(
+                subSearch,
+                seq(new java.util.ArrayList<Expression>()),
+                NamedExpression.newExprId(),
+                seq(new java.util.ArrayList<Expression>()),
+                Option.empty());
+            return context.getNamedParseExpressions().push(existsSubQuery);
         }
     }
 }

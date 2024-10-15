@@ -305,8 +305,6 @@ class FlintSparkPPLInSubqueryITSuite
          | | sort  - salary
          | | fields id, name, salary
          | """.stripMargin)
-    frame.show()
-    frame.explain(true)
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
       Array(Row(1003, "David", 120000), Row(1002, "John", 120000), Row(1006, "Tommy", 30000))
@@ -358,7 +356,6 @@ class FlintSparkPPLInSubqueryITSuite
          |     $innerTable
          | | fields a.id, a.name, a.salary
          | """.stripMargin)
-    frame.explain(true)
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
       Array(Row(1003, "David", 120000), Row(1002, "John", 120000), Row(1006, "Tommy", 30000))
