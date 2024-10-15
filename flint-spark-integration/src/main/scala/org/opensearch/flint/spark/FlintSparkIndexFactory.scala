@@ -7,6 +7,7 @@ package org.opensearch.flint.spark
 
 import java.util.Collections
 
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 import org.opensearch.flint.common.metadata.FlintMetadata
@@ -47,6 +48,26 @@ object FlintSparkIndexFactory extends Logging {
         logWarning(s"Failed to create Flint index from metadata $metadata", e)
         None
     }
+  }
+
+  /**
+   * Creates Flint index with default options.
+   *
+   * @param index
+   *   Flint index
+   * @param metadata
+   *   Flint metadata
+   * @return
+   *   Flint index with default options
+   */
+  def createWithDefaultOptions(index: FlintSparkIndex): Option[FlintSparkIndex] = {
+    val originalOptions = index.options
+    val updatedOptions =
+      FlintSparkIndexOptions.updateOptionsWithDefaults(index.name(), originalOptions)
+    val updatedMetadata = index
+      .metadata()
+      .copy(options = updatedOptions.options.mapValues(_.asInstanceOf[AnyRef]).asJava)
+    this.create(updatedMetadata)
   }
 
   private def doCreate(metadata: FlintMetadata): FlintSparkIndex = {
