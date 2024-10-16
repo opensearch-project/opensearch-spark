@@ -114,7 +114,6 @@ public enum BuiltinFunctionName {
   WEEK_OF_YEAR(FunctionName.of("week_of_year")),
   YEAR(FunctionName.of("year")),
   YEARWEEK(FunctionName.of("yearweek")),
-  PPL_FLATTEN_FUNCTION(FunctionName.of("ppl_flatten_function")),
 
   // `now`-like functions
   NOW(FunctionName.of("now")),

@@ -14,8 +14,8 @@ import org.apache.spark.sql.catalyst.expressions.Ascending$;
 import org.apache.spark.sql.catalyst.expressions.CaseWhen;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.GeneratorOuter;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
-import org.apache.spark.sql.catalyst.expressions.Inline;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
@@ -27,6 +27,7 @@ import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.opensearch.flint.spark.FlattenGenerator;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Alias;
@@ -433,10 +434,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
         }
         Expression field = visitExpression(flatten.getFieldToBeFlattened(), context);
-        Inline inline = new Inline(field);
-        Option<String> x = (Option) None$.MODULE$;
-        LogicalPlan apply = context.apply(p -> new Generate(inline, seq(), true, x, seq(),p));
-        return apply;
+        FlattenGenerator explode = new FlattenGenerator(field);
+        return context.apply(p -> new Generate(new GeneratorOuter(explode), seq(), true, (Option) None$.MODULE$, seq(),p));
     }
 
     private void visitFieldList(List<Field> fieldList, CatalystPlanContext context) {
