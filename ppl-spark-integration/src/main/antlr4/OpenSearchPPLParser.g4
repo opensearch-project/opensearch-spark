@@ -5,6 +5,18 @@
 
 parser grammar OpenSearchPPLParser;
 
+@parser::members {
+    public static final String GRAMMAR_VERSION = "1.0.0";
+    public static final String LAST_UPDATED = "2024-09-18";
+
+    public static String getGrammarVersion() {
+        return GRAMMAR_VERSION;
+    }
+
+    public static String getLastUpdated() {
+        return LAST_UPDATED;
+    }
+}
 
 options { tokenVocab = OpenSearchPPLLexer; }
 root
@@ -32,6 +44,7 @@ subSearch
 pplCommands
    : searchCommand
    | describeCommand
+   | helpCommand
    ;
 
 commands
@@ -58,10 +71,16 @@ searchCommand
    : (SEARCH)? fromClause                       # searchFrom
    | (SEARCH)? fromClause logicalExpression     # searchFromFilter
    | (SEARCH)? logicalExpression fromClause     # searchFilterFrom
+   | (SEARCH)? HELP                             # searchHelp
    ;
 
 describeCommand
-   : DESCRIBE tableSourceClause
+   : DESCRIBE tableSourceClause                 # describeClause
+   | DESCRIBE HELP                              # describeHelp
+   ;
+
+helpCommand
+   : HELP commandNames                          # helpCommandName
    ;
 
 explainCommand
@@ -81,11 +100,13 @@ showDataSourcesCommand
     ;
 
 whereCommand
-    : WHERE logicalExpression
+    : WHERE logicalExpression                   # whereClause         
+    | WHERE HELP                                # whereHelp
     ;
 
 correlateCommand
-    : CORRELATE correlationType FIELDS LT_PRTHS fieldList RT_PRTHS (scopeClause)? mappingList
+    : CORRELATE correlationType FIELDS LT_PRTHS fieldList RT_PRTHS (scopeClause)? mappingList       # correlateClause
+    | CORRELATE HELP                                                                                # correlateHelp
     ;
 
 correlationType
@@ -107,51 +128,63 @@ mappingClause
     ;
 
 fieldsCommand
-   : FIELDS (PLUS | MINUS)? fieldList
+   : FIELDS (PLUS | MINUS)? fieldList           # fieldsClause
+   | FIELDS HELP                                # fieldsHelp
    ;
 
 renameCommand
-   : RENAME renameClasue (COMMA renameClasue)*
+   : RENAME renameClasue (COMMA renameClasue)*  # renameClause    
+   | RENAME HELP                                # renameHelp
    ;
 
 statsCommand
-   : STATS (PARTITIONS EQUAL partitions = integerLiteral)? (ALLNUM EQUAL allnum = booleanLiteral)? (DELIM EQUAL delim = stringLiteral)? statsAggTerm (COMMA statsAggTerm)* (statsByClause)? (DEDUP_SPLITVALUES EQUAL dedupsplit = booleanLiteral)?
+   : STATS (PARTITIONS EQUAL partitions = integerLiteral)? (ALLNUM EQUAL allnum = booleanLiteral)? (DELIM EQUAL delim = stringLiteral)? statsAggTerm (COMMA statsAggTerm)* (statsByClause)? (DEDUP_SPLITVALUES EQUAL dedupsplit = booleanLiteral)?  # statsClause
+   | STATS HELP                                                                                                                                                                                                                                     # statsHelp   
    ;
 
 dedupCommand
-   : DEDUP (number = integerLiteral)? fieldList (KEEPEMPTY EQUAL keepempty = booleanLiteral)? (CONSECUTIVE EQUAL consecutive = booleanLiteral)?
+   : DEDUP (number = integerLiteral)? fieldList (KEEPEMPTY EQUAL keepempty = booleanLiteral)? (CONSECUTIVE EQUAL consecutive = booleanLiteral)?    # dedupClause
+   | DEDUP HELP                                                                                                                                    # dedupHelp 
    ;
 
 sortCommand
-   : SORT sortbyClause
+   : SORT sortbyClause                                                                                                                             # sortClause
+   | SORT HELP                                                                                                                                     # sortHelp 
    ;
 
 evalCommand
-   : EVAL evalClause (COMMA evalClause)*
+   : EVAL evalClause (COMMA evalClause)*                                                                                                           # evalCommandClause 
+   | EVAL HELP                                                                                                                                     # evalHelp 
    ;
 
 headCommand
-   : HEAD (number = integerLiteral)? (FROM from = integerLiteral)?
+   : HEAD (number = integerLiteral)? (FROM from = integerLiteral)?                                                                                 # headClause 
+   | HEAD HELP                                                                                                                                     # headHelp 
    ;
 
-topCommand
-   : TOP (number = integerLiteral)? fieldList (byClause)?
+topCommand 
+   : TOP (number = integerLiteral)? fieldList (byClause)?                                                                                             # topClause                                                           
+   | TOP HELP                                                                                                                                      # topHelp                        
    ;
 
-rareCommand
-   : RARE fieldList (byClause)?
+rareCommand                                                                                                                                         
+   : RARE fieldList (byClause)?                                                                                                                    # rareClause
+   | RARE HELP                                                                                                                                     # rareHelp 
    ;
 
 grokCommand
-   : GROK (source_field = expression) (pattern = stringLiteral)
+   : GROK (source_field = expression) (pattern = stringLiteral)                                                                                    # grokClause 
+   | GROK HELP                                                                                                                                     # grokHelp                                                                                                                                   
    ;
 
 parseCommand
-   : PARSE (source_field = expression) (pattern = stringLiteral)
+   : PARSE (source_field = expression) (pattern = stringLiteral)                                                                                   # parseClause 
+   | PARSE HELP                                                                                                                                    # parseHelp     
    ;
 
 patternsCommand
-   : PATTERNS (patternsParameter)* (source_field = expression)
+   : PATTERNS (patternsParameter)* (source_field = expression)                                                                                     # patternsClause 
+   | PATTERNS HELP                                                                                                                                 # patternsHelp 
    ;
 
 patternsParameter
@@ -166,7 +199,8 @@ patternsMethod
 
 // lookup
 lookupCommand
-   : LOOKUP tableSource lookupMappingList ((APPEND | REPLACE) outputCandidateList)?
+   : LOOKUP tableSource lookupMappingList ((APPEND | REPLACE) outputCandidateList)?                                                                # lookupClause
+   | LOOKUP HELP                                                                                                                                   # lookupHelp 
    ;
 
 lookupMappingList
@@ -257,7 +291,8 @@ tableSourceClause
 
 // join
 joinCommand
-   : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableSource
+   : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableSource                                          # joinClause                           
+   | JOIN HELP                                                                                                          # joinHelp 
    ;
 
 joinType
@@ -306,7 +341,7 @@ bySpanClause
    ;
 
 spanClause
-   : SPAN LT_PRTHS fieldExpression COMMA value = literalValue (unit = timespanUnit)? RT_PRTHS
+   : SPAN LT_PRTHS fieldExpression COMMA value = literalValue (unit = timespanUnit)? RT_PRTHS                           
    ;
 
 sortbyClause
@@ -342,6 +377,7 @@ statsFunctionName
 
 takeAggFunction
    : TAKE LT_PRTHS fieldExpression (COMMA size = integerLiteral)? RT_PRTHS
+   | TAKE HELP                       
    ;
 
 percentileAggFunction
@@ -401,7 +437,7 @@ booleanExpression
    ;
 
  isEmptyExpression
-   : (ISEMPTY | ISBLANK) LT_PRTHS functionArg RT_PRTHS
+   : (ISEMPTY | ISBLANK)  LT_PRTHS functionArg RT_PRTHS
    ;
 
  caseFunction
@@ -943,8 +979,11 @@ keywordsCanBeId
    | textFunctionName
    | mathematicalFunctionName
    | positionFunctionName
-   // commands
-   | SEARCH
+   | commandNames 
+   ; 
+   
+commandNames
+   : SEARCH // commands
    | DESCRIBE
    | SHOW
    | FROM
