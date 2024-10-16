@@ -12,9 +12,9 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Literal, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, Literal, NamedExpression, Not}
 import org.apache.spark.sql.catalyst.plans.PlanTest
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, DataFrameDropColumns, Project, Union}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, DataFrameDropColumns, Filter, Project, Union}
 
 class PPLLogicalPlanFieldSummaryCommandTranslatorTestSuite
     extends SparkFunSuite
@@ -65,6 +65,55 @@ class PPLLogicalPlanFieldSummaryCommandTranslatorTestSuite
       aggregateExpressions,
       table)
     val expectedPlan = Project(seq(UnresolvedStar(None)), aggregatePlan)
+    // Compare the two plans
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test(
+    "test fieldsummary with single field includefields(status_code) & nulls=true with a where filter ") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source = t | where status_code != 200 | fieldsummary includefields= status_code nulls=true"),
+        context)
+
+    // Define the table
+    val table = UnresolvedRelation(Seq("t"))
+
+    // Aggregate with functions applied to status_code
+    val aggregateExpressions: Seq[NamedExpression] = Seq(
+      Alias(Literal("status_code"), "Field")(),
+      Alias(
+        UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "COUNT")(),
+      Alias(
+        UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("status_code")), isDistinct = true),
+        "COUNT_DISTINCT")(),
+      Alias(
+        UnresolvedFunction("MIN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "MIN")(),
+      Alias(
+        UnresolvedFunction("MAX", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "MAX")(),
+      Alias(
+        UnresolvedFunction("AVG", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "AVG")(),
+      Alias(
+        UnresolvedFunction("TYPEOF", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "TYPEOF")())
+
+    val filterCondition = Not(EqualTo(UnresolvedAttribute("status_code"), Literal(200)))
+    val aggregatePlan = Aggregate(
+      groupingExpressions = Seq(Alias(
+        UnresolvedFunction("TYPEOF", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "TYPEOF")()),
+      aggregateExpressions,
+      Filter(filterCondition, table))
+
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregatePlan)
+
     // Compare the two plans
     comparePlans(expectedPlan, logPlan, false)
   }
