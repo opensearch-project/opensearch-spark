@@ -28,6 +28,8 @@ For additional info See [Issue](https://github.com/opensearch-project/opensearch
 - `source = outer | where a not in [ source = inner | fields b ]`
 - `source = outer | where (a) not in [ source = inner | fields b ]`
 - `source = outer | where (a,b,c) not in [ source = inner | fields d,e,f ]`
+- `source = outer a in [ source = inner | fields b ]` (search filtering with subquery)
+- `source = outer a not in [ source = inner | fields b ]` (search filtering with subquery)
 - `source = outer | where a in [ source = inner1 | where b not in [ source = inner2 | fields c ] | fields b ]` (nested)
 - `source = table1 | inner join left = l right = r on l.a = r.a AND r.a in [ source = inner | fields d ] | fields l.a, r.a, b, c` (as join filter)
 
@@ -121,6 +123,9 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 - `source = outer | where not exists [ source = inner | where a = c ]`
 - `source = outer | where exists [ source = inner | where a = c and b = d ]`
 - `source = outer | where not exists [ source = inner | where a = c and b = d ]`
+- `source = outer exists [ source = inner | where a = c ]` (search filtering with subquery)
+- `source = outer not exists [ source = inner | where a = c ]` (search filtering with subquery)
+- `source = table as t1 exists [ source = table as t2 | where t1.a = t2.a ]` (table alias is useful in exists subquery)
 - `source = outer | where exists [ source = inner1 | where a = c and exists [ source = inner2 | where c = e ] ]` (nested)
 - `source = outer | where exists [ source = inner1 | where a = c | where exists [ source = inner2 | where c = e ] ]` (nested)
 - `source = outer | where exists [ source = inner | where c > 10 ]` (uncorrelated exists)
@@ -174,8 +179,11 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 - `source = outer | eval m = [ source = inner | stats max(c) ] | fields m, a`
 - `source = outer | eval m = [ source = inner | stats max(c) ] + b | fields m, a`
 
-**Uncorrelated scalar subquery in Select and Where**
-- `source = outer | where a > [ source = inner | stats min(c) ] | eval m = [ source = inner | stats max(c) ] | fields m, a`
+**Uncorrelated scalar subquery in Where**
+- `source = outer | where a > [ source = inner | stats min(c) ] | fields a`
+
+**Uncorrelated scalar subquery in Search filter**
+- `source = outer a > [ source = inner | stats min(c) ] | fields a`
 
 **Correlated scalar subquery in Select**
 - `source = outer | eval m = [ source = inner | where outer.b = inner.d | stats max(c) ] | fields m, a`
@@ -186,6 +194,10 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 - `source = outer | where a = [ source = inner | where outer.b = inner.d | stats max(c) ]`
 - `source = outer | where a = [ source = inner | where b = d | stats max(c) ]`
 - `source = outer | where [ source = inner | where outer.b = inner.d OR inner.d = 1 | stats count() ] > 0 | fields a`
+
+**Correlated scalar subquery in Search filter**
+- `source = outer a = [ source = inner | where b = d | stats max(c) ]`
+- `source = outer [ source = inner | where outer.b = inner.d OR inner.d = 1 | stats count() ] > 0 | fields a`
 
 **Nested scalar subquery**
 - `source = outer | where a = [ source = inner | stats max(c) | sort c ] OR b = [ source = inner | where c = 1 | stats min(d) | sort d ]`
@@ -294,24 +306,25 @@ SEARCH source = [
 
 ### Additional Context
 
-`InSubquery`, `ExistsSubquery` and `ScalarSubquery` as subquery expressions, their common usage is in `where` clause.
+`InSubquery`, `ExistsSubquery` and `ScalarSubquery` as subquery expressions, their common usage is in `where` clause and `search filter`.
 
-The `where` command syntax is:
-
+Where command:
 ```
-| where <boolean expression>
+| where <boolean expression> | ...
 ```
-So the subquery is part of boolean expression, such as
+Search filter:
+```
+search source=* <boolean expression> | ...
+```
+A subquery expression could be used in boolean expression, for example
 
 ```sql
-| where orders.order_id in (subquery source=returns | where return_reason="damaged" | return order_id)
+| where orders.order_id in [ source=returns | where return_reason="damaged" | field order_id ]
 ```
 
-The `orders.order_id in (subquery source=...)` is a `<boolean expression>`.
+The `orders.order_id in [ source=... ]` is a `<boolean expression>`.
 
-In general, we name this kind of subquery clause the `InSubquery` expression, it is a `<boolean expression>`, one kind of `subquery expressions`.
-
-PS: there are many kinds of `subquery expressions`, another commonly used one is `ScalarSubquery` expression:
+In general, we name this kind of subquery clause the `InSubquery` expression, it is a `<boolean expression>`.
 
 **Subquery with Different Join Types**
 
@@ -378,3 +391,17 @@ source = outer
 | fields l
 ```
 This query just print "nonEmpty" if the inner table is not empty.
+
+**Table alias in subquery**
+
+Table alias is useful in query which contains a subquery, for example
+
+```sql
+select a, (
+             select sum(b)
+             from catalog.schema.table1 as t1
+             where t1.a = t2.a
+          )  sum_b
+ from catalog.schema.table2 as t2
+```
+`t1` and `t2` are table aliases which are used in correlated subquery, `sum_b` are subquery alias.
