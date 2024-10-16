@@ -56,6 +56,8 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where isblank(a)`
 - `source = table | where case(length(a) > 6, 'True' else 'False') = 'True'`
 - `source = table | where a not in (1, 2, 3) | fields a,b,c`
+- `source = table | where a between 1 and 4`
+- `source = table | where b not between '2024-09-10' and '2025-09-10'`
 
 ```sql
  source = table | eval status_category =
