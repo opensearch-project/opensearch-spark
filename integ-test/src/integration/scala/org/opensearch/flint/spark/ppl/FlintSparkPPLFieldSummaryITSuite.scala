@@ -41,7 +41,7 @@ class FlintSparkPPLFieldSummaryITSuite
                        | source = $testTable | fieldsummary includefields= status_code nulls=true
                        | """.stripMargin)
 
-/*
+    /*
         val frame = sql(s"""
                            | SELECT
                            |     'status_code' AS Field,
@@ -53,9 +53,9 @@ class FlintSparkPPLFieldSummaryITSuite
                            |     typeof(status_code) AS Type,
                            |     COUNT(*) - COUNT(status_code) AS Nulls
                            | FROM $testTable
-                           | GROUP BY typeof(status_code)                       
+                           | GROUP BY typeof(status_code)
                            | """.stripMargin)
-*/
+     */
 
 //    val frame = sql(s"""
 //                       | SELECT
@@ -76,8 +76,8 @@ class FlintSparkPPLFieldSummaryITSuite
 //                       |     )) AS top_values,
 //                       |     COUNT(*) - COUNT(status_code) AS Nulls
 //                       | FROM $testTable
-//                       | GROUP BY typeof(status_code)                       
-//                       | 
+//                       | GROUP BY typeof(status_code)
+//                       |
 //                       | UNION ALL
 //                       |
 //                       | SELECT
