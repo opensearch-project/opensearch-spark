@@ -1,14 +1,25 @@
-# PPL dedup command
+# PPL `dedup` command
+
+<table>
+  <tr>
+    <th style="color:gainsboro;">Spark</th>
+    <th style="color:greenyellow;">3.5.1+ </th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Status</th>
+    <th style="color:yellow;">Experimental</th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Introduced In</th>
+    <th style="color:lightgreen;">0.5.0</th>
+  </tr>
+</table>
+
 
 ## Table of contents
 
 - [Description](#description)
 - [Syntax](#syntax)
-- [Examples](#examples)
-    - [Example 1: Dedup by one field](#example-1-dedup-by-one-field)
-    - [Example 2: Keep 2 duplicates documents](#example-2-keep-2-duplicates-documents)
-    - [Example 3: Keep or Ignore the empty field by default](#example-3-keep-or-ignore-the-empty-field-by-default)
-    - [Example 4: Dedup in consecutive document](#example-4-dedup-in-consecutive-document)
 - [Limitation](#limitation)
 
 ## Description
@@ -126,7 +137,7 @@ PPL query:
 
 ### Limitation:
 
-**Spark Support** ( >= 3.4)
+**Spark Support** ( 3.5.1 +)
 
 To translate `dedup` command with `allowedDuplication > 1`, such as `| dedup 2 a,b` to Spark plan, the solution is translating to a plan with Window function (e.g row_number) and a new column `row_number_col` as Filter.
  

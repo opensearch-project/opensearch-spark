@@ -17,6 +17,8 @@ Please refer to the [Flint Index Reference Manual](./docs/index.md) for more inf
 
 * For additional details on Spark PPL Architecture, see [PPL Architecture](docs/ppl-lang/PPL-on-Spark.md)
 
+* For the PPL planned release content [release-plan](docs/ppl-lang/planning/release-plan.md)
+
 * For additional details on Spark PPL commands project, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
 
 ## Prerequisites
@@ -92,7 +94,7 @@ If you discover a potential security issue in this project we ask that you notif
 
 ## License
 
-See the [LICENSE](./LICENSE.txt) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
+See the [LICENSE](LICENSE) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
 
 ## Copyright
 

@@ -1,5 +1,20 @@
 ## PPL rare Command
 
+<table>
+  <tr>
+    <th style="color:gainsboro;">Spark</th>
+    <th style="color:greenyellow;">3.0.0+ </th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Status</th>
+    <th style="color:yellow;">Experimental</th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Introduced In</th>
+    <th style="color:lightgreen;">0.5.0</th>
+  </tr>
+</table>
+
 **Description**
 Using ``rare`` command to find the least common tuple of values of all fields in the field list.
 

@@ -1,5 +1,20 @@
 ## PPL `patterns` command 
 
+<table>
+  <tr>
+    <th style="color:gainsboro;">Spark</th>
+    <th style="color:greenyellow;">3.0.0+ </th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Status</th>
+    <th style="color:yellow;">Experimental</th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Introduced In</th>
+    <th style="color:lightgreen;">0.5.0</th>
+  </tr>
+</table>
+
 ### Description
  The ``patterns`` command extracts log patterns from a text field and appends the results to the search result. Grouping logs by their patterns makes it easier to aggregate stats from large volumes of log data for analysis and troubleshooting.
 

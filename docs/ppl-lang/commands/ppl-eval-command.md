@@ -1,5 +1,21 @@
 # PPL `eval` command
 
+<table>
+  <tr>
+    <th style="color:gainsboro;">Spark</th>
+    <th style="color:greenyellow;">3.5.1+ </th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Status</th>
+    <th style="color:yellow;">Experimental</th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Introduced In</th>
+    <th style="color:lightgreen;">0.5.0</th>
+  </tr>
+</table>
+
+
 ## Description
  The ``eval`` command evaluate the expression and append the result to the search result.
 
@@ -106,7 +122,7 @@ eval status_category =
 ```
 
 ### Limitation:
- - `eval` with comma separated expression needs spark version >= 3.4
+**Spark Support** ( 3.5.1 +)
 
  - Overriding existing field is unsupported, following queries throw exceptions with "Reference 'a' is ambiguous"
 

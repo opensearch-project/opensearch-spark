@@ -1,5 +1,22 @@
 ## PPL `rename` command
 
+
+<table>
+  <tr>
+    <th style="color:gainsboro;">Spark</th>
+    <th style="color:greenyellow;">3.5.1+ </th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Status</th>
+    <th style="color:yellow;">Experimental</th>
+  </tr>
+  <tr>
+    <th style="color:gainsboro;">Introduced In</th>
+    <th style="color:lightgreen;">0.5.0</th>
+  </tr>
+</table>
+
+
 ### Description
 Using ``rename`` command to rename one or more fields in the search result.
 
@@ -47,7 +64,9 @@ PPL query:
     +------+---------+
 
 ### Limitation:
-- `rename` command needs spark version >= 3.4
+
+**Spark Support** ( 3.5.1 +)
+
 
 - Overriding existing field is unsupported:
 
