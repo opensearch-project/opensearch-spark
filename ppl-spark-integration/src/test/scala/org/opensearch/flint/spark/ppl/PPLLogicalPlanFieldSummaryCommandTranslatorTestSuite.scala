@@ -40,28 +40,28 @@ class PPLLogicalPlanFieldSummaryCommandTranslatorTestSuite
       Alias(Literal("status_code"), "Field")(),
       Alias(
         UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
-        "COUNT(status_code)")(),
+        "COUNT")(),
       Alias(
         UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("status_code")), isDistinct = true),
-        "COUNT_DISTINCT(status_code)")(),
+        "COUNT_DISTINCT")(),
       Alias(
         UnresolvedFunction("MIN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
-        "MIN(status_code)")(),
+        "MIN")(),
       Alias(
         UnresolvedFunction("MAX", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
-        "MAX(status_code)")(),
+        "MAX")(),
       Alias(
         UnresolvedFunction("AVG", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
-        "AVG(status_code)")(),
+        "AVG")(),
       Alias(
         UnresolvedFunction("TYPEOF", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
-        "TYPEOF(status_code)")())
+        "TYPEOF")())
 
     // Define the aggregate plan with alias for TYPEOF in the aggregation
     val aggregatePlan = Aggregate(
       groupingExpressions = Seq(Alias(
         UnresolvedFunction("TYPEOF", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
-        "TYPEOF(status_code)")()),
+        "TYPEOF")()),
       aggregateExpressions,
       table)
     val expectedPlan = Project(seq(UnresolvedStar(None)), aggregatePlan)
@@ -88,27 +88,27 @@ class PPLLogicalPlanFieldSummaryCommandTranslatorTestSuite
       Seq(
         Alias(
           UnresolvedFunction("TYPEOF", Seq(UnresolvedAttribute("id")), isDistinct = false),
-          "TYPEOF(id)")()),
+          "TYPEOF")()),
       Seq(
         Alias(Literal("id"), "Field")(),
         Alias(
           UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("id")), isDistinct = false),
-          "COUNT(id)")(),
+          "COUNT")(),
         Alias(
           UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("id")), isDistinct = true),
-          "COUNT_DISTINCT(id)")(),
+          "COUNT_DISTINCT")(),
         Alias(
           UnresolvedFunction("MIN", Seq(UnresolvedAttribute("id")), isDistinct = false),
-          "MIN(id)")(),
+          "MIN")(),
         Alias(
           UnresolvedFunction("MAX", Seq(UnresolvedAttribute("id")), isDistinct = false),
-          "MAX(id)")(),
+          "MAX")(),
         Alias(
           UnresolvedFunction("AVG", Seq(UnresolvedAttribute("id")), isDistinct = false),
-          "AVG(id)")(),
+          "AVG")(),
         Alias(
           UnresolvedFunction("TYPEOF", Seq(UnresolvedAttribute("id")), isDistinct = false),
-          "TYPEOF(id)")()),
+          "TYPEOF")()),
       table)
     val idProj = Project(seq(UnresolvedStar(None)), aggregateIdPlan)
 
@@ -117,7 +117,7 @@ class PPLLogicalPlanFieldSummaryCommandTranslatorTestSuite
     val aggregateStatusCodePlan = Aggregate(
       Seq(Alias(
         UnresolvedFunction("TYPEOF", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
-        "TYPEOF(status_code)")()),
+        "TYPEOF")()),
       Seq(
         Alias(Literal("status_code"), "Field")(),
         Alias(
@@ -125,25 +125,25 @@ class PPLLogicalPlanFieldSummaryCommandTranslatorTestSuite
             "COUNT",
             Seq(UnresolvedAttribute("status_code")),
             isDistinct = false),
-          "COUNT(status_code)")(),
+          "COUNT")(),
         Alias(
           UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("status_code")), isDistinct = true),
-          "COUNT_DISTINCT(status_code)")(),
+          "COUNT_DISTINCT")(),
         Alias(
           UnresolvedFunction("MIN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
-          "MIN(status_code)")(),
+          "MIN")(),
         Alias(
           UnresolvedFunction("MAX", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
-          "MAX(status_code)")(),
+          "MAX")(),
         Alias(
           UnresolvedFunction("AVG", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
-          "AVG(status_code)")(),
+          "AVG")(),
         Alias(
           UnresolvedFunction(
             "TYPEOF",
             Seq(UnresolvedAttribute("status_code")),
             isDistinct = false),
-          "TYPEOF(status_code)")()),
+          "TYPEOF")()),
       table)
     val statusCodeProj = Project(seq(UnresolvedStar(None)), aggregateStatusCodePlan)
 
@@ -155,7 +155,7 @@ class PPLLogicalPlanFieldSummaryCommandTranslatorTestSuite
             "TYPEOF",
             Seq(UnresolvedAttribute("request_path")),
             isDistinct = false),
-          "TYPEOF(request_path)")()),
+          "TYPEOF")()),
       Seq(
         Alias(Literal("request_path"), "Field")(),
         Alias(
@@ -163,28 +163,28 @@ class PPLLogicalPlanFieldSummaryCommandTranslatorTestSuite
             "COUNT",
             Seq(UnresolvedAttribute("request_path")),
             isDistinct = false),
-          "COUNT(request_path)")(),
+          "COUNT")(),
         Alias(
           UnresolvedFunction(
             "COUNT",
             Seq(UnresolvedAttribute("request_path")),
             isDistinct = true),
-          "COUNT_DISTINCT(request_path)")(),
+          "COUNT_DISTINCT")(),
         Alias(
           UnresolvedFunction("MIN", Seq(UnresolvedAttribute("request_path")), isDistinct = false),
-          "MIN(request_path)")(),
+          "MIN")(),
         Alias(
           UnresolvedFunction("MAX", Seq(UnresolvedAttribute("request_path")), isDistinct = false),
-          "MAX(request_path)")(),
+          "MAX")(),
         Alias(
           UnresolvedFunction("AVG", Seq(UnresolvedAttribute("request_path")), isDistinct = false),
-          "AVG(request_path)")(),
+          "AVG")(),
         Alias(
           UnresolvedFunction(
             "TYPEOF",
             Seq(UnresolvedAttribute("request_path")),
             isDistinct = false),
-          "TYPEOF(request_path)")()),
+          "TYPEOF")()),
       table)
     val requestPathProj = Project(seq(UnresolvedStar(None)), aggregatePlan)
 

@@ -28,10 +28,6 @@ import static scala.Option.empty;
  * @return
  */
 public interface AggregatorTranslator {
-
-    static String aggregationAlias(BuiltinFunctionName functionName, QualifiedName name) {
-        return functionName.name()+"("+name.toString()+")"; 
-    }
     
     static Expression aggregator(org.opensearch.sql.ast.expression.AggregateFunction aggregateFunction, Expression arg) {
         if (BuiltinFunctionName.ofAggregation(aggregateFunction.getFuncName()).isEmpty())

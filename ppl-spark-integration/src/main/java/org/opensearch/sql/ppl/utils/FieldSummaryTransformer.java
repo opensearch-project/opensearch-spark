@@ -32,7 +32,6 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.COUNT_D
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MAX;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MIN;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.TYPEOF;
-import static org.opensearch.sql.ppl.utils.AggregatorTranslator.aggregationAlias;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static scala.Option.empty;
 
@@ -106,7 +105,7 @@ public interface FieldSummaryTransformer {
             //Alias for the count(field) as Count
             UnresolvedFunction count = new UnresolvedFunction(seq(COUNT.name()), seq(fieldLiteral), false, empty(), false);
             Alias countAlias = Alias$.MODULE$.apply(count,
-                    aggregationAlias(COUNT, field.getField()),
+                    COUNT.name(),
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),
@@ -115,7 +114,7 @@ public interface FieldSummaryTransformer {
             //Alias for the count(DISTINCT field) as CountDistinct
             UnresolvedFunction countDistinct = new UnresolvedFunction(seq(COUNT.name()), seq(fieldLiteral), true, empty(), false);
             Alias distinctCountAlias = Alias$.MODULE$.apply(countDistinct,
-                    aggregationAlias(COUNT_DISTINCT, field.getField()),
+                    COUNT_DISTINCT.name(),
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),
@@ -124,7 +123,7 @@ public interface FieldSummaryTransformer {
             //Alias for the MAX(field) as MAX
             UnresolvedFunction max = new UnresolvedFunction(seq(MAX.name()), seq(fieldLiteral), false, empty(), false);
             Alias maxAlias = Alias$.MODULE$.apply(max,
-                    aggregationAlias(MAX, field.getField()),
+                    MAX.name(),
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),
@@ -133,7 +132,7 @@ public interface FieldSummaryTransformer {
             //Alias for the MIN(field) as Min
             UnresolvedFunction min = new UnresolvedFunction(seq(MIN.name()), seq(fieldLiteral), false, empty(), false);
             Alias minAlias = Alias$.MODULE$.apply(min,
-                    aggregationAlias(MIN, field.getField()),
+                    MIN.name(),
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),
@@ -142,7 +141,7 @@ public interface FieldSummaryTransformer {
             //Alias for the AVG(field) as Avg
             UnresolvedFunction avg = new UnresolvedFunction(seq(AVG.name()), seq(fieldLiteral), false, empty(), false);
             Alias avgAlias = Alias$.MODULE$.apply(avg,
-                    aggregationAlias(AVG, field.getField()),
+                    AVG.name(),
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),
@@ -196,7 +195,7 @@ public interface FieldSummaryTransformer {
             //Alias for the typeOf(field) as Type
             UnresolvedFunction typeOf = new UnresolvedFunction(seq(TYPEOF.name()), seq(fieldLiteral), false, empty(), false);
             Alias typeOfAlias = Alias$.MODULE$.apply(typeOf,
-                    aggregationAlias(TYPEOF, field.getField()),
+                    TYPEOF.name(),
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),
