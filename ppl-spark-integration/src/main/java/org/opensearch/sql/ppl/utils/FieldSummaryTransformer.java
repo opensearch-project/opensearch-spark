@@ -20,6 +20,9 @@ import org.opensearch.sql.ppl.CatalystPlanContext;
 import scala.Option;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.spark.sql.types.DataTypes.IntegerType;
 import static org.apache.spark.sql.types.DataTypes.StringType;
@@ -87,8 +90,8 @@ public interface FieldSummaryTransformer {
      *  GROUP BY typeof(columnB) 
      */
     static LogicalPlan translate(FieldSummary fieldSummary, CatalystPlanContext context) {
-        fieldSummary.getIncludeFields().forEach(field -> {
-            Literal fieldNameLiteral = org.apache.spark.sql.catalyst.expressions.Literal.create(field.getField().toString(), StringType);
+        List<Function<LogicalPlan, LogicalPlan>> aggBranches = fieldSummary.getIncludeFields().stream().map(field -> {
+            Literal fieldNameLiteral = Literal.create(field.getField().toString(), StringType);
             UnresolvedAttribute fieldLiteral = new UnresolvedAttribute(seq(field.getField().getParts()));
             context.withProjectedFields(Collections.singletonList(field));
 
@@ -103,7 +106,7 @@ public interface FieldSummaryTransformer {
             //Alias for the count(field) as Count
             UnresolvedFunction count = new UnresolvedFunction(seq(COUNT.name()), seq(fieldLiteral), false, empty(), false);
             Alias countAlias = Alias$.MODULE$.apply(count,
-                    aggregationAlias(COUNT,field.getField()),
+                    aggregationAlias(COUNT, field.getField()),
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),
@@ -112,7 +115,7 @@ public interface FieldSummaryTransformer {
             //Alias for the count(DISTINCT field) as CountDistinct
             UnresolvedFunction countDistinct = new UnresolvedFunction(seq(COUNT.name()), seq(fieldLiteral), true, empty(), false);
             Alias distinctCountAlias = Alias$.MODULE$.apply(countDistinct,
-                    aggregationAlias(COUNT_DISTINCT,field.getField()),
+                    aggregationAlias(COUNT_DISTINCT, field.getField()),
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),
@@ -121,7 +124,7 @@ public interface FieldSummaryTransformer {
             //Alias for the MAX(field) as MAX
             UnresolvedFunction max = new UnresolvedFunction(seq(MAX.name()), seq(fieldLiteral), false, empty(), false);
             Alias maxAlias = Alias$.MODULE$.apply(max,
-                    aggregationAlias(MAX,field.getField()),
+                    aggregationAlias(MAX, field.getField()),
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),
@@ -130,7 +133,7 @@ public interface FieldSummaryTransformer {
             //Alias for the MIN(field) as Min
             UnresolvedFunction min = new UnresolvedFunction(seq(MIN.name()), seq(fieldLiteral), false, empty(), false);
             Alias minAlias = Alias$.MODULE$.apply(min,
-                    aggregationAlias(MIN,field.getField()),
+                    aggregationAlias(MIN, field.getField()),
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),
@@ -139,13 +142,13 @@ public interface FieldSummaryTransformer {
             //Alias for the AVG(field) as Avg
             UnresolvedFunction avg = new UnresolvedFunction(seq(AVG.name()), seq(fieldLiteral), false, empty(), false);
             Alias avgAlias = Alias$.MODULE$.apply(avg,
-                    aggregationAlias(AVG,field.getField()),
+                    aggregationAlias(AVG, field.getField()),
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),
                     seq());
 
-            if (fieldSummary.getTopValues()>0) {
+            if (fieldSummary.getTopValues() > 0) {
                 // Alias COLLECT_LIST(STRUCT(field, COUNT(field))) AS top_values
                 CreateNamedStruct structExpr = new CreateNamedStruct(seq(
                         fieldLiteral,
@@ -159,12 +162,12 @@ public interface FieldSummaryTransformer {
                         !fieldSummary.isIgnoreNull()
                 );
                 context.getNamedParseExpressions().push(
-                        org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(
+                        Alias$.MODULE$.apply(
                                 collectList,
                                 TOP_VALUES,
                                 NamedExpression.newExprId(),
                                 seq(),
-                                Option.empty(),
+                                empty(),
                                 seq()
                         ));
             }
@@ -173,19 +176,19 @@ public interface FieldSummaryTransformer {
                 // Alias COUNT(*) - COUNT(column2) AS Nulls
                 UnresolvedFunction countStar = new UnresolvedFunction(
                         seq(COUNT.name()),
-                        seq(org.apache.spark.sql.catalyst.expressions.Literal.create(1, IntegerType)),
+                        seq(Literal.create(1, IntegerType)),
                         false,
                         empty(),
                         false
                 );
 
                 context.getNamedParseExpressions().push(
-                        org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(
+                        Alias$.MODULE$.apply(
                                 new Subtract(countStar, count),
                                 NULLS,
                                 NamedExpression.newExprId(),
                                 seq(),
-                                Option.empty(),
+                                empty(),
                                 seq()
                         ));
             }
@@ -193,17 +196,17 @@ public interface FieldSummaryTransformer {
             //Alias for the typeOf(field) as Type
             UnresolvedFunction typeOf = new UnresolvedFunction(seq(TYPEOF.name()), seq(fieldLiteral), false, empty(), false);
             Alias typeOfAlias = Alias$.MODULE$.apply(typeOf,
-                    aggregationAlias(TYPEOF,field.getField()),
+                    aggregationAlias(TYPEOF, field.getField()),
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),
                     seq());
-            
+
             //Aggregation 
-            context.apply(p-> new Aggregate(seq(typeOfAlias), seq(fieldNameAlias, countAlias, distinctCountAlias, minAlias, maxAlias, avgAlias, typeOfAlias), p));
+            return (Function<LogicalPlan, LogicalPlan>) p -> new Aggregate(seq(typeOfAlias), seq(fieldNameAlias, countAlias, distinctCountAlias, minAlias, maxAlias, avgAlias, typeOfAlias), p);
+        }).collect(Collectors.toList());
 
-        });
-
-        return context.getPlan();
+        LogicalPlan plan = context.applyBranches(aggBranches);
+        return plan;
     }
 }

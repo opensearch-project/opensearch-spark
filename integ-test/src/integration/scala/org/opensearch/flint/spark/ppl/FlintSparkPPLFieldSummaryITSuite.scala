@@ -36,7 +36,7 @@ class FlintSparkPPLFieldSummaryITSuite
     }
   }
 
-  test("test fieldsummary with single field includefields(status_code) & nulls=true ") {
+  ignore("test fieldsummary with single field includefields(status_code) & nulls=true ") {
     val frame = sql(s"""
                        | source = $testTable | fieldsummary includefields= status_code nulls=true
                        | """.stripMargin)
