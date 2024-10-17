@@ -90,7 +90,6 @@ NUM:                                'NUM';
 // FIELDSUMMARY keywords
 FIELDSUMMARY:                       'FIELDSUMMARY';
 INCLUDEFIELDS:                      'INCLUDEFIELDS';
-TOPVALUES:                          'TOPVALUES';
 NULLS:                              'NULLS';
 
 // ARGUMENT KEYWORDS

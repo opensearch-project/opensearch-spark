@@ -5,20 +5,33 @@
 
 package org.opensearch.sql.ppl.utils;
 
+import org.apache.spark.sql.catalyst.AliasIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.expressions.Alias;
 import org.apache.spark.sql.catalyst.expressions.Alias$;
+import org.apache.spark.sql.catalyst.expressions.Ascending$;
 import org.apache.spark.sql.catalyst.expressions.CreateNamedStruct;
+import org.apache.spark.sql.catalyst.expressions.Descending$;
+import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.Literal;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
+import org.apache.spark.sql.catalyst.expressions.ScalarSubquery;
+import org.apache.spark.sql.catalyst.expressions.ScalarSubquery$;
+import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.expressions.Subtract;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
+import org.apache.spark.sql.catalyst.plans.logical.GlobalLimit;
+import org.apache.spark.sql.catalyst.plans.logical.LocalLimit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.Project;
+import org.apache.spark.sql.catalyst.plans.logical.Sort;
+import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias;
+import org.apache.spark.sql.types.DataTypes;
 import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ppl.CatalystPlanContext;
-import scala.Option;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
@@ -43,50 +56,13 @@ public interface FieldSummaryTransformer {
 
     /**
      * translate the field summary into the following query:
+     * source = spark_catalog.default.flint_ppl_test | fieldsummary includefields= id, status_code nulls=true
      * -----------------------------------------------------
-     *  // for each column create statement:
-     *  SELECT
-     *      'columnA' AS Field,
-     *      COUNT(columnA) AS Count,
-     *      COUNT(DISTINCT columnA) AS Distinct,
-     *      MIN(columnA) AS Min,
-     *      MAX(columnA) AS Max,
-     *      AVG(CAST(columnA AS DOUBLE)) AS Avg,
-     *      typeof(columnA) AS Type,
-     *      (SELECT COLLECT_LIST(STRUCT(columnA, count_status))
-     *       FROM (
-     *          SELECT columnA, COUNT(*) AS count_status
-     *          FROM $testTable
-     *          GROUP BY columnA
-     *          ORDER BY count_status DESC
-     *          LIMIT 5
-     *      )) AS top_values,
-     *      COUNT(*) - COUNT(columnA) AS Nulls
-     *  FROM $testTable
-     *  GROUP BY typeof(columnA)                       
-     *  
-     *  // union all queries
-     *  UNION ALL
-     *
-     *  SELECT
-     *      'columnB' AS Field,
-     *      COUNT(columnB) AS Count,
-     *      COUNT(DISTINCT columnB) AS Distinct,
-     *      MIN(columnB) AS Min,
-     *      MAX(columnB) AS Max,
-     *      AVG(CAST(columnB AS DOUBLE)) AS Avg,
-     *      typeof(columnB) AS Type,
-     *      (SELECT COLLECT_LIST(STRUCT(columnB, count_columnB))
-     *       FROM (
-     *          SELECT column-, COUNT(*) AS count_column-
-     *          FROM $testTable
-     *          GROUP BY columnB
-     *          ORDER BY count_column- DESC
-     *          LIMIT 5
-     *      )) AS top_values,
-     *      COUNT(*) - COUNT(columnB) AS Nulls
-     *  FROM $testTable
-     *  GROUP BY typeof(columnB) 
+     * 'Union false, false
+     * :- 'Aggregate ['typeof('status_code)], [status_code AS Field#20, 'COUNT('status_code) AS Count#21, 'COUNT(distinct 'status_code) AS Distinct#22, 'MIN('status_code) AS Min#23, 'MAX('status_code) AS Max#24, 'AVG(cast('status_code as double)) AS Avg#25, 'typeof('status_code) AS Type#26, scalar-subquery#28 [] AS top_values#29, ('COUNT(1) - 'COUNT('status_code)) AS Nulls#30]
+      * :  +- 'UnresolvedRelation [spark_catalog, default, flint_ppl_test], [], false
+     * +- 'Aggregate ['typeof('id)], [id AS Field#31, 'COUNT('id) AS Count#32, 'COUNT(distinct 'id) AS Distinct#33, 'MIN('id) AS Min#34, 'MAX('id) AS Max#35, 'AVG(cast('id as double)) AS Avg#36, 'typeof('id) AS Type#37, scalar-subquery#39 [] AS top_values#40, ('COUNT(1) - 'COUNT('id)) AS Nulls#41]
+     *    +- 'UnresolvedRelation [spark_catalog, default, flint_ppl_test], [], false
      */
     static LogicalPlan translate(FieldSummary fieldSummary, CatalystPlanContext context) {
         List<Function<LogicalPlan, LogicalPlan>> aggBranches = fieldSummary.getIncludeFields().stream().map(field -> {
@@ -139,58 +115,18 @@ public interface FieldSummaryTransformer {
                     seq());
 
             //Alias for the AVG(field) as Avg
-            UnresolvedFunction avg = new UnresolvedFunction(seq(AVG.name()), seq(fieldLiteral), false, empty(), false);
-            Alias avgAlias = Alias$.MODULE$.apply(avg,
-                    AVG.name(),
+            Alias avgAlias = getAvgAlias(fieldSummary, fieldLiteral);
+
+            // Alias COUNT(*) - COUNT(column2) AS Nulls
+            UnresolvedFunction countStar = new UnresolvedFunction(seq(COUNT.name()), seq(Literal.create(1, IntegerType)), false, empty(), false);
+            Alias nonNullAlias = Alias$.MODULE$.apply(
+                    new Subtract(countStar, count),
+                    NULLS,
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),
                     seq());
 
-            if (fieldSummary.getTopValues() > 0) {
-                // Alias COLLECT_LIST(STRUCT(field, COUNT(field))) AS top_values
-                CreateNamedStruct structExpr = new CreateNamedStruct(seq(
-                        fieldLiteral,
-                        count
-                ));
-                UnresolvedFunction collectList = new UnresolvedFunction(
-                        seq("COLLECT_LIST"),
-                        seq(structExpr),
-                        false,
-                        empty(),
-                        !fieldSummary.isIgnoreNull()
-                );
-                context.getNamedParseExpressions().push(
-                        Alias$.MODULE$.apply(
-                                collectList,
-                                TOP_VALUES,
-                                NamedExpression.newExprId(),
-                                seq(),
-                                empty(),
-                                seq()
-                        ));
-            }
-
-            if (!fieldSummary.isIgnoreNull()) {
-                // Alias COUNT(*) - COUNT(column2) AS Nulls
-                UnresolvedFunction countStar = new UnresolvedFunction(
-                        seq(COUNT.name()),
-                        seq(Literal.create(1, IntegerType)),
-                        false,
-                        empty(),
-                        false
-                );
-
-                context.getNamedParseExpressions().push(
-                        Alias$.MODULE$.apply(
-                                new Subtract(countStar, count),
-                                NULLS,
-                                NamedExpression.newExprId(),
-                                seq(),
-                                empty(),
-                                seq()
-                        ));
-            }
 
             //Alias for the typeOf(field) as Type
             UnresolvedFunction typeOf = new UnresolvedFunction(seq(TYPEOF.name()), seq(fieldLiteral), false, empty(), false);
@@ -202,10 +138,112 @@ public interface FieldSummaryTransformer {
                     seq());
 
             //Aggregation 
-            return (Function<LogicalPlan, LogicalPlan>) p -> new Aggregate(seq(typeOfAlias), seq(fieldNameAlias, countAlias, distinctCountAlias, minAlias, maxAlias, avgAlias, typeOfAlias), p);
-        }).collect(Collectors.toList());
+            return (Function<LogicalPlan, LogicalPlan>) p ->
+                        new Aggregate(seq(typeOfAlias), seq(fieldNameAlias, countAlias, distinctCountAlias, minAlias, maxAlias, avgAlias, nonNullAlias, typeOfAlias), p);
+                    }).collect(Collectors.toList());
 
-        LogicalPlan plan = context.applyBranches(aggBranches);
-        return plan;
+        return context.applyBranches(aggBranches);
+    }
+
+    /**
+     * Alias for Avg (if isIncludeNull use COALESCE to replace nulls with zeros)
+     */
+    private static Alias getAvgAlias(FieldSummary fieldSummary, UnresolvedAttribute fieldLiteral) {
+        UnresolvedFunction avg = new UnresolvedFunction(seq(AVG.name()), seq(fieldLiteral), false, empty(), false);
+        Alias avgAlias = Alias$.MODULE$.apply(avg,
+                AVG.name(),
+                NamedExpression.newExprId(),
+                seq(),
+                empty(),
+                seq());
+
+        if (fieldSummary.isIncludeNull()) {
+            UnresolvedFunction coalesceExpr = new UnresolvedFunction(
+                    seq("COALESCE"),
+                    seq(fieldLiteral, Literal.create(0, DataTypes.IntegerType)),
+                    false,
+                    empty(),
+                    false
+            );
+            avg = new UnresolvedFunction(seq(AVG.name()), seq(coalesceExpr), false, empty(), false);
+            avgAlias = Alias$.MODULE$.apply(avg,
+                    AVG.name(),
+                    NamedExpression.newExprId(),
+                    seq(),
+                    empty(),
+                    seq());
+        }
+        return avgAlias;
+    }
+
+    /**
+     * top values sub-query
+     */
+    private static Alias topValuesSubQueryAlias(FieldSummary fieldSummary, CatalystPlanContext context, UnresolvedAttribute fieldLiteral, UnresolvedFunction count) {
+        int topValues = 5;// this value should come from the FieldSummary definition
+        CreateNamedStruct structExpr = new CreateNamedStruct(seq(
+                fieldLiteral,
+                count
+        ));
+        // Alias COLLECT_LIST(STRUCT(field, COUNT(field))) AS top_values
+        UnresolvedFunction collectList = new UnresolvedFunction(
+                seq("COLLECT_LIST"),
+                seq(structExpr),
+                false,
+                empty(),
+                !fieldSummary.isIncludeNull()
+        );
+        Alias topValuesAlias = Alias$.MODULE$.apply(
+                collectList,
+                TOP_VALUES,
+                NamedExpression.newExprId(),
+                seq(),
+                empty(),
+                seq()
+        );
+        Project subQueryProject = new Project(seq(topValuesAlias), buildTopValueSubQuery(topValues, fieldLiteral, context));
+        ScalarSubquery scalarSubquery = ScalarSubquery$.MODULE$.apply(
+                subQueryProject,
+                seq(new ArrayList<Expression>()),
+                NamedExpression.newExprId(),
+                seq(new ArrayList<Expression>()),
+                empty(),
+                empty());
+
+        return Alias$.MODULE$.apply(
+                scalarSubquery,
+                TOP_VALUES,
+                NamedExpression.newExprId(),
+                seq(),
+                empty(),
+                seq()
+        );
+    }
+
+    /**
+     * inner top values query
+     * -----------------------------------------------------
+     * :  :  +- 'Project [unresolvedalias('COLLECT_LIST(struct(status_code, count_status)), None)]
+     * :  :        +- 'GlobalLimit 5
+     * :  :           +- 'LocalLimit 5
+     * :  :              +- 'Sort ['count_status DESC NULLS LAST], true
+     * :  :                 +- 'Aggregate ['status_code], ['status_code, 'COUNT(1) AS count_status#27]
+     * :  :                    +- 'UnresolvedRelation [spark_catalog, default, flint_ppl_test], [], false
+     */
+    private static LogicalPlan buildTopValueSubQuery(int topValues,UnresolvedAttribute fieldLiteral, CatalystPlanContext context ) {
+        //Alias for the count(field) as Count
+        UnresolvedFunction countFunc = new UnresolvedFunction(seq(COUNT.name()), seq(fieldLiteral), false, empty(), false);
+        Alias countAlias = Alias$.MODULE$.apply(countFunc,
+                COUNT.name(),
+                NamedExpression.newExprId(),
+                seq(),
+                empty(),
+                seq());
+        Aggregate aggregate = new Aggregate(seq(fieldLiteral), seq(countAlias), context.getPlan());
+        Project project = new Project(seq(fieldLiteral, countAlias), aggregate);
+        SortOrder sortOrder = new SortOrder(countAlias, Descending$.MODULE$, Ascending$.MODULE$.defaultNullOrdering(), seq());
+        Sort sort = new Sort(seq(sortOrder), true, project);
+        GlobalLimit limit = new GlobalLimit(Literal.create(topValues, IntegerType), new LocalLimit(Literal.create(topValues, IntegerType), sort));
+        return new SubqueryAlias(new AliasIdentifier(TOP_VALUES+"_subquery"), limit);
     }
 }

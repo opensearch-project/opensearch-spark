@@ -20,15 +20,13 @@ import java.util.List;
 
 import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.INCLUDEFIELDS;
 import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.NULLS;
-import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.TOPVALUES;
 
 @Getter
 @ToString
 @EqualsAndHashCode(callSuper = false)
 public class FieldSummary extends UnresolvedPlan {
     private List<Field> includeFields;
-    private int topValues;
-    private boolean ignoreNull;
+    private boolean includeNull;
     private List<UnresolvedExpression> collect;
     private UnresolvedPlan child;
 
@@ -38,10 +36,7 @@ public class FieldSummary extends UnresolvedPlan {
                 .forEach(exp -> {
             switch (((NamedExpression) exp).getExpressionId()) {
                 case NULLS:
-                    this.ignoreNull = (boolean) ((Literal) exp.getChild().get(0)).getValue();
-                    break;
-                case TOPVALUES:
-                    this.topValues = (int) ((Literal) exp.getChild().get(0)).getValue();
+                    this.includeNull = (boolean) ((Literal) exp.getChild().get(0)).getValue();
                     break;
                 case INCLUDEFIELDS:
                     this.includeFields = ((FieldList) exp.getChild().get(0)).getFieldList();

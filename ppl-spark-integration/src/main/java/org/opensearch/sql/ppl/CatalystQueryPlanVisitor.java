@@ -383,27 +383,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     @Override
-    /**
-     * 'Union false, false
-     * :- 'Aggregate ['typeof('status_code)], [status_code AS Field#20, 'COUNT('status_code) AS Count#21, 'COUNT(distinct 'status_code) AS Distinct#22, 'MIN('status_code) AS Min#23, 'MAX('status_code) AS Max#24, 'AVG(cast('status_code as double)) AS Avg#25, 'typeof('status_code) AS Type#26, scalar-subquery#28 [] AS top_values#29, ('COUNT(1) - 'COUNT('status_code)) AS Nulls#30]
-     * :  :  +- 'Project [unresolvedalias('COLLECT_LIST(struct(status_code, 'status_code, count_status, 'count_status)), None)]
-     * :  :     +- 'SubqueryAlias __auto_generated_subquery_name
-     * :  :        +- 'GlobalLimit 5
-     * :  :           +- 'LocalLimit 5
-     * :  :              +- 'Sort ['count_status DESC NULLS LAST], true
-     * :  :                 +- 'Aggregate ['status_code], ['status_code, 'COUNT(1) AS count_status#27]
-     * :  :                    +- 'UnresolvedRelation [spark_catalog, default, flint_ppl_test], [], false
-     * :  +- 'UnresolvedRelation [spark_catalog, default, flint_ppl_test], [], false
-     * +- 'Aggregate ['typeof('id)], [id AS Field#31, 'COUNT('id) AS Count#32, 'COUNT(distinct 'id) AS Distinct#33, 'MIN('id) AS Min#34, 'MAX('id) AS Max#35, 'AVG(cast('id as double)) AS Avg#36, 'typeof('id) AS Type#37, scalar-subquery#39 [] AS top_values#40, ('COUNT(1) - 'COUNT('id)) AS Nulls#41]
-     *    :  +- 'Project [unresolvedalias('COLLECT_LIST(struct(id, 'id, count_id, 'count_id)), None)]
-     *    :     +- 'SubqueryAlias __auto_generated_subquery_name
-     *    :        +- 'GlobalLimit 5
-     *    :           +- 'LocalLimit 5
-     *    :              +- 'Sort ['count_id DESC NULLS LAST], true
-     *    :                 +- 'Aggregate ['id], ['id, 'COUNT(1) AS count_id#38]
-     *    :                    +- 'UnresolvedRelation [spark_catalog, default, flint_ppl_test], [], false
-     *    +- 'UnresolvedRelation [spark_catalog, default, flint_ppl_test], [], false
-     */
     public LogicalPlan visitFieldSummary(FieldSummary fieldSummary, CatalystPlanContext context) {
         fieldSummary.getChild().get(0).accept(this, context);
         return FieldSummaryTransformer.translate(fieldSummary, context);
