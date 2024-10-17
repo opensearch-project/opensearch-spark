@@ -11,9 +11,9 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, Descending, EqualTo, LessThan, Literal, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Descending, EqualTo, GreaterThan, LessThan, Literal, Not, SortOrder}
 import org.apache.spark.sql.catalyst.plans.{Cross, FullOuter, Inner, LeftAnti, LeftOuter, LeftSemi, PlanTest, RightOuter}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Join, JoinHint, Project, Sort, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, GlobalLimit, Join, JoinHint, LocalLimit, Project, Sort, SubqueryAlias}
 
 class PPLLogicalPlanJoinTranslatorTestSuite
     extends SparkFunSuite
@@ -338,6 +338,230 @@ class PPLLogicalPlanJoinTranslatorTestSuite
         SortOrder(UnresolvedAttribute("o_count"), Descending)),
       global = true,
       agg2)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), sort)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test inner join with relation subquery") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1| JOIN left = l right = r ON l.id = r.id
+         |   [
+         |     source = $testTable2
+         |     | where id > 10 and name = 'abc'
+         |     | fields id, name
+         |     | sort id
+         |     | head 10
+         |   ]
+         | | stats count(id) as cnt by type
+         | """.stripMargin)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val leftPlan = SubqueryAlias("l", table1)
+    val rightSubquery =
+      GlobalLimit(
+        Literal(10),
+        LocalLimit(
+          Literal(10),
+          Sort(
+            Seq(SortOrder(UnresolvedAttribute("id"), Ascending)),
+            global = true,
+            Project(
+              Seq(UnresolvedAttribute("id"), UnresolvedAttribute("name")),
+              Filter(
+                And(
+                  GreaterThan(UnresolvedAttribute("id"), Literal(10)),
+                  EqualTo(UnresolvedAttribute("name"), Literal("abc"))),
+                table2)))))
+    val rightPlan = SubqueryAlias("r", rightSubquery)
+    val joinCondition = EqualTo(UnresolvedAttribute("l.id"), UnresolvedAttribute("r.id"))
+    val joinPlan = Join(leftPlan, rightPlan, Inner, Some(joinCondition), JoinHint.NONE)
+    val groupingExpression = Alias(UnresolvedAttribute("type"), "type")()
+    val aggregateExpression = Alias(
+      UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedAttribute("id")), isDistinct = false),
+      "cnt")()
+    val aggPlan =
+      Aggregate(Seq(groupingExpression), Seq(aggregateExpression, groupingExpression), joinPlan)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), aggPlan)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test left outer join with relation subquery") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1| LEFT JOIN left = l right = r ON l.id = r.id
+         |   [
+         |     source = $testTable2
+         |     | where id > 10 and name = 'abc'
+         |     | fields id, name
+         |     | sort id
+         |     | head 10
+         |   ]
+         | | stats count(id) as cnt by type
+         | """.stripMargin)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val leftPlan = SubqueryAlias("l", table1)
+    val rightSubquery =
+      GlobalLimit(
+        Literal(10),
+        LocalLimit(
+          Literal(10),
+          Sort(
+            Seq(SortOrder(UnresolvedAttribute("id"), Ascending)),
+            global = true,
+            Project(
+              Seq(UnresolvedAttribute("id"), UnresolvedAttribute("name")),
+              Filter(
+                And(
+                  GreaterThan(UnresolvedAttribute("id"), Literal(10)),
+                  EqualTo(UnresolvedAttribute("name"), Literal("abc"))),
+                table2)))))
+    val rightPlan = SubqueryAlias("r", rightSubquery)
+    val joinCondition = EqualTo(UnresolvedAttribute("l.id"), UnresolvedAttribute("r.id"))
+    val joinPlan = Join(leftPlan, rightPlan, LeftOuter, Some(joinCondition), JoinHint.NONE)
+    val groupingExpression = Alias(UnresolvedAttribute("type"), "type")()
+    val aggregateExpression = Alias(
+      UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedAttribute("id")), isDistinct = false),
+      "cnt")()
+    val aggPlan =
+      Aggregate(Seq(groupingExpression), Seq(aggregateExpression, groupingExpression), joinPlan)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), aggPlan)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test multiple joins with relation subquery") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1
+         | | head 10
+         | | inner JOIN left = l,right = r ON l.id = r.id
+         |   [
+         |     source = $testTable2
+         |     | where id > 10
+         |   ]
+         | | left JOIN left = l,right = r ON l.name = r.name
+         |   [
+         |     source = $testTable3
+         |     | fields id
+         |   ]
+         | | cross JOIN left = l,right = r
+         |   [
+         |     source = $testTable4
+         |     | sort id
+         |   ]
+         | """.stripMargin)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val table3 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test3"))
+    val table4 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test4"))
+    var leftPlan = SubqueryAlias("l", GlobalLimit(Literal(10), LocalLimit(Literal(10), table1)))
+    var rightPlan =
+      SubqueryAlias("r", Filter(GreaterThan(UnresolvedAttribute("id"), Literal(10)), table2))
+    val joinCondition1 = EqualTo(UnresolvedAttribute("l.id"), UnresolvedAttribute("r.id"))
+    val joinPlan1 = Join(leftPlan, rightPlan, Inner, Some(joinCondition1), JoinHint.NONE)
+    leftPlan = SubqueryAlias("l", joinPlan1)
+    rightPlan = SubqueryAlias("r", Project(Seq(UnresolvedAttribute("id")), table3))
+    val joinCondition2 = EqualTo(UnresolvedAttribute("l.name"), UnresolvedAttribute("r.name"))
+    val joinPlan2 = Join(leftPlan, rightPlan, LeftOuter, Some(joinCondition2), JoinHint.NONE)
+    leftPlan = SubqueryAlias("l", joinPlan2)
+    rightPlan = SubqueryAlias(
+      "r",
+      Sort(Seq(SortOrder(UnresolvedAttribute("id"), Ascending)), global = true, table4))
+    val joinPlan3 = Join(leftPlan, rightPlan, Cross, None, JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan3)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test complex join: TPC-H Q13 with relation subquery") {
+    // select
+    //    c_count,
+    //    count(*) as custdist
+    // from
+    //    (
+    //        select
+    //            c_custkey,
+    //            count(o_orderkey) as c_count
+    //        from
+    //            customer left outer join orders on
+    //                c_custkey = o_custkey
+    //                and o_comment not like '%special%requests%'
+    //        group by
+    //            c_custkey
+    //    ) as c_orders
+    // group by
+    //    c_count
+    // order by
+    //    custdist desc,
+    //    c_count desc
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | SEARCH source = [
+         |   SEARCH source = customer
+         |   | LEFT OUTER JOIN left = c right = o ON c_custkey = o_custkey
+         |     [
+         |       SEARCH source = orders
+         |       | WHERE not like(o_comment, '%special%requests%')
+         |     ]
+         |   | STATS COUNT(o_orderkey) AS c_count BY c_custkey
+         | ] AS c_orders
+         | | STATS COUNT(o_orderkey) AS c_count BY c_custkey
+         | | STATS COUNT(1) AS custdist BY c_count
+         | | SORT - custdist, - c_count
+         | """.stripMargin)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val tableC = UnresolvedRelation(Seq("customer"))
+    val tableO = UnresolvedRelation(Seq("orders"))
+    val left = SubqueryAlias("c", tableC)
+    val filterNot = Filter(
+      Not(
+        UnresolvedFunction(
+          Seq("like"),
+          Seq(UnresolvedAttribute("o_comment"), Literal("%special%requests%")),
+          isDistinct = false)),
+      tableO)
+    val right = SubqueryAlias("o", filterNot)
+    val joinCondition =
+      EqualTo(UnresolvedAttribute("o_custkey"), UnresolvedAttribute("c_custkey"))
+    val join = Join(left, right, LeftOuter, Some(joinCondition), JoinHint.NONE)
+    val groupingExpression1 = Alias(UnresolvedAttribute("c_custkey"), "c_custkey")()
+    val aggregateExpressions1 =
+      Alias(
+        UnresolvedFunction(
+          Seq("COUNT"),
+          Seq(UnresolvedAttribute("o_orderkey")),
+          isDistinct = false),
+        "c_count")()
+    val agg3 =
+      Aggregate(Seq(groupingExpression1), Seq(aggregateExpressions1, groupingExpression1), join)
+    val subqueryAlias = SubqueryAlias("c_orders", agg3)
+    val agg2 =
+      Aggregate(
+        Seq(groupingExpression1),
+        Seq(aggregateExpressions1, groupingExpression1),
+        subqueryAlias)
+    val groupingExpression2 = Alias(UnresolvedAttribute("c_count"), "c_count")()
+    val aggregateExpressions2 =
+      Alias(UnresolvedFunction(Seq("COUNT"), Seq(Literal(1)), isDistinct = false), "custdist")()
+    val agg1 =
+      Aggregate(Seq(groupingExpression2), Seq(aggregateExpressions2, groupingExpression2), agg2)
+    val sort = Sort(
+      Seq(
+        SortOrder(UnresolvedAttribute("custdist"), Descending),
+        SortOrder(UnresolvedAttribute("c_count"), Descending)),
+      global = true,
+      agg1)
     val expectedPlan = Project(Seq(UnresolvedStar(None)), sort)
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }

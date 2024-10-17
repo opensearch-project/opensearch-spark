@@ -159,18 +159,22 @@ class FlintSparkIndexMonitor(
     override def run(): Unit = {
       logInfo(s"Scheduler trigger index monitor task for $indexName")
       try {
-        if (isStreamingJobActive(indexName)) {
-          logInfo("Streaming job is still active")
-          flintMetadataLogService.recordHeartbeat(indexName)
+        val isJobActive = isStreamingJobActive(indexName)
+        val indexExists = flintClient.exists(indexName)
 
-          if (!flintClient.exists(indexName)) {
-            logWarning("Streaming job is active but data is deleted")
+        (isJobActive, indexExists) match {
+          case (true, true) =>
+            logInfo("Streaming job is active and index exists")
+            flintMetadataLogService.recordHeartbeat(indexName)
+
+          case (true, false) =>
+            logWarning("Streaming job is active but index is deleted")
             stopStreamingJobAndMonitor(indexName)
-          }
-        } else {
-          logError("Streaming job is not active. Cancelling monitor task")
-          stopMonitor(indexName)
-          logInfo("Index monitor task is cancelled")
+
+          case (false, _) =>
+            logError("Streaming job is not active. Cancelling monitor task")
+            stopMonitor(indexName)
+            logInfo("Index monitor task is cancelled")
         }
         errorCnt = 0 // Reset counter if no error
       } catch {
