@@ -156,8 +156,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     Join.JoinHint joinHint = getJoinHint(ctx.joinHintList());
     String leftAlias = ctx.sideAlias().leftAlias.getText();
     String rightAlias = ctx.sideAlias().rightAlias.getText();
-    // TODO when sub-search is supported, this part need to change. Now relation is the only supported plan for right side
-    UnresolvedPlan right = new SubqueryAlias(rightAlias, new Relation(this.internalVisitExpression(ctx.tableSource()), rightAlias));
+    if (ctx.tableOrSubqueryClause().alias != null) {
+      // left and right aliases are required in join syntax. Setting by 'AS' causes ambiguous
+      throw new SyntaxCheckException("'AS' is not allowed in right subquery, use right=<rightAlias> instead");
+    }
+    UnresolvedPlan rightRelation = visit(ctx.tableOrSubqueryClause());
+    UnresolvedPlan right = new SubqueryAlias(rightAlias, rightRelation);
     Optional<UnresolvedExpression> joinCondition =
         ctx.joinCriteria() == null ? Optional.empty() : Optional.of(expressionBuilder.visitJoinCriteria(ctx.joinCriteria()));
 
@@ -451,16 +455,22 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     return aggregation;
   }
 
-  /** From clause. */
   @Override
-  public UnresolvedPlan visitFromClause(OpenSearchPPLParser.FromClauseContext ctx) {
-    return visitTableSourceClause(ctx.tableSourceClause());
+  public UnresolvedPlan visitTableOrSubqueryClause(OpenSearchPPLParser.TableOrSubqueryClauseContext ctx) {
+      if (ctx.subSearch() != null) {
+          return ctx.alias != null
+              ? new SubqueryAlias(ctx.alias.getText(), visitSubSearch(ctx.subSearch()))
+              : visitSubSearch(ctx.subSearch());
+      } else {
+          return visitTableSourceClause(ctx.tableSourceClause());
+      }
   }
 
   @Override
   public UnresolvedPlan visitTableSourceClause(OpenSearchPPLParser.TableSourceClauseContext ctx) {
-    return new Relation(
-        ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList()));
+    return ctx.alias == null
+        ? new Relation(ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList()))
+        : new Relation(ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList()), ctx.alias.getText());
   }
 
   @Override
