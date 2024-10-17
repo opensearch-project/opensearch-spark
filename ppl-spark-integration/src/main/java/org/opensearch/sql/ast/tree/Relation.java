@@ -8,7 +8,9 @@ package org.opensearch.sql.ast.tree;
 import com.google.common.collect.ImmutableList;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.QualifiedName;
@@ -38,7 +40,7 @@ public class Relation extends UnresolvedPlan {
   }
 
   /** Optional alias name for the relation. */
-  private String alias;
+  @Setter @Getter private String alias;
 
   /**
    * Return table name.
@@ -51,15 +53,6 @@ public class Relation extends UnresolvedPlan {
 
   public List<QualifiedName> getQualifiedNames() {
     return tableName.stream().map(t -> (QualifiedName) t).collect(Collectors.toList());
-  }
-
-  /**
-   * Return alias.
-   *
-   * @return alias.
-   */
-  public String getAlias() {
-    return alias;
   }
 
   /**
