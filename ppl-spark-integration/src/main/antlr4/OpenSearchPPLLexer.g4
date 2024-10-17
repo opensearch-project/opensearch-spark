@@ -362,6 +362,7 @@ LIKE:                               'LIKE';
 ISNULL:                             'ISNULL';
 ISNOTNULL:                          'ISNOTNULL';
 ISPRESENT:                          'ISPRESENT';
+BETWEEN:                            'BETWEEN';
 
 // FLOWCONTROL FUNCTIONS
 IFNULL:                             'IFNULL';
