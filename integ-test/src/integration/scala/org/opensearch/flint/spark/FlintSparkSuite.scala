@@ -642,4 +642,30 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            | (6, 403, '/home', null)
            | """.stripMargin)
   }
+
+  protected def createNullableJsonContentTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   id INT,
+           |   jString STRING,
+           |   isValid BOOLEAN
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES (1, '{"account_number":1,"balance":39225,"age":32,"gender":"M"}', true),
+           |        (2, '{"f1":"abc","f2":{"f3":"a","f4":"b"}}', true),
+           |        (3, '[1,2,3,{"f1":1,"f2":[5,6]},4]', true),
+           |        (4, '[]', true),
+           |        (5, '{"teacher":"Alice","student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}', true),
+           |        (6, '[1,2', false),
+           |        (7, '[invalid json]', false),
+           |        (8, '{"invalid": "json"', false),
+           |        (9, 'invalid json', false),
+           |        (0, null, false)
+           | """.stripMargin)
+  }
 }
