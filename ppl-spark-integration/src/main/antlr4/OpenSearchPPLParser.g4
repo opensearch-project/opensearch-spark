@@ -654,6 +654,7 @@ dateTimeFunctionName
    | LOCALTIME
    | LOCALTIMESTAMP
    | MAKEDATE
+   | MAKE_DATE
    | MAKETIME
    | MICROSECOND
    | MINUTE
