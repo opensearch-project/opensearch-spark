@@ -158,8 +158,11 @@ public enum BuiltinFunctionName {
 
   /** Aggregation Function. */
   AVG(FunctionName.of("avg")),
+  MEAN(FunctionName.of("mean")),
+  STDDEV(FunctionName.of("stddev")),
   SUM(FunctionName.of("sum")),
   COUNT(FunctionName.of("count")),
+  COUNT_DISTINCT(FunctionName.of("count_distinct")),
   MIN(FunctionName.of("min")),
   MAX(FunctionName.of("max")),
   // sample variance

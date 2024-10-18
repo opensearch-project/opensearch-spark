@@ -28,6 +28,12 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | eval b1 = b + 1 | fields - b1,c` (Field `b1` cannot be dropped caused by SPARK-49782)
 - `source = table | eval b1 = lower(b) | fields - b1,c` (Field `b1` cannot be dropped caused by SPARK-49782)
 
+**Field-Summary**
+[See additional command details](ppl-fieldsummary-command.md)
+- `source = t | fieldsummary includefields=status_code nulls=false`
+- `source = t | fieldsummary includefields= id, status_code, request_path nulls=true`
+- `source = t | where status_code != 200 | fieldsummary includefields= status_code nulls=true`
+
 **Nested-Fields**
 - `source = catalog.schema.table1, catalog.schema.table2 | fields A.nested1, B.nested1`
 - `source = catalog.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield`

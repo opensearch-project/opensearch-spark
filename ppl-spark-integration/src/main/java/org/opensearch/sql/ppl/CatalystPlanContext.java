@@ -154,7 +154,13 @@ public class CatalystPlanContext {
         this.projectedFields.addAll(projectedFields);
         return getPlan();
     }
-
+    
+    public LogicalPlan applyBranches(List<Function<LogicalPlan, LogicalPlan>> plans) {
+        plans.forEach(plan -> with(plan.apply(planBranches.get(0))));
+        planBranches.remove(0);
+        return getPlan();
+    }    
+    
     /**
      * append plan with evolving plans branches
      *
@@ -281,4 +287,5 @@ public class CatalystPlanContext {
         // Return null if no UnresolvedRelation is found
         return Optional.empty();
     }
+
 }
