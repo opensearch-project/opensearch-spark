@@ -4,8 +4,9 @@
 
 **Description**
 
+Calculates the MD5 digest and returns the value as a 32 character hex string.
 
-Usage: `md5('hello')` calculates the Cryptographic hash value of `hello` using md5 algorithm.
+Usage: `md5('hello')`
 
 **Argument type:**
 - STRING
@@ -25,8 +26,9 @@ Example:
 
 **Description**
 
+Returns the hex string result of SHA-1
 
-Usage: `sha1('hello')` calculates the Cryptographic hash value of `hello` using sha1 algorithm.
+Usage: `sha1('hello')`
 
 **Argument type:**
 - STRING
@@ -46,12 +48,14 @@ Example:
 
 **Description**
 
+Returns the hex string result of SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, and SHA-512). The numBits indicates the desired bit length of the result, which must have a value of 224, 256, 384, 512
 
-Usage: `sha2('hello',256)` calculates the Cryptographic hash value of `hello` using sha256 algorithm.
-Usage: `sha2('hello',512)` calculates the Cryptographic hash value of `hello` using sha512 algorithm.
+Usage: `sha2('hello',256)`
+
+Usage: `sha2('hello',512)`
 
 **Argument type:**
-- STRING
+- STRING, INTEGER
 - Return type: **STRING**
 
 Example:
