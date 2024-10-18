@@ -7,6 +7,8 @@ package org.opensearch.flint.spark
 
 import java.util.Base64
 
+import scala.jdk.CollectionConverters.mapAsJavaMapConverter
+
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
@@ -14,7 +16,10 @@ import org.opensearch.action.get.GetRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.OpenSearchTransactionSuite
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState.FAILED
+import org.opensearch.flint.core.storage.FlintMetadataLogEntryOpenSearchConverter.constructLogEntry
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
+import org.opensearch.index.seqno.SequenceNumbers.{UNASSIGNED_PRIMARY_TERM, UNASSIGNED_SEQ_NO}
 import org.scalatest.matchers.should.Matchers
 
 class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
@@ -213,22 +218,109 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       s"Flint index $testFlintIndex already exists"
   }
 
-  test("should clean up metadata log entry if index data has been deleted") {
-    flint
-      .skippingIndex()
-      .onTable(testTable)
-      .addPartitions("year", "month")
-      .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testFlintIndex)
-      .create()
-    flint.refreshIndex(testFlintIndex)
+  Seq(
+    ("refresh", () => flint.refreshIndex(testFlintIndex)),
+    ("delete", () => flint.deleteIndex(testFlintIndex)),
+    ("vacuum", () => flint.vacuumIndex(testFlintIndex)),
+    ("recover", () => flint.recoverIndex(testFlintIndex))).foreach { case (opName, opAction) =>
+    test(s"should clean up metadata log entry when $opName index corrupted") {
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .create()
 
-    // Simulate the situation that user delete index data directly and then refresh exits
-    spark.streams.active.find(_.name == testFlintIndex).get.stop()
+      // Simulate user delete index data directly (move index state to deleted to assert index recreated)
+      flint.deleteIndex(testFlintIndex)
+      deleteIndex(testFlintIndex)
+
+      // Expect that next API call will clean it up
+      latestLogEntry(testLatestId) should contain("state" -> "deleted")
+      opAction()
+      latestLogEntry(testLatestId) shouldBe empty
+    }
+  }
+
+  test("should clean up metadata log entry and recreate when creating index corrupted") {
+    def createIndex(): Unit = {
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .create()
+    }
+    createIndex()
+
+    // Simulate user delete index data directly (move index state to deleted to assert index recreated)
+    flint.deleteIndex(testFlintIndex)
     deleteIndex(testFlintIndex)
 
-    // Index state is refreshing and expect recover API clean it up
-    latestLogEntry(testLatestId) should contain("state" -> "refreshing")
-    flint.recoverIndex(testFlintIndex)
-    latestLogEntry(testLatestId) shouldBe empty
+    // Expect that create action will clean it up and then recreate
+    latestLogEntry(testLatestId) should contain("state" -> "deleted")
+    createIndex()
+    latestLogEntry(testLatestId) should contain("state" -> "active")
+  }
+
+  Seq(
+    ("refresh", () => flint.refreshIndex(testFlintIndex)),
+    ("delete", () => flint.deleteIndex(testFlintIndex)),
+    ("vacuum", () => flint.vacuumIndex(testFlintIndex)),
+    ("recover", () => flint.recoverIndex(testFlintIndex))).foreach { case (opName, opAction) =>
+    test(s"should clean up metadata log entry when $opName index corrupted and auto refreshing") {
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testFlintIndex)
+        .create()
+      flint.refreshIndex(testFlintIndex)
+
+      // Simulate user delete index data directly and index monitor moves index state to failed
+      spark.streams.active.find(_.name == testFlintIndex).get.stop()
+      deleteIndex(testFlintIndex)
+      updateLatestLogEntry(
+        constructLogEntry(
+          testLatestId,
+          UNASSIGNED_SEQ_NO,
+          UNASSIGNED_PRIMARY_TERM,
+          latestLogEntry(testLatestId).asJava),
+        FAILED)
+
+      // Expect that next API call will clean it up
+      latestLogEntry(testLatestId) should contain("state" -> "failed")
+      opAction()
+      latestLogEntry(testLatestId) shouldBe empty
+    }
+  }
+
+  test(
+    "should clean up metadata log entry and recreate when creating index corrupted and auto refreshing") {
+    def createIndex(): Unit = {
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(FlintSparkIndexOptions(Map("auto_refresh" -> "true")), testFlintIndex)
+        .create()
+    }
+
+    createIndex()
+    flint.refreshIndex(testFlintIndex)
+
+    // Simulate user delete index data directly and index monitor moves index state to failed
+    spark.streams.active.find(_.name == testFlintIndex).get.stop()
+    deleteIndex(testFlintIndex)
+    updateLatestLogEntry(
+      constructLogEntry(
+        testLatestId,
+        UNASSIGNED_SEQ_NO,
+        UNASSIGNED_PRIMARY_TERM,
+        latestLogEntry(testLatestId).asJava),
+      FAILED)
+
+    // Expect that create action clean it up and then recreate
+    latestLogEntry(testLatestId) should contain("state" -> "failed")
+    createIndex()
+    latestLogEntry(testLatestId) should contain("state" -> "active")
   }
 }

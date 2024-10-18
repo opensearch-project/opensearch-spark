@@ -247,17 +247,27 @@ mlArg
 
 // clauses
 fromClause
-   : SOURCE EQUAL tableSourceClause
-   | INDEX EQUAL tableSourceClause
+   : SOURCE EQUAL tableOrSubqueryClause
+   | INDEX EQUAL tableOrSubqueryClause
    ;
 
+tableOrSubqueryClause
+   : LT_SQR_PRTHS subSearch RT_SQR_PRTHS (AS alias = qualifiedName)?
+   | tableSourceClause
+   ;
+
+// One tableSourceClause will generate one Relation node with/without one alias
+// even if the relation contains more than one table sources.
+// These table sources in one relation will be readed one by one in OpenSearch.
+// But it may have different behaivours in different execution backends.
+// For example, a Spark UnresovledRelation node only accepts one data source.
 tableSourceClause
-   : tableSource (COMMA tableSource)*
+   : tableSource (COMMA tableSource)* (AS alias = qualifiedName)?
    ;
 
 // join
 joinCommand
-   : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableSource
+   : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableOrSubqueryClause
    ;
 
 joinType
@@ -279,13 +289,13 @@ joinCriteria
    ;
 
 joinHintList
-    : hintPair (COMMA? hintPair)*
-    ;
+   : hintPair (COMMA? hintPair)*
+   ;
 
 hintPair
-    : leftHintKey = LEFT_HINT DOT ID EQUAL leftHintValue = ident             #leftHint
-    | rightHintKey = RIGHT_HINT DOT ID EQUAL rightHintValue = ident          #rightHint
-    ;
+   : leftHintKey = LEFT_HINT DOT ID EQUAL leftHintValue = ident             #leftHint
+   | rightHintKey = RIGHT_HINT DOT ID EQUAL rightHintValue = ident          #rightHint
+   ;
 
 renameClasue
    : orignalField = wcFieldExpression AS renamedField = wcFieldExpression

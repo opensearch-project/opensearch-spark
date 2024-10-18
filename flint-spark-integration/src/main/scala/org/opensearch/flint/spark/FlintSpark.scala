@@ -23,7 +23,7 @@ import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
-import org.opensearch.flint.spark.scheduler.{AsyncQuerySchedulerBuilder, FlintSparkJobSchedulingService}
+import org.opensearch.flint.spark.scheduler.{AsyncQuerySchedulerBuilder, FlintSparkJobExternalSchedulingService, FlintSparkJobInternalSchedulingService, FlintSparkJobSchedulingService}
 import org.opensearch.flint.spark.scheduler.AsyncQuerySchedulerBuilder.AsyncQuerySchedulerAction
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKindSerializer
@@ -48,7 +48,8 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         IGNORE_DOC_ID_COLUMN.optionKey -> "true").asJava)
 
   /** Flint client for low-level index operation */
-  private val flintClient: FlintClient = FlintClientBuilder.build(flintSparkConf.flintOptions())
+  override protected val flintClient: FlintClient =
+    FlintClientBuilder.build(flintSparkConf.flintOptions())
 
   private val flintIndexMetadataService: FlintIndexMetadataService = {
     FlintIndexMetadataServiceBuilder.build(flintSparkConf.flintOptions())
@@ -170,7 +171,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           }
         })
         .commit(_ => indexRefresh.start(spark, flintSparkConf))
-    }
+    }.flatten
 
   /**
    * Describe all Flint indexes whose name matches the given pattern.
@@ -225,19 +226,24 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
    */
   def updateIndex(index: FlintSparkIndex): Option[String] = {
     val indexName = index.name()
-    validateUpdateAllowed(
-      describeIndex(indexName)
-        .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
-        .options,
-      index.options)
+    val originalOptions = describeIndex(indexName)
+      .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+      .options
+    validateUpdateAllowed(originalOptions, index.options)
 
+    val isSchedulerModeChanged =
+      index.options.isExternalSchedulerEnabled() != originalOptions.isExternalSchedulerEnabled()
     withTransaction[Option[String]](indexName, "Update Flint index") { tx =>
-      // Relies on validation to forbid auto-to-auto and manual-to-manual updates
-      index.options.autoRefresh() match {
-        case true => updateIndexManualToAuto(index, tx)
-        case false => updateIndexAutoToManual(index, tx)
+      // Relies on validation to prevent:
+      // 1. auto-to-auto updates besides scheduler_mode
+      // 2. any manual-to-manual updates
+      // 3. both refresh_mode and scheduler_mode updated
+      (index.options.autoRefresh(), isSchedulerModeChanged) match {
+        case (true, true) => updateSchedulerMode(index, tx)
+        case (true, false) => updateIndexManualToAuto(index, tx)
+        case (false, false) => updateIndexAutoToManual(index, tx)
       }
-    }
+    }.flatten
   }
 
   /**
@@ -271,7 +277,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         logInfo("Flint index to be deleted doesn't exist")
         false
       }
-    }
+    }.getOrElse(false)
 
   /**
    * Delete a Flint index physically.
@@ -314,7 +320,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         logInfo("Flint index to vacuum doesn't exist")
         false
       }
-    }
+    }.getOrElse(false)
 
   /**
    * Recover index job.
@@ -325,40 +331,36 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   def recoverIndex(indexName: String): Boolean =
     withTransaction[Boolean](indexName, "Recover Flint index") { tx =>
       val index = describeIndex(indexName)
+
       if (index.exists(_.options.autoRefresh())) {
+        val updatedIndex = FlintSparkIndexFactory.createWithDefaultOptions(index.get).get
+        FlintSparkIndexRefresh
+          .create(updatedIndex.name(), updatedIndex)
+          .validate(spark)
+        val jobSchedulingService = FlintSparkJobSchedulingService.create(
+          updatedIndex,
+          spark,
+          flintAsyncQueryScheduler,
+          flintSparkConf,
+          flintIndexMonitor)
         tx
           .initialLog(latest => Set(ACTIVE, REFRESHING, FAILED).contains(latest.state))
           .transientLog(latest =>
             latest.copy(state = RECOVERING, createTime = System.currentTimeMillis()))
           .finalLog(latest => {
-            flintIndexMonitor.startMonitor(indexName)
-            latest.copy(state = REFRESHING)
+            latest.copy(state = jobSchedulingService.stateTransitions.finalStateForUpdate)
           })
           .commit(_ => {
-            FlintSparkIndexRefresh
-              .create(indexName, index.get)
-              .start(spark, flintSparkConf)
+            flintIndexMetadataService.updateIndexMetadata(indexName, updatedIndex.metadata())
+            logInfo("Update index options complete")
+            jobSchedulingService.handleJob(updatedIndex, AsyncQuerySchedulerAction.UPDATE)
             true
           })
       } else {
-        logInfo("Index to be recovered either doesn't exist or not auto refreshed")
-        if (index.isEmpty) {
-          /*
-           * If execution reaches this point, it indicates that the Flint index is corrupted.
-           * In such cases, clean up the metadata log, as the index data no longer exists.
-           * There is a very small possibility that users may recreate the index in the
-           * interim, but metadata log get deleted by this cleanup process.
-           */
-          logWarning("Cleaning up metadata log as index data has been deleted")
-          tx
-            .initialLog(_ => true)
-            .finalLog(_ => NO_LOG_ENTRY)
-            .commit(_ => { false })
-        } else {
-          false
-        }
+        logInfo("Index to be recovered is not auto refreshed")
+        false
       }
-    }
+    }.getOrElse(false)
 
   /**
    * Build data frame for querying the given index. This is mostly for unit test convenience.
@@ -430,37 +432,78 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   private def validateUpdateAllowed(
       originalOptions: FlintSparkIndexOptions,
       updatedOptions: FlintSparkIndexOptions): Unit = {
-    // auto_refresh must change
-    if (updatedOptions.autoRefresh() == originalOptions.autoRefresh()) {
-      throw new IllegalArgumentException("auto_refresh option must be updated")
+    val isAutoRefreshChanged = updatedOptions.autoRefresh() != originalOptions.autoRefresh()
+
+    val changedOptions = updatedOptions.options.filterNot { case (k, v) =>
+      originalOptions.options.get(k).contains(v)
+    }.keySet
+
+    if (changedOptions.isEmpty) {
+      throw new IllegalArgumentException("No index option updated")
     }
 
-    val refreshMode = (updatedOptions.autoRefresh(), updatedOptions.incrementalRefresh()) match {
-      case (true, false) => AUTO
-      case (false, false) => FULL
-      case (false, true) => INCREMENTAL
-    }
+    // Validate based on auto_refresh state and changes
+    (isAutoRefreshChanged, updatedOptions.autoRefresh()) match {
+      case (true, true) =>
+        // Changing from manual to auto refresh
+        if (updatedOptions.incrementalRefresh()) {
+          throw new IllegalArgumentException(
+            "Altering index to auto refresh while incremental refresh remains true")
+        }
 
-    // validate allowed options depending on refresh mode
-    val allowedOptionNames = refreshMode match {
-      case FULL => Set(AUTO_REFRESH, INCREMENTAL_REFRESH)
-      case AUTO | INCREMENTAL =>
-        Set(
+        val allowedOptions = Set(
           AUTO_REFRESH,
           INCREMENTAL_REFRESH,
           SCHEDULER_MODE,
           REFRESH_INTERVAL,
           CHECKPOINT_LOCATION,
           WATERMARK_DELAY)
-    }
+        validateChangedOptions(changedOptions, allowedOptions, s"Altering index to auto refresh")
+      case (true, false) =>
+        val allowedOptions = if (updatedOptions.incrementalRefresh()) {
+          // Changing from auto refresh to incremental refresh
+          Set(
+            AUTO_REFRESH,
+            INCREMENTAL_REFRESH,
+            REFRESH_INTERVAL,
+            CHECKPOINT_LOCATION,
+            WATERMARK_DELAY)
+        } else {
+          // Changing from auto refresh to full refresh
+          Set(AUTO_REFRESH)
+        }
+        validateChangedOptions(
+          changedOptions,
+          allowedOptions,
+          "Altering index to full/incremental refresh")
 
-    // Get the changed option names
-    val updateOptionNames = updatedOptions.options.filterNot { case (k, v) =>
-      originalOptions.options.get(k).contains(v)
-    }.keys
-    if (!updateOptionNames.forall(allowedOptionNames.map(_.toString).contains)) {
+      case (false, true) =>
+        // original refresh_mode is auto, only allow changing scheduler_mode
+        validateChangedOptions(
+          changedOptions,
+          Set(SCHEDULER_MODE),
+          "Altering index when auto_refresh remains true")
+
+      case (false, false) =>
+        // original refresh_mode is full/incremental, not allowed to change any options
+        if (changedOptions.nonEmpty) {
+          throw new IllegalArgumentException(
+            "No options can be updated when auto_refresh remains false")
+        }
+    }
+  }
+
+  private def validateChangedOptions(
+      changedOptions: Set[String],
+      allowedOptions: Set[OptionName],
+      context: String): Unit = {
+
+    val allowedOptionStrings = allowedOptions.map(_.toString)
+
+    if (!changedOptions.subsetOf(allowedOptionStrings)) {
+      val invalidOptions = changedOptions -- allowedOptionStrings
       throw new IllegalArgumentException(
-        s"Altering index to ${refreshMode} refresh only allows options: ${allowedOptionNames}")
+        s"$context only allows changing: $allowedOptions. Invalid options: $invalidOptions")
     }
   }
 
@@ -477,9 +520,12 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       flintIndexMonitor)
     tx
       .initialLog(latest =>
-        latest.state == REFRESHING && latest.entryVersion == indexLogEntry.entryVersion)
+        // Index in external scheduler mode should be in active or refreshing state
+        Set(jobSchedulingService.stateTransitions.initialStateForUnschedule).contains(
+          latest.state) && latest.entryVersion == indexLogEntry.entryVersion)
       .transientLog(latest => latest.copy(state = UPDATING))
-      .finalLog(latest => latest.copy(state = ACTIVE))
+      .finalLog(latest =>
+        latest.copy(state = jobSchedulingService.stateTransitions.finalStateForUnschedule))
       .commit(_ => {
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
         logInfo("Update index options complete")
@@ -501,18 +547,48 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       flintIndexMonitor)
     tx
       .initialLog(latest =>
-        latest.state == ACTIVE && latest.entryVersion == indexLogEntry.entryVersion)
+        latest.state == jobSchedulingService.stateTransitions.initialStateForUpdate && latest.entryVersion == indexLogEntry.entryVersion)
       .transientLog(latest =>
         latest.copy(state = UPDATING, createTime = System.currentTimeMillis()))
       .finalLog(latest => {
-        logInfo("Scheduling index state monitor")
-        flintIndexMonitor.startMonitor(indexName)
-        latest.copy(state = REFRESHING)
+        latest.copy(state = jobSchedulingService.stateTransitions.finalStateForUpdate)
       })
       .commit(_ => {
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
         logInfo("Update index options complete")
         jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.UPDATE)
+      })
+  }
+
+  private def updateSchedulerMode(
+      index: FlintSparkIndex,
+      tx: OptimisticTransaction[Option[String]]): Option[String] = {
+    val indexName = index.name
+    val indexLogEntry = index.latestLogEntry.get
+    val internalSchedulingService =
+      new FlintSparkJobInternalSchedulingService(spark, flintIndexMonitor)
+    val externalSchedulingService =
+      new FlintSparkJobExternalSchedulingService(flintAsyncQueryScheduler, flintSparkConf)
+
+    val isExternal = index.options.isExternalSchedulerEnabled()
+    val (initialState, finalState, oldService, newService) =
+      if (isExternal) {
+        (REFRESHING, ACTIVE, internalSchedulingService, externalSchedulingService)
+      } else {
+        (ACTIVE, REFRESHING, externalSchedulingService, internalSchedulingService)
+      }
+
+    tx
+      .initialLog(latest =>
+        latest.state == initialState && latest.entryVersion == indexLogEntry.entryVersion)
+      .transientLog(latest => latest.copy(state = UPDATING))
+      .finalLog(latest => latest.copy(state = finalState))
+      .commit(_ => {
+        flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
+        logInfo("Update index options complete")
+        oldService.handleJob(index, AsyncQuerySchedulerAction.UNSCHEDULE)
+        logInfo(s"Unscheduled ${if (isExternal) "internal" else "external"} jobs")
+        newService.handleJob(index, AsyncQuerySchedulerAction.UPDATE)
       })
   }
 }

@@ -7,9 +7,9 @@ package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Divide, EqualTo, Floor, LessThan, Literal, Multiply, Or, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Divide, EqualTo, Floor, GreaterThan, LessThan, Literal, Multiply, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.{Cross, Inner, LeftAnti, LeftOuter, LeftSemi, RightOuter}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, Join, JoinHint, LogicalPlan, Project, Sort, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, GlobalLimit, Join, JoinHint, LocalLimit, LogicalPlan, Project, Sort, SubqueryAlias}
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLJoinITSuite
@@ -737,5 +737,191 @@ class FlintSparkPPLJoinITSuite
     assert(frame.queryExecution.optimizedPlan.collect {
       case j @ Join(_, _, Inner, _, JoinHint.NONE) => j
     }.size == 1)
+  }
+
+  test("test inner join with relation subquery") {
+    val frame = sql(s"""
+                       | source = $testTable1
+                       | | where country = 'USA' OR country = 'England'
+                       | | inner join left=a, right=b
+                       |     ON a.name = b.name
+                       |     [
+                       |       source = $testTable2
+                       |       | where salary > 0
+                       |       | fields name, country, salary
+                       |       | sort salary
+                       |       | head 3
+                       |     ]
+                       | | stats avg(salary) by span(age, 10) as age_span, b.country
+                       | """.stripMargin)
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(70000.0, "USA", 30), Row(100000.0, "England", 70))
+
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val filterExpr = Or(
+      EqualTo(UnresolvedAttribute("country"), Literal("USA")),
+      EqualTo(UnresolvedAttribute("country"), Literal("England")))
+    val plan1 = SubqueryAlias("a", Filter(filterExpr, table1))
+    val rightSubquery =
+      GlobalLimit(
+        Literal(3),
+        LocalLimit(
+          Literal(3),
+          Sort(
+            Seq(SortOrder(UnresolvedAttribute("salary"), Ascending)),
+            global = true,
+            Project(
+              Seq(
+                UnresolvedAttribute("name"),
+                UnresolvedAttribute("country"),
+                UnresolvedAttribute("salary")),
+              Filter(GreaterThan(UnresolvedAttribute("salary"), Literal(0)), table2)))))
+    val plan2 = SubqueryAlias("b", rightSubquery)
+
+    val joinCondition = EqualTo(UnresolvedAttribute("a.name"), UnresolvedAttribute("b.name"))
+    val joinPlan = Join(plan1, plan2, Inner, Some(joinCondition), JoinHint.NONE)
+
+    val salaryField = UnresolvedAttribute("salary")
+    val countryField = UnresolvedAttribute("b.country")
+    val countryAlias = Alias(countryField, "b.country")()
+    val star = Seq(UnresolvedStar(None))
+    val aggregateExpressions =
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(salaryField), isDistinct = false), "avg(salary)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
+      "age_span")()
+    val aggregatePlan =
+      Aggregate(Seq(countryAlias, span), Seq(aggregateExpressions, countryAlias, span), joinPlan)
+
+    val expectedPlan = Project(star, aggregatePlan)
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test left outer join with relation subquery") {
+    val frame = sql(s"""
+                       | source = $testTable1
+                       | | where country = 'USA' OR country = 'England'
+                       | | left join left=a, right=b
+                       |     ON a.name = b.name
+                       |     [
+                       |       source = $testTable2
+                       |       | where salary > 0
+                       |       | fields name, country, salary
+                       |       | sort salary
+                       |       | head 3
+                       |     ]
+                       | | stats avg(salary) by span(age, 10) as age_span, b.country
+                       | """.stripMargin)
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(Row(70000.0, "USA", 30), Row(100000.0, "England", 70), Row(null, null, 40))
+
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val filterExpr = Or(
+      EqualTo(UnresolvedAttribute("country"), Literal("USA")),
+      EqualTo(UnresolvedAttribute("country"), Literal("England")))
+    val plan1 = SubqueryAlias("a", Filter(filterExpr, table1))
+    val rightSubquery =
+      GlobalLimit(
+        Literal(3),
+        LocalLimit(
+          Literal(3),
+          Sort(
+            Seq(SortOrder(UnresolvedAttribute("salary"), Ascending)),
+            global = true,
+            Project(
+              Seq(
+                UnresolvedAttribute("name"),
+                UnresolvedAttribute("country"),
+                UnresolvedAttribute("salary")),
+              Filter(GreaterThan(UnresolvedAttribute("salary"), Literal(0)), table2)))))
+    val plan2 = SubqueryAlias("b", rightSubquery)
+
+    val joinCondition = EqualTo(UnresolvedAttribute("a.name"), UnresolvedAttribute("b.name"))
+    val joinPlan = Join(plan1, plan2, LeftOuter, Some(joinCondition), JoinHint.NONE)
+
+    val salaryField = UnresolvedAttribute("salary")
+    val countryField = UnresolvedAttribute("b.country")
+    val countryAlias = Alias(countryField, "b.country")()
+    val star = Seq(UnresolvedStar(None))
+    val aggregateExpressions =
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(salaryField), isDistinct = false), "avg(salary)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
+      "age_span")()
+    val aggregatePlan =
+      Aggregate(Seq(countryAlias, span), Seq(aggregateExpressions, countryAlias, span), joinPlan)
+
+    val expectedPlan = Project(star, aggregatePlan)
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test multiple joins with relation subquery") {
+    val frame = sql(s"""
+                       | source = $testTable1
+                       | | where country = 'Canada' OR country = 'England'
+                       | | inner join left=a, right=b
+                       |     ON a.name = b.name AND a.year = 2023 AND a.month = 4 AND b.year = 2023 AND b.month = 4
+                       |     [
+                       |       source = $testTable2
+                       |     ]
+                       | | eval a_name = a.name
+                       | | eval a_country = a.country
+                       | | eval b_country = b.country
+                       | | fields a_name, age, state, a_country, occupation, b_country, salary
+                       | | left join left=a, right=b
+                       |     ON a.a_name = b.name
+                       |     [
+                       |       source = $testTable3
+                       |     ]
+                       | | eval aa_country = a.a_country
+                       | | eval ab_country = a.b_country
+                       | | eval bb_country = b.country
+                       | | fields a_name, age, state, aa_country, occupation, ab_country, salary, bb_country, hobby, language
+                       | | cross join left=a, right=b
+                       |     [
+                       |       source = $testTable2
+                       |     ]
+                       | | eval new_country = a.aa_country
+                       | | eval new_salary = b.salary
+                       | | stats avg(new_salary) as avg_salary by span(age, 5) as age_span, state
+                       | | left semi join left=a, right=b
+                       |     ON a.state = b.state
+                       |     [
+                       |       source = $testTable1
+                       |     ]
+                       | | eval new_avg_salary = floor(avg_salary)
+                       | | fields state, age_span, new_avg_salary
+                       | """.stripMargin)
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row("Quebec", 20, 83333), Row("Ontario", 25, 83333))
+
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    assert(frame.queryExecution.optimizedPlan.collect {
+      case j @ Join(_, _, Cross, None, JoinHint.NONE) => j
+    }.size == 1)
+    assert(frame.queryExecution.optimizedPlan.collect {
+      case j @ Join(_, _, LeftOuter, _, JoinHint.NONE) => j
+    }.size == 1)
+    assert(frame.queryExecution.optimizedPlan.collect {
+      case j @ Join(_, _, Inner, _, JoinHint.NONE) => j
+    }.size == 1)
+    assert(frame.queryExecution.analyzed.collect { case s: SubqueryAlias =>
+      s
+    }.size == 13)
   }
 }
