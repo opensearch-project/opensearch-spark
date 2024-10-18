@@ -92,6 +92,7 @@ public interface BuiltinFunctionTranslator {
      */
     static final Map<BuiltinFunctionName, Function<List<Expression>, UnresolvedFunction>> PPL_TO_SPARK_FUNC_MAPPING
         = ImmutableMap.<BuiltinFunctionName, Function<List<Expression>, UnresolvedFunction>>builder()
+        // json functions
         .put(
             JSON_ARRAY,
             args -> {

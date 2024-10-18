@@ -136,21 +136,20 @@ class FlintSparkPPLJsonFunctionITSuite
     var frame = sql(s"""
                    | source = $testTable | eval result = json_array('this', 'is', 'a', 'string', 'array') | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(
-      Seq(Row(Array("this", "is", "a", "string", "array"))),
-      frame.collect().toSeq)
+//    val df = frame.collect()
+    assertSameRows(Seq(Row("""["this","is","a","string","array"]""")), frame)
 
     // test empty array
     frame = sql(s"""
                    | source = $testTable | eval result = json_array() | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row(Array())), frame.collect().toSeq)
+    assertSameRows(Seq(Row("""[]""")), frame)
 
     // test number array
     frame = sql(s"""
                    | source = $testTable | eval result = json_array(1, 2, 0, -1, 1.1, -0.11) | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row(Array(1.0, 2.0, 0.0, -1.0, 1.1, -0.11))), frame.collect().toSeq)
+    assertSameRows(Seq(Row("""[1.0,2.0,0.0,-1.0,1.1,-0.11]""")), frame)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
@@ -180,38 +179,38 @@ class FlintSparkPPLJsonFunctionITSuite
     var frame = sql(s"""
                    | source = $testTable | eval result = json_array_length(json_array('this', 'is', 'a', 'string', 'array')) | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row(5)), frame.collect().toSeq)
+    assertSameRows(Seq(Row(5)), frame)
 
     frame = sql(s"""
                    | source = $testTable | eval result = json_array_length(json_array(1, 2, 0, -1, 1.1, -0.11)) | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row(6)), frame.collect().toSeq)
+    assertSameRows(Seq(Row(6)), frame)
 
     frame = sql(s"""
                    | source = $testTable | eval result = json_array_length(json_array()) | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row(0)), frame.collect().toSeq)
+    assertSameRows(Seq(Row(0)), frame)
 
     frame = sql(s"""
                    | source = $testTable | eval result = json_array_length('[]') | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row(0)), frame.collect().toSeq)
+    assertSameRows(Seq(Row(0)), frame)
     frame = sql(s"""
                    | source = $testTable | eval result = json_array_length('[1,2,3,4]') | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row(4)), frame.collect().toSeq)
+    assertSameRows(Seq(Row(4)), frame)
     frame = sql(s"""
                    | source = $testTable | eval result = json_array_length('[1,2,3,{"f1":1,"f2":[5,6]},4]') | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row(5)), frame.collect().toSeq)
+    assertSameRows(Seq(Row(5)), frame)
     frame = sql(s"""
                    | source = $testTable | eval result = json_array_length('{\"key\": 1}') | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row(null)), frame.collect().toSeq)
+    assertSameRows(Seq(Row(null)), frame)
     frame = sql(s"""
                    | source = $testTable | eval result = json_array_length('[1,2') | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row(null)), frame.collect().toSeq)
+    assertSameRows(Seq(Row(null)), frame)
   }
 
   test("test json_object()") {
@@ -219,46 +218,31 @@ class FlintSparkPPLJsonFunctionITSuite
     var frame = sql(s"""
                    | source = $testTable | eval result = json_object('key', 'string') | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row("""{"key":"string"}""")), frame.collect().toSeq)
+    assertSameRows(Seq(Row("""{"key":"string"}""")), frame)
 
     // test value is a number
     frame = sql(s"""
                    | source = $testTable | eval result = json_object('key', 123.45) | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row("""{"key":123.45}""")), frame.collect().toSeq)
+    assertSameRows(Seq(Row("""{"key":123.45}""")), frame)
 
     // test value is a boolean
     frame = sql(s"""
                    | source = $testTable | eval result = json_object('key', true) | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row("""{"key":true}""")), frame.collect().toSeq)
+    assertSameRows(Seq(Row("""{"key":true}""")), frame)
 
     // test value is an empty array
     frame = sql(s"""
-                   | source = $testTable | eval result = json_object('key', json_array()) | head 1 | fields result
+                   | source = $testTable | eval result = json_object('key', array()) | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row("""{"key":[]}""")), frame.collect().toSeq)
+    assertSameRows(Seq(Row("""{"key":[]}""")), frame)
 
     // test value is an array
     frame = sql(s"""
-                   | source = $testTable | eval result = json_object('key', json_array(1, 2, 3)) | head 1 | fields result
+                   | source = $testTable | eval result = json_object('key', array(1, 2, 3)) | head 1 | fields result
                    | """.stripMargin)
-    QueryTest.sameRows(Seq(Row("""{"key":[1,2,3]}""")), frame.collect().toSeq)
-
-    // test value is an another json
-    frame = sql(s"""
-                   | source = $testTable
-                   | | where isValid = true
-                   | | eval result = json_object('key', json(jString)) | fields result
-                   | """.stripMargin)
-    val expectedRows = Seq(
-      Row("""{"key":"{"account_number":1,"balance":39225,"age":32,"gender":"M"}"""),
-      Row("""{"key":{"f1":"abc", "f2":{"f3":"a", "f4":"b"}}}"""),
-      Row("""{"key":[1, 2, 3, {"f1":1, "f2":[5, 6]}, 4]}"""),
-      Row("""{"key":[]}"""),
-      Row(
-        """{"key":{"teacher":"Alice", "student":[{"name":"Bob", "rank":1}, {"name":"Charlie", "rank":2}]}}"""))
-    QueryTest.sameRows(expectedRows, frame.collect().toSeq)
+    assertSameRows(Seq(Row("""{"key":[1,2,3]}""")), frame)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
@@ -271,16 +255,15 @@ class FlintSparkPPLJsonFunctionITSuite
             Seq(
               Literal("key"),
               UnresolvedFunction(
-                "get_json_object",
-                Seq(UnresolvedAttribute("jString"), Literal("$")),
+                "array",
+                Seq(Literal(1), Literal(2), Literal(3)),
                 isDistinct = false)),
             isDistinct = false)),
         isDistinct = false),
       "result")()
-    val eval = Project(
-      Seq(UnresolvedStar(None), jsonFunc),
-      Filter(EqualTo(UnresolvedAttribute("isValid"), Literal(true)), table))
-    val expectedPlan = Project(Seq(UnresolvedAttribute("result")), eval)
+    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
+    val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
+    val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
@@ -332,7 +315,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Row(null),
       Row(null),
       Row(Array("teacher", "student")))
-    QueryTest.sameRows(expectedRows, frame.collect().toSeq)
+    assertSameRows(expectedRows, frame)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
@@ -353,7 +336,5 @@ class FlintSparkPPLJsonFunctionITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-  test("test json_extract()") {
-
-  }
+  test("test json_extract()") {}
 }

@@ -509,6 +509,7 @@ evalFunctionName
    | positionFunctionName
    | coalesceFunctionName
    | jsonFunctionName
+   | collectionFunctionName
    ;
 
 functionArgs
@@ -802,6 +803,10 @@ jsonFunctionName
 //   | JSON_ARRAY_FILTER
 //   | JSON_ARRAY_MAP
 //   | JSON_ARRAY_REDUCE
+   ;
+
+collectionFunctionName
+   : ARRAY
    ;
 
 positionFunctionName

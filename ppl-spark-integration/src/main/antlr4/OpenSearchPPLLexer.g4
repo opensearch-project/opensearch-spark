@@ -375,6 +375,9 @@ JSON_VALID:                         'JSON_VALID';
 //JSON_ARRAY_MAP:                     'JSON_ARRAY_MAP';
 //JSON_ARRAY_REDUCE:                  'JSON_ARRAY_REDUCE';
 
+// COLLECTION FUNCTIONS
+ARRAY:                              'ARRAY';
+
 // BOOL FUNCTIONS
 LIKE:                               'LIKE';
 ISNULL:                             'ISNULL';

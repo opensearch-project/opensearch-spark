@@ -217,6 +217,9 @@ public enum BuiltinFunctionName {
 //  JSON_ARRAY_MAP(FunctionName.of("json_array_map")),
 //  JSON_ARRAY_REDUCE(FunctionName.of("json_array_reduce")),
 
+  /** COLLECTION Functions **/
+  ARRAY(FunctionName.of("array")),
+
   /** NULL Test. */
   IS_NULL(FunctionName.of("is null")),
   IS_NOT_NULL(FunctionName.of("is not null")),
