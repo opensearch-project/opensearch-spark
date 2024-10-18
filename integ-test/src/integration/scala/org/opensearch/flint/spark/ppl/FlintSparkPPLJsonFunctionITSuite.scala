@@ -336,5 +336,31 @@ class FlintSparkPPLJsonFunctionITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-  test("test json_extract()") {}
+  test("test json_extract()") {
+    val frame = sql("""
+                      | source = spark_catalog.default.flint_ppl_test | where id = 5
+                      | | eval root = json_extract(jString, '$')
+                      | | eval teacher = json_extract(jString, '$.teacher')
+                      | | eval students = json_extract(jString, '$.student')
+                      | | eval students_* = json_extract(jString, '$.student[*]')
+                      | | eval student_0 = json_extract(jString, '$.student[0]')
+                      | | eval student_names = json_extract(jString, '$.student[*].name')
+                      | | eval student_1_name = json_extract(jString, '$.student[1].name')
+                      | | eval student_non_exist_key = json_extract(jString, '$.student[0].non_exist_key')
+                      | | eval student_non_exist = json_extract(jString, '$.student[10]')
+                      | | fields root, teacher, students, students_*, student_0, student_names, student_1_name, student_non_exist_key, student_non_exist
+                      | """.stripMargin)
+    val expectedSeq = Seq(
+      Row(
+        """{"teacher":"Alice","student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}""",
+        "Alice",
+        """[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]""",
+        """[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]""",
+        """{"name":"Bob","rank":1}""",
+        """["Bob","Charlie"]""",
+        "Charlie",
+        null,
+        null))
+    assertSameRows(expectedSeq, frame)
+  }
 }

@@ -122,13 +122,29 @@ A STRING expression of a valid JSON object format.
 
 Example:
 
-    os> source=people | eval `json_extract('{"a":"b"}', 'a')` = json_extract('{"a":"b"}', 'a')
+    os> source=people | eval `json_extract('{"a":"b"}', '$.a')` = json_extract('{"a":"b"}', '$a')
     fetched rows / total rows = 1/1
     +----------------------------------+
     | json_extract('{"a":"b"}', 'a')   |
     +----------------------------------+
     | b                                |
     +----------------------------------+
+
+    os> source=people | eval `json_extract('{"a":[{"b":1},{"b":2}]}', '$.a[1].b')` = json_extract('{"a":[{"b":1},{"b":2}]}', '$.a[1].b')
+    fetched rows / total rows = 1/1
+    +-----------------------------------------------------------+
+    | json_extract('{"a":[{"b":1.0},{"b":2.0}]}', '$.a[1].b')   |
+    +-----------------------------------------------------------+
+    | 2.0                                                       |
+    +-----------------------------------------------------------+
+
+    os> source=people | eval `json_extract('{"a":[{"b":1},{"b":2}]}', '$.a[*].b')` = json_extract('{"a":[{"b":1},{"b":2}]}', '$.a[*].b')
+    fetched rows / total rows = 1/1
+    +-----------------------------------------------------------+
+    | json_extract('{"a":[{"b":1.0},{"b":2.0}]}', '$.a[*].b')   |
+    +-----------------------------------------------------------+
+    | [1.0,2.0]                                                 |
+    +-----------------------------------------------------------+
 
     os> source=people | eval `invalid_json` = json_extract('{"invalid": "json"')
     fetched rows / total rows = 1/1
