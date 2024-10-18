@@ -434,8 +434,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
         }
         Expression field = visitExpression(flatten.getFieldToBeFlattened(), context);
+        context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
         FlattenGenerator explode = new FlattenGenerator(field);
-        return context.apply(p -> new Generate(new GeneratorOuter(explode), seq(), true, (Option) None$.MODULE$, seq(),p));
+        context.apply(p -> new Generate(new GeneratorOuter(explode), seq(), true, (Option) None$.MODULE$, seq(), p));
+        return context.apply(logicalPlan -> DataFrameDropColumns$.MODULE$.apply(seq(field), logicalPlan));
     }
 
     private void visitFieldList(List<Field> fieldList, CatalystPlanContext context) {
