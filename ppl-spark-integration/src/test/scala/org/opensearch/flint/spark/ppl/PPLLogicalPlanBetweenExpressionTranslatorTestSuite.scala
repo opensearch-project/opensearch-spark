@@ -31,7 +31,7 @@ class PPLLogicalPlanBetweenExpressionTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          "source = table | where datetime_field >= '2024-09-10' and datetime_field <= '2024-09-15'"),
+          "source = table | where datetime_field between '2024-09-10' and  '2024-09-15'"),
         context)
     }
     // SQL: SELECT * FROM table WHERE datetime_field BETWEEN '2024-09-10' AND '2024-09-15'
