@@ -54,6 +54,12 @@ class PPLLogicalPlanFieldSummaryTranslatorTestSuite
         UnresolvedFunction("AVG", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
         "AVG")(),
       Alias(
+        UnresolvedFunction("MEAN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "MEAN")(),
+      Alias(
+        UnresolvedFunction("STDDEV", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "STDDEV")(),
+      Alias(
         Subtract(
           UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
           UnresolvedFunction(
@@ -112,6 +118,26 @@ class PPLLogicalPlanFieldSummaryTranslatorTestSuite
               isDistinct = false)),
           isDistinct = false),
         "AVG")(),
+      Alias(
+        UnresolvedFunction(
+          "MEAN",
+          Seq(
+            UnresolvedFunction(
+              "COALESCE",
+              Seq(UnresolvedAttribute("status_code"), Literal(0)),
+              isDistinct = false)),
+          isDistinct = false),
+        "MEAN")(),
+      Alias(
+        UnresolvedFunction(
+          "STDDEV",
+          Seq(
+            UnresolvedFunction(
+              "COALESCE",
+              Seq(UnresolvedAttribute("status_code"), Literal(0)),
+              isDistinct = false)),
+          isDistinct = false),
+        "STDDEV")(),
       Alias(
         Subtract(
           UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
@@ -175,6 +201,26 @@ class PPLLogicalPlanFieldSummaryTranslatorTestSuite
           isDistinct = false),
         "AVG")(),
       Alias(
+        UnresolvedFunction(
+          "MEAN",
+          Seq(
+            UnresolvedFunction(
+              "COALESCE",
+              Seq(UnresolvedAttribute("status_code"), Literal(0)),
+              isDistinct = false)),
+          isDistinct = false),
+        "MEAN")(),
+      Alias(
+        UnresolvedFunction(
+          "STDDEV",
+          Seq(
+            UnresolvedFunction(
+              "COALESCE",
+              Seq(UnresolvedAttribute("status_code"), Literal(0)),
+              isDistinct = false)),
+          isDistinct = false),
+        "STDDEV")(),
+      Alias(
         Subtract(
           UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
           UnresolvedFunction(
@@ -231,6 +277,12 @@ class PPLLogicalPlanFieldSummaryTranslatorTestSuite
       Alias(
         UnresolvedFunction("AVG", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
         "AVG")(),
+      Alias(
+        UnresolvedFunction("MEAN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "MEAN")(),
+      Alias(
+        UnresolvedFunction("STDDEV", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "STDDEV")(),
       Alias(
         Subtract(
           UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
@@ -302,6 +354,26 @@ class PPLLogicalPlanFieldSummaryTranslatorTestSuite
             isDistinct = false),
           "AVG")(),
         Alias(
+          UnresolvedFunction(
+            "MEAN",
+            Seq(
+              UnresolvedFunction(
+                "COALESCE",
+                Seq(UnresolvedAttribute("id"), Literal(0)),
+                isDistinct = false)),
+            isDistinct = false),
+          "MEAN")(),
+        Alias(
+          UnresolvedFunction(
+            "STDDEV",
+            Seq(
+              UnresolvedFunction(
+                "COALESCE",
+                Seq(UnresolvedAttribute("id"), Literal(0)),
+                isDistinct = false)),
+            isDistinct = false),
+          "STDDEV")(),
+        Alias(
           Subtract(
             UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
             UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("id")), isDistinct = false)),
@@ -345,6 +417,26 @@ class PPLLogicalPlanFieldSummaryTranslatorTestSuite
                 isDistinct = false)),
             isDistinct = false),
           "AVG")(),
+        Alias(
+          UnresolvedFunction(
+            "MEAN",
+            Seq(
+              UnresolvedFunction(
+                "COALESCE",
+                Seq(UnresolvedAttribute("status_code"), Literal(0)),
+                isDistinct = false)),
+            isDistinct = false),
+          "MEAN")(),
+        Alias(
+          UnresolvedFunction(
+            "STDDEV",
+            Seq(
+              UnresolvedFunction(
+                "COALESCE",
+                Seq(UnresolvedAttribute("status_code"), Literal(0)),
+                isDistinct = false)),
+            isDistinct = false),
+          "STDDEV")(),
         Alias(
           Subtract(
             UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
@@ -401,6 +493,26 @@ class PPLLogicalPlanFieldSummaryTranslatorTestSuite
                 isDistinct = false)),
             isDistinct = false),
           "AVG")(),
+        Alias(
+          UnresolvedFunction(
+            "MEAN",
+            Seq(
+              UnresolvedFunction(
+                "COALESCE",
+                Seq(UnresolvedAttribute("request_path"), Literal(0)),
+                isDistinct = false)),
+            isDistinct = false),
+          "MEAN")(),
+        Alias(
+          UnresolvedFunction(
+            "STDDEV",
+            Seq(
+              UnresolvedFunction(
+                "COALESCE",
+                Seq(UnresolvedAttribute("request_path"), Literal(0)),
+                isDistinct = false)),
+            isDistinct = false),
+          "STDDEV")(),
         Alias(
           Subtract(
             UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
@@ -461,6 +573,12 @@ class PPLLogicalPlanFieldSummaryTranslatorTestSuite
           UnresolvedFunction("AVG", Seq(UnresolvedAttribute("id")), isDistinct = false),
           "AVG")(),
         Alias(
+          UnresolvedFunction("MEAN", Seq(UnresolvedAttribute("id")), isDistinct = false),
+          "MEAN")(),
+        Alias(
+          UnresolvedFunction("STDDEV", Seq(UnresolvedAttribute("id")), isDistinct = false),
+          "STDDEV")(),
+        Alias(
           Subtract(
             UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
             UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("id")), isDistinct = false)),
@@ -497,6 +615,15 @@ class PPLLogicalPlanFieldSummaryTranslatorTestSuite
         Alias(
           UnresolvedFunction("AVG", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
           "AVG")(),
+        Alias(
+          UnresolvedFunction("MEAN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+          "MEAN")(),
+        Alias(
+          UnresolvedFunction(
+            "STDDEV",
+            Seq(UnresolvedAttribute("status_code")),
+            isDistinct = false),
+          "STDDEV")(),
         Alias(
           Subtract(
             UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
@@ -546,6 +673,18 @@ class PPLLogicalPlanFieldSummaryTranslatorTestSuite
         Alias(
           UnresolvedFunction("AVG", Seq(UnresolvedAttribute("request_path")), isDistinct = false),
           "AVG")(),
+        Alias(
+          UnresolvedFunction(
+            "MEAN",
+            Seq(UnresolvedAttribute("request_path")),
+            isDistinct = false),
+          "MEAN")(),
+        Alias(
+          UnresolvedFunction(
+            "STDDEV",
+            Seq(UnresolvedAttribute("request_path")),
+            isDistinct = false),
+          "STDDEV")(),
         Alias(
           Subtract(
             UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),

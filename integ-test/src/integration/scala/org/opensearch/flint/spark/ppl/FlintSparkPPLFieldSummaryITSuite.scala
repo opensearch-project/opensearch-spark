@@ -42,7 +42,7 @@ class FlintSparkPPLFieldSummaryITSuite
                        | """.stripMargin)
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
-      Array(Row("status_code", 4, 3, 200, 403, 184.0, 2, "int"))
+      Array(Row("status_code", 4, 3, 200, 403, 184.0, 184.0, 161.16699413961905, 2, "int"))
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
 
@@ -73,6 +73,26 @@ class FlintSparkPPLFieldSummaryITSuite
               isDistinct = false)),
           isDistinct = false),
         "AVG")(),
+      Alias(
+        UnresolvedFunction(
+          "MEAN",
+          Seq(
+            UnresolvedFunction(
+              "COALESCE",
+              Seq(UnresolvedAttribute("status_code"), Literal(0)),
+              isDistinct = false)),
+          isDistinct = false),
+        "MEAN")(),
+      Alias(
+        UnresolvedFunction(
+          "STDDEV",
+          Seq(
+            UnresolvedFunction(
+              "COALESCE",
+              Seq(UnresolvedAttribute("status_code"), Literal(0)),
+              isDistinct = false)),
+          isDistinct = false),
+        "STDDEV")(),
       Alias(
         Subtract(
           UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
@@ -106,7 +126,7 @@ class FlintSparkPPLFieldSummaryITSuite
                        | """.stripMargin)
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
-      Array(Row("status_code", 4, 3, 200, 403, 276.0, 2, "int"))
+      Array(Row("status_code", 4, 3, 200, 403, 276.0, 276.0, 97.1356439899038, 2, "int"))
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
 
@@ -130,6 +150,12 @@ class FlintSparkPPLFieldSummaryITSuite
       Alias(
         UnresolvedFunction("AVG", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
         "AVG")(),
+      Alias(
+        UnresolvedFunction("MEAN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "MEAN")(),
+      Alias(
+        UnresolvedFunction("STDDEV", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "STDDEV")(),
       Alias(
         Subtract(
           UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
@@ -164,7 +190,7 @@ class FlintSparkPPLFieldSummaryITSuite
                        | """.stripMargin)
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
-      Array(Row("status_code", 2, 2, 301, 403, 352.0, 0, "int"))
+      Array(Row("status_code", 2, 2, 301, 403, 352.0, 352.0, 72.12489168102785, 0, "int"))
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
 
@@ -195,6 +221,26 @@ class FlintSparkPPLFieldSummaryITSuite
               isDistinct = false)),
           isDistinct = false),
         "AVG")(),
+      Alias(
+        UnresolvedFunction(
+          "MEAN",
+          Seq(
+            UnresolvedFunction(
+              "COALESCE",
+              Seq(UnresolvedAttribute("status_code"), Literal(0)),
+              isDistinct = false)),
+          isDistinct = false),
+        "MEAN")(),
+      Alias(
+        UnresolvedFunction(
+          "STDDEV",
+          Seq(
+            UnresolvedFunction(
+              "COALESCE",
+              Seq(UnresolvedAttribute("status_code"), Literal(0)),
+              isDistinct = false)),
+          isDistinct = false),
+        "STDDEV")(),
       Alias(
         Subtract(
           UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
@@ -230,7 +276,7 @@ class FlintSparkPPLFieldSummaryITSuite
                        | """.stripMargin)
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
-      Array(Row("status_code", 2, 2, 301, 403, 352.0, 0, "int"))
+      Array(Row("status_code", 2, 2, 301, 403, 352.0, 352.0, 72.12489168102785, 0, "int"))
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
 
@@ -254,6 +300,12 @@ class FlintSparkPPLFieldSummaryITSuite
       Alias(
         UnresolvedFunction("AVG", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
         "AVG")(),
+      Alias(
+        UnresolvedFunction("MEAN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "MEAN")(),
+      Alias(
+        UnresolvedFunction("STDDEV", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+        "STDDEV")(),
       Alias(
         Subtract(
           UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
@@ -291,9 +343,9 @@ class FlintSparkPPLFieldSummaryITSuite
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
       Array(
-        Row("id", 6L, 6L, "1", "6", 3.5, 0, "int"),
-        Row("status_code", 4L, 3L, "200", "403", 184.0, 2, "int"),
-        Row("request_path", 4L, 3L, "/about", "/home", 0.0, 2, "string"))
+        Row("id", 6L, 6L, "1", "6", 3.5, 3.5, 1.8708286933869707, 0, "int"),
+        Row("status_code", 4L, 3L, "200", "403", 184.0, 184.0, 161.16699413961905, 2, "int"),
+        Row("request_path", 4L, 3L, "/about", "/home", 0.0, 0.0, 0.0, 2, "string"))
 
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
@@ -332,6 +384,26 @@ class FlintSparkPPLFieldSummaryITSuite
                 isDistinct = false)),
             isDistinct = false),
           "AVG")(),
+        Alias(
+          UnresolvedFunction(
+            "MEAN",
+            Seq(
+              UnresolvedFunction(
+                "COALESCE",
+                Seq(UnresolvedAttribute("id"), Literal(0)),
+                isDistinct = false)),
+            isDistinct = false),
+          "MEAN")(),
+        Alias(
+          UnresolvedFunction(
+            "STDDEV",
+            Seq(
+              UnresolvedFunction(
+                "COALESCE",
+                Seq(UnresolvedAttribute("id"), Literal(0)),
+                isDistinct = false)),
+            isDistinct = false),
+          "STDDEV")(),
         Alias(
           Subtract(
             UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
@@ -376,6 +448,26 @@ class FlintSparkPPLFieldSummaryITSuite
                 isDistinct = false)),
             isDistinct = false),
           "AVG")(),
+        Alias(
+          UnresolvedFunction(
+            "MEAN",
+            Seq(
+              UnresolvedFunction(
+                "COALESCE",
+                Seq(UnresolvedAttribute("status_code"), Literal(0)),
+                isDistinct = false)),
+            isDistinct = false),
+          "MEAN")(),
+        Alias(
+          UnresolvedFunction(
+            "STDDEV",
+            Seq(
+              UnresolvedFunction(
+                "COALESCE",
+                Seq(UnresolvedAttribute("status_code"), Literal(0)),
+                isDistinct = false)),
+            isDistinct = false),
+          "STDDEV")(),
         Alias(
           Subtract(
             UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
@@ -434,6 +526,26 @@ class FlintSparkPPLFieldSummaryITSuite
             isDistinct = false),
           "AVG")(),
         Alias(
+          UnresolvedFunction(
+            "MEAN",
+            Seq(
+              UnresolvedFunction(
+                "COALESCE",
+                Seq(UnresolvedAttribute("request_path"), Literal(0)),
+                isDistinct = false)),
+            isDistinct = false),
+          "MEAN")(),
+        Alias(
+          UnresolvedFunction(
+            "STDDEV",
+            Seq(
+              UnresolvedFunction(
+                "COALESCE",
+                Seq(UnresolvedAttribute("request_path"), Literal(0)),
+                isDistinct = false)),
+            isDistinct = false),
+          "STDDEV")(),
+        Alias(
           Subtract(
             UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
             UnresolvedFunction(
@@ -465,9 +577,9 @@ class FlintSparkPPLFieldSummaryITSuite
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
       Array(
-        Row("id", 6L, 6L, "1", "6", 3.5, 0, "int"),
-        Row("status_code", 4L, 3L, "200", "403", 276.0, 2, "int"),
-        Row("request_path", 4L, 3L, "/about", "/home", null, 2, "string"))
+        Row("id", 6L, 6L, "1", "6", 3.5, 3.5, 1.8708286933869707, 0, "int"),
+        Row("status_code", 4L, 3L, "200", "403", 276.0, 276.0, 97.1356439899038, 2, "int"),
+        Row("request_path", 4L, 3L, "/about", "/home", null, null, null, 2, "string"))
 
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
@@ -499,6 +611,12 @@ class FlintSparkPPLFieldSummaryITSuite
         Alias(
           UnresolvedFunction("AVG", Seq(UnresolvedAttribute("id")), isDistinct = false),
           "AVG")(),
+        Alias(
+          UnresolvedFunction("MEAN", Seq(UnresolvedAttribute("id")), isDistinct = false),
+          "MEAN")(),
+        Alias(
+          UnresolvedFunction("STDDEV", Seq(UnresolvedAttribute("id")), isDistinct = false),
+          "STDDEV")(),
         Alias(
           Subtract(
             UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
@@ -536,6 +654,15 @@ class FlintSparkPPLFieldSummaryITSuite
         Alias(
           UnresolvedFunction("AVG", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
           "AVG")(),
+        Alias(
+          UnresolvedFunction("MEAN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
+          "MEAN")(),
+        Alias(
+          UnresolvedFunction(
+            "STDDEV",
+            Seq(UnresolvedAttribute("status_code")),
+            isDistinct = false),
+          "STDDEV")(),
         Alias(
           Subtract(
             UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
@@ -586,6 +713,18 @@ class FlintSparkPPLFieldSummaryITSuite
         Alias(
           UnresolvedFunction("AVG", Seq(UnresolvedAttribute("request_path")), isDistinct = false),
           "AVG")(),
+        Alias(
+          UnresolvedFunction(
+            "MEAN",
+            Seq(UnresolvedAttribute("request_path")),
+            isDistinct = false),
+          "MEAN")(),
+        Alias(
+          UnresolvedFunction(
+            "STDDEV",
+            Seq(UnresolvedAttribute("request_path")),
+            isDistinct = false),
+          "STDDEV")(),
         Alias(
           Subtract(
             UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),

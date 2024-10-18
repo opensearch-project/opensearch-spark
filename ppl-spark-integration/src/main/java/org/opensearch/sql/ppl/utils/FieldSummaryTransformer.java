@@ -29,6 +29,7 @@ import org.apache.spark.sql.catalyst.plans.logical.Sort;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias;
 import org.apache.spark.sql.types.DataTypes;
 import org.opensearch.sql.ast.tree.FieldSummary;
+import org.opensearch.sql.expression.function.BuiltinFunctionName;
 import org.opensearch.sql.ppl.CatalystPlanContext;
 
 import java.util.ArrayList;
@@ -43,7 +44,9 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.AVG;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.COUNT;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.COUNT_DISTINCT;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MAX;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.MEAN;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MIN;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.STDDEV;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.TYPEOF;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static scala.Option.empty;
@@ -55,14 +58,7 @@ public interface FieldSummaryTransformer {
     String FIELD = "Field";
 
     /**
-     * translate the field summary into the following query:
-     * source = spark_catalog.default.flint_ppl_test | fieldsummary includefields= id, status_code nulls=true
-     * -----------------------------------------------------
-     * 'Union false, false
-     * :- 'Aggregate ['typeof('status_code)], [status_code AS Field#20, 'COUNT('status_code) AS Count#21, 'COUNT(distinct 'status_code) AS Distinct#22, 'MIN('status_code) AS Min#23, 'MAX('status_code) AS Max#24, 'AVG(cast('status_code as double)) AS Avg#25, 'typeof('status_code) AS Type#26, scalar-subquery#28 [] AS top_values#29, ('COUNT(1) - 'COUNT('status_code)) AS Nulls#30]
-      * :  +- 'UnresolvedRelation [spark_catalog, default, flint_ppl_test], [], false
-     * +- 'Aggregate ['typeof('id)], [id AS Field#31, 'COUNT('id) AS Count#32, 'COUNT(distinct 'id) AS Distinct#33, 'MIN('id) AS Min#34, 'MAX('id) AS Max#35, 'AVG(cast('id as double)) AS Avg#36, 'typeof('id) AS Type#37, scalar-subquery#39 [] AS top_values#40, ('COUNT(1) - 'COUNT('id)) AS Nulls#41]
-     *    +- 'UnresolvedRelation [spark_catalog, default, flint_ppl_test], [], false
+     * translate the command into the aggregate statement group by the column name 
      */
     static LogicalPlan translate(FieldSummary fieldSummary, CatalystPlanContext context) {
         List<Function<LogicalPlan, LogicalPlan>> aggBranches = fieldSummary.getIncludeFields().stream().map(field -> {
@@ -115,7 +111,13 @@ public interface FieldSummaryTransformer {
                     seq());
 
             //Alias for the AVG(field) as Avg
-            Alias avgAlias = getAvgAlias(fieldSummary, fieldLiteral);
+            Alias avgAlias = getAggMethodAlias(AVG, fieldSummary, fieldLiteral);
+
+            //Alias for the MEAN(field) as Mean
+            Alias meanAlias = getAggMethodAlias(MEAN, fieldSummary, fieldLiteral);
+
+            //Alias for the STDDEV(field) as Stddev
+            Alias stddevAlias = getAggMethodAlias(STDDEV, fieldSummary, fieldLiteral);
 
             // Alias COUNT(*) - COUNT(column2) AS Nulls
             UnresolvedFunction countStar = new UnresolvedFunction(seq(COUNT.name()), seq(Literal.create(1, IntegerType)), false, empty(), false);
@@ -139,19 +141,19 @@ public interface FieldSummaryTransformer {
 
             //Aggregation 
             return (Function<LogicalPlan, LogicalPlan>) p ->
-                        new Aggregate(seq(typeOfAlias), seq(fieldNameAlias, countAlias, distinctCountAlias, minAlias, maxAlias, avgAlias, nonNullAlias, typeOfAlias), p);
+                        new Aggregate(seq(typeOfAlias), seq(fieldNameAlias, countAlias, distinctCountAlias, minAlias, maxAlias, avgAlias, meanAlias, stddevAlias, nonNullAlias, typeOfAlias), p);
                     }).collect(Collectors.toList());
 
         return context.applyBranches(aggBranches);
     }
 
     /**
-     * Alias for Avg (if isIncludeNull use COALESCE to replace nulls with zeros)
+     * Alias for aggregate function (if isIncludeNull use COALESCE to replace nulls with zeros)
      */
-    private static Alias getAvgAlias(FieldSummary fieldSummary, UnresolvedAttribute fieldLiteral) {
-        UnresolvedFunction avg = new UnresolvedFunction(seq(AVG.name()), seq(fieldLiteral), false, empty(), false);
+    private static Alias getAggMethodAlias(BuiltinFunctionName method, FieldSummary fieldSummary, UnresolvedAttribute fieldLiteral) {
+        UnresolvedFunction avg = new UnresolvedFunction(seq(method.name()), seq(fieldLiteral), false, empty(), false);
         Alias avgAlias = Alias$.MODULE$.apply(avg,
-                AVG.name(),
+                method.name(),
                 NamedExpression.newExprId(),
                 seq(),
                 empty(),
@@ -165,9 +167,9 @@ public interface FieldSummaryTransformer {
                     empty(),
                     false
             );
-            avg = new UnresolvedFunction(seq(AVG.name()), seq(coalesceExpr), false, empty(), false);
+            avg = new UnresolvedFunction(seq(method.name()), seq(coalesceExpr), false, empty(), false);
             avgAlias = Alias$.MODULE$.apply(avg,
-                    AVG.name(),
+                    method.name(),
                     NamedExpression.newExprId(),
                     seq(),
                     empty(),

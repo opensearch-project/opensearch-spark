@@ -41,12 +41,16 @@ public interface AggregatorTranslator {
                 return new UnresolvedFunction(seq("MAX"), seq(arg), distinct, empty(),false);
             case MIN:
                 return new UnresolvedFunction(seq("MIN"), seq(arg), distinct, empty(),false);
+            case MEAN:
+                return new UnresolvedFunction(seq("MEAN"), seq(arg), distinct, empty(),false);
             case AVG:
                 return new UnresolvedFunction(seq("AVG"), seq(arg), distinct, empty(),false);
             case COUNT:
                 return new UnresolvedFunction(seq("COUNT"), seq(arg), distinct, empty(),false);
             case SUM:
                 return new UnresolvedFunction(seq("SUM"), seq(arg), distinct, empty(),false);
+            case STDDEV:
+                return new UnresolvedFunction(seq("STDDEV"), seq(arg), distinct, empty(),false);
             case STDDEV_POP:
                 return new UnresolvedFunction(seq("STDDEV_POP"), seq(arg), distinct, empty(),false);
             case STDDEV_SAMP:
