@@ -23,6 +23,7 @@ SORT:                               'SORT';
 EVAL:                               'EVAL';
 HEAD:                               'HEAD';
 TOP:                                'TOP';
+TABLESAMPLE:                        'TABLESAMPLE';
 RARE:                               'RARE';
 PARSE:                              'PARSE';
 METHOD:                             'METHOD';
@@ -67,7 +68,10 @@ SIMPLE:                             'SIMPLE';
 
 // COMMAND ASSIST KEYWORDS
 AS:                                 'AS';
+OF:                                 'OF';
 BY:                                 'BY';
+BUCKET:                             'BUCKET';
+ROWS:                               'ROWS';
 SOURCE:                             'SOURCE';
 INDEX:                              'INDEX';
 D:                                  'D';
@@ -76,6 +80,7 @@ DATASOURCES:                        'DATASOURCES';
 VALUE:                              'VALUE';
 USING:                              'USING';
 WITH:                               'WITH';
+PERCENT:                            'PERCENT';
 
 // CLAUSE KEYWORDS
 SORTBY:                             'SORTBY';

@@ -134,14 +134,18 @@ headCommand
    : HEAD (number = integerLiteral)? (FROM from = integerLiteral)?
    ;
 
+tablesampleClause
+   : TABLESAMPLE '(' (percentage = integerLiteral PERCENT | rowCount = integerLiteral ROWS | BUCKET bucketValue = integerLiteral OF totalBuckets = integerLiteral) ')'
+   ;
+
 topCommand
-   : TOP (number = integerLiteral)? fieldList (byClause)?
+   : TOP (number=integerLiteral)? fieldList (byClause)? (tablesampleClause)?
    ;
 
 rareCommand
-   : RARE fieldList (byClause)?
+   : RARE fieldList (byClause)? (tablesampleClause)?
    ;
-
+   
 grokCommand
    : GROK (source_field = expression) (pattern = stringLiteral)
    ;
