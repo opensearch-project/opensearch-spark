@@ -8,6 +8,7 @@ package org.opensearch.flint.spark.ppl
 import org.opensearch.flint.spark.{FlintPPLSparkExtensions, FlintSparkExtensions, FlintSparkSuite}
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.{DataFrame, QueryTest, Row}
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.flint.config.FlintSparkConf.OPTIMIZER_RULE_ENABLED
@@ -23,5 +24,16 @@ trait FlintPPLSuite extends FlintSparkSuite {
           .mkString(", "))
       .set(OPTIMIZER_RULE_ENABLED.key, "false")
     conf
+  }
+
+  def assertSameRows(expected: Seq[Row], df: DataFrame): Unit = {
+    QueryTest.sameRows(expected, df.collect().toSeq).foreach { results =>
+      fail(s"""
+           |Results do not match for query:
+           |${df.queryExecution}
+           |== Results ==
+           |$results
+         """.stripMargin)
+    }
   }
 }
