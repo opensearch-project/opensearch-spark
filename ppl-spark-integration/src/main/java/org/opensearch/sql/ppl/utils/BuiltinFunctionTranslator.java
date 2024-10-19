@@ -42,6 +42,7 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.MINUTE_
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MONTH_OF_YEAR;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SECOND_OF_MINUTE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SUBDATE;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.SYSDATE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.TRIM;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.WEEK;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.WEEK_OF_YEAR;
@@ -75,6 +76,7 @@ public interface BuiltinFunctionTranslator {
             .put(ADDDATE, "date_add") // only maps adddate(date, days)
             .put(DATEDIFF, "datediff")
             .put(LOCALTIME, "localtimestamp")
+            .put(SYSDATE, "now")
             // condition functions
             .put(IS_NULL, "isnull")
             .put(IS_NOT_NULL, "isnotnull")
