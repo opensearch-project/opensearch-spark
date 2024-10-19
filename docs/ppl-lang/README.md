@@ -79,6 +79,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`Type Conversion Functions`](functions/ppl-conversion.md)
 
+    - [`JSON Functions`](functions/ppl-json.md)
+
 
 ---
 ### PPL On Spark
