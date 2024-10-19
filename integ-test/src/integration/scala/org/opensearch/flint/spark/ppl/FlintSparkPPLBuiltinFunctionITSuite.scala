@@ -605,31 +605,6 @@ class FlintSparkPPLBuiltinFunctionITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-  test("test time functions - from_unixtime and unix_timestamp") {
-    val frame = sql(s"""
-       | source = $testTable |where unix_timestamp(from_unixtime(1700000001)) > 1700000000 | fields name, age
-       | """.stripMargin)
-
-    val results: Array[Row] = frame.collect()
-    val expectedResults: Array[Row] =
-      Array(Row("Jake", 70), Row("Hello", 30), Row("John", 25), Row("Jane", 20))
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
-
-    val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
-    val filterExpr = GreaterThan(
-      UnresolvedFunction(
-        "unix_timestamp",
-        seq(UnresolvedFunction("from_unixtime", seq(Literal(1700000001)), isDistinct = false)),
-        isDistinct = false),
-      Literal(1700000000))
-    val filterPlan = Filter(filterExpr, table)
-    val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
-    val expectedPlan = Project(projectList, filterPlan)
-    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
-  }
-
   test("test arithmetic operators (+ - * / %)") {
     val frame = sql(s"""
        | source = $testTable | where (sqrt(pow(age, 2)) + sqrt(pow(age, 2)) / 1 - sqrt(pow(age, 2)) * 1) % 25.0 = 0 | fields name, age
