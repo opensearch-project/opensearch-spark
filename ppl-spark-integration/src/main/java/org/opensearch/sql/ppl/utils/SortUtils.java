@@ -38,7 +38,7 @@ public interface SortUtils {
                 .findAny();
 
         return field.map(value -> sortOrder((Expression) expression,
-                        (Boolean) value.getFieldArgs().get(0).getValue().getValue()))
+                        isSortedAscending(value)))
                 .orElse(null);
     }
 
@@ -50,5 +50,9 @@ public interface SortUtils {
                 ascending ? Ascending$.MODULE$.defaultNullOrdering() : Descending$.MODULE$.defaultNullOrdering(),
                 seq(new ArrayList<Expression>())
         );
+    }
+
+    static boolean isSortedAscending(Field field) {
+        return (Boolean) field.getFieldArgs().get(0).getValue().getValue();
     }
 }
