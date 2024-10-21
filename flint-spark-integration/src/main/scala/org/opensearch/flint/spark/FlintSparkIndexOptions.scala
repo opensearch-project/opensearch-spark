@@ -10,7 +10,6 @@ import java.util.{Collections, UUID}
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
-import org.opensearch.flint.core.logging.CustomLogging.logInfo
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, INCREMENTAL_REFRESH, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, SCHEDULER_MODE, WATERMARK_DELAY}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode

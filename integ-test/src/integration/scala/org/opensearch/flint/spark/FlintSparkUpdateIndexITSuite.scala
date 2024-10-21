@@ -5,10 +5,16 @@
 
 package org.opensearch.flint.spark
 
+import scala.jdk.CollectionConverters.mapAsJavaMapConverter
+
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.native.JsonMethods._
+import org.opensearch.OpenSearchException
+import org.opensearch.action.get.GetRequest
 import org.opensearch.client.RequestOptions
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
+import org.opensearch.flint.core.FlintOptions
+import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
+import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.opensearch.index.query.QueryBuilders
 import org.opensearch.index.reindex.DeleteByQueryRequest
@@ -180,6 +186,96 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     }
   }
 
+  test("update auto refresh index to switch scheduler mode") {
+    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, "true")
+
+    withTempDir { checkpointDir =>
+      // Create auto refresh Flint index
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "refresh_interval" -> "4 Minute",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testIndex)
+        .create()
+      flint.refreshIndex(testIndex)
+
+      val indexInitial = flint.describeIndex(testIndex).get
+      indexInitial.options.refreshInterval() shouldBe Some("4 Minute")
+      the[OpenSearchException] thrownBy {
+        val client =
+          OpenSearchClientUtils.createClient(new FlintOptions(openSearchOptions.asJava))
+        client.get(
+          new GetRequest(OpenSearchAsyncQueryScheduler.SCHEDULER_INDEX_NAME, testIndex),
+          RequestOptions.DEFAULT)
+      }
+
+      // Update Flint index to change refresh interval
+      val updatedIndex = flint
+        .skippingIndex()
+        .copyWithUpdate(
+          indexInitial,
+          FlintSparkIndexOptions(
+            Map("scheduler_mode" -> "external", "refresh_interval" -> "5 Minutes")))
+      flint.updateIndex(updatedIndex)
+
+      // Verify index after update
+      val indexFinal = flint.describeIndex(testIndex).get
+      indexFinal.options.autoRefresh() shouldBe true
+      indexFinal.options.refreshInterval() shouldBe Some("5 Minutes")
+      indexFinal.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
+
+      // Verify scheduler index is updated
+      verifySchedulerIndex(testIndex, 5, "MINUTES")
+    }
+  }
+
+  test("update auto refresh index to change refresh interval") {
+    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, "true")
+
+    withTempDir { checkpointDir =>
+      // Create auto refresh Flint index
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "refresh_interval" -> "10 Minute",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testIndex)
+        .create()
+
+      val indexInitial = flint.describeIndex(testIndex).get
+      indexInitial.options.refreshInterval() shouldBe Some("10 Minute")
+      verifySchedulerIndex(testIndex, 10, "MINUTES")
+
+      // Update Flint index to change refresh interval
+      val updatedIndex = flint
+        .skippingIndex()
+        .copyWithUpdate(
+          indexInitial,
+          FlintSparkIndexOptions(Map("refresh_interval" -> "5 Minutes")))
+      flint.updateIndex(updatedIndex)
+
+      // Verify index after update
+      val indexFinal = flint.describeIndex(testIndex).get
+      indexFinal.options.autoRefresh() shouldBe true
+      indexFinal.options.refreshInterval() shouldBe Some("5 Minutes")
+      indexFinal.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
+
+      // Verify scheduler index is updated
+      verifySchedulerIndex(testIndex, 5, "MINUTES")
+    }
+  }
+
   // Test update options validation failure with external scheduler
   Seq(
     (
@@ -207,12 +303,12 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
         (Map.empty[String, String], Map("checkpoint_location" -> "s3a://test/"))),
       "No options can be updated when auto_refresh remains false"),
     (
-      "update other index option besides scheduler_mode when auto_refresh is true",
+      "update other index option besides scheduler_mode and refresh_interval when auto_refresh is true",
       Seq(
         (
           Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
           Map("watermark_delay" -> "1 Minute"))),
-      "Altering index when auto_refresh remains true only allows changing: Set(scheduler_mode). Invalid options"),
+      "Altering index when auto_refresh remains true and scheduler_mode is external only allows changing: Set(scheduler_mode, refresh_interval). Invalid options"),
     (
       "convert to full refresh with disallowed options",
       Seq(
@@ -654,5 +750,29 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       flint.refreshIndex(testIndex) shouldBe empty
       flint.queryIndex(testIndex).collect().toSet should have size 1
     }
+  }
+
+  private def verifySchedulerIndex(
+      indexName: String,
+      expectedPeriod: Int,
+      expectedUnit: String): Unit = {
+    val client = OpenSearchClientUtils.createClient(new FlintOptions(openSearchOptions.asJava))
+    val response = client.get(
+      new GetRequest(OpenSearchAsyncQueryScheduler.SCHEDULER_INDEX_NAME, indexName),
+      RequestOptions.DEFAULT)
+
+    response.isExists shouldBe true
+    val sourceMap = response.getSourceAsMap
+
+    sourceMap.get("jobId") shouldBe indexName
+    sourceMap.get(
+      "scheduledQuery") shouldBe s"REFRESH SKIPPING INDEX ON spark_catalog.default.`test`"
+    sourceMap.get("enabled") shouldBe true
+    sourceMap.get("queryLang") shouldBe "sql"
+
+    val schedule = sourceMap.get("schedule").asInstanceOf[java.util.Map[String, Any]]
+    val interval = schedule.get("interval").asInstanceOf[java.util.Map[String, Any]]
+    interval.get("period") shouldBe expectedPeriod
+    interval.get("unit") shouldBe expectedUnit
   }
 }
