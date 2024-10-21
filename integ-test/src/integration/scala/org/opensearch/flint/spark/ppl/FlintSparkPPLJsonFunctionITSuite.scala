@@ -26,6 +26,7 @@ class FlintSparkPPLJsonFunctionITSuite
   private val validJson4 = "[]"
   private val validJson5 =
     "{\"teacher\":\"Alice\",\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}"
+  private val validJson6 = "[1,2,3]"
   private val invalidJson1 = "[1,2"
   private val invalidJson2 = "[invalid json]"
   private val invalidJson3 = "{\"invalid\": \"json\""
@@ -52,9 +53,7 @@ class FlintSparkPPLJsonFunctionITSuite
                          | source = $testTable
                          | | eval result = json('$jsonStr') | head 1 | fields result
                          | """.stripMargin)
-      val results: Array[Row] = frame.collect()
-      val expectedResults: Array[Row] = Array(Row(jsonStr))
-      assert(results.sameElements(expectedResults))
+      assertSameRows(Seq(Row(jsonStr)), frame)
 
       val logicalPlan: LogicalPlan = frame.queryExecution.logical
       val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
@@ -77,9 +76,7 @@ class FlintSparkPPLJsonFunctionITSuite
                          | source = $testTable
                          | | eval result = json('$jsonStr') | head 1 | fields result
                          | """.stripMargin)
-      val results: Array[Row] = frame.collect()
-      val expectedResults: Array[Row] = Array(Row(null))
-      assert(results.sameElements(expectedResults))
+      assertSameRows(Seq(Row(null)), frame)
 
       val logicalPlan: LogicalPlan = frame.queryExecution.logical
       val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
@@ -101,20 +98,16 @@ class FlintSparkPPLJsonFunctionITSuite
                        | source = $testTable
                        | | where isValid = true | eval result = json(jString) | fields result
                        | """.stripMargin)
-    val results: Array[Row] = frame.collect()
-    val expectedResults: Array[Row] =
-      Seq(validJson1, validJson2, validJson3, validJson4, validJson5).map(Row.apply(_)).toArray
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
+    assertSameRows(
+      Seq(validJson1, validJson2, validJson3, validJson4, validJson5, validJson6).map(
+        Row.apply(_)),
+      frame)
 
     val frame2 = sql(s"""
                        | source = $testTable
                        | | where isValid = false | eval result = json(jString) | fields result
                        | """.stripMargin)
-    val results2: Array[Row] = frame2.collect()
-    val expectedResults2: Array[Row] =
-      Array(Row(null), Row(null), Row(null), Row(null), Row(null))
-    assert(results2.sameElements(expectedResults2))
+    assertSameRows(Seq(Row(null), Row(null), Row(null), Row(null), Row(null)), frame2)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
@@ -136,31 +129,26 @@ class FlintSparkPPLJsonFunctionITSuite
     var frame = sql(s"""
                    | source = $testTable | eval result = json_array('this', 'is', 'a', 'string', 'array') | head 1 | fields result
                    | """.stripMargin)
-//    val df = frame.collect()
-    assertSameRows(Seq(Row("""["this","is","a","string","array"]""")), frame)
+    assertSameRows(Seq(Row(Seq("this", "is", "a", "string", "array").toArray)), frame)
 
     // test empty array
     frame = sql(s"""
                    | source = $testTable | eval result = json_array() | head 1 | fields result
                    | """.stripMargin)
-    assertSameRows(Seq(Row("""[]""")), frame)
+    assertSameRows(Seq(Row(Array.empty)), frame)
 
     // test number array
     frame = sql(s"""
                    | source = $testTable | eval result = json_array(1, 2, 0, -1, 1.1, -0.11) | head 1 | fields result
                    | """.stripMargin)
-    assertSameRows(Seq(Row("""[1.0,2.0,0.0,-1.0,1.1,-0.11]""")), frame)
+    assertSameRows(Seq(Row(Seq(1.0, 2.0, 0.0, -1.0, 1.1, -0.11).toArray)), frame)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val jsonFunc = Alias(
       UnresolvedFunction(
-        "to_json",
-        Seq(
-          UnresolvedFunction(
-            "array",
-            Seq(Literal(1), Literal(2), Literal(0), Literal(-1), Literal(1.1), Literal(-0.11)),
-            isDistinct = false)),
+        "array",
+        Seq(Literal(1), Literal(2), Literal(0), Literal(-1), Literal(1.1), Literal(-0.11)),
         isDistinct = false),
       "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
@@ -173,6 +161,13 @@ class FlintSparkPPLJsonFunctionITSuite
                    | source = $testTable | eval result = json_array('this', 'is', 1.1, -0.11, true, false) | head 1 | fields result
                    | """.stripMargin))
     assert(ex.getMessage().contains("should all be the same type"))
+  }
+
+  test("test json_array() with json()") {
+    val frame = sql(s"""
+                       | source = $testTable | eval result = json(json_array(1,2,0,-1,1.1,-0.11)) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(Seq(Row("""[1.0,2.0,0.0,-1.0,1.1,-0.11]""")), frame)
   }
 
   test("test json_array_length()") {
@@ -216,35 +211,41 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_object()") {
     // test value is a string
     var frame = sql(s"""
-                   | source = $testTable | eval result = json_object('key', 'string') | head 1 | fields result
-                   | """.stripMargin)
-    assertSameRows(Seq(Row("""{"key":"string"}""")), frame)
+         | source = $testTable| eval result = json(json_object('key', 'string_value')) | head 1 | fields result
+         | """.stripMargin)
+    assertSameRows(Seq(Row("""{"key":"string_value"}""")), frame)
 
     // test value is a number
     frame = sql(s"""
-                   | source = $testTable | eval result = json_object('key', 123.45) | head 1 | fields result
-                   | """.stripMargin)
+         | source = $testTable| eval result = json(json_object('key', 123.45)) | head 1 | fields result
+         | """.stripMargin)
     assertSameRows(Seq(Row("""{"key":123.45}""")), frame)
 
     // test value is a boolean
     frame = sql(s"""
-                   | source = $testTable | eval result = json_object('key', true) | head 1 | fields result
-                   | """.stripMargin)
+         | source = $testTable| eval result = json(json_object('key', true)) | head 1 | fields result
+         | """.stripMargin)
     assertSameRows(Seq(Row("""{"key":true}""")), frame)
 
-    // test value is an empty array
     frame = sql(s"""
-                   | source = $testTable | eval result = json_object('key', array()) | head 1 | fields result
-                   | """.stripMargin)
+         | source = $testTable| eval result = json(json_object("a", 1, "b", 2, "c", 3)) | head 1 | fields result
+         | """.stripMargin)
+    assertSameRows(Seq(Row("""{"a":1,"b":2,"c":3}""")), frame)
+  }
+
+  test("test json_object() and json_array()") {
+    // test value is an empty array
+    var frame = sql(s"""
+         | source = $testTable| eval result = json(json_object('key', array())) | head 1 | fields result
+         | """.stripMargin)
     assertSameRows(Seq(Row("""{"key":[]}""")), frame)
 
     // test value is an array
     frame = sql(s"""
-                   | source = $testTable | eval result = json_object('key', array(1, 2, 3)) | head 1 | fields result
-                   | """.stripMargin)
+         | source = $testTable| eval result = json(json_object('key', array(1, 2, 3))) | head 1 | fields result
+         | """.stripMargin)
     assertSameRows(Seq(Row("""{"key":[1,2,3]}""")), frame)
 
-    val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val jsonFunc = Alias(
       UnresolvedFunction(
@@ -261,10 +262,26 @@ class FlintSparkPPLJsonFunctionITSuite
             isDistinct = false)),
         isDistinct = false),
       "result")()
-    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
-    val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
-    val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
-    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+    var expectedPlan = Project(
+      Seq(UnresolvedAttribute("result")),
+      GlobalLimit(
+        Literal(1),
+        LocalLimit(Literal(1), Project(Seq(UnresolvedStar(None), jsonFunc), table))))
+    comparePlans(frame.queryExecution.logical, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test json_object() nested") {
+    val frame = sql(s"""
+                   | source = $testTable | eval result = json(json_object('outer', json_object('inner', 123.45))) | head 1 | fields result
+                   | """.stripMargin)
+    assertSameRows(Seq(Row("""{"outer":{"inner":123.45}}""")), frame)
+  }
+
+  test("test json_object(), json_array() and json()") {
+    val frame = sql(s"""
+                       | source = $testTable | eval result = json(json_object("array", json_array(1,2,0,-1,1.1,-0.11))) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(Seq(Row("""{"array":[1.0,2.0,0.0,-1.0,1.1,-0.11]}""")), frame)
   }
 
   test("test json_valid()") {
@@ -274,7 +291,9 @@ class FlintSparkPPLJsonFunctionITSuite
                        | """.stripMargin)
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
-      Seq(validJson1, validJson2, validJson3, validJson4, validJson5).map(Row.apply(_)).toArray
+      Seq(validJson1, validJson2, validJson3, validJson4, validJson5, validJson6)
+        .map(Row.apply(_))
+        .toArray
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
 
@@ -314,7 +333,8 @@ class FlintSparkPPLJsonFunctionITSuite
       Row(Array("f1", "f2")),
       Row(null),
       Row(null),
-      Row(Array("teacher", "student")))
+      Row(Array("teacher", "student")),
+      Row(null))
     assertSameRows(expectedRows, frame)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical

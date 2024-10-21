@@ -23,7 +23,7 @@ trait FlintPPLSuite extends FlintSparkSuite {
   }
 
   def assertSameRows(expected: Seq[Row], df: DataFrame): Unit = {
-    QueryTest.sameRows(expected, df.collect().toSeq, isSorted = true).foreach { results =>
+    QueryTest.sameRows(expected, df.collect().toSeq).foreach { results =>
       fail(s"""
               |Results do not match for query:
               |${df.queryExecution}

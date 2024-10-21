@@ -10,6 +10,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.Literal$;
+import org.apache.spark.sql.types.StringType$;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
 
 import java.util.List;
@@ -23,6 +24,7 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.DAY_OF_
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.COALESCE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_ARRAY;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_ARRAY_LENGTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_EXTRACT;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_KEYS;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_OBJECT;
@@ -98,20 +100,36 @@ public interface BuiltinFunctionTranslator {
         .put(
             JSON_ARRAY,
             args -> {
-                return UnresolvedFunction$.MODULE$.apply("to_json",
-                    seq(UnresolvedFunction$.MODULE$.apply("array", seq(args), false)), false);
+                return UnresolvedFunction$.MODULE$.apply("array", seq(args), false);
             })
         .put(
             JSON_OBJECT,
             args -> {
-                return UnresolvedFunction$.MODULE$.apply("to_json",
-                    seq(UnresolvedFunction$.MODULE$.apply("named_struct", seq(args), false)), false);
+                return UnresolvedFunction$.MODULE$.apply("named_struct", seq(args), false);
+            })
+        .put(
+            JSON_ARRAY_LENGTH,
+            args -> {
+                // Check if the input is an array (from json_array()) or a JSON string
+                if (args.get(0) instanceof UnresolvedFunction) {
+                    // Input is a JSON array
+                    return UnresolvedFunction$.MODULE$.apply("json_array_length",
+                        seq(UnresolvedFunction$.MODULE$.apply("to_json", seq(args), false)), false);
+                } else {
+                    // Input is a JSON string
+                    return UnresolvedFunction$.MODULE$.apply("json_array_length", seq(args.get(0)), false);
+                }
             })
         .put(
             JSON,
             args -> {
-                return UnresolvedFunction$.MODULE$.apply("get_json_object",
-                    seq(args.get(0), Literal$.MODULE$.apply("$")), false);
+                // Check if the input is a named_struct (from json_object()) or a JSON string
+                if (args.get(0) instanceof UnresolvedFunction) {
+                    return UnresolvedFunction$.MODULE$.apply("to_json", seq(args.get(0)), false);
+                } else {
+                    return UnresolvedFunction$.MODULE$.apply("get_json_object",
+                        seq(args.get(0), Literal$.MODULE$.apply("$")), false);
+                }
             })
         .put(
             JSON_VALID,

@@ -661,11 +661,12 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            |        (3, '[1,2,3,{"f1":1,"f2":[5,6]},4]', true),
            |        (4, '[]', true),
            |        (5, '{"teacher":"Alice","student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}', true),
-           |        (6, '[1,2', false),
-           |        (7, '[invalid json]', false),
-           |        (8, '{"invalid": "json"', false),
-           |        (9, 'invalid json', false),
-           |        (0, null, false)
+           |        (6, '[1,2,3]', true),
+           |        (7, '[1,2', false),
+           |        (8, '[invalid json]', false),
+           |        (9, '{"invalid": "json"', false),
+           |        (10, 'invalid json', false),
+           |        (11, null, false)
            | """.stripMargin)
   }
 }

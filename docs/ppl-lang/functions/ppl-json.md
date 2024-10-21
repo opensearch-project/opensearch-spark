@@ -1,38 +1,12 @@
 ## PPL JSON Functions
 
-### `JSON_OBJECT`
-
-**Description**
-
-`json_object(<key>, <value>[, <key>, <value>]...)` returns a JSON object string from members of key-value pairs.
-
-**Argument type:**
-- A \<key\> must be STRING.
-- A \<value\> can be any data types.
-
-**Return type:** STRING
-
-A STRING expression of a valid JSON object format.
-
-Example:
-
-    os> source=people | eval `json_object('key', 123.45)` = json_object('key', 123.45) | fields `json_object('key', 123.45)`
-    fetched rows / total rows = 1/1
-    +------------------------------+
-    | json_object('key', 123.45)   |
-    +------------------------------+
-    | {"key":123.45}               |
-    +------------------------------+
-
-
 ### `JSON`
 
 **Description**
 
-`json(value)` Evaluates whether a string can be parsed as JSON. Returns the json string if valid, null otherwise.
+`json(value)` Evaluates whether a value can be parsed as JSON. Returns the json string if valid, null otherwise.
 
-
-**Argument type:** STRING
+**Argument type:** STRING/JSON_ARRAY/JSON_OBJECT
 
 **Return type:** STRING
 
@@ -57,29 +31,69 @@ Example:
     +----------------+
 
 
+### `JSON_OBJECT`
+
+**Description**
+
+`json_object(<key>, <value>[, <key>, <value>]...)` returns a JSON object from members of key-value pairs.
+
+**Argument type:**
+- A \<key\> must be STRING.
+- A \<value\> can be any data types.
+
+**Return type:** JSON_OBJECT (Spark StructType)
+
+A StructType expression of a valid JSON object.
+
+Example:
+
+    os> source=people | eval result = json(json_object('key', 123.45)) | fields result
+    fetched rows / total rows = 1/1
+    +------------------+
+    | result           |
+    +------------------+
+    | {"key":123.45}   |
+    +------------------+
+
+    os> source=people | eval result = json(json_object('outer', json_object('inner', 123.45))) | fields result
+    fetched rows / total rows = 1/1
+    +------------------------------+
+    | result                       |
+    +------------------------------+
+    | {"outer":{"inner":123.45}}   |
+    +------------------------------+
+
+
 ### `JSON_ARRAY`
 
 **Description**
 
-`json_array(<value>...)` Creates a JSON ARRAY string using a list of values.
+`json_array(<value>...)` Creates a JSON ARRAY using a list of values.
 
 **Argument type:**
 - A \<value\> can be any kind of value such as string, number, or boolean.
 
-**Return type:** STRING
+**Return type:** ARRAY (Spark ArrayType)
 
-A STRING expression of a valid JSON array format.
+An array of any supported data type for a valid JSON array.
 
 Example:
 
     os> source=people | eval `json_array` = json_array(1, 2, 0, -1, 1.1, -0.11)
     fetched rows / total rows = 1/1
-    +------------------------------+
-    | json_array                   |
-    +------------------------------+
-    | [1.0,2.0,0.0,-1.0,1.1,-0.11] |
-    +------------------------------+
+    +----------------------------+
+    | json_array                 |
+    +----------------------------+
+    | 1.0,2.0,0.0,-1.0,1.1,-0.11 |
+    +----------------------------+
 
+    os> source=people | eval `json_array_object` = json(json_object("array", json_array(1, 2, 0, -1, 1.1, -0.11)))
+    fetched rows / total rows = 1/1
+    +----------------------------------------+
+    | json_array_object                      |
+    +----------------------------------------+
+    | {"array":[1.0,2.0,0.0,-1.0,1.1,-0.11]} |
+    +----------------------------------------+
 
 ### `JSON_ARRAY_LENGTH`
 
@@ -87,9 +101,9 @@ Example:
 
 `json_array_length(jsonArray)` Returns the number of elements in the outermost JSON array.
 
-**Argument type:** STRING
+**Argument type:** STRING/JSON_ARRAY
 
-A STRING expression of a valid JSON array format.
+A STRING expression of a valid JSON array format, or JSON_ARRAY object.
 
 **Return type:** INTEGER
 
@@ -105,6 +119,13 @@ Example:
     | 4         | 5         | null        |
     +-----------+-----------+-------------+
 
+    os> source=people | eval `json_array` = json_array_length(json_array(1,2,3,4)), `empty_array` = json_array_length(json_array())
+    fetched rows / total rows = 1/1
+    +--------------+---------------+
+    | json_array   | empty_array   |
+    +--------------+---------------+
+    | 4            | 0             |
+    +--------------+---------------+
 
 ### `JSON_EXTRACT`
 
