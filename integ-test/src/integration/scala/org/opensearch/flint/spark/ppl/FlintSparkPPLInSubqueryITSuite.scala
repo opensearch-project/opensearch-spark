@@ -9,7 +9,7 @@ import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation}
 import org.apache.spark.sql.catalyst.expressions.{And, Descending, EqualTo, InSubquery, ListQuery, Literal, Not, SortOrder}
 import org.apache.spark.sql.catalyst.plans.Inner
-import org.apache.spark.sql.catalyst.plans.logical.{Filter, Join, JoinHint, LogicalPlan, Project, Sort, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.logical.{Filter, Join, JoinHint, LogicalPlan, Project, Sample, Sort, SubqueryAlias}
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLInSubqueryITSuite
@@ -126,6 +126,46 @@ class FlintSparkPPLInSubqueryITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
+  test("test filter id in (select uid from inner) with outer table tablesample(100 percent)") {
+    val frame = sql(s"""
+         source = $outerTable tablesample(100 percent) | where (id) in [ source = $innerTable | fields uid ]
+         | | sort  - salary
+         | | fields id, name, salary
+         | """.stripMargin)
+    val results: Set[Row] = frame.collect().toSet
+    val expectedResults: Set[Row] = Set(
+      Row(1003, "David", 120000),
+      Row(1002, "John", 120000),
+      Row(1000, "Jake", 100000),
+      Row(1005, "Jane", 90000),
+      Row(1006, "Tommy", 30000))
+    assert(
+      results == expectedResults,
+      s"The first two results do not match the expected rows. Expected: $expectedResults, Actual: $results")
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val inSubquery =
+      Filter(
+        InSubquery(
+          Seq(UnresolvedAttribute("id")),
+          ListQuery(Project(Seq(UnresolvedAttribute("uid")), inner))),
+        Sample(0, 1, withReplacement = false, 0, outer))
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("salary"), Descending)), global = true, inSubquery)
+    val expectedPlan =
+      Project(
+        Seq(
+          UnresolvedAttribute("id"),
+          UnresolvedAttribute("name"),
+          UnresolvedAttribute("salary")),
+        sortedPlan)
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
   test("test where (id) in (select uid from inner)") {
     // id (0, 1, 2, 3, 4, 5, 6), uid (0, 2, 3, 5, 6)
     // InSubquery: (0, 2, 3, 5, 6)
@@ -170,6 +210,54 @@ class FlintSparkPPLInSubqueryITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
+  test("test where (id) in (select uid from inner) with inner table tablesample(100 percent)") {
+    // id (0, 1, 2, 3, 4, 5, 6), uid (0, 2, 3, 5, 6)
+    // InSubquery: (0, 2, 3, 5, 6)
+    val frame = sql(s"""
+          source = $outerTable
+         | | where (id) in [
+         |     source = $innerTable tablesample(100 percent) | fields uid
+         |   ]
+         | | sort  - salary
+         | | fields id, name, salary
+         | """.stripMargin)
+    val results: Set[Row] = frame.collect().toSet
+    val expectedResults: Set[Row] = Set(
+      Row(1003, "David", 120000),
+      Row(1002, "John", 120000),
+      Row(1000, "Jake", 100000),
+      Row(1005, "Jane", 90000),
+      Row(1006, "Tommy", 30000))
+    assert(
+      results == expectedResults,
+      s"The first two results do not match the expected rows. Expected: $expectedResults, Actual: $results")
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val inSubquery =
+      Filter(
+        InSubquery(
+          Seq(UnresolvedAttribute("id")),
+          ListQuery(
+            Project(
+              Seq(UnresolvedAttribute("uid")),
+              Sample(0, 1, withReplacement = false, 0, inner)))),
+        outer)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("salary"), Descending)), global = true, inSubquery)
+    val expectedPlan =
+      Project(
+        Seq(
+          UnresolvedAttribute("id"),
+          UnresolvedAttribute("name"),
+          UnresolvedAttribute("salary")),
+        sortedPlan)
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
   test("test where (id, name) in (select uid, name from inner)") {
     // InSubquery: (0, 2, 3, 5)
     val frame = sql(s"""
@@ -200,6 +288,53 @@ class FlintSparkPPLInSubqueryITSuite
           ListQuery(
             Project(Seq(UnresolvedAttribute("uid"), UnresolvedAttribute("name")), inner))),
         outer)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("salary"), Descending)), global = true, inSubquery)
+    val expectedPlan =
+      Project(
+        Seq(
+          UnresolvedAttribute("id"),
+          UnresolvedAttribute("name"),
+          UnresolvedAttribute("salary")),
+        sortedPlan)
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test(
+    "test where (id, name) in (select uid, name from inner) with both tables tablesample(100 percent)") {
+    // InSubquery: (0, 2, 3, 5)
+    val frame = sql(s"""
+          source = $outerTable tablesample(100 percent)
+         | | where (id, name) in [
+         |     source = $innerTable tablesample(100 percent)| fields uid, name
+         |   ]
+         | | sort  - salary
+         | | fields id, name, salary
+         | """.stripMargin)
+    val results: Set[Row] = frame.collect().toSet
+    val expectedResults: Set[Row] = Set(
+      Row(1003, "David", 120000),
+      Row(1002, "John", 120000),
+      Row(1000, "Jake", 100000),
+      Row(1005, "Jane", 90000))
+    assert(
+      results == expectedResults,
+      s"The first two results do not match the expected rows. Expected: $expectedResults, Actual: $results")
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val inSubquery =
+      Filter(
+        InSubquery(
+          Seq(UnresolvedAttribute("id"), UnresolvedAttribute("name")),
+          ListQuery(
+            Project(
+              Seq(UnresolvedAttribute("uid"), UnresolvedAttribute("name")),
+              Sample(0, 1, withReplacement = false, 0, inner)))),
+        Sample(0, 1, withReplacement = false, 0, outer))
     val sortedPlan: LogicalPlan =
       Sort(Seq(SortOrder(UnresolvedAttribute("salary"), Descending)), global = true, inSubquery)
     val expectedPlan =

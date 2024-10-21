@@ -9,7 +9,7 @@ import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Divide, EqualTo, Floor, GreaterThan, LessThan, Literal, Multiply, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.{Cross, Inner, LeftAnti, LeftOuter, LeftSemi, RightOuter}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, GlobalLimit, Join, JoinHint, LocalLimit, LogicalPlan, Project, Sort, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, GlobalLimit, Join, JoinHint, LocalLimit, LogicalPlan, Project, Sample, Sort, SubqueryAlias}
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLJoinITSuite
@@ -75,6 +75,166 @@ class FlintSparkPPLJoinITSuite
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
     val plan1 = SubqueryAlias("a", table1)
     val plan2 = SubqueryAlias("b", table2)
+
+    val joinCondition =
+      And(
+        And(
+          And(
+            And(
+              EqualTo(Literal(4), UnresolvedAttribute("a.month")),
+              EqualTo(Literal(2023), UnresolvedAttribute("b.year"))),
+            EqualTo(UnresolvedAttribute("a.name"), UnresolvedAttribute("b.name"))),
+          EqualTo(UnresolvedAttribute("b.month"), Literal(4))),
+        EqualTo(Literal(2023), UnresolvedAttribute("a.year")))
+    val joinPlan = Join(plan1, plan2, Inner, Some(joinCondition), JoinHint.NONE)
+    val expectedPlan = Project(
+      Seq(
+        UnresolvedAttribute("a.name"),
+        UnresolvedAttribute("a.age"),
+        UnresolvedAttribute("a.state"),
+        UnresolvedAttribute("a.country"),
+        UnresolvedAttribute("b.occupation"),
+        UnresolvedAttribute("b.country"),
+        UnresolvedAttribute("b.salary")),
+      joinPlan)
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test join on one join condition and filters with tablesample(100 percent) on table1") {
+    val frame = sql(s"""
+         | source = $testTable1  tablesample(100 percent)
+         | | inner join left=a, right=b
+         |     ON a.name = b.name AND a.year = 2023 AND a.month = 4 AND b.year = 2023 AND b.month = 4
+         |     $testTable2
+         | | fields a.name, a.age, a.state, a.country, b.occupation, b.country, b.salary
+         | """.stripMargin)
+    val results: Set[Row] = frame.collect().toSet
+    // results.foreach(println(_))
+    val expectedResults: Set[Row] = Set(
+      Row("Jake", 70, "California", "USA", "Engineer", "England", 100000),
+      Row("Hello", 30, "New York", "USA", "Artist", "USA", 70000),
+      Row("John", 25, "Ontario", "Canada", "Doctor", "Canada", 120000),
+      Row("David", 40, "Washington", "USA", "Unemployed", "Canada", 0),
+      Row("David", 40, "Washington", "USA", "Doctor", "USA", 120000),
+      Row("Jane", 20, "Quebec", "Canada", "Scientist", "Canada", 90000))
+
+    assert(
+      results == expectedResults,
+      s"The first two results do not match the expected rows. Expected: $expectedResults, Actual: $results")
+
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val plan1 = SubqueryAlias("a", Sample(0, 1, withReplacement = false, 0, table1))
+    val plan2 = SubqueryAlias("b", table2)
+
+    val joinCondition =
+      And(
+        And(
+          And(
+            And(
+              EqualTo(Literal(4), UnresolvedAttribute("a.month")),
+              EqualTo(Literal(2023), UnresolvedAttribute("b.year"))),
+            EqualTo(UnresolvedAttribute("a.name"), UnresolvedAttribute("b.name"))),
+          EqualTo(UnresolvedAttribute("b.month"), Literal(4))),
+        EqualTo(Literal(2023), UnresolvedAttribute("a.year")))
+    val joinPlan = Join(plan1, plan2, Inner, Some(joinCondition), JoinHint.NONE)
+    val expectedPlan = Project(
+      Seq(
+        UnresolvedAttribute("a.name"),
+        UnresolvedAttribute("a.age"),
+        UnresolvedAttribute("a.state"),
+        UnresolvedAttribute("a.country"),
+        UnresolvedAttribute("b.occupation"),
+        UnresolvedAttribute("b.country"),
+        UnresolvedAttribute("b.salary")),
+      joinPlan)
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test join on one join condition and filters with tablesample(100 percent) on table2") {
+    val frame = sql(s"""
+         | source = $testTable1
+         | | inner join left=a, right=b
+         |     ON a.name = b.name AND a.year = 2023 AND a.month = 4 AND b.year = 2023 AND b.month = 4
+         |     $testTable2 tablesample(100 percent)
+         | | fields a.name, a.age, a.state, a.country, b.occupation, b.country, b.salary
+         | """.stripMargin)
+    val results: Set[Row] = frame.collect().toSet
+    // results.foreach(println(_))
+    val expectedResults: Set[Row] = Set(
+      Row("Jake", 70, "California", "USA", "Engineer", "England", 100000),
+      Row("Hello", 30, "New York", "USA", "Artist", "USA", 70000),
+      Row("John", 25, "Ontario", "Canada", "Doctor", "Canada", 120000),
+      Row("David", 40, "Washington", "USA", "Unemployed", "Canada", 0),
+      Row("David", 40, "Washington", "USA", "Doctor", "USA", 120000),
+      Row("Jane", 20, "Quebec", "Canada", "Scientist", "Canada", 90000))
+
+    assert(
+      results == expectedResults,
+      s"The first two results do not match the expected rows. Expected: $expectedResults, Actual: $results")
+
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val plan1 = SubqueryAlias("a", table1)
+    val plan2 = SubqueryAlias("b", Sample(0, 1, withReplacement = false, 0, table2))
+
+    val joinCondition =
+      And(
+        And(
+          And(
+            And(
+              EqualTo(Literal(4), UnresolvedAttribute("a.month")),
+              EqualTo(Literal(2023), UnresolvedAttribute("b.year"))),
+            EqualTo(UnresolvedAttribute("a.name"), UnresolvedAttribute("b.name"))),
+          EqualTo(UnresolvedAttribute("b.month"), Literal(4))),
+        EqualTo(Literal(2023), UnresolvedAttribute("a.year")))
+    val joinPlan = Join(plan1, plan2, Inner, Some(joinCondition), JoinHint.NONE)
+    val expectedPlan = Project(
+      Seq(
+        UnresolvedAttribute("a.name"),
+        UnresolvedAttribute("a.age"),
+        UnresolvedAttribute("a.state"),
+        UnresolvedAttribute("a.country"),
+        UnresolvedAttribute("b.occupation"),
+        UnresolvedAttribute("b.country"),
+        UnresolvedAttribute("b.salary")),
+      joinPlan)
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test(
+    "test join on one join condition and filters with tablesample(100 percent) on both sides") {
+    val frame = sql(s"""
+         | source = $testTable1 tablesample(100 percent)
+         | | inner join left=a, right=b
+         |     ON a.name = b.name AND a.year = 2023 AND a.month = 4 AND b.year = 2023 AND b.month = 4
+         |     $testTable2 tablesample(100 percent)
+         | | fields a.name, a.age, a.state, a.country, b.occupation, b.country, b.salary
+         | """.stripMargin)
+    val results: Set[Row] = frame.collect().toSet
+    // results.foreach(println(_))
+    val expectedResults: Set[Row] = Set(
+      Row("Jake", 70, "California", "USA", "Engineer", "England", 100000),
+      Row("Hello", 30, "New York", "USA", "Artist", "USA", 70000),
+      Row("John", 25, "Ontario", "Canada", "Doctor", "Canada", 120000),
+      Row("David", 40, "Washington", "USA", "Unemployed", "Canada", 0),
+      Row("David", 40, "Washington", "USA", "Doctor", "USA", 120000),
+      Row("Jane", 20, "Quebec", "Canada", "Scientist", "Canada", 90000))
+
+    assert(
+      results == expectedResults,
+      s"The first two results do not match the expected rows. Expected: $expectedResults, Actual: $results")
+
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val plan1 = SubqueryAlias("a", Sample(0, 1, withReplacement = false, 0, table1))
+    val plan2 = SubqueryAlias("b", Sample(0, 1, withReplacement = false, 0, table2))
 
     val joinCondition =
       And(

@@ -228,6 +228,46 @@ class FlintSparkPPLAggregationWithSpanITSuite
   }
 
   test(
+    "create ppl average age by span of interval of 10 years group by country head (limit) 2 query test with tablesample(100 percent)") {
+    val frame = sql(s"""
+         | source = $testTable  tablesample(100 percent)| stats avg(age) by span(age, 10) as age_span, country | head 3
+         | """.stripMargin)
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] =
+      Array(Row(70.0d, "USA", 70L), Row(30.0d, "USA", 30L), Row(22.5d, "Canada", 20L))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](1))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val ageField = UnresolvedAttribute("age")
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val countryField = UnresolvedAttribute("country")
+    val countryAlias = Alias(countryField, "country")()
+
+    val aggregateExpressions =
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
+      "age_span")()
+    val aggregatePlan =
+      Aggregate(
+        Seq(countryAlias, span),
+        Seq(aggregateExpressions, countryAlias, span),
+        Sample(0, 1, withReplacement = false, 0, table))
+    val limitPlan = Limit(Literal(3), aggregatePlan)
+    val expectedPlan = Project(star, limitPlan)
+
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+
+  test(
     "create ppl average age by span of interval of 10 years group by country head (limit) 2 query and sort by test ") {
     val frame = sql(s"""
          | source = $testTable| stats avg(age) by span(age, 10) as age_span, country  | sort - age_span |  head 2
