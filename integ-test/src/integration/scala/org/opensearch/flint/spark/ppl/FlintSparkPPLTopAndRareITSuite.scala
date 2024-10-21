@@ -378,7 +378,7 @@ class FlintSparkPPLTopAndRareITSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
 
   }
-  
+
   test("create ppl top 3 countries by occupation field query test with tablesample 75%") {
     val frame = sql(s"""
          | source = $newTestTable  TABLESAMPLE(75 percent) | top 3 country by occupation
