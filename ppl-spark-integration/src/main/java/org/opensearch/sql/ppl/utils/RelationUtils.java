@@ -40,7 +40,7 @@ public interface RelationUtils {
     }
 
     static Optional<TablesampleContext> tablesampleBuilder(OpenSearchPPLParser.TablesampleClauseContext context) {
-        if(context.percentage != null)
+        if(context != null && context.percentage != null)
             return Optional.of(new TablesampleContext(Integer.parseInt(context.percentage.getText())));
         return Optional.empty();
     }

@@ -13,7 +13,7 @@ import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Descending, EqualTo, GreaterThan, LessThan, Literal, Not, SortOrder}
 import org.apache.spark.sql.catalyst.plans.{Cross, FullOuter, Inner, LeftAnti, LeftOuter, LeftSemi, PlanTest, RightOuter}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, GlobalLimit, Join, JoinHint, LocalLimit, Project, Sort, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, GlobalLimit, Join, JoinHint, LocalLimit, Project, Sample, Sort, SubqueryAlias}
 
 class PPLLogicalPlanJoinTranslatorTestSuite
     extends SparkFunSuite
@@ -42,6 +42,63 @@ class PPLLogicalPlanJoinTranslatorTestSuite
     val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
     val leftPlan = SubqueryAlias("l", table1)
     val rightPlan = SubqueryAlias("r", table2)
+    val joinCondition = EqualTo(UnresolvedAttribute("l.id"), UnresolvedAttribute("r.id"))
+    val joinPlan = Join(leftPlan, rightPlan, Inner, Some(joinCondition), JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test(
+    "test two-tables inner join: join condition with aliases with left side tablesample(50 percent)") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1 tablesample(50 percent)| JOIN left = l right = r ON l.id = r.id $testTable2
+         | """.stripMargin)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val leftPlan = SubqueryAlias("l", Sample(0, 0.5, withReplacement = false, 0, table1))
+    val rightPlan = SubqueryAlias("r", table2)
+    val joinCondition = EqualTo(UnresolvedAttribute("l.id"), UnresolvedAttribute("r.id"))
+    val joinPlan = Join(leftPlan, rightPlan, Inner, Some(joinCondition), JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test(
+    "test two-tables inner join: join condition with aliases with right side tablesample(50 percent)") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1 | JOIN left = l right = r ON l.id = r.id $testTable2 tablesample(50 percent)
+         | """.stripMargin)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val leftPlan = SubqueryAlias("l", table1)
+    val rightPlan = SubqueryAlias("r", Sample(0, 0.5, withReplacement = false, 0, table2))
+    val joinCondition = EqualTo(UnresolvedAttribute("l.id"), UnresolvedAttribute("r.id"))
+    val joinPlan = Join(leftPlan, rightPlan, Inner, Some(joinCondition), JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test(
+    "test two-tables inner join: join condition with aliases with both sides tablesample(50 percent)") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1 tablesample(50 percent) | JOIN left = l right = r ON l.id = r.id $testTable2 tablesample(50 percent)
+         | """.stripMargin)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val leftPlan = SubqueryAlias("l", Sample(0, 0.5, withReplacement = false, 0, table1))
+    val rightPlan = SubqueryAlias("r", Sample(0, 0.5, withReplacement = false, 0, table2))
     val joinCondition = EqualTo(UnresolvedAttribute("l.id"), UnresolvedAttribute("r.id"))
     val joinPlan = Join(leftPlan, rightPlan, Inner, Some(joinCondition), JoinHint.NONE)
     val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan)

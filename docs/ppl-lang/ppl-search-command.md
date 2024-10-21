@@ -40,3 +40,40 @@ PPL query:
     | 13               | Nanette     | 789 Madison Street | 32838     | F        | Nogal  | Quility    | VA      | 28    | null                 | Bates      |
     +------------------+-------------+--------------------+-----------+----------+--------+------------+---------+-------+----------------------+------------+
 
+### Example 3: Fetch data with a sampling percentage ( including an aggregation)
+The following example demonstrates how to sample 50% of the data from the table and then perform aggregation (finding rare occurrences of address).
+
+PPL query:
+
+    os> source = account  TABLESAMPLE(75 percent) | top 3 country by occupation
+
+This query samples 75% of the records from account table, then retrieves the top 3 countries grouped by occupation
+
+```sql
+SELECT *
+FROM (
+         SELECT country, occupation, COUNT(country) AS count_country
+         FROM account
+                  TABLESAMPLE(75 PERCENT)
+         GROUP BY country, occupation
+         ORDER BY COUNT(country) DESC NULLS LAST
+             LIMIT 3
+     ) AS subquery
+    LIMIT 3;
+```
+Logical Plan Equivalent:
+
+```sql
+'Project [*]
++- 'GlobalLimit 3
+   +- 'LocalLimit 3
+      +- 'Sort ['COUNT('country) AS count_country#68 DESC NULLS LAST], true
+         +- 'Aggregate ['country, 'occupation AS occupation#67], ['COUNT('country) AS count_country#66, 'country, 'occupation AS occupation#67]
+            +- 'Sample 0.0, 0.75, false, 0
+               +- 'UnresolvedRelation [account], [], false
+
+```
+
+By introducing the `TABLESAMPLE` instruction into the source command, one can now sample data as part of your queries and reducing the amount of data being scanned thereby converting precision with performance.
+
+The `percent` parameter will give the actual approximation of the true value with the needed trade of between accuracy and performance.

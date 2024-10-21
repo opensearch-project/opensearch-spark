@@ -14,7 +14,7 @@ import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Descending, ExprId, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
-import org.apache.spark.sql.catalyst.plans.logical.{Project, Sort}
+import org.apache.spark.sql.catalyst.plans.logical.{Project, Sample, Sort}
 
 class PPLLogicalPlanEvalTranslatorTestSuite
     extends SparkFunSuite
@@ -74,6 +74,26 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val evalProjectList: Seq[NamedExpression] =
       Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(1), "b")())
     val evalProject = Project(evalProjectList, UnresolvedRelation(Seq("t")))
+    val sortOrder = SortOrder(UnresolvedAttribute("a"), Descending, Seq.empty)
+    val sort = Sort(seq(sortOrder), global = true, evalProject)
+    val expectedPlan = Project(seq(UnresolvedAttribute("b")), sort)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test eval expressions with sort and with tablesample(50 percent)") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source=t tablesample(50 percent) | eval a = 1, b = 1 | sort - a | fields b"),
+        context)
+
+    val evalProjectList: Seq[NamedExpression] =
+      Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(1), "b")())
+    val evalProject = Project(
+      evalProjectList,
+      Sample(0, 0.5, withReplacement = false, 0, UnresolvedRelation(Seq("t"))))
     val sortOrder = SortOrder(UnresolvedAttribute("a"), Descending, Seq.empty)
     val sort = Sort(seq(sortOrder), global = true, evalProject)
     val expectedPlan = Project(seq(UnresolvedAttribute("b")), sort)

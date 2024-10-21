@@ -132,6 +132,90 @@ class PPLLogicalPlanScalarSubqueryTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
+  test(
+    "test uncorrelated scalar subquery in select and where with outer tablesample(50 percent)") {
+    // select (select max(c) from inner), a from outer where b > (select min(c) from inner)
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          s"""
+             | source = spark_catalog.default.outer tablesample(50 percent)
+             | | eval max_c = [
+             |     source = spark_catalog.default.inner | stats max(c)
+             |   ]
+             | | where b > [
+             |     source = spark_catalog.default.inner | stats min(c)
+             |   ]
+             | | fields max_c, a
+             | """.stripMargin),
+        context)
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "outer"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "inner"))
+    val maxAgg = Seq(
+      Alias(
+        UnresolvedFunction(Seq("MAX"), Seq(UnresolvedAttribute("c")), isDistinct = false),
+        "max(c)")())
+    val minAgg = Seq(
+      Alias(
+        UnresolvedFunction(Seq("MIN"), Seq(UnresolvedAttribute("c")), isDistinct = false),
+        "min(c)")())
+    val maxAggPlan = Aggregate(Seq(), maxAgg, inner)
+    val minAggPlan = Aggregate(Seq(), minAgg, inner)
+    val maxScalarSubqueryExpr = ScalarSubquery(maxAggPlan)
+    val minScalarSubqueryExpr = ScalarSubquery(minAggPlan)
+
+    val evalProjectList = Seq(UnresolvedStar(None), Alias(maxScalarSubqueryExpr, "max_c")())
+    val evalProject = Project(evalProjectList, Sample(0, 0.5, withReplacement = false, 0, outer))
+    val filter = Filter(GreaterThan(UnresolvedAttribute("b"), minScalarSubqueryExpr), evalProject)
+    val expectedPlan =
+      Project(Seq(UnresolvedAttribute("max_c"), UnresolvedAttribute("a")), filter)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test(
+    "test uncorrelated scalar subquery in select and where with inner tablesample(50 percent) for max_c eval") {
+    // select (select max(c) from inner), a from outer where b > (select min(c) from inner)
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          s"""
+             | source = spark_catalog.default.outer
+             | | eval max_c = [
+             |     source = spark_catalog.default.inner tablesample(50 percent) | stats max(c)
+             |   ]
+             | | where b > [
+             |     source = spark_catalog.default.inner | stats min(c)
+             |   ]
+             | | fields max_c, a
+             | """.stripMargin),
+        context)
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "outer"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "inner"))
+    val maxAgg = Seq(
+      Alias(
+        UnresolvedFunction(Seq("MAX"), Seq(UnresolvedAttribute("c")), isDistinct = false),
+        "max(c)")())
+    val minAgg = Seq(
+      Alias(
+        UnresolvedFunction(Seq("MIN"), Seq(UnresolvedAttribute("c")), isDistinct = false),
+        "min(c)")())
+    val maxAggPlan = Aggregate(Seq(), maxAgg, Sample(0, 0.5, withReplacement = false, 0, inner))
+    val minAggPlan = Aggregate(Seq(), minAgg, inner)
+    val maxScalarSubqueryExpr = ScalarSubquery(maxAggPlan)
+    val minScalarSubqueryExpr = ScalarSubquery(minAggPlan)
+
+    val evalProjectList = Seq(UnresolvedStar(None), Alias(maxScalarSubqueryExpr, "max_c")())
+    val evalProject = Project(evalProjectList, outer)
+    val filter = Filter(GreaterThan(UnresolvedAttribute("b"), minScalarSubqueryExpr), evalProject)
+    val expectedPlan =
+      Project(Seq(UnresolvedAttribute("max_c"), UnresolvedAttribute("a")), filter)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
   test("test correlated scalar subquery in select") {
     // select (select max(c) from inner where b = d), a from outer
     val context = new CatalystPlanContext
@@ -158,6 +242,40 @@ class PPLLogicalPlanScalarSubqueryTranslatorTestSuite
     val scalarSubqueryExpr = ScalarSubquery(aggregatePlan)
     val evalProjectList = Seq(UnresolvedStar(None), Alias(scalarSubqueryExpr, "max_c")())
     val evalProject = Project(evalProjectList, outer)
+    val expectedPlan =
+      Project(Seq(UnresolvedAttribute("max_c"), UnresolvedAttribute("a")), evalProject)
+
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test correlated scalar subquery in select with both tables tablesample(50 percent)") {
+    // select (select max(c) from inner where b = d), a from outer
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          s"""
+             | source = spark_catalog.default.outer tablesample(50 percent)
+             | | eval max_c = [
+             |     source = spark_catalog.default.inner tablesample(50 percent) | where b = d | stats max(c)
+             |   ]
+             | | fields max_c, a
+             | """.stripMargin),
+        context)
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "outer"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "inner"))
+    val aggregateExpressions = Seq(
+      Alias(
+        UnresolvedFunction(Seq("MAX"), Seq(UnresolvedAttribute("c")), isDistinct = false),
+        "max(c)")())
+    val filter = Filter(
+      EqualTo(UnresolvedAttribute("b"), UnresolvedAttribute("d")),
+      Sample(0, 0.5, withReplacement = false, 0, inner))
+    val aggregatePlan = Aggregate(Seq(), aggregateExpressions, filter)
+    val scalarSubqueryExpr = ScalarSubquery(aggregatePlan)
+    val evalProjectList = Seq(UnresolvedStar(None), Alias(scalarSubqueryExpr, "max_c")())
+    val evalProject = Project(evalProjectList, Sample(0, 0.5, withReplacement = false, 0, outer))
     val expectedPlan =
       Project(Seq(UnresolvedAttribute("max_c"), UnresolvedAttribute("a")), evalProject)
 
