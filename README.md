@@ -1,6 +1,6 @@
 # OpenSearch Flint
 
-OpenSearch Flint is ... It consists of four modules:
+OpenSearch consists of four modules:
 
 - `flint-core`: a module that contains Flint specification and client.
 - `flint-commons`: a module that provides a shared library of utilities and common functionalities, designed to easily extend Flint's capabilities.
