@@ -21,7 +21,7 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
 
 * **Commands**
-
+  
     - [`explain command `](PPL-Example-Commands.md/#explain)
   
     - [`dedup command `](ppl-dedup-command.md)
@@ -43,6 +43,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`rename command`](ppl-rename-command.md)
 
     - [`search command`](ppl-search-command.md)
+
+    - [`head` VS `tablesample`](ppl-limit-vs-sample-command.md)
 
     - [`sort command`](ppl-sort-command.md)
 
