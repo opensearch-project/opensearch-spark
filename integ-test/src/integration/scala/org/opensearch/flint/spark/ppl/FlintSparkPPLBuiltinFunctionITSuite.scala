@@ -785,6 +785,75 @@ class FlintSparkPPLBuiltinFunctionITSuite
     assert(results.sameElements(expectedResults))
   }
 
+  test("test cryptographic hash functions - md5") {
+    val frame = sql(s"""
+                       | source = $testTable digest=md5('Spark') | fields digest
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row("8cde774d6f7333752ed72cacddb05126"))
+    assert(results.sameElements(expectedResults))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val filterExpr = EqualTo(
+      UnresolvedAttribute("digest"),
+      UnresolvedFunction(
+        "md5",
+        seq(Literal("Spark")),
+        isDistinct = false))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("digest"))
+    val expectedPlan = Project(projectList, filterPlan)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test cryptographic hash functions - sha1") {
+    val frame = sql(s"""
+                       | source = $testTable digest=sha1('Spark') | fields digest
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row("85f5955f4b27a9a4c2aab6ffe5d7189fc298b92c"))
+    assert(results.sameElements(expectedResults))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val filterExpr = EqualTo(
+      UnresolvedAttribute("digest"),
+      UnresolvedFunction(
+        "sha1",
+        seq(Literal("Spark")),
+        isDistinct = false))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("digest"))
+    val expectedPlan = Project(projectList, filterPlan)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test cryptographic hash functions - sha2") {
+    val frame = sql(s"""
+                       | source = $testTable digest=sha2('Spark',256) | fields digest
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row("529bc3b07127ecb7e53a4dcf1991d9152c24537d919178022b2c42657f79a26b"))
+    assert(results.sameElements(expectedResults))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val filterExpr = EqualTo(
+      UnresolvedAttribute("digest"),
+      UnresolvedFunction(
+        "sha2",
+        seq(Literal("Spark"), Literal(256)),
+        isDistinct = false))
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedAttribute("digest"))
+    val expectedPlan = Project(projectList, filterPlan)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
   // Todo
   // +---------------------------------------+
   // | Below tests are not supported (cast)  |

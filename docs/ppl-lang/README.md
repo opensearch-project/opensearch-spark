@@ -79,6 +79,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`Type Conversion Functions`](functions/ppl-conversion.md)
 
+    - [`Cryptographic Functions`](functions/ppl-cryptographic.md)
+
 
 ---
 ### PPL On Spark
