@@ -32,7 +32,7 @@ The example show fetch all the document from accounts index with .
 
 PPL query:
 
-    os> source=accounts account_number=1 or gender="F";
+    os> SEARCH source=accounts account_number=1 or gender="F";
     +------------------+-------------+--------------------+-----------+----------+--------+------------+---------+-------+----------------------+------------+
     | account_number   | firstname   | address            | balance   | gender   | city   | employer   | state   | age   | email                | lastname   |
     |------------------+-------------+--------------------+-----------+----------+--------+------------+---------+-------+----------------------+------------|

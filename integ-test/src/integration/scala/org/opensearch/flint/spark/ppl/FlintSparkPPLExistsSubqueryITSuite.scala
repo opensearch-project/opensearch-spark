@@ -84,12 +84,85 @@ class FlintSparkPPLExistsSubqueryITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
+  test("test simple exists subquery in search filter") {
+    val frame = sql(s"""
+                       | source = $outerTable exists [ source = $innerTable | where id = uid ]
+                       | | sort  - salary
+                       | | fields id, name, salary
+                       | """.stripMargin)
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(
+      Row(1002, "John", 120000),
+      Row(1003, "David", 120000),
+      Row(1000, "Jake", 100000),
+      Row(1005, "Jane", 90000),
+      Row(1006, "Tommy", 30000))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val existsSubquery = Filter(
+      Exists(Filter(EqualTo(UnresolvedAttribute("id"), UnresolvedAttribute("uid")), inner)),
+      outer)
+    val sortedPlan = Sort(
+      Seq(SortOrder(UnresolvedAttribute("salary"), Descending)),
+      global = true,
+      existsSubquery)
+    val expectedPlan =
+      Project(
+        Seq(
+          UnresolvedAttribute("id"),
+          UnresolvedAttribute("name"),
+          UnresolvedAttribute("salary")),
+        sortedPlan)
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
   test("test not exists subquery") {
     val frame = sql(s"""
                        | source = $outerTable
                        | | where not exists [
                        |     source = $innerTable | where id = uid
                        |   ]
+                       | | sort  - salary
+                       | | fields id, name, salary
+                       | """.stripMargin)
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(1001, "Hello", 70000), Row(1004, "David", 0))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val existsSubquery =
+      Filter(
+        Not(
+          Exists(Filter(EqualTo(UnresolvedAttribute("id"), UnresolvedAttribute("uid")), inner))),
+        outer)
+    val sortedPlan = Sort(
+      Seq(SortOrder(UnresolvedAttribute("salary"), Descending)),
+      global = true,
+      existsSubquery)
+    val expectedPlan =
+      Project(
+        Seq(
+          UnresolvedAttribute("id"),
+          UnresolvedAttribute("name"),
+          UnresolvedAttribute("salary")),
+        sortedPlan)
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test not exists subquery in search filter") {
+    val frame = sql(s"""
+                       | source = $outerTable not exists [ source = $innerTable | where id = uid ]
                        | | sort  - salary
                        | | fields id, name, salary
                        | """.stripMargin)

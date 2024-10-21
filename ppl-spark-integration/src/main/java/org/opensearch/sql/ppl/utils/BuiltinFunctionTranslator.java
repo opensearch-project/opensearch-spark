@@ -44,11 +44,12 @@ public interface BuiltinFunctionTranslator {
             .put(ADDDATE, "date_add") // only maps adddate(date, days)
             .put(DATEDIFF, "datediff")
             .put(LOCALTIME, "localtimestamp")
+            .put(SYSDATE, "now")
             // Cryptographic functions
             .put(MD5, "md5")
             .put(SHA1, "sha1")
             .put(SHA2, "sha2")
-            //condition functions
+            // condition functions
             .put(IS_NULL, "isnull")
             .put(IS_NOT_NULL, "isnotnull")
             .put(BuiltinFunctionName.ISPRESENT, "isnotnull")
