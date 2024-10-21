@@ -798,10 +798,7 @@ class FlintSparkPPLBuiltinFunctionITSuite
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = EqualTo(
       UnresolvedAttribute("digest"),
-      UnresolvedFunction(
-        "md5",
-        seq(Literal("Spark")),
-        isDistinct = false))
+      UnresolvedFunction("md5", seq(Literal("Spark")), isDistinct = false))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("digest"))
     val expectedPlan = Project(projectList, filterPlan)
@@ -821,10 +818,7 @@ class FlintSparkPPLBuiltinFunctionITSuite
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = EqualTo(
       UnresolvedAttribute("digest"),
-      UnresolvedFunction(
-        "sha1",
-        seq(Literal("Spark")),
-        isDistinct = false))
+      UnresolvedFunction("sha1", seq(Literal("Spark")), isDistinct = false))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("digest"))
     val expectedPlan = Project(projectList, filterPlan)
@@ -837,17 +831,15 @@ class FlintSparkPPLBuiltinFunctionITSuite
                        | """.stripMargin)
 
     val results: Array[Row] = frame.collect()
-    val expectedResults: Array[Row] = Array(Row("529bc3b07127ecb7e53a4dcf1991d9152c24537d919178022b2c42657f79a26b"))
+    val expectedResults: Array[Row] =
+      Array(Row("529bc3b07127ecb7e53a4dcf1991d9152c24537d919178022b2c42657f79a26b"))
     assert(results.sameElements(expectedResults))
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val filterExpr = EqualTo(
       UnresolvedAttribute("digest"),
-      UnresolvedFunction(
-        "sha2",
-        seq(Literal("Spark"), Literal(256)),
-        isDistinct = false))
+      UnresolvedFunction("sha2", seq(Literal("Spark"), Literal(256)), isDistinct = false))
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedAttribute("digest"))
     val expectedPlan = Project(projectList, filterPlan)
