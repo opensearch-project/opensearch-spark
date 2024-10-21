@@ -7,17 +7,28 @@ package org.opensearch.sql.ppl.utils;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.Literal$;
+import org.apache.spark.sql.types.StringType$;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADD;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADDDATE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATEDIFF;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DAY_OF_MONTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.COALESCE;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_ARRAY;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_ARRAY_LENGTH;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_EXTRACT;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_KEYS;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_OBJECT;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_VALID;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SUBTRACT;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MULTIPLY;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DIVIDE;
@@ -46,7 +57,7 @@ public interface BuiltinFunctionTranslator {
      * The name mapping between PPL builtin functions to Spark builtin functions.
      */
     static final Map<BuiltinFunctionName, String> SPARK_BUILTIN_FUNCTION_NAME_MAPPING
-        = new ImmutableMap.Builder<BuiltinFunctionName, String>()
+        = ImmutableMap.<BuiltinFunctionName, String>builder()
             // arithmetic operators
             .put(ADD, "+")
             .put(SUBTRACT, "-")
@@ -75,7 +86,59 @@ public interface BuiltinFunctionTranslator {
             .put(COALESCE, "coalesce")
             .put(LENGTH, "length")
             .put(TRIM, "trim")
+            // json functions
+            .put(JSON_KEYS, "json_object_keys")
+            .put(JSON_EXTRACT, "get_json_object")
             .build();
+
+    /**
+     * The name mapping between PPL builtin functions to Spark builtin functions.
+     */
+    static final Map<BuiltinFunctionName, Function<List<Expression>, UnresolvedFunction>> PPL_TO_SPARK_FUNC_MAPPING
+        = ImmutableMap.<BuiltinFunctionName, Function<List<Expression>, UnresolvedFunction>>builder()
+        // json functions
+        .put(
+            JSON_ARRAY,
+            args -> {
+                return UnresolvedFunction$.MODULE$.apply("array", seq(args), false);
+            })
+        .put(
+            JSON_OBJECT,
+            args -> {
+                return UnresolvedFunction$.MODULE$.apply("named_struct", seq(args), false);
+            })
+        .put(
+            JSON_ARRAY_LENGTH,
+            args -> {
+                // Check if the input is an array (from json_array()) or a JSON string
+                if (args.get(0) instanceof UnresolvedFunction) {
+                    // Input is a JSON array
+                    return UnresolvedFunction$.MODULE$.apply("json_array_length",
+                        seq(UnresolvedFunction$.MODULE$.apply("to_json", seq(args), false)), false);
+                } else {
+                    // Input is a JSON string
+                    return UnresolvedFunction$.MODULE$.apply("json_array_length", seq(args.get(0)), false);
+                }
+            })
+        .put(
+            JSON,
+            args -> {
+                // Check if the input is a named_struct (from json_object()) or a JSON string
+                if (args.get(0) instanceof UnresolvedFunction) {
+                    return UnresolvedFunction$.MODULE$.apply("to_json", seq(args.get(0)), false);
+                } else {
+                    return UnresolvedFunction$.MODULE$.apply("get_json_object",
+                        seq(args.get(0), Literal$.MODULE$.apply("$")), false);
+                }
+            })
+        .put(
+            JSON_VALID,
+            args -> {
+                return UnresolvedFunction$.MODULE$.apply("isnotnull",
+                    seq(UnresolvedFunction$.MODULE$.apply("get_json_object",
+                        seq(args.get(0), Literal$.MODULE$.apply("$")), false)), false);
+            })
+        .build();
 
     static Expression builtinFunction(org.opensearch.sql.ast.expression.Function function, List<Expression> args) {
         if (BuiltinFunctionName.of(function.getFuncName()).isEmpty()) {
@@ -84,8 +147,16 @@ public interface BuiltinFunctionTranslator {
             throw new UnsupportedOperationException(function.getFuncName() + " is not a builtin function of PPL");
         } else {
             BuiltinFunctionName builtin = BuiltinFunctionName.of(function.getFuncName()).get();
-            String name = SPARK_BUILTIN_FUNCTION_NAME_MAPPING
-                .getOrDefault(builtin, builtin.getName().getFunctionName());
+            String name = SPARK_BUILTIN_FUNCTION_NAME_MAPPING.get(builtin);
+            if (name != null) {
+                // there is a Spark builtin function mapping with the PPL builtin function
+                return new UnresolvedFunction(seq(name), seq(args), false, empty(),false);
+            }
+            Function<List<Expression>, UnresolvedFunction> alternative = PPL_TO_SPARK_FUNC_MAPPING.get(builtin);
+            if (alternative != null) {
+                return alternative.apply(args);
+            }
+            name = builtin.getName().getFunctionName();
             return new UnresolvedFunction(seq(name), seq(args), false, empty(),false);
         }
     }
