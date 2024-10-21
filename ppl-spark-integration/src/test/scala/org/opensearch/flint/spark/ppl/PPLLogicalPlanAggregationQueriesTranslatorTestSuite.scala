@@ -42,6 +42,29 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
+  test("test average price with tablesample(50 percent)") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source = table tablesample(50 percent)| stats avg(price) "),
+        context)
+    // SQL: SELECT avg(price) as avg_price FROM table
+    val star = Seq(UnresolvedStar(None))
+
+    val priceField = UnresolvedAttribute("price")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+    val aggregateExpressions = Seq(
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(priceField), isDistinct = false), "avg(price)")())
+    val aggregatePlan = Aggregate(
+      Seq(),
+      aggregateExpressions,
+      Sample(0, 0.5, withReplacement = false, 0, tableRelation))
+    val expectedPlan = Project(star, aggregatePlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
   test("test average price with Alias") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
@@ -80,6 +103,33 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
 
     val aggregatePlan =
       Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), tableRelation)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test average price group by product with tablesample(50 percent)") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(pplParser, "source = table tablesample(50 percent) | stats avg(price) by product"),
+      context)
+    // SQL: SELECT product, AVG(price) AS avg_price FROM table GROUP BY product
+    val star = Seq(UnresolvedStar(None))
+    val productField = UnresolvedAttribute("product")
+    val priceField = UnresolvedAttribute("price")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val groupByAttributes = Seq(Alias(productField, "product")())
+    val aggregateExpressions =
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(priceField), isDistinct = false), "avg(price)")()
+    val productAlias = Alias(productField, "product")()
+
+    val aggregatePlan =
+      Aggregate(
+        groupByAttributes,
+        Seq(aggregateExpressions, productAlias),
+        Sample(0, 0.5, withReplacement = false, 0, tableRelation))
     val expectedPlan = Project(star, aggregatePlan)
 
     comparePlans(expectedPlan, logPlan, false)
@@ -146,6 +196,41 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     val expectedPlan = Project(star, sortedPlan)
     comparePlans(expectedPlan, logPlan, false)
   }
+
+  test("test average price group by product and filter sorted with tablesample(50 percent)") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table tablesample(50 percent) | where country ='USA' | stats avg(price) by product | sort product"),
+      context)
+    // SQL: SELECT product, AVG(price) AS avg_price FROM table GROUP BY product
+    val star = Seq(UnresolvedStar(None))
+    val productField = UnresolvedAttribute("product")
+    val priceField = UnresolvedAttribute("price")
+    val countryField = UnresolvedAttribute("country")
+    val table = UnresolvedRelation(Seq("table"))
+
+    val groupByAttributes = Seq(Alias(productField, "product")())
+    val aggregateExpressions =
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(priceField), isDistinct = false), "avg(price)")()
+    val productAlias = Alias(productField, "product")()
+
+    val filterExpr = EqualTo(countryField, Literal("USA"))
+    val filterPlan = Filter(filterExpr, Sample(0, 0.5, withReplacement = false, 0, table))
+
+    val aggregatePlan =
+      Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), filterPlan)
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(SortOrder(UnresolvedAttribute("product"), Ascending)),
+        global = true,
+        aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
   test("create ppl simple avg age by span of interval of 10 years query test ") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
@@ -215,6 +300,36 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
 
     comparePlans(expectedPlan, logPlan, false)
   }
+
+  test(
+    "create ppl simple avg age by span of interval of 10 years by country query test with tablesample(50 percent)") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table tablesample(50 percent) | stats avg(age) by span(age, 10) as age_span, country"),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val ageField = UnresolvedAttribute("age")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+    val countryField = UnresolvedAttribute("country")
+    val countryAlias = Alias(countryField, "country")()
+
+    val aggregateExpressions =
+      Alias(UnresolvedFunction(Seq("AVG"), Seq(ageField), isDistinct = false), "avg(age)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
+      "age_span")()
+    val aggregatePlan = Aggregate(
+      Seq(countryAlias, span),
+      Seq(aggregateExpressions, countryAlias, span),
+      Sample(0, 0.5, withReplacement = false, 0, tableRelation))
+    val expectedPlan = Project(star, aggregatePlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
   test("create ppl query count sales by weeks window and productId with sorting test") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
@@ -290,6 +405,7 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     // Compare the two plans
     comparePlans(expectedPlan, logPlan, false)
   }
+
   test("create ppl query count status amount by day window and group by status test") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
@@ -324,6 +440,43 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     // Compare the two plans
     comparePlans(expectedPlan, logPlan, false)
   }
+
+  test(
+    "create ppl query count status amount by day window and group by status test with tablesample(50 percent)") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table tablesample(50 percent) | stats sum(status) by span(@timestamp, 1d) as status_count_by_day, status | head 100"),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val status = Alias(UnresolvedAttribute("status"), "status")()
+    val statusAmount = UnresolvedAttribute("status")
+    val table = UnresolvedRelation(Seq("table"))
+
+    val windowExpression = Alias(
+      TimeWindow(
+        UnresolvedAttribute("`@timestamp`"),
+        TimeWindow.parseExpression(Literal("1 day")),
+        TimeWindow.parseExpression(Literal("1 day")),
+        0),
+      "status_count_by_day")()
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(statusAmount), isDistinct = false),
+        "sum(status)")()
+    val aggregatePlan = Aggregate(
+      Seq(status, windowExpression),
+      Seq(aggregateExpressions, status, windowExpression),
+      Sample(0, 0.5, withReplacement = false, 0, table))
+    val planWithLimit = GlobalLimit(Literal(100), LocalLimit(Literal(100), aggregatePlan))
+    val expectedPlan = Project(star, planWithLimit)
+    // Compare the two plans
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
   test(
     "create ppl query count only error (status >= 400) status amount by day window and group by status test") {
     val context = new CatalystPlanContext
@@ -598,6 +751,38 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
+  test("test price 50th percentile group by product sorted with tablesample(50 percent)") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table tablesample(50 percent) | stats percentile(price, 50) by product | sort product"),
+      context)
+    val star = Seq(UnresolvedStar(None))
+    val priceField = UnresolvedAttribute("price")
+    val productField = UnresolvedAttribute("product")
+    val percentage = Literal(0.5)
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val groupByAttributes = Seq(Alias(productField, "product")())
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("PERCENTILE"), Seq(priceField, percentage), isDistinct = false),
+        "percentile(price, 50)")()
+    val productAlias = Alias(productField, "product")()
+
+    val aggregatePlan =
+      Aggregate(
+        groupByAttributes,
+        Seq(aggregateExpressions, productAlias),
+        Sample(0, 0.5, withReplacement = false, 0, tableRelation))
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(productField, Ascending)), global = true, aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
   test("test price 20th percentile with alias and filter") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
@@ -776,6 +961,30 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
+  test("test distinct count product with alias and filter with tablesample(50 percent)") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table tablesample(50 percent)| where price > 100 | stats distinct_count(product) as dc_product"),
+      context)
+    val star = Seq(UnresolvedStar(None))
+    val productField = UnresolvedAttribute("product")
+    val priceField = UnresolvedAttribute("price")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+
+    val aggregateExpressions = Seq(
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(productField), isDistinct = true),
+        "dc_product")())
+    val filterExpr = GreaterThan(priceField, Literal(100))
+    val filterPlan = Filter(filterExpr, Sample(0, 0.5, withReplacement = false, 0, tableRelation))
+    val aggregatePlan = Aggregate(Seq(), aggregateExpressions, filterPlan)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
   test("test distinct count age by span of interval of 10 years query with sort ") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
@@ -832,6 +1041,42 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
       Seq(status, windowExpression),
       Seq(aggregateExpressions, status, windowExpression),
       table)
+    val planWithLimit = GlobalLimit(Literal(100), LocalLimit(Literal(100), aggregatePlan))
+    val expectedPlan = Project(star, planWithLimit)
+    // Compare the two plans
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test(
+    "test distinct count status by week window and group by status with limit with tablesample(50 percent)") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table tablesample(50 percent) | stats distinct_count(status) by span(@timestamp, 1w) as status_count_by_week, status | head 100"),
+      context)
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val status = Alias(UnresolvedAttribute("status"), "status")()
+    val statusCount = UnresolvedAttribute("status")
+    val table = UnresolvedRelation(Seq("table"))
+
+    val windowExpression = Alias(
+      TimeWindow(
+        UnresolvedAttribute("`@timestamp`"),
+        TimeWindow.parseExpression(Literal("1 week")),
+        TimeWindow.parseExpression(Literal("1 week")),
+        0),
+      "status_count_by_week")()
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(statusCount), isDistinct = true),
+        "distinct_count(status)")()
+    val aggregatePlan = Aggregate(
+      Seq(status, windowExpression),
+      Seq(aggregateExpressions, status, windowExpression),
+      Sample(0, 0.5, withReplacement = false, 0, table))
     val planWithLimit = GlobalLimit(Literal(100), LocalLimit(Literal(100), aggregatePlan))
     val expectedPlan = Project(star, planWithLimit)
     // Compare the two plans
@@ -944,6 +1189,49 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
         groupByAttributes1,
         Seq(aggregateExpressions1, hostAlias, serviceAlias),
         tableRelation)
+
+    val avgResponseTimeField = UnresolvedAttribute("avg_response_time")
+    val groupByAttributes2 = Seq(Alias(serviceField, "service")())
+    val aggregateExpressions2 =
+      Alias(
+        UnresolvedFunction(Seq("AVG"), Seq(avgResponseTimeField), isDistinct = false),
+        "avg_host_response_time")()
+
+    val aggregatePlan2 =
+      Aggregate(groupByAttributes2, Seq(aggregateExpressions2, serviceAlias), aggregatePlan1)
+
+    val expectedPlan = Project(star, aggregatePlan2)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("multiple levels stats with tablesample(50 percent)") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table tablesample(50 percent) | stats avg(response_time) as avg_response_time by host, service | stats avg(avg_response_time) as avg_host_response_time by service"),
+      context)
+    val star = Seq(UnresolvedStar(None))
+    val hostField = UnresolvedAttribute("host")
+    val serviceField = UnresolvedAttribute("service")
+    val ageField = UnresolvedAttribute("age")
+    val responseTimeField = UnresolvedAttribute("response_time")
+    val tableRelation = UnresolvedRelation(Seq("table"))
+    val hostAlias = Alias(hostField, "host")()
+    val serviceAlias = Alias(serviceField, "service")()
+
+    val groupByAttributes1 = Seq(Alias(hostField, "host")(), Alias(serviceField, "service")())
+    val aggregateExpressions1 =
+      Alias(
+        UnresolvedFunction(Seq("AVG"), Seq(responseTimeField), isDistinct = false),
+        "avg_response_time")()
+    val responseTimeAlias = Alias(responseTimeField, "response_time")()
+    val aggregatePlan1 =
+      Aggregate(
+        groupByAttributes1,
+        Seq(aggregateExpressions1, hostAlias, serviceAlias),
+        Sample(0, 0.5, withReplacement = false, 0, tableRelation))
 
     val avgResponseTimeField = UnresolvedAttribute("avg_response_time")
     val groupByAttributes2 = Seq(Alias(serviceField, "service")())

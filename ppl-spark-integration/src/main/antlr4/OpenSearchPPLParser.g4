@@ -134,14 +134,18 @@ headCommand
    : HEAD (number = integerLiteral)? (FROM from = integerLiteral)?
    ;
 
+tablesampleClause
+   : TABLESAMPLE '(' (percentage = integerLiteral PERCENT ) ')'
+   ;
+
 topCommand
-   : TOP (number = integerLiteral)? fieldList (byClause)?
+   : TOP (number=integerLiteral)? fieldList (byClause)?
    ;
 
 rareCommand
    : RARE fieldList (byClause)?
    ;
-
+   
 grokCommand
    : GROK (source_field = expression) (pattern = stringLiteral)
    ;
@@ -262,7 +266,7 @@ tableOrSubqueryClause
 // But it may have different behaivours in different execution backends.
 // For example, a Spark UnresovledRelation node only accepts one data source.
 tableSourceClause
-   : tableSource (COMMA tableSource)* (AS alias = qualifiedName)?
+   : tableSource (COMMA tableSource)* (AS alias = qualifiedName)? (tablesampleClause)?
    ;
 
 // join

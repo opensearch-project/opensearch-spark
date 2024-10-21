@@ -23,6 +23,7 @@ SORT:                               'SORT';
 EVAL:                               'EVAL';
 HEAD:                               'HEAD';
 TOP:                                'TOP';
+TABLESAMPLE:                        'TABLESAMPLE';
 RARE:                               'RARE';
 PARSE:                              'PARSE';
 METHOD:                             'METHOD';
@@ -76,6 +77,7 @@ DATASOURCES:                        'DATASOURCES';
 VALUE:                              'VALUE';
 USING:                              'USING';
 WITH:                               'WITH';
+PERCENT:                            'PERCENT';
 
 // CLAUSE KEYWORDS
 SORTBY:                             'SORTBY';

@@ -44,3 +44,19 @@ PPL query:
     | M        | 33    |
     | M        | 36    |
     +----------+-------+
+
+### Example 3: Find the rare address using only 50% of the actual data (sampling)
+
+PPL query:
+
+    os> source = accounts TABLESAMPLE(50 percent) | rare address
+
+The logical plan outcome of the rare queries:
+
+```sql
+'Sort ['COUNT('address) AS count_address#91 ASC NULLS FIRST], true
++- 'Aggregate ['address], ['COUNT('address) AS count_address#90, 'address]
+   +- 'Sample 0.0, 0.5, false, 0
+      +- 'UnresolvedRelation [accounts], [], false
+
+```

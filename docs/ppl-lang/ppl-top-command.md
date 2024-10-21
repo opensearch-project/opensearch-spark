@@ -56,3 +56,22 @@ PPL query:
     | M        | 32    |
     +----------+-------+
 
+
+### Example 3: Find the top country by occupation using only 75% of the actual data (sampling)
+
+PPL query:
+
+    os> source = account  TABLESAMPLE(75 percent) | top 3 country by occupation
+
+The logical plan outcome of the top queries:
+
+```sql
+'Project [*]
++- 'GlobalLimit 3
+   +- 'LocalLimit 3
+      +- 'Sort ['COUNT('country) AS count_country#68 DESC NULLS LAST], true
+         +- 'Aggregate ['country, 'occupation AS occupation#67], ['COUNT('country) AS count_country#66, 'country, 'occupation AS occupation#67]
+            +- 'Sample 0.0, 0.75, false, 0
+               +- 'UnresolvedRelation [account], [], false
+
+```
