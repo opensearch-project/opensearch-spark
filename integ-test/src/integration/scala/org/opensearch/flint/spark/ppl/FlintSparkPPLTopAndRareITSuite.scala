@@ -83,7 +83,7 @@ class FlintSparkPPLTopAndRareITSuite
     val expectedPlan = Project(projectList, sortedPlan)
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
-  
+
   test("create ppl rare address field query test  with tablesample 50%") {
     val frame = sql(s"""
          | source = $testTable TABLESAMPLE(50 percent) | rare address
@@ -113,7 +113,12 @@ class FlintSparkPPLTopAndRareITSuite
       Aggregate(
         Seq(addressField),
         aggregateExpressions,
-        Sample(0.5, 0.5, withReplacement = false, 0, UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))))
+        Sample(
+          0.5,
+          0.5,
+          withReplacement = false,
+          0,
+          UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))))
     val sortedPlan: LogicalPlan =
       Sort(
         Seq(
