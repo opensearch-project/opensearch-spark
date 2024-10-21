@@ -314,6 +314,7 @@ LAST_DAY:                           'LAST_DAY';
 LOCALTIME:                          'LOCALTIME';
 LOCALTIMESTAMP:                     'LOCALTIMESTAMP';
 MAKEDATE:                           'MAKEDATE';
+MAKE_DATE:                          'MAKE_DATE';
 MAKETIME:                           'MAKETIME';
 MONTHNAME:                          'MONTHNAME';
 NOW:                                'NOW';
