@@ -84,7 +84,7 @@ class FlintSparkPPLTopAndRareITSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 
-  test("create ppl rare address field query test  with tablesample 50%") {
+  test("create ppl rare address field query test with tablesample 50%") {
     val frame = sql(s"""
          | source = $testTable TABLESAMPLE(50 percent) | rare address
          | """.stripMargin)
@@ -274,10 +274,108 @@ class FlintSparkPPLTopAndRareITSuite
     val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
+  
+  test("create ppl top 3 countries query test with tablesample 50%") {
+    val frame = sql(s"""
+         | source = $newTestTable  TABLESAMPLE(50 percent) | top 3 country
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 3)
+
+    val expectedRows = Set(Row(6, "Canada"), Row(3, "USA"), Row(1, "England"))
+    val actualRows = results.take(3).toSet
+
+    // Compare the sets
+    assert(
+      actualRows == expectedRows,
+      s"The first two results do not match the expected rows. Expected: $expectedRows, Actual: $actualRows")
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val countryField = UnresolvedAttribute("country")
+    val countExpr = Alias(
+      UnresolvedFunction(Seq("COUNT"), Seq(countryField), isDistinct = false),
+      "count_country")()
+    val aggregateExpressions = Seq(countExpr, countryField)
+    val aggregatePlan =
+      Aggregate(
+        Seq(countryField),
+        aggregateExpressions,
+        UnresolvedRelation(Seq("spark_catalog", "default", "new_flint_ppl_test")))
+
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(
+          SortOrder(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(countryField), isDistinct = false),
+              "count_country")(),
+            Descending)),
+        global = true,
+        aggregatePlan)
+
+    val planWithLimit =
+      GlobalLimit(Literal(3), LocalLimit(Literal(3), sortedPlan))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
 
   test("create ppl top 2 countries by occupation field query test") {
     val frame = sql(s"""
          | source = $newTestTable| top 3 country by occupation
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    assert(results.length == 3)
+
+    val expectedRows =
+      Set(Row(3, "Canada", "Doctor"), Row(2, "Canada", "Scientist"), Row(2, "USA", "Engineer"))
+    val actualRows = results.take(3).toSet
+
+    // Compare the sets
+    assert(
+      actualRows == expectedRows,
+      s"The first two results do not match the expected rows. Expected: $expectedRows, Actual: $actualRows")
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val countryField = UnresolvedAttribute("country")
+    val occupationField = UnresolvedAttribute("occupation")
+    val occupationFieldAlias = Alias(occupationField, "occupation")()
+
+    val countExpr = Alias(
+      UnresolvedFunction(Seq("COUNT"), Seq(countryField), isDistinct = false),
+      "count_country")()
+    val aggregateExpressions = Seq(countExpr, countryField, occupationFieldAlias)
+    val aggregatePlan =
+      Aggregate(
+        Seq(countryField, occupationFieldAlias),
+        aggregateExpressions,
+        UnresolvedRelation(Seq("spark_catalog", "default", "new_flint_ppl_test")))
+
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(
+          SortOrder(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(countryField), isDistinct = false),
+              "count_country")(),
+            Descending)),
+        global = true,
+        aggregatePlan)
+
+    val planWithLimit =
+      GlobalLimit(Literal(3), LocalLimit(Literal(3), sortedPlan))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+
+  }
+  test("create ppl top 2 countries by occupation field query test  with tablesample 50%") {
+    val frame = sql(s"""
+         | source = $newTestTable  TABLESAMPLE(50 percent) | top 3 country by occupation
          | """.stripMargin)
 
     // Retrieve the results
