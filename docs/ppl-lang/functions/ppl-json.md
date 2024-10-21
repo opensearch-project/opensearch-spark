@@ -180,7 +180,7 @@ Example:
 
 **Description**
 
-`json_keys()(jsonStr)` Returns all the keys of the outermost JSON object as an array.
+`json_keys(jsonStr)` Returns all the keys of the outermost JSON object as an array.
 
 **Argument type:** STRING
 
