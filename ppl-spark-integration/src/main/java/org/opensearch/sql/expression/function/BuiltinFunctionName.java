@@ -52,6 +52,11 @@ public enum BuiltinFunctionName {
   SIN(FunctionName.of("sin")),
   TAN(FunctionName.of("tan")),
 
+  /** Cryptographic Functions. */
+  MD5(FunctionName.of("md5")),
+  SHA1(FunctionName.of("sha1")),
+  SHA2(FunctionName.of("sha2")),
+
   /** Date and Time Functions. */
   ADDDATE(FunctionName.of("adddate")),
 //  ADDTIME(FunctionName.of("addtime")),

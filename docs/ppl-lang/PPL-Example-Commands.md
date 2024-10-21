@@ -92,6 +92,10 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one', a = 2, 'two', a = 3, 'three', a = 4, 'four', a = 5, 'five', a = 6, 'six', a = 7, 'se7en', a = 8, 'eight', a = 9, 'nine')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else 'unknown')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else concat(a, ' is an incorrect binary digit'))`
+- `source = table | eval digest = md5(fieldName) | fields digest`
+- `source = table | eval digest = sha1(fieldName) | fields digest`
+- `source = table | eval digest = sha2(fieldName,256) | fields digest`
+- `source = table | eval digest = sha2(fieldName,512) | fields digest`
 
 #### Fillnull
 Assumptions: `a`, `b`, `c`, `d`, `e` are existing fields in `table`
