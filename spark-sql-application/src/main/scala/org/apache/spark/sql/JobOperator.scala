@@ -5,7 +5,7 @@
 
 package org.apache.spark.sql
 
-import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.{ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
@@ -14,7 +14,7 @@ import scala.util.{Failure, Success, Try}
 
 import org.opensearch.flint.common.model.FlintStatement
 import org.opensearch.flint.common.scheduler.model.LangType
-import org.opensearch.flint.core.metrics.MetricConstants
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
 import org.opensearch.flint.spark.FlintSpark
 
@@ -136,6 +136,8 @@ case class JobOperator(
             "",
             startTime))
     } finally {
+      emitQueryExecutionTimeMetric(startTime)
+
       try {
         dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
       } catch {
@@ -148,11 +150,14 @@ case class JobOperator(
       statement.error = Some(error)
       statementExecutionManager.updateStatement(statement)
 
-      cleanUpResources(exceptionThrown, threadPool)
+      cleanUpResources(exceptionThrown, threadPool, startTime)
     }
   }
 
-  def cleanUpResources(exceptionThrown: Boolean, threadPool: ThreadPoolExecutor): Unit = {
+  def cleanUpResources(
+      exceptionThrown: Boolean,
+      threadPool: ThreadPoolExecutor,
+      startTime: Long): Unit = {
     val isStreaming = jobType.equalsIgnoreCase(FlintJobType.STREAMING)
     try {
       // Wait for streaming job complete if no error
@@ -182,6 +187,8 @@ case class JobOperator(
     }
     recordStreamingCompletionStatus(exceptionThrown)
 
+    emitBatchProcessingTimeMetric(startTime)
+
     // Check for non-daemon threads that may prevent the driver from shutting down.
     // Non-daemon threads other than the main thread indicate that the driver is still processing tasks,
     // which may be due to unresolved bugs in dependencies or threads not being properly shut down.
@@ -192,6 +199,21 @@ case class JobOperator(
       // If exiting with non-zero status, emr-s job will fail.
       // This is a part of the fault tolerance mechanism to handle such scenarios gracefully
       System.exit(0)
+    }
+  }
+
+  private def emitQueryExecutionTimeMetric(startTime: Long): Unit = {
+    MetricsUtil
+      .getTimer(MetricConstants.QUERY_EXECUTION_TIME_METRIC, false)
+      .update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+  }
+
+  private def emitBatchProcessingTimeMetric(startTime: Long): Unit = {
+    if (jobType.equalsIgnoreCase(FlintJobType.BATCH)) {
+      val latency = System.currentTimeMillis() - startTime;
+      MetricsUtil
+        .getTimer(MetricConstants.BATCH_PROCESSING_TIME_METRIC, false)
+        .update(latency, TimeUnit.MILLISECONDS)
     }
   }
 
