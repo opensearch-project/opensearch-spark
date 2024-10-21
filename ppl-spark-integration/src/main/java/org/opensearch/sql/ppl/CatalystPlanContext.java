@@ -10,11 +10,14 @@ import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.Sample;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
 import org.apache.spark.sql.types.Metadata;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
+import org.opensearch.sql.ast.tree.Aggregation;
 import org.opensearch.sql.data.type.ExprType;
+import org.opensearch.sql.ppl.utils.RelationUtils;
 import scala.collection.Iterator;
 import scala.collection.Seq;
 
@@ -56,6 +59,10 @@ public class CatalystPlanContext {
      * The current traversal context the visitor is going threw
      */
     private Stack<LogicalPlan> planTraversalContext = new Stack<>();
+    /**
+     * table sampling context
+     */
+    private Optional<RelationUtils.TablesampleContext> tablesampleContext;
 
     /**
      * NamedExpression contextual parameters
@@ -81,6 +88,10 @@ public class CatalystPlanContext {
 
     public List<UnresolvedExpression> getProjectedFields() {
         return projectedFields;
+    }
+
+    public Optional<RelationUtils.TablesampleContext> getTablesampleContext() {
+        return tablesampleContext;
     }
 
     public LogicalPlan getPlan() {
@@ -140,6 +151,17 @@ public class CatalystPlanContext {
         return with(relation);
     }
 
+    /**
+     * append sample-relation to relations list
+     *
+     * @param sampleRelation
+     * @return
+     */
+    public LogicalPlan withSampleRelation(Sample sampleRelation) {
+        this.relations.add(sampleRelation.child());
+        return with(sampleRelation);
+    }
+
     public void withSubqueryAlias(SubqueryAlias subqueryAlias) {
         this.subqueryAlias.add(subqueryAlias);
     }
@@ -163,6 +185,13 @@ public class CatalystPlanContext {
      */
     public LogicalPlan with(LogicalPlan plan) {
         return this.planBranches.push(plan);
+    }
+
+    /**
+     * add table sampling context
+     */
+    public void withSampling(Optional<RelationUtils.TablesampleContext> tablesampleContext) {
+        this.tablesampleContext = tablesampleContext;
     }
 
     /**

@@ -135,15 +135,15 @@ headCommand
    ;
 
 tablesampleClause
-   : TABLESAMPLE '(' (percentage = integerLiteral PERCENT | rowCount = integerLiteral ROWS | BUCKET bucketValue = integerLiteral OF totalBuckets = integerLiteral) ')'
+   : TABLESAMPLE '(' (percentage = integerLiteral PERCENT ) ')'
    ;
 
 topCommand
-   : TOP (number=integerLiteral)? fieldList (byClause)? (tablesampleClause)?
+   : TOP (number=integerLiteral)? fieldList (byClause)?
    ;
 
 rareCommand
-   : RARE fieldList (byClause)? (tablesampleClause)?
+   : RARE fieldList (byClause)?
    ;
    
 grokCommand
@@ -266,7 +266,7 @@ tableOrSubqueryClause
 // But it may have different behaivours in different execution backends.
 // For example, a Spark UnresovledRelation node only accepts one data source.
 tableSourceClause
-   : tableSource (COMMA tableSource)* (AS alias = qualifiedName)?
+   : tableSource (COMMA tableSource)* (AS alias = qualifiedName)? (tablesampleClause)?
    ;
 
 // join

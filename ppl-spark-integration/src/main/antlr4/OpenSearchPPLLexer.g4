@@ -68,10 +68,7 @@ SIMPLE:                             'SIMPLE';
 
 // COMMAND ASSIST KEYWORDS
 AS:                                 'AS';
-OF:                                 'OF';
 BY:                                 'BY';
-BUCKET:                             'BUCKET';
-ROWS:                               'ROWS';
 SOURCE:                             'SOURCE';
 INDEX:                              'INDEX';
 D:                                  'D';

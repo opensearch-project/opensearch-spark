@@ -58,6 +58,39 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     val expectedPlan = Project(projectList, sortedPlan)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
+  
+  test("test simple rare command with a single field with tablesample(50 percent) ") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=accounts | rare address tablesample(50 percent)"), context)
+    val addressField = UnresolvedAttribute("address")
+    val tableRelation = UnresolvedRelation(Seq("accounts"))
+
+    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
+
+    val aggregateExpressions = Seq(
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
+        "count_address")(),
+      addressField)
+
+    val aggregatePlan =
+      Aggregate(Seq(addressField), aggregateExpressions, tableRelation)
+
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(
+          SortOrder(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
+              "count_address")(),
+            Ascending)),
+        global = true,
+        aggregatePlan)
+    val expectedPlan = Project(projectList, sortedPlan)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
 
   test("test simple rare command with a by field test") {
     // if successful build ppl logical plan and translate to catalyst logical plan

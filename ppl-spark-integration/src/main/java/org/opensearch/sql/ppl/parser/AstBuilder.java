@@ -53,6 +53,7 @@ import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.TableFunction;
 import org.opensearch.sql.ast.tree.TopAggregation;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
+import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
 import java.util.ArrayList;
@@ -68,6 +69,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static org.opensearch.sql.ast.tree.FillNull.ContainNullableFieldFill.ofSameValue;
 import static org.opensearch.sql.ast.tree.FillNull.ContainNullableFieldFill.ofVariousValue;
+import static org.opensearch.sql.ppl.utils.RelationUtils.tablesampleBuilder;
 
 
 /** Class of building the AST. Refines the visit path and build the AST nodes */
@@ -359,7 +361,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   /** Lookup command */
   @Override
   public UnresolvedPlan visitLookupCommand(OpenSearchPPLParser.LookupCommandContext ctx) {
-    Relation lookupRelation = new Relation(this.internalVisitExpression(ctx.tableSource()));
+    Relation lookupRelation = new Relation(List.of(this.internalVisitExpression(ctx.tableSource())));
     Lookup.OutputStrategy strategy =
         ctx.APPEND() != null ? Lookup.OutputStrategy.APPEND : Lookup.OutputStrategy.REPLACE;
     java.util.Map<Alias, Field> lookupMappingList = buildLookupPair(ctx.lookupMappingList().lookupPair());
@@ -468,9 +470,10 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   @Override
   public UnresolvedPlan visitTableSourceClause(OpenSearchPPLParser.TableSourceClauseContext ctx) {
+    List<UnresolvedExpression> expressions = ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList());
     return ctx.alias == null
-        ? new Relation(ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList()))
-        : new Relation(ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList()), ctx.alias.getText());
+        ? new Relation(expressions, tablesampleBuilder(ctx.tablesampleClause()))
+        : new Relation(expressions, ctx.alias.getText(), tablesampleBuilder(ctx.tablesampleClause()));
   }
 
   @Override

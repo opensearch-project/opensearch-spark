@@ -1,9 +1,16 @@
 package org.opensearch.sql.ppl.utils;
 
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.sql.ast.expression.QualifiedName;
+import org.opensearch.sql.ast.tree.Aggregation;
 import scala.Option$;
 
 import java.util.List;
@@ -32,6 +39,12 @@ public interface RelationUtils {
                 .map(rel -> node);
     }
 
+    static Optional<TablesampleContext> tablesampleBuilder(OpenSearchPPLParser.TablesampleClauseContext context) {
+        if(context.percentage != null)
+            return Optional.of(new TablesampleContext(Integer.parseInt(context.percentage.getText())));
+        return Optional.empty();
+    }
+    
     static TableIdentifier getTableIdentifier(QualifiedName qualifiedName) {
         TableIdentifier identifier;
         if (qualifiedName.getParts().isEmpty()) {
@@ -52,5 +65,14 @@ public interface RelationUtils {
                 + " Syntax: [ database_name. ] table_name");
         }
         return identifier;
+    }
+    
+    @Getter
+    @Setter
+    @ToString
+    @EqualsAndHashCode(callSuper = false)
+    @AllArgsConstructor
+    class TablesampleContext {
+        public int percentage;
     }
 }
