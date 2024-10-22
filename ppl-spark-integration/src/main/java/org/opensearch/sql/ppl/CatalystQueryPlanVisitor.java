@@ -160,14 +160,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                             true,
                             DescribeRelation$.MODULE$.getOutputAttrs()));
         }
-        //populate table sampling
-        context.withSampling(node.getTablesampleContext());
         //regular sql algebraic relations
         node.getQualifiedNames().forEach(q -> {
             // Resolving the qualifiedName which is composed of a datasource.schema.table
             UnresolvedRelation relation = new UnresolvedRelation(getTableIdentifier(q).nameParts(), CaseInsensitiveStringMap.empty(), false);
-            if(!context.getTablesampleContext().isEmpty()) {
-                context.withSampleRelation(new Sample(0, (double) context.getTablesampleContext().get().getPercentage() / 100, false, 0, relation));
+            if(!node.getTablesampleContext().isEmpty()) {
+                context.withSampleRelation(new Sample(0, (double) node.getTablesampleContext().get().getPercentage() / 100, false, 0, relation));
             } else {
                 context.withRelation(relation);
             }

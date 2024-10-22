@@ -59,10 +59,6 @@ public class CatalystPlanContext {
      * The current traversal context the visitor is going threw
      */
     private Stack<LogicalPlan> planTraversalContext = new Stack<>();
-    /**
-     * table sampling context
-     */
-    private Optional<RelationUtils.TablesampleContext> tablesampleContext;
 
     /**
      * NamedExpression contextual parameters
@@ -89,11 +85,7 @@ public class CatalystPlanContext {
     public List<UnresolvedExpression> getProjectedFields() {
         return projectedFields;
     }
-
-    public Optional<RelationUtils.TablesampleContext> getTablesampleContext() {
-        return tablesampleContext;
-    }
-
+    
     public LogicalPlan getPlan() {
         if (this.planBranches.isEmpty()) return null;
         if (this.planBranches.size() == 1) {
@@ -186,14 +178,7 @@ public class CatalystPlanContext {
     public LogicalPlan with(LogicalPlan plan) {
         return this.planBranches.push(plan);
     }
-
-    /**
-     * add table sampling context
-     */
-    public void withSampling(Optional<RelationUtils.TablesampleContext> tablesampleContext) {
-        this.tablesampleContext = tablesampleContext;
-    }
-
+    
     /**
      * append plans collection with evolving plans branches
      *
