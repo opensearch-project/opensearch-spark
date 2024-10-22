@@ -21,7 +21,9 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
 
 * **Commands**
-  
+
+    - [`comment`](ppl-comment.md)
+
     - [`explain command `](PPL-Example-Commands.md/#explain)
   
     - [`dedup command `](ppl-dedup-command.md)
@@ -80,6 +82,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`Condition Functions`](functions/ppl-condition.md)
 
     - [`Type Conversion Functions`](functions/ppl-conversion.md)
+
+    - [`Cryptographic Functions`](functions/ppl-cryptographic.md)
 
 
 ---
