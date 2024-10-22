@@ -3,10 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.core.metadata
+package org.opensearch.flint.spark.metadatacache
+
+import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
+import org.opensearch.flint.spark.FlintSparkIndexOptions
 
 /**
  * Flint metadata cache defines metadata required to store in read cache for frontend user to
@@ -43,15 +46,12 @@ case class FlintMetadataCache(
 object FlintMetadataCache {
 
   def apply(metadata: FlintMetadata): FlintMetadataCache = {
-    val refreshInterval: Option[Int] = {
-      // TODO: FlintSparkIndexOptions not available here, hence using literals directly
-      if (metadata.options.get("auto_refresh") == "true" && metadata.options.containsKey(
-          "refresh_interval")) {
-        val tmp = metadata.options.get("refresh_interval").toString
-        Some(900) // TODO: parser
-      } else {
-        None
-      }
+    val indexOptions = FlintSparkIndexOptions(
+      metadata.options.asScala.mapValues(_.asInstanceOf[String]).toMap)
+    val refreshInterval = if (indexOptions.autoRefresh()) {
+      indexOptions.refreshInterval().map(_ => 900) // replace with parser function
+    } else {
+      None
     }
     val lastRefreshTime: Option[Long] = metadata.latestLogEntry.flatMap { entry =>
       entry.lastRefreshCompleteTime match {
@@ -59,6 +59,7 @@ object FlintMetadataCache {
         case timestamp => Some(timestamp)
       }
     }
+
     FlintMetadataCache("1.0", refreshInterval, Array("mock.mock.mock"), lastRefreshTime)
   }
 }

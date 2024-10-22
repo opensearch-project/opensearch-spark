@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.core.storage
+package org.opensearch.flint.spark.metadatacache
 
 import java.util
 
@@ -12,10 +12,11 @@ import scala.collection.JavaConverters._
 import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.PutMappingRequest
 import org.opensearch.common.xcontent.XContentType
-import org.opensearch.flint.common.metadata.FlintMetadata
+import org.opensearch.flint.common.metadata.{FlintIndexMetadataService, FlintMetadata}
 import org.opensearch.flint.core.{FlintOptions, IRestHighLevelClient}
-import org.opensearch.flint.core.metadata.{FlintIndexMetadataServiceBuilder, FlintMetadataCache}
+import org.opensearch.flint.core.metadata.FlintIndexMetadataServiceBuilder
 import org.opensearch.flint.core.metadata.FlintJsonHelper._
+import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
 
 import org.apache.spark.internal.Logging
 
@@ -51,8 +52,6 @@ class FlintOpenSearchMetadataCacheWriter(options: FlintOptions) extends Logging 
     try {
       client = OpenSearchClientUtils.createClient(options)
       val request = new PutMappingRequest(osIndexName)
-      // TODO: make sure to preserve existing lastRefreshTime
-      // Note that currently lastUpdateTime isn't used to construct FlintMetadataLogEntry
       request.source(serialize(metadata), XContentType.JSON)
       client.updateIndexMapping(request, RequestOptions.DEFAULT)
     } catch {

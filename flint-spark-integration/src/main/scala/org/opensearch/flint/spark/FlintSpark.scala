@@ -17,10 +17,10 @@ import org.opensearch.flint.common.scheduler.AsyncQueryScheduler
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.FlintIndexMetadataServiceBuilder
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogServiceBuilder
-import org.opensearch.flint.core.storage.FlintOpenSearchMetadataCacheWriter
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
+import org.opensearch.flint.spark.metadatacache.FlintOpenSearchMetadataCacheWriter
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._

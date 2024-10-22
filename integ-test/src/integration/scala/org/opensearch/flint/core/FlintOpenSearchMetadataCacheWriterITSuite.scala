@@ -10,12 +10,11 @@ import java.util.{Base64, List}
 import scala.collection.JavaConverters._
 
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
-import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintOpenSearchIndexMetadataService, FlintOpenSearchMetadataCacheWriter}
+import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintOpenSearchIndexMetadataService}
 import org.opensearch.flint.spark.FlintSparkSuite
+import org.opensearch.flint.spark.metadatacache.FlintOpenSearchMetadataCacheWriter
 import org.scalatest.Entry
 import org.scalatest.matchers.should.Matchers
-
-import org.apache.spark.sql.flint.config.FlintSparkConf
 
 class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Matchers {
 
@@ -38,20 +37,9 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     "",
     Map.empty[String, Any])
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    setFlintSparkConf(FlintSparkConf.METADATA_CACHE_WRITE, "true")
-  }
-
-  override def afterAll(): Unit = {
-    super.afterAll()
-    // TODO: unset if default is false
-    // conf.unsetConf(FlintSparkConf.METADATA_CACHE_WRITE.key)
-  }
-
   override def afterEach(): Unit = {
     super.afterEach()
-    deleteTestIndex(testFlintIndex)
+    flintClient.deleteIndex(testFlintIndex)
   }
 
   test("write metadata cache to index mappings") {
