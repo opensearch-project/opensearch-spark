@@ -136,13 +136,14 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
                 index.metadata()
               case latestEntry =>
                 logInfo(s"Creating index with metadata log entry ID ${latestEntry.id}")
-                index.metadata().copy(latestId = Some(latestEntry.id))
+                index
+                  .metadata()
+                  .copy(latestId = Some(latestEntry.id), latestLogEntry = Some(latest))
             }
             flintClient.createIndex(indexName, metadata)
             flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
             if (isMetadataCacheWriteEnabled) {
-              flintMetadataCacheWriter
-                .updateMetadataCache(indexName, metadata.copy(latestLogEntry = Some(latest)))
+              flintMetadataCacheWriter.updateMetadataCache(indexName, metadata)
             }
             jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.SCHEDULE)
           })
