@@ -354,4 +354,46 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
       thrown.getMessage
         === "[Field(field=A, fieldArgs=[]), Field(field=B, fieldArgs=[])] can't be resolved")
   }
+
+  test("test line comment should pass without exceptions") {
+    val context = new CatalystPlanContext
+    planTransformer.visit(plan(pplParser, "source=t a=1 b=2 //this is a comment"), context)
+    planTransformer.visit(plan(pplParser, "source=t a=1 b=2 // this is a comment "), context)
+    planTransformer.visit(
+      plan(
+        pplParser,
+        """
+        | // test is a new line comment
+        | source=t a=1 b=2 // test is a line comment at the end of ppl command
+        | | fields a,b // this is line comment inner ppl command
+        | ////this is a new line comment
+        |""".stripMargin),
+      context)
+  }
+
+  test("test block comment should pass without exceptions") {
+    val context = new CatalystPlanContext
+    planTransformer.visit(plan(pplParser, "source=t a=1 b=2 /*block comment*/"), context)
+    planTransformer.visit(plan(pplParser, "source=t a=1 b=2 /* block comment */"), context)
+    planTransformer.visit(
+      plan(
+        pplParser,
+        """
+        | /*
+        |  * This is a
+        |  *   multiple
+        |  * line block
+        |  *   comment
+        |  */
+        | search /* block comment */ source=t /* block comment */ a=1 b=2
+        | | /*
+        |     This is a
+        |       multiple
+        |     line
+        |       block
+        |         comment */ fields a,b /* block comment */
+        | /* block comment */
+        |""".stripMargin),
+      context)
+  }
 }
