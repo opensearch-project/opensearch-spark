@@ -1,5 +1,10 @@
 ## Example PPL Queries
 
+#### **Comment**
+[See additional command details](ppl-comment.md)
+- `source=accounts | top gender // finds most common gender of all the accounts` (line comment)
+- `source=accounts | dedup 2 gender /* dedup the document with gender field keep 2 duplication */ | fields account_number, gender` (block comment)
+
 #### **Describe**
 - `describe table`  This command is equal to the `DESCRIBE EXTENDED table` SQL command
 - `describe schema.table`

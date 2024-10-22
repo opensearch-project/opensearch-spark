@@ -22,6 +22,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
 * **Commands**
 
+    - [`comment`](ppl-comment.md)
+
     - [`explain command `](PPL-Example-Commands.md/#explain)
   
     - [`dedup command `](ppl-dedup-command.md)
