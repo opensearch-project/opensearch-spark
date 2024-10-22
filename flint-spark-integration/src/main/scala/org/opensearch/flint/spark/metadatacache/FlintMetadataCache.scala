@@ -10,6 +10,7 @@ import scala.collection.JavaConverters.mapAsScalaMapConverter
 import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.spark.FlintSparkIndexOptions
+import org.opensearch.flint.spark.scheduler.util.IntervalSchedulerParser
 
 /**
  * Flint metadata cache defines metadata required to store in read cache for frontend user to
@@ -45,11 +46,15 @@ case class FlintMetadataCache(
 
 object FlintMetadataCache {
 
+  // TODO: test case
   def apply(metadata: FlintMetadata): FlintMetadataCache = {
     val indexOptions = FlintSparkIndexOptions(
       metadata.options.asScala.mapValues(_.asInstanceOf[String]).toMap)
     val refreshInterval = if (indexOptions.autoRefresh()) {
-      indexOptions.refreshInterval().map(_ => 900) // replace with parser function
+      indexOptions
+        .refreshInterval()
+        .map(IntervalSchedulerParser.parseMillis)
+        .map(millis => (millis / 1000).toInt) // convert to seconds
     } else {
       None
     }
@@ -60,6 +65,7 @@ object FlintMetadataCache {
       }
     }
 
+    // TODO: get source tables from metadata
     FlintMetadataCache("1.0", refreshInterval, Array("mock.mock.mock"), lastRefreshTime)
   }
 }

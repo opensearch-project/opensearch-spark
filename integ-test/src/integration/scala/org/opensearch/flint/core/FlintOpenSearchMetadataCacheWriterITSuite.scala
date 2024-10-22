@@ -87,7 +87,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties should have size 4
     properties should contain allOf (Entry("metadataCacheVersion", "1.0"),
-    Entry("refreshInterval", 900), // TODO: value from FlintMetadataCache mock constant
+    Entry("refreshInterval", 600),
     Entry("lastRefreshTime", testLastRefreshCompleteTime))
     properties
       .get("sourceTables")

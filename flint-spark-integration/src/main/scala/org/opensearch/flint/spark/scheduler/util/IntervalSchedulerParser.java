@@ -18,6 +18,21 @@ import java.time.temporal.ChronoUnit;
 public class IntervalSchedulerParser {
 
     /**
+     * Parses a schedule string into an integer in milliseconds.
+     *
+     * @param scheduleStr the schedule string to parse
+     * @return the parsed integer
+     * @throws IllegalArgumentException if the schedule string is invalid
+     */
+    public static Long parseMillis(String scheduleStr) {
+        if (Strings.isNullOrEmpty(scheduleStr)) {
+            throw new IllegalArgumentException("Schedule string must not be null or empty.");
+        }
+
+        return Triggers.convert(scheduleStr);
+    }
+
+    /**
      * Parses a schedule string into an IntervalSchedule.
      *
      * @param scheduleStr the schedule string to parse
@@ -25,14 +40,8 @@ public class IntervalSchedulerParser {
      * @throws IllegalArgumentException if the schedule string is invalid
      */
     public static IntervalSchedule parse(String scheduleStr) {
-        if (Strings.isNullOrEmpty(scheduleStr)) {
-            throw new IllegalArgumentException("Schedule string must not be null or empty.");
-        }
-
-        Long millis = Triggers.convert(scheduleStr);
-
         // Convert milliseconds to minutes (rounding down)
-        int minutes = (int) (millis / (60 * 1000));
+        int minutes = (int) (parseMillis(scheduleStr) / (60 * 1000));
 
         // Use the current time as the start time
         Instant startTime = Instant.now();
