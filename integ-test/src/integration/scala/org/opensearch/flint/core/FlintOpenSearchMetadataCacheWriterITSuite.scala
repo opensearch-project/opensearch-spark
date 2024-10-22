@@ -5,11 +5,11 @@
 
 package org.opensearch.flint.core
 
-import java.util.List
+import java.util.{Base64, List}
 
 import scala.collection.JavaConverters._
 
-import org.opensearch.flint.core.metadata.FlintMetadataCache
+import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintOpenSearchIndexMetadataService, FlintOpenSearchMetadataCacheWriter}
 import org.opensearch.flint.spark.FlintSparkSuite
 import org.scalatest.Entry
@@ -25,13 +25,18 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
   lazy val flintMetadataCacheWriter = new FlintOpenSearchMetadataCacheWriter(options)
   lazy val flintIndexMetadataService = new FlintOpenSearchIndexMetadataService(options)
 
-  // TODO: don't use mock; fix tests
-  private val mockMetadataCacheData = FlintMetadataCache(
-    "1.0",
-    Some(900),
-    Array(
-      "dataSourceName.default.logGroups(logGroupIdentifier:['arn:aws:logs:us-east-1:123456:test-llt-xa', 'arn:aws:logs:us-east-1:123456:sample-lg-1'])"),
-    Some(1727395328283L))
+  val testFlintIndex = "flint_metadata_cache"
+  val testLatestId: String = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
+  val testLastRefreshCompleteTime = 1234567890123L
+  val flintMetadataLogEntry = FlintMetadataLogEntry(
+    testLatestId,
+    0L,
+    0L,
+    testLastRefreshCompleteTime,
+    FlintMetadataLogEntry.IndexState.ACTIVE,
+    Map.empty[String, Any],
+    "",
+    Map.empty[String, Any])
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -44,27 +49,67 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     // conf.unsetConf(FlintSparkConf.METADATA_CACHE_WRITE.key)
   }
 
-  test("write metadata cache to index mappings") {
-    val indexName = "flint_test_index"
-    val metadata = FlintOpenSearchIndexMetadataService.deserialize("{}")
-    flintClient.createIndex(indexName, metadata)
-    flintMetadataCacheWriter.updateMetadataCache(indexName, metadata)
+  override def afterEach(): Unit = {
+    super.afterEach()
+    deleteTestIndex(testFlintIndex)
+  }
 
-    val properties = flintIndexMetadataService.getIndexMetadata(indexName).properties
-    properties should have size 4
-    properties should contain allOf (Entry(
-      "metadataCacheVersion",
-      mockMetadataCacheData.metadataCacheVersion),
-    Entry("refreshInterval", mockMetadataCacheData.refreshInterval.get),
-    Entry("lastRefreshTime", mockMetadataCacheData.lastRefreshTime.get))
+  test("write metadata cache to index mappings") {
+    val metadata = FlintOpenSearchIndexMetadataService
+      .deserialize("{}")
+      .copy(latestLogEntry = Some(flintMetadataLogEntry))
+    flintClient.createIndex(testFlintIndex, metadata)
+    flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
+
+    val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+    properties should have size 3
+    properties should contain allOf (Entry("metadataCacheVersion", "1.0"),
+    Entry("lastRefreshTime", testLastRefreshCompleteTime))
     properties
       .get("sourceTables")
       .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs mockMetadataCacheData.sourceTables
+      .toArray should contain theSameElementsAs Array(
+      "mock.mock.mock"
+    ) // TODO: value from FlintMetadataCache mock constant
+  }
+
+  test("write metadata cache to index mappings with refresh interval") {
+    val content =
+      """ {
+        |   "_meta": {
+        |     "kind": "test_kind",
+        |     "options": {
+        |       "auto_refresh": "true",
+        |       "refresh_interval": "10 Minutes"
+        |     }
+        |   },
+        |   "properties": {
+        |     "age": {
+        |       "type": "integer"
+        |     }
+        |   }
+        | }
+        |""".stripMargin
+    val metadata = FlintOpenSearchIndexMetadataService
+      .deserialize(content)
+      .copy(latestLogEntry = Some(flintMetadataLogEntry))
+    flintClient.createIndex(testFlintIndex, metadata)
+    flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
+
+    val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+    properties should have size 4
+    properties should contain allOf (Entry("metadataCacheVersion", "1.0"),
+    Entry("refreshInterval", 900), // TODO: value from FlintMetadataCache mock constant
+    Entry("lastRefreshTime", testLastRefreshCompleteTime))
+    properties
+      .get("sourceTables")
+      .asInstanceOf[List[String]]
+      .toArray should contain theSameElementsAs Array(
+      "mock.mock.mock"
+    ) // TODO: value from FlintmetadataCache mock constant
   }
 
   test("write metadata cache to index mappings and preserve other index metadata") {
-    val indexName = "test_update"
     val content =
       """ {
         |   "_meta": {
@@ -78,26 +123,27 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
         | }
         |""".stripMargin
 
-    val metadata = FlintOpenSearchIndexMetadataService.deserialize(content)
-    flintClient.createIndex(indexName, metadata)
+    val metadata = FlintOpenSearchIndexMetadataService
+      .deserialize(content)
+      .copy(latestLogEntry = Some(flintMetadataLogEntry))
+    flintClient.createIndex(testFlintIndex, metadata)
 
-    flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
-    flintMetadataCacheWriter.updateMetadataCache(indexName, metadata)
+    flintIndexMetadataService.updateIndexMetadata(testFlintIndex, metadata)
+    flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
-    flintIndexMetadataService.getIndexMetadata(indexName).kind shouldBe "test_kind"
-    flintIndexMetadataService.getIndexMetadata(indexName).name shouldBe empty
-    flintIndexMetadataService.getIndexMetadata(indexName).schema should have size 1
-    var properties = flintIndexMetadataService.getIndexMetadata(indexName).properties
-    properties should have size 4
-    properties should contain allOf (Entry(
-      "metadataCacheVersion",
-      mockMetadataCacheData.metadataCacheVersion),
-    Entry("refreshInterval", mockMetadataCacheData.refreshInterval.get),
-    Entry("lastRefreshTime", mockMetadataCacheData.lastRefreshTime.get))
+    flintIndexMetadataService.getIndexMetadata(testFlintIndex).kind shouldBe "test_kind"
+    flintIndexMetadataService.getIndexMetadata(testFlintIndex).name shouldBe empty
+    flintIndexMetadataService.getIndexMetadata(testFlintIndex).schema should have size 1
+    var properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+    properties should have size 3
+    properties should contain allOf (Entry("metadataCacheVersion", "1.0"),
+    Entry("lastRefreshTime", testLastRefreshCompleteTime))
     properties
       .get("sourceTables")
       .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs mockMetadataCacheData.sourceTables
+      .toArray should contain theSameElementsAs Array(
+      "mock.mock.mock"
+    ) // TODO: value from FlintMetadataCache mock constant
 
     val newContent =
       """ {
@@ -113,23 +159,24 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
         | }
         |""".stripMargin
 
-    val newMetadata = FlintOpenSearchIndexMetadataService.deserialize(newContent)
-    flintIndexMetadataService.updateIndexMetadata(indexName, newMetadata)
-    flintMetadataCacheWriter.updateMetadataCache(indexName, newMetadata)
+    val newMetadata = FlintOpenSearchIndexMetadataService
+      .deserialize(newContent)
+      .copy(latestLogEntry = Some(flintMetadataLogEntry))
+    flintIndexMetadataService.updateIndexMetadata(testFlintIndex, newMetadata)
+    flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, newMetadata)
 
-    flintIndexMetadataService.getIndexMetadata(indexName).kind shouldBe "test_kind"
-    flintIndexMetadataService.getIndexMetadata(indexName).name shouldBe "test_name"
-    flintIndexMetadataService.getIndexMetadata(indexName).schema should have size 1
-    properties = flintIndexMetadataService.getIndexMetadata(indexName).properties
-    properties should have size 4
-    properties should contain allOf (Entry(
-      "metadataCacheVersion",
-      mockMetadataCacheData.metadataCacheVersion),
-    Entry("refreshInterval", mockMetadataCacheData.refreshInterval.get),
-    Entry("lastRefreshTime", mockMetadataCacheData.lastRefreshTime.get))
+    flintIndexMetadataService.getIndexMetadata(testFlintIndex).kind shouldBe "test_kind"
+    flintIndexMetadataService.getIndexMetadata(testFlintIndex).name shouldBe "test_name"
+    flintIndexMetadataService.getIndexMetadata(testFlintIndex).schema should have size 1
+    properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+    properties should have size 3
+    properties should contain allOf (Entry("metadataCacheVersion", "1.0"),
+    Entry("lastRefreshTime", testLastRefreshCompleteTime))
     properties
       .get("sourceTables")
       .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs mockMetadataCacheData.sourceTables
+      .toArray should contain theSameElementsAs Array(
+      "mock.mock.mock"
+    ) // TODO: value from FlintMetadataCache mock constant
   }
 }
