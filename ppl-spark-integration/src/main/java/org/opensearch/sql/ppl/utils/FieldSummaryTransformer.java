@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.plans.logical.Project;
 import org.apache.spark.sql.catalyst.plans.logical.Sort;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias;
 import org.apache.spark.sql.types.DataTypes;
+import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
 import org.opensearch.sql.ppl.CatalystPlanContext;
@@ -42,7 +43,6 @@ import static org.apache.spark.sql.types.DataTypes.IntegerType;
 import static org.apache.spark.sql.types.DataTypes.StringType;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.AVG;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.COUNT;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.COUNT_DISTINCT;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MAX;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MEAN;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MIN;
@@ -58,91 +58,93 @@ public interface FieldSummaryTransformer {
     String FIELD = "Field";
 
     /**
-     * translate the command into the aggregate statement group by the column name 
+     * translate the command into the aggregate statement group by the column name
      */
     static LogicalPlan translate(FieldSummary fieldSummary, CatalystPlanContext context) {
-        List<Function<LogicalPlan, LogicalPlan>> aggBranches = fieldSummary.getIncludeFields().stream().map(field -> {
-            Literal fieldNameLiteral = Literal.create(field.getField().toString(), StringType);
-            UnresolvedAttribute fieldLiteral = new UnresolvedAttribute(seq(field.getField().getParts()));
+        List<Function<LogicalPlan, LogicalPlan>> aggBranches = fieldSummary.getIncludeFields().stream()
+                .filter(field -> field instanceof org.opensearch.sql.ast.expression.Field  )
+                .map(field -> {
+            Literal fieldNameLiteral = Literal.create(((org.opensearch.sql.ast.expression.Field)field).getField().toString(), StringType);
+            UnresolvedAttribute fieldLiteral = new UnresolvedAttribute(seq(((org.opensearch.sql.ast.expression.Field)field).getField().getParts()));
             context.withProjectedFields(Collections.singletonList(field));
 
-            // Alias for the field name as Field
-            Alias fieldNameAlias = Alias$.MODULE$.apply(fieldNameLiteral,
-                    FIELD,
-                    NamedExpression.newExprId(),
-                    seq(),
-                    empty(),
-                    seq());
+                    // Alias for the field name as Field
+                    Alias fieldNameAlias = Alias$.MODULE$.apply(fieldNameLiteral,
+                            FIELD,
+                            NamedExpression.newExprId(),
+                            seq(),
+                            empty(),
+                            seq());
 
-            //Alias for the count(field) as Count
-            UnresolvedFunction count = new UnresolvedFunction(seq(COUNT.name()), seq(fieldLiteral), false, empty(), false);
-            Alias countAlias = Alias$.MODULE$.apply(count,
-                    COUNT.name(),
-                    NamedExpression.newExprId(),
-                    seq(),
-                    empty(),
-                    seq());
+                    //Alias for the count(field) as Count
+                    UnresolvedFunction count = new UnresolvedFunction(seq(COUNT.name()), seq(fieldLiteral), false, empty(), false);
+                    Alias countAlias = Alias$.MODULE$.apply(count,
+                            COUNT.name(),
+                            NamedExpression.newExprId(),
+                            seq(),
+                            empty(),
+                            seq());
 
-            //Alias for the count(DISTINCT field) as CountDistinct
-            UnresolvedFunction countDistinct = new UnresolvedFunction(seq(COUNT.name()), seq(fieldLiteral), true, empty(), false);
-            Alias distinctCountAlias = Alias$.MODULE$.apply(countDistinct,
-                    COUNT_DISTINCT.name(),
-                    NamedExpression.newExprId(),
-                    seq(),
-                    empty(),
-                    seq());
+                    //Alias for the count(DISTINCT field) as CountDistinct
+                    UnresolvedFunction countDistinct = new UnresolvedFunction(seq(COUNT.name()), seq(fieldLiteral), true, empty(), false);
+                    Alias distinctCountAlias = Alias$.MODULE$.apply(countDistinct,
+                            "DISTINCT",
+                            NamedExpression.newExprId(),
+                            seq(),
+                            empty(),
+                            seq());
 
-            //Alias for the MAX(field) as MAX
-            UnresolvedFunction max = new UnresolvedFunction(seq(MAX.name()), seq(fieldLiteral), false, empty(), false);
-            Alias maxAlias = Alias$.MODULE$.apply(max,
-                    MAX.name(),
-                    NamedExpression.newExprId(),
-                    seq(),
-                    empty(),
-                    seq());
+                    //Alias for the MAX(field) as MAX
+                    UnresolvedFunction max = new UnresolvedFunction(seq(MAX.name()), seq(fieldLiteral), false, empty(), false);
+                    Alias maxAlias = Alias$.MODULE$.apply(max,
+                            MAX.name(),
+                            NamedExpression.newExprId(),
+                            seq(),
+                            empty(),
+                            seq());
 
-            //Alias for the MIN(field) as Min
-            UnresolvedFunction min = new UnresolvedFunction(seq(MIN.name()), seq(fieldLiteral), false, empty(), false);
-            Alias minAlias = Alias$.MODULE$.apply(min,
-                    MIN.name(),
-                    NamedExpression.newExprId(),
-                    seq(),
-                    empty(),
-                    seq());
+                    //Alias for the MIN(field) as Min
+                    UnresolvedFunction min = new UnresolvedFunction(seq(MIN.name()), seq(fieldLiteral), false, empty(), false);
+                    Alias minAlias = Alias$.MODULE$.apply(min,
+                            MIN.name(),
+                            NamedExpression.newExprId(),
+                            seq(),
+                            empty(),
+                            seq());
 
-            //Alias for the AVG(field) as Avg
-            Alias avgAlias = getAggMethodAlias(AVG, fieldSummary, fieldLiteral);
+                    //Alias for the AVG(field) as Avg
+                    Alias avgAlias = getAggMethodAlias(AVG, fieldSummary, fieldLiteral);
 
-            //Alias for the MEAN(field) as Mean
-            Alias meanAlias = getAggMethodAlias(MEAN, fieldSummary, fieldLiteral);
+                    //Alias for the MEAN(field) as Mean
+                    Alias meanAlias = getAggMethodAlias(MEAN, fieldSummary, fieldLiteral);
 
-            //Alias for the STDDEV(field) as Stddev
-            Alias stddevAlias = getAggMethodAlias(STDDEV, fieldSummary, fieldLiteral);
+                    //Alias for the STDDEV(field) as Stddev
+                    Alias stddevAlias = getAggMethodAlias(STDDEV, fieldSummary, fieldLiteral);
 
-            // Alias COUNT(*) - COUNT(column2) AS Nulls
-            UnresolvedFunction countStar = new UnresolvedFunction(seq(COUNT.name()), seq(Literal.create(1, IntegerType)), false, empty(), false);
-            Alias nonNullAlias = Alias$.MODULE$.apply(
-                    new Subtract(countStar, count),
-                    NULLS,
-                    NamedExpression.newExprId(),
-                    seq(),
-                    empty(),
-                    seq());
+                    // Alias COUNT(*) - COUNT(column2) AS Nulls
+                    UnresolvedFunction countStar = new UnresolvedFunction(seq(COUNT.name()), seq(Literal.create(1, IntegerType)), false, empty(), false);
+                    Alias nonNullAlias = Alias$.MODULE$.apply(
+                            new Subtract(countStar, count),
+                            NULLS,
+                            NamedExpression.newExprId(),
+                            seq(),
+                            empty(),
+                            seq());
 
 
-            //Alias for the typeOf(field) as Type
-            UnresolvedFunction typeOf = new UnresolvedFunction(seq(TYPEOF.name()), seq(fieldLiteral), false, empty(), false);
-            Alias typeOfAlias = Alias$.MODULE$.apply(typeOf,
-                    TYPEOF.name(),
-                    NamedExpression.newExprId(),
-                    seq(),
-                    empty(),
-                    seq());
+                    //Alias for the typeOf(field) as Type
+                    UnresolvedFunction typeOf = new UnresolvedFunction(seq(TYPEOF.name()), seq(fieldLiteral), false, empty(), false);
+                    Alias typeOfAlias = Alias$.MODULE$.apply(typeOf,
+                            TYPEOF.name(),
+                            NamedExpression.newExprId(),
+                            seq(),
+                            empty(),
+                            seq());
 
-            //Aggregation 
-            return (Function<LogicalPlan, LogicalPlan>) p ->
-                        new Aggregate(seq(typeOfAlias), seq(fieldNameAlias, countAlias, distinctCountAlias, minAlias, maxAlias, avgAlias, meanAlias, stddevAlias, nonNullAlias, typeOfAlias), p);
-                    }).collect(Collectors.toList());
+                    //Aggregation 
+                    return (Function<LogicalPlan, LogicalPlan>) p ->
+                            new Aggregate(seq(typeOfAlias), seq(fieldNameAlias, countAlias, distinctCountAlias, minAlias, maxAlias, avgAlias, meanAlias, stddevAlias, nonNullAlias, typeOfAlias), p);
+                }).collect(Collectors.toList());
 
         return context.applyBranches(aggBranches);
     }
@@ -232,7 +234,7 @@ public interface FieldSummaryTransformer {
      * :  :                 +- 'Aggregate ['status_code], ['status_code, 'COUNT(1) AS count_status#27]
      * :  :                    +- 'UnresolvedRelation [spark_catalog, default, flint_ppl_test], [], false
      */
-    private static LogicalPlan buildTopValueSubQuery(int topValues,UnresolvedAttribute fieldLiteral, CatalystPlanContext context ) {
+    private static LogicalPlan buildTopValueSubQuery(int topValues, UnresolvedAttribute fieldLiteral, CatalystPlanContext context) {
         //Alias for the count(field) as Count
         UnresolvedFunction countFunc = new UnresolvedFunction(seq(COUNT.name()), seq(fieldLiteral), false, empty(), false);
         Alias countAlias = Alias$.MODULE$.apply(countFunc,
@@ -246,6 +248,6 @@ public interface FieldSummaryTransformer {
         SortOrder sortOrder = new SortOrder(countAlias, Descending$.MODULE$, Ascending$.MODULE$.defaultNullOrdering(), seq());
         Sort sort = new Sort(seq(sortOrder), true, project);
         GlobalLimit limit = new GlobalLimit(Literal.create(topValues, IntegerType), new LocalLimit(Literal.create(topValues, IntegerType), sort));
-        return new SubqueryAlias(new AliasIdentifier(TOP_VALUES+"_subquery"), limit);
+        return new SubqueryAlias(new AliasIdentifier(TOP_VALUES + "_subquery"), limit);
     }
 }

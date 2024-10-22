@@ -10,38 +10,30 @@ import lombok.Getter;
 import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
-import org.opensearch.sql.ast.expression.Field;
-import org.opensearch.sql.ast.expression.FieldList;
-import org.opensearch.sql.ast.expression.Literal;
-import org.opensearch.sql.ast.expression.NamedExpression;
+import org.opensearch.sql.ast.expression.Argument;
+import org.opensearch.sql.ast.expression.AttributeList;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
 import java.util.List;
-
-import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.INCLUDEFIELDS;
-import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.NULLS;
 
 @Getter
 @ToString
 @EqualsAndHashCode(callSuper = false)
 public class FieldSummary extends UnresolvedPlan {
-    private List<Field> includeFields;
+    private List<UnresolvedExpression> includeFields;
     private boolean includeNull;
     private List<UnresolvedExpression> collect;
     private UnresolvedPlan child;
 
     public FieldSummary(List<UnresolvedExpression> collect) {
         this.collect = collect;
-        collect.stream().filter(e->e instanceof NamedExpression)
-                .forEach(exp -> {
-            switch (((NamedExpression) exp).getExpressionId()) {
-                case NULLS:
-                    this.includeNull = (boolean) ((Literal) exp.getChild().get(0)).getValue();
-                    break;
-                case INCLUDEFIELDS:
-                    this.includeFields = ((FieldList) exp.getChild().get(0)).getFieldList();
-                    break;
-            }
+        collect.forEach(exp -> {
+                    if (exp instanceof Argument) {
+                        this.includeNull = (boolean) ((Argument)exp).getValue().getValue();
+                    }
+                    if (exp instanceof AttributeList) {
+                        this.includeFields = ((AttributeList)exp).getAttrList();
+                    }
         });
     }
 

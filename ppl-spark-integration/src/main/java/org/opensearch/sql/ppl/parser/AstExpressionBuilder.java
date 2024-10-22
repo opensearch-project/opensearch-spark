@@ -16,6 +16,7 @@ import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Argument;
+import org.opensearch.sql.ast.expression.AttributeList;
 import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.DataType;
@@ -30,7 +31,6 @@ import org.opensearch.sql.ast.expression.IntervalUnit;
 import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
-import org.opensearch.sql.ast.expression.NamedExpression;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
 import org.opensearch.sql.ast.expression.QualifiedName;
@@ -186,16 +186,15 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
 
     @Override
     public UnresolvedExpression visitFieldsummaryIncludeFields(OpenSearchPPLParser.FieldsummaryIncludeFieldsContext ctx) {
-        List<Field> includeFields = ctx.fieldList().fieldExpression().stream()
+        List<UnresolvedExpression> list = ctx.fieldList().fieldExpression().stream()
                 .map(this::visitFieldExpression)
-                .map(p->(Field)p)
                 .collect(Collectors.toList());
-        return new NamedExpression(INCLUDEFIELDS,new FieldList(includeFields));
+        return new AttributeList(list);
     }
 
     @Override
     public UnresolvedExpression visitFieldsummaryNulls(OpenSearchPPLParser.FieldsummaryNullsContext ctx) {
-        return new NamedExpression(NULLS,visitBooleanLiteral(ctx.booleanLiteral()));
+        return new Argument("NULLS",(Literal)visitBooleanLiteral(ctx.booleanLiteral()));
     }
 
 

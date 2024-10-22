@@ -56,7 +56,7 @@ class FlintSparkPPLFieldSummaryITSuite
         "COUNT")(),
       Alias(
         UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("status_code")), isDistinct = true),
-        "COUNT_DISTINCT")(),
+        "DISTINCT")(),
       Alias(
         UnresolvedFunction("MIN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
         "MIN")(),
@@ -140,7 +140,7 @@ class FlintSparkPPLFieldSummaryITSuite
         "COUNT")(),
       Alias(
         UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("status_code")), isDistinct = true),
-        "COUNT_DISTINCT")(),
+        "DISTINCT")(),
       Alias(
         UnresolvedFunction("MIN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
         "MIN")(),
@@ -204,7 +204,7 @@ class FlintSparkPPLFieldSummaryITSuite
         "COUNT")(),
       Alias(
         UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("status_code")), isDistinct = true),
-        "COUNT_DISTINCT")(),
+        "DISTINCT")(),
       Alias(
         UnresolvedFunction("MIN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
         "MIN")(),
@@ -290,7 +290,7 @@ class FlintSparkPPLFieldSummaryITSuite
         "COUNT")(),
       Alias(
         UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("status_code")), isDistinct = true),
-        "COUNT_DISTINCT")(),
+        "DISTINCT")(),
       Alias(
         UnresolvedFunction("MIN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
         "MIN")(),
@@ -367,7 +367,7 @@ class FlintSparkPPLFieldSummaryITSuite
           "COUNT")(),
         Alias(
           UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("id")), isDistinct = true),
-          "COUNT_DISTINCT")(),
+          "DISTINCT")(),
         Alias(
           UnresolvedFunction("MIN", Seq(UnresolvedAttribute("id")), isDistinct = false),
           "MIN")(),
@@ -431,7 +431,7 @@ class FlintSparkPPLFieldSummaryITSuite
           "COUNT")(),
         Alias(
           UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("status_code")), isDistinct = true),
-          "COUNT_DISTINCT")(),
+          "DISTINCT")(),
         Alias(
           UnresolvedFunction("MIN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
           "MIN")(),
@@ -508,7 +508,7 @@ class FlintSparkPPLFieldSummaryITSuite
             "COUNT",
             Seq(UnresolvedAttribute("request_path")),
             isDistinct = true),
-          "COUNT_DISTINCT")(),
+          "DISTINCT")(),
         Alias(
           UnresolvedFunction("MIN", Seq(UnresolvedAttribute("request_path")), isDistinct = false),
           "MIN")(),
@@ -601,7 +601,7 @@ class FlintSparkPPLFieldSummaryITSuite
           "COUNT")(),
         Alias(
           UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("id")), isDistinct = true),
-          "COUNT_DISTINCT")(),
+          "DISTINCT")(),
         Alias(
           UnresolvedFunction("MIN", Seq(UnresolvedAttribute("id")), isDistinct = false),
           "MIN")(),
@@ -644,7 +644,7 @@ class FlintSparkPPLFieldSummaryITSuite
           "COUNT")(),
         Alias(
           UnresolvedFunction("COUNT", Seq(UnresolvedAttribute("status_code")), isDistinct = true),
-          "COUNT_DISTINCT")(),
+          "DISTINCT")(),
         Alias(
           UnresolvedFunction("MIN", Seq(UnresolvedAttribute("status_code")), isDistinct = false),
           "MIN")(),
@@ -703,7 +703,7 @@ class FlintSparkPPLFieldSummaryITSuite
             "COUNT",
             Seq(UnresolvedAttribute("request_path")),
             isDistinct = true),
-          "COUNT_DISTINCT")(),
+          "DISTINCT")(),
         Alias(
           UnresolvedFunction("MIN", Seq(UnresolvedAttribute("request_path")), isDistinct = false),
           "MIN")(),

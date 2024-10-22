@@ -42,9 +42,9 @@ import static scala.collection.JavaConverters.asScalaBufferConverter;
  */
 public interface DataTypeTransformer {
     static <T> Seq<T> seq(T... elements) {
-        return seq(Arrays.stream(elements).filter(Objects::nonNull)
-                .collect(Collectors.toList()));
+        return seq(List.of(elements));
     }
+    
     static <T> Seq<T> seq(List<T> list) {
         return asScalaBufferConverter(list).asScala().seq();
     }
