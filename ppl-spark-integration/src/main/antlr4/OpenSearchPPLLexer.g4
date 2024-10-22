@@ -113,6 +113,7 @@ APPEND:                             'APPEND';
 CASE:                               'CASE';
 ELSE:                               'ELSE';
 IN:                                 'IN';
+EXISTS:                             'EXISTS';
 
 // LOGICAL KEYWORDS
 NOT:                                'NOT';
@@ -279,6 +280,11 @@ RADIANS:                            'RADIANS';
 SIN:                                'SIN';
 TAN:                                'TAN';
 
+// CRYPTOGRAPHIC FUNCTIONS
+MD5:                                  'MD5';
+SHA1:                                 'SHA1';
+SHA2:                                 'SHA2';
+
 // DATE AND TIME FUNCTIONS
 ADDDATE:                            'ADDDATE';
 ADDTIME:                            'ADDTIME';
@@ -307,6 +313,7 @@ LAST_DAY:                           'LAST_DAY';
 LOCALTIME:                          'LOCALTIME';
 LOCALTIMESTAMP:                     'LOCALTIMESTAMP';
 MAKEDATE:                           'MAKEDATE';
+MAKE_DATE:                          'MAKE_DATE';
 MAKETIME:                           'MAKETIME';
 MONTHNAME:                          'MONTHNAME';
 NOW:                                'NOW';
@@ -439,5 +446,7 @@ SQUOTA_STRING:                      '\'' ('\\'. | '\'\'' | ~('\'' | '\\'))* '\''
 BQUOTA_STRING:                      '`' ( '\\'. | '``' | ~('`'|'\\'))* '`';
 fragment DEC_DIGIT:                 [0-9];
 
+LINE_COMMENT:                       '//' ('\\\n' | ~[\r\n])* '\r'? '\n'? -> channel(HIDDEN);
+BLOCK_COMMENT:                      '/*' .*? '*/' -> channel(HIDDEN);
 
 ERROR_RECOGNITION:                  .    -> channel(ERRORCHANNEL);

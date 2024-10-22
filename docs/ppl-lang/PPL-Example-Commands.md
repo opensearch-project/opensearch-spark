@@ -1,7 +1,17 @@
 ## Example PPL Queries
 
+#### **Comment**
+[See additional command details](ppl-comment.md)
+- `source=accounts | top gender // finds most common gender of all the accounts` (line comment)
+- `source=accounts | dedup 2 gender /* dedup the document with gender field keep 2 duplication */ | fields account_number, gender` (block comment)
+
 #### **Describe**
 - `describe table`  This command is equal to the `DESCRIBE EXTENDED table` SQL command
+- `describe schema.table`
+- `` describe schema.`table` ``
+- `describe catalog.schema.table`
+- `` describe catalog.schema.`table` ``
+- `` describe `catalog`.`schema`.`table` ``
 
 #### **Explain**
 - `explain simple | source = table | where a = 1 | fields a,b,c`
@@ -87,6 +97,10 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one', a = 2, 'two', a = 3, 'three', a = 4, 'four', a = 5, 'five', a = 6, 'six', a = 7, 'se7en', a = 8, 'eight', a = 9, 'nine')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else 'unknown')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else concat(a, ' is an incorrect binary digit'))`
+- `source = table | eval digest = md5(fieldName) | fields digest`
+- `source = table | eval digest = sha1(fieldName) | fields digest`
+- `source = table | eval digest = sha2(fieldName,256) | fields digest`
+- `source = table | eval digest = sha2(fieldName,512) | fields digest`
 
 #### Fillnull
 Assumptions: `a`, `b`, `c`, `d`, `e` are existing fields in `table`
@@ -235,8 +249,7 @@ source = table |  where ispresent(a) |
 - `source = table1 | cross join left = l right = r table2`
 - `source = table1 | left semi join left = l right = r on l.a = r.a table2`
 - `source = table1 | left anti join left = l right = r on l.a = r.a table2`
-
-_- **Limitation: sub-searches is unsupported in join right side now**_
+- `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]`
 
 
 #### **Lookup**
@@ -263,12 +276,14 @@ _- **Limitation: "REPLACE" or "APPEND" clause must contain "AS"**_
 - `source = outer | where a not in [ source = inner | fields b ]`
 - `source = outer | where (a) not in [ source = inner | fields b ]`
 - `source = outer | where (a,b,c) not in [ source = inner | fields d,e,f ]`
+- `source = outer a in [ source = inner | fields b ]` (search filtering with subquery)
+- `source = outer a not in [ source = inner | fields b ]` (search filtering with subquery)
 - `source = outer | where a in [ source = inner1 | where b not in [ source = inner2 | fields c ] | fields b ]` (nested)
 - `source = table1 | inner join left = l right = r on l.a = r.a AND r.a in [ source = inner | fields d ] | fields l.a, r.a, b, c` (as join filter)
 
 **SQL Migration examples with IN-Subquery PPL:**
 
-1. tpch q4 (in-subquery with aggregation)
+tpch q4 (in-subquery with aggregation)
 ```sql
 select
   o_orderpriority,
@@ -304,52 +319,24 @@ source = orders
 | fields o_orderpriority, order_count
 ```
 
-2.tpch q20 (nested in-subquery)
-```sql
-select
-  s_name,
-  s_address
-from
-  supplier,
-  nation
-where
-  s_suppkey in (
-    select
-      ps_suppkey
-    from
-      partsupp
-    where
-      ps_partkey in (
-        select
-          p_partkey
-        from
-          part
-        where
-          p_name like 'forest%'
-      )
-  )
-  and s_nationkey = n_nationkey
-  and n_name = 'CANADA'
-order by
-  s_name
-```
+#### **ExistsSubquery**
+[See additional command details](ppl-subquery-command.md)
 
-Rewritten by PPL InSubquery query:
-```sql
-source = supplier
-| where s_suppkey IN [
-    source = partsupp
-    | where ps_partkey IN [
-        source = part
-        | where like(p_name, "forest%")
-        | fields p_partkey
-      ]
-    | fields ps_suppkey
-  ]
-| inner join left=l right=r on s_nationkey = n_nationkey and n_name = 'CANADA'
-  nation
-| sort s_name
-```
+Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table inner,  `e`, `f` are fields of table inner2
+- `source = outer | where exists [ source = inner | where a = c ]`
+- `source = outer | where not exists [ source = inner | where a = c ]`
+- `source = outer | where exists [ source = inner | where a = c and b = d ]`
+- `source = outer | where not exists [ source = inner | where a = c and b = d ]`
+- `source = outer exists [ source = inner | where a = c ]` (search filtering with subquery)
+- `source = outer not exists [ source = inner | where a = c ]` (search filtering with subquery)
+- `source = table as t1 exists [ source = table as t2 | where t1.a = t2.a ]` (table alias is useful in exists subquery)
+- `source = outer | where exists [ source = inner1 | where a = c and exists [ source = inner2 | where c = e ] ]` (nested)
+- `source = outer | where exists [ source = inner1 | where a = c | where exists [ source = inner2 | where c = e ] ]` (nested)
+- `source = outer | where exists [ source = inner | where c > 10 ]` (uncorrelated exists)
+- `source = outer | where not exists [ source = inner | where c > 10 ]` (uncorrelated exists)
+- `source = outer | where exists [ source = inner ] | eval l = "Bala" | fields l` (special uncorrelated exists)
+
+
 #### **ScalarSubquery**
 [See additional command details](ppl-subquery-command.md)
 
@@ -358,8 +345,13 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 - `source = outer | eval m = [ source = inner | stats max(c) ] | fields m, a`
 - `source = outer | eval m = [ source = inner | stats max(c) ] + b | fields m, a`
 
-**Uncorrelated scalar subquery in Select and Where**
-- `source = outer | where a > [ source = inner | stats min(c) ] | eval m = [ source = inner | stats max(c) ] | fields m, a`
+**Uncorrelated scalar subquery in Where**
+- `source = outer | where a > [ source = inner | stats min(c) ] | fields a`
+- `source = outer | where [ source = inner | stats min(c) ] > 0 | fields a`
+
+**Uncorrelated scalar subquery in Search filter**
+- `source = outer a > [ source = inner | stats min(c) ] | fields a`
+- `source = outer [ source = inner | stats min(c) ] > 0 | fields a`
 
 **Correlated scalar subquery in Select**
 - `source = outer | eval m = [ source = inner | where outer.b = inner.d | stats max(c) ] | fields m, a`
@@ -371,10 +363,23 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 - `source = outer | where a = [ source = inner | where b = d | stats max(c) ]`
 - `source = outer | where [ source = inner | where outer.b = inner.d OR inner.d = 1 | stats count() ] > 0 | fields a`
 
+**Correlated scalar subquery in Search filter**
+- `source = outer a = [ source = inner | where b = d | stats max(c) ]`
+- `source = outer [ source = inner | where outer.b = inner.d OR inner.d = 1 | stats count() ] > 0 | fields a`
+
 **Nested scalar subquery**
 - `source = outer | where a = [ source = inner | stats max(c) | sort c ] OR b = [ source = inner | where c = 1 | stats min(d) | sort d ]`
 - `source = outer | where a = [ source = inner | where c =  [ source = nested | stats max(e) by f | sort f ] | stats max(d) by c | sort c | head 1 ]`
 
+#### **(Relation) Subquery**
+[See additional command details](ppl-subquery-command.md)
+
+`InSubquery`, `ExistsSubquery` and `ScalarSubquery` are all subquery expressions. But `RelationSubquery` is not a subquery expression, it is a subquery plan which is common used in Join or Search clause.
+
+- `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]` (subquery in join right side)
+- `source = [ source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ] | stats count(a) by b ] as outer | head 1`
+
+_- **Limitation: another command usage of (relation) subquery is in `appendcols` commands which is unsupported**_
 
 ---
 #### Experimental Commands:

@@ -15,6 +15,7 @@ import org.opensearch.client.RequestOptions
 import org.opensearch.flint.common.FlintVersion.current
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
+import org.opensearch.flint.spark.FlintSparkIndex.quotedTableName
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler
 import org.scalatest.matchers.must.Matchers.{contain, defined}
@@ -194,7 +195,8 @@ class FlintSparkCoveringIndexITSuite extends FlintSparkSuite {
       val sourceMap = response.getSourceAsMap
 
       sourceMap.get("jobId") shouldBe testFlintIndex
-      sourceMap.get("scheduledQuery") shouldBe s"REFRESH INDEX $testIndex ON $testTable"
+      sourceMap
+        .get("scheduledQuery") shouldBe s"REFRESH INDEX $testIndex ON ${quotedTableName(testTable)}"
       sourceMap.get("enabled") shouldBe true
       sourceMap.get("queryLang") shouldBe "sql"
 

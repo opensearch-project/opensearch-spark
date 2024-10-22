@@ -22,7 +22,8 @@ import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.Function;
-import org.opensearch.sql.ast.expression.InSubquery;
+import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
+import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.IntervalUnit;
 import org.opensearch.sql.ast.expression.IsEmpty;
@@ -31,7 +32,7 @@ import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
 import org.opensearch.sql.ast.expression.QualifiedName;
-import org.opensearch.sql.ast.expression.ScalarSubquery;
+import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.SpanUnit;
 import org.opensearch.sql.ast.expression.UnresolvedArgument;
@@ -391,6 +392,11 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitScalarSubqueryExpr(OpenSearchPPLParser.ScalarSubqueryExprContext ctx) {
         return new ScalarSubquery(astBuilder.visitSubSearch(ctx.subSearch()));
+    }
+
+    @Override
+    public UnresolvedExpression visitExistsSubqueryExpr(OpenSearchPPLParser.ExistsSubqueryExprContext ctx) {
+        return new ExistsSubquery(astBuilder.visitSubSearch(ctx.subSearch()));
     }
 
     private QualifiedName visitIdentifiers(List<? extends ParserRuleContext> ctx) {

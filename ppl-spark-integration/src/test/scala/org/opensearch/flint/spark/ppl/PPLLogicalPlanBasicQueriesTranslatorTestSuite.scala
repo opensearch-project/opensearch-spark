@@ -37,13 +37,26 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
       thrown.getMessage === "Invalid table name: t.b.c.d Syntax: [ database_name. ] table_name")
   }
 
+  test("test describe with backticks") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "describe t.b.`c.d`"), context)
+
+    val expectedPlan = DescribeTableCommand(
+      TableIdentifier("c.d", Option("b"), Option("t")),
+      Map.empty[String, String].empty,
+      isExtended = true,
+      output = DescribeRelation.getOutputAttrs)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
   test("test describe FQN table clause") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "describe schema.default.http_logs"), context)
+      planTransformer.visit(plan(pplParser, "describe catalog.schema.http_logs"), context)
 
     val expectedPlan = DescribeTableCommand(
-      TableIdentifier("http_logs", Option("schema"), Option("default")),
+      TableIdentifier("http_logs", Option("schema"), Option("catalog")),
       Map.empty[String, String].empty,
       isExtended = true,
       output = DescribeRelation.getOutputAttrs)
@@ -64,10 +77,10 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
   test("test FQN table describe table clause") {
     val context = new CatalystPlanContext
-    val logPlan = planTransformer.visit(plan(pplParser, "describe catalog.t"), context)
+    val logPlan = planTransformer.visit(plan(pplParser, "describe schema.t"), context)
 
     val expectedPlan = DescribeTableCommand(
-      TableIdentifier("t", Option("catalog")),
+      TableIdentifier("t", Option("schema")),
       Map.empty[String, String].empty,
       isExtended = true,
       output = DescribeRelation.getOutputAttrs)
@@ -340,5 +353,47 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     assert(
       thrown.getMessage
         === "[Field(field=A, fieldArgs=[]), Field(field=B, fieldArgs=[])] can't be resolved")
+  }
+
+  test("test line comment should pass without exceptions") {
+    val context = new CatalystPlanContext
+    planTransformer.visit(plan(pplParser, "source=t a=1 b=2 //this is a comment"), context)
+    planTransformer.visit(plan(pplParser, "source=t a=1 b=2 // this is a comment "), context)
+    planTransformer.visit(
+      plan(
+        pplParser,
+        """
+        | // test is a new line comment
+        | source=t a=1 b=2 // test is a line comment at the end of ppl command
+        | | fields a,b // this is line comment inner ppl command
+        | ////this is a new line comment
+        |""".stripMargin),
+      context)
+  }
+
+  test("test block comment should pass without exceptions") {
+    val context = new CatalystPlanContext
+    planTransformer.visit(plan(pplParser, "source=t a=1 b=2 /*block comment*/"), context)
+    planTransformer.visit(plan(pplParser, "source=t a=1 b=2 /* block comment */"), context)
+    planTransformer.visit(
+      plan(
+        pplParser,
+        """
+        | /*
+        |  * This is a
+        |  *   multiple
+        |  * line block
+        |  *   comment
+        |  */
+        | search /* block comment */ source=t /* block comment */ a=1 b=2
+        | | /*
+        |     This is a
+        |       multiple
+        |     line
+        |       block
+        |         comment */ fields a,b /* block comment */
+        | /* block comment */
+        |""".stripMargin),
+      context)
   }
 }

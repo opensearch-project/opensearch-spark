@@ -247,17 +247,27 @@ mlArg
 
 // clauses
 fromClause
-   : SOURCE EQUAL tableSourceClause
-   | INDEX EQUAL tableSourceClause
+   : SOURCE EQUAL tableOrSubqueryClause
+   | INDEX EQUAL tableOrSubqueryClause
    ;
 
+tableOrSubqueryClause
+   : LT_SQR_PRTHS subSearch RT_SQR_PRTHS (AS alias = qualifiedName)?
+   | tableSourceClause
+   ;
+
+// One tableSourceClause will generate one Relation node with/without one alias
+// even if the relation contains more than one table sources.
+// These table sources in one relation will be readed one by one in OpenSearch.
+// But it may have different behaivours in different execution backends.
+// For example, a Spark UnresovledRelation node only accepts one data source.
 tableSourceClause
-   : tableSource (COMMA tableSource)*
+   : tableSource (COMMA tableSource)* (AS alias = qualifiedName)?
    ;
 
 // join
 joinCommand
-   : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableSource
+   : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableOrSubqueryClause
    ;
 
 joinType
@@ -279,13 +289,13 @@ joinCriteria
    ;
 
 joinHintList
-    : hintPair (COMMA? hintPair)*
-    ;
+   : hintPair (COMMA? hintPair)*
+   ;
 
 hintPair
-    : leftHintKey = LEFT_HINT DOT ID EQUAL leftHintValue = ident             #leftHint
-    | rightHintKey = RIGHT_HINT DOT ID EQUAL rightHintValue = ident          #rightHint
-    ;
+   : leftHintKey = LEFT_HINT DOT ID EQUAL leftHintValue = ident             #leftHint
+   | rightHintKey = RIGHT_HINT DOT ID EQUAL rightHintValue = ident          #rightHint
+   ;
 
 renameClasue
    : orignalField = wcFieldExpression AS renamedField = wcFieldExpression
@@ -351,24 +361,21 @@ percentileAggFunction
 // expressions
 expression
    : logicalExpression
-   | comparisonExpression
    | valueExpression
    ;
 
 logicalExpression
-   : comparisonExpression                                       # comparsion
-   | NOT logicalExpression                                      # logicalNot
-   | left = logicalExpression OR right = logicalExpression      # logicalOr
+   : NOT logicalExpression                                      # logicalNot
+   | comparisonExpression                                       # comparsion
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
+   | left = logicalExpression OR right = logicalExpression      # logicalOr
    | left = logicalExpression XOR right = logicalExpression     # logicalXor
    | booleanExpression                                          # booleanExpr
-   | isEmptyExpression                                          # isEmptyExpr
    ;
 
 comparisonExpression
    : left = valueExpression comparisonOperator right = valueExpression  # compareExpr
    | valueExpression IN valueList                                       # inExpr
-   | valueExpressionList NOT? IN LT_SQR_PRTHS subSearch RT_SQR_PRTHS    # inSubqueryExpr
    ;
 
 valueExpressionList
@@ -397,7 +404,10 @@ positionFunction
    ;
 
 booleanExpression
-   : booleanFunctionCall
+   : booleanFunctionCall                                                # booleanFunctionCallExpr
+   | isEmptyExpression                                                  # isEmptyExpr
+   | valueExpressionList NOT? IN LT_SQR_PRTHS subSearch RT_SQR_PRTHS    # inSubqueryExpr
+   | EXISTS LT_SQR_PRTHS subSearch RT_SQR_PRTHS                         # existsSubqueryExpr
    ;
 
  isEmptyExpression
@@ -498,6 +508,7 @@ evalFunctionName
    | systemFunctionName
    | positionFunctionName
    | coalesceFunctionName
+   | cryptographicFunctionName
    ;
 
 functionArgs
@@ -613,6 +624,12 @@ trigonometricFunctionName
    | TAN
    ;
 
+cryptographicFunctionName
+   : MD5
+   | SHA1
+   | SHA2
+   ;
+
 dateTimeFunctionName
    : ADDDATE
    | ADDTIME
@@ -644,6 +661,7 @@ dateTimeFunctionName
    | LOCALTIME
    | LOCALTIMESTAMP
    | MAKEDATE
+   | MAKE_DATE
    | MAKETIME
    | MICROSECOND
    | MINUTE
@@ -943,6 +961,7 @@ keywordsCanBeId
    | textFunctionName
    | mathematicalFunctionName
    | positionFunctionName
+   | cryptographicFunctionName
    // commands
    | SEARCH
    | DESCRIBE

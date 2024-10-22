@@ -132,12 +132,12 @@ class FlintSparkPPLScalarSubqueryITSuite
   test("test uncorrelated scalar subquery in select and where") {
     val frame = sql(s"""
                        | source = $outerTable
-                       | | eval count_dept = [
-                       |     source = $innerTable | stats count(department)
-                       |   ]
                        | | where id > [
                        |     source = $innerTable | stats count(department)
                        |   ] + 999
+                       | | eval count_dept = [
+                       |     source = $innerTable | stats count(department)
+                       |   ]
                        | | fields name, count_dept
                        | """.stripMargin)
     val results: Array[Row] = frame.collect()
@@ -160,13 +160,50 @@ class FlintSparkPPLScalarSubqueryITSuite
     val countScalarSubqueryExpr = ScalarSubquery(countAggPlan)
     val plusScalarSubquery =
       UnresolvedFunction(Seq("+"), Seq(countScalarSubqueryExpr, Literal(999)), isDistinct = false)
-
+    val filter = Filter(GreaterThan(UnresolvedAttribute("id"), plusScalarSubquery), outer)
     val evalProjectList =
       Seq(UnresolvedStar(None), Alias(countScalarSubqueryExpr, "count_dept")())
-    val evalProject = Project(evalProjectList, outer)
-    val filter = Filter(GreaterThan(UnresolvedAttribute("id"), plusScalarSubquery), evalProject)
+    val evalProject = Project(evalProjectList, filter)
     val expectedPlan =
-      Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("count_dept")), filter)
+      Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("count_dept")), evalProject)
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test uncorrelated scalar subquery in select and from with filter") {
+    val frame = sql(s"""
+                       | source = $outerTable id > [ source = $innerTable | stats count(department) ] + 999
+                       | | eval count_dept = [
+                       |     source = $innerTable | stats count(department)
+                       |   ]
+                       | | fields name, count_dept
+                       | """.stripMargin)
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row("Jane", 5), Row("Tommy", 5))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val countAgg = Seq(
+      Alias(
+        UnresolvedFunction(
+          Seq("COUNT"),
+          Seq(UnresolvedAttribute("department")),
+          isDistinct = false),
+        "count(department)")())
+    val countAggPlan = Aggregate(Seq(), countAgg, inner)
+    val countScalarSubqueryExpr = ScalarSubquery(countAggPlan)
+    val plusScalarSubquery =
+      UnresolvedFunction(Seq("+"), Seq(countScalarSubqueryExpr, Literal(999)), isDistinct = false)
+    val filter = Filter(GreaterThan(UnresolvedAttribute("id"), plusScalarSubquery), outer)
+    val evalProjectList =
+      Seq(UnresolvedStar(None), Alias(countScalarSubqueryExpr, "count_dept")())
+    val evalProject = Project(evalProjectList, filter)
+    val expectedPlan =
+      Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("count_dept")), evalProject)
 
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
@@ -274,6 +311,39 @@ class FlintSparkPPLScalarSubqueryITSuite
              |   ]
              | | fields id, name
              | """.stripMargin)
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(
+      Row(1000, "Jake"),
+      Row(1002, "John"),
+      Row(1003, "David"),
+      Row(1005, "Jane"),
+      Row(1006, "Tommy"))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val aggregateExpressions = Seq(
+      Alias(
+        UnresolvedFunction(Seq("MAX"), Seq(UnresolvedAttribute("uid")), isDistinct = false),
+        "max(uid)")())
+    val innerFilter =
+      Filter(EqualTo(UnresolvedAttribute("id"), UnresolvedAttribute("uid")), inner)
+    val aggregatePlan = Aggregate(Seq(), aggregateExpressions, innerFilter)
+    val scalarSubqueryExpr = ScalarSubquery(aggregatePlan)
+    val outerFilter = Filter(EqualTo(UnresolvedAttribute("id"), scalarSubqueryExpr), outer)
+    val expectedPlan =
+      Project(Seq(UnresolvedAttribute("id"), UnresolvedAttribute("name")), outerFilter)
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+  test("test correlated scalar subquery in from with filter") {
+    val frame = sql(s"""
+                       | source = $outerTable id = [ source = $innerTable | where id = uid | stats max(uid) ]
+                       | | fields id, name
+                       | """.stripMargin)
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake"),

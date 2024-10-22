@@ -87,6 +87,45 @@ class FlintSparkPPLInSubqueryITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
+  test("test filter id in (select uid from inner)") {
+    val frame = sql(s"""
+         source = $outerTable id in [ source = $innerTable | fields uid ]
+         | | sort  - salary
+         | | fields id, name, salary
+         | """.stripMargin)
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(
+      Row(1003, "David", 120000),
+      Row(1002, "John", 120000),
+      Row(1000, "Jake", 100000),
+      Row(1005, "Jane", 90000),
+      Row(1006, "Tommy", 30000))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val inSubquery =
+      Filter(
+        InSubquery(
+          Seq(UnresolvedAttribute("id")),
+          ListQuery(Project(Seq(UnresolvedAttribute("uid")), inner))),
+        outer)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("salary"), Descending)), global = true, inSubquery)
+    val expectedPlan =
+      Project(
+        Seq(
+          UnresolvedAttribute("id"),
+          UnresolvedAttribute("name"),
+          UnresolvedAttribute("salary")),
+        sortedPlan)
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
   test("test where (id) in (select uid from inner)") {
     // id (0, 1, 2, 3, 4, 5, 6), uid (0, 2, 3, 5, 6)
     // InSubquery: (0, 2, 3, 5, 6)
@@ -214,6 +253,41 @@ class FlintSparkPPLInSubqueryITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
+  test("test filter id not in (select uid from inner)") {
+    val frame = sql(s"""
+         source = $outerTable id not in [ source = $innerTable | fields uid ]
+         | | sort  - salary
+         | | fields id, name, salary
+         | """.stripMargin)
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] = Array(Row(1001, "Hello", 70000), Row(1004, "David", 0))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val inSubquery =
+      Filter(
+        Not(
+          InSubquery(
+            Seq(UnresolvedAttribute("id")),
+            ListQuery(Project(Seq(UnresolvedAttribute("uid")), inner)))),
+        outer)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("salary"), Descending)), global = true, inSubquery)
+    val expectedPlan =
+      Project(
+        Seq(
+          UnresolvedAttribute("id"),
+          UnresolvedAttribute("name"),
+          UnresolvedAttribute("salary")),
+        sortedPlan)
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
   test("test where (id, name) not in (select uid, name from inner)") {
     // Not InSubquery: (1, 4, 6)
     val frame = sql(s"""
@@ -305,8 +379,6 @@ class FlintSparkPPLInSubqueryITSuite
          | | sort  - salary
          | | fields id, name, salary
          | """.stripMargin)
-    frame.show()
-    frame.explain(true)
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
       Array(Row(1003, "David", 120000), Row(1002, "John", 120000), Row(1006, "Tommy", 30000))
@@ -358,7 +430,6 @@ class FlintSparkPPLInSubqueryITSuite
          |     $innerTable
          | | fields a.id, a.name, a.salary
          | """.stripMargin)
-    frame.explain(true)
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
       Array(Row(1003, "David", 120000), Row(1002, "John", 120000), Row(1006, "Tommy", 30000))
