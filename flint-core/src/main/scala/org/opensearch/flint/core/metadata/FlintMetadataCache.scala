@@ -53,9 +53,9 @@ object FlintMetadataCache {
         None
       }
     }
-    val lastRefreshTime: Option[Long] = {
-      metadata.latestLogEntry.get.createTime match {
-        case FlintMetadataLogEntry.EMPTY_CREATE_TIME => None
+    val lastRefreshTime: Option[Long] = metadata.latestLogEntry.flatMap { entry =>
+      entry.lastRefreshCompleteTime match {
+        case FlintMetadataLogEntry.EMPTY_TIMESTAMP => None
         case timestamp => Some(timestamp)
       }
     }
