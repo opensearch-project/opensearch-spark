@@ -46,7 +46,8 @@ case class FlintMetadataCache(
 
 object FlintMetadataCache {
 
-  // TODO: test case
+  // TODO: constant for version
+
   def apply(metadata: FlintMetadata): FlintMetadataCache = {
     val indexOptions = FlintSparkIndexOptions(
       metadata.options.asScala.mapValues(_.asInstanceOf[String]).toMap)

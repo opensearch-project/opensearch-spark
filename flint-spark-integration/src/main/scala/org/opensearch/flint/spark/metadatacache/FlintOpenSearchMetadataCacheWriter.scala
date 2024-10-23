@@ -61,7 +61,7 @@ class FlintOpenSearchMetadataCacheWriter(options: FlintOptions)
    * Serialize FlintMetadataCache from FlintMetadata. Modified from {@link
    * FlintOpenSearchIndexMetadataService}
    */
-  private def serialize(metadata: FlintMetadata): String = {
+  private[metadatacache] def serialize(metadata: FlintMetadata): String = {
     try {
       buildJson(builder => {
         objectField(builder, "_meta") {
