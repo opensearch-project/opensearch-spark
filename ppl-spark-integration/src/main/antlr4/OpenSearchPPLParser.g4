@@ -510,6 +510,7 @@ evalFunctionName
    | coalesceFunctionName
    | cryptographicFunctionName
    | jsonFunctionName
+   | collectionFunctionName
    ;
 
 functionArgs
