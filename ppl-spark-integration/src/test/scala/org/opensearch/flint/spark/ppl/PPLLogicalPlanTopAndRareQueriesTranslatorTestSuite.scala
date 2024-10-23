@@ -62,7 +62,11 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
   test("create ppl union query top 3 countries by occupation field query test with sample 75%") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source = accounts sample(100 percent), professions  sample(50 percent)| top 3 name"), context)
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source = accounts sample(100 percent), professions  sample(50 percent)| top 3 name"),
+        context)
     val countryField = UnresolvedAttribute("country")
     val occupationField = UnresolvedAttribute("occupation")
     val occupationFieldAlias = Alias(occupationField, "occupation")()

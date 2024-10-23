@@ -84,9 +84,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(
-          pplParser,
-          "source=t sample(50 percent) | eval a = 1, b = 1 | sort - a | fields b"),
+        plan(pplParser, "source=t sample(50 percent) | eval a = 1, b = 1 | sort - a | fields b"),
         context)
 
     val evalProjectList: Seq[NamedExpression] =

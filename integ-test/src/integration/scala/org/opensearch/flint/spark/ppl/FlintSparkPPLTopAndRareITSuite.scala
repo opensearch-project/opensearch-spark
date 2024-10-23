@@ -435,8 +435,9 @@ class FlintSparkPPLTopAndRareITSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
 
   }
-  
-  ignore("create ppl union query top 3 countries by occupation field query test with sample 75%") {
+
+  ignore(
+    "create ppl union query top 3 countries by occupation field query test with sample 75%") {
     val frame = sql(s"""
          | source = $newTestTable sample(100 percent), $testTable  sample(50 percent)| top 3 name
          | """.stripMargin)

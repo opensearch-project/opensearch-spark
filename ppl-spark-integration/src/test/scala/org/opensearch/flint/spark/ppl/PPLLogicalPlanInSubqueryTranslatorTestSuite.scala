@@ -121,8 +121,7 @@ class PPLLogicalPlanInSubqueryTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
-  test(
-    "test where a in (select b from c) with both inner & outer tables sample(50 percent)") {
+  test("test where a in (select b from c) with both inner & outer tables sample(50 percent)") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(

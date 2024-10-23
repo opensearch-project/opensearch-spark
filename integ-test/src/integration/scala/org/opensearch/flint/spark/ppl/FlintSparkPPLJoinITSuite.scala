@@ -208,8 +208,7 @@ class FlintSparkPPLJoinITSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 
-  test(
-    "test join on one join condition and filters with sample(100 percent) on both sides") {
+  test("test join on one join condition and filters with sample(100 percent) on both sides") {
     val frame = sql(s"""
          | source = $testTable1 sample(100 percent)
          | | inner join left=a, right=b

@@ -132,8 +132,7 @@ class PPLLogicalPlanScalarSubqueryTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
-  test(
-    "test uncorrelated scalar subquery in select and where with outer sample(50 percent)") {
+  test("test uncorrelated scalar subquery in select and where with outer sample(50 percent)") {
     // select (select max(c) from inner), a from outer where b > (select min(c) from inner)
     val context = new CatalystPlanContext
     val logPlan =
