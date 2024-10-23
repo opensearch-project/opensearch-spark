@@ -23,7 +23,7 @@ SORT:                               'SORT';
 EVAL:                               'EVAL';
 HEAD:                               'HEAD';
 TOP:                                'TOP';
-TABLESAMPLE:                        'TABLESAMPLE';
+SAMPLE:                             'SAMPLE';
 RARE:                               'RARE';
 PARSE:                              'PARSE';
 METHOD:                             'METHOD';

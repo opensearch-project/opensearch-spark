@@ -61,7 +61,7 @@ PPL query:
 
 PPL query:
 
-    os> source = account  TABLESAMPLE(75 percent) | top 3 country by occupation
+    os> source = account  sample(75 percent) | top 3 country by occupation
 
 The logical plan outcome of the top queries:
 

@@ -126,9 +126,9 @@ class FlintSparkPPLInSubqueryITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-  test("test filter id in (select uid from inner) with outer table tablesample(100 percent)") {
+  test("test filter id in (select uid from inner) with outer table sample(100 percent)") {
     val frame = sql(s"""
-         source = $outerTable tablesample(100 percent) | where (id) in [ source = $innerTable | fields uid ]
+         source = $outerTable sample(100 percent) | where (id) in [ source = $innerTable | fields uid ]
          | | sort  - salary
          | | fields id, name, salary
          | """.stripMargin)
@@ -210,13 +210,13 @@ class FlintSparkPPLInSubqueryITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-  test("test where (id) in (select uid from inner) with inner table tablesample(100 percent)") {
+  test("test where (id) in (select uid from inner) with inner table sample(100 percent)") {
     // id (0, 1, 2, 3, 4, 5, 6), uid (0, 2, 3, 5, 6)
     // InSubquery: (0, 2, 3, 5, 6)
     val frame = sql(s"""
           source = $outerTable
          | | where (id) in [
-         |     source = $innerTable tablesample(100 percent) | fields uid
+         |     source = $innerTable sample(100 percent) | fields uid
          |   ]
          | | sort  - salary
          | | fields id, name, salary
@@ -302,12 +302,12 @@ class FlintSparkPPLInSubqueryITSuite
   }
 
   test(
-    "test where (id, name) in (select uid, name from inner) with both tables tablesample(100 percent)") {
+    "test where (id, name) in (select uid, name from inner) with both tables sample(100 percent)") {
     // InSubquery: (0, 2, 3, 5)
     val frame = sql(s"""
-          source = $outerTable tablesample(100 percent)
+          source = $outerTable sample(100 percent)
          | | where (id, name) in [
-         |     source = $innerTable tablesample(100 percent)| fields uid, name
+         |     source = $innerTable sample(100 percent)| fields uid, name
          |   ]
          | | sort  - salary
          | | fields id, name, salary

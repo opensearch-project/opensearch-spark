@@ -102,9 +102,9 @@ class FlintSparkPPLJoinITSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 
-  test("test join on one join condition and filters with tablesample(100 percent) on table1") {
+  test("test join on one join condition and filters with sample(100 percent) on table1") {
     val frame = sql(s"""
-         | source = $testTable1  tablesample(100 percent)
+         | source = $testTable1  sample(100 percent)
          | | inner join left=a, right=b
          |     ON a.name = b.name AND a.year = 2023 AND a.month = 4 AND b.year = 2023 AND b.month = 4
          |     $testTable2
@@ -155,12 +155,12 @@ class FlintSparkPPLJoinITSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 
-  test("test join on one join condition and filters with tablesample(100 percent) on table2") {
+  test("test join on one join condition and filters with sample(100 percent) on table2") {
     val frame = sql(s"""
          | source = $testTable1
          | | inner join left=a, right=b
          |     ON a.name = b.name AND a.year = 2023 AND a.month = 4 AND b.year = 2023 AND b.month = 4
-         |     $testTable2 tablesample(100 percent)
+         |     $testTable2 sample(100 percent)
          | | fields a.name, a.age, a.state, a.country, b.occupation, b.country, b.salary
          | """.stripMargin)
     val results: Set[Row] = frame.collect().toSet
@@ -209,12 +209,12 @@ class FlintSparkPPLJoinITSuite
   }
 
   test(
-    "test join on one join condition and filters with tablesample(100 percent) on both sides") {
+    "test join on one join condition and filters with sample(100 percent) on both sides") {
     val frame = sql(s"""
-         | source = $testTable1 tablesample(100 percent)
+         | source = $testTable1 sample(100 percent)
          | | inner join left=a, right=b
          |     ON a.name = b.name AND a.year = 2023 AND a.month = 4 AND b.year = 2023 AND b.month = 4
-         |     $testTable2 tablesample(100 percent)
+         |     $testTable2 sample(100 percent)
          | | fields a.name, a.age, a.state, a.country, b.occupation, b.country, b.salary
          | """.stripMargin)
     val results: Set[Row] = frame.collect().toSet

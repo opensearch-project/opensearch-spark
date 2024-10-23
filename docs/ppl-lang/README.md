@@ -46,7 +46,7 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`search command`](ppl-search-command.md)
 
-    - [`head` VS `tablesample`](ppl-limit-vs-sample-command.md)
+    - [`head` VS `sample`](ppl-limit-vs-sample-command.md)
 
     - [`sort command`](ppl-sort-command.md)
 

@@ -56,14 +56,14 @@ class PPLLogicalPlanInSubqueryTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
-  test("test where a in (select b from c) with only outer tablesample(50 percent)") {
+  test("test where a in (select b from c) with only outer sample(50 percent)") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
         plan(
           pplParser,
           s"""
-             | source = spark_catalog.default.outer tablesample(50 percent)
+             | source = spark_catalog.default.outer sample(50 percent)
              | | where a in [
              |     source = spark_catalog.default.inner | fields b
              |   ]
@@ -87,7 +87,7 @@ class PPLLogicalPlanInSubqueryTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
-  test("test where a in (select b from c) with only inner tablesample(50 percent)") {
+  test("test where a in (select b from c) with only inner sample(50 percent)") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
@@ -96,7 +96,7 @@ class PPLLogicalPlanInSubqueryTranslatorTestSuite
           s"""
              | source = spark_catalog.default.outer
              | | where a in [
-             |     source = spark_catalog.default.inner tablesample(50 percent) | fields b
+             |     source = spark_catalog.default.inner sample(50 percent) | fields b
              |   ]
              | | sort  - a
              | | fields a, c
@@ -122,16 +122,16 @@ class PPLLogicalPlanInSubqueryTranslatorTestSuite
   }
 
   test(
-    "test where a in (select b from c) with both inner & outer tables tablesample(50 percent)") {
+    "test where a in (select b from c) with both inner & outer tables sample(50 percent)") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
         plan(
           pplParser,
           s"""
-             | source = spark_catalog.default.outer tablesample(50 percent)
+             | source = spark_catalog.default.outer sample(50 percent)
              | | where a in [
-             |     source = spark_catalog.default.inner tablesample(50 percent) | fields b
+             |     source = spark_catalog.default.inner sample(50 percent) | fields b
              |   ]
              | | sort  - a
              | | fields a, c

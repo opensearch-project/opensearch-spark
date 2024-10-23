@@ -133,7 +133,7 @@ class PPLLogicalPlanScalarSubqueryTranslatorTestSuite
   }
 
   test(
-    "test uncorrelated scalar subquery in select and where with outer tablesample(50 percent)") {
+    "test uncorrelated scalar subquery in select and where with outer sample(50 percent)") {
     // select (select max(c) from inner), a from outer where b > (select min(c) from inner)
     val context = new CatalystPlanContext
     val logPlan =
@@ -141,7 +141,7 @@ class PPLLogicalPlanScalarSubqueryTranslatorTestSuite
         plan(
           pplParser,
           s"""
-             | source = spark_catalog.default.outer tablesample(50 percent)
+             | source = spark_catalog.default.outer sample(50 percent)
              | | eval max_c = [
              |     source = spark_catalog.default.inner | stats max(c)
              |   ]
@@ -175,7 +175,7 @@ class PPLLogicalPlanScalarSubqueryTranslatorTestSuite
   }
 
   test(
-    "test uncorrelated scalar subquery in select and where with inner tablesample(50 percent) for max_c eval") {
+    "test uncorrelated scalar subquery in select and where with inner sample(50 percent) for max_c eval") {
     // select (select max(c) from inner), a from outer where b > (select min(c) from inner)
     val context = new CatalystPlanContext
     val logPlan =
@@ -185,7 +185,7 @@ class PPLLogicalPlanScalarSubqueryTranslatorTestSuite
           s"""
              | source = spark_catalog.default.outer
              | | eval max_c = [
-             |     source = spark_catalog.default.inner tablesample(50 percent) | stats max(c)
+             |     source = spark_catalog.default.inner sample(50 percent) | stats max(c)
              |   ]
              | | where b > [
              |     source = spark_catalog.default.inner | stats min(c)
@@ -248,7 +248,7 @@ class PPLLogicalPlanScalarSubqueryTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
-  test("test correlated scalar subquery in select with both tables tablesample(50 percent)") {
+  test("test correlated scalar subquery in select with both tables sample(50 percent)") {
     // select (select max(c) from inner where b = d), a from outer
     val context = new CatalystPlanContext
     val logPlan =
@@ -256,9 +256,9 @@ class PPLLogicalPlanScalarSubqueryTranslatorTestSuite
         plan(
           pplParser,
           s"""
-             | source = spark_catalog.default.outer tablesample(50 percent)
+             | source = spark_catalog.default.outer sample(50 percent)
              | | eval max_c = [
-             |     source = spark_catalog.default.inner tablesample(50 percent) | where b = d | stats max(c)
+             |     source = spark_catalog.default.inner sample(50 percent) | where b = d | stats max(c)
              |   ]
              | | fields max_c, a
              | """.stripMargin),

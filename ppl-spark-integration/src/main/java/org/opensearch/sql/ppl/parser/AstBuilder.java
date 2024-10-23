@@ -69,7 +69,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static org.opensearch.sql.ast.tree.FillNull.ContainNullableFieldFill.ofSameValue;
 import static org.opensearch.sql.ast.tree.FillNull.ContainNullableFieldFill.ofVariousValue;
-import static org.opensearch.sql.ppl.utils.RelationUtils.tablesampleBuilder;
+import static org.opensearch.sql.ppl.utils.RelationUtils.sampleBuilder;
 
 
 /** Class of building the AST. Refines the visit path and build the AST nodes */
@@ -472,8 +472,8 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   public UnresolvedPlan visitTableSourceClause(OpenSearchPPLParser.TableSourceClauseContext ctx) {
     List<UnresolvedExpression> expressions = ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList());
     return ctx.alias == null
-        ? new Relation(expressions, tablesampleBuilder(ctx.tablesampleClause()))
-        : new Relation(expressions, ctx.alias.getText(), tablesampleBuilder(ctx.tablesampleClause()));
+        ? new Relation(expressions, sampleBuilder(ctx.sampleClause().stream().findFirst()))
+        : new Relation(expressions, ctx.alias.getText(), sampleBuilder(ctx.sampleClause().stream().findFirst()));
   }
 
   @Override

@@ -49,7 +49,7 @@ PPL query:
 
 PPL query:
 
-    os> source = accounts TABLESAMPLE(50 percent) | rare address
+    os> source = accounts sample(50 percent) | rare address
 
 The logical plan outcome of the rare queries:
 

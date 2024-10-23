@@ -80,13 +80,13 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
-  test("test eval expressions with sort and with tablesample(50 percent)") {
+  test("test eval expressions with sort and with sample(50 percent)") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
         plan(
           pplParser,
-          "source=t tablesample(50 percent) | eval a = 1, b = 1 | sort - a | fields b"),
+          "source=t sample(50 percent) | eval a = 1, b = 1 | sort - a | fields b"),
         context)
 
     val evalProjectList: Seq[NamedExpression] =

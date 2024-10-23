@@ -228,9 +228,9 @@ class FlintSparkPPLAggregationWithSpanITSuite
   }
 
   test(
-    "create ppl average age by span of interval of 10 years group by country head (limit) 2 query test with tablesample(100 percent)") {
+    "create ppl average age by span of interval of 10 years group by country head (limit) 2 query test with sample(100 percent)") {
     val frame = sql(s"""
-         | source = $testTable  tablesample(100 percent)| stats avg(age) by span(age, 10) as age_span, country | head 3
+         | source = $testTable  sample(100 percent)| stats avg(age) by span(age, 10) as age_span, country | head 3
          | """.stripMargin)
     // Retrieve the results
     val results: Array[Row] = frame.collect()

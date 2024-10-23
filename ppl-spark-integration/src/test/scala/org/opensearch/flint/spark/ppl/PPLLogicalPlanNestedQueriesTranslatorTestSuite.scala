@@ -159,12 +159,12 @@ class PPLLogicalPlanNestedQueriesTranslatorTestSuite
   }
 
   test(
-    "Search multiple tables - translated into union call - nested fields expected to exist in both tables with table tablesample(50 percent)") {
+    "Search multiple tables - translated into union call - nested fields expected to exist in both tables with table sample(50 percent)") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
       plan(
         pplParser,
-        "search source=table1, table2 tablesample(50 percent) | fields A.nested1, B.nested1"),
+        "search source=table1, table2 sample(50 percent) | fields A.nested1, B.nested1"),
       context)
 
     val table1 = UnresolvedRelation(Seq("table1"))

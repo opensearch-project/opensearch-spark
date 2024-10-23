@@ -49,12 +49,12 @@ class PPLLogicalPlanJoinTranslatorTestSuite
   }
 
   test(
-    "test two-tables inner join: join condition with aliases with left side tablesample(50 percent)") {
+    "test two-tables inner join: join condition with aliases with left side sample(50 percent)") {
     val context = new CatalystPlanContext
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 tablesample(50 percent)| JOIN left = l right = r ON l.id = r.id $testTable2
+         | source = $testTable1 sample(50 percent)| JOIN left = l right = r ON l.id = r.id $testTable2
          | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
@@ -68,12 +68,12 @@ class PPLLogicalPlanJoinTranslatorTestSuite
   }
 
   test(
-    "test two-tables inner join: join condition with aliases with right side tablesample(50 percent)") {
+    "test two-tables inner join: join condition with aliases with right side sample(50 percent)") {
     val context = new CatalystPlanContext
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 | JOIN left = l right = r ON l.id = r.id $testTable2 tablesample(50 percent)
+         | source = $testTable1 | JOIN left = l right = r ON l.id = r.id $testTable2 sample(50 percent)
          | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
@@ -87,12 +87,12 @@ class PPLLogicalPlanJoinTranslatorTestSuite
   }
 
   test(
-    "test two-tables inner join: join condition with aliases with both sides tablesample(50 percent)") {
+    "test two-tables inner join: join condition with aliases with both sides sample(50 percent)") {
     val context = new CatalystPlanContext
     val logPlan = plan(
       pplParser,
       s"""
-         | source = $testTable1 tablesample(50 percent) | JOIN left = l right = r ON l.id = r.id $testTable2 tablesample(50 percent)
+         | source = $testTable1 sample(50 percent) | JOIN left = l right = r ON l.id = r.id $testTable2 sample(50 percent)
          | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, context)
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))

@@ -45,7 +45,7 @@ The following example demonstrates how to sample 50% of the data from the table 
 
 PPL query:
 
-    os> source = account  TABLESAMPLE(75 percent) | top 3 country by occupation
+    os> source = account  sample(75 percent) | top 3 country by occupation
 
 This query samples 75% of the records from account table, then retrieves the top 3 countries grouped by occupation
 
@@ -74,6 +74,6 @@ Logical Plan Equivalent:
 
 ```
 
-By introducing the `TABLESAMPLE` instruction into the source command, one can now sample data as part of your queries and reducing the amount of data being scanned thereby converting precision with performance.
+By introducing the `sample` instruction into the source command, one can now sample data as part of your queries and reducing the amount of data being scanned thereby converting precision with performance.
 
 The `percent` parameter will give the actual approximation of the true value with the needed trade of between accuracy and performance.

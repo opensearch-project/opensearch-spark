@@ -39,9 +39,9 @@ public interface RelationUtils {
                 .map(rel -> node);
     }
 
-    static Optional<TablesampleContext> tablesampleBuilder(OpenSearchPPLParser.TablesampleClauseContext context) {
-        if(context != null && context.percentage != null)
-            return Optional.of(new TablesampleContext(Integer.parseInt(context.percentage.getText())));
+    static Optional<TablesampleContext> sampleBuilder(Optional<OpenSearchPPLParser.SampleClauseContext> context) {
+        if(context.isPresent()  && context.get().percentage != null)
+            return Optional.of(new TablesampleContext(Integer.parseInt(context.get().percentage.getText())));
         return Optional.empty();
     }
     

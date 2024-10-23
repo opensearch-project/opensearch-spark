@@ -65,9 +65,9 @@ class FlintSparkPPLAggregationsITSuite
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
 
-  test("create ppl simple age avg query test with tablesample(75 percent)") {
+  test("create ppl simple age avg query test with sample(75 percent)") {
     val frame = sql(s"""
-         | source = $testTable tablesample(75 percent)| stats avg(age)
+         | source = $testTable sample(75 percent)| stats avg(age)
          | """.stripMargin)
 
     // Retrieve the results
@@ -188,9 +188,9 @@ class FlintSparkPPLAggregationsITSuite
   }
 
   test(
-    "create ppl simple age avg group by country head (limit) query test with tablesample(75 percent) ") {
+    "create ppl simple age avg group by country head (limit) query test with sample(75 percent) ") {
     val frame = sql(s"""
-         | source = $testTable tablesample(75 percent) | stats avg(age) by country | head 1
+         | source = $testTable sample(75 percent) | stats avg(age) by country | head 1
          | """.stripMargin)
 
     // Retrieve the results
@@ -521,9 +521,9 @@ class FlintSparkPPLAggregationsITSuite
   }
 
   test(
-    "create ppl age sample stddev group by country query test with sort with tablesample(75 percent)") {
+    "create ppl age sample stddev group by country query test with sort with sample(75 percent)") {
     val frame = sql(s"""
-                       | source = $testTable tablesample(100 percent)| stats stddev_samp(age) by country | sort country
+                       | source = $testTable sample(100 percent)| stats stddev_samp(age) by country | sort country
                        | """.stripMargin)
 
     // Retrieve the results
