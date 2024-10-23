@@ -187,8 +187,6 @@ case class JobOperator(
     }
     recordStreamingCompletionStatus(exceptionThrown)
 
-    emitBatchProcessingTimeMetric(startTime)
-
     // Check for non-daemon threads that may prevent the driver from shutting down.
     // Non-daemon threads other than the main thread indicate that the driver is still processing tasks,
     // which may be due to unresolved bugs in dependencies or threads not being properly shut down.
@@ -206,15 +204,6 @@ case class JobOperator(
     MetricsUtil
       .getTimer(MetricConstants.QUERY_EXECUTION_TIME_METRIC, false)
       .update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
-  }
-
-  private def emitBatchProcessingTimeMetric(startTime: Long): Unit = {
-    if (jobType.equalsIgnoreCase(FlintJobType.BATCH)) {
-      val latency = System.currentTimeMillis() - startTime;
-      MetricsUtil
-        .getTimer(MetricConstants.BATCH_PROCESSING_TIME_METRIC, false)
-        .update(latency, TimeUnit.MILLISECONDS)
-    }
   }
 
   def stop(): Unit = {
