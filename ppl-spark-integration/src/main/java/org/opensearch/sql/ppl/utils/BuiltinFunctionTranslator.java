@@ -10,7 +10,6 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.Literal$;
-import org.apache.spark.sql.types.StringType$;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
 
 import java.util.List;
@@ -55,6 +54,8 @@ public interface BuiltinFunctionTranslator {
 
     /**
      * The name mapping between PPL builtin functions to Spark builtin functions.
+     * This is only used for the built-in functions between PPL and Spark with different names.
+     * If the built-in function names are the same in PPL and Spark, add it to {@link BuiltinFunctionName} only.
      */
     static final Map<BuiltinFunctionName, String> SPARK_BUILTIN_FUNCTION_NAME_MAPPING
         = ImmutableMap.<BuiltinFunctionName, String>builder()

@@ -508,8 +508,8 @@ evalFunctionName
    | systemFunctionName
    | positionFunctionName
    | coalesceFunctionName
+   | cryptographicFunctionName
    | jsonFunctionName
-   | collectionFunctionName
    ;
 
 functionArgs
@@ -623,6 +623,12 @@ trigonometricFunctionName
    | RADIANS
    | SIN
    | TAN
+   ;
+
+cryptographicFunctionName
+   : MD5
+   | SHA1
+   | SHA2
    ;
 
 dateTimeFunctionName
@@ -981,6 +987,7 @@ keywordsCanBeId
    | jsonFunctionName
    | mathematicalFunctionName
    | positionFunctionName
+   | cryptographicFunctionName
    // commands
    | SEARCH
    | DESCRIBE
