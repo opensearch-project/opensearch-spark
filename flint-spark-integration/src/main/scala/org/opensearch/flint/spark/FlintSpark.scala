@@ -20,7 +20,7 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogServiceBuilder
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
-import org.opensearch.flint.spark.metadatacache.FlintOpenSearchMetadataCacheWriter
+import org.opensearch.flint.spark.metadatacache.FlintMetadataCacheWriterBuilder
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
@@ -56,8 +56,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     FlintIndexMetadataServiceBuilder.build(flintSparkConf.flintOptions())
   }
 
-  private val flintMetadataCacheWriter = new FlintOpenSearchMetadataCacheWriter(
-    flintSparkConf.flintOptions())
+  private val flintMetadataCacheWriter = FlintMetadataCacheWriterBuilder.build(flintSparkConf)
 
   private val flintAsyncQueryScheduler: AsyncQueryScheduler = {
     AsyncQuerySchedulerBuilder.build(flintSparkConf.flintOptions())
@@ -142,9 +141,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
             }
             flintClient.createIndex(indexName, metadata)
             flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
-            if (isMetadataCacheWriteEnabled) {
-              flintMetadataCacheWriter.updateMetadataCache(indexName, metadata)
-            }
+            flintMetadataCacheWriter.updateMetadataCache(indexName, metadata)
             jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.SCHEDULE)
           })
       }
@@ -179,10 +176,8 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           }
         })
         .commit(latest => {
-          if (isMetadataCacheWriteEnabled) {
-            flintMetadataCacheWriter
-              .updateMetadataCache(indexName, index.metadata.copy(latestLogEntry = Some(latest)))
-          }
+          flintMetadataCacheWriter
+            .updateMetadataCache(indexName, index.metadata.copy(latestLogEntry = Some(latest)))
           indexRefresh.start(spark, flintSparkConf)
         })
     }.flatten
@@ -367,11 +362,9 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           .commit(latest => {
             flintIndexMetadataService.updateIndexMetadata(indexName, updatedIndex.metadata())
             logInfo("Update index options complete")
-            if (isMetadataCacheWriteEnabled) {
-              flintMetadataCacheWriter.updateMetadataCache(
-                indexName,
-                index.get.metadata.copy(latestLogEntry = Some(latest)))
-            }
+            flintMetadataCacheWriter.updateMetadataCache(
+              indexName,
+              index.get.metadata.copy(latestLogEntry = Some(latest)))
             jobSchedulingService.handleJob(updatedIndex, AsyncQuerySchedulerAction.UPDATE)
             true
           })
@@ -403,10 +396,6 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
    */
   def analyzeSkippingIndex(tableName: String): Seq[Row] = {
     new DataTypeSkippingStrategy().analyzeSkippingIndexColumns(tableName, spark)
-  }
-
-  private def isMetadataCacheWriteEnabled: Boolean = {
-    flintSparkConf.isMetadataCacheWriteEnabled
   }
 
   private def getAllIndexMetadata(indexNamePattern: String): Map[String, FlintMetadata] = {
@@ -578,10 +567,8 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       })
       .commit(latest => {
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
-        if (isMetadataCacheWriteEnabled) {
-          flintMetadataCacheWriter
-            .updateMetadataCache(indexName, index.metadata.copy(latestLogEntry = Some(latest)))
-        }
+        flintMetadataCacheWriter
+          .updateMetadataCache(indexName, index.metadata.copy(latestLogEntry = Some(latest)))
         logInfo("Update index options complete")
         jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.UPDATE)
       })

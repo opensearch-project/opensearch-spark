@@ -21,11 +21,11 @@ import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, O
 import org.apache.spark.internal.Logging
 
 /**
- * Writes {@link FlintMetadataCache} to index mappings `_meta` for frontend user to access. This
- * is different from {@link FlintIndexMetadataService} which persists the full index metadata to a
- * storage for single source of truth.
+ * Writes {@link FlintMetadataCache} to index mappings `_meta` field for frontend user to access.
  */
-class FlintOpenSearchMetadataCacheWriter(options: FlintOptions) extends Logging {
+class FlintOpenSearchMetadataCacheWriter(options: FlintOptions)
+    extends FlintMetadataCacheWriter
+    with Logging {
 
   /**
    * Since metadata cache shares the index mappings _meta field with OpenSearch index metadata
@@ -37,15 +37,7 @@ class FlintOpenSearchMetadataCacheWriter(options: FlintOptions) extends Logging 
       .build(options)
       .isInstanceOf[FlintOpenSearchIndexMetadataService]
 
-  /**
-   * Update metadata cache for a Flint index.
-   *
-   * @param indexName
-   *   index name
-   * @param metadata
-   *   index metadata to update the cache
-   */
-  def updateMetadataCache(indexName: String, metadata: FlintMetadata): Unit = {
+  override def updateMetadataCache(indexName: String, metadata: FlintMetadata): Unit = {
     logInfo(s"Updating metadata cache for $indexName");
     val osIndexName = OpenSearchClientUtils.sanitizeIndexName(indexName)
     var client: IRestHighLevelClient = null

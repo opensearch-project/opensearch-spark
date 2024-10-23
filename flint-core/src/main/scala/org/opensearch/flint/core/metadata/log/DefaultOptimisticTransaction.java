@@ -86,7 +86,9 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
       initialLog = initialLog.copy(
           initialLog.id(),
           initialLog.createTime(),
-          initialLog.lastRefreshStartTime(), initialLog.lastRefreshCompleteTime(), initialLog.state(),
+          initialLog.lastRefreshStartTime(),
+          initialLog.lastRefreshCompleteTime(),
+          initialLog.state(),
           latest.entryVersion(),
           initialLog.error(),
           initialLog.properties());
