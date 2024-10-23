@@ -162,24 +162,36 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
       tx
         .initialLog(latest => latest.state == ACTIVE)
-        .transientLog(latest =>
-          latest.copy(state = REFRESHING, createTime = System.currentTimeMillis()))
+        .transientLog(latest => {
+          val currentTime = System.currentTimeMillis()
+          val updatedLatest = latest.copy(
+            state = REFRESHING,
+            createTime = currentTime,
+            lastRefreshStartTime = currentTime)
+          flintMetadataCacheWriter
+            .updateMetadataCache(
+              indexName,
+              index.metadata.copy(latestLogEntry = Some(updatedLatest)))
+          updatedLatest
+        })
         .finalLog(latest => {
           // Change state to active if full, otherwise update index state regularly
-          if (indexRefresh.refreshMode == AUTO) {
+          val currentTime = System.currentTimeMillis()
+          val updatedLatest = if (indexRefresh.refreshMode == AUTO) {
             logInfo("Scheduling index state monitor")
             flintIndexMonitor.startMonitor(indexName)
-            latest
+            latest.copy(lastRefreshCompleteTime = currentTime)
           } else {
             logInfo("Updating index state to active")
-            latest.copy(state = ACTIVE)
+            latest.copy(state = ACTIVE, lastRefreshCompleteTime = currentTime)
           }
-        })
-        .commit(latest => {
           flintMetadataCacheWriter
-            .updateMetadataCache(indexName, index.metadata.copy(latestLogEntry = Some(latest)))
-          indexRefresh.start(spark, flintSparkConf)
+            .updateMetadataCache(
+              indexName,
+              index.metadata.copy(latestLogEntry = Some(updatedLatest)))
+          updatedLatest
         })
+        .commit(_ => indexRefresh.start(spark, flintSparkConf))
     }.flatten
 
   /**
@@ -359,12 +371,9 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           .finalLog(latest => {
             latest.copy(state = jobSchedulingService.stateTransitions.finalStateForUpdate)
           })
-          .commit(latest => {
+          .commit(_ => {
             flintIndexMetadataService.updateIndexMetadata(indexName, updatedIndex.metadata())
             logInfo("Update index options complete")
-            flintMetadataCacheWriter.updateMetadataCache(
-              indexName,
-              index.get.metadata.copy(latestLogEntry = Some(latest)))
             jobSchedulingService.handleJob(updatedIndex, AsyncQuerySchedulerAction.UPDATE)
             true
           })
