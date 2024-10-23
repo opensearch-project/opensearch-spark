@@ -303,6 +303,26 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
         (Map.empty[String, String], Map("checkpoint_location" -> "s3a://test/"))),
       "No options can be updated when auto_refresh remains false"),
     (
+      "update index option when refresh_interval value belows threshold",
+      Seq(
+        (
+          Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
+          Map("refresh_interval" -> "4 minutes"))),
+      "Input refresh_interval is 4 minutes, required above the interval threshold of external scheduler: 5 minutes"),
+    (
+      "update index option when no change on auto_refresh",
+      Seq(
+        (
+          Map("auto_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
+          Map("scheduler_mode" -> "internal", "refresh_interval" -> "4 minutes")),
+        (
+          Map(
+            "auto_refresh" -> "true",
+            "scheduler_mode" -> "internal",
+            "checkpoint_location" -> "s3a://test/"),
+          Map("refresh_interval" -> "4 minutes"))),
+      "Altering index when auto_refresh remains true and scheduler_mode is internal only allows changing: Set(scheduler_mode). Invalid options"),
+    (
       "update other index option besides scheduler_mode and refresh_interval when auto_refresh is true",
       Seq(
         (
