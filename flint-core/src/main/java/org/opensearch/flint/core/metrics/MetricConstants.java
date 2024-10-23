@@ -112,6 +112,11 @@ public final class MetricConstants {
      */
     public static final String STREAMING_HEARTBEAT_FAILED_METRIC = "streaming.heartbeat.failed.count";
 
+    /**
+     * Metric for tracking the latency of query execution (start to complete query execution) excluding result write.
+     */
+    public static final String QUERY_EXECUTION_TIME_METRIC = "query.execution.processingTime";
+
     private MetricConstants() {
         // Private constructor to prevent instantiation
     }
