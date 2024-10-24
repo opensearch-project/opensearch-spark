@@ -70,7 +70,7 @@ object FlintSparkJobSchedulingService {
     if (isExternalSchedulerEnabled(index)) {
       new FlintSparkJobExternalSchedulingService(flintAsyncQueryScheduler, flintSparkConf)
     } else {
-      new FlintSparkJobInternalSchedulingService(spark, flintIndexMonitor)
+      new FlintSparkJobInternalSchedulingService(spark, flintSparkConf, flintIndexMonitor)
     }
   }
 
