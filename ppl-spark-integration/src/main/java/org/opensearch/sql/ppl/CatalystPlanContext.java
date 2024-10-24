@@ -10,11 +10,14 @@ import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.Sample;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
 import org.apache.spark.sql.types.Metadata;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
+import org.opensearch.sql.ast.tree.Aggregation;
 import org.opensearch.sql.data.type.ExprType;
+import org.opensearch.sql.ppl.utils.RelationUtils;
 import scala.collection.Iterator;
 import scala.collection.Seq;
 
@@ -82,7 +85,7 @@ public class CatalystPlanContext {
     public List<UnresolvedExpression> getProjectedFields() {
         return projectedFields;
     }
-
+    
     public LogicalPlan getPlan() {
         if (this.planBranches.isEmpty()) return null;
         if (this.planBranches.size() == 1) {
@@ -140,6 +143,17 @@ public class CatalystPlanContext {
         return with(relation);
     }
 
+    /**
+     * append sample-relation to relations list
+     *
+     * @param sampleRelation
+     * @return
+     */
+    public LogicalPlan withSampleRelation(Sample sampleRelation) {
+        this.relations.add(sampleRelation.child());
+        return with(sampleRelation);
+    }
+
     public void withSubqueryAlias(SubqueryAlias subqueryAlias) {
         this.subqueryAlias.add(subqueryAlias);
     }
@@ -164,7 +178,7 @@ public class CatalystPlanContext {
     public LogicalPlan with(LogicalPlan plan) {
         return this.planBranches.push(plan);
     }
-
+    
     /**
      * append plans collection with evolving plans branches
      *

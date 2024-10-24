@@ -98,7 +98,7 @@ class PPLLogicalPlanCorrelationQueriesTranslatorTestSuite
       plan(
         pplParser,
         s"""
-           | source = $testTable1, $testTable2| where year = 2023 AND month = 4 | correlate exact fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
+           | source = $testTable1, $testTable2 | where year = 2023 AND month = 4 | correlate exact fields(name) scope(month, 1W) mapping($testTable1.name = $testTable2.name)
            | """.stripMargin),
       context)
 

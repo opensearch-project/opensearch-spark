@@ -6,41 +6,50 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
+import org.opensearch.sql.ppl.utils.RelationUtils;
 
-import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** Logical plan node of Relation, the interface for building the searching sources. */
-@AllArgsConstructor
 @ToString
 @EqualsAndHashCode(callSuper = false)
-@RequiredArgsConstructor
 public class Relation extends UnresolvedPlan {
   private static final String COMMA = ",";
+  private final List<UnresolvedExpression> tableNames;
 
-  private final List<UnresolvedExpression> tableName;
+  @Setter @Getter private Optional<RelationUtils.TablesampleContext> tablesampleContext;
+  /** Optional alias name for the relation. */
+  @Setter @Getter private String alias;
 
-  public Relation(UnresolvedExpression tableName) {
-    this(tableName, null);
+  public Relation(List<UnresolvedExpression> tableNames) {
+    this(tableNames, null, null);
   }
 
-  public Relation(UnresolvedExpression tableName, String alias) {
-    this.tableName = Arrays.asList(tableName);
+  public Relation(List<UnresolvedExpression> tableNames, Optional<RelationUtils.TablesampleContext> tablesampleContext) {
+    this(tableNames, null, tablesampleContext);
+  }
+
+  public Relation(List<UnresolvedExpression> tableNames, String alias) {
+    this.tableNames = tableNames;
     this.alias = alias;
   }
 
-  /** Optional alias name for the relation. */
-  @Setter @Getter private String alias;
+  public Relation(List<UnresolvedExpression> tableNames, String alias, Optional<RelationUtils.TablesampleContext> tablesampleContext) {
+    this.tableNames = tableNames;
+    this.alias = alias;
+    this.tablesampleContext = tablesampleContext;
+  }
+
 
   /**
    * Return table name.
@@ -48,11 +57,11 @@ public class Relation extends UnresolvedPlan {
    * @return table name
    */
   public List<String> getTableName() {
-    return tableName.stream().map(Object::toString).collect(Collectors.toList());
+    return tableNames.stream().map(Object::toString).collect(Collectors.toList());
   }
 
   public List<QualifiedName> getQualifiedNames() {
-    return tableName.stream().map(t -> (QualifiedName) t).collect(Collectors.toList());
+    return tableNames.stream().map(t -> (QualifiedName) t).collect(Collectors.toList());
   }
 
   /**
@@ -63,11 +72,11 @@ public class Relation extends UnresolvedPlan {
    * @return TableQualifiedName.
    */
   public QualifiedName getTableQualifiedName() {
-    if (tableName.size() == 1) {
-      return (QualifiedName) tableName.get(0);
+    if (tableNames.size() == 1) {
+      return (QualifiedName) tableNames.get(0);
     } else {
       return new QualifiedName(
-          tableName.stream()
+              tableNames.stream()
               .map(UnresolvedExpression::toString)
               .collect(Collectors.joining(COMMA)));
     }

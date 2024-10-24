@@ -14,7 +14,7 @@ import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Descending, EqualTo, GreaterThanOrEqual, InSubquery, LessThan, ListQuery, Literal, Not, SortOrder}
 import org.apache.spark.sql.catalyst.plans.{Inner, PlanTest}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, Join, JoinHint, LogicalPlan, Project, Sort, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, Join, JoinHint, LogicalPlan, Project, Sample, Sort, SubqueryAlias}
 
 class PPLLogicalPlanInSubqueryTranslatorTestSuite
     extends SparkFunSuite
@@ -48,6 +48,105 @@ class PPLLogicalPlanInSubqueryTranslatorTestSuite
           Seq(UnresolvedAttribute("a")),
           ListQuery(Project(Seq(UnresolvedAttribute("b")), inner))),
         outer)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("a"), Descending)), global = true, inSubquery)
+    val expectedPlan =
+      Project(Seq(UnresolvedAttribute("a"), UnresolvedAttribute("c")), sortedPlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test where a in (select b from c) with only outer sample(50 percent)") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          s"""
+             | source = spark_catalog.default.outer sample(50 percent)
+             | | where a in [
+             |     source = spark_catalog.default.inner | fields b
+             |   ]
+             | | sort  - a
+             | | fields a, c
+             | """.stripMargin),
+        context)
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "outer"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "inner"))
+    val inSubquery =
+      Filter(
+        InSubquery(
+          Seq(UnresolvedAttribute("a")),
+          ListQuery(Project(Seq(UnresolvedAttribute("b")), inner))),
+        Sample(0, 0.5, withReplacement = false, 0, outer))
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("a"), Descending)), global = true, inSubquery)
+    val expectedPlan =
+      Project(Seq(UnresolvedAttribute("a"), UnresolvedAttribute("c")), sortedPlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test where a in (select b from c) with only inner sample(50 percent)") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          s"""
+             | source = spark_catalog.default.outer
+             | | where a in [
+             |     source = spark_catalog.default.inner sample(50 percent) | fields b
+             |   ]
+             | | sort  - a
+             | | fields a, c
+             | """.stripMargin),
+        context)
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "outer"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "inner"))
+    val inSubquery =
+      Filter(
+        InSubquery(
+          Seq(UnresolvedAttribute("a")),
+          ListQuery(
+            Project(
+              Seq(UnresolvedAttribute("b")),
+              Sample(0, 0.5, withReplacement = false, 0, inner)))),
+        outer)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("a"), Descending)), global = true, inSubquery)
+    val expectedPlan =
+      Project(Seq(UnresolvedAttribute("a"), UnresolvedAttribute("c")), sortedPlan)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test where a in (select b from c) with both inner & outer tables sample(50 percent)") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          s"""
+             | source = spark_catalog.default.outer sample(50 percent)
+             | | where a in [
+             |     source = spark_catalog.default.inner sample(50 percent) | fields b
+             |   ]
+             | | sort  - a
+             | | fields a, c
+             | """.stripMargin),
+        context)
+    val outer = UnresolvedRelation(Seq("spark_catalog", "default", "outer"))
+    val inner = UnresolvedRelation(Seq("spark_catalog", "default", "inner"))
+    val inSubquery =
+      Filter(
+        InSubquery(
+          Seq(UnresolvedAttribute("a")),
+          ListQuery(
+            Project(
+              Seq(UnresolvedAttribute("b")),
+              Sample(0, 0.5, withReplacement = false, 0, inner)))),
+        Sample(0, 0.5, withReplacement = false, 0, outer))
     val sortedPlan: LogicalPlan =
       Sort(Seq(SortOrder(UnresolvedAttribute("a"), Descending)), global = true, inSubquery)
     val expectedPlan =
