@@ -107,6 +107,10 @@ public final class MetricsUtil {
         return context != null ? context.stop() : null;
     }
 
+    public static Timer getTimer(String metricName, boolean isIndexMetric) {
+        return getOrCreateTimer(metricName, isIndexMetric);
+    }
+
     /**
      * Registers a gauge metric with the provided name and value.
      *
