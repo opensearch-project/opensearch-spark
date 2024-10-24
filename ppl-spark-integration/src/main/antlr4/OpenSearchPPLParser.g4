@@ -509,6 +509,8 @@ evalFunctionName
    | positionFunctionName
    | coalesceFunctionName
    | cryptographicFunctionName
+   | jsonFunctionName
+   | collectionFunctionName
    ;
 
 functionArgs
@@ -763,6 +765,7 @@ conditionFunctionBase
    | IFNULL
    | NULLIF
    | ISPRESENT
+   | JSON_VALID
    ;
 
 systemFunctionName
@@ -789,6 +792,29 @@ textFunctionName
    | REVERSE
    | ISEMPTY
    | ISBLANK
+   ;
+
+jsonFunctionName
+   : JSON
+   | JSON_OBJECT
+   | JSON_ARRAY
+   | JSON_ARRAY_LENGTH
+   | JSON_EXTRACT
+   | JSON_KEYS
+   | JSON_VALID
+//   | JSON_APPEND
+//   | JSON_DELETE
+//   | JSON_EXTEND
+//   | JSON_SET
+//   | JSON_ARRAY_ALL_MATCH
+//   | JSON_ARRAY_ANY_MATCH
+//   | JSON_ARRAY_FILTER
+//   | JSON_ARRAY_MAP
+//   | JSON_ARRAY_REDUCE
+   ;
+
+collectionFunctionName
+   : ARRAY
    ;
 
 positionFunctionName
@@ -959,6 +985,7 @@ keywordsCanBeId
    | intervalUnit
    | dateTimeFunctionName
    | textFunctionName
+   | jsonFunctionName
    | mathematicalFunctionName
    | positionFunctionName
    | cryptographicFunctionName
