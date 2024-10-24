@@ -50,6 +50,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`stats command`](ppl-stats-command.md)
 
+    - [`eventstats command`](ppl-eventstats-command.md)
+
     - [`where command`](ppl-where-command.md)
 
     - [`head command`](ppl-head-command.md)

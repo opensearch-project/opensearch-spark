@@ -307,4 +307,8 @@ public abstract class AbstractNodeVisitor<T, C> {
   public T visitExistsSubquery(ExistsSubquery node, C context) {
     return visitChildren(node, context);
   }
+
+  public T visitWindow(Window node, C context) {
+    return visitChildren(node, context);
+  }
 }
