@@ -30,6 +30,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
  */
 class FlintSparkJobInternalSchedulingService(
     spark: SparkSession,
+    flintSparkConf: FlintSparkConf,
     flintIndexMonitor: FlintSparkIndexMonitor)
     extends FlintSparkJobSchedulingService
     with Logging {
@@ -78,7 +79,7 @@ class FlintSparkJobInternalSchedulingService(
   private def startRefreshingJob(index: FlintSparkIndex): Option[String] = {
     logInfo(s"Starting refreshing job for index ${index.name()}")
     val indexRefresh = FlintSparkIndexRefresh.create(index.name(), index)
-    val jobId = indexRefresh.start(spark, new FlintSparkConf(spark.conf.getAll.toMap.asJava))
+    val jobId = indexRefresh.start(spark, flintSparkConf)
 
     // NOTE: Resolution for previous concurrency issue
     // This code addresses a previously identified concurrency issue with recoverIndex
