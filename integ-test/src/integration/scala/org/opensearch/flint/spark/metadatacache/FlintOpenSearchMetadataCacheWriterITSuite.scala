@@ -287,45 +287,47 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
   }
 
   test("create index with metadata cache write enabled") {
-    withMetadataCacheWriteEnabled {
-      withTempDir { checkpointDir =>
-        flint
-          .skippingIndex()
-          .onTable(testTable)
-          .addMinMax("age")
-          .options(
-            FlintSparkIndexOptions(
-              Map(
-                "auto_refresh" -> "true",
-                "refresh_interval" -> "10 Minute",
-                "checkpoint_location" -> checkpointDir.getAbsolutePath)),
-            testFlintIndex)
-          .create()
+    withExternalEnabled {
+      withMetadataCacheWriteEnabled {
+        withTempDir { checkpointDir =>
+          flint
+            .skippingIndex()
+            .onTable(testTable)
+            .addMinMax("age")
+            .options(
+              FlintSparkIndexOptions(
+                Map(
+                  "auto_refresh" -> "true",
+                  "scheduler_mode" -> "external",
+                  "refresh_interval" -> "10 Minute",
+                  "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+              testFlintIndex)
+            .create()
 
-        var index = flint.describeIndex(testFlintIndex)
-        index shouldBe defined
-        val propertiesJson =
-          compact(
-            render(parse(
+          var index = flint.describeIndex(testFlintIndex)
+          index shouldBe defined
+          val propertiesJson =
+            compact(render(parse(
               flintMetadataCacheWriter.serialize(index.get.metadata())) \ "_meta" \ "properties"))
-        propertiesJson should matchJson(s"""
-            | {
-            |   "metadataCacheVersion": "1.0",
-            |   "refreshInterval": 600,
-            |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
-            | }
-            |""".stripMargin)
+          propertiesJson should matchJson(s"""
+              | {
+              |   "metadataCacheVersion": "1.0",
+              |   "refreshInterval": 600,
+              |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
+              | }
+              |""".stripMargin)
 
-        flint.refreshIndex(testFlintIndex)
-        index = flint.describeIndex(testFlintIndex)
-        index shouldBe defined
-        val lastRefreshTime =
-          compact(
-            render(
-              parse(
-                flintMetadataCacheWriter.serialize(
-                  index.get.metadata())) \ "_meta" \ "properties" \ "lastRefreshTime")).toLong
-        lastRefreshTime should be > 0L
+          flint.refreshIndex(testFlintIndex)
+          index = flint.describeIndex(testFlintIndex)
+          index shouldBe defined
+          val lastRefreshTime =
+            compact(
+              render(
+                parse(
+                  flintMetadataCacheWriter.serialize(
+                    index.get.metadata())) \ "_meta" \ "properties" \ "lastRefreshTime")).toLong
+          lastRefreshTime should be > 0L
+        }
       }
     }
   }
