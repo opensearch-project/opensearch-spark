@@ -375,6 +375,20 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
       .collect(Collectors.toMap(and -> (Alias) and.getLeft(), and -> (Field) and.getRight(), (x, y) -> y, LinkedHashMap::new));
   }
 
+  @Override
+  public UnresolvedPlan visitTrendlineCommand(OpenSearchPPLParser.TrendlineCommandContext ctx) {
+    List<Trendline.TrendlineComputation> trendlineComputations = ctx.trendlineClause()
+            .stream()
+            .map(expressionBuilder::visit)
+            .map(Trendline.TrendlineComputation.class::cast)
+            .collect(Collectors.toList());
+    return Optional.ofNullable(ctx.sortField())
+            .map(this::internalVisitExpression)
+            .map(Field.class::cast)
+            .map(sort -> new Trendline(sort, trendlineComputations))
+            .orElse(new Trendline(null, trendlineComputations));
+  }
+
   /** Top command. */
   @Override
   public UnresolvedPlan visitTopCommand(OpenSearchPPLParser.TopCommandContext ctx) {
