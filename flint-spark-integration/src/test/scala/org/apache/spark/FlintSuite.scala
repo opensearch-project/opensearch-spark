@@ -10,7 +10,7 @@ import org.opensearch.flint.spark.FlintSparkExtensions
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.flint.config.FlintConfigEntry
-import org.apache.spark.sql.flint.config.FlintSparkConf.HYBRID_SCAN_ENABLED
+import org.apache.spark.sql.flint.config.FlintSparkConf.{HYBRID_SCAN_ENABLED, METADATA_CACHE_WRITE}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 
@@ -42,6 +42,15 @@ trait FlintSuite extends SharedSparkSession {
       block
     } finally {
       setFlintSparkConf(HYBRID_SCAN_ENABLED, "false")
+    }
+  }
+
+  protected def withMetadataCacheWriteEnabled(block: => Unit): Unit = {
+    setFlintSparkConf(METADATA_CACHE_WRITE, "true")
+    try {
+      block
+    } finally {
+      setFlintSparkConf(METADATA_CACHE_WRITE, "false")
     }
   }
 }
