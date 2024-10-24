@@ -10,35 +10,26 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Value;
 
 /**
  * Gauge which stores historic data points with timestamps.
  * This is used for emitting separate data points per request, instead of single aggregated metrics.
  */
 public class HistoricGauge implements Gauge<Long> {
+  @AllArgsConstructor
+  @Value
   public static class DataPoint {
     Long value;
     long timestamp;
-
-    DataPoint(long value, long timestamp) {
-      this.value = value;
-      this.timestamp = timestamp;
-    }
-
-    public Long getValue() {
-      return value;
-    }
-
-    public long getTimestamp() {
-      return timestamp;
-    }
   }
 
   private final List<DataPoint> dataPoints = Collections.synchronizedList(new LinkedList<>());
 
   /**
    * This method will just return first value.
-   * @return
+   * @return first value
    */
   @Override
   public Long getValue() {
@@ -49,6 +40,10 @@ public class HistoricGauge implements Gauge<Long> {
     }
   }
 
+  /**
+   * Add new data point. Current time stamp will be attached to the data point.
+   * @param value metric value
+   */
   public void addDataPoint(Long value) {
     dataPoints.add(new DataPoint(value, System.currentTimeMillis()));
   }
