@@ -75,6 +75,15 @@ public final class MetricsUtil {
         }
     }
 
+    public static void setCounter(String metricName, boolean isIndexMetric, long n) {
+        Counter counter = getOrCreateCounter(metricName, isIndexMetric);
+        if (counter != null) {
+            counter.dec(counter.getCount());
+            counter.inc(n);
+            LOG.info("counter: " + counter.getCount());
+        }
+    }
+
     /**
      * Retrieves a {@link Timer.Context} for the specified metric name, creating a new timer if one does not already exist.
      *
@@ -117,8 +126,16 @@ public final class MetricsUtil {
      * @param metricName The name of the gauge metric to register.
      * @param value The AtomicInteger whose current value should be reflected by the gauge.
      */
-    public static void registerGauge(String metricName, final AtomicInteger value) {
-        registerGauge(metricName, value, false);
+    public static void addHistoricGauge(String metricName, final long value) {
+        HistoricGauge historicGauge = getOrCreateHistoricGauge(metricName);
+        if (historicGauge != null) {
+            historicGauge.addDataPoint(value);
+        }
+    }
+
+    private static HistoricGauge getOrCreateHistoricGauge(String metricName) {
+        MetricRegistry metricRegistry = getMetricRegistry(false);
+        return metricRegistry != null ? metricRegistry.gauge(metricName, HistoricGauge::new) : null;
     }
 
     /**
@@ -136,6 +153,17 @@ public final class MetricsUtil {
         }
         metricRegistry.register(metricName, (Gauge<Integer>) value::get);
     }
+
+    /**
+     * Registers a gauge metric with the provided name and value.
+     *
+     * @param metricName The name of the gauge metric to register.
+     * @param value The AtomicInteger whose current value should be reflected by the gauge.
+     */
+    public static void registerGauge(String metricName, final AtomicInteger value) {
+        registerGauge(metricName, value, false);
+    }
+
 
     private static Counter getOrCreateCounter(String metricName, boolean isIndexMetric) {
         MetricRegistry metricRegistry = getMetricRegistry(isIndexMetric);

@@ -117,6 +117,26 @@ public final class MetricConstants {
      */
     public static final String QUERY_EXECUTION_TIME_METRIC = "query.execution.processingTime";
 
+    /**
+     * Metric for tracking the total bytes read from input
+     */
+    public static final String INPUT_TOTAL_BYTES_READ = "input.totalBytesRead.count";
+
+    /**
+     * Metric for tracking the total records read from input
+     */
+    public static final String INPUT_TOTAL_RECORDS_READ = "input.totalRecordsRead.count";
+
+    /**
+     * Metric for tracking the total bytes written to output
+     */
+    public static final String OUTPUT_TOTAL_BYTES_WRITTEN = "output.totalBytesWritten.count";
+
+    /**
+     * Metric for tracking the total records written to output
+     */
+    public static final String OUTPUT_TOTAL_RECORDS_WRITTEN = "output.totalRecordsWritten.count";
+
     private MetricConstants() {
         // Private constructor to prevent instantiation
     }
