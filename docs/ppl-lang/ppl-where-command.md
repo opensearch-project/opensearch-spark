@@ -41,6 +41,8 @@ PPL query:
 - `source = table | where isempty(a)`
 - `source = table | where isblank(a)`
 - `source = table | where case(length(a) > 6, 'True' else 'False') = 'True'`
+- `source = table | where a between 1 and 4`
+- `source = table | where b not between '2024-09-10' and '2025-09-10'`
 
 - `source = table | eval status_category =
       case(a >= 200 AND a < 300, 'Success',
