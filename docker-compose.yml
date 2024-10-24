@@ -1,0 +1,76 @@
+---
+services:
+  ppl-opensearch-node:
+    image: opensearchproject/opensearch:latest
+    container_name: ppl-opensearch-node
+    environment:
+      - cluster.name=ppl-opensearch-cluster
+      - node.name=ppl-opensearch-node
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=pplOSLocal@1
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - ppl-opensearch-data:/usr/share/opensearch/data
+    ports:
+      - 9200:9200
+    networks:
+      - ppl-opensearch-net
+  ppl-opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:latest
+    container_name: ppl-opensearch-dashboards
+    ports:
+      - 5601:5601
+    expose:
+      - '5601'
+    environment:
+      OPENSEARCH_HOSTS: '["https://ppl-opensearch-node:9200"]'
+    networks:
+      - ppl-opensearch-net
+  ppl-spark:
+    build:
+      context: docker-compose
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_USER=spark
+    volumes:
+      - ./docker/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+    ports:
+      - '8080:8080'
+    networks:
+      - ppl-opensearch-net
+  ppl-spark-worker:
+    build:
+      context: docker-compose
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://ppl-spark:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_USER=spark
+    volumes:
+      - ./docker/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+    ports:
+      - '8081:8081'
+    networks:
+      - ppl-opensearch-net
+volumes:
+  ppl-opensearch-data:
+
+networks:
+  ppl-opensearch-net:
