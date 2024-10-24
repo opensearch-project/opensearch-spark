@@ -78,7 +78,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       |     "properties": {
       |       "metadataCacheVersion": "1.0",
       |       "refreshInterval": 600,
-      |       "sourceTables": ["mock.mock.mock"],
+      |       "sourceTables": ["${FlintMetadataCache.mockTableName}"],
       |       "lastRefreshTime": ${testLastRefreshCompleteTime}
       |     },
       |     "latestId": "${testLatestId}"
@@ -120,7 +120,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     properties
       .get("sourceTables")
       .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array("mock.mock.mock")
+      .toArray should contain theSameElementsAs Array(FlintMetadataCache.mockTableName)
   }
 
   test("write metadata cache to index mappings with refresh interval") {
@@ -154,7 +154,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     properties
       .get("sourceTables")
       .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array("mock.mock.mock")
+      .toArray should contain theSameElementsAs Array(FlintMetadataCache.mockTableName)
   }
 
   test("exclude refresh interval in metadata cache when auto refresh is false") {
@@ -186,7 +186,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     properties
       .get("sourceTables")
       .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array("mock.mock.mock")
+      .toArray should contain theSameElementsAs Array(FlintMetadataCache.mockTableName)
   }
 
   test("exclude last refresh time in metadata cache when index has not been refreshed") {
@@ -202,7 +202,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     properties
       .get("sourceTables")
       .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array("mock.mock.mock")
+      .toArray should contain theSameElementsAs Array(FlintMetadataCache.mockTableName)
   }
 
   test("write metadata cache to index mappings and preserve other index metadata") {
@@ -237,7 +237,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     properties
       .get("sourceTables")
       .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array("mock.mock.mock")
+      .toArray should contain theSameElementsAs Array(FlintMetadataCache.mockTableName)
 
     val newContent =
       """ {
@@ -269,6 +269,6 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     properties
       .get("sourceTables")
       .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array("mock.mock.mock")
+      .toArray should contain theSameElementsAs Array(FlintMetadataCache.mockTableName)
   }
 }

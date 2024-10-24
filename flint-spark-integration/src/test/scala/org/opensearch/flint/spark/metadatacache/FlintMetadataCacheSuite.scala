@@ -45,7 +45,7 @@ class FlintMetadataCacheSuite extends AnyFlatSpec with Matchers {
     val metadataCache = FlintMetadataCache(metadata)
     metadataCache.metadataCacheVersion shouldBe "1.0"
     metadataCache.refreshInterval.get shouldBe 600
-    metadataCache.sourceTables shouldBe Array("mock.mock.mock")
+    metadataCache.sourceTables shouldBe Array(FlintMetadataCache.mockTableName)
     metadataCache.lastRefreshTime.get shouldBe 1234567890123L
   }
 
@@ -73,7 +73,7 @@ class FlintMetadataCacheSuite extends AnyFlatSpec with Matchers {
     val metadataCache = FlintMetadataCache(metadata)
     metadataCache.metadataCacheVersion shouldBe "1.0"
     metadataCache.refreshInterval shouldBe empty
-    metadataCache.sourceTables shouldBe Array("mock.mock.mock")
+    metadataCache.sourceTables shouldBe Array(FlintMetadataCache.mockTableName)
     metadataCache.lastRefreshTime shouldBe empty
   }
 }
