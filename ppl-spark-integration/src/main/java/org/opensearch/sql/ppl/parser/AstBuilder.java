@@ -373,9 +373,10 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   @Override
   public UnresolvedPlan visitTrendlineCommand(OpenSearchPPLParser.TrendlineCommandContext ctx) {
-    List<UnresolvedExpression> trendlineComputations = ctx.trendlineClause()
+    List<Trendline.TrendlineComputation> trendlineComputations = ctx.trendlineClause()
             .stream()
             .map(expressionBuilder::visit)
+            .map(Trendline.TrendlineComputation.class::cast)
             .collect(Collectors.toList());
     return Optional.ofNullable(ctx.sortField())
             .map(this::internalVisitExpression)
