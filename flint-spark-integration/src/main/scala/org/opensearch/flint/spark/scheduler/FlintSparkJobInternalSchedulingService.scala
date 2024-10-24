@@ -30,6 +30,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
  */
 class FlintSparkJobInternalSchedulingService(
     spark: SparkSession,
+    flintSparkConf: FlintSparkConf,
     flintIndexMonitor: FlintSparkIndexMonitor)
     extends FlintSparkJobSchedulingService
     with Logging {
@@ -55,12 +56,9 @@ class FlintSparkJobInternalSchedulingService(
       index: FlintSparkIndex,
       action: AsyncQuerySchedulerAction): Option[String] = {
     val indexName = index.name()
-
     action match {
       case AsyncQuerySchedulerAction.SCHEDULE => None // No-op
       case AsyncQuerySchedulerAction.UPDATE =>
-        logInfo("Scheduling index state monitor")
-        flintIndexMonitor.startMonitor(indexName)
         startRefreshingJob(index)
       case AsyncQuerySchedulerAction.UNSCHEDULE =>
         logInfo("Stopping index state monitor")
@@ -81,7 +79,17 @@ class FlintSparkJobInternalSchedulingService(
   private def startRefreshingJob(index: FlintSparkIndex): Option[String] = {
     logInfo(s"Starting refreshing job for index ${index.name()}")
     val indexRefresh = FlintSparkIndexRefresh.create(index.name(), index)
-    indexRefresh.start(spark, new FlintSparkConf(spark.conf.getAll.toMap.asJava))
+    val jobId = indexRefresh.start(spark, flintSparkConf)
+
+    // NOTE: Resolution for previous concurrency issue
+    // This code addresses a previously identified concurrency issue with recoverIndex
+    // where scheduled FlintSparkIndexMonitorTask couldn't detect the active Spark streaming job ID. The issue
+    // was caused by starting the FlintSparkIndexMonitor before the Spark streaming job was fully
+    // initialized. In this fixed version, we start the monitor after the streaming job has been
+    // initiated, ensuring that the job ID is available for detection.
+    logInfo("Scheduling index state monitor")
+    flintIndexMonitor.startMonitor(index.name())
+    jobId
   }
 
   /**
