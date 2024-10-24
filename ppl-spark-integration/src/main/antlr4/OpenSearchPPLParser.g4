@@ -1071,6 +1071,10 @@ keywordsCanBeId
    | SPARKLINE
    | C
    | DC
+   // FIELD SUMMARY
+   | FIELDSUMMARY
+   | INCLUDEFIELDS
+   | NULLS
    // JOIN TYPE
    | OUTER
    | INNER
