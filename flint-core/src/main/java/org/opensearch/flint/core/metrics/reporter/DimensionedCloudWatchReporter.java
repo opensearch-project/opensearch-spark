@@ -47,6 +47,7 @@ import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import org.apache.spark.metrics.sink.CloudWatchSink.DimensionNameGroups;
+import org.opensearch.flint.core.metrics.HistoricGauge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,7 +146,11 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
                     gauges.size() + counters.size() + 10 * histograms.size() + 10 * timers.size());
 
             for (final Map.Entry<String, Gauge> gaugeEntry : gauges.entrySet()) {
-                processGauge(gaugeEntry.getKey(), gaugeEntry.getValue(), metricData);
+                if (gaugeEntry.getValue() instanceof HistoricGauge) {
+                    processHistoricGauge(gaugeEntry.getKey(), (HistoricGauge) gaugeEntry.getValue(), metricData);
+                } else {
+                    processGauge(gaugeEntry.getKey(), gaugeEntry.getValue(), metricData);
+                }
             }
 
             for (final Map.Entry<String, Counter> counterEntry : counters.entrySet()) {
@@ -224,6 +229,13 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
         if (gauge.getValue() instanceof Number) {
             final Number number = (Number) gauge.getValue();
             stageMetricDatum(true, metricName, number.doubleValue(), StandardUnit.None, DIMENSION_GAUGE, metricData);
+        }
+    }
+
+    private void processHistoricGauge(final String metricName, final HistoricGauge gauge, final List<MetricDatum> metricData) {
+        for (HistoricGauge.DataPoint dataPoint: gauge.pollDataPoints()) {
+            stageMetricDatum(true, metricName, dataPoint.getValue().doubleValue(), StandardUnit.None, DIMENSION_GAUGE, metricData,
+                dataPoint.getTimestamp());
         }
     }
 
@@ -334,11 +346,24 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
      * If {@link Builder#withZeroValuesSubmission()} is {@code true}, then all values will be submitted
      */
     private void stageMetricDatum(final boolean metricConfigured,
+        final String metricName,
+        final double metricValue,
+        final StandardUnit standardUnit,
+        final String dimensionValue,
+        final List<MetricDatum> metricData
+    ) {
+        stageMetricDatum(metricConfigured, metricName, metricValue, standardUnit,
+            dimensionValue, metricData, builder.clock.getTime());
+    }
+
+    private void stageMetricDatum(final boolean metricConfigured,
                                   final String metricName,
                                   final double metricValue,
                                   final StandardUnit standardUnit,
                                   final String dimensionValue,
-                                  final List<MetricDatum> metricData) {
+                                  final List<MetricDatum> metricData,
+                                  final Long timestamp
+        ) {
         // Only submit metrics that show some data, so let's save some money
         if (metricConfigured && (builder.withZeroValuesSubmission || metricValue > 0)) {
             final DimensionedName dimensionedName = DimensionedName.decode(metricName);
@@ -351,7 +376,7 @@ public class DimensionedCloudWatchReporter extends ScheduledReporter {
             MetricInfo metricInfo = getMetricInfo(dimensionedName, dimensions);
             for (Set<Dimension> dimensionSet : metricInfo.getDimensionSets()) {
                 MetricDatum datum = new MetricDatum()
-                        .withTimestamp(new Date(builder.clock.getTime()))
+                        .withTimestamp(new Date(timestamp))
                         .withValue(cleanMetricValue(metricValue))
                         .withMetricName(metricInfo.getMetricName())
                         .withDimensions(dimensionSet)
