@@ -77,6 +77,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`String Functions`](functions/ppl-string.md)
 
+    - [`JSON Functions`](functions/ppl-json.md)
+
     - [`Condition Functions`](functions/ppl-condition.md)
 
     - [`Type Conversion Functions`](functions/ppl-conversion.md)
