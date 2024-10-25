@@ -40,30 +40,35 @@ public class OpenSearchBulkRetryWrapper {
    */
   public BulkResponse bulkWithPartialRetry(RestHighLevelClient client, BulkRequest bulkRequest,
       RequestOptions options) {
-    final AtomicInteger retryCount = new AtomicInteger(0);
+    final AtomicInteger requestCount = new AtomicInteger(0);
     try {
       final AtomicReference<BulkRequest> nextRequest = new AtomicReference<>(bulkRequest);
       BulkResponse res = Failsafe
           .with(retryPolicy)
+          .onFailure((event) -> {
+            if (event.isRetry()) {
+              MetricsUtil.addHistoricGauge(
+                  MetricConstants.OPENSEARCH_BULK_ALL_RETRY_FAILED_COUNT_METRIC, 1);
+            }
+          })
           .get(() -> {
+            requestCount.incrementAndGet();
             BulkResponse response = client.bulk(nextRequest.get(), options);
             if (retryPolicy.getConfig().allowsRetries() && bulkItemRetryableResultPredicate.test(
                 response)) {
               nextRequest.set(getRetryableRequest(nextRequest.get(), response));
-              retryCount.incrementAndGet();
             }
             return response;
           });
-      MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_SIZE_METRIC, bulkRequest.estimatedSizeInBytes());
-      MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_RETRY_COUNT_METRIC, retryCount.get());
       return res;
     } catch (FailsafeException ex) {
       LOG.severe("Request failed permanently. Re-throwing original exception.");
-      MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_RETRY_COUNT_METRIC, retryCount.get() - 1);
-      MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_ALL_RETRY_FAILED_COUNT_METRIC, 1);
 
       // unwrap original exception and throw
       throw new RuntimeException(ex.getCause());
+    } finally {
+      MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_SIZE_METRIC, bulkRequest.estimatedSizeInBytes());
+      MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_RETRY_COUNT_METRIC, requestCount.get() - 1);
     }
   }
 
