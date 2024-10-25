@@ -23,6 +23,24 @@ public final class MetricConstants {
     public static final String OS_WRITE_OP_METRIC_PREFIX = "opensearch.write";
 
     /**
+     * Prefixes for OpenSearch API specific metrics
+     */
+    public static final String OS_CREATE_OP_METRIC_PREFIX = "opensearch.create";
+    public static final String OS_SEARCH_OP_METRIC_PREFIX = "opensearch.search";
+    public static final String OS_BULK_OP_METRIC_PREFIX = "opensearch.bulk";
+
+    /**
+     * Metric name for request size of opensearch bulk request
+     */
+    public static final String OPENSEARCH_BULK_SIZE_METRIC = "opensearch.bulk.size.count";
+
+    /**
+     * Metric name for opensearch bulk request retry count
+     */
+    public static final String OPENSEARCH_BULK_RETRY_COUNT_METRIC = "opensearch.bulk.retry.count";
+    public static final String OPENSEARCH_BULK_ALL_RETRY_FAILED_COUNT_METRIC = "opensearch.bulk.allRetryFailed.count";
+
+    /**
      * Metric name for counting the errors encountered with Amazon S3 operations.
      */
     public static final String S3_ERR_CNT_METRIC = "s3.error.count";

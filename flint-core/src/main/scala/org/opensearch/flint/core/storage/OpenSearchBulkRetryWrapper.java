@@ -6,6 +6,7 @@ import dev.failsafe.RetryPolicy;
 import dev.failsafe.function.CheckedPredicate;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import org.opensearch.action.DocWriteRequest;
@@ -15,6 +16,8 @@ import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.flint.core.http.FlintRetryOptions;
+import org.opensearch.flint.core.metrics.MetricConstants;
+import org.opensearch.flint.core.metrics.MetricsUtil;
 import org.opensearch.rest.RestStatus;
 
 public class OpenSearchBulkRetryWrapper {
@@ -37,20 +40,27 @@ public class OpenSearchBulkRetryWrapper {
    */
   public BulkResponse bulkWithPartialRetry(RestHighLevelClient client, BulkRequest bulkRequest,
       RequestOptions options) {
+    final AtomicInteger retryCount = new AtomicInteger(0);
     try {
       final AtomicReference<BulkRequest> nextRequest = new AtomicReference<>(bulkRequest);
-      return Failsafe
+      BulkResponse res = Failsafe
           .with(retryPolicy)
           .get(() -> {
             BulkResponse response = client.bulk(nextRequest.get(), options);
             if (retryPolicy.getConfig().allowsRetries() && bulkItemRetryableResultPredicate.test(
                 response)) {
               nextRequest.set(getRetryableRequest(nextRequest.get(), response));
+              retryCount.incrementAndGet();
             }
             return response;
           });
+      MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_SIZE_METRIC, bulkRequest.estimatedSizeInBytes());
+      MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_RETRY_COUNT_METRIC, retryCount.get());
+      return res;
     } catch (FailsafeException ex) {
       LOG.severe("Request failed permanently. Re-throwing original exception.");
+      MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_RETRY_COUNT_METRIC, retryCount.get() - 1);
+      MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_ALL_RETRY_FAILED_COUNT_METRIC, 1);
 
       // unwrap original exception and throw
       throw new RuntimeException(ex.getCause());
