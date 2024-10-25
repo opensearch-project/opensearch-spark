@@ -1122,4 +1122,166 @@ class FlintSparkPPLAggregationsITSuite
 
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
+
+  test("test count() at the first of stats clause") {
+    val frame = sql(s"""
+                       | source = $testTable | eval a = 1 | stats count() as cnt, sum(a) as sum, avg(a) as avg
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(4, 4, 1.0)), frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val eval = Project(Seq(UnresolvedStar(None), Alias(Literal(1), "a")()), table)
+    val sum =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "sum")()
+    val avg =
+      Alias(
+        UnresolvedFunction(Seq("AVG"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "avg")()
+    val count =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
+        "cnt")()
+    val aggregate = Aggregate(Seq.empty, Seq(count, sum, avg), eval)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregate)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test count() in the middle of stats clause") {
+    val frame = sql(s"""
+                       | source = $testTable | eval a = 1 | stats sum(a) as sum, count() as cnt, avg(a) as avg
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(4, 4, 1.0)), frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val eval = Project(Seq(UnresolvedStar(None), Alias(Literal(1), "a")()), table)
+    val sum =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "sum")()
+    val avg =
+      Alias(
+        UnresolvedFunction(Seq("AVG"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "avg")()
+    val count =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
+        "cnt")()
+    val aggregate = Aggregate(Seq.empty, Seq(sum, count, avg), eval)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregate)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test count() at the end of stats clause") {
+    val frame = sql(s"""
+                       | source = $testTable | eval a = 1 | stats sum(a) as sum, avg(a) as avg, count() as cnt
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(4, 1.0, 4)), frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val eval = Project(Seq(UnresolvedStar(None), Alias(Literal(1), "a")()), table)
+    val sum =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "sum")()
+    val avg =
+      Alias(
+        UnresolvedFunction(Seq("AVG"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "avg")()
+    val count =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
+        "cnt")()
+    val aggregate = Aggregate(Seq.empty, Seq(sum, avg, count), eval)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregate)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test count() at the first of stats by clause") {
+    val frame = sql(s"""
+                       | source = $testTable | eval a = 1 | stats count() as cnt, sum(a) as sum, avg(a) as avg by country
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(2, 2, 1.0, "Canada"), Row(2, 2, 1.0, "USA")), frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val eval = Project(Seq(UnresolvedStar(None), Alias(Literal(1), "a")()), table)
+    val sum =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "sum")()
+    val avg =
+      Alias(
+        UnresolvedFunction(Seq("AVG"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "avg")()
+    val count =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
+        "cnt")()
+    val grouping =
+      Alias(UnresolvedAttribute("country"), "country")()
+    val aggregate = Aggregate(Seq(grouping), Seq(count, sum, avg, grouping), eval)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregate)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test count() in the middle of stats by clause") {
+    val frame = sql(s"""
+                       | source = $testTable | eval a = 1 | stats sum(a) as sum, count() as cnt, avg(a) as avg by country
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(2, 2, 1.0, "Canada"), Row(2, 2, 1.0, "USA")), frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val eval = Project(Seq(UnresolvedStar(None), Alias(Literal(1), "a")()), table)
+    val sum =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "sum")()
+    val avg =
+      Alias(
+        UnresolvedFunction(Seq("AVG"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "avg")()
+    val count =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
+        "cnt")()
+    val grouping =
+      Alias(UnresolvedAttribute("country"), "country")()
+    val aggregate = Aggregate(Seq(grouping), Seq(sum, count, avg, grouping), eval)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregate)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test count() at the end of stats by clause") {
+    val frame = sql(s"""
+                       | source = $testTable | eval a = 1 | stats sum(a) as sum, avg(a) as avg, count() as cnt by country
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(2, 1.0, 2, "Canada"), Row(2, 1.0, 2, "USA")), frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val eval = Project(Seq(UnresolvedStar(None), Alias(Literal(1), "a")()), table)
+    val sum =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "sum")()
+    val avg =
+      Alias(
+        UnresolvedFunction(Seq("AVG"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "avg")()
+    val count =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
+        "cnt")()
+    val grouping =
+      Alias(UnresolvedAttribute("country"), "country")()
+    val aggregate = Aggregate(Seq(grouping), Seq(sum, avg, count, grouping), eval)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregate)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
 }
