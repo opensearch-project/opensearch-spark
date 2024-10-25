@@ -24,6 +24,7 @@ import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
+import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 import org.opensearch.flint.spark.scheduler.{AsyncQuerySchedulerBuilder, FlintSparkJobExternalSchedulingService, FlintSparkJobInternalSchedulingService, FlintSparkJobSchedulingService}
 import org.opensearch.flint.spark.scheduler.AsyncQuerySchedulerBuilder.AsyncQuerySchedulerAction
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
@@ -234,16 +235,16 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     val originalOptions = describeIndex(indexName)
       .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
       .options
-    validateUpdateAllowed(originalOptions, index.options)
 
-    val isSchedulerModeChanged =
-      index.options.isExternalSchedulerEnabled() != originalOptions.isExternalSchedulerEnabled()
+    validateUpdateAllowed(originalOptions, index.options)
     withTransaction[Option[String]](indexName, "Update Flint index") { tx =>
       // Relies on validation to prevent:
       // 1. auto-to-auto updates besides scheduler_mode
       // 2. any manual-to-manual updates
       // 3. both refresh_mode and scheduler_mode updated
-      (index.options.autoRefresh(), isSchedulerModeChanged) match {
+      (
+        index.options.autoRefresh(),
+        isSchedulerModeChanged(originalOptions, index.options)) match {
         case (true, true) => updateSchedulerMode(index, tx)
         case (true, false) => updateIndexManualToAuto(index, tx)
         case (false, false) => updateIndexAutoToManual(index, tx)
@@ -501,11 +502,17 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           "Altering index to full/incremental refresh")
 
       case (false, true) =>
-        // original refresh_mode is auto, only allow changing scheduler_mode
-        validateChangedOptions(
-          changedOptions,
-          Set(SCHEDULER_MODE),
-          "Altering index when auto_refresh remains true")
+        // original refresh_mode is auto, only allow changing scheduler_mode and potentially refresh_interval
+        var allowedOptions = Set(SCHEDULER_MODE)
+        val schedulerMode =
+          if (updatedOptions.isExternalSchedulerEnabled()) SchedulerMode.EXTERNAL
+          else SchedulerMode.INTERNAL
+        val contextPrefix =
+          s"Altering index when auto_refresh remains true and scheduler_mode is $schedulerMode"
+        if (updatedOptions.isExternalSchedulerEnabled()) {
+          allowedOptions += REFRESH_INTERVAL
+        }
+        validateChangedOptions(changedOptions, allowedOptions, contextPrefix)
 
       case (false, false) =>
         // original refresh_mode is full/incremental, not allowed to change any options
@@ -528,6 +535,12 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       throw new IllegalArgumentException(
         s"$context only allows changing: $allowedOptions. Invalid options: $invalidOptions")
     }
+  }
+
+  private def isSchedulerModeChanged(
+      originalOptions: FlintSparkIndexOptions,
+      updatedOptions: FlintSparkIndexOptions): Boolean = {
+    updatedOptions.isExternalSchedulerEnabled() != originalOptions.isExternalSchedulerEnabled()
   }
 
   private def updateIndexAutoToManual(
@@ -613,7 +626,8 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
         logInfo("Update index options complete")
         oldService.handleJob(index, AsyncQuerySchedulerAction.UNSCHEDULE)
-        logInfo(s"Unscheduled ${if (isExternal) "internal" else "external"} jobs")
+        logInfo(
+          s"Unscheduled refresh jobs from ${if (isExternal) "internal" else "external"} scheduler")
         newService.handleJob(index, AsyncQuerySchedulerAction.UPDATE)
       })
   }
