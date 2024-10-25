@@ -155,17 +155,16 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
    * @return
    *   refreshing job ID (empty if batch job for now)
    */
-  def refreshIndex(indexName: String): Option[String] = {
-    val index = describeIndex(indexName)
-      .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
-    val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
+  def refreshIndex(indexName: String): Option[String] =
     withTransaction[Option[String]](indexName, "Refresh Flint index") { tx =>
+      val index = describeIndex(indexName)
+        .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+      val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
       indexRefresh.refreshMode match {
         case AUTO => refreshIndexAuto(index, indexRefresh, tx)
         case FULL | INCREMENTAL => refreshIndexManual(index, indexRefresh, tx)
       }
     }.flatten
-  }
 
   /**
    * Describe all Flint indexes whose name matches the given pattern.
