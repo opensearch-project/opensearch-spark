@@ -515,7 +515,8 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
 
   /**
    * Handles refresh for refresh mode AUTO, which is used exclusively by auto refresh index with
-   * internal scheduler.
+   * internal scheduler. Refresh start time and complete time aren't tracked for streaming job.
+   * TODO: in future, track MicroBatchExecution time for streaming job and update as well
    */
   private def refreshIndexAuto(
       index: FlintSparkIndex,

@@ -24,7 +24,7 @@ public class IntervalSchedulerParser {
      * @return the parsed integer
      * @throws IllegalArgumentException if the schedule string is invalid
      */
-    public static Long parseMillis(String scheduleStr) {
+    public static Long parseAndConvertToMillis(String scheduleStr) {
         if (Strings.isNullOrEmpty(scheduleStr)) {
             throw new IllegalArgumentException("Schedule string must not be null or empty.");
         }
@@ -41,7 +41,7 @@ public class IntervalSchedulerParser {
      */
     public static IntervalSchedule parse(String scheduleStr) {
         // Convert milliseconds to minutes (rounding down)
-        int minutes = (int) (parseMillis(scheduleStr) / (60 * 1000));
+        int minutes = (int) (parseAndConvertToMillis(scheduleStr) / (60 * 1000));
 
         // Use the current time as the start time
         Instant startTime = Instant.now();

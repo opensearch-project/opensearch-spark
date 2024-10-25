@@ -56,7 +56,7 @@ object FlintMetadataCache {
     val refreshInterval = if (indexOptions.autoRefresh()) {
       indexOptions
         .refreshInterval()
-        .map(IntervalSchedulerParser.parseMillis)
+        .map(IntervalSchedulerParser.parseAndConvertToMillis)
         .map(millis => (millis / 1000).toInt) // convert to seconds
     } else {
       None

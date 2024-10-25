@@ -25,7 +25,7 @@ public class IntervalSchedulerParserTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseMillisNull() {
-        IntervalSchedulerParser.parseMillis(null);
+        IntervalSchedulerParser.parseAndConvertToMillis(null);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -35,7 +35,7 @@ public class IntervalSchedulerParserTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseMillisEmptyString() {
-        IntervalSchedulerParser.parseMillis("");
+        IntervalSchedulerParser.parseAndConvertToMillis("");
     }
 
     @Test
@@ -49,7 +49,7 @@ public class IntervalSchedulerParserTest {
 
     @Test
     public void testParseMillisString() {
-        Long millis = IntervalSchedulerParser.parseMillis("10 minutes");
+        Long millis = IntervalSchedulerParser.parseAndConvertToMillis("10 minutes");
         assertEquals(600000, millis.longValue());
     }
 
@@ -60,7 +60,7 @@ public class IntervalSchedulerParserTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseMillisInvalidFormat() {
-        IntervalSchedulerParser.parseMillis("invalid format");
+        IntervalSchedulerParser.parseAndConvertToMillis("invalid format");
     }
 
     @Test
@@ -72,7 +72,7 @@ public class IntervalSchedulerParserTest {
 
     @Test
     public void testParseMillisStringScheduleMinutes() {
-        Long millis = IntervalSchedulerParser.parseMillis("5 minutes");
+        Long millis = IntervalSchedulerParser.parseAndConvertToMillis("5 minutes");
         assertEquals(300000, millis.longValue());
     }
 
@@ -85,7 +85,7 @@ public class IntervalSchedulerParserTest {
 
     @Test
     public void testParseMillisStringScheduleHours() {
-        Long millis = IntervalSchedulerParser.parseMillis("2 hours");
+        Long millis = IntervalSchedulerParser.parseAndConvertToMillis("2 hours");
         assertEquals(7200000, millis.longValue());
     }
 
@@ -98,7 +98,7 @@ public class IntervalSchedulerParserTest {
 
     @Test
     public void testParseMillisStringScheduleDays() {
-        Long millis = IntervalSchedulerParser.parseMillis("1 day");
+        Long millis = IntervalSchedulerParser.parseAndConvertToMillis("1 day");
         assertEquals(86400000, millis.longValue());
     }
 
