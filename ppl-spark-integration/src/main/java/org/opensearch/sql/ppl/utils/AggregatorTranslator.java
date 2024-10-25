@@ -12,10 +12,12 @@ import org.apache.spark.sql.types.DataTypes;
 import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.DataType;
+import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static scala.Option.empty;
@@ -26,31 +28,37 @@ import static scala.Option.empty;
  * @return
  */
 public interface AggregatorTranslator {
-
+    
     static Expression aggregator(org.opensearch.sql.ast.expression.AggregateFunction aggregateFunction, Expression arg) {
         if (BuiltinFunctionName.ofAggregation(aggregateFunction.getFuncName()).isEmpty())
             throw new IllegalStateException("Unexpected value: " + aggregateFunction.getFuncName());
 
+        boolean distinct = aggregateFunction.getDistinct();
         // Additional aggregation function operators will be added here
-        switch (BuiltinFunctionName.ofAggregation(aggregateFunction.getFuncName()).get()) {
+        BuiltinFunctionName functionName = BuiltinFunctionName.ofAggregation(aggregateFunction.getFuncName()).get();
+        switch (functionName) {
             case MAX:
-                return new UnresolvedFunction(seq("MAX"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
+                return new UnresolvedFunction(seq("MAX"), seq(arg), distinct, empty(),false);
             case MIN:
-                return new UnresolvedFunction(seq("MIN"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
+                return new UnresolvedFunction(seq("MIN"), seq(arg), distinct, empty(),false);
+            case MEAN:
+                return new UnresolvedFunction(seq("MEAN"), seq(arg), distinct, empty(),false);
             case AVG:
-                return new UnresolvedFunction(seq("AVG"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
+                return new UnresolvedFunction(seq("AVG"), seq(arg), distinct, empty(),false);
             case COUNT:
-                return new UnresolvedFunction(seq("COUNT"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
+                return new UnresolvedFunction(seq("COUNT"), seq(arg), distinct, empty(),false);
             case SUM:
-                return new UnresolvedFunction(seq("SUM"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
+                return new UnresolvedFunction(seq("SUM"), seq(arg), distinct, empty(),false);
+            case STDDEV:
+                return new UnresolvedFunction(seq("STDDEV"), seq(arg), distinct, empty(),false);
             case STDDEV_POP:
-                return new UnresolvedFunction(seq("STDDEV_POP"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
+                return new UnresolvedFunction(seq("STDDEV_POP"), seq(arg), distinct, empty(),false);
             case STDDEV_SAMP:
-                return new UnresolvedFunction(seq("STDDEV_SAMP"), seq(arg), aggregateFunction.getDistinct(), empty(),false);
+                return new UnresolvedFunction(seq("STDDEV_SAMP"), seq(arg), distinct, empty(),false);
             case PERCENTILE:
-                return new UnresolvedFunction(seq("PERCENTILE"), seq(arg, new Literal(getPercentDoubleValue(aggregateFunction), DataTypes.DoubleType)), aggregateFunction.getDistinct(), empty(),false);
+                return new UnresolvedFunction(seq("PERCENTILE"), seq(arg, new Literal(getPercentDoubleValue(aggregateFunction), DataTypes.DoubleType)), distinct, empty(),false);
             case PERCENTILE_APPROX:
-                return new UnresolvedFunction(seq("PERCENTILE_APPROX"), seq(arg, new Literal(getPercentDoubleValue(aggregateFunction), DataTypes.DoubleType)), aggregateFunction.getDistinct(), empty(),false);
+                return new UnresolvedFunction(seq("PERCENTILE_APPROX"), seq(arg, new Literal(getPercentDoubleValue(aggregateFunction), DataTypes.DoubleType)), distinct, empty(),false);
         }
         throw new IllegalStateException("Not Supported value: " + aggregateFunction.getFuncName());
     }
