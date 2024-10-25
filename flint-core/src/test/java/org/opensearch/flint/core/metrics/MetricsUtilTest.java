@@ -4,7 +4,7 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Timer;
 import java.time.Duration;
-import java.time.temporal.TemporalUnit;
+import java.util.List;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.metrics.source.FlintMetricSource;
 import org.apache.spark.metrics.source.FlintIndexMetricSource;
@@ -16,6 +16,7 @@ import org.mockito.Mockito;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.opensearch.flint.core.metrics.HistoricGauge.DataPoint;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -197,6 +198,33 @@ public class MetricsUtilTest {
             Assertions.assertNotNull(flintMetricSource.metricRegistry().getCounters().get(testCountMetric));
             Assertions.assertNotNull(flintMetricSource.metricRegistry().getTimers().get(testTimerMetric));
             Assertions.assertNotNull(flintMetricSource.metricRegistry().getGauges().get(testGaugeMetric));
+        }
+    }
+
+    @Test
+    public void testAddHistoricGauge() {
+        try (MockedStatic<SparkEnv> sparkEnvMock = mockStatic(SparkEnv.class)) {
+            SparkEnv sparkEnv = mock(SparkEnv.class, RETURNS_DEEP_STUBS);
+            sparkEnvMock.when(SparkEnv::get).thenReturn(sparkEnv);
+
+            String sourceName = FlintMetricSource.FLINT_METRIC_SOURCE_NAME();
+            Source metricSource = Mockito.spy(new FlintMetricSource());
+            when(sparkEnv.metricsSystem().getSourcesByName(sourceName).head()).thenReturn(metricSource);
+
+            long value1 = 100L;
+            long value2 = 200L;
+            String gaugeName = "test.gauge";
+            MetricsUtil.addHistoricGauge(gaugeName, value1);
+            MetricsUtil.addHistoricGauge(gaugeName, value2);
+
+            verify(sparkEnv.metricsSystem(), times(0)).registerSource(any());
+            verify(metricSource, times(2)).metricRegistry();
+
+            HistoricGauge gauge = (HistoricGauge)metricSource.metricRegistry().getGauges().get(gaugeName);
+            Assertions.assertNotNull(gauge);
+            List<DataPoint> dataPoints = gauge.pollDataPoints();
+            Assertions.assertEquals(value1, dataPoints.get(0).getValue());
+            Assertions.assertEquals(value2, dataPoints.get(1).getValue());
         }
     }
 }

@@ -120,6 +120,7 @@ lazy val flintCore = (project in file("flint-core"))
       "software.amazon.awssdk" % "auth-crt" % "2.28.10",
       "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+      "org.projectlombok" % "lombok" % "1.18.30" % "provided",
       "org.scalactic" %% "scalactic" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
