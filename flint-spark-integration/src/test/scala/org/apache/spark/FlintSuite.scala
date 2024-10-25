@@ -45,7 +45,7 @@ trait FlintSuite extends SharedSparkSession {
     }
   }
 
-  protected def withExternalEnabled(block: => Unit): Unit = {
+  protected def withExternalSchedulerEnabled(block: => Unit): Unit = {
     setFlintSparkConf(EXTERNAL_SCHEDULER_ENABLED, "true")
     try {
       block

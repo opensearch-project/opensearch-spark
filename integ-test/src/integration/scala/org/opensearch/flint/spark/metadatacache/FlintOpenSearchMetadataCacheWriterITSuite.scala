@@ -320,7 +320,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
          | }
          |""".stripMargin)).foreach { case (refreshMode, optionsMap, expectedJson) =>
     test(s"write metadata cache for $refreshMode") {
-      withExternalEnabled {
+      withExternalSchedulerEnabled {
         withMetadataCacheWriteEnabled {
           withTempDir { checkpointDir =>
             // update checkpoint_location if available in optionsMap
