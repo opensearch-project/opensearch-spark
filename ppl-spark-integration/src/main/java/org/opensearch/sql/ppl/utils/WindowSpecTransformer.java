@@ -5,6 +5,7 @@
 
 package org.opensearch.sql.ppl.utils;
 
+import org.apache.spark.sql.catalyst.expressions.Alias;
 import org.apache.spark.sql.catalyst.expressions.CurrentRow$;
 import org.apache.spark.sql.catalyst.expressions.Divide;
 import org.apache.spark.sql.catalyst.expressions.Expression;
@@ -16,6 +17,7 @@ import org.apache.spark.sql.catalyst.expressions.RowNumber;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.expressions.SpecifiedWindowFrame;
 import org.apache.spark.sql.catalyst.expressions.TimeWindow;
+import org.apache.spark.sql.catalyst.expressions.UnboundedFollowing$;
 import org.apache.spark.sql.catalyst.expressions.UnboundedPreceding$;
 import org.apache.spark.sql.catalyst.expressions.WindowExpression;
 import org.apache.spark.sql.catalyst.expressions.WindowSpecDefinition;
@@ -74,6 +76,23 @@ public interface WindowSpecTransformer {
         return org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(
             rowNumber,
             ROW_NUMBER_COLUMN_NAME,
+            NamedExpression.newExprId(),
+            seq(new ArrayList<String>()),
+            Option.empty(),
+            seq(new ArrayList<String>()));
+    }
+
+    static NamedExpression buildAggregateWindowFunction(Expression aggregator, Seq<Expression> partitionSpec, Seq<SortOrder> orderSpec) {
+        Alias aggregatorAlias = (Alias) aggregator;
+        WindowExpression aggWindowExpression = new WindowExpression(
+            aggregatorAlias.child(),
+            new WindowSpecDefinition(
+                partitionSpec,
+                orderSpec,
+                new SpecifiedWindowFrame(RowFrame$.MODULE$, UnboundedPreceding$.MODULE$, UnboundedFollowing$.MODULE$)));
+        return org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(
+            aggWindowExpression,
+            aggregatorAlias.name(),
             NamedExpression.newExprId(),
             seq(new ArrayList<String>()),
             Option.empty(),

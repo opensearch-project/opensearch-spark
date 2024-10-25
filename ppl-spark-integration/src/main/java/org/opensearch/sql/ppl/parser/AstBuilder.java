@@ -270,14 +270,24 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
             .map(this::internalVisitExpression)
             .orElse(null);
 
-    Aggregation aggregation =
-        new Aggregation(
-            aggListBuilder.build(),
-            emptyList(),
-            groupList,
-            span,
-            ArgumentFactory.getArgumentList(ctx));
-    return aggregation;
+    if (ctx.STATS() != null) {
+      Aggregation aggregation =
+          new Aggregation(
+              aggListBuilder.build(),
+              emptyList(),
+              groupList,
+              span,
+              ArgumentFactory.getArgumentList(ctx));
+      return aggregation;
+    } else {
+      Window window =
+          new Window(
+              aggListBuilder.build(),
+              groupList,
+              emptyList());
+      window.setSpan(span);
+      return window;
+    }
   }
 
   /** Dedup command. */
