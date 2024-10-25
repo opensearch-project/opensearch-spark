@@ -132,7 +132,9 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
   public FlintMetadataLogEntry emptyLogEntry() {
     return new FlintMetadataLogEntry(
         "",
-        0L,
+        FlintMetadataLogEntry.EMPTY_TIMESTAMP(),
+        FlintMetadataLogEntry.EMPTY_TIMESTAMP(),
+        FlintMetadataLogEntry.EMPTY_TIMESTAMP(),
         FlintMetadataLogEntry.IndexState$.MODULE$.EMPTY(),
         Map.of("seqNo", UNASSIGNED_SEQ_NO, "primaryTerm", UNASSIGNED_PRIMARY_TERM),
         "",
@@ -146,6 +148,8 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
         logEntry.copy(
             latestId,
             logEntry.createTime(),
+            logEntry.lastRefreshStartTime(),
+            logEntry.lastRefreshCompleteTime(),
             logEntry.state(),
             logEntry.entryVersion(),
             logEntry.error(),
@@ -184,6 +188,8 @@ public class FlintOpenSearchMetadataLog implements FlintMetadataLog<FlintMetadat
       logEntry = new FlintMetadataLogEntry(
           logEntry.id(),
           logEntry.createTime(),
+          logEntry.lastRefreshStartTime(),
+          logEntry.lastRefreshCompleteTime(),
           logEntry.state(),
           Map.of("seqNo", response.getSeqNo(), "primaryTerm", response.getPrimaryTerm()),
           logEntry.error(),

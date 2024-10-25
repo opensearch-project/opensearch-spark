@@ -24,6 +24,7 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
 
   val testFlintIndex = "flint_test_index"
   val testLatestId: String = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
+  val testTimestamp = 1234567890123L
   var flintMetadataLogService: FlintMetadataLogService = _
 
   override def beforeAll(): Unit = {
@@ -40,6 +41,8 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         latest.id shouldBe testLatestId
         latest.state shouldBe EMPTY
         latest.createTime shouldBe 0L
+        latest.lastRefreshStartTime shouldBe 0L
+        latest.lastRefreshCompleteTime shouldBe 0L
         latest.error shouldBe ""
         latest.properties.get("dataSourceName").get shouldBe testDataSourceName
         true
@@ -49,11 +52,12 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
   }
 
   test("should preserve original values when transition") {
-    val testCreateTime = 1234567890123L
     createLatestLogEntry(
       FlintMetadataLogEntry(
         id = testLatestId,
-        createTime = testCreateTime,
+        createTime = testTimestamp,
+        lastRefreshStartTime = testTimestamp,
+        lastRefreshCompleteTime = testTimestamp,
         state = ACTIVE,
         Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
         error = "",
@@ -63,8 +67,10 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       .startTransaction(testFlintIndex)
       .initialLog(latest => {
         latest.id shouldBe testLatestId
-        latest.createTime shouldBe testCreateTime
+        latest.createTime shouldBe testTimestamp
         latest.error shouldBe ""
+        latest.lastRefreshStartTime shouldBe testTimestamp
+        latest.lastRefreshCompleteTime shouldBe testTimestamp
         latest.properties.get("dataSourceName").get shouldBe testDataSourceName
         true
       })
@@ -72,8 +78,10 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
       .finalLog(latest => latest.copy(state = DELETED))
       .commit(latest => {
         latest.id shouldBe testLatestId
-        latest.createTime shouldBe testCreateTime
+        latest.createTime shouldBe testTimestamp
         latest.error shouldBe ""
+        latest.lastRefreshStartTime shouldBe testTimestamp
+        latest.lastRefreshCompleteTime shouldBe testTimestamp
         latest.properties.get("dataSourceName").get shouldBe testDataSourceName
       })
 
@@ -112,7 +120,9 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     createLatestLogEntry(
       FlintMetadataLogEntry(
         id = testLatestId,
-        createTime = 1234567890123L,
+        createTime = testTimestamp,
+        lastRefreshStartTime = testTimestamp,
+        lastRefreshCompleteTime = testTimestamp,
         state = ACTIVE,
         Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
         error = "",
@@ -198,7 +208,9 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
     createLatestLogEntry(
       FlintMetadataLogEntry(
         id = testLatestId,
-        createTime = 1234567890123L,
+        createTime = testTimestamp,
+        lastRefreshStartTime = testTimestamp,
+        lastRefreshCompleteTime = testTimestamp,
         state = ACTIVE,
         Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
         error = "",
@@ -240,6 +252,8 @@ class FlintTransactionITSuite extends OpenSearchTransactionSuite with Matchers {
         latest.id shouldBe testLatestId
         latest.state shouldBe EMPTY
         latest.createTime shouldBe 0L
+        latest.lastRefreshStartTime shouldBe 0L
+        latest.lastRefreshCompleteTime shouldBe 0L
         latest.error shouldBe ""
         latest.properties.get("dataSourceName").get shouldBe testDataSourceName
         true

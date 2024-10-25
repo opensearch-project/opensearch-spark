@@ -24,17 +24,33 @@ public class IntervalSchedulerParserTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
+    public void testParseMillisNull() {
+        IntervalSchedulerParser.parseMillis(null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
     public void testParseEmptyString() {
         IntervalSchedulerParser.parse("");
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void testParseMillisEmptyString() {
+        IntervalSchedulerParser.parseMillis("");
+    }
+
     @Test
     public void testParseString() {
-        Schedule result = IntervalSchedulerParser.parse("10 minutes");
-        assertTrue(result instanceof IntervalSchedule);
-        IntervalSchedule intervalSchedule = (IntervalSchedule) result;
+        Schedule schedule = IntervalSchedulerParser.parse("10 minutes");
+        assertTrue(schedule instanceof IntervalSchedule);
+        IntervalSchedule intervalSchedule = (IntervalSchedule) schedule;
         assertEquals(10, intervalSchedule.getInterval());
         assertEquals(ChronoUnit.MINUTES, intervalSchedule.getUnit());
+    }
+
+    @Test
+    public void testParseMillisString() {
+        Long millis = IntervalSchedulerParser.parseMillis("10 minutes");
+        assertEquals(600000, millis.longValue());
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -42,34 +58,57 @@ public class IntervalSchedulerParserTest {
         IntervalSchedulerParser.parse("invalid format");
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void testParseMillisInvalidFormat() {
+        IntervalSchedulerParser.parseMillis("invalid format");
+    }
+
     @Test
     public void testParseStringScheduleMinutes() {
-        IntervalSchedule result = IntervalSchedulerParser.parse("5 minutes");
-        assertEquals(5, result.getInterval());
-        assertEquals(ChronoUnit.MINUTES, result.getUnit());
+        IntervalSchedule schedule = IntervalSchedulerParser.parse("5 minutes");
+        assertEquals(5, schedule.getInterval());
+        assertEquals(ChronoUnit.MINUTES, schedule.getUnit());
+    }
+
+    @Test
+    public void testParseMillisStringScheduleMinutes() {
+        Long millis = IntervalSchedulerParser.parseMillis("5 minutes");
+        assertEquals(300000, millis.longValue());
     }
 
     @Test
     public void testParseStringScheduleHours() {
-        IntervalSchedule result = IntervalSchedulerParser.parse("2 hours");
-        assertEquals(120, result.getInterval());
-        assertEquals(ChronoUnit.MINUTES, result.getUnit());
+        IntervalSchedule schedule = IntervalSchedulerParser.parse("2 hours");
+        assertEquals(120, schedule.getInterval());
+        assertEquals(ChronoUnit.MINUTES, schedule.getUnit());
+    }
+
+    @Test
+    public void testParseMillisStringScheduleHours() {
+        Long millis = IntervalSchedulerParser.parseMillis("2 hours");
+        assertEquals(7200000, millis.longValue());
     }
 
     @Test
     public void testParseStringScheduleDays() {
-        IntervalSchedule result = IntervalSchedulerParser.parse("1 day");
-        assertEquals(1440, result.getInterval());
-        assertEquals(ChronoUnit.MINUTES, result.getUnit());
+        IntervalSchedule schedule = IntervalSchedulerParser.parse("1 day");
+        assertEquals(1440, schedule.getInterval());
+        assertEquals(ChronoUnit.MINUTES, schedule.getUnit());
+    }
+
+    @Test
+    public void testParseMillisStringScheduleDays() {
+        Long millis = IntervalSchedulerParser.parseMillis("1 day");
+        assertEquals(86400000, millis.longValue());
     }
 
     @Test
     public void testParseStringScheduleStartTime() {
         Instant before = Instant.now();
-        IntervalSchedule result = IntervalSchedulerParser.parse("30 minutes");
+        IntervalSchedule schedule = IntervalSchedulerParser.parse("30 minutes");
         Instant after = Instant.now();
         
-        assertTrue(result.getStartTime().isAfter(before) || result.getStartTime().equals(before));
-        assertTrue(result.getStartTime().isBefore(after) || result.getStartTime().equals(after));
+        assertTrue(schedule.getStartTime().isAfter(before) || schedule.getStartTime().equals(before));
+        assertTrue(schedule.getStartTime().isBefore(after) || schedule.getStartTime().equals(after));
     }
 }

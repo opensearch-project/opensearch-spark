@@ -18,6 +18,10 @@ import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
  *   log entry id
  * @param state
  *   Flint index state
+ * @param lastRefreshStartTime
+ *   timestamp when last refresh started for manual or external scheduler refresh
+ * @param lastRefreshCompleteTime
+ *   timestamp when last refresh completed for manual or external scheduler refresh
  * @param entryVersion
  *   entry version fields for consistency control
  * @param error
@@ -28,10 +32,12 @@ import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
 case class FlintMetadataLogEntry(
     id: String,
     /**
-     * This is currently used as streaming job start time. In future, this should represent the
-     * create timestamp of the log entry
+     * This is currently used as streaming job start time for internal scheduler. In future, this
+     * should represent the create timestamp of the log entry
      */
     createTime: Long,
+    lastRefreshStartTime: Long,
+    lastRefreshCompleteTime: Long,
     state: IndexState,
     entryVersion: Map[String, Any],
     error: String,
@@ -40,25 +46,47 @@ case class FlintMetadataLogEntry(
   def this(
       id: String,
       createTime: Long,
+      lastRefreshStartTime: Long,
+      lastRefreshCompleteTime: Long,
       state: IndexState,
       entryVersion: JMap[String, Any],
       error: String,
       properties: JMap[String, Any]) = {
-    this(id, createTime, state, entryVersion.asScala.toMap, error, properties.asScala.toMap)
+    this(
+      id,
+      createTime,
+      lastRefreshStartTime,
+      lastRefreshCompleteTime,
+      state,
+      entryVersion.asScala.toMap,
+      error,
+      properties.asScala.toMap)
   }
 
   def this(
       id: String,
       createTime: Long,
+      lastRefreshStartTime: Long,
+      lastRefreshCompleteTime: Long,
       state: IndexState,
       entryVersion: JMap[String, Any],
       error: String,
       properties: Map[String, Any]) = {
-    this(id, createTime, state, entryVersion.asScala.toMap, error, properties)
+    this(
+      id,
+      createTime,
+      lastRefreshStartTime,
+      lastRefreshCompleteTime,
+      state,
+      entryVersion.asScala.toMap,
+      error,
+      properties)
   }
 }
 
 object FlintMetadataLogEntry {
+
+  val EMPTY_TIMESTAMP = 0L
 
   /**
    * Flint index state enum.
