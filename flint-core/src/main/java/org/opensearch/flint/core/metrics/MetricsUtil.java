@@ -121,10 +121,10 @@ public final class MetricsUtil {
     }
 
     /**
-     * Registers a gauge metric with the provided name and value.
+     * Registers a HistoricGauge metric with the provided name and value.
      *
-     * @param metricName The name of the gauge metric to register.
-     * @param value The AtomicInteger whose current value should be reflected by the gauge.
+     * @param metricName The name of the HistoricGauge metric to register.
+     * @param value The value to be stored
      */
     public static void addHistoricGauge(String metricName, final long value) {
         HistoricGauge historicGauge = getOrCreateHistoricGauge(metricName);
@@ -143,6 +143,16 @@ public final class MetricsUtil {
      *
      * @param metricName The name of the gauge metric to register.
      * @param value The AtomicInteger whose current value should be reflected by the gauge.
+     */
+    public static void registerGauge(String metricName, final AtomicInteger value) {
+        registerGauge(metricName, value, false);
+    }
+
+    /**
+     * Registers a gauge metric with the provided name and value.
+     *
+     * @param metricName The name of the gauge metric to register.
+     * @param value The AtomicInteger whose current value should be reflected by the gauge.
      * @param isIndexMetric Whether this metric is an index-specific metric.
      */
     public static void registerGauge(String metricName, final AtomicInteger value, boolean isIndexMetric) {
@@ -153,17 +163,6 @@ public final class MetricsUtil {
         }
         metricRegistry.register(metricName, (Gauge<Integer>) value::get);
     }
-
-    /**
-     * Registers a gauge metric with the provided name and value.
-     *
-     * @param metricName The name of the gauge metric to register.
-     * @param value The AtomicInteger whose current value should be reflected by the gauge.
-     */
-    public static void registerGauge(String metricName, final AtomicInteger value) {
-        registerGauge(metricName, value, false);
-    }
-
 
     private static Counter getOrCreateCounter(String metricName, boolean isIndexMetric) {
         MetricRegistry metricRegistry = getMetricRegistry(isIndexMetric);
