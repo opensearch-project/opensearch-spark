@@ -137,6 +137,11 @@ public final class MetricConstants {
      */
     public static final String OUTPUT_TOTAL_RECORDS_WRITTEN = "output.totalRecordsWritten.count";
 
+    /**
+     * Metric for tracking the latency of checkpoint deletion
+     */
+    public static final String CHECKPOINT_DELETE_TIME_METRIC = "checkpoint.delete.processingTime";
+
     private MetricConstants() {
         // Private constructor to prevent instantiation
     }

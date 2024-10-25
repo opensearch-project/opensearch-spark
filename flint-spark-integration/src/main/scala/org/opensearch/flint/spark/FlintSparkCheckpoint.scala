@@ -8,6 +8,7 @@ package org.opensearch.flint.spark
 import java.util.UUID
 
 import org.apache.hadoop.fs.{FSDataOutputStream, Path}
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -75,7 +76,9 @@ class FlintSparkCheckpoint(spark: SparkSession, val checkpointLocation: String) 
    */
   def delete(): Unit = {
     try {
-      checkpointManager.delete(checkpointRootDir)
+      MetricsUtil.withLatencyAsHistoricGauge(
+        () => checkpointManager.delete(checkpointRootDir),
+        MetricConstants.CHECKPOINT_DELETE_TIME_METRIC)
       logInfo(s"Checkpoint directory $checkpointRootDir deleted")
     } catch {
       case e: Exception =>
