@@ -286,48 +286,121 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       .toArray should contain theSameElementsAs Array(FlintMetadataCache.mockTableName)
   }
 
-  test("create index with metadata cache write enabled") {
-    withExternalEnabled {
-      withMetadataCacheWriteEnabled {
-        withTempDir { checkpointDir =>
-          flint
-            .skippingIndex()
-            .onTable(testTable)
-            .addMinMax("age")
-            .options(
-              FlintSparkIndexOptions(
-                Map(
-                  "auto_refresh" -> "true",
-                  "scheduler_mode" -> "external",
-                  "refresh_interval" -> "10 Minute",
-                  "checkpoint_location" -> checkpointDir.getAbsolutePath)),
-              testFlintIndex)
-            .create()
+  Seq(
+    (
+      "auto refresh index with external scheduler",
+      Map(
+        "auto_refresh" -> "true",
+        "scheduler_mode" -> "external",
+        "refresh_interval" -> "10 Minute",
+        "checkpoint_location" -> "s3a://test/"),
+      s"""
+         | {
+         |   "metadataCacheVersion": "1.0",
+         |   "refreshInterval": 600,
+         |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
+         | }
+         |""".stripMargin),
+    (
+      "full refresh index",
+      Map.empty[String, String],
+      s"""
+         | {
+         |   "metadataCacheVersion": "1.0",
+         |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
+         | }
+         |""".stripMargin),
+    (
+      "incremental refresh index",
+      Map("incremental_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
+      s"""
+         | {
+         |   "metadataCacheVersion": "1.0",
+         |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
+         | }
+         |""".stripMargin)).foreach { case (refreshMode, optionsMap, expectedJson) =>
+    test(s"write metadata cache for $refreshMode") {
+      withExternalEnabled {
+        withMetadataCacheWriteEnabled {
+          withTempDir { checkpointDir =>
+            // update checkpoint_location if available in optionsMap
+            val indexOptions = FlintSparkIndexOptions(
+              optionsMap
+                .get("checkpoint_location")
+                .map(_ =>
+                  optionsMap.updated("checkpoint_location", checkpointDir.getAbsolutePath))
+                .getOrElse(optionsMap))
 
-          var index = flint.describeIndex(testFlintIndex)
-          index shouldBe defined
-          val propertiesJson =
-            compact(render(parse(
-              flintMetadataCacheWriter.serialize(index.get.metadata())) \ "_meta" \ "properties"))
-          propertiesJson should matchJson(s"""
-              | {
-              |   "metadataCacheVersion": "1.0",
-              |   "refreshInterval": 600,
-              |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
-              | }
-              |""".stripMargin)
+            flint
+              .skippingIndex()
+              .onTable(testTable)
+              .addMinMax("age")
+              .options(indexOptions, testFlintIndex)
+              .create()
 
-          flint.refreshIndex(testFlintIndex)
-          index = flint.describeIndex(testFlintIndex)
-          index shouldBe defined
-          val lastRefreshTime =
-            compact(
-              render(
-                parse(
-                  flintMetadataCacheWriter.serialize(
-                    index.get.metadata())) \ "_meta" \ "properties" \ "lastRefreshTime")).toLong
-          lastRefreshTime should be > 0L
+            var index = flint.describeIndex(testFlintIndex)
+            index shouldBe defined
+            val propertiesJson =
+              compact(
+                render(
+                  parse(
+                    flintMetadataCacheWriter.serialize(
+                      index.get.metadata())) \ "_meta" \ "properties"))
+            propertiesJson should matchJson(expectedJson)
+
+            flint.refreshIndex(testFlintIndex)
+            index = flint.describeIndex(testFlintIndex)
+            index shouldBe defined
+            val lastRefreshTime =
+              compact(
+                render(
+                  parse(
+                    flintMetadataCacheWriter.serialize(
+                      index.get.metadata())) \ "_meta" \ "properties" \ "lastRefreshTime")).toLong
+            lastRefreshTime should be > 0L
+          }
         }
+      }
+    }
+  }
+
+  test("write metadata cache for auto refresh index with internal scheduler") {
+    withMetadataCacheWriteEnabled {
+      withTempDir { checkpointDir =>
+        flint
+          .skippingIndex()
+          .onTable(testTable)
+          .addMinMax("age")
+          .options(
+            FlintSparkIndexOptions(
+              Map(
+                "auto_refresh" -> "true",
+                "scheduler_mode" -> "internal",
+                "refresh_interval" -> "10 Minute",
+                "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+            testFlintIndex)
+          .create()
+
+        var index = flint.describeIndex(testFlintIndex)
+        index shouldBe defined
+        val propertiesJson =
+          compact(
+            render(parse(
+              flintMetadataCacheWriter.serialize(index.get.metadata())) \ "_meta" \ "properties"))
+        propertiesJson should matchJson(s"""
+            | {
+            |   "metadataCacheVersion": "1.0",
+            |   "refreshInterval": 600,
+            |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
+            | }
+            |""".stripMargin)
+
+        flint.refreshIndex(testFlintIndex)
+        index = flint.describeIndex(testFlintIndex)
+        index shouldBe defined
+        compact(render(parse(
+          flintMetadataCacheWriter.serialize(
+            index.get.metadata())) \ "_meta" \ "properties")) should not include "lastRefreshTime"
       }
     }
   }

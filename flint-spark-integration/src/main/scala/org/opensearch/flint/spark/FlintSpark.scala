@@ -155,44 +155,17 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
    * @return
    *   refreshing job ID (empty if batch job for now)
    */
-  def refreshIndex(indexName: String): Option[String] =
+  def refreshIndex(indexName: String): Option[String] = {
+    val index = describeIndex(indexName)
+      .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
+    val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
     withTransaction[Option[String]](indexName, "Refresh Flint index") { tx =>
-      val index = describeIndex(indexName)
-        .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
-      val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
-      tx
-        .initialLog(latest => latest.state == ACTIVE)
-        .transientLog(latest => {
-          val currentTime = System.currentTimeMillis()
-          val updatedLatest = latest.copy(
-            state = REFRESHING,
-            createTime = currentTime,
-            lastRefreshStartTime = currentTime)
-          flintMetadataCacheWriter
-            .updateMetadataCache(
-              indexName,
-              index.metadata.copy(latestLogEntry = Some(updatedLatest)))
-          updatedLatest
-        })
-        .finalLog(latest => {
-          // Change state to active if full, otherwise update index state regularly
-          val currentTime = System.currentTimeMillis()
-          val updatedLatest = if (indexRefresh.refreshMode == AUTO) {
-            logInfo("Scheduling index state monitor")
-            flintIndexMonitor.startMonitor(indexName)
-            latest.copy(lastRefreshCompleteTime = currentTime)
-          } else {
-            logInfo("Updating index state to active")
-            latest.copy(state = ACTIVE, lastRefreshCompleteTime = currentTime)
-          }
-          flintMetadataCacheWriter
-            .updateMetadataCache(
-              indexName,
-              index.metadata.copy(latestLogEntry = Some(updatedLatest)))
-          updatedLatest
-        })
-        .commit(_ => indexRefresh.start(spark, flintSparkConf))
+      indexRefresh.refreshMode match {
+        case AUTO => refreshIndexAuto(index, indexRefresh, tx)
+        case FULL | INCREMENTAL => refreshIndexManual(index, indexRefresh, tx)
+      }
     }.flatten
+  }
 
   /**
    * Describe all Flint indexes whose name matches the given pattern.
@@ -526,6 +499,62 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       throw new IllegalArgumentException(
         s"$context only allows changing: $allowedOptions. Invalid options: $invalidOptions")
     }
+  }
+
+  /**
+   * Handles refresh for refresh mode AUTO, which is used exclusively by auto refresh index with
+   * internal scheduler.
+   */
+  private def refreshIndexAuto(
+      index: FlintSparkIndex,
+      indexRefresh: FlintSparkIndexRefresh,
+      tx: OptimisticTransaction[Option[String]]): Option[String] = {
+    val indexName = index.name
+    tx
+      .initialLog(latest => latest.state == ACTIVE)
+      .transientLog(latest =>
+        latest.copy(state = REFRESHING, createTime = System.currentTimeMillis()))
+      .finalLog(latest => {
+        logInfo("Scheduling index state monitor")
+        flintIndexMonitor.startMonitor(indexName)
+        latest
+      })
+      .commit(_ => indexRefresh.start(spark, flintSparkConf))
+  }
+
+  /**
+   * Handles refresh for refresh mode FULL and INCREMENTAL, which is used by full refresh index,
+   * incremental refresh index, and auto refresh index with external scheduler. Stores refresh
+   * start time and complete time.
+   */
+  private def refreshIndexManual(
+      index: FlintSparkIndex,
+      indexRefresh: FlintSparkIndexRefresh,
+      tx: OptimisticTransaction[Option[String]]): Option[String] = {
+    val indexName = index.name
+    tx
+      .initialLog(latest => latest.state == ACTIVE)
+      .transientLog(latest => {
+        val currentTime = System.currentTimeMillis()
+        val updatedLatest = latest
+          .copy(state = REFRESHING, createTime = currentTime, lastRefreshStartTime = currentTime)
+        flintMetadataCacheWriter
+          .updateMetadataCache(
+            indexName,
+            index.metadata.copy(latestLogEntry = Some(updatedLatest)))
+        updatedLatest
+      })
+      .finalLog(latest => {
+        logInfo("Updating index state to active")
+        val updatedLatest =
+          latest.copy(state = ACTIVE, lastRefreshCompleteTime = System.currentTimeMillis())
+        flintMetadataCacheWriter
+          .updateMetadataCache(
+            indexName,
+            index.metadata.copy(latestLogEntry = Some(updatedLatest)))
+        updatedLatest
+      })
+      .commit(_ => indexRefresh.start(spark, flintSparkConf))
   }
 
   private def updateIndexAutoToManual(
