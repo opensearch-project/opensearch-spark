@@ -86,6 +86,12 @@ STR:                                'STR';
 IP:                                 'IP';
 NUM:                                'NUM';
 
+
+// FIELDSUMMARY keywords
+FIELDSUMMARY:                       'FIELDSUMMARY';
+INCLUDEFIELDS:                      'INCLUDEFIELDS';
+NULLS:                              'NULLS';
+
 // ARGUMENT KEYWORDS
 KEEPEMPTY:                          'KEEPEMPTY';
 CONSECUTIVE:                        'CONSECUTIVE';

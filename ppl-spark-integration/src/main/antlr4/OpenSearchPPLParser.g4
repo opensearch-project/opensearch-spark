@@ -52,12 +52,22 @@ commands
    | lookupCommand
    | renameCommand
    | fillnullCommand
+   | fieldsummaryCommand
    ;
 
 searchCommand
    : (SEARCH)? fromClause                       # searchFrom
    | (SEARCH)? fromClause logicalExpression     # searchFromFilter
    | (SEARCH)? logicalExpression fromClause     # searchFilterFrom
+   ;
+   
+fieldsummaryCommand
+   : FIELDSUMMARY (fieldsummaryParameter)*
+   ;
+
+fieldsummaryParameter
+   : INCLUDEFIELDS EQUAL fieldList          # fieldsummaryIncludeFields
+   | NULLS EQUAL booleanLiteral             # fieldsummaryNulls
    ;
 
 describeCommand
@@ -1088,6 +1098,10 @@ keywordsCanBeId
    | SPARKLINE
    | C
    | DC
+   // FIELD SUMMARY
+   | FIELDSUMMARY
+   | INCLUDEFIELDS
+   | NULLS
    // JOIN TYPE
    | OUTER
    | INNER

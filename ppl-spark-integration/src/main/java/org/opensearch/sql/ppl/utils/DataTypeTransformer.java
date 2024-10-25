@@ -20,7 +20,10 @@ import org.apache.spark.unsafe.types.UTF8String;
 import org.opensearch.sql.ast.expression.SpanUnit;
 import scala.collection.mutable.Seq;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static org.opensearch.sql.ast.expression.SpanUnit.DAY;
 import static org.opensearch.sql.ast.expression.SpanUnit.HOUR;
@@ -41,6 +44,7 @@ public interface DataTypeTransformer {
     static <T> Seq<T> seq(T... elements) {
         return seq(List.of(elements));
     }
+    
     static <T> Seq<T> seq(List<T> list) {
         return asScalaBufferConverter(list).asScala().seq();
     }
