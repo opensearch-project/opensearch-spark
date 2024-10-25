@@ -17,7 +17,6 @@ import org.opensearch.flint.common.FlintVersion.current
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
 import org.opensearch.flint.spark.FlintSparkIndex.quotedTableName
-import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.CHECKPOINT_LOCATION
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
 import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler
 import org.scalatest.matchers.must.Matchers.defined

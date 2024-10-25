@@ -21,6 +21,7 @@ import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
+import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
@@ -269,14 +270,24 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
             .map(this::internalVisitExpression)
             .orElse(null);
 
-    Aggregation aggregation =
-        new Aggregation(
-            aggListBuilder.build(),
-            emptyList(),
-            groupList,
-            span,
-            ArgumentFactory.getArgumentList(ctx));
-    return aggregation;
+    if (ctx.STATS() != null) {
+      Aggregation aggregation =
+          new Aggregation(
+              aggListBuilder.build(),
+              emptyList(),
+              groupList,
+              span,
+              ArgumentFactory.getArgumentList(ctx));
+      return aggregation;
+    } else {
+      Window window =
+          new Window(
+              aggListBuilder.build(),
+              groupList,
+              emptyList());
+      window.setSpan(span);
+      return window;
+    }
   }
 
   /** Dedup command. */
@@ -415,8 +426,14 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                     groupListBuilder.build());
     return aggregation;
   }
-  
-  /** Rare command. */
+
+    /** Fieldsummary command. */
+    @Override
+    public UnresolvedPlan visitFieldsummaryCommand(OpenSearchPPLParser.FieldsummaryCommandContext ctx) {
+        return new FieldSummary(ctx.fieldsummaryParameter().stream().map(arg -> expressionBuilder.visit(arg)).collect(Collectors.toList()));
+    }
+
+    /** Rare command. */
   @Override
   public UnresolvedPlan visitRareCommand(OpenSearchPPLParser.RareCommandContext ctx) {
     ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();

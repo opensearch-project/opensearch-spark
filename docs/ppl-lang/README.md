@@ -50,6 +50,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`stats command`](ppl-stats-command.md)
 
+    - [`eventstats command`](ppl-eventstats-command.md)
+
     - [`where command`](ppl-where-command.md)
 
     - [`head command`](ppl-head-command.md)
@@ -76,6 +78,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`Date and Time Functions`](functions/ppl-datetime.md) 
 
     - [`String Functions`](functions/ppl-string.md)
+
+    - [`JSON Functions`](functions/ppl-json.md)
 
     - [`Condition Functions`](functions/ppl-condition.md)
 

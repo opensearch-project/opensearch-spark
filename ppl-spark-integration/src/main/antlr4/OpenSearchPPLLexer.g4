@@ -18,6 +18,7 @@ WHERE:                              'WHERE';
 FIELDS:                             'FIELDS';
 RENAME:                             'RENAME';
 STATS:                              'STATS';
+EVENTSTATS:                         'EVENTSTATS';
 DEDUP:                              'DEDUP';
 SORT:                               'SORT';
 EVAL:                               'EVAL';
@@ -85,6 +86,12 @@ AUTO:                               'AUTO';
 STR:                                'STR';
 IP:                                 'IP';
 NUM:                                'NUM';
+
+
+// FIELDSUMMARY keywords
+FIELDSUMMARY:                       'FIELDSUMMARY';
+INCLUDEFIELDS:                      'INCLUDEFIELDS';
+NULLS:                              'NULLS';
 
 // ARGUMENT KEYWORDS
 KEEPEMPTY:                          'KEEPEMPTY';
@@ -362,6 +369,27 @@ REVERSE:                            'REVERSE';
 CAST:                               'CAST';
 ISEMPTY:                            'ISEMPTY';
 ISBLANK:                            'ISBLANK';
+
+// JSON TEXT FUNCTIONS
+JSON:                               'JSON';
+JSON_OBJECT:                        'JSON_OBJECT';
+JSON_ARRAY:                         'JSON_ARRAY';
+JSON_ARRAY_LENGTH:                  'JSON_ARRAY_LENGTH';
+JSON_EXTRACT:                       'JSON_EXTRACT';
+JSON_KEYS:                          'JSON_KEYS';
+JSON_VALID:                         'JSON_VALID';
+//JSON_APPEND:                        'JSON_APPEND';
+//JSON_DELETE:                        'JSON_DELETE';
+//JSON_EXTEND:                        'JSON_EXTEND';
+//JSON_SET:                           'JSON_SET';
+//JSON_ARRAY_ALL_MATCH:               'JSON_ALL_MATCH';
+//JSON_ARRAY_ANY_MATCH:               'JSON_ANY_MATCH';
+//JSON_ARRAY_FILTER:                  'JSON_FILTER';
+//JSON_ARRAY_MAP:                     'JSON_ARRAY_MAP';
+//JSON_ARRAY_REDUCE:                  'JSON_ARRAY_REDUCE';
+
+// COLLECTION FUNCTIONS
+ARRAY:                              'ARRAY';
 
 // BOOL FUNCTIONS
 LIKE:                               'LIKE';

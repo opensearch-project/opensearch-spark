@@ -52,12 +52,22 @@ commands
    | lookupCommand
    | renameCommand
    | fillnullCommand
+   | fieldsummaryCommand
    ;
 
 searchCommand
    : (SEARCH)? fromClause                       # searchFrom
    | (SEARCH)? fromClause logicalExpression     # searchFromFilter
    | (SEARCH)? logicalExpression fromClause     # searchFilterFrom
+   ;
+   
+fieldsummaryCommand
+   : FIELDSUMMARY (fieldsummaryParameter)*
+   ;
+
+fieldsummaryParameter
+   : INCLUDEFIELDS EQUAL fieldList          # fieldsummaryIncludeFields
+   | NULLS EQUAL booleanLiteral             # fieldsummaryNulls
    ;
 
 describeCommand
@@ -115,7 +125,7 @@ renameCommand
    ;
 
 statsCommand
-   : STATS (PARTITIONS EQUAL partitions = integerLiteral)? (ALLNUM EQUAL allnum = booleanLiteral)? (DELIM EQUAL delim = stringLiteral)? statsAggTerm (COMMA statsAggTerm)* (statsByClause)? (DEDUP_SPLITVALUES EQUAL dedupsplit = booleanLiteral)?
+   : (STATS | EVENTSTATS) (PARTITIONS EQUAL partitions = integerLiteral)? (ALLNUM EQUAL allnum = booleanLiteral)? (DELIM EQUAL delim = stringLiteral)? statsAggTerm (COMMA statsAggTerm)* (statsByClause)? (DEDUP_SPLITVALUES EQUAL dedupsplit = booleanLiteral)?
    ;
 
 dedupCommand
@@ -509,6 +519,8 @@ evalFunctionName
    | positionFunctionName
    | coalesceFunctionName
    | cryptographicFunctionName
+   | jsonFunctionName
+   | collectionFunctionName
    ;
 
 functionArgs
@@ -763,6 +775,7 @@ conditionFunctionBase
    | IFNULL
    | NULLIF
    | ISPRESENT
+   | JSON_VALID
    ;
 
 systemFunctionName
@@ -789,6 +802,29 @@ textFunctionName
    | REVERSE
    | ISEMPTY
    | ISBLANK
+   ;
+
+jsonFunctionName
+   : JSON
+   | JSON_OBJECT
+   | JSON_ARRAY
+   | JSON_ARRAY_LENGTH
+   | JSON_EXTRACT
+   | JSON_KEYS
+   | JSON_VALID
+//   | JSON_APPEND
+//   | JSON_DELETE
+//   | JSON_EXTEND
+//   | JSON_SET
+//   | JSON_ARRAY_ALL_MATCH
+//   | JSON_ARRAY_ANY_MATCH
+//   | JSON_ARRAY_FILTER
+//   | JSON_ARRAY_MAP
+//   | JSON_ARRAY_REDUCE
+   ;
+
+collectionFunctionName
+   : ARRAY
    ;
 
 positionFunctionName
@@ -959,6 +995,7 @@ keywordsCanBeId
    | intervalUnit
    | dateTimeFunctionName
    | textFunctionName
+   | jsonFunctionName
    | mathematicalFunctionName
    | positionFunctionName
    | cryptographicFunctionName
@@ -1061,6 +1098,10 @@ keywordsCanBeId
    | SPARKLINE
    | C
    | DC
+   // FIELD SUMMARY
+   | FIELDSUMMARY
+   | INCLUDEFIELDS
+   | NULLS
    // JOIN TYPE
    | OUTER
    | INNER

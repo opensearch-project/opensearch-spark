@@ -164,6 +164,8 @@ public enum BuiltinFunctionName {
 
   /** Aggregation Function. */
   AVG(FunctionName.of("avg")),
+  MEAN(FunctionName.of("mean")),
+  STDDEV(FunctionName.of("stddev")),
   SUM(FunctionName.of("sum")),
   COUNT(FunctionName.of("count")),
   MIN(FunctionName.of("min")),
@@ -203,6 +205,28 @@ public enum BuiltinFunctionName {
   SUBSTRING(FunctionName.of("substring")),
   TRIM(FunctionName.of("trim")),
   UPPER(FunctionName.of("upper")),
+
+  /** JSON Functions. */
+  // If the function argument is a valid JSON, return itself, or return NULL
+  JSON(FunctionName.of("json")),
+  JSON_OBJECT(FunctionName.of("json_object")),
+  JSON_ARRAY(FunctionName.of("json_array")),
+  JSON_ARRAY_LENGTH(FunctionName.of("json_array_length")),
+  JSON_EXTRACT(FunctionName.of("json_extract")),
+  JSON_KEYS(FunctionName.of("json_keys")),
+  JSON_VALID(FunctionName.of("json_valid")),
+//  JSON_DELETE(FunctionName.of("json_delete")),
+//  JSON_APPEND(FunctionName.of("json_append")),
+//  JSON_EXTEND(FunctionName.of("json_extend")),
+//  JSON_SET(FunctionName.of("json_set")),
+//  JSON_ARRAY_ALL_MATCH(FunctionName.of("json_array_all_match")),
+//  JSON_ARRAY_ANY_MATCH(FunctionName.of("json_array_any_match")),
+//  JSON_ARRAY_FILTER(FunctionName.of("json_array_filter")),
+//  JSON_ARRAY_MAP(FunctionName.of("json_array_map")),
+//  JSON_ARRAY_REDUCE(FunctionName.of("json_array_reduce")),
+
+  /** COLLECTION Functions **/
+  ARRAY(FunctionName.of("array")),
 
   /** NULL Test. */
   IS_NULL(FunctionName.of("is null")),
