@@ -87,6 +87,10 @@ public interface IRestHighLevelClient extends Closeable {
         MetricsUtil.incrementCounter(successMetricName);
     }
 
+    static void recordLatency(String metricNamePrefix, long latencyMilliseconds) {
+        MetricsUtil.addHistoricGauge(metricNamePrefix + ".processingTime", latencyMilliseconds);
+    }
+
     /**
      * Records the failure of an OpenSearch operation by incrementing the corresponding metric counter.
      * If the exception is an OpenSearchException with a specific status code (e.g., 403),
@@ -107,6 +111,8 @@ public interface IRestHighLevelClient extends Closeable {
         if (statusCode == 403) {
             String forbiddenErrorMetricName = metricNamePrefix + ".403.count";
             MetricsUtil.incrementCounter(forbiddenErrorMetricName);
+        } else if (statusCode == 429) {
+            MetricsUtil.incrementCounter(metricNamePrefix + ".429.count");
         }
 
         String failureMetricName = metricNamePrefix + "." + (statusCode / 100) + "xx.count";
