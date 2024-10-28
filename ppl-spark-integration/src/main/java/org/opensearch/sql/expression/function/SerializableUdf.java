@@ -13,15 +13,9 @@ import scala.Serializable;
 import scala.runtime.AbstractFunction2;
 
 
-public class SerializableUdf {
+public interface SerializableUdf {
 
-    //this class should not have any fields, only static methods and static classes
-
-    private SerializableUdf() {
-
-    }
-
-    public static Function2<String,String,Boolean> cidrFunction = new SerializableAbstractFunction2<>() {
+    Function2<String,String,Boolean> cidrFunction = new SerializableAbstractFunction2<>() {
 
         IPAddressStringParameters valOptions = new IPAddressStringParameters.Builder()
                 .allowEmpty(false)
@@ -57,7 +51,7 @@ public class SerializableUdf {
         }
     };
 
-    static abstract public class SerializableAbstractFunction2<T1,T2,R> extends AbstractFunction2<T1,T2,R>
+    abstract class SerializableAbstractFunction2<T1,T2,R> extends AbstractFunction2<T1,T2,R>
             implements Serializable {
     }
 }
