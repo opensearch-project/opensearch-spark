@@ -8,6 +8,7 @@ _List any issues this PR will resolve, e.g. Resolves [...]._
 - [ ] Updated documentation (docs/ppl-lang/README.md)
 - [ ] Implemented unit tests
 - [ ] Implemented tests for combination with other commands
+- [ ] New added source code should include a copyright header
 - [ ] Commits are signed per the DCO using `--signoff`
 
 By submitting this pull request, I confirm that my contribution is made under the terms of the Apache 2.0 license.
