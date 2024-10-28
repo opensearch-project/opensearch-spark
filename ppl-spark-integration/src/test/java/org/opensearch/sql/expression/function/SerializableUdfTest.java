@@ -41,6 +41,16 @@ public class SerializableUdfTest {
         SerializableUdf.cidrFunction.apply("192.168.0.0", "2001:db8::/324");
     }
 
+    @Test(expected = RuntimeException.class)
+    public void cirdMixedIpVersionTestV6V4() {
+        SerializableUdf.cidrFunction.apply("2001:0db8:85a3:0000:0000:8a2e:0370:7334", "192.168.0.0/24");
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void cirdMixedIpVersionTestV4V6() {
+        SerializableUdf.cidrFunction.apply("192.168.0.0", "2001:db8::/324");
+    }
+
     @Test
     public void cidrBasicTest() {
         Assert.assertTrue(SerializableUdf.cidrFunction.apply("192.168.0.0", "192.168.0.0/24"));

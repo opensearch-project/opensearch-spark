@@ -669,4 +669,22 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            |        (11, null, false)
            | """.stripMargin)
   }
+
+  protected def createIpAddressTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   id INT,
+           |   ipAddress STRING,
+           |   isV6 BOOLEAN,
+           |   isValid BOOLEAN
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES (1, '127.0.0.1', true, true),
+           | """.stripMargin)
+  }
 }
