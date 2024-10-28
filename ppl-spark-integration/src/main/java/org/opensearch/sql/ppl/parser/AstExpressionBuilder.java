@@ -281,7 +281,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitBetween(OpenSearchPPLParser.BetweenContext ctx) {
         UnresolvedExpression betweenExpr = new Between(visit(ctx.expr1),visit(ctx.expr2),visit(ctx.expr3));
-        return ctx.NOT() != null ? new Not(betweenExpr) : betweenExpr;
+        return betweenExpr;
     }
 
     private Function buildFunction(
