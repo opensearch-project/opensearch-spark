@@ -18,6 +18,7 @@ import org.opensearch.flint.spark.scheduler.util.RefreshQueryGenerator
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.flint.config.FlintSparkConf
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 
 /**
  * External scheduling service for Flint Spark jobs.
@@ -83,8 +84,14 @@ class FlintSparkJobExternalSchedulingService(
         case AsyncQuerySchedulerAction.REMOVE => flintAsyncQueryScheduler.removeJob(request)
         case _ => throw new IllegalArgumentException(s"Unsupported action: $action")
       }
+      addExternalSchedulerMetrics(action)
 
       None // Return None for all cases
     }
+  }
+
+  private def addExternalSchedulerMetrics(action: AsyncQuerySchedulerAction): Unit = {
+    val actionName = action.name().toLowerCase()
+    MetricsUtil.addHistoricGauge(MetricConstants.EXTERNAL_SCHEDULER_METRIC_PREFIX + actionName + ".count", 1)
   }
 }
