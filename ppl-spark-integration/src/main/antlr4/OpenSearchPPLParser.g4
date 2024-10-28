@@ -1115,4 +1115,5 @@ keywordsCanBeId
    | FULL
    | SEMI
    | ANTI
+   | BETWEEN
    ;
