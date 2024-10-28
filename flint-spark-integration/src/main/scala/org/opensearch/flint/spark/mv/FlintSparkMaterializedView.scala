@@ -16,7 +16,7 @@ import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexB
 import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchema, metadataBuilder, StreamingRefresh}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.function.TumbleFunction
-import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getFlintIndexName, MV_INDEX_TYPE}
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{extractSourceTables, getFlintIndexName, MV_INDEX_TYPE}
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.FunctionIdentifier
@@ -60,10 +60,12 @@ case class FlintSparkMaterializedView(
         Map[String, AnyRef]("columnName" -> colName, "columnType" -> colType).asJava
       }.toArray
     val schema = generateSchema(outputSchema).asJava
+    val sourceTables = extractSourceTables(query)
 
     metadataBuilder(this)
       .name(mvName)
       .source(query)
+      .addProperty("sourceTables", sourceTables)
       .indexedColumns(indexColumnMaps)
       .schema(schema)
       .build()
@@ -163,6 +165,10 @@ object FlintSparkMaterializedView {
       "Qualified materialized view name catalog.database.mv is required")
 
     flintIndexNamePrefix(mvName)
+  }
+
+  def extractSourceTables(query: String): Array[String] = {
+    Array("mock1.mock2.mock3")
   }
 
   /** Builder class for MV build */
