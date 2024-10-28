@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark.ppl
 
+import java.sql.Timestamp
+
 import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -56,12 +58,12 @@ class FlintSparkPPLBetweenITSuite
                        | """.stripMargin)
 
     val results = frame.collect()
-    assert(results.length == 3)
+    assert(results.length == 1)
     assert(frame.columns.length == 6)
 
     results.foreach(row => {
       val age = row.getAs[Int]("age")
-      assert(age >= 20 && age <= 30, s"Age $age is not between 20 and 30")
+      assert(age >= 21 && age <= 29, s"Age $age is not between 21 and 29")
     })
   }
 
@@ -80,9 +82,24 @@ class FlintSparkPPLBetweenITSuite
     })
   }
 
+  test("test between should return records where NOT between two integer values") {
+    val frame = sql(s"""
+                       | source = $testTable | where NOT age between 20 and 30
+                       | """.stripMargin)
+
+    val results = frame.collect()
+    assert(results.length == 1)
+    assert(frame.columns.length == 6)
+
+    results.foreach(row => {
+      val age = row.getAs[Int]("age")
+      assert(age < 20 || age > 30, s"Age $age is not between 20 and 30")
+    })
+  }
+
   test("test between should return records between two date values") {
     val frame = sql(s"""
-                       | source = $timeSeriesTestTable | where timestamp between '2023-10-01 00:01:00' and '2023-10-01 00:10:00'
+                       | source = $timeSeriesTestTable | where time between '2023-10-01 00:01:00' and '2023-10-01 00:10:00'
                        | """.stripMargin)
 
     val results = frame.collect()
@@ -90,26 +107,28 @@ class FlintSparkPPLBetweenITSuite
     assert(frame.columns.length == 4)
 
     results.foreach(row => {
-      val ts = row.getAs[String]("timestamp")
+      val ts = row.getAs[Timestamp]("time")
       assert(
-        ts >= "2023-10-01 00:01:00" && ts <= "2023-10-01 00:01:00",
+        !ts.before(Timestamp.valueOf("2023-10-01 00:01:00")) || !ts.after(
+          Timestamp.valueOf("2023-10-01 00:01:00")),
         s"Timestamp $ts is not between '2023-10-01 00:01:00' and '2023-10-01 00:10:00'")
     })
   }
 
   test("test between should return records NOT between two date values") {
     val frame = sql(s"""
-                       | source = $timeSeriesTestTable | where timestamp NOT between '2023-10-01 00:01:00' and '2023-10-01 00:10:00'
+                       | source = $timeSeriesTestTable | where time NOT between '2023-10-01 00:01:00' and '2023-10-01 00:10:00'
                        | """.stripMargin)
 
     val results = frame.collect()
-    assert(results.length == 4)
+    assert(results.length == 3)
     assert(frame.columns.length == 4)
 
     results.foreach(row => {
-      val ts = row.getAs[String]("timestamp")
+      val ts = row.getAs[Timestamp]("time")
       assert(
-        ts < "2023-10-01 00:01:00" || ts > "2023-10-01 00:01:00",
+        ts.before(Timestamp.valueOf("2023-10-01 00:01:00")) || ts.after(
+          Timestamp.valueOf("2023-10-01 00:01:00")),
         s"Timestamp $ts is not between '2023-10-01 00:01:00' and '2023-10-01 00:10:00'")
     })
 
