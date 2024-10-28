@@ -160,6 +160,16 @@ public final class MetricConstants {
      */
     public static final String CHECKPOINT_DELETE_TIME_METRIC = "checkpoint.delete.processingTime";
 
+    /**
+     * Metric for tracking the index state transitions
+     */
+    public static final String INDEX_STATE_METRIC_PREFIX = "indexState.";
+
+    /**
+     * Metric for tracking the index state transitions
+     */
+    public static final String INITIAL_CONDITION_CHECK_FAILED_PREFIX = "initialConditionCheck.failed.";
+
     private MetricConstants() {
         // Private constructor to prevent instantiation
     }

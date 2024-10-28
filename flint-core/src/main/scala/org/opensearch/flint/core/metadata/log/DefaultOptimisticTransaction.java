@@ -16,6 +16,8 @@ import java.util.logging.Logger;
 import org.opensearch.flint.common.metadata.log.FlintMetadataLog;
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry;
 import org.opensearch.flint.common.metadata.log.OptimisticTransaction;
+import org.opensearch.flint.core.metrics.MetricConstants;
+import org.opensearch.flint.core.metrics.MetricsUtil;
 
 /**
  * Default optimistic transaction implementation that captures the basic workflow for
@@ -73,6 +75,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
     // Perform initial log check
     if (!initialCondition.test(latest)) {
       LOG.warning("Initial log entry doesn't satisfy precondition " + latest);
+      emitConditionCheckFailedMetric(latest);
       throw new IllegalStateException(
           String.format("Index state [%s] doesn't satisfy precondition", latest.state()));
     }
@@ -102,6 +105,7 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
         metadataLog.purge();
       } else {
         metadataLog.add(finalLog);
+        emitFinalLogStateMetric(finalLog);
       }
       return result;
     } catch (Exception e) {
@@ -116,5 +120,13 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
       }
       throw new IllegalStateException("Failed to commit transaction operation", e);
     }
+  }
+
+  private void emitConditionCheckFailedMetric(FlintMetadataLogEntry latest) {
+    MetricsUtil.addHistoricGauge(MetricConstants.INITIAL_CONDITION_CHECK_FAILED_PREFIX + latest.state() + ".count", 1);
+  }
+
+  private void emitFinalLogStateMetric(FlintMetadataLogEntry finalLog) {
+    MetricsUtil.addHistoricGauge(MetricConstants.INDEX_STATE_METRIC_PREFIX + finalLog.state() + ".count", 1);
   }
 }
