@@ -684,7 +684,15 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
 
     sql(s"""
            | INSERT INTO $testTable
-           | VALUES (1, '127.0.0.1', true, true),
+           | VALUES (1, '127.0.0.1', false, true),
+           |        (2, '192.168.1.0', false, true),
+           |        (3, '192.168.1.1', false, true),
+           |        (4, '192.168.2.1', false, true),
+           |        (5, '192.168.2.', false, false),
+           |        (6, '2001:db8::ff00:12:3455', true, true),
+           |        (7, '2001:db8::ff00:12:3456', true, true),
+           |        (8, '2001:db8::ff00:13:3457', true, true),
+           |        (9, '2001:db8::ff00:12:', true, false)
            | """.stripMargin)
   }
 }

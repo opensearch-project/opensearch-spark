@@ -1121,4 +1121,5 @@ keywordsCanBeId
    | SEMI
    | ANTI
    | BETWEEN
+   | CIDRMATCH
    ;

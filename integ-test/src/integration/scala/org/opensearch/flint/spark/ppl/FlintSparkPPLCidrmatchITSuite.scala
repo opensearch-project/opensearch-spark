@@ -5,13 +5,8 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
-import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, EqualTo, IsNotNull, Literal, Not, SortOrder}
-import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.execution.ExplainMode
-import org.apache.spark.sql.execution.command.{DescribeTableCommand, ExplainCommand}
+import org.apache.spark.SparkException
+import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLCidrmatchITSuite
@@ -39,22 +34,63 @@ class FlintSparkPPLCidrmatchITSuite
     }
   }
 
-  test("explain simple mode test") {
+  test("test cidrmatch for ipv4 for 192.168.1.0/24") {
     val frame = sql(s"""
-                       | explain simple | source = $testTable | where cidrmatch(ipAddress, '0.0.0.0')
+                       | source = $testTable | where isV6 = false and isValid = true and cidrmatch(ipAddress, '192.168.1.0/24')
                        | """.stripMargin)
 
-    // Retrieve the logical plan
-    val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    // Define the expected logical plan
-    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
-    val filter =
-      Filter(Not(EqualTo(UnresolvedAttribute("state"), Literal("California"))), relation)
-    val expectedPlan: LogicalPlan =
-      ExplainCommand(
-        Project(Seq(UnresolvedAttribute("name")), filter),
-        ExplainMode.fromString("simple"))
-    // Compare the two plans
-    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+    val results = frame.collect()
+    assert(results.length == 2)
+  }
+
+  test("test cidrmatch for ipv4 for 192.169.1.0/24") {
+    val frame = sql(s"""
+                       | source = $testTable | where isV6 = false and isValid = true and cidrmatch(ipAddress, '192.169.1.0/24')
+                       | """.stripMargin)
+
+    val results = frame.collect()
+    assert(results.length == 0)
+  }
+
+  test("test cidrmatch for ipv6 for 2001:db8::/32") {
+    val frame = sql(s"""
+                       | source = $testTable | where isV6 = true and isValid = true and cidrmatch(ipAddress, '2001:db8::/32')
+                       | """.stripMargin)
+
+    val results = frame.collect()
+    assert(results.length == 3)
+  }
+
+  test("test cidrmatch for ipv6 for 2003:db8::/32") {
+    val frame = sql(s"""
+                       | source = $testTable | where isV6 = true and isValid = true and cidrmatch(ipAddress, '2003:db8::/32')
+                       | """.stripMargin)
+
+    val results = frame.collect()
+    assert(results.length == 0)
+  }
+
+  test("test cidrmatch for ipv6 with ipv4 cidr") {
+    val frame = sql(s"""
+                       | source = $testTable | where isV6 = true and isValid = true and cidrmatch(ipAddress, '192.169.1.0/24')
+                       | """.stripMargin)
+
+    assertThrows[SparkException](frame.collect())
+  }
+
+  test("test cidrmatch for invalid ipv4 addresses") {
+    val frame = sql(s"""
+                       | source = $testTable | where isV6 = false and isValid = false and cidrmatch(ipAddress, '192.169.1.0/24')
+                       | """.stripMargin)
+
+    assertThrows[SparkException](frame.collect())
+  }
+
+  test("test cidrmatch for invalid ipv6 addresses") {
+    val frame = sql(s"""
+                       | source = $testTable | where isV6 = true and isValid = false and cidrmatch(ipAddress, '2003:db8::/32')
+                       | """.stripMargin)
+
+    assertThrows[SparkException](frame.collect())
   }
 }
