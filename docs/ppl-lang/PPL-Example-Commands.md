@@ -33,6 +33,12 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | eval b1 = b + 1 | fields - b1,c` (Field `b1` cannot be dropped caused by SPARK-49782)
 - `source = table | eval b1 = lower(b) | fields - b1,c` (Field `b1` cannot be dropped caused by SPARK-49782)
 
+**Field-Summary**
+[See additional command details](ppl-fieldsummary-command.md)
+- `source = t | fieldsummary includefields=status_code nulls=false`
+- `source = t | fieldsummary includefields= id, status_code, request_path nulls=true`
+- `source = t | where status_code != 200 | fieldsummary includefields= status_code nulls=true`
+
 **Nested-Fields**
 - `source = catalog.schema.table1, catalog.schema.table2 | fields A.nested1, B.nested1`
 - `source = catalog.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield`
@@ -168,6 +174,34 @@ source = table |  where ispresent(a) |
 **Aggregations Group by Multiple Levels**
 - `source = table | stats avg(age) as avg_state_age by country, state | stats avg(avg_state_age) as avg_country_age by country`
 - `source = table | stats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | stats avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | stats avg(avg_state_age) as avg_adult_country_age by country`
+
+#### **Event Aggregations**
+[See additional command details](ppl-eventstats-command.md)
+
+- `source = table | eventstats avg(a) `
+- `source = table | where a < 50 | eventstats avg(c) `
+- `source = table | eventstats max(c) by b`
+- `source = table | eventstats count(c) by b | head 5`
+- `source = table | eventstats stddev_samp(c)`
+- `source = table | eventstats stddev_pop(c)`
+- `source = table | eventstats percentile(c, 90)`
+- `source = table | eventstats percentile_approx(c, 99)`
+
+**Limitation: distinct aggregation could not used in `eventstats`:**_
+- `source = table | eventstats distinct_count(c)` (throw exception)
+
+**Aggregations With Span**
+- `source = table  | eventstats count(a) by span(a, 10) as a_span`
+- `source = table  | eventstats sum(age) by span(age, 5) as age_span | head 2`
+- `source = table  | eventstats avg(age) by span(age, 20) as age_span, country  | sort - age_span |  head 2`
+
+**Aggregations With TimeWindow Span (tumble windowing function)**
+- `source = table | eventstats sum(productsAmount) by span(transactionDate, 1d) as age_date | sort age_date`
+- `source = table | eventstats sum(productsAmount) by span(transactionDate, 1w) as age_date, productId`
+
+**Aggregations Group by Multiple Times**
+- `source = table | eventstats avg(age) as avg_state_age by country, state | eventstats avg(avg_state_age) as avg_country_age by country`
+- `source = table | eventstats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | eventstats avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | eventstats avg(avg_state_age) as avg_adult_country_age by country`
 
 #### **Dedup**
 

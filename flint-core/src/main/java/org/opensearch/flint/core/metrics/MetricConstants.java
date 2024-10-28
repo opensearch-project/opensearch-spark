@@ -23,6 +23,24 @@ public final class MetricConstants {
     public static final String OS_WRITE_OP_METRIC_PREFIX = "opensearch.write";
 
     /**
+     * Prefixes for OpenSearch API specific metrics
+     */
+    public static final String OS_CREATE_OP_METRIC_PREFIX = "opensearch.create";
+    public static final String OS_SEARCH_OP_METRIC_PREFIX = "opensearch.search";
+    public static final String OS_BULK_OP_METRIC_PREFIX = "opensearch.bulk";
+
+    /**
+     * Metric name for request size of opensearch bulk request
+     */
+    public static final String OPENSEARCH_BULK_SIZE_METRIC = "opensearch.bulk.size.count";
+
+    /**
+     * Metric name for opensearch bulk request retry count
+     */
+    public static final String OPENSEARCH_BULK_RETRY_COUNT_METRIC = "opensearch.bulk.retry.count";
+    public static final String OPENSEARCH_BULK_ALL_RETRY_FAILED_COUNT_METRIC = "opensearch.bulk.allRetryFailed.count";
+
+    /**
      * Metric name for counting the errors encountered with Amazon S3 operations.
      */
     public static final String S3_ERR_CNT_METRIC = "s3.error.count";
@@ -116,6 +134,31 @@ public final class MetricConstants {
      * Metric for tracking the latency of query execution (start to complete query execution) excluding result write.
      */
     public static final String QUERY_EXECUTION_TIME_METRIC = "query.execution.processingTime";
+
+    /**
+     * Metric for tracking the total bytes read from input
+     */
+    public static final String INPUT_TOTAL_BYTES_READ = "input.totalBytesRead.count";
+
+    /**
+     * Metric for tracking the total records read from input
+     */
+    public static final String INPUT_TOTAL_RECORDS_READ = "input.totalRecordsRead.count";
+
+    /**
+     * Metric for tracking the total bytes written to output
+     */
+    public static final String OUTPUT_TOTAL_BYTES_WRITTEN = "output.totalBytesWritten.count";
+
+    /**
+     * Metric for tracking the total records written to output
+     */
+    public static final String OUTPUT_TOTAL_RECORDS_WRITTEN = "output.totalRecordsWritten.count";
+
+    /**
+     * Metric for tracking the latency of checkpoint deletion
+     */
+    public static final String CHECKPOINT_DELETE_TIME_METRIC = "checkpoint.delete.processingTime";
 
     private MetricConstants() {
         // Private constructor to prevent instantiation

@@ -14,7 +14,7 @@ import scala.util.{Failure, Success, Try}
 
 import org.opensearch.flint.common.model.FlintStatement
 import org.opensearch.flint.common.scheduler.model.LangType
-import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil, ReadWriteBytesSparkListener}
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
 import org.opensearch.flint.spark.FlintSpark
 
@@ -69,6 +69,9 @@ case class JobOperator(
 
     val statementExecutionManager =
       instantiateStatementExecutionManager(commandContext, resultIndex, osClient)
+
+    val readWriteBytesSparkListener = new ReadWriteBytesSparkListener()
+    sparkSession.sparkContext.addSparkListener(readWriteBytesSparkListener)
 
     val statement =
       new FlintStatement(
@@ -137,6 +140,8 @@ case class JobOperator(
             startTime))
     } finally {
       emitQueryExecutionTimeMetric(startTime)
+      readWriteBytesSparkListener.emitMetrics()
+      sparkSession.sparkContext.removeSparkListener(readWriteBytesSparkListener)
 
       try {
         dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
@@ -202,8 +207,9 @@ case class JobOperator(
 
   private def emitQueryExecutionTimeMetric(startTime: Long): Unit = {
     MetricsUtil
-      .getTimer(MetricConstants.QUERY_EXECUTION_TIME_METRIC, false)
-      .update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+      .addHistoricGauge(
+        MetricConstants.QUERY_EXECUTION_TIME_METRIC,
+        System.currentTimeMillis() - startTime)
   }
 
   def stop(): Unit = {

@@ -12,9 +12,10 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 | Chen Dai        | [dai-chen](https://github.com/dai-chen)         | Amazon      |
 | Vamsi Manohar   | [vamsi-amazon](https://github.com/vamsi-amazon) | Amazon      |
 | Peng Huo        | [penghuo](https://github.com/penghuo)           | Amazon      |
-| Lior Perry      | [YANG-DB](https://github.com/YANG-DB)            | Amazon      |
+| Lior Perry      | [YANG-DB](https://github.com/YANG-DB)           | Amazon      |
 | Sean Kao        | [seankao-az](https://github.com/seankao-az)     | Amazon      |
 | Anirudha Jadhav | [anirudha](https://github.com/anirudha)         | Amazon      |
 | Kaituo Li       | [kaituo](https://github.com/kaituo)             | Amazon      |
 | Louis Chu       | [noCharger](https://github.com/noCharger)       | Amazon      |
 | Lantao Jin      | [LantaoJin](https://github.com/LantaoJin)       | Amazon      |
+| Tomoyuki Morita | [ykmr1224](https://github.com/ykmr1224)         | Amazon      |

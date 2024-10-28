@@ -9,6 +9,7 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
+import java.util.function.Supplier;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.metrics.source.FlintMetricSource;
 import org.apache.spark.metrics.source.FlintIndexMetricSource;
@@ -75,6 +76,15 @@ public final class MetricsUtil {
         }
     }
 
+    public static void setCounter(String metricName, boolean isIndexMetric, long n) {
+        Counter counter = getOrCreateCounter(metricName, isIndexMetric);
+        if (counter != null) {
+            counter.dec(counter.getCount());
+            counter.inc(n);
+            LOG.info("counter: " + counter.getCount());
+        }
+    }
+
     /**
      * Retrieves a {@link Timer.Context} for the specified metric name, creating a new timer if one does not already exist.
      *
@@ -109,6 +119,39 @@ public final class MetricsUtil {
 
     public static Timer getTimer(String metricName, boolean isIndexMetric) {
         return getOrCreateTimer(metricName, isIndexMetric);
+    }
+
+    /**
+     * Registers a HistoricGauge metric with the provided name and value.
+     *
+     * @param metricName The name of the HistoricGauge metric to register.
+     * @param value The value to be stored
+     */
+    public static void addHistoricGauge(String metricName, final long value) {
+        HistoricGauge historicGauge = getOrCreateHistoricGauge(metricName);
+        if (historicGauge != null) {
+            historicGauge.addDataPoint(value);
+        }
+    }
+
+    /**
+     * Automatically emit latency metric as Historic Gauge for the execution of supplier
+     * @param supplier the lambda to be metered
+     * @param metricName name of the metric
+     * @return value returned by supplier
+     */
+    public static <T> T withLatencyAsHistoricGauge(Supplier<T> supplier, String metricName) {
+        long startTime = System.currentTimeMillis();
+        try {
+            return supplier.get();
+        } finally {
+            addHistoricGauge(metricName, System.currentTimeMillis() - startTime);
+        }
+    }
+
+    private static HistoricGauge getOrCreateHistoricGauge(String metricName) {
+        MetricRegistry metricRegistry = getMetricRegistry(false);
+        return metricRegistry != null ? metricRegistry.gauge(metricName, HistoricGauge::new) : null;
     }
 
     /**

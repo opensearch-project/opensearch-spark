@@ -65,6 +65,7 @@ import org.opensearch.sql.ast.tree.Correlation;
 import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Eval;
+import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.tree.FillNull;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
@@ -81,12 +82,15 @@ import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.TopAggregation;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
+import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.ppl.utils.AggregatorTranslator;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
+import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
 import org.opensearch.sql.ppl.utils.ParseStrategy;
 import org.opensearch.sql.ppl.utils.SortUtils;
+import org.opensearch.sql.ppl.utils.WindowSpecTransformer;
 import scala.Option;
 import scala.Tuple2;
 import scala.collection.IterableLike;
@@ -115,6 +119,7 @@ import static org.opensearch.sql.ppl.utils.LookupTransformer.buildProjectListFro
 import static org.opensearch.sql.ppl.utils.RelationUtils.getTableIdentifier;
 import static org.opensearch.sql.ppl.utils.RelationUtils.resolveField;
 import static org.opensearch.sql.ppl.utils.WindowSpecTransformer.window;
+import static scala.collection.JavaConverters.seqAsJavaList;
 
 /**
  * Utility class to traverse PPL logical plan and translate it into catalyst logical plan
@@ -332,6 +337,30 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     @Override
+    public LogicalPlan visitWindow(Window node, CatalystPlanContext context) {
+        node.getChild().get(0).accept(this, context);
+        List<Expression> windowFunctionExpList = visitExpressionList(node.getWindowFunctionList(), context);
+        Seq<Expression> windowFunctionExpressions = context.retainAllNamedParseExpressions(p -> p);
+        List<Expression> partitionExpList = visitExpressionList(node.getPartExprList(), context);
+        UnresolvedExpression span = node.getSpan();
+        if (!Objects.isNull(span)) {
+            visitExpression(span, context);
+        }
+        Seq<Expression> partitionSpec = context.retainAllNamedParseExpressions(p -> p);
+        Seq<SortOrder> orderSpec = seq(new ArrayList<SortOrder>());
+        Seq<NamedExpression> aggregatorFunctions = seq(
+            seqAsJavaList(windowFunctionExpressions).stream()
+                .map(w -> WindowSpecTransformer.buildAggregateWindowFunction(w, partitionSpec, orderSpec))
+                .collect(Collectors.toList()));
+        return context.apply(p ->
+            new org.apache.spark.sql.catalyst.plans.logical.Window(
+                aggregatorFunctions,
+                partitionSpec,
+                orderSpec,
+                p));
+    }
+
+    @Override
     public LogicalPlan visitAlias(Alias node, CatalystPlanContext context) {
         expressionAnalyzer.visitAlias(node, context);
         return context.getPlan();
@@ -383,6 +412,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         node.getChild().get(0).accept(this, context);
         return context.apply(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
                 node.getSize(), DataTypes.IntegerType), p));
+    }
+
+    @Override
+    public LogicalPlan visitFieldSummary(FieldSummary fieldSummary, CatalystPlanContext context) {
+        fieldSummary.getChild().get(0).accept(this, context);
+        return FieldSummaryTransformer.translate(fieldSummary, context);
     }
 
     @Override
