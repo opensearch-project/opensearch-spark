@@ -17,7 +17,6 @@ import org.opensearch.flint.common.scheduler.AsyncQueryScheduler
 import org.opensearch.flint.core.{FlintClient, FlintClientBuilder}
 import org.opensearch.flint.core.metadata.FlintIndexMetadataServiceBuilder
 import org.opensearch.flint.core.metadata.log.FlintMetadataLogServiceBuilder
-import org.opensearch.flint.core.storage.FlintOpenSearchMetadataCacheWriter
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
@@ -54,9 +53,6 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   private val flintIndexMetadataService: FlintIndexMetadataService = {
     FlintIndexMetadataServiceBuilder.build(flintSparkConf.flintOptions())
   }
-
-  private val flintMetadataCacheWriteService = new FlintOpenSearchMetadataCacheWriter(
-    flintSparkConf.flintOptions())
 
   private val flintAsyncQueryScheduler: AsyncQueryScheduler = {
     AsyncQuerySchedulerBuilder.build(flintSparkConf.flintOptions())
@@ -119,6 +115,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           throw new IllegalStateException(s"Flint index $indexName already exists")
         }
       } else {
+        val metadata = index.metadata()
         val jobSchedulingService = FlintSparkJobSchedulingService.create(
           index,
           spark,
@@ -130,17 +127,14 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           .transientLog(latest => latest.copy(state = CREATING))
           .finalLog(latest => latest.copy(state = ACTIVE))
           .commit(latest => {
-            val metadata = latest match {
-              case null => // in case transaction capability is disabled
-                index.metadata()
-              case latestEntry =>
-                logInfo(s"Creating index with metadata log entry ID ${latestEntry.id}")
-                index.metadata().copy(latestId = Some(latestEntry.id))
-            }
-            flintClient.createIndex(indexName, metadata)
-            flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
-            if (isMetadataCacheWriteEnabled) {
-              flintMetadataCacheWriteService.updateMetadataCache(indexName, metadata)
+            if (latest == null) { // in case transaction capability is disabled
+              flintClient.createIndex(indexName, metadata)
+              flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
+            } else {
+              logInfo(s"Creating index with metadata log entry ID ${latest.id}")
+              flintClient.createIndex(indexName, metadata.copy(latestId = Some(latest.id)))
+              flintIndexMetadataService
+                .updateIndexMetadata(indexName, metadata.copy(latestId = Some(latest.id)))
             }
             jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.SCHEDULE)
           })
@@ -405,10 +399,6 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     new DataTypeSkippingStrategy().analyzeSkippingIndexColumns(tableName, spark)
   }
 
-  private def isMetadataCacheWriteEnabled: Boolean = {
-    flintSparkConf.isMetadataCacheWriteEnabled
-  }
-
   private def getAllIndexMetadata(indexNamePattern: String): Map[String, FlintMetadata] = {
     if (flintIndexMetadataService.supportsGetByIndexPattern) {
       flintIndexMetadataService
@@ -578,9 +568,6 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       })
       .commit(_ => {
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
-        if (isMetadataCacheWriteEnabled) {
-          flintMetadataCacheWriteService.updateMetadataCache(indexName, index.metadata)
-        }
         logInfo("Update index options complete")
         jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.UPDATE)
       })
