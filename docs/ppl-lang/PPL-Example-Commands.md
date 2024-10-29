@@ -123,6 +123,7 @@ Assumptions: `a`, `b`, `c`, `d`, `e` are existing fields in `table`
 - `source = table | fillnull using a = concat(b, c), d = 2 * pi() * e`
 
 ### Flatten
+[See additional command details](ppl-flatten-command.md)
 Assumptions: `bridges`, `coor` are existing fields in `table`, and the field's types are `struct<?,?>` or `array<struct<?,?>>`  
 - `source = table | flatten bridges`
 - `source = table | flatten coor`
