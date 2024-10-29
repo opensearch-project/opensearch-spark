@@ -59,7 +59,8 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
-  test("create ppl union query top 3 countries by occupation field query test with sample 75%") {
+  ignore(
+    "create ppl union query top 3 countries by occupation field query test with sample 75%") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(

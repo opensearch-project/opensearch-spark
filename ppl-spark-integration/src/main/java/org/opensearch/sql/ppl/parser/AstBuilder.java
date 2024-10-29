@@ -489,8 +489,8 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   public UnresolvedPlan visitTableSourceClause(OpenSearchPPLParser.TableSourceClauseContext ctx) {
     List<UnresolvedExpression> expressions = ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList());
     return ctx.alias == null
-        ? new Relation(expressions, sampleBuilder(ctx.sampleClause().stream().findFirst()))
-        : new Relation(expressions, ctx.alias.getText(), sampleBuilder(ctx.sampleClause().stream().findFirst()));
+        ? new Relation(expressions, sampleBuilder(Optional.ofNullable(ctx.sampleClause())))
+        : new Relation(expressions, ctx.alias.getText(), sampleBuilder(Optional.ofNullable(ctx.sampleClause())));
   }
 
   @Override
