@@ -24,6 +24,7 @@ import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldList;
 import org.opensearch.sql.ast.expression.Function;
+import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
 import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.Interval;
@@ -416,6 +417,13 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitExistsSubqueryExpr(OpenSearchPPLParser.ExistsSubqueryExprContext ctx) {
         return new ExistsSubquery(astBuilder.visitSubSearch(ctx.subSearch()));
+    }
+
+    @Override
+    public UnresolvedExpression visitInExpr(OpenSearchPPLParser.InExprContext ctx) {
+        UnresolvedExpression expr = new In(visit(ctx.valueExpression()),
+            ctx.valueList().literalValue().stream().map(this::visit).collect(Collectors.toList()));
+        return ctx.NOT() != null ? new Not(expr) : expr;
     }
 
     private QualifiedName visitIdentifiers(List<? extends ParserRuleContext> ctx) {
