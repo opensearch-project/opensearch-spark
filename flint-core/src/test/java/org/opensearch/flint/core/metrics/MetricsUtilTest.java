@@ -3,6 +3,8 @@ package org.opensearch.flint.core.metrics;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Timer;
+import java.time.Duration;
+import java.time.temporal.TemporalUnit;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.metrics.source.FlintMetricSource;
 import org.apache.spark.metrics.source.FlintIndexMetricSource;
@@ -98,6 +100,34 @@ public class MetricsUtilTest {
             assertEquals(1.9, timer.getMeanRate(), 0.1);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    public void testGetTimer() {
+        try (MockedStatic<SparkEnv> sparkEnvMock = mockStatic(SparkEnv.class)) {
+            // Mock SparkEnv
+            SparkEnv sparkEnv = mock(SparkEnv.class, RETURNS_DEEP_STUBS);
+            sparkEnvMock.when(SparkEnv::get).thenReturn(sparkEnv);
+
+            // Mock appropriate MetricSource
+            String sourceName = FlintMetricSource.FLINT_INDEX_METRIC_SOURCE_NAME();
+            Source metricSource = Mockito.spy(new FlintIndexMetricSource());
+            when(sparkEnv.metricsSystem().getSourcesByName(sourceName).head()).thenReturn(
+                metricSource);
+
+            // Test the methods
+            String testMetric = "testPrefix.processingTime";
+            long duration = 500;
+            MetricsUtil.getTimer(testMetric, true).update(duration, TimeUnit.MILLISECONDS);
+
+            // Verify interactions
+            verify(sparkEnv.metricsSystem(), times(0)).registerSource(any());
+            verify(metricSource, times(1)).metricRegistry();
+            Timer timer = metricSource.metricRegistry().getTimers().get(testMetric);
+            Assertions.assertNotNull(timer);
+            Assertions.assertEquals(1L, timer.getCount());
+            assertEquals(Duration.ofMillis(duration).getNano(), timer.getSnapshot().getMean(), 0.1);
         }
     }
 
