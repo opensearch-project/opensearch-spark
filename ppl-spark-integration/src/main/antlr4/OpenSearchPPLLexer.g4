@@ -402,6 +402,9 @@ TYPEOF:                             'TYPEOF';
 //OTHER CONDITIONAL EXPRESSIONS
 COALESCE:                           'COALESCE';
 
+//GEOLOCATION FUNCTIONS
+GEOIP:                              'GEOIP';
+
 // RELEVANCE FUNCTIONS AND PARAMETERS
 MATCH:                              'MATCH';
 MATCH_PHRASE:                       'MATCH_PHRASE';
