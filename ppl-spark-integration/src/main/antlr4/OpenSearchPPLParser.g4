@@ -264,7 +264,6 @@ trendlineClause
 
 trendlineType
    : SMA
-   | WMA
    ;
 
 kmeansCommand
@@ -1145,4 +1144,5 @@ keywordsCanBeId
    | ANTI
    | BETWEEN
    | CIDRMATCH
+   | SMA
    ;

@@ -464,7 +464,7 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
                             Option.empty(),
                             seq(new java.util.ArrayList<String>())));
         } else {
-            throw new IllegalArgumentException("WMA is not supported");
+            throw new IllegalArgumentException(node.getComputationType()+" is not supported");
         }
     }
 

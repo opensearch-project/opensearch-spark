@@ -63,7 +63,6 @@ public class Trendline extends UnresolvedPlan {
     }
 
     public enum TrendlineType {
-        SMA,
-        WMA
+        SMA
     }
 }
