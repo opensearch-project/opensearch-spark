@@ -389,7 +389,7 @@ logicalExpression
 
 comparisonExpression
    : left = valueExpression comparisonOperator right = valueExpression  # compareExpr
-   | valueExpression IN valueList                                       # inExpr
+   | valueExpression NOT? IN valueList                                  # inExpr
    ;
 
 valueExpressionList
@@ -1032,6 +1032,7 @@ keywordsCanBeId
    | ML
    | EXPLAIN
    // commands assist keywords
+   | IN
    | SOURCE
    | INDEX
    | DESC

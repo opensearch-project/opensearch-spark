@@ -15,6 +15,7 @@ import org.apache.spark.sql.catalyst.expressions.CaseWhen;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Exists$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.In$;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
@@ -702,11 +703,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         @Override
         public Expression visitAllFields(AllFields node, CatalystPlanContext context) {
-            // Case of aggregation step - no start projection can be added
-            if (context.getNamedParseExpressions().isEmpty()) {
-                // Create an UnresolvedStar for all-fields projection
-                context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
-            }
+            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
             return context.getNamedParseExpressions().peek();
         }
 
@@ -774,7 +771,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         @Override
         public Expression visitIn(In node, CatalystPlanContext context) {
-            throw new IllegalStateException("Not Supported operation : In");
+            node.getField().accept(this, context);
+            Expression value = context.popNamedParseExpressions().get();
+            List<Expression> list = node.getValueList().stream().map( expression -> {
+                expression.accept(this, context);
+                return context.popNamedParseExpressions().get();
+            }).collect(Collectors.toList());
+            return context.getNamedParseExpressions().push(In$.MODULE$.apply(value, seq(list)));
         }
 
         @Override

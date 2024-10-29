@@ -1247,4 +1247,58 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
 
     comparePlans(expectedPlan, logPlan, false)
   }
+
+  test("test count() as the last aggregator in stats clause") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | eval a = 1 | stats sum(a) as sum, avg(a) as avg, count() as cnt"),
+      context)
+    val tableRelation = UnresolvedRelation(Seq("table"))
+    val eval = Project(Seq(UnresolvedStar(None), Alias(Literal(1), "a")()), tableRelation)
+    val sum =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "sum")()
+    val avg =
+      Alias(
+        UnresolvedFunction(Seq("AVG"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "avg")()
+    val count =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
+        "cnt")()
+    val aggregate = Aggregate(Seq.empty, Seq(sum, avg, count), eval)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregate)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test count() as the last aggregator in stats by clause") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        "source = table | eval a = 1 | stats sum(a) as sum, avg(a) as avg, count() as cnt by country"),
+      context)
+    val tableRelation = UnresolvedRelation(Seq("table"))
+    val eval = Project(Seq(UnresolvedStar(None), Alias(Literal(1), "a")()), tableRelation)
+    val sum =
+      Alias(
+        UnresolvedFunction(Seq("SUM"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "sum")()
+    val avg =
+      Alias(
+        UnresolvedFunction(Seq("AVG"), Seq(UnresolvedAttribute("a")), isDistinct = false),
+        "avg")()
+    val count =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
+        "cnt")()
+    val grouping =
+      Alias(UnresolvedAttribute("country"), "country")()
+    val aggregate = Aggregate(Seq(grouping), Seq(sum, avg, count, grouping), eval)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregate)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
 }
