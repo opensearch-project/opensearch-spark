@@ -127,6 +127,6 @@ public class DefaultOptimisticTransaction<T> implements OptimisticTransaction<T>
   }
 
   private void emitFinalLogStateMetric(FlintMetadataLogEntry finalLog) {
-    MetricsUtil.addHistoricGauge(MetricConstants.INDEX_STATE_METRIC_PREFIX + finalLog.state() + ".count", 1);
+    MetricsUtil.addHistoricGauge(MetricConstants.INDEX_STATE_UPDATED_TO_PREFIX + finalLog.state() + ".count", 1);
   }
 }

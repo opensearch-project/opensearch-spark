@@ -161,9 +161,9 @@ public final class MetricConstants {
     public static final String CHECKPOINT_DELETE_TIME_METRIC = "checkpoint.delete.processingTime";
 
     /**
-     * Metric for tracking the index state transitions
+     * Metric prefix for tracking the index state transitions
      */
-    public static final String INDEX_STATE_METRIC_PREFIX = "indexState.";
+    public static final String INDEX_STATE_UPDATED_TO_PREFIX = "indexState.updatedTo.";
 
     /**
      * Metric for tracking the index state transitions
