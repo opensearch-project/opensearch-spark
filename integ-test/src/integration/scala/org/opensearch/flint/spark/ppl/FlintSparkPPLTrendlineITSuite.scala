@@ -63,8 +63,7 @@ class FlintSparkPPLTrendlineITSuite
     val sort = Sort(Seq(SortOrder(ageField, Descending)), global = true, table)
     val countWindow = new WindowExpression(
       UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
-      WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-1), CurrentRow))
-    )
+      WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-1), CurrentRow)))
     val smaWindow = WindowExpression(
       UnresolvedFunction("AVG", Seq(ageField), isDistinct = false),
       WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-1), CurrentRow)))
@@ -140,20 +139,22 @@ class FlintSparkPPLTrendlineITSuite
     val sort = Sort(Seq(SortOrder(ageField, Ascending)), global = true, table)
     val twoPointsCountWindow = new WindowExpression(
       UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
-      WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-1), CurrentRow))
-    )
+      WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-1), CurrentRow)))
     val twoPointsSmaWindow = WindowExpression(
       UnresolvedFunction("AVG", Seq(ageField), isDistinct = false),
       WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-1), CurrentRow)))
     val threePointsCountWindow = new WindowExpression(
       UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
-      WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-2), CurrentRow))
-    )
+      WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-2), CurrentRow)))
     val threePointsSmaWindow = WindowExpression(
       UnresolvedFunction("AVG", Seq(ageField), isDistinct = false),
       WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-2), CurrentRow)))
-    val twoPointsCaseWhen = CaseWhen(Seq((LessThan(twoPointsCountWindow, Literal(2)), Literal(null))), twoPointsSmaWindow)
-    val threePointsCaseWhen = CaseWhen(Seq((LessThan(threePointsCountWindow, Literal(3)), Literal(null))), threePointsSmaWindow)
+    val twoPointsCaseWhen = CaseWhen(
+      Seq((LessThan(twoPointsCountWindow, Literal(2)), Literal(null))),
+      twoPointsSmaWindow)
+    val threePointsCaseWhen = CaseWhen(
+      Seq((LessThan(threePointsCountWindow, Literal(3)), Literal(null))),
+      threePointsSmaWindow)
     val trendlineProjectList = Seq(
       UnresolvedStar(None),
       Alias(twoPointsCaseWhen, "two_points_sma")(),
@@ -199,12 +200,12 @@ class FlintSparkPPLTrendlineITSuite
     val sort = Sort(Seq(SortOrder(ageField, Ascending)), global = true, evalProject)
     val countWindow = new WindowExpression(
       UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
-      WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-1), CurrentRow))
-    )
+      WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-1), CurrentRow)))
     val doubleAgeSmaWindow = WindowExpression(
       UnresolvedFunction("AVG", Seq(doubledAgeField), isDistinct = false),
       WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-1), CurrentRow)))
-    val caseWhen = CaseWhen(Seq((LessThan(countWindow, Literal(2)), Literal(null))), doubleAgeSmaWindow)
+    val caseWhen =
+      CaseWhen(Seq((LessThan(countWindow, Literal(2)), Literal(null))), doubleAgeSmaWindow)
     val trendlineProjectList =
       Seq(UnresolvedStar(None), Alias(caseWhen, "doubled_age_sma")())
     val expectedPlan = Project(
