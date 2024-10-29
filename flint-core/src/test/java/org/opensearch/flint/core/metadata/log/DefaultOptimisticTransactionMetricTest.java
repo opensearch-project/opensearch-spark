@@ -18,6 +18,7 @@ import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
 import org.opensearch.flint.core.metrics.MetricsTestUtil;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,6 +37,7 @@ class DefaultOptimisticTransactionMetricTest {
   void testCommitWithValidInitialCondition() throws Exception {
     MetricsTestUtil.withMetricEnv(verifier -> {
       when(metadataLog.getLatest()).thenReturn(Optional.of(logEntry));
+      when(metadataLog.add(any(FlintMetadataLogEntry.class))).thenReturn(logEntry);
       when(logEntry.state()).thenReturn(IndexState$.MODULE$.ACTIVE());
 
       transaction.initialLog(entry -> true)
@@ -44,7 +46,6 @@ class DefaultOptimisticTransactionMetricTest {
           .commit(entry -> "Success");
 
       verify(metadataLog, times(2)).add(logEntry);
-
       verifier.assertHistoricGauge("indexState.updatedTo.active.count", 1);
     });
   }
@@ -61,7 +62,6 @@ class DefaultOptimisticTransactionMetricTest {
       assertThrows(IllegalStateException.class, () -> {
         transaction.commit(entry -> "Should Fail");
       });
-
       verifier.assertHistoricGauge("initialConditionCheck.failed.deleted.count", 1);
     });
   }
