@@ -129,8 +129,14 @@ case class FlintSparkMaterializedView(
 
       // Assume first aggregate item must be time column
       val winFunc = winFuncs.head
-      val timeCol = winFunc.arguments.head.asInstanceOf[Attribute]
-      Some(agg, timeCol)
+      val timeCol = winFunc.arguments.head
+      timeCol match {
+        case attr: Attribute =>
+          Some(agg, attr)
+        case _ =>
+          throw new IllegalArgumentException(
+            s"Tumble function only supports time column, but found: $timeCol")
+      }
     }
 
     private def isWindowingFunction(func: UnresolvedFunction): Boolean = {

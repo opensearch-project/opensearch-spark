@@ -448,5 +448,34 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     }
   }
 
+  test("tumble function only supports simple column") {
+    val testTable2 = s"$catalogName.default.mv_test_tumble"
+    withTable(testTable2) {
+      createTableHttpLog(testTable2)
+
+      withTempDir { checkpointDir =>
+        val ex = the[IllegalStateException] thrownBy {
+          sql(s"""
+               | CREATE MATERIALIZED VIEW `$catalogName`.`default`.`mv_test_metrics`
+               | AS
+               | SELECT
+               |   window.start AS startTime,
+               |   COUNT(*) AS count
+               | FROM $testTable2
+               | GROUP BY
+               |   TUMBLE(CAST(timestamp AS TIMESTAMP), '10 Minute')
+               | WITH (
+               |   auto_refresh = true,
+               |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+               |   watermark_delay = '1 Second'
+               | )
+               |""".stripMargin)
+        }
+        ex.getCause should have message
+          "Tumble function only supports time column, but found: cast('timestamp as timestamp)"
+      }
+    }
+  }
+
   private def timestamp(ts: String): Timestamp = Timestamp.valueOf(ts)
 }
