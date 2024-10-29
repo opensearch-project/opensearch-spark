@@ -11,7 +11,7 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{And, Ascending, EqualTo, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Literal, Not, Or, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{And, Ascending, EqualTo, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Literal, Not, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
 
@@ -232,5 +232,16 @@ class PPLLogicalPlanFiltersTranslatorTestSuite
 
     val expectedPlan = Project(Seq(UnresolvedStar(None)), filter)
     comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test IN expr in filter") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=t | where a in ('Hello', 'World')"), context)
+
+    val in = In(UnresolvedAttribute("a"), Seq(Literal("Hello"), Literal("World")))
+    val filter = Filter(in, UnresolvedRelation(Seq("t")))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), filter)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 }
