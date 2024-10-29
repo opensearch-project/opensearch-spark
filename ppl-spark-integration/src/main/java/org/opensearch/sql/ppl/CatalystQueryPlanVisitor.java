@@ -697,11 +697,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         @Override
         public Expression visitAllFields(AllFields node, CatalystPlanContext context) {
-            // Case of aggregation step - no start projection can be added
-            if (context.getNamedParseExpressions().isEmpty()) {
-                // Create an UnresolvedStar for all-fields projection
-                context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
-            }
+            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
             return context.getNamedParseExpressions().peek();
         }
 
