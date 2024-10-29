@@ -101,7 +101,7 @@ public class FlintMetadataLogEntryOpenSearchConverter {
     ObjectMapper mapper = new ObjectMapper();
     ObjectNode json = mapper.createObjectNode();
 
-    json.put("version", "1.0");
+    json.put("version", "1.1");
     json.put("latestId", logEntry.id());
     json.put("type", "flintindexstate");
     json.put("state", logEntry.state().toString());
@@ -109,6 +109,8 @@ public class FlintMetadataLogEntryOpenSearchConverter {
     json.put("jobId", jobId);
     json.put("dataSourceName", logEntry.properties().get("dataSourceName").get().toString());
     json.put("jobStartTime", logEntry.createTime());
+    json.put("lastRefreshStartTime", logEntry.lastRefreshStartTime());
+    json.put("lastRefreshCompleteTime", logEntry.lastRefreshCompleteTime());
     json.put("lastUpdateTime", lastUpdateTime);
     json.put("error", logEntry.error());
 
@@ -138,6 +140,8 @@ public class FlintMetadataLogEntryOpenSearchConverter {
         id,
         /* sourceMap may use Integer or Long even though it's always long in index mapping */
         ((Number) sourceMap.get("jobStartTime")).longValue(),
+        ((Number) sourceMap.get("lastRefreshStartTime")).longValue(),
+        ((Number) sourceMap.get("lastRefreshCompleteTime")).longValue(),
         FlintMetadataLogEntry.IndexState$.MODULE$.from((String) sourceMap.get("state")),
         Map.of("seqNo", seqNo, "primaryTerm", primaryTerm),
         (String) sourceMap.get("error"),
