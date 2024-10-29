@@ -31,16 +31,10 @@ trait FlintSparkValidationHelper extends Logging {
    *   true if all non Hive, otherwise false
    */
   def isTableProviderSupported(spark: SparkSession, index: FlintSparkIndex): Boolean = {
-    // Extract source table name (possibly more than one for MV query)
     val tableNames = index match {
       case skipping: FlintSparkSkippingIndex => Seq(skipping.tableName)
       case covering: FlintSparkCoveringIndex => Seq(covering.tableName)
-      case mv: FlintSparkMaterializedView =>
-        spark.sessionState.sqlParser
-          .parsePlan(mv.query)
-          .collect { case relation: UnresolvedRelation =>
-            qualifyTableName(spark, relation.tableName)
-          }
+      case mv: FlintSparkMaterializedView => mv.sourceTables.toSeq
     }
 
     // Validate if any source table is not supported (currently Hive only)

@@ -16,7 +16,7 @@ import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexB
 import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchema, metadataBuilder, StreamingRefresh}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.function.TumbleFunction
-import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{extractSourceTables, getFlintIndexName, MV_INDEX_TYPE}
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getFlintIndexName, MV_INDEX_TYPE}
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.FunctionIdentifier
@@ -44,6 +44,7 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 case class FlintSparkMaterializedView(
     mvName: String,
     query: String,
+    sourceTables: Array[String],
     outputSchema: Map[String, String],
     override val options: FlintSparkIndexOptions = empty,
     override val latestLogEntry: Option[FlintMetadataLogEntry] = None)
@@ -60,7 +61,6 @@ case class FlintSparkMaterializedView(
         Map[String, AnyRef]("columnName" -> colName, "columnType" -> colType).asJava
       }.toArray
     val schema = generateSchema(outputSchema).asJava
-    val sourceTables = extractSourceTables(query)
 
     metadataBuilder(this)
       .name(mvName)
@@ -167,14 +167,11 @@ object FlintSparkMaterializedView {
     flintIndexNamePrefix(mvName)
   }
 
-  def extractSourceTables(query: String): Array[String] = {
-    Array("mock1.mock2.mock3")
-  }
-
   /** Builder class for MV build */
   class Builder(flint: FlintSpark) extends FlintSparkIndexBuilder(flint) {
     private var mvName: String = ""
     private var query: String = ""
+    private var sourceTables: Array[String] = Array.empty[String]
 
     /**
      * Set MV name.
@@ -199,6 +196,13 @@ object FlintSparkMaterializedView {
      */
     def query(query: String): Builder = {
       this.query = query
+      // Extract source table names (possibly more than one)
+      this.sourceTables = flint.spark.sessionState.sqlParser
+        .parsePlan(query)
+        .collect { case relation: UnresolvedRelation =>
+          qualifyTableName(flint.spark, relation.tableName)
+        }
+        .toArray
       this
     }
 
@@ -227,7 +231,7 @@ object FlintSparkMaterializedView {
           field.name -> field.dataType.simpleString
         }
         .toMap
-      FlintSparkMaterializedView(mvName, query, outputSchema, indexOptions)
+      FlintSparkMaterializedView(mvName, query, sourceTables, outputSchema, indexOptions)
     }
   }
 }

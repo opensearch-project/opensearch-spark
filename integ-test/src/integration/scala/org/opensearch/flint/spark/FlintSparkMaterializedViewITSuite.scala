@@ -91,7 +91,9 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
            |      "scheduler_mode":"internal"
            |    },
            |    "latestId": "$testLatestId",
-           |    "properties": {}
+           |    "properties": {
+           |      "sourceTables": ["$testTable"]
+           |    }
            |  },
            |  "properties": {
            |    "startTime": {

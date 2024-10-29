@@ -118,6 +118,7 @@ object FlintSparkIndexFactory extends Logging {
         FlintSparkMaterializedView(
           metadata.name,
           metadata.source,
+          getArrayString(metadata.properties, "sourceTables"),
           metadata.indexedColumns.map { colInfo =>
             getString(colInfo, "columnName") -> getString(colInfo, "columnType")
           }.toMap,
@@ -144,6 +145,14 @@ object FlintSparkIndexFactory extends Logging {
       None
     } else {
       Some(value.asInstanceOf[String])
+    }
+  }
+
+  private def getArrayString(map: java.util.Map[String, AnyRef], key: String): Array[String] = {
+    map.get(key) match {
+      case list: java.util.ArrayList[_] =>
+        list.toArray.map(_.asInstanceOf[String])
+      case _ => Array.empty[String]
     }
   }
 }
