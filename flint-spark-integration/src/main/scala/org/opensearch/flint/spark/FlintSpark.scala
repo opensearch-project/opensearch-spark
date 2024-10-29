@@ -20,6 +20,7 @@ import org.opensearch.flint.core.metadata.log.FlintMetadataLogServiceBuilder
 import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
+import org.opensearch.flint.spark.metadatacache.FlintMetadataCacheWriterBuilder
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode._
@@ -54,6 +55,8 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   private val flintIndexMetadataService: FlintIndexMetadataService = {
     FlintIndexMetadataServiceBuilder.build(flintSparkConf.flintOptions())
   }
+
+  private val flintMetadataCacheWriter = FlintMetadataCacheWriterBuilder.build(flintSparkConf)
 
   private val flintAsyncQueryScheduler: AsyncQueryScheduler = {
     AsyncQuerySchedulerBuilder.build(flintSparkConf.flintOptions())
@@ -116,7 +119,6 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           throw new IllegalStateException(s"Flint index $indexName already exists")
         }
       } else {
-        val metadata = index.metadata()
         val jobSchedulingService = FlintSparkJobSchedulingService.create(
           index,
           spark,
@@ -128,15 +130,18 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           .transientLog(latest => latest.copy(state = CREATING))
           .finalLog(latest => latest.copy(state = ACTIVE))
           .commit(latest => {
-            if (latest == null) { // in case transaction capability is disabled
-              flintClient.createIndex(indexName, metadata)
-              flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
-            } else {
-              logInfo(s"Creating index with metadata log entry ID ${latest.id}")
-              flintClient.createIndex(indexName, metadata.copy(latestId = Some(latest.id)))
-              flintIndexMetadataService
-                .updateIndexMetadata(indexName, metadata.copy(latestId = Some(latest.id)))
+            val metadata = latest match {
+              case null => // in case transaction capability is disabled
+                index.metadata()
+              case latestEntry =>
+                logInfo(s"Creating index with metadata log entry ID ${latestEntry.id}")
+                index
+                  .metadata()
+                  .copy(latestId = Some(latestEntry.id), latestLogEntry = Some(latest))
             }
+            flintClient.createIndex(indexName, metadata)
+            flintIndexMetadataService.updateIndexMetadata(indexName, metadata)
+            flintMetadataCacheWriter.updateMetadataCache(indexName, metadata)
             jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.SCHEDULE)
           })
       }
@@ -155,22 +160,10 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       val index = describeIndex(indexName)
         .getOrElse(throw new IllegalStateException(s"Index $indexName doesn't exist"))
       val indexRefresh = FlintSparkIndexRefresh.create(indexName, index)
-      tx
-        .initialLog(latest => latest.state == ACTIVE)
-        .transientLog(latest =>
-          latest.copy(state = REFRESHING, createTime = System.currentTimeMillis()))
-        .finalLog(latest => {
-          // Change state to active if full, otherwise update index state regularly
-          if (indexRefresh.refreshMode == AUTO) {
-            logInfo("Scheduling index state monitor")
-            flintIndexMonitor.startMonitor(indexName)
-            latest
-          } else {
-            logInfo("Updating index state to active")
-            latest.copy(state = ACTIVE)
-          }
-        })
-        .commit(_ => indexRefresh.start(spark, flintSparkConf))
+      indexRefresh.refreshMode match {
+        case AUTO => refreshIndexAuto(index, indexRefresh, tx)
+        case FULL | INCREMENTAL => refreshIndexManual(index, indexRefresh, tx)
+      }
     }
 
   /**
@@ -533,6 +526,63 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     updatedOptions.isExternalSchedulerEnabled() != originalOptions.isExternalSchedulerEnabled()
   }
 
+  /**
+   * Handles refresh for refresh mode AUTO, which is used exclusively by auto refresh index with
+   * internal scheduler. Refresh start time and complete time aren't tracked for streaming job.
+   * TODO: in future, track MicroBatchExecution time for streaming job and update as well
+   */
+  private def refreshIndexAuto(
+      index: FlintSparkIndex,
+      indexRefresh: FlintSparkIndexRefresh,
+      tx: OptimisticTransaction[Option[String]]): Option[String] = {
+    val indexName = index.name
+    tx
+      .initialLog(latest => latest.state == ACTIVE)
+      .transientLog(latest =>
+        latest.copy(state = REFRESHING, createTime = System.currentTimeMillis()))
+      .finalLog(latest => {
+        logInfo("Scheduling index state monitor")
+        flintIndexMonitor.startMonitor(indexName)
+        latest
+      })
+      .commit(_ => indexRefresh.start(spark, flintSparkConf))
+  }
+
+  /**
+   * Handles refresh for refresh mode FULL and INCREMENTAL, which is used by full refresh index,
+   * incremental refresh index, and auto refresh index with external scheduler. Stores refresh
+   * start time and complete time.
+   */
+  private def refreshIndexManual(
+      index: FlintSparkIndex,
+      indexRefresh: FlintSparkIndexRefresh,
+      tx: OptimisticTransaction[Option[String]]): Option[String] = {
+    val indexName = index.name
+    tx
+      .initialLog(latest => latest.state == ACTIVE)
+      .transientLog(latest => {
+        val currentTime = System.currentTimeMillis()
+        val updatedLatest = latest
+          .copy(state = REFRESHING, createTime = currentTime, lastRefreshStartTime = currentTime)
+        flintMetadataCacheWriter
+          .updateMetadataCache(
+            indexName,
+            index.metadata.copy(latestLogEntry = Some(updatedLatest)))
+        updatedLatest
+      })
+      .finalLog(latest => {
+        logInfo("Updating index state to active")
+        val updatedLatest =
+          latest.copy(state = ACTIVE, lastRefreshCompleteTime = System.currentTimeMillis())
+        flintMetadataCacheWriter
+          .updateMetadataCache(
+            indexName,
+            index.metadata.copy(latestLogEntry = Some(updatedLatest)))
+        updatedLatest
+      })
+      .commit(_ => indexRefresh.start(spark, flintSparkConf))
+  }
+
   private def updateIndexAutoToManual(
       index: FlintSparkIndex,
       tx: OptimisticTransaction[Option[String]]): Option[String] = {
@@ -552,8 +602,10 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       .transientLog(latest => latest.copy(state = UPDATING))
       .finalLog(latest =>
         latest.copy(state = jobSchedulingService.stateTransitions.finalStateForUnschedule))
-      .commit(_ => {
+      .commit(latest => {
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
+        flintMetadataCacheWriter
+          .updateMetadataCache(indexName, index.metadata.copy(latestLogEntry = Some(latest)))
         logInfo("Update index options complete")
         jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.UNSCHEDULE)
         None
@@ -579,8 +631,10 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       .finalLog(latest => {
         latest.copy(state = jobSchedulingService.stateTransitions.finalStateForUpdate)
       })
-      .commit(_ => {
+      .commit(latest => {
         flintIndexMetadataService.updateIndexMetadata(indexName, index.metadata)
+        flintMetadataCacheWriter
+          .updateMetadataCache(indexName, index.metadata.copy(latestLogEntry = Some(latest)))
         logInfo("Update index options complete")
         jobSchedulingService.handleJob(index, AsyncQuerySchedulerAction.UPDATE)
       })
