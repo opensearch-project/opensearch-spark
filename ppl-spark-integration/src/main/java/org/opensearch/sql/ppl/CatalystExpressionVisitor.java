@@ -15,6 +15,7 @@ import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.In$;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
+import org.apache.spark.sql.catalyst.expressions.LessThan;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
 import org.apache.spark.sql.catalyst.expressions.MakeInterval$;
@@ -433,19 +434,30 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
 
     @Override
     public Expression visitTrendlineComputation(Trendline.TrendlineComputation node, CatalystPlanContext context) {
-        this.visitAggregateFunction(new AggregateFunction(BuiltinFunctionName.AVG.name(), node.getDataField()), context);
-        Expression avgFunction = context.popNamedParseExpressions().get();
+        //window lower boundary
         this.visitLiteral(new Literal(Math.negateExact(node.getNumberOfDataPoints() - 1), DataType.INTEGER), context);
         Expression windowLowerBoundary = context.popNamedParseExpressions().get();
+
+        //window definition
+        WindowSpecDefinition windowDefinition = new WindowSpecDefinition(
+                seq(),
+                seq(),
+                new SpecifiedWindowFrame(RowFrame$.MODULE$, windowLowerBoundary, CurrentRow$.MODULE$));
+
         if (node.getComputationType() == Trendline.TrendlineType.SMA) {
+            //calculate avg value of the data field
+            this.visitAggregateFunction(new AggregateFunction(BuiltinFunctionName.AVG.name(), node.getDataField()), context);
+            Expression avgFunction = context.popNamedParseExpressions().get();
+
+            //sma window
             WindowExpression sma = new WindowExpression(
                     avgFunction,
-                    new WindowSpecDefinition(
-                            seq(),
-                            seq(),
-                            new SpecifiedWindowFrame(RowFrame$.MODULE$, windowLowerBoundary, CurrentRow$.MODULE$)));
+                    windowDefinition);
+
+            CaseWhen smaOrNull = trendlineOrNullWhenThereAreTooFewDataPoints(sma, node, context);
+
             return context.getNamedParseExpressions().push(
-                    org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(sma,
+                    org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(smaOrNull,
                             node.getAlias(),
                             NamedExpression.newExprId(),
                             seq(new java.util.ArrayList<String>()),
@@ -454,6 +466,28 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
         } else {
             throw new IllegalArgumentException("WMA is not supported");
         }
+    }
+
+    private CaseWhen trendlineOrNullWhenThereAreTooFewDataPoints(WindowExpression trendlineWindow, Trendline.TrendlineComputation node, CatalystPlanContext context) {
+        //required number of data points
+        this.visitLiteral(new Literal(node.getNumberOfDataPoints(), DataType.INTEGER), context);
+        Expression requiredNumberOfDataPoints = context.popNamedParseExpressions().get();
+
+        //count data points function
+        this.visitAggregateFunction(new AggregateFunction(BuiltinFunctionName.COUNT.name(), new Literal(1, DataType.INTEGER)), context);
+        Expression countDataPointsFunction = context.popNamedParseExpressions().get();
+        //count data points window
+        WindowExpression countDataPointsWindow = new WindowExpression(
+                countDataPointsFunction,
+                trendlineWindow.windowSpec());
+
+        this.visitLiteral(new Literal(null, DataType.NULL), context);
+        Expression nullLiteral = context.popNamedParseExpressions().get();
+        Tuple2<Expression, Expression> nullWhenNumberOfDataPointsLessThenRequired = new Tuple2<>(
+                new LessThan(countDataPointsWindow, requiredNumberOfDataPoints),
+                nullLiteral
+        );
+        return new CaseWhen(seq(nullWhenNumberOfDataPointsLessThenRequired), Option.apply(trendlineWindow));
     }
 
     private List<Expression> visitExpressionList(List<UnresolvedExpression> expressionList, CatalystPlanContext context) {
