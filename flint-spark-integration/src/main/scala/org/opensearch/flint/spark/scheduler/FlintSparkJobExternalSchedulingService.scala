@@ -10,6 +10,7 @@ import java.time.Instant
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
 import org.opensearch.flint.common.scheduler.AsyncQueryScheduler
 import org.opensearch.flint.common.scheduler.model.{AsyncQuerySchedulerRequest, LangType}
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 import org.opensearch.flint.core.storage.OpenSearchClientUtils
 import org.opensearch.flint.spark.FlintSparkIndex
 import org.opensearch.flint.spark.refresh.util.RefreshMetricsAspect
@@ -18,7 +19,6 @@ import org.opensearch.flint.spark.scheduler.util.RefreshQueryGenerator
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.flint.config.FlintSparkConf
-import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 
 /**
  * External scheduling service for Flint Spark jobs.
@@ -92,6 +92,8 @@ class FlintSparkJobExternalSchedulingService(
 
   private def addExternalSchedulerMetrics(action: AsyncQuerySchedulerAction): Unit = {
     val actionName = action.name().toLowerCase()
-    MetricsUtil.addHistoricGauge(MetricConstants.EXTERNAL_SCHEDULER_METRIC_PREFIX + actionName + ".count", 1)
+    MetricsUtil.addHistoricGauge(
+      MetricConstants.EXTERNAL_SCHEDULER_METRIC_PREFIX + actionName + ".count",
+      1)
   }
 }
