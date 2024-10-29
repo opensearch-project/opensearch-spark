@@ -434,7 +434,7 @@ _- **Limitation: another command usage of (relation) subquery is in `appendcols`
 ### Planned Commands:
 
 #### **fillnull**
-
+[See additional command details](ppl-fillnull-command.md)
 ```sql
    -  `source=accounts | fillnull fields status_code=101`
    -  `source=accounts | fillnull fields request_path='/not_found', timestamp='*'`
@@ -442,4 +442,3 @@ _- **Limitation: another command usage of (relation) subquery is in `appendcols`
     - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5`
     - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5, field6 = 'N/A'`
 ```
-[See additional command details](planning/ppl-fillnull-command.md)
