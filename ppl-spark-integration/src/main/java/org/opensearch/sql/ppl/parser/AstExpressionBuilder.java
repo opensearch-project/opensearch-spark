@@ -17,12 +17,12 @@ import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.AttributeList;
+import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
-import org.opensearch.sql.ast.expression.FieldList;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
@@ -42,7 +42,6 @@ import org.opensearch.sql.ast.expression.UnresolvedArgument;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.expression.When;
 import org.opensearch.sql.ast.expression.Xor;
-import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
@@ -54,8 +53,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.INCLUDEFIELDS;
-import static org.opensearch.flint.spark.ppl.OpenSearchPPLParser.NULLS;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NOT_NULL;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NULL;
@@ -81,7 +78,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     /**
      * The function name mapping between fronted and core engine.
      */
-    private static Map<String, String> FUNCTION_NAME_MAPPING =
+    private static final Map<String, String> FUNCTION_NAME_MAPPING =
             new ImmutableMap.Builder<String, String>()
                     .put("isnull", IS_NULL.getName().getFunctionName())
                     .put("isnotnull", IS_NOT_NULL.getName().getFunctionName())
@@ -218,14 +215,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     }
 
     @Override
-    public UnresolvedExpression visitPercentileAggFunction(OpenSearchPPLParser.PercentileAggFunctionContext ctx) {
-        return new AggregateFunction(
-                ctx.PERCENTILE().getText(),
-                visit(ctx.aggField),
-                Collections.singletonList(new Argument("rank", (Literal) visit(ctx.value))));
-    }
-
-    @Override
     public UnresolvedExpression visitPercentileFunctionCall(OpenSearchPPLParser.PercentileFunctionCallContext ctx) {
         return new AggregateFunction(
                 ctx.percentileFunctionName.getText(),
@@ -287,6 +276,12 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitConvertedDataType(OpenSearchPPLParser.ConvertedDataTypeContext ctx) {
         return new Literal(ctx.getText(), DataType.STRING);
+    }
+
+    @Override
+    public UnresolvedExpression visitBetween(OpenSearchPPLParser.BetweenContext ctx) {
+        UnresolvedExpression betweenExpr = new Between(visit(ctx.expr1),visit(ctx.expr2),visit(ctx.expr3));
+        return ctx.NOT() != null ? new Not(betweenExpr) : betweenExpr;
     }
 
     private Function buildFunction(

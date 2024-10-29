@@ -56,6 +56,8 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where isblank(a)`
 - `source = table | where case(length(a) > 6, 'True' else 'False') = 'True'`
 - `source = table | where a not in (1, 2, 3) | fields a,b,c`
+- `source = table | where a between 1 and 4` - Note: This returns a >= 1 and a <= 4, i.e. [1, 4]
+- `source = table | where b not between '2024-09-10' and '2025-09-10'` - Note: This returns b >= '2024-09-10' and b <= '2025-09-10'
 
 ```sql
  source = table | eval status_category =
@@ -152,7 +154,6 @@ source = table |  where ispresent(a) |
 [See additional command details](ppl-stats-command.md)
 
 - `source = table | stats avg(a) `
-- `source = table sample(50 percent) | stats avg(a) `
 - `source = table | where a < 50 | stats avg(c) `
 - `source = table | stats max(c) by b`
 - `source = table | stats count(c) by b | head 5`
@@ -165,7 +166,6 @@ source = table |  where ispresent(a) |
 **Aggregations With Span**
 - `source = table  | stats count(a) by span(a, 10) as a_span`
 - `source = table  | stats sum(age) by span(age, 5) as age_span | head 2`
-- `source = table  sample(50 percent) | stats sum(age) by span(age, 5) as age_span | head 2`
 - `source = table  | stats avg(age) by span(age, 20) as age_span, country  | sort - age_span |  head 2`
 
 **Aggregations With TimeWindow Span (tumble windowing function)**
@@ -227,7 +227,6 @@ source = table |  where ispresent(a) |
 
 - `source=accounts | rare gender`
 - `source=accounts | rare age by gender`
-- `source=accounts  sample(50 percent) | rare age by gender`
 
 #### **Top**
 [See additional command details](ppl-top-command.md)
@@ -235,7 +234,6 @@ source = table |  where ispresent(a) |
 - `source=accounts | top gender`
 - `source=accounts | top 1 gender`
 - `source=accounts | top 1 age by gender`
-- `source=accounts  sample(50 percent) | top 1 age by gender`
 
 #### **Parse**
 [See additional command details](ppl-parse-command.md)
@@ -282,9 +280,6 @@ source = table |  where ispresent(a) |
 [See additional command details](ppl-join-command.md)
 
 - `source = table1 | inner join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
-- `source = table1  sample(50 percent) | inner join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
-- `source = table1 | inner join left = l right = r on l.a = r.a table2  sample(50 percent) | fields l.a, r.a, b, c`
-- `source = table1 sample(50 percent)  | inner join left = l right = r on l.a = r.a table2  sample(50 percent) | fields l.a, r.a, b, c`
 - `source = table1 | left join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
 - `source = table1 | right join left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
 - `source = table1 | full left = l right = r on l.a = r.a table2 | fields l.a, r.a, b, c`
@@ -313,14 +308,11 @@ _- **Limitation: "REPLACE" or "APPEND" clause must contain "AS"**_
 [See additional command details](ppl-subquery-command.md)
 
 - `source = outer | where a in [ source = inner | fields b ]`
-- `source = outer sample(50 percent) | where a in [ source = inner | fields b ]`
 - `source = outer | where (a) in [ source = inner | fields b ]`
-- `source = outer | where (a) in [ source = inner sample(50 percent) | fields b ]`
 - `source = outer | where (a,b,c) in [ source = inner | fields d,e,f ]`
 - `source = outer | where a not in [ source = inner | fields b ]`
 - `source = outer | where (a) not in [ source = inner | fields b ]`
 - `source = outer | where (a,b,c) not in [ source = inner | fields d,e,f ]`
-- `source = outer sample(50 percent) | where (a,b,c) not in [ source = inner sample(50 percent) | fields d,e,f ]`
 - `source = outer a in [ source = inner | fields b ]` (search filtering with subquery)
 - `source = outer a not in [ source = inner | fields b ]` (search filtering with subquery)
 - `source = outer | where a in [ source = inner1 | where b not in [ source = inner2 | fields c ] | fields b ]` (nested)
@@ -422,21 +414,9 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 `InSubquery`, `ExistsSubquery` and `ScalarSubquery` are all subquery expressions. But `RelationSubquery` is not a subquery expression, it is a subquery plan which is common used in Join or Search clause.
 
 - `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]` (subquery in join right side)
-- `source = table1 sample(50 percent) | join left = l right = r [ source = table2 | where d > 10 | head 5 ]` (subquery in join right side)
 - `source = [ source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ] | stats count(a) by b ] as outer | head 1`
 
 _- **Limitation: another command usage of (relation) subquery is in `appendcols` commands which is unsupported**_
-
-#### **fillnull**
-[See additional command details](ppl-fillnull-command.md)
-
-```sql
-   -  `source=accounts | fillnull fields status_code=101`
-   -  `source=accounts | fillnull fields request_path='/not_found', timestamp='*'`
-    - `source=accounts | fillnull using field1=101`
-    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5`
-    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5, field6 = 'N/A'`
-```
 
 ---
 #### Experimental Commands:
@@ -451,4 +431,14 @@ _- **Limitation: another command usage of (relation) subquery is in `appendcols`
 > ppl-correlation-command is an experimental command - it may be removed in future versions
 
 ---
-[See additional command details](planning/ppl-fillnull-command.md)
+### Planned Commands:
+
+#### **fillnull**
+[See additional command details](ppl-fillnull-command.md)
+```sql
+   -  `source=accounts | fillnull fields status_code=101`
+   -  `source=accounts | fillnull fields request_path='/not_found', timestamp='*'`
+    - `source=accounts | fillnull using field1=101`
+    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5`
+    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5, field6 = 'N/A'`
+```

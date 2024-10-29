@@ -16,7 +16,9 @@ import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Exists$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.In$;
+import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
+import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
@@ -35,6 +37,7 @@ import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Argument;
+import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.BinaryExpression;
 import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
@@ -871,6 +874,15 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 seq(new java.util.ArrayList<Expression>()),
                 Option.empty());
             return context.getNamedParseExpressions().push(existsSubQuery);
+        }
+
+        @Override
+        public Expression visitBetween(Between node, CatalystPlanContext context) {
+            Expression value = analyze(node.getValue(), context);
+            Expression lower = analyze(node.getLowerBound(), context);
+            Expression upper = analyze(node.getUpperBound(), context);
+            context.retainAllNamedParseExpressions(p -> p);
+            return context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.And(new GreaterThanOrEqual(value, lower), new LessThanOrEqual(value, upper)));
         }
     }
 }
