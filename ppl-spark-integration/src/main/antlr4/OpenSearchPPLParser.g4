@@ -55,6 +55,35 @@ commands
    | fieldsummaryCommand
    ;
 
+commandName
+   : SEARCH
+   | DESCRIBE
+   | SHOW
+   | AD
+   | ML
+   | KMEANS
+   | WHERE
+   | CORRELATE
+   | JOIN
+   | FIELDS
+   | STATS
+   | EVENTSTATS
+   | DEDUP
+   | EXPLAIN
+   | SORT
+   | HEAD
+   | TOP
+   | RARE
+   | EVAL
+   | GROK
+   | PARSE
+   | PATTERNS
+   | LOOKUP
+   | RENAME
+   | FILLNULL
+   | FIELDSUMMARY
+   ;
+
 searchCommand
    : (SEARCH)? fromClause                       # searchFrom
    | (SEARCH)? fromClause logicalExpression     # searchFromFilter
@@ -358,14 +387,6 @@ statsFunctionName
    | MAX
    | STDDEV_SAMP
    | STDDEV_POP
-   ;
-
-takeAggFunction
-   : TAKE LT_PRTHS fieldExpression (COMMA size = integerLiteral)? RT_PRTHS
-   ;
-
-percentileAggFunction
-   : PERCENTILE LESS value = integerLiteral GREATER LT_PRTHS aggField = fieldExpression RT_PRTHS
    ;
 
 // expressions
@@ -999,46 +1020,37 @@ keywordsCanBeId
    | mathematicalFunctionName
    | positionFunctionName
    | cryptographicFunctionName
-   // commands
-   | SEARCH
-   | DESCRIBE
-   | SHOW
-   | FROM
-   | WHERE
-   | CORRELATE
-   | FIELDS
-   | RENAME
-   | STATS
-   | DEDUP
-   | SORT
-   | EVAL
-   | HEAD
-   | TOP
-   | RARE
-   | PARSE
-   | METHOD
-   | REGEX
-   | PUNCT
-   | GROK
-   | PATTERN
-   | PATTERNS
-   | NEW_FIELD
-   | KMEANS
-   | AD
-   | ML
-   | EXPLAIN
+   | singleFieldRelevanceFunctionName
+   | multiFieldRelevanceFunctionName
+   | commandName
+   | comparisonOperator
+   | explainMode
+   | correlationType
    // commands assist keywords
    | IN
    | SOURCE
    | INDEX
    | DESC
    | DATASOURCES
-   // CLAUSEKEYWORDS
-   | SORTBY
-   // FIELDKEYWORDSAUTO
+   | AUTO
    | STR
    | IP
    | NUM
+   | FROM
+   | PATTERN
+   | NEW_FIELD
+   | SCOPE
+   | MAPPING
+   | WITH
+   | USING
+   | CAST
+   | GET_FORMAT
+   | EXTRACT
+   | INTERVAL
+   | PLUS
+   | MINUS
+   | INCLUDEFIELDS
+   | NULLS
    // ARGUMENT KEYWORDS
    | KEEPEMPTY
    | CONSECUTIVE
@@ -1061,27 +1073,21 @@ keywordsCanBeId
    | TRAINING_DATA_SIZE
    | ANOMALY_SCORE_THRESHOLD
    // AGGREGATIONS
-   | AVG
-   | COUNT
+   | statsFunctionName
    | DISTINCT_COUNT
+   | PERCENTILE
+   | PERCENTILE_APPROX
    | ESTDC
    | ESTDC_ERROR
-   | MAX
    | MEAN
    | MEDIAN
-   | MIN
    | MODE
    | RANGE
    | STDEV
    | STDEVP
-   | SUM
    | SUMSQ
    | VAR_SAMP
    | VAR_POP
-   | STDDEV_SAMP
-   | STDDEV_POP
-   | PERCENTILE
-   | PERCENTILE_APPROX
    | TAKE
    | FIRST
    | LAST
@@ -1099,10 +1105,6 @@ keywordsCanBeId
    | SPARKLINE
    | C
    | DC
-   // FIELD SUMMARY
-   | FIELDSUMMARY
-   | INCLUDEFIELDS
-   | NULLS
    // JOIN TYPE
    | OUTER
    | INNER
