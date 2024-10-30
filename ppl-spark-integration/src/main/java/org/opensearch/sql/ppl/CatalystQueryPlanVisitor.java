@@ -48,6 +48,7 @@ import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
+import org.opensearch.sql.ast.expression.IntervalUnit;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
 import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.Interval;
@@ -764,89 +765,28 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         public Expression visitInterval(Interval node, CatalystPlanContext context) {
             node.getValue().accept(this, context);
             Expression value = context.getNamedParseExpressions().pop();
-            Expression interval;
-                    switch (node.getUnit()) {
-                case YEAR:
-                    interval = MakeInterval$.MODULE$.apply(
-                        value,
-                        Literal$.MODULE$.apply(0),
-                        Literal$.MODULE$.apply(0),
-                        Literal$.MODULE$.apply(0),
-                        Literal$.MODULE$.apply(0),
-                        Literal$.MODULE$.apply(0),
-                        Literal$.MODULE$.apply(0),
-                        true);
-                    break;
-                case MONTH:
-                    interval = MakeInterval$.MODULE$.apply(
-                        Literal$.MODULE$.apply(0),
-                        value,
-                        Literal$.MODULE$.apply(0),
-                        Literal$.MODULE$.apply(0),
-                        Literal$.MODULE$.apply(0),
-                        Literal$.MODULE$.apply(0),
-                        Literal$.MODULE$.apply(0),
-                        true);
-                    break;
-                case WEEK:
-                    interval = MakeInterval$.MODULE$.apply(
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            value,
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            true);
-                    break;
-                case DAY:
-                    interval = MakeInterval$.MODULE$.apply(
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            value,
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            true);
-                    break;
-                case HOUR:
-                    interval = MakeInterval$.MODULE$.apply(
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            value,
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            true);
-                    break;
-                case MINUTE:
-                    interval = MakeInterval$.MODULE$.apply(
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            value,
-                            Literal$.MODULE$.apply(0),
-                            true);
-                    break;
-                case SECOND:
-                    interval = MakeInterval$.MODULE$.apply(
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            Literal$.MODULE$.apply(0),
-                            value,
-                            true);
-                    break;
-                default:
-                    throw new IllegalArgumentException("Unsupported Interval unit: " + node.getUnit());
-            }
+            Expression[] intervalArgs = createIntervalArgs(node.getUnit(), value);
+            Expression interval = MakeInterval$.MODULE$.apply(
+                intervalArgs[0], intervalArgs[1], intervalArgs[2], intervalArgs[3],
+                intervalArgs[4], intervalArgs[5], intervalArgs[6], true);
             return context.getNamedParseExpressions().push(interval);
+        }
+
+        private Expression[] createIntervalArgs(IntervalUnit unit, Expression value) {
+            Expression[] args = new Expression[7];
+            Arrays.fill(args, Literal$.MODULE$.apply(0));
+            switch (unit) {
+                case YEAR:   args[0] = value; break;
+                case MONTH:  args[1] = value; break;
+                case WEEK:   args[2] = value; break;
+                case DAY:    args[3] = value; break;
+                case HOUR:   args[4] = value; break;
+                case MINUTE: args[5] = value; break;
+                case SECOND: args[6] = value; break;
+                default:
+                    throw new IllegalArgumentException("Unsupported Interval unit: " + unit);
+            }
+            return args;
         }
 
         @Override
