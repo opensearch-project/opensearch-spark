@@ -12,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Descending, ExprId, Literal, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Descending, ExprId, In, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical.{Project, Sort}
 
@@ -198,6 +198,19 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     val projectList: Seq[NamedExpression] =
       Seq(UnresolvedStar(None), Alias(Literal(1), "a")(), Alias(Literal(2), "b")())
     val expectedPlan = Project(projectList, UnresolvedRelation(Seq("t")))
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test IN expr in eval") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=t | eval in = a in ('Hello', 'World') | fields in"),
+        context)
+
+    val in = Alias(In(UnresolvedAttribute("a"), Seq(Literal("Hello"), Literal("World"))), "in")()
+    val eval = Project(Seq(UnresolvedStar(None), in), UnresolvedRelation(Seq("t")))
+    val expectedPlan = Project(Seq(UnresolvedAttribute("in")), eval)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 }

@@ -9,7 +9,7 @@ import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, CaseWhen, Descending, EqualTo, GreaterThanOrEqual, LessThan, Literal, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, CaseWhen, Descending, EqualTo, GreaterThanOrEqual, In, LessThan, Literal, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, GlobalLimit, LocalLimit, LogicalPlan, Project, Sort}
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -687,5 +687,21 @@ class FlintSparkPPLEvalITSuite
       Row("Jane", "Quebec", "Canada", 2023, 4, "New Field"))
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
+  }
+
+  test("test IN expr in eval") {
+    val frame = sql(s"""
+                       | source = $testTable | eval in = state in ('California', 'New York') | fields in
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(true), Row(true), Row(false), Row(false)), frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val in = Alias(
+      In(UnresolvedAttribute("state"), Seq(Literal("California"), Literal("New York"))),
+      "in")()
+    val eval = Project(Seq(UnresolvedStar(None), in), table)
+    val expectedPlan = Project(Seq(UnresolvedAttribute("in")), eval)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 }

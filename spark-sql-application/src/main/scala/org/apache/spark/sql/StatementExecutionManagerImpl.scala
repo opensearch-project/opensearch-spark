@@ -6,7 +6,7 @@
 package org.apache.spark.sql
 
 import org.opensearch.flint.common.model.FlintStatement
-import org.opensearch.flint.core.storage.OpenSearchUpdater
+import org.opensearch.flint.core.storage.{FlintReader, OpenSearchUpdater}
 import org.opensearch.search.sort.SortOrder
 
 import org.apache.spark.internal.Logging
@@ -29,8 +29,8 @@ class StatementExecutionManagerImpl(commandContext: CommandContext)
     context("flintSessionIndexUpdater").asInstanceOf[OpenSearchUpdater]
 
   // Using one reader client within same session will cause concurrency issue.
-  // To resolve this move the reader creation and getNextStatement method to mirco-batch level
-  private val flintReader = createOpenSearchQueryReader()
+  // To resolve this move the reader creation to getNextStatement method at mirco-batch level
+  private var currentReader: Option[FlintReader] = None
 
   override def prepareStatementExecution(): Either[String, Unit] = {
     checkAndCreateIndex(osClient, resultIndex)
@@ -39,12 +39,17 @@ class StatementExecutionManagerImpl(commandContext: CommandContext)
     flintSessionIndexUpdater.update(statement.statementId, FlintStatement.serialize(statement))
   }
   override def terminateStatementExecution(): Unit = {
-    flintReader.close()
+    currentReader.foreach(_.close())
+    currentReader = None
   }
 
   override def getNextStatement(): Option[FlintStatement] = {
-    if (flintReader.hasNext) {
-      val rawStatement = flintReader.next()
+    if (currentReader.isEmpty) {
+      currentReader = Some(createOpenSearchQueryReader())
+    }
+
+    if (currentReader.get.hasNext) {
+      val rawStatement = currentReader.get.next()
       val flintStatement = FlintStatement.deserialize(rawStatement)
       logInfo(s"Next statement to execute: $flintStatement")
       Some(flintStatement)
@@ -100,7 +105,6 @@ class StatementExecutionManagerImpl(commandContext: CommandContext)
        |    ]
        |  }
        |}""".stripMargin
-    val flintReader = osClient.createQueryReader(sessionIndex, dsl, "submitTime", SortOrder.ASC)
-    flintReader
+    osClient.createQueryReader(sessionIndex, dsl, "submitTime", SortOrder.ASC)
   }
 }

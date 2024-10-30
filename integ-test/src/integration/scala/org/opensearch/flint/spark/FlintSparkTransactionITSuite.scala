@@ -55,6 +55,8 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
     latestLogEntry(testLatestId) should (contain("latestId" -> testLatestId)
       and contain("state" -> "active")
       and contain("jobStartTime" -> 0)
+      and contain("lastRefreshStartTime" -> 0)
+      and contain("lastRefreshCompleteTime" -> 0)
       and contain("dataSourceName" -> testDataSourceName))
 
     implicit val formats: Formats = Serialization.formats(NoTypeHints)
@@ -77,9 +79,25 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .create()
     flint.refreshIndex(testFlintIndex)
 
-    val latest = latestLogEntry(testLatestId)
+    var latest = latestLogEntry(testLatestId)
+    val prevJobStartTime = latest("jobStartTime").asInstanceOf[Number].longValue()
+    val prevLastRefreshStartTime = latest("lastRefreshStartTime").asInstanceOf[Number].longValue()
+    val prevLastRefreshCompleteTime =
+      latest("lastRefreshCompleteTime").asInstanceOf[Number].longValue()
     latest should contain("state" -> "active")
-    latest("jobStartTime").asInstanceOf[Number].longValue() should be > 0L
+    prevJobStartTime should be > 0L
+    prevLastRefreshStartTime should be > 0L
+    prevLastRefreshCompleteTime should be > prevLastRefreshStartTime
+
+    flint.refreshIndex(testFlintIndex)
+    latest = latestLogEntry(testLatestId)
+    val jobStartTime = latest("jobStartTime").asInstanceOf[Number].longValue()
+    val lastRefreshStartTime = latest("lastRefreshStartTime").asInstanceOf[Number].longValue()
+    val lastRefreshCompleteTime =
+      latest("lastRefreshCompleteTime").asInstanceOf[Number].longValue()
+    jobStartTime should be > prevLastRefreshCompleteTime
+    lastRefreshStartTime should be > prevLastRefreshCompleteTime
+    lastRefreshCompleteTime should be > lastRefreshStartTime
   }
 
   test("incremental refresh index") {
@@ -97,9 +115,26 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
         .create()
       flint.refreshIndex(testFlintIndex)
 
-      val latest = latestLogEntry(testLatestId)
+      var latest = latestLogEntry(testLatestId)
+      val prevJobStartTime = latest("jobStartTime").asInstanceOf[Number].longValue()
+      val prevLastRefreshStartTime =
+        latest("lastRefreshStartTime").asInstanceOf[Number].longValue()
+      val prevLastRefreshCompleteTime =
+        latest("lastRefreshCompleteTime").asInstanceOf[Number].longValue()
       latest should contain("state" -> "active")
-      latest("jobStartTime").asInstanceOf[Number].longValue() should be > 0L
+      prevJobStartTime should be > 0L
+      prevLastRefreshStartTime should be > 0L
+      prevLastRefreshCompleteTime should be > prevLastRefreshStartTime
+
+      flint.refreshIndex(testFlintIndex)
+      latest = latestLogEntry(testLatestId)
+      val jobStartTime = latest("jobStartTime").asInstanceOf[Number].longValue()
+      val lastRefreshStartTime = latest("lastRefreshStartTime").asInstanceOf[Number].longValue()
+      val lastRefreshCompleteTime =
+        latest("lastRefreshCompleteTime").asInstanceOf[Number].longValue()
+      jobStartTime should be > prevLastRefreshCompleteTime
+      lastRefreshStartTime should be > prevLastRefreshCompleteTime
+      lastRefreshCompleteTime should be > lastRefreshStartTime
     }
   }
 
@@ -142,6 +177,8 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
     val latest = latestLogEntry(testLatestId)
     latest should contain("state" -> "refreshing")
     latest("jobStartTime").asInstanceOf[Number].longValue() should be > 0L
+    latest("lastRefreshStartTime").asInstanceOf[Number].longValue() shouldBe 0L
+    latest("lastRefreshCompleteTime").asInstanceOf[Number].longValue() shouldBe 0L
   }
 
   test("update auto refresh index to full refresh index") {
@@ -153,13 +190,24 @@ class FlintSparkTransactionITSuite extends OpenSearchTransactionSuite with Match
       .create()
     flint.refreshIndex(testFlintIndex)
 
+    var latest = latestLogEntry(testLatestId)
+    val prevLastRefreshStartTime = latest("lastRefreshStartTime").asInstanceOf[Number].longValue()
+    val prevLastRefreshCompleteTime =
+      latest("lastRefreshCompleteTime").asInstanceOf[Number].longValue()
+
     val index = flint.describeIndex(testFlintIndex).get
     val updatedIndex = flint
       .skippingIndex()
       .copyWithUpdate(index, FlintSparkIndexOptions(Map("auto_refresh" -> "false")))
     flint.updateIndex(updatedIndex)
-    val latest = latestLogEntry(testLatestId)
+    latest = latestLogEntry(testLatestId)
     latest should contain("state" -> "active")
+    latest("lastRefreshStartTime")
+      .asInstanceOf[Number]
+      .longValue() shouldBe prevLastRefreshStartTime
+    latest("lastRefreshCompleteTime")
+      .asInstanceOf[Number]
+      .longValue() shouldBe prevLastRefreshCompleteTime
   }
 
   test("delete and vacuum index") {
