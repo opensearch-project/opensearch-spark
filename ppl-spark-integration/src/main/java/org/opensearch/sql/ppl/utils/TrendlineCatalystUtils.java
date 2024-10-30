@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 
-public interface TrendlineStrategy {
+public interface TrendlineCatalystUtils {
 
     static List<NamedExpression> visitTrendlineComputations(CatalystQueryPlanVisitor.ExpressionAnalyzer expressionAnalyzer, List<Trendline.TrendlineComputation> computations, CatalystPlanContext context) {
         return computations.stream()
