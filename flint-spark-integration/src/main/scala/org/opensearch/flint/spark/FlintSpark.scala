@@ -60,7 +60,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   private val flintMetadataCacheWriter = FlintMetadataCacheWriterBuilder.build(flintSparkConf)
 
   private val flintAsyncQueryScheduler: AsyncQueryScheduler = {
-    AsyncQuerySchedulerBuilder.build(flintSparkConf.flintOptions())
+    AsyncQuerySchedulerBuilder.build(spark, flintSparkConf.flintOptions())
   }
 
   override protected val flintMetadataLogService: FlintMetadataLogService = {
