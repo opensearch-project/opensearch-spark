@@ -22,13 +22,19 @@ class FlintSparkPPLFlattenITSuite
     with StreamTest {
 
   private val testTable = "flint_ppl_test"
+  private val structNestedTable = "spark_catalog.default.flint_ppl_struct_nested_test"
+  private val structTable = "spark_catalog.default.flint_ppl_struct_test"
+  private val multiValueTable = "spark_catalog.default.flint_ppl_multi_value_test"
   private val tempFile = Files.createTempFile("jsonTestData", ".json")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
     // Create test table
-    createSimpleNestedJsonContentTable(tempFile, testTable)
+    createNestedJsonContentTable(tempFile, testTable)
+    createStructNestedTable(structNestedTable)
+    createStructTable(structTable)
+    createMultiValueStructTable(multiValueTable)
   }
 
   protected override def afterEach(): Unit = {
@@ -45,7 +51,7 @@ class FlintSparkPPLFlattenITSuite
     Files.deleteIfExists(tempFile)
   }
 
-  test("test flatten for structs") {
+  test("flatten for structs") {
     val frame = sql(s"""
                        | source = $testTable
                        | | where country = 'England' or country = 'Poland'
@@ -68,16 +74,21 @@ class FlintSparkPPLFlattenITSuite
         EqualTo(UnresolvedAttribute("country"), Literal("Poland"))),
       table)
     val projectCoor = Project(Seq(UnresolvedAttribute("coor")), filter)
-    val flattenGenerator = new FlattenGenerator(UnresolvedAttribute("coor"))
-    val outerGenerator = GeneratorOuter(flattenGenerator)
-    val generate = Generate(outerGenerator, seq(), true, None, seq(), projectCoor)
-    val dropSourceColumn =
-      DataFrameDropColumns(Seq(UnresolvedAttribute("coor")), generate)
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), dropSourceColumn)
+    val flattenCoor = flattenPlanFor("coor", projectCoor)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), flattenCoor)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-  test("test flatten for arrays") {
+  private def flattenPlanFor(flattenedColumn: String, parentPlan: LogicalPlan): LogicalPlan = {
+    val flattenGenerator = new FlattenGenerator(UnresolvedAttribute(flattenedColumn))
+    val outerGenerator = GeneratorOuter(flattenGenerator)
+    val generate = Generate(outerGenerator, seq(), outer = true, None, seq(), parentPlan)
+    val dropSourceColumn =
+      DataFrameDropColumns(Seq(UnresolvedAttribute(flattenedColumn)), generate)
+    dropSourceColumn
+  }
+
+  test("flatten for arrays") {
     val frame = sql(s"""
                        | source = $testTable
                        | | fields bridges
@@ -105,16 +116,12 @@ class FlintSparkPPLFlattenITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("flint_ppl_test"))
     val projectCoor = Project(Seq(UnresolvedAttribute("bridges")), table)
-    val flattenGenerator = new FlattenGenerator(UnresolvedAttribute("bridges"))
-    val outerGenerator = GeneratorOuter(flattenGenerator)
-    val generate = Generate(outerGenerator, seq(), true, None, seq(), projectCoor)
-    val dropSourceColumn =
-      DataFrameDropColumns(Seq(UnresolvedAttribute("bridges")), generate)
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), dropSourceColumn)
+    val flattenBridges = flattenPlanFor("bridges", projectCoor)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), flattenBridges)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-  test("test flatten for structs and arrays") {
+  test("flatten for structs and arrays") {
     val frame = sql(s"""
                        | source = $testTable  | flatten bridges | flatten coor
                        | """.stripMargin)
@@ -206,18 +213,9 @@ class FlintSparkPPLFlattenITSuite
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("flint_ppl_test"))
-    val flattenGeneratorBridges = new FlattenGenerator(UnresolvedAttribute("bridges"))
-    val outerGeneratorBridges = GeneratorOuter(flattenGeneratorBridges)
-    val generateBridges = Generate(outerGeneratorBridges, seq(), true, None, seq(), table)
-    val dropSourceColumnBridges =
-      DataFrameDropColumns(Seq(UnresolvedAttribute("bridges")), generateBridges)
-    val flattenGeneratorCoor = new FlattenGenerator(UnresolvedAttribute("coor"))
-    val outerGeneratorCoor = GeneratorOuter(flattenGeneratorCoor)
-    val generateCoor =
-      Generate(outerGeneratorCoor, seq(), true, None, seq(), dropSourceColumnBridges)
-    val dropSourceColumnCoor =
-      DataFrameDropColumns(Seq(UnresolvedAttribute("coor")), generateCoor)
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), dropSourceColumnCoor)
+    val flattenBridges = flattenPlanFor("bridges", table)
+    val flattenCoor = flattenPlanFor("coor", flattenBridges)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), flattenCoor)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
@@ -246,20 +244,107 @@ class FlintSparkPPLFlattenITSuite
     val table = UnresolvedRelation(Seq("flint_ppl_test"))
     val projectCountryBridges =
       Project(Seq(UnresolvedAttribute("country"), UnresolvedAttribute("bridges")), table)
-    val flattenGenerator = new FlattenGenerator(UnresolvedAttribute("bridges"))
-    val outerGenerator = GeneratorOuter(flattenGenerator)
-    val generate = Generate(outerGenerator, seq(), true, None, seq(), projectCountryBridges)
-    val dropSourceColumn = DataFrameDropColumns(Seq(UnresolvedAttribute("bridges")), generate)
-    val projectCountryLength = Project(
-      Seq(UnresolvedAttribute("country"), UnresolvedAttribute("length")),
-      dropSourceColumn)
+    val flattenBridges = flattenPlanFor("bridges", projectCountryBridges)
+    val projectCountryLength =
+      Project(Seq(UnresolvedAttribute("country"), UnresolvedAttribute("length")), flattenBridges)
     val average = Alias(
-      UnresolvedFunction(seq("AVG"), seq(UnresolvedAttribute("length")), false, None, false),
+      UnresolvedFunction(
+        seq("AVG"),
+        seq(UnresolvedAttribute("length")),
+        isDistinct = false,
+        None,
+        ignoreNulls = false),
       "avg")()
     val country = Alias(UnresolvedAttribute("country"), "country")()
     val grouping = Alias(UnresolvedAttribute("country"), "country")()
     val aggregate = Aggregate(Seq(grouping), Seq(average, country), projectCountryLength)
     val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregate)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("flatten struct table") {
+    val frame = sql(s"""
+                       | source = $structTable
+                       | | flatten struct_col
+                       | | flatten field1
+                       | """.stripMargin)
+
+    assert(frame.columns.sameElements(Array("int_col", "field2", "subfield")))
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(Row(30, 123, "value1"), Row(40, 456, "value2"), Row(50, 789, "value3"))
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_struct_test"))
+    val flattenStructCol = flattenPlanFor("struct_col", table)
+    val flattenField1 = flattenPlanFor("field1", flattenStructCol)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), flattenField1)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("flatten struct nested table") {
+    val frame = sql(s"""
+                       | source = $structNestedTable
+                       | | flatten struct_col
+                       | | flatten field1
+                       | | flatten struct_col2
+                       | | flatten field1
+                       | """.stripMargin)
+
+    assert(
+      frame.columns.sameElements(Array("int_col", "field2", "subfield", "field2", "subfield")))
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(
+        Row(30, 123, "value1", 23, "valueA"),
+        Row(40, 123, "value5", 33, "valueB"),
+        Row(30, 823, "value4", 83, "valueC"),
+        Row(40, 456, "value2", 46, "valueD"),
+        Row(50, 789, "value3", 89, "valueE"))
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table =
+      UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_struct_nested_test"))
+    val flattenStructCol = flattenPlanFor("struct_col", table)
+    val flattenField1 = flattenPlanFor("field1", flattenStructCol)
+    val flattenStructCol2 = flattenPlanFor("struct_col2", flattenField1)
+    val flattenField1Again = flattenPlanFor("field1", flattenStructCol2)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), flattenField1Again)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("flatten multi value nullable") {
+    val frame = sql(s"""
+                       | source = $multiValueTable
+                       | | flatten multi_value
+                       | """.stripMargin)
+
+    assert(frame.columns.sameElements(Array("int_col", "name", "value")))
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(
+        Row(1, "1_one", 1),
+        Row(1, null, 11),
+        Row(1, "1_three", null),
+        Row(2, "2_Monday", 2),
+        Row(2, null, null),
+        Row(3, "3_third", 3),
+        Row(3, "3_4th", 4),
+        Row(4, null, null))
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_multi_value_test"))
+    val flattenMultiValue = flattenPlanFor("multi_value", table)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), flattenMultiValue)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 }

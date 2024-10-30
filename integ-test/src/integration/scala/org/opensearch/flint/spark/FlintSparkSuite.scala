@@ -534,6 +534,28 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          |""".stripMargin)
   }
 
+  protected def createMultiValueStructTable(testTable: String): Unit = {
+    // CSV doesn't support struct field
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   int_col INT,
+           |   multi_value Array<STRUCT<name: STRING, value: INT>>
+           | )
+           | USING JSON
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | SELECT /*+ COALESCE(1) */ *
+           | FROM VALUES
+           | ( 1, array(STRUCT("1_one", 1), STRUCT(null, 11), STRUCT("1_three", null)) ),
+           | ( 2, array(STRUCT("2_Monday", 2), null) ),
+           | ( 3, array(STRUCT("3_third", 3), STRUCT("3_4th", 4)) ),
+           | ( 4, null )
+           |""".stripMargin)
+  }
+
   protected def createTableIssue112(testTable: String): Unit = {
     sql(s"""
            | CREATE TABLE $testTable (
@@ -696,7 +718,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            | """.stripMargin)
   }
 
-  protected def createSimpleNestedJsonContentTable(tempFile: Path, testTable: String): Unit = {
+  protected def createNestedJsonContentTable(tempFile: Path, testTable: String): Unit = {
     val json =
       """
         |[
