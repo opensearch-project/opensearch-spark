@@ -405,7 +405,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
       throw new SyntaxCheckException("Number of trendline data-points must be greater than or equal to 0");
     }
     Field dataField = (Field) expressionBuilder.visitFieldExpression(ctx.field);
-    String alias = ctx.alias.getText();
+    String alias = ctx.alias == null?dataField.getField().toString()+"_trendline":ctx.alias.getText();
     String computationType = ctx.trendlineType().getText();
     return new Trendline.TrendlineComputation(numberOfDataPoints, dataField, alias, computationType);
   }

@@ -5,13 +5,13 @@ Using ``trendline`` command to calculate moving averages of fields.
 
 
 ### Syntax
-`TRENDLINE [sort <[+|-] sort-field>] SMA(number-of-datapoints, field) AS alias`
+`TRENDLINE [sort <[+|-] sort-field>] SMA(number-of-datapoints, field) [AS alias]`
 
 * [+|-]: optional. The plus [+] stands for ascending order and NULL/MISSING first and a minus [-] stands for descending order and NULL/MISSING last. **Default:** ascending order and NULL/MISSING first.
 * sort-field: mandatory when sorting is used. The field used to sort.
-* number-of-datapoints: mandatory. number of datapoints to calculate the moving average.
+* number-of-datapoints: mandatory. number of datapoints to calculate the moving average (must be a positive integer).
 * field: mandatory. the name of the field the moving average should be calculated for.
-* alias: mandatory. the name of the resulting column containing the moving average.
+* alias: optional. the name of the resulting column containing the moving average.
 
 And the moment only the Simple Moving Average (SMA) type is supported.
 
