@@ -25,6 +25,10 @@ class FlintMetadataLogEntryOpenSearchConverterTest
   val sourceMap = JMap.of(
     "jobStartTime",
     1234567890123L.asInstanceOf[Object],
+    "lastRefreshStartTime",
+    1234567890123L.asInstanceOf[Object],
+    "lastRefreshCompleteTime",
+    1234567890123L.asInstanceOf[Object],
     "state",
     "active".asInstanceOf[Object],
     "dataSourceName",
@@ -36,6 +40,8 @@ class FlintMetadataLogEntryOpenSearchConverterTest
     when(mockLogEntry.id).thenReturn("id")
     when(mockLogEntry.state).thenReturn(FlintMetadataLogEntry.IndexState.ACTIVE)
     when(mockLogEntry.createTime).thenReturn(1234567890123L)
+    when(mockLogEntry.lastRefreshStartTime).thenReturn(1234567890123L)
+    when(mockLogEntry.lastRefreshCompleteTime).thenReturn(1234567890123L)
     when(mockLogEntry.error).thenReturn("")
     when(mockLogEntry.properties).thenReturn(Map("dataSourceName" -> "testDataSource"))
   }
@@ -45,7 +51,7 @@ class FlintMetadataLogEntryOpenSearchConverterTest
     val expectedJsonWithoutLastUpdateTime =
       s"""
          |{
-         |  "version": "1.0",
+         |  "version": "1.1",
          |  "latestId": "id",
          |  "type": "flintindexstate",
          |  "state": "active",
@@ -53,6 +59,8 @@ class FlintMetadataLogEntryOpenSearchConverterTest
          |  "jobId": "unknown",
          |  "dataSourceName": "testDataSource",
          |  "jobStartTime": 1234567890123,
+         |  "lastRefreshStartTime": 1234567890123,
+         |  "lastRefreshCompleteTime": 1234567890123,
          |  "error": ""
          |}
          |""".stripMargin
@@ -67,15 +75,22 @@ class FlintMetadataLogEntryOpenSearchConverterTest
     logEntry shouldBe a[FlintMetadataLogEntry]
     logEntry.id shouldBe "id"
     logEntry.createTime shouldBe 1234567890123L
+    logEntry.lastRefreshStartTime shouldBe 1234567890123L
+    logEntry.lastRefreshCompleteTime shouldBe 1234567890123L
     logEntry.state shouldBe FlintMetadataLogEntry.IndexState.ACTIVE
     logEntry.error shouldBe ""
     logEntry.properties.get("dataSourceName").get shouldBe "testDataSource"
   }
 
-  it should "construct log entry with integer jobStartTime value" in {
+  it should "construct log entry with integer timestamp value" in {
+    // Use Integer instead of Long for timestamps
     val testSourceMap = JMap.of(
       "jobStartTime",
-      1234567890.asInstanceOf[Object], // Integer instead of Long
+      1234567890.asInstanceOf[Object],
+      "lastRefreshStartTime",
+      1234567890.asInstanceOf[Object],
+      "lastRefreshCompleteTime",
+      1234567890.asInstanceOf[Object],
       "state",
       "active".asInstanceOf[Object],
       "dataSourceName",
@@ -87,6 +102,8 @@ class FlintMetadataLogEntryOpenSearchConverterTest
     logEntry shouldBe a[FlintMetadataLogEntry]
     logEntry.id shouldBe "id"
     logEntry.createTime shouldBe 1234567890
+    logEntry.lastRefreshStartTime shouldBe 1234567890
+    logEntry.lastRefreshCompleteTime shouldBe 1234567890
     logEntry.state shouldBe FlintMetadataLogEntry.IndexState.ACTIVE
     logEntry.error shouldBe ""
     logEntry.properties.get("dataSourceName").get shouldBe "testDataSource"
