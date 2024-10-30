@@ -1387,7 +1387,8 @@ class FlintREPLTest
 
     val expectedCalls =
       Math.ceil(inactivityLimit.toDouble / DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY).toInt
-    verify(mockOSClient, Mockito.atMost(expectedCalls)).getIndexMetadata(*)
+    verify(mockOSClient, times(1)).getIndexMetadata(*)
+    verify(mockOSClient, Mockito.atMost(expectedCalls)).createQueryReader(*, *, *, *)
   }
 
   val testCases = Table(

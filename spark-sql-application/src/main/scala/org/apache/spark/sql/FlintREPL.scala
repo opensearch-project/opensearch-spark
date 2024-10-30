@@ -314,7 +314,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
     val threadPool = threadPoolFactory.newDaemonThreadPoolScheduledExecutor("flint-repl-query", 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
     val queryResultWriter = instantiateQueryResultWriter(spark, commandContext)
-    var futurePrepareQueryExecution: Future[Either[String, Unit]] = null
+
+    val statementsExecutionManager =
+      instantiateStatementExecutionManager(commandContext)
+
+    var futurePrepareQueryExecution: Future[Either[String, Unit]] = Future {
+      statementsExecutionManager.prepareStatementExecution()
+    }
     try {
       logInfo(s"""Executing session with sessionId: ${sessionId}""")
 
@@ -324,12 +330,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
       var lastCanPickCheckTime = 0L
       while (currentTimeProvider
           .currentEpochMillis() - lastActivityTime <= commandContext.inactivityLimitMillis && canPickUpNextStatement) {
-        val statementsExecutionManager =
-          instantiateStatementExecutionManager(commandContext)
-
-        futurePrepareQueryExecution = Future {
-          statementsExecutionManager.prepareStatementExecution()
-        }
 
         try {
           val commandState = CommandState(
