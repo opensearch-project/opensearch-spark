@@ -5,7 +5,7 @@ Using ``trendline`` command to calculate moving averages of fields.
 
 
 ### Syntax
-`TRENDLINE [sort <[+|-] sort-field>] SMA(number-of-datapoints, field) [AS alias]`
+`TRENDLINE [sort <[+|-] sort-field>] SMA(number-of-datapoints, field) [AS alias] [SMA(number-of-datapoints, field) [AS alias]]...`
 
 * [+|-]: optional. The plus [+] stands for ascending order and NULL/MISSING first and a minus [-] stands for descending order and NULL/MISSING last. **Default:** ascending order and NULL/MISSING first.
 * sort-field: mandatory when sorting is used. The field used to sort.
