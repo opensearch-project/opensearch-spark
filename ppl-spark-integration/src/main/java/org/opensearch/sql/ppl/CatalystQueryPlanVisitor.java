@@ -273,7 +273,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     public LogicalPlan visitTrendline(Trendline node, CatalystPlanContext context) {
         node.getChild().get(0).accept(this, context);
 
-        Optional.ofNullable(node.getSortByField())
+        node.getSortByField()
                 .ifPresent(sortField -> {
                     Expression sortFieldExpression = visitExpression(sortField, context);
                     Seq<SortOrder> sortOrder = context

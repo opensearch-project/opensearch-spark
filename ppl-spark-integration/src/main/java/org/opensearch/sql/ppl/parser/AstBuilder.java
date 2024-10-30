@@ -395,8 +395,8 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     return Optional.ofNullable(ctx.sortField())
             .map(this::internalVisitExpression)
             .map(Field.class::cast)
-            .map(sort -> new Trendline(sort, trendlineComputations))
-            .orElse(new Trendline(null, trendlineComputations));
+            .map(sort -> new Trendline(Optional.of(sort), trendlineComputations))
+            .orElse(new Trendline(Optional.empty(), trendlineComputations));
   }
 
   /** Top command. */

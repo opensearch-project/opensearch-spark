@@ -10,8 +10,8 @@ import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
-import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Optional;
 
 @ToString
 @Getter
@@ -20,8 +20,7 @@ import java.util.List;
 public class Trendline extends UnresolvedPlan {
 
     private UnresolvedPlan child;
-    @Nullable
-    private final Field sortByField;
+    private final Optional<Field> sortByField;
     private final List<UnresolvedExpression> computations;
 
     @Override
