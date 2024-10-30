@@ -28,18 +28,6 @@ import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
 import org.apache.spark.internal.Logging
 
-def emitIndexCreationStatusMetric(metadata: FlintMetadata, success: Boolean): Unit = {
-  val successSuffix = if (success) ".create_success" else ".create_failed"
-  metadata.kind match {
-    case SKIPPING_INDEX_TYPE =>
-      MetricsUtil.addHistoricGauge(MetricConstants.CREATE_SKIPPING_INDICES + successSuffix + ".count", 1)
-    case COVERING_INDEX_TYPE =>
-      MetricsUtil.addHistoricGauge(MetricConstants.CREATE_COVERING_INDICES + successSuffix + ".count", 1)
-    case MV_INDEX_TYPE =>
-      MetricsUtil.addHistoricGauge(MetricConstants.CREATE_MV_INDICES + successSuffix + ".count", 1)
-  }
-}
-
 /**
  * Flint Spark index factory that encapsulates specific Flint index instance creation. This is for
  * internal code use instead of user facing API.
@@ -57,11 +45,11 @@ object FlintSparkIndexFactory extends Logging {
   def create(metadata: FlintMetadata): Option[FlintSparkIndex] = {
     try {
       val result = doCreate(metadata)
-      emitIndexCreationStatusMetric(metadata, success=true)
+      emitIndexCreationStatusMetric(metadata, success = true)
       Some(result)
     } catch {
       case e: Exception =>
-        emitIndexCreationStatusMetric(metadata, success=false)
+        emitIndexCreationStatusMetric(metadata, success = false)
         logWarning(s"Failed to create Flint index from metadata $metadata", e)
         None
     }
@@ -161,6 +149,18 @@ object FlintSparkIndexFactory extends Logging {
       None
     } else {
       Some(value.asInstanceOf[String])
+    }
+  }
+
+  private def emitIndexCreationStatusMetric(metadata: FlintMetadata, success: Boolean): Unit = {
+    val successSuffix = if (success) ".create_success" else ".create_failed"
+    metadata.kind match {
+      case SKIPPING_INDEX_TYPE =>
+        MetricsUtil.addHistoricGauge(MetricConstants.CREATE_SKIPPING_INDICES + successSuffix + ".count", 1)
+      case COVERING_INDEX_TYPE =>
+        MetricsUtil.addHistoricGauge(MetricConstants.CREATE_COVERING_INDICES + successSuffix + ".count", 1)
+      case MV_INDEX_TYPE =>
+        MetricsUtil.addHistoricGauge(MetricConstants.CREATE_MV_INDICES + successSuffix + ".count", 1)
     }
   }
 }
