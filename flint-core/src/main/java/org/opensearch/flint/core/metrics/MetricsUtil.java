@@ -75,6 +75,15 @@ public final class MetricsUtil {
         }
     }
 
+    public static void setCounter(String metricName, boolean isIndexMetric, long n) {
+        Counter counter = getOrCreateCounter(metricName, isIndexMetric);
+        if (counter != null) {
+            counter.dec(counter.getCount());
+            counter.inc(n);
+            LOG.info("counter: " + counter.getCount());
+        }
+    }
+
     /**
      * Retrieves a {@link Timer.Context} for the specified metric name, creating a new timer if one does not already exist.
      *
@@ -109,6 +118,24 @@ public final class MetricsUtil {
 
     public static Timer getTimer(String metricName, boolean isIndexMetric) {
         return getOrCreateTimer(metricName, isIndexMetric);
+    }
+
+    /**
+     * Registers a HistoricGauge metric with the provided name and value.
+     *
+     * @param metricName The name of the HistoricGauge metric to register.
+     * @param value The value to be stored
+     */
+    public static void addHistoricGauge(String metricName, final long value) {
+        HistoricGauge historicGauge = getOrCreateHistoricGauge(metricName);
+        if (historicGauge != null) {
+            historicGauge.addDataPoint(value);
+        }
+    }
+
+    private static HistoricGauge getOrCreateHistoricGauge(String metricName) {
+        MetricRegistry metricRegistry = getMetricRegistry(false);
+        return metricRegistry != null ? metricRegistry.gauge(metricName, HistoricGauge::new) : null;
     }
 
     /**
