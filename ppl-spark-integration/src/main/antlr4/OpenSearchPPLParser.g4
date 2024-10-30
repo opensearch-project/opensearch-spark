@@ -421,6 +421,7 @@ valueExpression
    | primaryExpression                                                                          # valueExpressionDefault
    | positionFunction                                                                           # positionFunctionCall
    | caseFunction                                                                               # caseExpr
+   | timestampFunction                                                                          # timestampFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
    ;
@@ -672,6 +673,7 @@ dateTimeFunctionName
    | CURRENT_DATE
    | CURRENT_TIME
    | CURRENT_TIMESTAMP
+   | CURRENT_TIMEZONE
    | CURTIME
    | DATE
    | DATEDIFF
@@ -888,6 +890,7 @@ literalValue
    | decimalLiteral
    | booleanLiteral
    | datetimeLiteral //#datetime
+   | intervalLiteral
    ;
 
 intervalLiteral

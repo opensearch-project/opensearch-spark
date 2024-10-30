@@ -20,12 +20,15 @@ import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
+import org.apache.spark.sql.catalyst.expressions.Literal$;
+import org.apache.spark.sql.catalyst.expressions.MakeInterval$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.ScalarSubquery$;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.*;
+import org.apache.spark.sql.catalyst.util.DataTypeJsonUtils$;
 import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
@@ -759,7 +762,91 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         @Override
         public Expression visitInterval(Interval node, CatalystPlanContext context) {
-            throw new IllegalStateException("Not Supported operation : Interval");
+            node.getValue().accept(this, context);
+            Expression value = context.getNamedParseExpressions().pop();
+            Expression interval;
+                    switch (node.getUnit()) {
+                case YEAR:
+                    interval = MakeInterval$.MODULE$.apply(
+                        value,
+                        Literal$.MODULE$.apply(0),
+                        Literal$.MODULE$.apply(0),
+                        Literal$.MODULE$.apply(0),
+                        Literal$.MODULE$.apply(0),
+                        Literal$.MODULE$.apply(0),
+                        Literal$.MODULE$.apply(0),
+                        true);
+                    break;
+                case MONTH:
+                    interval = MakeInterval$.MODULE$.apply(
+                        Literal$.MODULE$.apply(0),
+                        value,
+                        Literal$.MODULE$.apply(0),
+                        Literal$.MODULE$.apply(0),
+                        Literal$.MODULE$.apply(0),
+                        Literal$.MODULE$.apply(0),
+                        Literal$.MODULE$.apply(0),
+                        true);
+                    break;
+                case WEEK:
+                    interval = MakeInterval$.MODULE$.apply(
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            value,
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            true);
+                    break;
+                case DAY:
+                    interval = MakeInterval$.MODULE$.apply(
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            value,
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            true);
+                    break;
+                case HOUR:
+                    interval = MakeInterval$.MODULE$.apply(
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            value,
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            true);
+                    break;
+                case MINUTE:
+                    interval = MakeInterval$.MODULE$.apply(
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            value,
+                            Literal$.MODULE$.apply(0),
+                            true);
+                    break;
+                case SECOND:
+                    interval = MakeInterval$.MODULE$.apply(
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            Literal$.MODULE$.apply(0),
+                            value,
+                            true);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unsupported Interval unit: " + node.getUnit());
+            }
+            return context.getNamedParseExpressions().push(interval);
         }
 
         @Override
