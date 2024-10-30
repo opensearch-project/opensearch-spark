@@ -17,6 +17,7 @@ import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.AttributeList;
+import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.DataType;
@@ -275,6 +276,12 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitConvertedDataType(OpenSearchPPLParser.ConvertedDataTypeContext ctx) {
         return new Literal(ctx.getText(), DataType.STRING);
+    }
+
+    @Override
+    public UnresolvedExpression visitBetween(OpenSearchPPLParser.BetweenContext ctx) {
+        UnresolvedExpression betweenExpr = new Between(visit(ctx.expr1),visit(ctx.expr2),visit(ctx.expr3));
+        return ctx.NOT() != null ? new Not(betweenExpr) : betweenExpr;
     }
 
     private Function buildFunction(

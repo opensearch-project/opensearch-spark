@@ -246,6 +246,8 @@ class ApplyFlintSparkCoveringIndexSuite extends FlintSuite with Matchers {
           new FlintMetadataLogEntry(
             "id",
             0,
+            0,
+            0,
             state,
             Map("seqNo" -> 0, "primaryTerm" -> 0),
             "",

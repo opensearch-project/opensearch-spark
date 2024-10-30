@@ -407,6 +407,7 @@ logicalExpression
 comparisonExpression
    : left = valueExpression comparisonOperator right = valueExpression  # compareExpr
    | valueExpression NOT? IN valueList                                  # inExpr
+   | expr1 = functionArg NOT? BETWEEN expr2 = functionArg AND expr3 = functionArg   # between
    ;
 
 valueExpressionList
@@ -1114,4 +1115,5 @@ keywordsCanBeId
    | FULL
    | SEMI
    | ANTI
+   | BETWEEN
    ;
