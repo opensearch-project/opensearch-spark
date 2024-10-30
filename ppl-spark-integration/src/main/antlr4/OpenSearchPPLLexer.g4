@@ -74,12 +74,8 @@ INDEX:                              'INDEX';
 D:                                  'D';
 DESC:                               'DESC';
 DATASOURCES:                        'DATASOURCES';
-VALUE:                              'VALUE';
 USING:                              'USING';
 WITH:                               'WITH';
-
-// CLAUSE KEYWORDS
-SORTBY:                             'SORTBY';
 
 // FIELD KEYWORDS
 AUTO:                               'AUTO';
@@ -396,6 +392,7 @@ LIKE:                               'LIKE';
 ISNULL:                             'ISNULL';
 ISNOTNULL:                          'ISNOTNULL';
 ISPRESENT:                          'ISPRESENT';
+BETWEEN:                            'BETWEEN';
 
 // FLOWCONTROL FUNCTIONS
 IFNULL:                             'IFNULL';

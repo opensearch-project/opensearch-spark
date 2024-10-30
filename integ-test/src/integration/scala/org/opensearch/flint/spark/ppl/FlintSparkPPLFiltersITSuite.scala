@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, CaseWhen, Descending, Divide, EqualTo, Floor, GreaterThan, LessThan, LessThanOrEqual, Literal, Multiply, Not, Or, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, CaseWhen, Descending, Divide, EqualTo, Floor, GreaterThan, In, LessThan, LessThanOrEqual, Literal, Multiply, Not, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -451,6 +451,20 @@ class FlintSparkPPLFiltersITSuite
       filterPlan)
     val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregation)
     // Compare the two plans
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test NOT IN expr in filter") {
+    val frame = sql(s"""
+                       | source = $testTable | where state not in ('California', 'New York') | fields state
+                       | """.stripMargin)
+    assertSameRows(Seq(Row("Ontario"), Row("Quebec")), frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val in = In(UnresolvedAttribute("state"), Seq(Literal("California"), Literal("New York")))
+    val filter = Filter(Not(in), table)
+    val expectedPlan = Project(Seq(UnresolvedAttribute("state")), filter)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 }

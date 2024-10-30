@@ -6,6 +6,7 @@
 package org.opensearch.flint.core.metrics;
 
 import com.codahale.metrics.Gauge;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -59,5 +60,10 @@ public class HistoricGauge implements Gauge<Long> {
       dataPoints.subList(0, size).clear();
     }
     return result;
+  }
+
+  @VisibleForTesting
+  public List<DataPoint> getDataPoints() {
+    return dataPoints;
   }
 }
