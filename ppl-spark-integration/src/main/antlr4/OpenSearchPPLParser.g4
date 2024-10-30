@@ -1144,5 +1144,5 @@ keywordsCanBeId
    | ANTI
    | BETWEEN
    | CIDRMATCH
-   | SMA
+   | trendlineType
    ;
