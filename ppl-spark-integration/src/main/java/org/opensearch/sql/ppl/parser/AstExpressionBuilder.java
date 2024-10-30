@@ -116,18 +116,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         return new Let((Field) visit(ctx.fieldExpression()), visit(ctx.expression()));
     }
 
-    @Override
-    public UnresolvedExpression visitTrendlineClause(OpenSearchPPLParser.TrendlineClauseContext ctx) {
-        int numberOfDataPoints = Integer.parseInt(ctx.numberOfDataPoints.getText());
-        if (numberOfDataPoints < 0) {
-            throw new SyntaxCheckException("Number of trendline data-points must be greater than or equal to 0");
-        }
-        Field dataField = (Field) this.visitFieldExpression(ctx.field);
-        String alias = ctx.alias.getText();
-        String computationType = ctx.trendlineType().getText();
-        return new Trendline.TrendlineComputation(numberOfDataPoints, dataField, alias, computationType);
-    }
-
     /**
      * Logical expression excluding boolean, comparison.
      */

@@ -388,15 +388,26 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   @Override
   public UnresolvedPlan visitTrendlineCommand(OpenSearchPPLParser.TrendlineCommandContext ctx) {
-    List<UnresolvedExpression> trendlineComputations = ctx.trendlineClause()
+    List<Trendline.TrendlineComputation> trendlineComputations = ctx.trendlineClause()
             .stream()
-            .map(expressionBuilder::visit)
+            .map(this::toTrendlineComputation)
             .collect(Collectors.toList());
     return Optional.ofNullable(ctx.sortField())
             .map(this::internalVisitExpression)
             .map(Field.class::cast)
             .map(sort -> new Trendline(Optional.of(sort), trendlineComputations))
             .orElse(new Trendline(Optional.empty(), trendlineComputations));
+  }
+
+  private Trendline.TrendlineComputation toTrendlineComputation(OpenSearchPPLParser.TrendlineClauseContext ctx) {
+    int numberOfDataPoints = Integer.parseInt(ctx.numberOfDataPoints.getText());
+    if (numberOfDataPoints < 0) {
+      throw new SyntaxCheckException("Number of trendline data-points must be greater than or equal to 0");
+    }
+    Field dataField = (Field) expressionBuilder.visitFieldExpression(ctx.field);
+    String alias = ctx.alias.getText();
+    String computationType = ctx.trendlineType().getText();
+    return new Trendline.TrendlineComputation(numberOfDataPoints, dataField, alias, computationType);
   }
 
   /** Top command. */

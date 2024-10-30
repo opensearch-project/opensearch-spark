@@ -114,6 +114,7 @@ import org.opensearch.sql.ppl.utils.ComparatorTransformer;
 import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
 import org.opensearch.sql.ppl.utils.ParseTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
+import org.opensearch.sql.ppl.utils.TrendlineStrategy;
 import org.opensearch.sql.ppl.utils.WindowSpecTransformer;
 import scala.None$;
 import scala.Option;
@@ -281,14 +282,16 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Sort(sortOrder, true, p));
                 });
 
+        List<NamedExpression> trendlineProjectExpressions = new ArrayList<>();
+
         if (context.getNamedParseExpressions().isEmpty()) {
             // Create an UnresolvedStar for all-fields projection
-            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.empty()));
+            trendlineProjectExpressions.add(UnresolvedStar$.MODULE$.apply(Option.empty()));
         }
-        visitExpressionList(node.getComputations(), context);
-        Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
 
-        return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+        trendlineProjectExpressions.addAll(TrendlineStrategy.visitTrendlineComputations(expressionAnalyzer, node.getComputations(), context));
+
+        return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(seq(trendlineProjectExpressions), p));
     }
 
     @Override

@@ -21,7 +21,7 @@ public class Trendline extends UnresolvedPlan {
 
     private UnresolvedPlan child;
     private final Optional<Field> sortByField;
-    private final List<UnresolvedExpression> computations;
+    private final List<TrendlineComputation> computations;
 
     @Override
     public UnresolvedPlan attach(UnresolvedPlan child) {
@@ -40,7 +40,7 @@ public class Trendline extends UnresolvedPlan {
     }
 
     @Getter
-    public static class TrendlineComputation extends UnresolvedExpression {
+    public static class TrendlineComputation {
 
         private final Integer numberOfDataPoints;
         private final UnresolvedExpression dataField;
@@ -52,11 +52,6 @@ public class Trendline extends UnresolvedPlan {
             this.dataField = dataField;
             this.alias = alias;
             this.computationType = Trendline.TrendlineType.valueOf(computationType.toUpperCase());
-        }
-
-        @Override
-        public <R, C> R accept(AbstractNodeVisitor<R, C> nodeVisitor, C context) {
-            return nodeVisitor.visitTrendlineComputation(this, context);
         }
 
     }

@@ -115,10 +115,6 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitChildren(node, context);
   }
 
-  public T visitTrendlineComputation(Trendline.TrendlineComputation node, C context) {
-    return visitChildren(node, context);
-  }
-
   public T visitCorrelation(Correlation node, C context) {
     return visitChildren(node, context);
   }
