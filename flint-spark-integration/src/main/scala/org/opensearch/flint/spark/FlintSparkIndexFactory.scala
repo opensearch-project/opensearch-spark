@@ -11,6 +11,8 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 import org.opensearch.flint.common.metadata.FlintMetadata
+import org.opensearch.flint.core.metrics.MetricConstants
+import org.opensearch.flint.core.metrics.MetricsUtil
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
@@ -25,6 +27,18 @@ import org.opensearch.flint.spark.skipping.partition.PartitionSkippingStrategy
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
 import org.apache.spark.internal.Logging
+
+def emitIndexCreationStatusMetric(metadata: FlintMetadata, success: Boolean): Unit = {
+  val successSuffix = if (success) ".create_success" else ".create_failed"
+  metadata.kind match {
+    case SKIPPING_INDEX_TYPE =>
+      MetricsUtil.addHistoricGauge(MetricConstants.CREATE_SKIPPING_INDICES + successSuffix + ".count", 1)
+    case COVERING_INDEX_TYPE =>
+      MetricsUtil.addHistoricGauge(MetricConstants.CREATE_COVERING_INDICES + successSuffix + ".count", 1)
+    case MV_INDEX_TYPE =>
+      MetricsUtil.addHistoricGauge(MetricConstants.CREATE_MV_INDICES + successSuffix + ".count", 1)
+  }
+}
 
 /**
  * Flint Spark index factory that encapsulates specific Flint index instance creation. This is for
@@ -42,9 +56,12 @@ object FlintSparkIndexFactory extends Logging {
    */
   def create(metadata: FlintMetadata): Option[FlintSparkIndex] = {
     try {
-      Some(doCreate(metadata))
+      val result = doCreate(metadata)
+      emitIndexCreationStatusMetric(metadata, success=true)
+      Some(result)
     } catch {
       case e: Exception =>
+        emitIndexCreationStatusMetric(metadata, success=false)
         logWarning(s"Failed to create Flint index from metadata $metadata", e)
         None
     }
