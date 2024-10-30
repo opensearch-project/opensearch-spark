@@ -47,7 +47,7 @@ source = [
     | join left = l right = r ON c_custkey = o_custkey customer
     | join left = l right = n1 ON s_nationkey = n1.n_nationkey nation
     | join left = n1 right = n2 ON c_nationkey = n2.n_nationkey nation
-    /* | where l_shipdate between date('1995-01-01') and date('1996-12-31') // should work when issues/679 resolved */
+    | where l_shipdate between date('1995-01-01') and date('1996-12-31')
     /* | where n1.n_name = 'FRANCE' and n2.n_name = 'GERMANY' or n1.n_name = 'GERMANY' and n2.n_name = 'FRANCE' NPE found */
     | eval supp_nation = n1.n_name, cust_nation = n2.n_name, l_year = year(l_shipdate), volume = l_extendedprice * (1 - l_discount)
     | fields supp_nation, cust_nation, l_year, volume

@@ -48,7 +48,7 @@ source = [
     | join left = l right = r ON n_regionkey = r_regionkey region
     | join left = l right = n2 ON s_nationkey = n2.n_nationkey nation
     | where r_name = 'AMERICA' AND p_type = 'ECONOMY ANODIZED STEEL'
-    /* | where o_orderdate between date('1995-01-01') and date('1996-12-31') */
+      and o_orderdate between date('1995-01-01') and date('1996-12-31')
     | eval o_year = year(o_orderdate)
     | eval volume = l_extendedprice * (1 - l_discount)
     | eval nation = n2.n_name
