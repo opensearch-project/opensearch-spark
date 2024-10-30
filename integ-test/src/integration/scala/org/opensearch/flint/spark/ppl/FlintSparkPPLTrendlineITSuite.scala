@@ -36,14 +36,14 @@ class FlintSparkPPLTrendlineITSuite
     }
   }
 
-  test("test trendline sma command without fields command") {
+  test("test trendline sma command without fields command and without alias") {
     val frame = sql(s"""
-                       | source = $testTable | sort - age | trendline sma(2, age) as age_sma
+                       | source = $testTable | sort - age | trendline sma(2, age)
                        | """.stripMargin)
 
     assert(
       frame.columns.sameElements(
-        Array("name", "age", "state", "country", "year", "month", "age_sma")))
+        Array("name", "age", "state", "country", "year", "month", "age_trendline")))
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
@@ -68,7 +68,7 @@ class FlintSparkPPLTrendlineITSuite
       UnresolvedFunction("AVG", Seq(ageField), isDistinct = false),
       WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-1), CurrentRow)))
     val caseWhen = CaseWhen(Seq((LessThan(countWindow, Literal(2)), Literal(null))), smaWindow)
-    val trendlineProjectList = Seq(UnresolvedStar(None), Alias(caseWhen, "age_sma")())
+    val trendlineProjectList = Seq(UnresolvedStar(None), Alias(caseWhen, "age_trendline")())
     val expectedPlan = Project(Seq(UnresolvedStar(None)), Project(trendlineProjectList, sort))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
