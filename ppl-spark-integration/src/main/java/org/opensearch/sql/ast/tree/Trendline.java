@@ -52,11 +52,11 @@ public class Trendline extends UnresolvedPlan {
         private final String alias;
         private final TrendlineType computationType;
 
-        public TrendlineComputation(Integer numberOfDataPoints, UnresolvedExpression dataField, String alias, String computationType) {
+        public TrendlineComputation(Integer numberOfDataPoints, UnresolvedExpression dataField, String alias, Trendline.TrendlineType computationType) {
             this.numberOfDataPoints = numberOfDataPoints;
             this.dataField = dataField;
             this.alias = alias;
-            this.computationType = Trendline.TrendlineType.valueOf(computationType.toUpperCase());
+            this.computationType = computationType;
         }
 
     }

@@ -407,7 +407,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     Field dataField = (Field) expressionBuilder.visitFieldExpression(ctx.field);
     String alias = ctx.alias == null?dataField.getField().toString()+"_trendline":ctx.alias.getText();
     String computationType = ctx.trendlineType().getText();
-    return new Trendline.TrendlineComputation(numberOfDataPoints, dataField, alias, computationType);
+    return new Trendline.TrendlineComputation(numberOfDataPoints, dataField, alias, Trendline.TrendlineType.valueOf(computationType.toUpperCase()));
   }
 
   /** Top command. */
