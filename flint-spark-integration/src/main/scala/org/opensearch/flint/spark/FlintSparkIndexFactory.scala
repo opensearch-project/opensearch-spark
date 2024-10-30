@@ -156,11 +156,17 @@ object FlintSparkIndexFactory extends Logging {
     val successSuffix = if (success) ".create_success" else ".create_failed"
     metadata.kind match {
       case SKIPPING_INDEX_TYPE =>
-        MetricsUtil.addHistoricGauge(MetricConstants.CREATE_SKIPPING_INDICES + successSuffix + ".count", 1)
+        MetricsUtil.addHistoricGauge(
+          MetricConstants.CREATE_SKIPPING_INDICES + successSuffix + ".count",
+          1)
       case COVERING_INDEX_TYPE =>
-        MetricsUtil.addHistoricGauge(MetricConstants.CREATE_COVERING_INDICES + successSuffix + ".count", 1)
+        MetricsUtil.addHistoricGauge(
+          MetricConstants.CREATE_COVERING_INDICES + successSuffix + ".count",
+          1)
       case MV_INDEX_TYPE =>
-        MetricsUtil.addHistoricGauge(MetricConstants.CREATE_MV_INDICES + successSuffix + ".count", 1)
+        MetricsUtil.addHistoricGauge(
+          MetricConstants.CREATE_MV_INDICES + successSuffix + ".count",
+          1)
     }
   }
 }
