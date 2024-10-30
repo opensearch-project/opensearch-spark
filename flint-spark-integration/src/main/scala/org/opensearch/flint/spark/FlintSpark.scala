@@ -592,7 +592,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     val indexName = index.name
     val indexLogEntry = index.latestLogEntry.get
     val internalSchedulingService =
-      new FlintSparkJobInternalSchedulingService(spark, flintIndexMonitor)
+      new FlintSparkJobInternalSchedulingService(spark, flintSparkConf, flintIndexMonitor)
     val externalSchedulingService =
       new FlintSparkJobExternalSchedulingService(flintAsyncQueryScheduler, flintSparkConf)
 
