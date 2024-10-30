@@ -9,6 +9,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -54,6 +55,11 @@ public class OpenSearchAsyncQueryScheduler implements AsyncQueryScheduler {
 
     private static final ObjectMapper mapper = new ObjectMapper();
     private final FlintOptions flintOptions;
+
+    @VisibleForTesting
+    public OpenSearchAsyncQueryScheduler() {
+        this.flintOptions = new FlintOptions(ImmutableMap.of());
+    }
 
     public OpenSearchAsyncQueryScheduler(FlintOptions options) {
         this.flintOptions = options;
@@ -124,6 +130,26 @@ public class OpenSearchAsyncQueryScheduler implements AsyncQueryScheduler {
         }
     }
 
+    /**
+     * Checks if the current setup has access to the scheduler index.
+     *
+     * This method attempts to create a client and ensure that the scheduler index exists.
+     * If these operations succeed, it indicates that the user has the necessary permissions
+     * to access and potentially modify the scheduler index.
+     *
+     * @see #createClient()
+     * @see #ensureIndexExists(IRestHighLevelClient)
+     */
+    public boolean hasAccessToSchedulerIndex() {
+        try {
+            IRestHighLevelClient client = createClient();
+            ensureIndexExists(client);
+            return true;
+        } catch (Throwable e) {
+            LOG.error("Failed to ensure index exists", e);
+            return false;
+        }
+    }
     private void ensureIndexExists(IRestHighLevelClient client) {
         try {
             if (!client.doesIndexExist(new GetIndexRequest(SCHEDULER_INDEX_NAME), RequestOptions.DEFAULT)) {
