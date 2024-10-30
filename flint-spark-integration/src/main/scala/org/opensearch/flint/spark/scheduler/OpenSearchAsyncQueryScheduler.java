@@ -48,8 +48,8 @@ import java.time.Instant;
  */
 public class OpenSearchAsyncQueryScheduler implements AsyncQueryScheduler {
     public static final String SCHEDULER_INDEX_NAME = ".async-query-scheduler";
-    private static final String SCHEDULER_INDEX_MAPPING_FILE_NAME = "async-query-scheduler-index-mapping.yml";
-    private static final String SCHEDULER_INDEX_SETTINGS_FILE_NAME = "async-query-scheduler-index-settings.yml";
+    private static final String SCHEDULER_INDEX_MAPPING_FILE_NAME = "async-query-scheduler-index-mapping.json";
+    private static final String SCHEDULER_INDEX_SETTINGS_FILE_NAME = "async-query-scheduler-index-settings.json";
     private static final Logger LOG = LogManager.getLogger(OpenSearchAsyncQueryScheduler.class);
 
     private static final ObjectMapper mapper = new ObjectMapper();
@@ -110,8 +110,8 @@ public class OpenSearchAsyncQueryScheduler implements AsyncQueryScheduler {
              InputStream settingsFileStream = getResourceAsStream(SCHEDULER_INDEX_SETTINGS_FILE_NAME)) {
 
             CreateIndexRequest createIndexRequest = new CreateIndexRequest(SCHEDULER_INDEX_NAME)
-                    .mapping(IOUtils.toString(mappingFileStream, StandardCharsets.UTF_8), XContentType.YAML)
-                    .settings(IOUtils.toString(settingsFileStream, StandardCharsets.UTF_8), XContentType.YAML);
+                    .mapping(IOUtils.toString(mappingFileStream, StandardCharsets.UTF_8), XContentType.JSON)
+                    .settings(IOUtils.toString(settingsFileStream, StandardCharsets.UTF_8), XContentType.JSON);
 
             CreateIndexResponse createIndexResponse = client.createIndex(createIndexRequest, RequestOptions.DEFAULT);
             if (!createIndexResponse.isAcknowledged()) {
