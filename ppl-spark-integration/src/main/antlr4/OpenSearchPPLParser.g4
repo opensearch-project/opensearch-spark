@@ -88,6 +88,7 @@ commandName
    | FILLNULL
    | FIELDSUMMARY
    | TRENDLINE
+   | GEOIP
    ;
 
 searchCommand
@@ -456,6 +457,7 @@ primaryExpression
    : evalFunctionCall
    | fieldExpression
    | literalValue
+   | geoipFunctionCall
    ;
 
 positionFunction
@@ -540,6 +542,11 @@ evalFunctionCall
 // cast function
 dataTypeFunctionCall
    : CAST LT_PRTHS expression AS convertedDataType RT_PRTHS
+   ;
+
+// geoip function
+geoipFunctionCall
+   : GEOIP LT_PRTHS (datasource = functionArg COMMA)? ipAddress = functionArg (COMMA properties = stringLiteral)? RT_PRTHS
    ;
 
 // boolean functions

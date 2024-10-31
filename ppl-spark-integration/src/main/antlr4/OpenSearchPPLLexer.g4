@@ -403,6 +403,9 @@ ISPRESENT:                          'ISPRESENT';
 BETWEEN:                            'BETWEEN';
 CIDRMATCH:                          'CIDRMATCH';
 
+// Geo Loction 
+GEOIP:                              'GEOIP';
+
 // FLOWCONTROL FUNCTIONS
 IFNULL:                             'IFNULL';
 NULLIF:                             'NULLIF';
