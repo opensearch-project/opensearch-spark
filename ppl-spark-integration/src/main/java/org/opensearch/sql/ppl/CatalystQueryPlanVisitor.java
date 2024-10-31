@@ -181,6 +181,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     @Override
+    public LogicalPlan visitExpand(org.opensearch.sql.ast.tree.Expand node, CatalystPlanContext context) {
+        node.getChild().get(0).accept(this, context);
+        return super.visitExpand(node, context);
+    }
+
+    @Override
     public LogicalPlan visitFilter(Filter node, CatalystPlanContext context) {
         node.getChild().get(0).accept(this, context);
         return context.apply(p -> {

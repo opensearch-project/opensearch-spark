@@ -53,6 +53,7 @@ commands
    | renameCommand
    | fillnullCommand
    | fieldsummaryCommand
+   | expandCommand
    ;
 
 commandName
@@ -80,6 +81,7 @@ commandName
    | PATTERNS
    | LOOKUP
    | RENAME
+   | EXPAND
    | FILLNULL
    | FIELDSUMMARY
    ;
@@ -246,6 +248,9 @@ fillnullCommand
    : expression
    ;
 
+expandCommand
+    : EXPAND fieldExpression
+    ;
 
 kmeansCommand
    : KMEANS (kmeansParameter)*
