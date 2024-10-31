@@ -53,6 +53,7 @@ commands
    | renameCommand
    | fillnullCommand
    | fieldsummaryCommand
+   | flattenCommand
    | expandCommand
    ;
 
@@ -84,6 +85,7 @@ commandName
    | EXPAND
    | FILLNULL
    | FIELDSUMMARY
+   | FLATTEN
    ;
 
 searchCommand
@@ -91,7 +93,7 @@ searchCommand
    | (SEARCH)? fromClause logicalExpression     # searchFromFilter
    | (SEARCH)? logicalExpression fromClause     # searchFilterFrom
    ;
-   
+
 fieldsummaryCommand
    : FIELDSUMMARY (fieldsummaryParameter)*
    ;
@@ -251,6 +253,11 @@ fillnullCommand
 expandCommand
     : EXPAND fieldExpression
     ;
+    
+flattenCommand
+    : FLATTEN fieldExpression
+    ;
+
 
 kmeansCommand
    : KMEANS (kmeansParameter)*

@@ -38,6 +38,7 @@ AD:                                 'AD';
 ML:                                 'ML';
 FILLNULL:                           'FILLNULL';
 EXPAND:                             'EXPAND';
+FLATTEN:                            'FLATTEN';
 
 //Native JOIN KEYWORDS
 JOIN:                               'JOIN';

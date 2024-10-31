@@ -567,6 +567,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     }
   }
 
+  @Override
+  public UnresolvedPlan visitFlattenCommand(OpenSearchPPLParser.FlattenCommandContext ctx) {
+    Field unresolvedExpression = (Field) internalVisitExpression(ctx.fieldExpression());
+    return new Flatten(unresolvedExpression);
+  }
+
   /** AD command. */
   @Override
   public UnresolvedPlan visitAdCommand(OpenSearchPPLParser.AdCommandContext ctx) {
