@@ -20,6 +20,7 @@ import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
+import org.apache.spark.sql.catalyst.expressions.MakeInterval$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.ScalarSubquery$;
@@ -114,6 +115,7 @@ import static java.util.Collections.emptyList;
 import static java.util.List.of;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
 import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
+import static org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator.createIntervalArgs;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDuplicateEvents;
@@ -765,7 +767,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         @Override
         public Expression visitInterval(Interval node, CatalystPlanContext context) {
-            throw new IllegalStateException("Not Supported operation : Interval");
+            node.getValue().accept(this, context);
+            Expression value = context.getNamedParseExpressions().pop();
+            Expression[] intervalArgs = createIntervalArgs(node.getUnit(), value);
+            Expression interval = MakeInterval$.MODULE$.apply(
+                intervalArgs[0], intervalArgs[1], intervalArgs[2], intervalArgs[3],
+                intervalArgs[4], intervalArgs[5], intervalArgs[6], true);
+            return context.getNamedParseExpressions().push(interval);
         }
 
         @Override

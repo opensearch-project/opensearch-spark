@@ -422,10 +422,26 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         return ctx.NOT() != null ? new Not(expr) : expr;
     }
 
-
     @Override
     public UnresolvedExpression visitCidrMatchFunctionCall(OpenSearchPPLParser.CidrMatchFunctionCallContext ctx) {
         return new Cidr(visit(ctx.ipAddress), visit(ctx.cidrBlock));
+    }
+
+    @Override
+    public UnresolvedExpression visitTimestampFunctionCall(
+            OpenSearchPPLParser.TimestampFunctionCallContext ctx) {
+        return new Function(
+            ctx.timestampFunction().timestampFunctionName().getText(), timestampFunctionArguments(ctx));
+    }
+
+    private List<UnresolvedExpression> timestampFunctionArguments(
+            OpenSearchPPLParser.TimestampFunctionCallContext ctx) {
+        List<UnresolvedExpression> args =
+            Arrays.asList(
+                new Literal(ctx.timestampFunction().simpleDateTimePart().getText(), DataType.STRING),
+                visitFunctionArg(ctx.timestampFunction().firstArg),
+                visitFunctionArg(ctx.timestampFunction().secondArg));
+        return args;
     }
 
     private QualifiedName visitIdentifiers(List<? extends ParserRuleContext> ctx) {
