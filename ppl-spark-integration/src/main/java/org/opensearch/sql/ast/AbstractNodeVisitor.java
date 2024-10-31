@@ -326,4 +326,8 @@ public abstract class AbstractNodeVisitor<T, C> {
   public T visitCidr(Cidr node, C context) {
     return visitChildren(node, context);
   }
+
+  public T visitFlatten(Flatten flatten, C context) {
+    return visitChildren(flatten, context);
+  }
 }
