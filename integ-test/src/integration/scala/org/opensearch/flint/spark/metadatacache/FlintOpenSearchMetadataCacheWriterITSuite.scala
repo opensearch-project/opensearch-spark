@@ -90,7 +90,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       |       "refresh_interval": "10 Minutes"
       |     },
       |     "properties": {
-      |       "metadataCacheVersion": "1.0",
+      |       "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
       |       "refreshInterval": 600,
       |       "sourceTables": ["${FlintMetadataCache.mockTableName}"],
       |       "lastRefreshTime": ${testLastRefreshCompleteTime}
@@ -129,7 +129,9 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
 
     val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties should have size 3
-    properties should contain allOf (Entry("metadataCacheVersion", "1.0"),
+    properties should contain allOf (Entry(
+      "metadataCacheVersion",
+      FlintMetadataCache.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime))
     properties
       .get("sourceTables")
@@ -162,7 +164,9 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
 
     val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties should have size 4
-    properties should contain allOf (Entry("metadataCacheVersion", "1.0"),
+    properties should contain allOf (Entry(
+      "metadataCacheVersion",
+      FlintMetadataCache.metadataCacheVersion),
     Entry("refreshInterval", 600),
     Entry("lastRefreshTime", testLastRefreshCompleteTime))
     properties
@@ -195,7 +199,9 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
 
     val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties should have size 3
-    properties should contain allOf (Entry("metadataCacheVersion", "1.0"),
+    properties should contain allOf (Entry(
+      "metadataCacheVersion",
+      FlintMetadataCache.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime))
     properties
       .get("sourceTables")
@@ -212,7 +218,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
 
     val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties should have size 2
-    properties should contain(Entry("metadataCacheVersion", "1.0"))
+    properties should contain(
+      Entry("metadataCacheVersion", FlintMetadataCache.metadataCacheVersion))
     properties
       .get("sourceTables")
       .asInstanceOf[List[String]]
@@ -246,7 +253,9 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     flintIndexMetadataService.getIndexMetadata(testFlintIndex).schema should have size 1
     var properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties should have size 3
-    properties should contain allOf (Entry("metadataCacheVersion", "1.0"),
+    properties should contain allOf (Entry(
+      "metadataCacheVersion",
+      FlintMetadataCache.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime))
     properties
       .get("sourceTables")
@@ -278,7 +287,9 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     flintIndexMetadataService.getIndexMetadata(testFlintIndex).schema should have size 1
     properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties should have size 3
-    properties should contain allOf (Entry("metadataCacheVersion", "1.0"),
+    properties should contain allOf (Entry(
+      "metadataCacheVersion",
+      FlintMetadataCache.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime))
     properties
       .get("sourceTables")
@@ -296,7 +307,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
         "checkpoint_location" -> "s3a://test/"),
       s"""
          | {
-         |   "metadataCacheVersion": "1.0",
+         |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
          |   "refreshInterval": 600,
          |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
          | }
@@ -306,7 +317,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       Map.empty[String, String],
       s"""
          | {
-         |   "metadataCacheVersion": "1.0",
+         |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
          |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
          | }
          |""".stripMargin),
@@ -315,7 +326,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       Map("incremental_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
       s"""
          | {
-         |   "metadataCacheVersion": "1.0",
+         |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
          |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
          | }
          |""".stripMargin)).foreach { case (refreshMode, optionsMap, expectedJson) =>
@@ -389,7 +400,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
               flintMetadataCacheWriter.serialize(index.get.metadata())) \ "_meta" \ "properties"))
         propertiesJson should matchJson(s"""
             | {
-            |   "metadataCacheVersion": "1.0",
+            |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
             |   "refreshInterval": 600,
             |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
             | }

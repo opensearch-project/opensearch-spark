@@ -46,7 +46,7 @@ case class FlintMetadataCache(
 
 object FlintMetadataCache {
 
-  // TODO: constant for version
+  val metadataCacheVersion = "1.0"
   val mockTableName =
     "dataSourceName.default.logGroups(logGroupIdentifier:['arn:aws:logs:us-east-1:123456:test-llt-xa', 'arn:aws:logs:us-east-1:123456:sample-lg-1'])"
 
@@ -69,6 +69,10 @@ object FlintMetadataCache {
     }
 
     // TODO: get source tables from metadata
-    FlintMetadataCache("1.0", refreshInterval, Array(mockTableName), lastRefreshTime)
+    FlintMetadataCache(
+      metadataCacheVersion,
+      refreshInterval,
+      Array(mockTableName),
+      lastRefreshTime)
   }
 }
