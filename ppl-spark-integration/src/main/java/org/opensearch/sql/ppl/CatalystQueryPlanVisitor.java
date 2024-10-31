@@ -20,7 +20,6 @@ import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
-import org.apache.spark.sql.catalyst.expressions.Literal$;
 import org.apache.spark.sql.catalyst.expressions.MakeInterval$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
@@ -29,7 +28,6 @@ import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.*;
-import org.apache.spark.sql.catalyst.util.DataTypeJsonUtils$;
 import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
@@ -49,7 +47,6 @@ import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
-import org.opensearch.sql.ast.expression.IntervalUnit;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
 import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.Interval;
@@ -107,7 +104,6 @@ import scala.collection.IterableLike;
 import scala.collection.Seq;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -119,6 +115,7 @@ import static java.util.Collections.emptyList;
 import static java.util.List.of;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
 import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
+import static org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator.createIntervalArgs;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDuplicateEvents;
@@ -777,23 +774,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 intervalArgs[0], intervalArgs[1], intervalArgs[2], intervalArgs[3],
                 intervalArgs[4], intervalArgs[5], intervalArgs[6], true);
             return context.getNamedParseExpressions().push(interval);
-        }
-
-        private Expression[] createIntervalArgs(IntervalUnit unit, Expression value) {
-            Expression[] args = new Expression[7];
-            Arrays.fill(args, Literal$.MODULE$.apply(0));
-            switch (unit) {
-                case YEAR:   args[0] = value; break;
-                case MONTH:  args[1] = value; break;
-                case WEEK:   args[2] = value; break;
-                case DAY:    args[3] = value; break;
-                case HOUR:   args[4] = value; break;
-                case MINUTE: args[5] = value; break;
-                case SECOND: args[6] = value; break;
-                default:
-                    throw new IllegalArgumentException("Unsupported Interval unit: " + unit);
-            }
-            return args;
         }
 
         @Override

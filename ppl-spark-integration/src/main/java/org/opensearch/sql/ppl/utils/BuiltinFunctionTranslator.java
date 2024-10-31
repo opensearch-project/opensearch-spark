@@ -17,9 +17,11 @@ import org.apache.spark.sql.catalyst.expressions.TimestampAdd$;
 import org.apache.spark.sql.catalyst.expressions.TimestampDiff$;
 import org.apache.spark.sql.catalyst.expressions.ToUTCTimestamp$;
 import org.apache.spark.sql.catalyst.expressions.UnaryMinus$;
+import org.opensearch.sql.ast.expression.IntervalUnit;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
 import scala.Option;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -198,5 +200,22 @@ public interface BuiltinFunctionTranslator {
             name = builtin.getName().getFunctionName();
             return new UnresolvedFunction(seq(name), seq(args), false, empty(),false);
         }
+    }
+
+    static Expression[] createIntervalArgs(IntervalUnit unit, Expression value) {
+        Expression[] args = new Expression[7];
+        Arrays.fill(args, Literal$.MODULE$.apply(0));
+        switch (unit) {
+            case YEAR:   args[0] = value; break;
+            case MONTH:  args[1] = value; break;
+            case WEEK:   args[2] = value; break;
+            case DAY:    args[3] = value; break;
+            case HOUR:   args[4] = value; break;
+            case MINUTE: args[5] = value; break;
+            case SECOND: args[6] = value; break;
+            default:
+                throw new IllegalArgumentException("Unsupported Interval unit: " + unit);
+        }
+        return args;
     }
 }
