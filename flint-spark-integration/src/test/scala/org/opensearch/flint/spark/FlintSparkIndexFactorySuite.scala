@@ -14,12 +14,11 @@ import org.apache.spark.FlintSuite
 
 class FlintSparkIndexFactorySuite extends FlintSuite {
 
-  /** Test table, MV name and query */
-  val testTable = "spark_catalog.default.mv_build_test"
-  val testMvName = "spark_catalog.default.mv"
-  val testQuery = s"SELECT * FROM $testTable"
-
   test("create mv should generate source tables if missing in metadata") {
+    val testTable = "spark_catalog.default.mv_build_test"
+    val testMvName = "spark_catalog.default.mv"
+    val testQuery = s"SELECT * FROM $testTable"
+
     val content =
       s""" {
         |    "_meta": {
@@ -31,7 +30,7 @@ class FlintSparkIndexFactorySuite extends FlintSuite {
         |        }
         |      ],
         |      "name": "$testMvName",
-        |      "source": "SELECT age FROM $testTable"
+        |      "source": "$testQuery"
         |    },
         |    "properties": {
         |      "age": {
