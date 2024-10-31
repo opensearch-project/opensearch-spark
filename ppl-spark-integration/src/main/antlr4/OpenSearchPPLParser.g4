@@ -83,6 +83,7 @@ commandName
    | RENAME
    | FILLNULL
    | FIELDSUMMARY
+   | FLATTEN
    ;
 
 searchCommand
