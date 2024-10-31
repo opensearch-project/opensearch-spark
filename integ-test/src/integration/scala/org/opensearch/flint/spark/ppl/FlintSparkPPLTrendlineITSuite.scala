@@ -213,4 +213,35 @@ class FlintSparkPPLTrendlineITSuite
       Project(trendlineProjectList, sort))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
+
+  test("test trendline sma command chaining") {
+    val frame = sql(s"""
+                       | source = $testTable | eval age_1 = age, age_2 = age | trendline sort - age_1 sma(3, age_1) | trendline sort + age_2 sma(3, age_2)
+                       | """.stripMargin)
+
+    assert(
+      frame.columns.sameElements(
+        Array(
+          "name",
+          "age",
+          "state",
+          "country",
+          "year",
+          "month",
+          "age_1",
+          "age_2",
+          "age_1_trendline",
+          "age_2_trendline")))
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(
+        Row("Hello", 30, "New York", "USA", 2023, 4, 30, 30, null, 25.0),
+        Row("Jake", 70, "California", "USA", 2023, 4, 70, 70, null, 41.666666666666664),
+        Row("Jane", 20, "Quebec", "Canada", 2023, 4, 20, 20, 25.0, null),
+        Row("John", 25, "Ontario", "Canada", 2023, 4, 25, 25, 41.666666666666664, null))
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+  }
 }
