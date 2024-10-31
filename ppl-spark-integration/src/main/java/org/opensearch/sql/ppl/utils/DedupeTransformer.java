@@ -16,8 +16,8 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
 import org.apache.spark.sql.types.DataTypes;
 import org.opensearch.sql.ast.tree.Dedupe;
+import org.opensearch.sql.ppl.CatalystExpressionVisitor;
 import org.opensearch.sql.ppl.CatalystPlanContext;
-import org.opensearch.sql.ppl.CatalystQueryPlanVisitor.ExpressionAnalyzer;
 import scala.collection.Seq;
 
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
@@ -38,7 +38,7 @@ public interface DedupeTransformer {
     static LogicalPlan retainOneDuplicateEventAndKeepEmpty(
             Dedupe node,
             Seq<Attribute> dedupeFields,
-            ExpressionAnalyzer expressionAnalyzer,
+            CatalystExpressionVisitor expressionAnalyzer,
             CatalystPlanContext context) {
         context.apply(p -> {
             Expression isNullExpr = buildIsNullFilterExpression(node, expressionAnalyzer, context);
@@ -63,7 +63,7 @@ public interface DedupeTransformer {
     static LogicalPlan retainOneDuplicateEvent(
             Dedupe node,
             Seq<Attribute> dedupeFields,
-            ExpressionAnalyzer expressionAnalyzer,
+            CatalystExpressionVisitor expressionAnalyzer,
             CatalystPlanContext context) {
         Expression isNotNullExpr = buildIsNotNullFilterExpression(node, expressionAnalyzer, context);
         context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Filter(isNotNullExpr, p));
@@ -87,7 +87,7 @@ public interface DedupeTransformer {
     static LogicalPlan retainMultipleDuplicateEventsAndKeepEmpty(
         Dedupe node,
         Integer allowedDuplication,
-        ExpressionAnalyzer expressionAnalyzer,
+        CatalystExpressionVisitor expressionAnalyzer,
         CatalystPlanContext context) {
         context.apply(p -> {
             // Build isnull Filter for right
@@ -137,7 +137,7 @@ public interface DedupeTransformer {
     static LogicalPlan retainMultipleDuplicateEvents(
         Dedupe node,
         Integer allowedDuplication,
-        ExpressionAnalyzer expressionAnalyzer,
+        CatalystExpressionVisitor expressionAnalyzer,
         CatalystPlanContext context) {
         // Build isnotnull Filter
         Expression isNotNullExpr = buildIsNotNullFilterExpression(node, expressionAnalyzer, context);
@@ -163,7 +163,7 @@ public interface DedupeTransformer {
         return context.apply(p -> new DataFrameDropColumns(seq(rowNumber.toAttribute()), p));
     }
 
-    private static Expression buildIsNotNullFilterExpression(Dedupe node, ExpressionAnalyzer expressionAnalyzer, CatalystPlanContext context) {
+    private static Expression buildIsNotNullFilterExpression(Dedupe node, CatalystExpressionVisitor expressionAnalyzer, CatalystPlanContext context) {
         node.getFields().forEach(field -> expressionAnalyzer.analyze(field, context));
         Seq<Expression> isNotNullExpressions =
             context.retainAllNamedParseExpressions(
@@ -180,7 +180,7 @@ public interface DedupeTransformer {
         return isNotNullExpr;
     }
 
-    private static Expression buildIsNullFilterExpression(Dedupe node, ExpressionAnalyzer expressionAnalyzer, CatalystPlanContext context) {
+    private static Expression buildIsNullFilterExpression(Dedupe node, CatalystExpressionVisitor expressionAnalyzer, CatalystPlanContext context) {
         node.getFields().forEach(field -> expressionAnalyzer.analyze(field, context));
         Seq<Expression> isNullExpressions =
             context.retainAllNamedParseExpressions(
