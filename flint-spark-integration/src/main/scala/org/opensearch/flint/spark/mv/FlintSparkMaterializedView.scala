@@ -197,12 +197,7 @@ object FlintSparkMaterializedView {
     def query(query: String): Builder = {
       this.query = query
       // Extract source table names (possibly more than one)
-      this.sourceTables = flint.spark.sessionState.sqlParser
-        .parsePlan(query)
-        .collect { case relation: UnresolvedRelation =>
-          qualifyTableName(flint.spark, relation.tableName)
-        }
-        .toArray
+      this.sourceTables = extractSourceTableNames(query)
       this
     }
 
@@ -232,6 +227,15 @@ object FlintSparkMaterializedView {
         }
         .toMap
       FlintSparkMaterializedView(mvName, query, sourceTables, outputSchema, indexOptions)
+    }
+
+    private def extractSourceTableNames(query: String): Array[String] = {
+      flint.spark.sessionState.sqlParser
+        .parsePlan(query)
+        .collect { case relation: UnresolvedRelation =>
+          qualifyTableName(flint.spark, relation.tableName)
+        }
+        .toArray
     }
   }
 }
