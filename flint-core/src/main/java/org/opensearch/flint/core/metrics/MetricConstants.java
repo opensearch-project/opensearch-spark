@@ -161,6 +161,11 @@ public final class MetricConstants {
     public static final String CHECKPOINT_DELETE_TIME_METRIC = "checkpoint.delete.processingTime";
 
     /**
+     * Prefix for externalScheduler metrics
+     */
+    public static final String EXTERNAL_SCHEDULER_METRIC_PREFIX = "externalScheduler.";
+
+    /**
      * Metric prefix for tracking the index state transitions
      */
     public static final String INDEX_STATE_UPDATED_TO_PREFIX = "indexState.updatedTo.";
