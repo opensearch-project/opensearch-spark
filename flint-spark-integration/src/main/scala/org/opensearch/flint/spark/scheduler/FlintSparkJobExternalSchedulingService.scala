@@ -10,6 +10,7 @@ import java.time.Instant
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry.IndexState
 import org.opensearch.flint.common.scheduler.AsyncQueryScheduler
 import org.opensearch.flint.common.scheduler.model.{AsyncQuerySchedulerRequest, LangType}
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 import org.opensearch.flint.core.storage.OpenSearchClientUtils
 import org.opensearch.flint.spark.FlintSparkIndex
 import org.opensearch.flint.spark.refresh.util.RefreshMetricsAspect
@@ -83,8 +84,16 @@ class FlintSparkJobExternalSchedulingService(
         case AsyncQuerySchedulerAction.REMOVE => flintAsyncQueryScheduler.removeJob(request)
         case _ => throw new IllegalArgumentException(s"Unsupported action: $action")
       }
+      addExternalSchedulerMetrics(action)
 
       None // Return None for all cases
     }
+  }
+
+  private def addExternalSchedulerMetrics(action: AsyncQuerySchedulerAction): Unit = {
+    val actionName = action.name().toLowerCase()
+    MetricsUtil.addHistoricGauge(
+      MetricConstants.EXTERNAL_SCHEDULER_METRIC_PREFIX + actionName + ".count",
+      1)
   }
 }
