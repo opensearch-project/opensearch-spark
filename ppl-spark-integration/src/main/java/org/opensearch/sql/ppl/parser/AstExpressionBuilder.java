@@ -67,7 +67,6 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.TRIM;
  */
 public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedExpression> {
 
-    private static final int DEFAULT_TAKE_FUNCTION_SIZE_VALUE = 10;
     /**
      * The function name mapping between fronted and core engine.
      */
@@ -79,16 +78,10 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                     .build();
     private AstBuilder astBuilder;
 
-    public AstExpressionBuilder() {
-    }
-
-    /**
-     * Set AstBuilder back to AstExpressionBuilder for resolving the subquery plan in subquery expression
-     */
-    public void setAstBuilder(AstBuilder astBuilder) {
+    public AstExpressionBuilder(AstBuilder astBuilder) {
         this.astBuilder = astBuilder;
     }
-
+    
     @Override
     public UnresolvedExpression visitMappingCompareExpr(OpenSearchPPLParser.MappingCompareExprContext ctx) {
         return new Compare(ctx.comparisonOperator().getText(), visit(ctx.left), visit(ctx.right));
