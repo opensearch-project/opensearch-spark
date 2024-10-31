@@ -421,6 +421,7 @@ valueExpression
    | primaryExpression                                                                          # valueExpressionDefault
    | positionFunction                                                                           # positionFunctionCall
    | caseFunction                                                                               # caseExpr
+   | timestampFunction                                                                          # timestampFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
    ;
@@ -440,6 +441,7 @@ booleanExpression
    | isEmptyExpression                                                  # isEmptyExpr
    | valueExpressionList NOT? IN LT_SQR_PRTHS subSearch RT_SQR_PRTHS    # inSubqueryExpr
    | EXISTS LT_SQR_PRTHS subSearch RT_SQR_PRTHS                         # existsSubqueryExpr
+   | cidrMatchFunctionCall                                              # cidrFunctionCallExpr
    ;
 
  isEmptyExpression
@@ -517,6 +519,10 @@ dataTypeFunctionCall
 // boolean functions
 booleanFunctionCall
    : conditionFunctionBase LT_PRTHS functionArgs RT_PRTHS
+   ;
+
+cidrMatchFunctionCall
+   : CIDRMATCH LT_PRTHS ipAddress = functionArg COMMA cidrBlock = functionArg RT_PRTHS
    ;
 
 convertedDataType
@@ -672,6 +678,7 @@ dateTimeFunctionName
    | CURRENT_DATE
    | CURRENT_TIME
    | CURRENT_TIMESTAMP
+   | CURRENT_TIMEZONE
    | CURTIME
    | DATE
    | DATEDIFF
@@ -888,6 +895,7 @@ literalValue
    | decimalLiteral
    | booleanLiteral
    | datetimeLiteral //#datetime
+   | intervalLiteral
    ;
 
 intervalLiteral
@@ -1116,4 +1124,5 @@ keywordsCanBeId
    | SEMI
    | ANTI
    | BETWEEN
+   | CIDRMATCH
    ;

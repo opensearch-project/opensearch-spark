@@ -87,6 +87,7 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`Cryptographic Functions`](functions/ppl-cryptographic.md)
 
+    - [`IP Address Functions`](functions/ppl-ip.md)
 
 ---
 ### PPL On Spark

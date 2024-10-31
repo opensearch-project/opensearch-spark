@@ -23,11 +23,6 @@ public class Interval extends UnresolvedExpression {
   private final UnresolvedExpression value;
   private final IntervalUnit unit;
 
-  public Interval(UnresolvedExpression value, String unit) {
-    this.value = value;
-    this.unit = IntervalUnit.of(unit);
-  }
-
   @Override
   public List<UnresolvedExpression> getChild() {
     return Collections.singletonList(value);
