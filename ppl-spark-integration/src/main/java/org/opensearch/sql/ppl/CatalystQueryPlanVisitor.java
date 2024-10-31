@@ -115,7 +115,6 @@ import static java.util.Collections.emptyList;
 import static java.util.List.of;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
 import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
-import static org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator.createIntervalArgs;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDuplicateEvents;
