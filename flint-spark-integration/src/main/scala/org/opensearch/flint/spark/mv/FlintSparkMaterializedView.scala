@@ -135,7 +135,7 @@ case class FlintSparkMaterializedView(
           Some(agg, attr)
         case _ =>
           throw new IllegalArgumentException(
-            s"Tumble function only supports time column, but found: $timeCol")
+            s"Tumble function only supports simple timestamp column, but found: $timeCol")
       }
     }
 

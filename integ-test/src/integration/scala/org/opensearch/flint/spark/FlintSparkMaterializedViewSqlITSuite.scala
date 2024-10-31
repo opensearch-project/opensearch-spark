@@ -472,7 +472,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
                |""".stripMargin)
         }
         ex.getCause should have message
-          "Tumble function only supports time column, but found: cast('timestamp as timestamp)"
+          "Tumble function only supports simple timestamp column, but found: cast('timestamp as timestamp)"
       }
     }
   }
