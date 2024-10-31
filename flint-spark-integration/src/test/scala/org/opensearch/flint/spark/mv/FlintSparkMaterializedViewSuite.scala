@@ -10,7 +10,7 @@ import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConv
 import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedViewSuite.{streamingRelation, StreamingDslLogicalPlan}
-import org.scalatest.matchers.should.Matchers.{contain, convertToAnyShouldWrapper, the}
+import org.scalatest.matchers.should.Matchers._
 import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.FlintSuite
@@ -37,31 +37,34 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
   val testQuery = "SELECT 1"
 
   test("get mv name") {
-    val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
+    val mv = FlintSparkMaterializedView(testMvName, testQuery, Array.empty, Map.empty)
     mv.name() shouldBe "flint_spark_catalog_default_mv"
   }
 
   test("get mv name with dots") {
     val testMvNameDots = "spark_catalog.default.mv.2023.10"
-    val mv = FlintSparkMaterializedView(testMvNameDots, testQuery, Map.empty)
+    val mv = FlintSparkMaterializedView(testMvNameDots, testQuery, Array.empty, Map.empty)
     mv.name() shouldBe "flint_spark_catalog_default_mv.2023.10"
   }
 
   test("should fail if get name with unqualified MV name") {
     the[IllegalArgumentException] thrownBy
-      FlintSparkMaterializedView("mv", testQuery, Map.empty).name()
+      FlintSparkMaterializedView("mv", testQuery, Array.empty, Map.empty).name()
 
     the[IllegalArgumentException] thrownBy
-      FlintSparkMaterializedView("default.mv", testQuery, Map.empty).name()
+      FlintSparkMaterializedView("default.mv", testQuery, Array.empty, Map.empty).name()
   }
 
   test("get metadata") {
-    val mv = FlintSparkMaterializedView(testMvName, testQuery, Map("test_col" -> "integer"))
+    val mv =
+      FlintSparkMaterializedView(testMvName, testQuery, Array.empty, Map("test_col" -> "integer"))
 
     val metadata = mv.metadata()
     metadata.name shouldBe mv.mvName
     metadata.kind shouldBe MV_INDEX_TYPE
     metadata.source shouldBe "SELECT 1"
+    metadata.properties should contain key "sourceTables"
+    metadata.properties.get("sourceTables").asInstanceOf[Array[String]] should have size 0
     metadata.indexedColumns shouldBe Array(
       Map("columnName" -> "test_col", "columnType" -> "integer").asJava)
     metadata.schema shouldBe Map("test_col" -> Map("type" -> "integer").asJava).asJava
@@ -74,6 +77,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     val mv = FlintSparkMaterializedView(
       testMvName,
       testQuery,
+      Array.empty,
       Map("test_col" -> "integer"),
       indexOptions)
 
@@ -83,12 +87,12 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
   }
 
   test("build batch data frame") {
-    val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
+    val mv = FlintSparkMaterializedView(testMvName, testQuery, Array.empty, Map.empty)
     mv.build(spark, None).collect() shouldBe Array(Row(1))
   }
 
   test("should fail if build given other source data frame") {
-    val mv = FlintSparkMaterializedView(testMvName, testQuery, Map.empty)
+    val mv = FlintSparkMaterializedView(testMvName, testQuery, Array.empty, Map.empty)
     the[IllegalArgumentException] thrownBy mv.build(spark, Some(mock[DataFrame]))
   }
 
@@ -103,7 +107,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
           |""".stripMargin
     val options = Map("watermark_delay" -> "30 Seconds")
 
-    withAggregateMaterializedView(testQuery, options) { actualPlan =>
+    withAggregateMaterializedView(testQuery, Array(testTable), options) { actualPlan =>
       comparePlans(
         actualPlan,
         streamingRelation(testTable)
@@ -128,7 +132,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
            |""".stripMargin
     val options = Map("watermark_delay" -> "30 Seconds")
 
-    withAggregateMaterializedView(testQuery, options) { actualPlan =>
+    withAggregateMaterializedView(testQuery, Array(testTable), options) { actualPlan =>
       comparePlans(
         actualPlan,
         streamingRelation(testTable)
@@ -144,7 +148,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
   test("build stream with non-aggregate query") {
     val testQuery = s"SELECT name, age FROM $testTable WHERE age > 30"
 
-    withAggregateMaterializedView(testQuery, Map.empty) { actualPlan =>
+    withAggregateMaterializedView(testQuery, Array(testTable), Map.empty) { actualPlan =>
       comparePlans(
         actualPlan,
         streamingRelation(testTable)
@@ -158,7 +162,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     val testQuery = s"SELECT name, age FROM $testTable"
     val options = Map("extra_options" -> s"""{"$testTable": {"maxFilesPerTrigger": "1"}}""")
 
-    withAggregateMaterializedView(testQuery, options) { actualPlan =>
+    withAggregateMaterializedView(testQuery, Array(testTable), options) { actualPlan =>
       comparePlans(
         actualPlan,
         streamingRelation(testTable, Map("maxFilesPerTrigger" -> "1"))
@@ -175,6 +179,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
       val mv = FlintSparkMaterializedView(
         testMvName,
         s"SELECT name, COUNT(*) AS count FROM $testTable GROUP BY name",
+        Array(testTable),
         Map.empty)
 
       the[IllegalStateException] thrownBy
@@ -182,14 +187,20 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     }
   }
 
-  private def withAggregateMaterializedView(query: String, options: Map[String, String])(
-      codeBlock: LogicalPlan => Unit): Unit = {
+  private def withAggregateMaterializedView(
+      query: String,
+      sourceTables: Array[String],
+      options: Map[String, String])(codeBlock: LogicalPlan => Unit): Unit = {
 
     withTable(testTable) {
       sql(s"CREATE TABLE $testTable (time TIMESTAMP, name STRING, age INT) USING CSV")
-
       val mv =
-        FlintSparkMaterializedView(testMvName, query, Map.empty, FlintSparkIndexOptions(options))
+        FlintSparkMaterializedView(
+          testMvName,
+          query,
+          sourceTables,
+          Map.empty,
+          FlintSparkIndexOptions(options))
 
       val actualPlan = mv.buildStream(spark).queryExecution.logical
       codeBlock(actualPlan)
