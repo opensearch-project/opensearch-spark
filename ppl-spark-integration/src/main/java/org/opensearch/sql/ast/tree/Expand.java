@@ -5,27 +5,22 @@
 
 package org.opensearch.sql.ast.tree;
 
-import com.google.common.collect.ImmutableList;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.ToString;
+import lombok.RequiredArgsConstructor;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
-import org.opensearch.sql.ast.expression.UnresolvedExpression;
+import org.opensearch.sql.ast.Node;
+import org.opensearch.sql.ast.expression.Field;
 
 import java.util.List;
 
 /** Logical plan node of Expand */
-@ToString
-@EqualsAndHashCode(callSuper = false)
-@Getter
+@RequiredArgsConstructor
 public class Expand extends UnresolvedPlan {
-  private UnresolvedExpression field;
   private UnresolvedPlan child;
 
-  public Expand(UnresolvedExpression field) {
-    this.field = field;
-  }
-
+  @Getter
+  private final Field field;
+  
   @Override
   public Expand attach(UnresolvedPlan child) {
     this.child = child;
@@ -33,8 +28,8 @@ public class Expand extends UnresolvedPlan {
   }
 
   @Override
-  public List<UnresolvedPlan> getChild() {
-    return ImmutableList.of(child);
+  public List<? extends Node> getChild() {
+    return child == null ? List.of() : List.of(child);
   }
 
   @Override
