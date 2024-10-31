@@ -65,7 +65,7 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.WEEK_OF
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static scala.Option.empty;
 
-public interface BuiltinFunctionTranslator {
+public interface BuiltinFunctionTransformer {
 
     /**
      * The name mapping between PPL builtin functions to Spark builtin functions.
