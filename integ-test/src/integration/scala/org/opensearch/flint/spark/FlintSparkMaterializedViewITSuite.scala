@@ -19,7 +19,7 @@ import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, O
 import org.opensearch.flint.spark.FlintSparkIndex.quotedTableName
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
 import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler
-import org.scalatest.matchers.must.Matchers.defined
+import org.scalatest.matchers.must.Matchers.{contain, defined}
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.sql.{DataFrame, Row}
@@ -107,6 +107,45 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
            | }
            |""".stripMargin)
     }
+  }
+
+  test("create materialized view should parse source tables successfully") {
+    val testTable1 = "table1"
+    val testTable2 = "`table2`"
+    val testTable3 = "spark_catalog.default.table3"
+    val testTable4 = "spark_catalog.default.`table4`"
+    createTimeSeriesTable(testTable1)
+    createTimeSeriesTable(testTable2)
+    createTimeSeriesTable(testTable3)
+    createTimeSeriesTable(testTable4)
+    val indexOptions = FlintSparkIndexOptions(Map.empty)
+    val testQuery = s"""
+        | SELECT *
+        | FROM (
+        |   SELECT 1
+        |   FROM $testTable1 t1
+        |   LEFT JOIN $testTable2 t2
+        | )
+        | UNION ALL
+        | SELECT 1
+        | FROM $testTable3 t3
+        | INNER JOIN $testTable4 t4
+        |""".stripMargin
+    flint
+      .materializedView()
+      .name(testMvName)
+      .query(testQuery)
+      .options(indexOptions, testFlintIndex)
+      .create()
+
+    val index = flint.describeIndex(testFlintIndex)
+    index shouldBe defined
+    index.get.metadata.properties should contain
+    "sourceTables" -> Array(
+      "spark_catalog.default.table1",
+      "spark_catalog.default.table2",
+      "spark_catalog.default.table3",
+      "spark_catalog.default.table4")
   }
 
   test("create materialized view with default checkpoint location successfully") {
