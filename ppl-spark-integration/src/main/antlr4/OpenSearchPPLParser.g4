@@ -53,6 +53,7 @@ commands
    | renameCommand
    | fillnullCommand
    | fieldsummaryCommand
+   | flattenCommand
    ;
 
 commandName
@@ -80,6 +81,7 @@ commandName
    | PATTERNS
    | LOOKUP
    | RENAME
+   | FLATTEN
    | FILLNULL
    | FIELDSUMMARY
    ;
@@ -245,6 +247,10 @@ fillnullCommand
    nullReplacement
    : expression
    ;
+
+flattenCommand
+    : FLATTEN fieldExpression
+    ;
 
 
 kmeansCommand
