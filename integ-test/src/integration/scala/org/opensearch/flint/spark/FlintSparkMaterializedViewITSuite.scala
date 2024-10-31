@@ -18,9 +18,9 @@ import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
 import org.opensearch.flint.spark.FlintSparkIndex.quotedTableName
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
-import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{extractSourceTableNames, getFlintIndexName}
 import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler
-import org.scalatest.matchers.must.Matchers.{contain, defined}
+import org.scalatest.matchers.must.Matchers._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.sql.{DataFrame, Row}
@@ -50,6 +50,29 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
   override def afterEach(): Unit = {
     super.afterEach()
     deleteTestIndex(testFlintIndex)
+  }
+
+  test("extract source table names from materialized view source query successfully") {
+    val testComplexQuery = s"""
+        | SELECT *
+        | FROM (
+        |   SELECT 1
+        |   FROM table1
+        |   LEFT JOIN `table2`
+        | )
+        | UNION ALL
+        | SELECT 1
+        | FROM spark_catalog.default.`table/3`
+        | INNER JOIN spark_catalog.default.`table.4`
+        |""".stripMargin
+    extractSourceTableNames(flint.spark, testComplexQuery) should contain theSameElementsAs
+      Array(
+        "spark_catalog.default.table1",
+        "spark_catalog.default.table2",
+        "spark_catalog.default.`table/3`",
+        "spark_catalog.default.`table.4`")
+
+    extractSourceTableNames(flint.spark, "SELECT 1") should have size 0
   }
 
   test("create materialized view with metadata successfully") {
@@ -111,27 +134,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
   }
 
   test("create materialized view should parse source tables successfully") {
-    val testTable1 = "table1"
-    val testTable2 = "`table2`"
-    val testTable3 = "spark_catalog.default.table3"
-    val testTable4 = "spark_catalog.default.`table4`"
-    createTimeSeriesTable(testTable1)
-    createTimeSeriesTable(testTable2)
-    createTimeSeriesTable(testTable3)
-    createTimeSeriesTable(testTable4)
     val indexOptions = FlintSparkIndexOptions(Map.empty)
-    val testQuery = s"""
-        | SELECT *
-        | FROM (
-        |   SELECT 1
-        |   FROM $testTable1 t1
-        |   LEFT JOIN $testTable2 t2
-        | )
-        | UNION ALL
-        | SELECT 1
-        | FROM $testTable3 t3
-        | INNER JOIN $testTable4 t4
-        |""".stripMargin
     flint
       .materializedView()
       .name(testMvName)
@@ -143,12 +146,7 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
     index shouldBe defined
     index.get
       .asInstanceOf[FlintSparkMaterializedView]
-      .sourceTables should contain theSameElementsAs
-      Array(
-        "spark_catalog.default.table1",
-        "spark_catalog.default.table2",
-        "spark_catalog.default.table3",
-        "spark_catalog.default.table4")
+      .sourceTables should contain theSameElementsAs Array(testTable)
   }
 
   test("create materialized view with default checkpoint location successfully") {

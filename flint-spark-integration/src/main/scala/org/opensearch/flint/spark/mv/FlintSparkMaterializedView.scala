@@ -34,6 +34,8 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
  *   MV name
  * @param query
  *   source query that generates MV data
+ * @param sourceTables
+ *   source table names
  * @param outputSchema
  *   output schema
  * @param options
@@ -167,6 +169,25 @@ object FlintSparkMaterializedView {
     flintIndexNamePrefix(mvName)
   }
 
+  /**
+   * Extract source table names (possibly more than one) from the query.
+   *
+   * @param spark
+   *   Spark session
+   * @param query
+   *   source query that generates MV data
+   * @return
+   *   source table names
+   */
+  def extractSourceTableNames(spark: SparkSession, query: String): Array[String] = {
+    spark.sessionState.sqlParser
+      .parsePlan(query)
+      .collect { case relation: UnresolvedRelation =>
+        qualifyTableName(spark, relation.tableName)
+      }
+      .toArray
+  }
+
   /** Builder class for MV build */
   class Builder(flint: FlintSpark) extends FlintSparkIndexBuilder(flint) {
     private var mvName: String = ""
@@ -196,8 +217,7 @@ object FlintSparkMaterializedView {
      */
     def query(query: String): Builder = {
       this.query = query
-      // Extract source table names (possibly more than one)
-      this.sourceTables = extractSourceTableNames(query)
+      this.sourceTables = extractSourceTableNames(flint.spark, query)
       this
     }
 
@@ -227,15 +247,6 @@ object FlintSparkMaterializedView {
         }
         .toMap
       FlintSparkMaterializedView(mvName, query, sourceTables, outputSchema, indexOptions)
-    }
-
-    private def extractSourceTableNames(query: String): Array[String] = {
-      flint.spark.sessionState.sqlParser
-        .parsePlan(query)
-        .collect { case relation: UnresolvedRelation =>
-          qualifyTableName(flint.spark, relation.tableName)
-        }
-        .toArray
     }
   }
 }
