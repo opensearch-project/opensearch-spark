@@ -17,6 +17,7 @@ import org.opensearch.flint.common.FlintVersion.current
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
 import org.opensearch.flint.spark.FlintSparkIndex.quotedTableName
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
 import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler
 import org.scalatest.matchers.must.Matchers.{contain, defined}
@@ -140,12 +141,14 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
 
     val index = flint.describeIndex(testFlintIndex)
     index shouldBe defined
-    index.get.metadata.properties should contain
-    "sourceTables" -> Array(
-      "spark_catalog.default.table1",
-      "spark_catalog.default.table2",
-      "spark_catalog.default.table3",
-      "spark_catalog.default.table4")
+    index.get
+      .asInstanceOf[FlintSparkMaterializedView]
+      .sourceTables should contain theSameElementsAs
+      Array(
+        "spark_catalog.default.table1",
+        "spark_catalog.default.table2",
+        "spark_catalog.default.table3",
+        "spark_catalog.default.table4")
   }
 
   test("create materialized view with default checkpoint location successfully") {

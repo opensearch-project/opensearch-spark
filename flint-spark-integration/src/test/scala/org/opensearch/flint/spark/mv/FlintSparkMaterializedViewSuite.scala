@@ -10,7 +10,7 @@ import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConv
 import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedViewSuite.{streamingRelation, StreamingDslLogicalPlan}
-import org.scalatest.matchers.should.Matchers.{contain, convertToAnyShouldWrapper, the}
+import org.scalatest.matchers.should.Matchers._
 import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.FlintSuite
@@ -63,7 +63,8 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     metadata.name shouldBe mv.mvName
     metadata.kind shouldBe MV_INDEX_TYPE
     metadata.source shouldBe "SELECT 1"
-    metadata.properties should contain("sourceTables" -> Array.empty)
+    metadata.properties should contain key "sourceTables"
+    metadata.properties.get("sourceTables").asInstanceOf[Array[String]] should have size 0
     metadata.indexedColumns shouldBe Array(
       Map("columnName" -> "test_col", "columnType" -> "integer").asJava)
     metadata.schema shouldBe Map("test_col" -> Map("type" -> "integer").asJava).asJava

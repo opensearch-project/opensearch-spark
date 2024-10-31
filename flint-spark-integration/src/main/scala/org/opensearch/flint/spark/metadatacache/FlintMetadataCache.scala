@@ -10,6 +10,7 @@ import scala.collection.JavaConverters.mapAsScalaMapConverter
 import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.spark.FlintSparkIndexOptions
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
 import org.opensearch.flint.spark.scheduler.util.IntervalSchedulerParser
 
 /**
@@ -47,8 +48,6 @@ case class FlintMetadataCache(
 object FlintMetadataCache {
 
   val metadataCacheVersion = "1.0"
-  val mockTableName =
-    "dataSourceName.default.logGroups(logGroupIdentifier:['arn:aws:logs:us-east-1:123456:test-llt-xa', 'arn:aws:logs:us-east-1:123456:sample-lg-1'])"
 
   def apply(metadata: FlintMetadata): FlintMetadataCache = {
     val indexOptions = FlintSparkIndexOptions(
@@ -61,6 +60,15 @@ object FlintMetadataCache {
     } else {
       None
     }
+    val sourceTables = metadata.kind match {
+      case MV_INDEX_TYPE =>
+        metadata.properties.get("sourceTables") match {
+          case list: java.util.ArrayList[_] =>
+            list.toArray.map(_.toString)
+          case _ => Array.empty[String]
+        }
+      case _ => Array(metadata.source)
+    }
     val lastRefreshTime: Option[Long] = metadata.latestLogEntry.flatMap { entry =>
       entry.lastRefreshCompleteTime match {
         case FlintMetadataLogEntry.EMPTY_TIMESTAMP => None
@@ -68,11 +76,6 @@ object FlintMetadataCache {
       }
     }
 
-    // TODO: get source tables from metadata
-    FlintMetadataCache(
-      metadataCacheVersion,
-      refreshInterval,
-      Array(mockTableName),
-      lastRefreshTime)
+    FlintMetadataCache(metadataCacheVersion, refreshInterval, sourceTables, lastRefreshTime)
   }
 }

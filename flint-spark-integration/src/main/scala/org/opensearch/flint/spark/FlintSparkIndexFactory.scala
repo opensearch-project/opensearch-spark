@@ -151,7 +151,7 @@ object FlintSparkIndexFactory extends Logging {
   private def getArrayString(map: java.util.Map[String, AnyRef], key: String): Array[String] = {
     map.get(key) match {
       case list: java.util.ArrayList[_] =>
-        list.toArray.map(_.asInstanceOf[String])
+        list.toArray.map(_.toString)
       case _ => Array.empty[String]
     }
   }

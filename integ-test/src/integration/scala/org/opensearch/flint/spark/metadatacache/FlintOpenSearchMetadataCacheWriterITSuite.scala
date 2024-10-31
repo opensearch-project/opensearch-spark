@@ -17,7 +17,9 @@ import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintOpenSearchIndexMetadataService}
 import org.opensearch.flint.spark.{FlintSparkIndexOptions, FlintSparkSuite}
-import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
+import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
+import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, SKIPPING_INDEX_TYPE}
 import org.scalatest.Entry
 import org.scalatest.matchers.should.Matchers
 
@@ -78,9 +80,9 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       | {
       |   "_meta": {
       |     "version": "${current()}",
-      |     "name": "${testFlintIndex}",
+      |     "name": "$testFlintIndex",
       |     "kind": "test_kind",
-      |     "source": "test_source_table",
+      |     "source": "$testTable",
       |     "indexedColumns": [
       |     {
       |       "test_field": "spark_type"
@@ -92,10 +94,10 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       |     "properties": {
       |       "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
       |       "refreshInterval": 600,
-      |       "sourceTables": ["${FlintMetadataCache.mockTableName}"],
-      |       "lastRefreshTime": ${testLastRefreshCompleteTime}
+      |       "sourceTables": ["$testTable"],
+      |       "lastRefreshTime": $testLastRefreshCompleteTime
       |     },
-      |     "latestId": "${testLatestId}"
+      |     "latestId": "$testLatestId"
       |   },
       |   "properties": {
       |     "test_field": {
@@ -107,7 +109,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     val builder = new FlintMetadata.Builder
     builder.name(testFlintIndex)
     builder.kind("test_kind")
-    builder.source("test_source_table")
+    builder.source(testTable)
     builder.addIndexedColumn(Map[String, AnyRef]("test_field" -> "spark_type").asJava)
     builder.options(
       Map("auto_refresh" -> "true", "refresh_interval" -> "10 Minutes")
@@ -133,10 +135,67 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       "metadataCacheVersion",
       FlintMetadataCache.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime))
+  }
+
+  Seq(SKIPPING_INDEX_TYPE, COVERING_INDEX_TYPE).foreach { case kind =>
+    test(s"write metadata cache to $kind index mappings with source tables") {
+      val content =
+        s""" {
+           |   "_meta": {
+           |     "kind": "$kind",
+           |     "source": "$testTable"
+           |   },
+           |   "properties": {
+           |     "age": {
+           |       "type": "integer"
+           |     }
+           |   }
+           | }
+           |""".stripMargin
+      val metadata = FlintOpenSearchIndexMetadataService
+        .deserialize(content)
+        .copy(latestLogEntry = Some(flintMetadataLogEntry))
+      flintClient.createIndex(testFlintIndex, metadata)
+      flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
+
+      val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+      properties
+        .get("sourceTables")
+        .asInstanceOf[List[String]]
+        .toArray should contain theSameElementsAs Array(testTable)
+    }
+  }
+
+  test(s"write metadata cache to materialized view index mappings with source tables") {
+    val testTable2 = "spark_catalog.default.metadatacache_test2"
+    val content =
+      s""" {
+         |   "_meta": {
+         |     "kind": "$MV_INDEX_TYPE",
+         |     "properties": {
+         |       "sourceTables": [
+         |         "$testTable", "$testTable2"
+         |       ]
+         |     }
+         |   },
+         |   "properties": {
+         |     "age": {
+         |       "type": "integer"
+         |     }
+         |   }
+         | }
+         |""".stripMargin
+    val metadata = FlintOpenSearchIndexMetadataService
+      .deserialize(content)
+      .copy(latestLogEntry = Some(flintMetadataLogEntry))
+    flintClient.createIndex(testFlintIndex, metadata)
+    flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
+
+    val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties
       .get("sourceTables")
       .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array(FlintMetadataCache.mockTableName)
+      .toArray should contain theSameElementsAs Array(testTable, testTable2)
   }
 
   test("write metadata cache to index mappings with refresh interval") {
@@ -169,10 +228,6 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       FlintMetadataCache.metadataCacheVersion),
     Entry("refreshInterval", 600),
     Entry("lastRefreshTime", testLastRefreshCompleteTime))
-    properties
-      .get("sourceTables")
-      .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array(FlintMetadataCache.mockTableName)
   }
 
   test("exclude refresh interval in metadata cache when auto refresh is false") {
@@ -203,10 +258,6 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       "metadataCacheVersion",
       FlintMetadataCache.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime))
-    properties
-      .get("sourceTables")
-      .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array(FlintMetadataCache.mockTableName)
   }
 
   test("exclude last refresh time in metadata cache when index has not been refreshed") {
@@ -220,10 +271,6 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     properties should have size 2
     properties should contain(
       Entry("metadataCacheVersion", FlintMetadataCache.metadataCacheVersion))
-    properties
-      .get("sourceTables")
-      .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array(FlintMetadataCache.mockTableName)
   }
 
   test("write metadata cache to index mappings and preserve other index metadata") {
@@ -257,10 +304,6 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       "metadataCacheVersion",
       FlintMetadataCache.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime))
-    properties
-      .get("sourceTables")
-      .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array(FlintMetadataCache.mockTableName)
 
     val newContent =
       """ {
@@ -291,10 +334,6 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       "metadataCacheVersion",
       FlintMetadataCache.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime))
-    properties
-      .get("sourceTables")
-      .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array(FlintMetadataCache.mockTableName)
   }
 
   Seq(
@@ -309,7 +348,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
          | {
          |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
          |   "refreshInterval": 600,
-         |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
+         |   "sourceTables": ["$testTable"]
          | }
          |""".stripMargin),
     (
@@ -318,7 +357,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       s"""
          | {
          |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
-         |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
+         |   "sourceTables": ["$testTable"]
          | }
          |""".stripMargin),
     (
@@ -327,7 +366,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       s"""
          | {
          |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
-         |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
+         |   "sourceTables": ["$testTable"]
          | }
          |""".stripMargin)).foreach { case (refreshMode, optionsMap, expectedJson) =>
     test(s"write metadata cache for $refreshMode") {
@@ -402,7 +441,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
             | {
             |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
             |   "refreshInterval": 600,
-            |   "sourceTables": ["${FlintMetadataCache.mockTableName}"]
+            |   "sourceTables": ["$testTable"]
             | }
             |""".stripMargin)
 

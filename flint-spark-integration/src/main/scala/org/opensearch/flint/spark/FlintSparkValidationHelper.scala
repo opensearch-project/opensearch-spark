@@ -11,9 +11,8 @@ import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.execution.command.DDLUtils
-import org.apache.spark.sql.flint.{loadTable, parseTableName, qualifyTableName}
+import org.apache.spark.sql.flint.{loadTable, parseTableName}
 
 /**
  * Flint Spark validation helper.
