@@ -15,6 +15,7 @@ import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.tree.Lookup;
+import org.opensearch.sql.ppl.CatalystExpressionVisitor;
 import org.opensearch.sql.ppl.CatalystPlanContext;
 import org.opensearch.sql.ppl.CatalystQueryPlanVisitor;
 import scala.Option;
@@ -32,7 +33,7 @@ public interface LookupTransformer {
     /** lookup mapping fields + input fields*/
     static List<NamedExpression> buildLookupRelationProjectList(
         Lookup node,
-        CatalystQueryPlanVisitor.ExpressionAnalyzer expressionAnalyzer,
+        CatalystExpressionVisitor expressionAnalyzer,
         CatalystPlanContext context) {
         List<Field> inputFields = new ArrayList<>(node.getInputFieldList());
         if (inputFields.isEmpty()) {
@@ -45,7 +46,7 @@ public interface LookupTransformer {
 
     static List<NamedExpression> buildProjectListFromFields(
         List<Field> fields,
-        CatalystQueryPlanVisitor.ExpressionAnalyzer expressionAnalyzer,
+        CatalystExpressionVisitor expressionAnalyzer,
         CatalystPlanContext context) {
         return fields.stream().map(field -> expressionAnalyzer.visitField(field, context))
             .map(NamedExpression.class::cast)
@@ -54,7 +55,7 @@ public interface LookupTransformer {
 
     static Expression buildLookupMappingCondition(
         Lookup node,
-        CatalystQueryPlanVisitor.ExpressionAnalyzer expressionAnalyzer,
+        CatalystExpressionVisitor expressionAnalyzer,
         CatalystPlanContext context) {
         // only equi-join conditions are accepted in lookup command
         List<Expression> equiConditions = new ArrayList<>();
@@ -81,7 +82,7 @@ public interface LookupTransformer {
     static List<NamedExpression> buildOutputProjectList(
         Lookup node,
         Lookup.OutputStrategy strategy,
-        CatalystQueryPlanVisitor.ExpressionAnalyzer expressionAnalyzer,
+        CatalystExpressionVisitor expressionAnalyzer,
         CatalystPlanContext context) {
         List<NamedExpression> outputProjectList = new ArrayList<>();
         for (Map.Entry<Alias, Field> entry : node.getOutputCandidateMap().entrySet()) {

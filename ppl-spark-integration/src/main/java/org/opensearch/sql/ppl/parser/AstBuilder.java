@@ -82,8 +82,8 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
    */
   private String query;
 
-  public AstBuilder(AstExpressionBuilder expressionBuilder, String query) {
-    this.expressionBuilder = expressionBuilder;
+  public AstBuilder(String query) {
+    this.expressionBuilder = new AstExpressionBuilder(this);
     this.query = query;
   }
 

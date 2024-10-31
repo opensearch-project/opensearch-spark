@@ -8,7 +8,6 @@ package org.opensearch.sql.ppl.utils;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
-import org.apache.spark.sql.catalyst.expressions.RegExpExtract;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.expression.Field;
@@ -27,7 +26,7 @@ import static org.apache.spark.sql.types.DataTypes.IntegerType;
 import static org.apache.spark.sql.types.DataTypes.StringType;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 
-public interface ParseStrategy {
+public interface ParseTransformer {
     /**
      * transform the parse/grok/patterns command into a standard catalyst RegExpExtract expression  
      * Since spark's RegExpExtract cant accept actual regExp group name we need to translate the group's name into its corresponding index

@@ -12,12 +12,10 @@ import org.apache.spark.sql.types.DataTypes;
 import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.DataType;
-import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static scala.Option.empty;
@@ -27,7 +25,7 @@ import static scala.Option.empty;
  *
  * @return
  */
-public interface AggregatorTranslator {
+public interface AggregatorTransformer {
     
     static Expression aggregator(org.opensearch.sql.ast.expression.AggregateFunction aggregateFunction, Expression arg) {
         if (BuiltinFunctionName.ofAggregation(aggregateFunction.getFuncName()).isEmpty())

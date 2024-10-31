@@ -56,6 +56,7 @@ public class AstStatementBuilder extends OpenSearchPPLParserBaseVisitor<Statemen
   }
 
   public static class StatementBuilderContext {
+    public static final int FETCH_SIZE = 1000;
     private int fetchSize;
 
     public StatementBuilderContext(int fetchSize) {
@@ -63,8 +64,7 @@ public class AstStatementBuilder extends OpenSearchPPLParserBaseVisitor<Statemen
     }
 
     public static StatementBuilderContext builder() {
-      //todo set the default statement builder init params configurable
-      return new StatementBuilderContext(1000);
+      return new StatementBuilderContext(FETCH_SIZE);
     }
 
     public int getFetchSize() {
