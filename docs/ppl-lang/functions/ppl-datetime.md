@@ -14,7 +14,7 @@ Argument type: DATE, LONG
 
 (DATE, LONG) -> DATE
 
-Antonyms: `SUBDATE`_
+Antonyms: `SUBDATE`
 
 Example:
 
@@ -795,7 +795,7 @@ Argument type: DATE/TIMESTAMP, LONG
 
 (DATE, LONG) -> DATE
 
-Antonyms: `ADDDATE`_
+Antonyms: `ADDDATE`
 
 Example:
 
@@ -981,4 +981,135 @@ Example:
     | 2020                       |
     +----------------------------+
 
+
+### `DATE_ADD`
+
+**Description:**
+
+Usage: date_add(date, INTERVAL expr unit) adds the interval expr to date.
+
+Argument type: DATE, INTERVAL
+
+Return type: DATE
+
+Antonyms: `DATE_SUB`
+
+Example::
+
+    os> source=people | eval `'2020-08-26' + 1d` = DATE_ADD(DATE('2020-08-26'), INTERVAL 1 DAY) | fields `'2020-08-26' + 1d`
+    fetched rows / total rows = 1/1
+    +---------------------+
+    | '2020-08-26' + 1d   |
+    |---------------------+
+    | 2020-08-27          |
+    +---------------------+
+
+
+### `DATE_SUB`
+
+**Description:**
+
+Usage: date_sub(date, INTERVAL expr unit) subtracts the interval expr from date.
+
+Argument type: DATE, INTERVAL
+
+Return type: DATE
+
+Antonyms: `DATE_ADD`
+
+Example::
+
+    os> source=people | eval `'2008-01-02' - 31d` = DATE_SUB(DATE('2008-01-02'), INTERVAL 31 DAY) | fields `'2008-01-02' - 31d`
+    fetched rows / total rows = 1/1
+    +---------------------+
+    | '2008-01-02' - 31d  |
+    |---------------------+
+    | 2007-12-02          |
+    +---------------------+
+
+
+### `TIMESTAMPADD`
+
+**Description:**
+
+Usage: Returns a TIMESTAMP value based on a passed in DATE/TIMESTAMP/STRING argument and an INTERVAL and INTEGER argument which determine the amount of time to be added.
+If the third argument is a STRING, it must be formatted as a valid TIMESTAMP.
+If the third argument is a DATE, it will be automatically converted to a TIMESTAMP.
+
+Argument type: INTERVAL, INTEGER, DATE/TIMESTAMP/STRING
+
+INTERVAL must be one of the following tokens: [SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR]
+
+Examples::
+
+    os> source=people | eval `TIMESTAMPADD(DAY, 17, '2000-01-01 00:00:00')` = TIMESTAMPADD(DAY, 17, '2000-01-01 00:00:00') | eval `TIMESTAMPADD(QUARTER, -1, '2000-01-01 00:00:00')` = TIMESTAMPADD(QUARTER, -1, '2000-01-01 00:00:00') | fields `TIMESTAMPADD(DAY, 17, '2000-01-01 00:00:00')`, `TIMESTAMPADD(QUARTER, -1, '2000-01-01 00:00:00')`
+    fetched rows / total rows = 1/1
+    +----------------------------------------------+--------------------------------------------------+
+    | TIMESTAMPADD(DAY, 17, '2000-01-01 00:00:00') | TIMESTAMPADD(QUARTER, -1, '2000-01-01 00:00:00') |
+    |----------------------------------------------+--------------------------------------------------|
+    | 2000-01-18 00:00:00                          | 1999-10-01 00:00:00                              |
+    +----------------------------------------------+--------------------------------------------------+
+
+
+### `TIMESTAMPDIFF`
+
+**Description:**
+
+Usage: TIMESTAMPDIFF(interval, start, end) returns the difference between the start and end date/times in interval units.
+Arguments will be automatically converted to a ]TIMESTAMP when appropriate.
+Any argument that is a STRING must be formatted as a valid TIMESTAMP.
+
+Argument type: INTERVAL, DATE/TIMESTAMP/STRING, DATE/TIMESTAMP/STRING
+
+INTERVAL must be one of the following tokens: [SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR]
+
+Examples::
+
+    os> source=people | eval `TIMESTAMPDIFF(YEAR, '1997-01-01 00:00:00', '2001-03-06 00:00:00')` = TIMESTAMPDIFF(YEAR, '1997-01-01 00:00:00', '2001-03-06 00:00:00') | eval `TIMESTAMPDIFF(SECOND, timestamp('1997-01-01 00:00:23'), timestamp('1997-01-01 00:00:00'))` = TIMESTAMPDIFF(SECOND, timestamp('1997-01-01 00:00:23'), timestamp('1997-01-01 00:00:00')) | fields `TIMESTAMPDIFF(YEAR, '1997-01-01 00:00:00', '2001-03-06 00:00:00')`, `TIMESTAMPDIFF(SECOND, timestamp('1997-01-01 00:00:23'), timestamp('1997-01-01 00:00:00'))`
+    fetched rows / total rows = 1/1
+    +-------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
+    | TIMESTAMPDIFF(YEAR, '1997-01-01 00:00:00', '2001-03-06 00:00:00') | TIMESTAMPDIFF(SECOND, timestamp('1997-01-01 00:00:23'), timestamp('1997-01-01 00:00:00')) |
+    |-------------------------------------------------------------------+-------------------------------------------------------------------------------------------|
+    | 4                                                                 | -23                                                                                       |
+    +-------------------------------------------------------------------+-------------------------------------------------------------------------------------------+
+
+
+### `UTC_TIMESTAMP`
+
+**Description:**
+
+Returns the current UTC timestamp as a value in 'YYYY-MM-DD hh:mm:ss'.
+
+Return type: TIMESTAMP
+
+Specification: UTC_TIMESTAMP() -> TIMESTAMP
+
+Example::
+
+    > source=people | eval `UTC_TIMESTAMP()` = UTC_TIMESTAMP() | fields `UTC_TIMESTAMP()`
+    fetched rows / total rows = 1/1
+    +---------------------+
+    | UTC_TIMESTAMP()     |
+    |---------------------|
+    | 2022-10-03 17:54:28 |
+    +---------------------+
+
+
+### `CURRENT_TIMEZONE`
+
+**Description:**
+
+Returns the current local timezone.
+
+Return type: STRING
+
+Example::
+
+    > source=people | eval `CURRENT_TIMEZONE()` = CURRENT_TIMEZONE() | fields `CURRENT_TIMEZONE()`
+    fetched rows / total rows = 1/1
+    +------------------------+
+    | CURRENT_TIMEZONE()     |
+    |------------------------|
+    | America/Chicago        |
+    +------------------------+
 

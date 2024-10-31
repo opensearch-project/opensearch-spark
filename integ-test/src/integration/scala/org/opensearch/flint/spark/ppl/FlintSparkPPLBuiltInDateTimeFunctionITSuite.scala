@@ -218,6 +218,117 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
+  test("test DATE_ADD") {
+    val frame1 = sql(s"""
+                       | source = $testTable | eval `'2020-08-26' + 2d` = DATE_ADD(DATE('2020-08-26'), INTERVAL 2 DAY)
+                       | | fields `'2020-08-26' + 2d` | head 1
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(Date.valueOf("2020-08-28"))), frame1)
+
+    val frame2 = sql(s"""
+                        | source = $testTable | eval `'2020-08-26' - 2d` = DATE_ADD(DATE('2020-08-26'), INTERVAL -2 DAY)
+                        | | fields `'2020-08-26' - 2d` | head 1
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(Date.valueOf("2020-08-24"))), frame2)
+
+    val frame3 = sql(s"""
+                        | source = $testTable | eval `'2020-08-26' + 2m` = DATE_ADD(DATE('2020-08-26'), INTERVAL 2 MONTH)
+                        | | fields `'2020-08-26' + 2m` | head 1
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(Date.valueOf("2020-10-26"))), frame3)
+
+    val frame4 = sql(s"""
+                        | source = $testTable | eval `'2020-08-26' + 2y` = DATE_ADD(DATE('2020-08-26'), INTERVAL 2 YEAR)
+                        | | fields `'2020-08-26' + 2y` | head 1
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(Date.valueOf("2022-08-26"))), frame4)
+
+    val ex = intercept[AnalysisException](sql(s"""
+                                                 | source = $testTable | eval `'2020-08-26 01:01:01' + 2h` = DATE_ADD(TIMESTAMP('2020-08-26 01:01:01'), INTERVAL 2 HOUR)
+                                                 | | fields `'2020-08-26 01:01:01' + 2h` | head 1
+                                                 | """.stripMargin))
+    assert(ex.getMessage.contains("""Parameter 1 requires the "DATE" type"""))
+  }
+
+  test("test DATE_SUB") {
+    val frame1 = sql(s"""
+                        | source = $testTable | eval `'2020-08-26' - 2d` = DATE_SUB(DATE('2020-08-26'), INTERVAL 2 DAY)
+                        | | fields `'2020-08-26' - 2d` | head 1
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(Date.valueOf("2020-08-24"))), frame1)
+
+    val frame2 = sql(s"""
+                        | source = $testTable | eval `'2020-08-26' + 2d` = DATE_SUB(DATE('2020-08-26'), INTERVAL -2 DAY)
+                        | | fields `'2020-08-26' + 2d` | head 1
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(Date.valueOf("2020-08-28"))), frame2)
+
+    val frame3 = sql(s"""
+                        | source = $testTable | eval `'2020-08-26' - 2m` = DATE_SUB(DATE('2020-08-26'), INTERVAL 12 MONTH)
+                        | | fields `'2020-08-26' - 2m` | head 1
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(Date.valueOf("2019-08-26"))), frame3)
+
+    val frame4 = sql(s"""
+                        | source = $testTable | eval `'2020-08-26' - 2y` = DATE_SUB(DATE('2020-08-26'), INTERVAL 2 YEAR)
+                        | | fields `'2020-08-26' - 2y` | head 1
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(Date.valueOf("2018-08-26"))), frame4)
+
+    val ex = intercept[AnalysisException](sql(s"""
+                                                 | source = $testTable | eval `'2020-08-26 01:01:01' - 2h` = DATE_SUB(TIMESTAMP('2020-08-26 01:01:01'), INTERVAL 2 HOUR)
+                                                 | | fields `'2020-08-26 01:01:01' - 2h` | head 1
+                                                 | """.stripMargin))
+    assert(ex.getMessage.contains("""Parameter 1 requires the "DATE" type"""))
+  }
+
+  test("test TIMESTAMPADD") {
+    val frame = sql(s"""
+                       | source = $testTable
+                       | | eval `TIMESTAMPADD(DAY, 17, '2000-01-01 00:00:00')` = TIMESTAMPADD(DAY, 17, '2000-01-01 00:00:00')
+                       | | eval `TIMESTAMPADD(DAY, 17, TIMESTAMP('2000-01-01 00:00:00'))` = TIMESTAMPADD(DAY, 17, TIMESTAMP('2000-01-01 00:00:00'))
+                       | | eval `TIMESTAMPADD(QUARTER, -1, '2000-01-01 00:00:00')` = TIMESTAMPADD(QUARTER, -1, '2000-01-01 00:00:00')
+                       | | fields `TIMESTAMPADD(DAY, 17, '2000-01-01 00:00:00')`, `TIMESTAMPADD(DAY, 17, TIMESTAMP('2000-01-01 00:00:00'))`, `TIMESTAMPADD(QUARTER, -1, '2000-01-01 00:00:00')`
+                       | | head 1
+                       | """.stripMargin)
+    assertSameRows(
+      Seq(
+        Row(
+          Timestamp.valueOf("2000-01-18 00:00:00"),
+          Timestamp.valueOf("2000-01-18 00:00:00"),
+          Timestamp.valueOf("1999-10-01 00:00:00"))),
+      frame)
+  }
+
+  test("test TIMESTAMPDIFF") {
+    val frame = sql(s"""
+                       | source = $testTable
+                       | | eval `TIMESTAMPDIFF(YEAR, '1997-01-01 00:00:00', '2001-03-06 00:00:00')` = TIMESTAMPDIFF(YEAR, '1997-01-01 00:00:00', '2001-03-06 00:00:00')
+                       | | eval `TIMESTAMPDIFF(SECOND, TIMESTAMP('2000-01-01 00:00:23'), TIMESTAMP('2000-01-01 00:00:00'))` = TIMESTAMPDIFF(SECOND, TIMESTAMP('2000-01-01 00:00:23'), TIMESTAMP('2000-01-01 00:00:00'))
+                       | | fields `TIMESTAMPDIFF(YEAR, '1997-01-01 00:00:00', '2001-03-06 00:00:00')`, `TIMESTAMPDIFF(SECOND, TIMESTAMP('2000-01-01 00:00:23'), TIMESTAMP('2000-01-01 00:00:00'))`
+                       | | head 1
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(4, -23)), frame)
+  }
+
+  test("test CURRENT_TIMEZONE") {
+    val frame = sql(s"""
+                       | source = $testTable
+                       | | eval `CURRENT_TIMEZONE` = CURRENT_TIMEZONE()
+                       | | fields `CURRENT_TIMEZONE`
+                       | """.stripMargin)
+    assert(frame.collect().length > 0)
+  }
+
+  test("test UTC_TIMESTAMP") {
+    val frame = sql(s"""
+                       | source = $testTable
+                       | | eval `UTC_TIMESTAMP` = UTC_TIMESTAMP()
+                       | | fields `UTC_TIMESTAMP`
+                       | """.stripMargin)
+    assert(frame.collect().length > 0)
+  }
+
   test("test hour, minute, second, HOUR_OF_DAY, MINUTE_OF_HOUR") {
     val frame = sql(s"""
                        | source = $testTable
@@ -282,24 +393,6 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
                        | | fields ADDTIME | head 1
                        | """.stripMargin))
     assert(ex.getMessage.contains("ADDTIME is not a builtin function of PPL"))
-  }
-
-  test("test DATE_ADD is not supported") {
-    val ex = intercept[UnsupportedOperationException](sql(s"""
-                       | source = $testTable
-                       | | eval `DATE_ADD` = DATE_ADD()
-                       | | fields DATE_ADD | head 1
-                       | """.stripMargin))
-    assert(ex.getMessage.contains("DATE_ADD is not a builtin function of PPL"))
-  }
-
-  test("test DATE_SUB is not supported") {
-    val ex = intercept[UnsupportedOperationException](sql(s"""
-                       | source = $testTable
-                       | | eval `DATE_SUB` = DATE_SUB()
-                       | | fields DATE_SUB | head 1
-                       | """.stripMargin))
-    assert(ex.getMessage.contains("DATE_SUB is not a builtin function of PPL"))
   }
 
   test("test DATETIME is not supported") {
@@ -445,22 +538,6 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
     assert(ex.getMessage.contains("TIMEDIFF is not a builtin function of PPL"))
   }
 
-  test("test TIMESTAMPADD is not supported") {
-    intercept[Exception](sql(s"""
-                       | source = $testTable
-                       | | eval `TIMESTAMPADD` = TIMESTAMPADD(DAY, 17, '2000-01-01 00:00:00')
-                       | | fields TIMESTAMPADD | head 1
-                       | """.stripMargin))
-  }
-
-  test("test TIMESTAMPDIFF is not supported") {
-    intercept[Exception](sql(s"""
-                       | source = $testTable
-                       | | eval `TIMESTAMPDIFF_1` = TIMESTAMPDIFF(YEAR, '1997-01-01 00:00:00', '2001-03-06 00:00:00')
-                       | | fields TIMESTAMPDIFF_1 | head 1
-                       | """.stripMargin))
-  }
-
   test("test TO_DAYS is not supported") {
     val ex = intercept[UnsupportedOperationException](sql(s"""
                        | source = $testTable
@@ -495,15 +572,6 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
                        | | fields UTC_TIME | head 1
                        | """.stripMargin))
     assert(ex.getMessage.contains("UTC_TIME is not a builtin function of PPL"))
-  }
-
-  test("test UTC_TIMESTAMP is not supported") {
-    val ex = intercept[UnsupportedOperationException](sql(s"""
-                       | source = $testTable
-                       | | eval `UTC_TIMESTAMP` = UTC_TIMESTAMP()
-                       | | fields UTC_TIMESTAMP | head 1
-                       | """.stripMargin))
-    assert(ex.getMessage.contains("UTC_TIMESTAMP is not a builtin function of PPL"))
   }
 
   test("test YEARWEEK is not supported") {

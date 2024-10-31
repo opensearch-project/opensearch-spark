@@ -295,6 +295,7 @@ CURDATE:                            'CURDATE';
 CURRENT_DATE:                       'CURRENT_DATE';
 CURRENT_TIME:                       'CURRENT_TIME';
 CURRENT_TIMESTAMP:                  'CURRENT_TIMESTAMP';
+CURRENT_TIMEZONE:                   'CURRENT_TIMEZONE';
 CURTIME:                            'CURTIME';
 DATE:                               'DATE';
 DATEDIFF:                           'DATEDIFF';

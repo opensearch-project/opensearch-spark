@@ -8,10 +8,20 @@ package org.opensearch.sql.ppl.utils;
 import com.google.common.collect.ImmutableMap;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction$;
+import org.apache.spark.sql.catalyst.expressions.CurrentTimeZone$;
+import org.apache.spark.sql.catalyst.expressions.CurrentTimestamp$;
+import org.apache.spark.sql.catalyst.expressions.DateAddInterval$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.Literal$;
+import org.apache.spark.sql.catalyst.expressions.TimestampAdd$;
+import org.apache.spark.sql.catalyst.expressions.TimestampDiff$;
+import org.apache.spark.sql.catalyst.expressions.ToUTCTimestamp$;
+import org.apache.spark.sql.catalyst.expressions.UnaryMinus$;
+import org.opensearch.sql.ast.expression.IntervalUnit;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
+import scala.Option;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -19,6 +29,8 @@ import java.util.function.Function;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADD;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADDDATE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATEDIFF;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATE_ADD;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATE_SUB;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DAY_OF_MONTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.COALESCE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON;
@@ -44,7 +56,10 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.MONTH_O
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SECOND_OF_MINUTE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SUBDATE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SYSDATE;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.TIMESTAMPADD;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.TIMESTAMPDIFF;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.TRIM;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.UTC_TIMESTAMP;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.WEEK;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.WEEK_OF_YEAR;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
@@ -95,8 +110,8 @@ public interface BuiltinFunctionTranslator {
     /**
      * The name mapping between PPL builtin functions to Spark builtin functions.
      */
-    static final Map<BuiltinFunctionName, Function<List<Expression>, UnresolvedFunction>> PPL_TO_SPARK_FUNC_MAPPING
-        = ImmutableMap.<BuiltinFunctionName, Function<List<Expression>, UnresolvedFunction>>builder()
+    static final Map<BuiltinFunctionName, Function<List<Expression>, Expression>> PPL_TO_SPARK_FUNC_MAPPING
+        = ImmutableMap.<BuiltinFunctionName, Function<List<Expression>, Expression>>builder()
         // json functions
         .put(
             JSON_ARRAY,
@@ -139,6 +154,31 @@ public interface BuiltinFunctionTranslator {
                     seq(UnresolvedFunction$.MODULE$.apply("get_json_object",
                         seq(args.get(0), Literal$.MODULE$.apply("$")), false)), false);
             })
+        .put(
+            DATE_ADD,
+            args -> {
+                return DateAddInterval$.MODULE$.apply(args.get(0), args.get(1), Option.empty(), false);
+            })
+        .put(
+            DATE_SUB,
+            args -> {
+                return DateAddInterval$.MODULE$.apply(args.get(0), UnaryMinus$.MODULE$.apply(args.get(1), true), Option.empty(), true);
+            })
+        .put(
+            TIMESTAMPADD,
+            args -> {
+                return TimestampAdd$.MODULE$.apply(args.get(0).toString(), args.get(1), args.get(2), Option.empty());
+            })
+        .put(
+            TIMESTAMPDIFF,
+            args -> {
+                return TimestampDiff$.MODULE$.apply(args.get(0).toString(), args.get(1), args.get(2), Option.empty());
+            })
+        .put(
+            UTC_TIMESTAMP,
+            args -> {
+                return ToUTCTimestamp$.MODULE$.apply(CurrentTimestamp$.MODULE$.apply(), CurrentTimeZone$.MODULE$.apply());
+            })
         .build();
 
     static Expression builtinFunction(org.opensearch.sql.ast.expression.Function function, List<Expression> args) {
@@ -153,12 +193,29 @@ public interface BuiltinFunctionTranslator {
                 // there is a Spark builtin function mapping with the PPL builtin function
                 return new UnresolvedFunction(seq(name), seq(args), false, empty(),false);
             }
-            Function<List<Expression>, UnresolvedFunction> alternative = PPL_TO_SPARK_FUNC_MAPPING.get(builtin);
+            Function<List<Expression>, Expression> alternative = PPL_TO_SPARK_FUNC_MAPPING.get(builtin);
             if (alternative != null) {
                 return alternative.apply(args);
             }
             name = builtin.getName().getFunctionName();
             return new UnresolvedFunction(seq(name), seq(args), false, empty(),false);
         }
+    }
+
+    static Expression[] createIntervalArgs(IntervalUnit unit, Expression value) {
+        Expression[] args = new Expression[7];
+        Arrays.fill(args, Literal$.MODULE$.apply(0));
+        switch (unit) {
+            case YEAR:   args[0] = value; break;
+            case MONTH:  args[1] = value; break;
+            case WEEK:   args[2] = value; break;
+            case DAY:    args[3] = value; break;
+            case HOUR:   args[4] = value; break;
+            case MINUTE: args[5] = value; break;
+            case SECOND: args[6] = value; break;
+            default:
+                throw new IllegalArgumentException("Unsupported Interval unit: " + unit);
+        }
+        return args;
     }
 }
