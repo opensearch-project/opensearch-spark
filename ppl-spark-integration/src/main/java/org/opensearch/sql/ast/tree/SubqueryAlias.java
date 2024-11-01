@@ -6,19 +6,14 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 
 import java.util.List;
-import java.util.Objects;
 
-@AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-@RequiredArgsConstructor
 @ToString
 public class SubqueryAlias extends UnresolvedPlan {
     @Getter private final String alias;
@@ -29,6 +24,11 @@ public class SubqueryAlias extends UnresolvedPlan {
      */
     public SubqueryAlias(UnresolvedPlan child, String suffix) {
         this.alias = "__auto_generated_subquery_name" + suffix;
+        this.child = child;
+    }
+
+    public SubqueryAlias(String alias, UnresolvedPlan child) {
+        this.alias = alias;
         this.child = child;
     }
 

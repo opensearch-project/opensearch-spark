@@ -94,6 +94,11 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
         return unresolved.accept(this, context);
     }
 
+    /** This method is only for analyze the join condition expression */
+    public Expression analyzeJoinCondition(UnresolvedExpression unresolved, CatalystPlanContext context) {
+        return context.resolveJoinCondition(unresolved, this::analyze);
+    }
+
     @Override
     public Expression visitLiteral(Literal node, CatalystPlanContext context) {
         return context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.Literal(
@@ -181,6 +186,11 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
 
     @Override
     public Expression visitQualifiedName(QualifiedName node, CatalystPlanContext context) {
+        // When the qualified name is part of join condition, for example: table1.id = table2.id
+        // findRelation(context.traversalContext() only returns relation table1 which cause table2.id fail to resolve
+        if (context.isResolvingJoinCondition()) {
+            return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
+        }
         List<UnresolvedRelation> relation = findRelation(context.traversalContext());
         if (!relation.isEmpty()) {
             Optional<QualifiedName> resolveField = resolveField(relation, node, context.getRelations());

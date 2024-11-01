@@ -278,7 +278,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         node.getChild().get(0).accept(this, context);
         return context.apply(left -> {
             LogicalPlan right = node.getRight().accept(this, context);
-            Optional<Expression> joinCondition = node.getJoinCondition().map(c -> visitExpression(c, context));
+            Optional<Expression> joinCondition = node.getJoinCondition()
+                .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context));
             context.retainAllNamedParseExpressions(p -> p);
             context.retainAllPlans(p -> p);
             return join(left, right, node.getJoinType(), joinCondition, node.getJoinHint());
