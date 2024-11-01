@@ -111,6 +111,10 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitChildren(node, context);
   }
 
+  public T visitTrendline(Trendline node, C context) {
+    return visitChildren(node, context);
+  }
+
   public T visitCorrelation(Correlation node, C context) {
     return visitChildren(node, context);
   }
@@ -325,5 +329,9 @@ public abstract class AbstractNodeVisitor<T, C> {
   }
   public T visitCidr(Cidr node, C context) {
     return visitChildren(node, context);
+  }
+
+  public T visitFlatten(Flatten flatten, C context) {
+    return visitChildren(flatten, context);
   }
 }

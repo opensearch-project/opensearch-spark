@@ -83,10 +83,10 @@ commandName
    | PATTERNS
    | LOOKUP
    | RENAME
-   | FLATTEN
    | EXPAND
    | FILLNULL
    | FIELDSUMMARY
+   | FLATTEN
    | TRENDLINE
    ;
 
@@ -265,7 +265,7 @@ trendlineCommand
    ;
 
 trendlineClause
-   : trendlineType LT_PRTHS numberOfDataPoints = integerLiteral COMMA field = fieldExpression RT_PRTHS AS alias = fieldExpression
+   : trendlineType LT_PRTHS numberOfDataPoints = integerLiteral COMMA field = fieldExpression RT_PRTHS (AS alias = qualifiedName)?
    ;
 
 trendlineType
@@ -1162,4 +1162,5 @@ keywordsCanBeId
    | ANTI
    | BETWEEN
    | CIDRMATCH
+   | trendlineType
    ;
