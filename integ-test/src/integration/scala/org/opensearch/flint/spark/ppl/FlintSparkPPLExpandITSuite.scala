@@ -4,18 +4,16 @@
  */
 package org.opensearch.flint.spark.ppl
 
+import java.nio.file.Files
+import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
+import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, GeneratorOuter, Literal, Or}
+import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, Explode, GeneratorOuter, Literal, Or}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
-import org.apache.spark.sql.{QueryTest, Row}
-import org.opensearch.flint.spark.FlattenGenerator
-import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
-
-import java.nio.file.Files
 
 class FlintSparkPPLExpandITSuite
-    extends QueryTest
+  extends QueryTest
     with LogicalPlanTestUtils
     with FlintPPLSuite
     with StreamTest {
@@ -50,37 +48,29 @@ class FlintSparkPPLExpandITSuite
     Files.deleteIfExists(tempFile)
   }
 
-  /**
-   * 'Project [*]
-   * +- 'Generate 'explode('multi_value), false, as, ['exploded_multi_value]
-   * +- 'UnresolvedRelation [spark_catalog, default, flint_ppl_multi_value_test], [], false
-   */
-  test("expand for structs") {
-    val frame = sql(
-      s""" SELECT * FROM $multiValueTable
-              LATERAL VIEW explode(multi_value) AS exploded_multi_value
-       """.stripMargin)
-
-    val results: Array[Row] = frame.collect()
-    val logical = frame.queryExecution.logical
-    print(logical)
+  private def generator(flattenedColumn: String, parentPlan: LogicalPlan): LogicalPlan = {
+    val outerGenerator = GeneratorOuter(Explode(UnresolvedAttribute(flattenedColumn)))
+    val generate = Generate(outerGenerator, seq(), outer = true, None, seq(), parentPlan)
+    val dropSourceColumn =
+      DataFrameDropColumns(Seq(UnresolvedAttribute(flattenedColumn)), generate)
+    dropSourceColumn
   }
 
-  test("flatten for structs") {
+  test("expand for array of structs") {
     val frame = sql(s"""
                        | source = $testTable
                        | | where country = 'England' or country = 'Poland'
-                       | | fields coor
-                       | | flatten coor
+                       | | expand bridges 
+                       | | fields city, country, col
                        | """.stripMargin)
 
-    assert(frame.columns.sameElements(Array("alt", "lat", "long")))
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
-      Array(Row(35, 51.5074, -0.1278), Row(null, null, null))
+      Array(Row( "London", "England", Seq(801, "Tower Bridge")),
+        Row( "London", "England", Seq(928, "London Bridge")),
+        Row("Warsaw", "Poland", null))
     // Compare the results
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Double](_.getAs[Double](1))
-    assert(results.sorted.sameElements(expectedResults.sorted))
+    assert(results.toSet == expectedResults.toSet)
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("flint_ppl_test"))
     val filter = Filter(
@@ -88,19 +78,10 @@ class FlintSparkPPLExpandITSuite
         EqualTo(UnresolvedAttribute("country"), Literal("England")),
         EqualTo(UnresolvedAttribute("country"), Literal("Poland"))),
       table)
-    val projectCoor = Project(Seq(UnresolvedAttribute("coor")), filter)
-    val flattenCoor = flattenPlanFor("coor", projectCoor)
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), flattenCoor)
+    val project = Project(Seq(UnresolvedAttribute("city"), UnresolvedAttribute("country"), UnresolvedAttribute("col")), filter)
+    val generatorExp = generator("bridges", project)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), generatorExp)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
-  }
-
-  private def flattenPlanFor(flattenedColumn: String, parentPlan: LogicalPlan): LogicalPlan = {
-    val flattenGenerator = new FlattenGenerator(UnresolvedAttribute(flattenedColumn))
-    val outerGenerator = GeneratorOuter(flattenGenerator)
-    val generate = Generate(outerGenerator, seq(), outer = true, None, seq(), parentPlan)
-    val dropSourceColumn =
-      DataFrameDropColumns(Seq(UnresolvedAttribute(flattenedColumn)), generate)
-    dropSourceColumn
   }
 
   test("flatten for arrays") {
@@ -131,7 +112,7 @@ class FlintSparkPPLExpandITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("flint_ppl_test"))
     val projectCoor = Project(Seq(UnresolvedAttribute("bridges")), table)
-    val flattenBridges = flattenPlanFor("bridges", projectCoor)
+    val flattenBridges = generator("bridges", projectCoor)
     val expectedPlan = Project(Seq(UnresolvedStar(None)), flattenBridges)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
@@ -228,8 +209,8 @@ class FlintSparkPPLExpandITSuite
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("flint_ppl_test"))
-    val flattenBridges = flattenPlanFor("bridges", table)
-    val flattenCoor = flattenPlanFor("coor", flattenBridges)
+    val flattenBridges = generator("bridges", table)
+    val flattenCoor = generator("coor", flattenBridges)
     val expectedPlan = Project(Seq(UnresolvedStar(None)), flattenCoor)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
@@ -259,7 +240,7 @@ class FlintSparkPPLExpandITSuite
     val table = UnresolvedRelation(Seq("flint_ppl_test"))
     val projectCountryBridges =
       Project(Seq(UnresolvedAttribute("country"), UnresolvedAttribute("bridges")), table)
-    val flattenBridges = flattenPlanFor("bridges", projectCountryBridges)
+    val flattenBridges = generator("bridges", projectCountryBridges)
     val projectCountryLength =
       Project(Seq(UnresolvedAttribute("country"), UnresolvedAttribute("length")), flattenBridges)
     val average = Alias(
@@ -294,8 +275,8 @@ class FlintSparkPPLExpandITSuite
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_struct_test"))
-    val flattenStructCol = flattenPlanFor("struct_col", table)
-    val flattenField1 = flattenPlanFor("field1", flattenStructCol)
+    val flattenStructCol = generator("struct_col", table)
+    val flattenField1 = generator("field1", flattenStructCol)
     val expectedPlan = Project(Seq(UnresolvedStar(None)), flattenField1)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
@@ -326,10 +307,10 @@ class FlintSparkPPLExpandITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table =
       UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_struct_nested_test"))
-    val flattenStructCol = flattenPlanFor("struct_col", table)
-    val flattenField1 = flattenPlanFor("field1", flattenStructCol)
-    val flattenStructCol2 = flattenPlanFor("struct_col2", flattenField1)
-    val flattenField1Again = flattenPlanFor("field1", flattenStructCol2)
+    val flattenStructCol = generator("struct_col", table)
+    val flattenField1 = generator("field1", flattenStructCol)
+    val flattenStructCol2 = generator("struct_col2", flattenField1)
+    val flattenField1Again = generator("field1", flattenStructCol2)
     val expectedPlan = Project(Seq(UnresolvedStar(None)), flattenField1Again)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
@@ -358,7 +339,7 @@ class FlintSparkPPLExpandITSuite
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_multi_value_test"))
-    val flattenMultiValue = flattenPlanFor("multi_value", table)
+    val flattenMultiValue = generator("multi_value", table)
     val expectedPlan = Project(Seq(UnresolvedStar(None)), flattenMultiValue)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }

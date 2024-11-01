@@ -183,8 +183,7 @@ class FlintSparkPPLFieldSummaryITSuite
     comparePlans(expectedPlan, logicalPlan, false)
   }
 
-  test(
-    "test fieldsummary with single field includefields(status_code) & nulls=true with a where filter ") {
+  test("test fieldsummary with single field includefields(status_code) & nulls=true with a where filter ") {
     val frame = sql(s"""
                        | source = $testTable | where status_code != 200 | fieldsummary includefields= status_code nulls=true
                        | """.stripMargin)
@@ -269,8 +268,7 @@ class FlintSparkPPLFieldSummaryITSuite
     comparePlans(expectedPlan, logicalPlan, false)
   }
 
-  test(
-    "test fieldsummary with single field includefields(status_code) & nulls=false with a where filter ") {
+  test("test fieldsummary with single field includefields(status_code) & nulls=false with a where filter ") {
     val frame = sql(s"""
                        | source = $testTable | where status_code != 200 | fieldsummary includefields= status_code nulls=false
                        | """.stripMargin)
@@ -334,8 +332,7 @@ class FlintSparkPPLFieldSummaryITSuite
     comparePlans(expectedPlan, logicalPlan, false)
   }
 
-  test(
-    "test fieldsummary with single field includefields(id, status_code, request_path) & nulls=true") {
+  test("test fieldsummary with single field includefields(id, status_code, request_path) & nulls=true") {
     val frame = sql(s"""
                        | source = $testTable | fieldsummary includefields= id, status_code, request_path nulls=true
                        | """.stripMargin)
@@ -568,8 +565,7 @@ class FlintSparkPPLFieldSummaryITSuite
     comparePlans(expectedPlan, logicalPlan, false)
   }
 
-  test(
-    "test fieldsummary with single field includefields(id, status_code, request_path) & nulls=false") {
+  test("test fieldsummary with single field includefields(id, status_code, request_path) & nulls=false") {
     val frame = sql(s"""
                        | source = $testTable | fieldsummary includefields= id, status_code, request_path nulls=false
                        | """.stripMargin)
