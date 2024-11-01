@@ -12,6 +12,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf;
 import org.opensearch.flint.common.scheduler.AsyncQueryScheduler;
 import org.opensearch.flint.core.FlintOptions;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 
 /**
@@ -30,7 +31,7 @@ public class AsyncQuerySchedulerBuilder {
     REMOVE
   }
 
-  public static AsyncQueryScheduler build(SparkSession sparkSession, FlintOptions options) {
+  public static AsyncQueryScheduler build(SparkSession sparkSession, FlintOptions options) throws IOException {
     return new AsyncQuerySchedulerBuilder().doBuild(sparkSession, options);
   }
 
@@ -41,7 +42,7 @@ public class AsyncQuerySchedulerBuilder {
    * @param options The FlintOptions containing configuration details.
    * @return An instance of AsyncQueryScheduler.
    */
-  protected AsyncQueryScheduler doBuild(SparkSession sparkSession, FlintOptions options) {
+  protected AsyncQueryScheduler doBuild(SparkSession sparkSession, FlintOptions options) throws IOException {
     String className = options.getCustomAsyncQuerySchedulerClass();
 
     if (className.isEmpty()) {
@@ -68,7 +69,7 @@ public class AsyncQuerySchedulerBuilder {
     return new OpenSearchAsyncQueryScheduler(options);
   }
 
-  protected boolean hasAccessToSchedulerIndex(OpenSearchAsyncQueryScheduler scheduler) {
+  protected boolean hasAccessToSchedulerIndex(OpenSearchAsyncQueryScheduler scheduler) throws IOException {
     return scheduler.hasAccessToSchedulerIndex();
   }
 
