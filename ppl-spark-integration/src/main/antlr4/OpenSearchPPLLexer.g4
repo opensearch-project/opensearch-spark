@@ -199,6 +199,7 @@ RT_SQR_PRTHS:                       ']';
 SINGLE_QUOTE:                       '\'';
 DOUBLE_QUOTE:                       '"';
 BACKTICK:                           '`';
+ARROW:                              '->';
 
 // Operators. Bit
 
@@ -380,9 +381,9 @@ JSON_VALID:                         'JSON_VALID';
 //JSON_DELETE:                        'JSON_DELETE';
 //JSON_EXTEND:                        'JSON_EXTEND';
 //JSON_SET:                           'JSON_SET';
-//JSON_ARRAY_ALL_MATCH:               'JSON_ALL_MATCH';
-//JSON_ARRAY_ANY_MATCH:               'JSON_ANY_MATCH';
-//JSON_ARRAY_FILTER:                  'JSON_FILTER';
+JSON_ARRAY_ALL_MATCH:               'JSON_ARRAY_ALL_MATCH';
+JSON_ARRAY_ANY_MATCH:               'JSON_ARRAY_ANY_MATCH';
+JSON_ARRAY_FILTER:                  'JSON_ARRAY_FILTER';
 //JSON_ARRAY_MAP:                     'JSON_ARRAY_MAP';
 //JSON_ARRAY_REDUCE:                  'JSON_ARRAY_REDUCE';
 

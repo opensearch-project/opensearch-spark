@@ -18,6 +18,7 @@ import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldList;
+import org.opensearch.sql.ast.expression.PPLLambdaFunction;
 import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
@@ -176,6 +177,10 @@ public abstract class AbstractNodeVisitor<T, C> {
   }
 
   public T visitFunction(Function node, C context) {
+    return visitChildren(node, context);
+  }
+
+  public T visitPPLLambdaFunction(PPLLambdaFunction node, C context) {
     return visitChildren(node, context);
   }
 

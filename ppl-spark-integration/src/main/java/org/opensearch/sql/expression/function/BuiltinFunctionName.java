@@ -220,9 +220,9 @@ public enum BuiltinFunctionName {
 //  JSON_APPEND(FunctionName.of("json_append")),
 //  JSON_EXTEND(FunctionName.of("json_extend")),
 //  JSON_SET(FunctionName.of("json_set")),
-//  JSON_ARRAY_ALL_MATCH(FunctionName.of("json_array_all_match")),
-//  JSON_ARRAY_ANY_MATCH(FunctionName.of("json_array_any_match")),
-//  JSON_ARRAY_FILTER(FunctionName.of("json_array_filter")),
+  JSON_ARRAY_ALL_MATCH(FunctionName.of("json_array_all_match")),
+  JSON_ARRAY_ANY_MATCH(FunctionName.of("json_array_any_match")),
+  JSON_ARRAY_FILTER(FunctionName.of("json_array_filter")),
 //  JSON_ARRAY_MAP(FunctionName.of("json_array_map")),
 //  JSON_ARRAY_REDUCE(FunctionName.of("json_array_reduce")),
 

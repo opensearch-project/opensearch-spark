@@ -430,6 +430,8 @@ valueExpression
    | timestampFunction                                                                          # timestampFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
+   | ident ARROW expression                                                                     #lambda
+   | LT_PRTHS ident (COMMA ident)+ RT_PRTHS ARROW expression                                    #lambda
    ;
 
 primaryExpression
@@ -851,9 +853,9 @@ jsonFunctionName
 //   | JSON_DELETE
 //   | JSON_EXTEND
 //   | JSON_SET
-//   | JSON_ARRAY_ALL_MATCH
-//   | JSON_ARRAY_ANY_MATCH
-//   | JSON_ARRAY_FILTER
+   | JSON_ARRAY_ALL_MATCH
+   | JSON_ARRAY_ANY_MATCH
+   | JSON_ARRAY_FILTER
 //   | JSON_ARRAY_MAP
 //   | JSON_ARRAY_REDUCE
    ;
