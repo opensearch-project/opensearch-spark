@@ -60,6 +60,7 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where b not between '2024-09-10' and '2025-09-10'` - Note: This returns b >= '2024-09-10' and b <= '2025-09-10'
 - `source = table | where cidrmatch(ip, '192.169.1.0/24')`
 - `source = table | where cidrmatch(ipv6, '2003:db8::/32')`
+- `source = table | trendline sma(2, temperature) as temp_trend`
 
 ```sql
  source = table | eval status_category =
