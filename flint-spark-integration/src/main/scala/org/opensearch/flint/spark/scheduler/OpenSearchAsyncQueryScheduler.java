@@ -38,6 +38,7 @@ import org.opensearch.jobscheduler.spi.schedule.IntervalSchedule;
 import org.opensearch.jobscheduler.spi.schedule.Schedule;
 import org.opensearch.rest.RestStatus;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -140,14 +141,16 @@ public class OpenSearchAsyncQueryScheduler implements AsyncQueryScheduler {
      * @see #createClient()
      * @see #ensureIndexExists(IRestHighLevelClient)
      */
-    public boolean hasAccessToSchedulerIndex() {
+    public boolean hasAccessToSchedulerIndex() throws IOException {
+        IRestHighLevelClient client = createClient();
         try {
-            IRestHighLevelClient client = createClient();
             ensureIndexExists(client);
             return true;
         } catch (Throwable e) {
             LOG.error("Failed to ensure index exists", e);
             return false;
+        } finally {
+            client.close();
         }
     }
     private void ensureIndexExists(IRestHighLevelClient client) {

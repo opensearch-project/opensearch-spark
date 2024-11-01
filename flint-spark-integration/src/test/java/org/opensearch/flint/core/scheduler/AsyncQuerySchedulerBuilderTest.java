@@ -5,7 +5,6 @@
 
 package org.opensearch.flint.core.scheduler;
 
-import org.apache.spark.FlintSuite;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.SQLContext;
 import org.junit.Before;
@@ -17,6 +16,8 @@ import org.opensearch.flint.common.scheduler.model.AsyncQuerySchedulerRequest;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.spark.scheduler.AsyncQuerySchedulerBuilder;
 import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler;
+
+import java.io.IOException;
 
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -41,7 +42,7 @@ public class AsyncQuerySchedulerBuilderTest {
     }
 
     @Test
-    public void testBuildWithEmptyClassNameAndAccessibleIndex() {
+    public void testBuildWithEmptyClassNameAndAccessibleIndex() throws IOException {
         FlintOptions options = mock(FlintOptions.class);
         when(options.getCustomAsyncQuerySchedulerClass()).thenReturn("");
         OpenSearchAsyncQueryScheduler mockScheduler = mock(OpenSearchAsyncQueryScheduler.class);
@@ -52,7 +53,7 @@ public class AsyncQuerySchedulerBuilderTest {
     }
 
     @Test
-    public void testBuildWithEmptyClassNameAndInaccessibleIndex() {
+    public void testBuildWithEmptyClassNameAndInaccessibleIndex() throws IOException {
         FlintOptions options = mock(FlintOptions.class);
         when(options.getCustomAsyncQuerySchedulerClass()).thenReturn("");
         OpenSearchAsyncQueryScheduler mockScheduler = mock(OpenSearchAsyncQueryScheduler.class);
@@ -63,7 +64,7 @@ public class AsyncQuerySchedulerBuilderTest {
     }
 
     @Test
-    public void testBuildWithCustomClassName() {
+    public void testBuildWithCustomClassName() throws IOException {
         FlintOptions options = mock(FlintOptions.class);
         when(options.getCustomAsyncQuerySchedulerClass())
                 .thenReturn("org.opensearch.flint.core.scheduler.AsyncQuerySchedulerBuilderTest$AsyncQuerySchedulerForLocalTest");
@@ -73,7 +74,7 @@ public class AsyncQuerySchedulerBuilderTest {
     }
 
     @Test(expected = RuntimeException.class)
-    public void testBuildWithInvalidClassName() {
+    public void testBuildWithInvalidClassName() throws IOException {
         FlintOptions options = mock(FlintOptions.class);
         when(options.getCustomAsyncQuerySchedulerClass()).thenReturn("invalid.ClassName");
 
@@ -124,11 +125,11 @@ public class AsyncQuerySchedulerBuilderTest {
         }
 
         @Override
-        protected boolean hasAccessToSchedulerIndex(OpenSearchAsyncQueryScheduler scheduler) {
+        protected boolean hasAccessToSchedulerIndex(OpenSearchAsyncQueryScheduler scheduler) throws IOException {
             return mockHasAccess != null ? mockHasAccess : super.hasAccessToSchedulerIndex(scheduler);
         }
 
-        public static AsyncQueryScheduler build(OpenSearchAsyncQueryScheduler asyncQueryScheduler, Boolean hasAccess, SparkSession sparkSession, FlintOptions options) {
+        public static AsyncQueryScheduler build(OpenSearchAsyncQueryScheduler asyncQueryScheduler, Boolean hasAccess, SparkSession sparkSession, FlintOptions options) throws IOException {
             return new AsyncQuerySchedulerBuilderForLocalTest(asyncQueryScheduler, hasAccess).doBuild(sparkSession, options);
         }
     }
