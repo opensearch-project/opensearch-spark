@@ -236,17 +236,17 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser,
+        plan(
+          pplParser,
           """source=t | eval a = json_array(1, 2, 3), b = json_array_all_match(a, x -> x > 0)""".stripMargin),
         context)
     val table = UnresolvedRelation(Seq("t"))
     val jsonFunc =
-      UnresolvedFunction(
-        "array",
-        Seq(Literal(1), Literal(2), Literal(3)),
-        isDistinct = false)
+      UnresolvedFunction("array", Seq(Literal(1), Literal(2), Literal(3)), isDistinct = false)
     val aliasA = Alias(jsonFunc, "a")()
-    val lambda = LambdaFunction(GreaterThan(UnresolvedNamedLambdaVariable(seq("x")), Literal(0)), Seq(UnresolvedNamedLambdaVariable(seq("x"))))
+    val lambda = LambdaFunction(
+      GreaterThan(UnresolvedNamedLambdaVariable(seq("x")), Literal(0)),
+      Seq(UnresolvedNamedLambdaVariable(seq("x"))))
     val aliasB = Alias(ArrayForAll(UnresolvedAttribute("a"), lambda), "b")()
     val evalProject = Project(Seq(UnresolvedStar(None), aliasA, aliasB), table)
     val projectList = Seq(UnresolvedStar(None))
@@ -258,17 +258,17 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser,
+        plan(
+          pplParser,
           """source=t | eval a = json_array(1, 2, 3), b = json_array_any_match(a, x -> x > 0)""".stripMargin),
         context)
     val table = UnresolvedRelation(Seq("t"))
     val jsonFunc =
-      UnresolvedFunction(
-        "array",
-        Seq(Literal(1), Literal(2), Literal(3)),
-        isDistinct = false)
+      UnresolvedFunction("array", Seq(Literal(1), Literal(2), Literal(3)), isDistinct = false)
     val aliasA = Alias(jsonFunc, "a")()
-    val lambda = LambdaFunction(GreaterThan(UnresolvedNamedLambdaVariable(seq("x")), Literal(0)), Seq(UnresolvedNamedLambdaVariable(seq("x"))))
+    val lambda = LambdaFunction(
+      GreaterThan(UnresolvedNamedLambdaVariable(seq("x")), Literal(0)),
+      Seq(UnresolvedNamedLambdaVariable(seq("x"))))
     val aliasB = Alias(ArrayExists(UnresolvedAttribute("a"), lambda), "b")()
     val evalProject = Project(Seq(UnresolvedStar(None), aliasA, aliasB), table)
     val projectList = Seq(UnresolvedStar(None))
@@ -280,17 +280,17 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser,
+        plan(
+          pplParser,
           """source=t | eval a = json_array(1, 2, 3), b = json_array_filter(a, x -> x > 0)""".stripMargin),
         context)
     val table = UnresolvedRelation(Seq("t"))
     val jsonFunc =
-      UnresolvedFunction(
-        "array",
-        Seq(Literal(1), Literal(2), Literal(3)),
-        isDistinct = false)
+      UnresolvedFunction("array", Seq(Literal(1), Literal(2), Literal(3)), isDistinct = false)
     val aliasA = Alias(jsonFunc, "a")()
-    val lambda = LambdaFunction(GreaterThan(UnresolvedNamedLambdaVariable(seq("x")), Literal(0)), Seq(UnresolvedNamedLambdaVariable(seq("x"))))
+    val lambda = LambdaFunction(
+      GreaterThan(UnresolvedNamedLambdaVariable(seq("x")), Literal(0)),
+      Seq(UnresolvedNamedLambdaVariable(seq("x"))))
     val aliasB = Alias(ArrayFilter(UnresolvedAttribute("a"), lambda), "b")()
     val evalProject = Project(Seq(UnresolvedStar(None), aliasA, aliasB), table)
     val projectList = Seq(UnresolvedStar(None))
