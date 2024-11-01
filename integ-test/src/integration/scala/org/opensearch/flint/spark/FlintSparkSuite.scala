@@ -23,6 +23,7 @@ import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.{FlintSuite, SparkConf}
 import org.apache.spark.sql.QueryTest
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -49,6 +50,8 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    // Revoke override in FlintSuite on IT
+    conf.unsetConf(FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key)
 
     // Replace executor to avoid impact on IT.
     // TODO: Currently no IT test scheduler so no need to restore it back.

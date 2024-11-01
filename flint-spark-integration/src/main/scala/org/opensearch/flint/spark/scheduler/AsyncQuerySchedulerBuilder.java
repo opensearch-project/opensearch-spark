@@ -7,9 +7,12 @@ package org.opensearch.flint.spark.scheduler;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.flint.config.FlintSparkConf;
 import org.opensearch.flint.common.scheduler.AsyncQueryScheduler;
 import org.opensearch.flint.core.FlintOptions;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 
 /**
@@ -28,11 +31,27 @@ public class AsyncQuerySchedulerBuilder {
     REMOVE
   }
 
-  public static AsyncQueryScheduler build(FlintOptions options) {
+  public static AsyncQueryScheduler build(SparkSession sparkSession, FlintOptions options) throws IOException {
+    return new AsyncQuerySchedulerBuilder().doBuild(sparkSession, options);
+  }
+
+  /**
+   * Builds an AsyncQueryScheduler based on the provided options.
+   *
+   * @param sparkSession The SparkSession to be used.
+   * @param options The FlintOptions containing configuration details.
+   * @return An instance of AsyncQueryScheduler.
+   */
+  protected AsyncQueryScheduler doBuild(SparkSession sparkSession, FlintOptions options) throws IOException {
     String className = options.getCustomAsyncQuerySchedulerClass();
 
     if (className.isEmpty()) {
-      return new OpenSearchAsyncQueryScheduler(options);
+      OpenSearchAsyncQueryScheduler scheduler = createOpenSearchAsyncQueryScheduler(options);
+      // Check if the scheduler has access to the required index. Disable the external scheduler otherwise.
+      if (!hasAccessToSchedulerIndex(scheduler)){
+        setExternalSchedulerEnabled(sparkSession, false);
+      }
+      return scheduler;
     }
 
     // Attempts to instantiate AsyncQueryScheduler using reflection
@@ -44,5 +63,17 @@ public class AsyncQuerySchedulerBuilder {
     } catch (Exception e) {
       throw new RuntimeException("Failed to instantiate AsyncQueryScheduler: " + className, e);
     }
+  }
+
+  protected OpenSearchAsyncQueryScheduler createOpenSearchAsyncQueryScheduler(FlintOptions options) {
+    return new OpenSearchAsyncQueryScheduler(options);
+  }
+
+  protected boolean hasAccessToSchedulerIndex(OpenSearchAsyncQueryScheduler scheduler) throws IOException {
+    return scheduler.hasAccessToSchedulerIndex();
+  }
+
+  protected void setExternalSchedulerEnabled(SparkSession sparkSession, boolean enabled) {
+    sparkSession.sqlContext().setConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED().key(), String.valueOf(enabled));
   }
 }
