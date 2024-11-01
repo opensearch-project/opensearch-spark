@@ -88,7 +88,6 @@ commandName
    | FILLNULL
    | FIELDSUMMARY
    | TRENDLINE
-   | GEOIP
    ;
 
 searchCommand
@@ -449,6 +448,7 @@ valueExpression
    | positionFunction                                                                           # positionFunctionCall
    | caseFunction                                                                               # caseExpr
    | timestampFunction                                                                          # timestampFunctionCall
+   | geoipFunction                                                                              # geoFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
    ;
@@ -457,7 +457,6 @@ primaryExpression
    : evalFunctionCall
    | fieldExpression
    | literalValue
-   | geoipFunctionCall
    ;
 
 positionFunction
@@ -545,7 +544,7 @@ dataTypeFunctionCall
    ;
 
 // geoip function
-geoipFunctionCall
+geoipFunction
    : GEOIP LT_PRTHS (datasource = functionArg COMMA)? ipAddress = functionArg (COMMA properties = stringLiteral)? RT_PRTHS
    ;
 
@@ -582,6 +581,7 @@ evalFunctionName
    | cryptographicFunctionName
    | jsonFunctionName
    | collectionFunctionName
+   | geoipFunctionName
    ;
 
 functionArgs
@@ -889,6 +889,10 @@ collectionFunctionName
    : ARRAY
    ;
 
+geoipFunctionName
+   : GEOIP
+   ; 
+    
 positionFunctionName
    : POSITION
    ;
