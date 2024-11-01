@@ -9,7 +9,7 @@ import org.opensearch.flint.spark.FlintSparkExtensions
 
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
-import org.apache.spark.sql.flint.config.FlintConfigEntry
+import org.apache.spark.sql.flint.config.{FlintConfigEntry, FlintSparkConf}
 import org.apache.spark.sql.flint.config.FlintSparkConf.HYBRID_SCAN_ENABLED
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
@@ -26,6 +26,10 @@ trait FlintSuite extends SharedSparkSession {
       // ConstantPropagation etc.
       .set(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
       .set("spark.sql.extensions", classOf[FlintSparkExtensions].getName)
+      // Override scheduler class for unit testing
+      .set(
+        FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key,
+        "org.opensearch.flint.core.scheduler.AsyncQuerySchedulerBuilderTest$AsyncQuerySchedulerForLocalTest")
     conf
   }
 
