@@ -37,6 +37,9 @@ KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
 FILLNULL:                           'FILLNULL';
+FLATTEN:                            'FLATTEN';
+TRENDLINE:                          'TRENDLINE';
+EXPAND:                             'EXPAND';
 
 //Native JOIN KEYWORDS
 JOIN:                               'JOIN';
@@ -88,6 +91,10 @@ NUM:                                'NUM';
 FIELDSUMMARY:                       'FIELDSUMMARY';
 INCLUDEFIELDS:                      'INCLUDEFIELDS';
 NULLS:                              'NULLS';
+
+//TRENDLINE KEYWORDS
+SMA:                                'SMA';
+WMA:                                'WMA';
 
 // ARGUMENT KEYWORDS
 KEEPEMPTY:                          'KEEPEMPTY';
@@ -395,6 +402,9 @@ ISNOTNULL:                          'ISNOTNULL';
 ISPRESENT:                          'ISPRESENT';
 BETWEEN:                            'BETWEEN';
 CIDRMATCH:                          'CIDRMATCH';
+
+// Geo Loction 
+GEOIP:                              'GEOIP';
 
 // FLOWCONTROL FUNCTIONS
 IFNULL:                             'IFNULL';

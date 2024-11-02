@@ -60,6 +60,7 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where b not between '2024-09-10' and '2025-09-10'` - Note: This returns b >= '2024-09-10' and b <= '2025-09-10'
 - `source = table | where cidrmatch(ip, '192.169.1.0/24')`
 - `source = table | where cidrmatch(ipv6, '2003:db8::/32')`
+- `source = table | trendline sma(2, temperature) as temp_trend`
 
 ```sql
  source = table | eval status_category =
@@ -121,6 +122,15 @@ Assumptions: `a`, `b`, `c`, `d`, `e` are existing fields in `table`
 - `source = table | fillnull using a = 101`
 - `source = table | fillnull using a = 101, b = 102`
 - `source = table | fillnull using a = concat(b, c), d = 2 * pi() * e`
+
+### Flatten
+[See additional command details](ppl-flatten-command.md)
+Assumptions: `bridges`, `coor` are existing fields in `table`, and the field's types are `struct<?,?>` or `array<struct<?,?>>`  
+- `source = table | flatten bridges`
+- `source = table | flatten coor`
+- `source = table | flatten bridges | flatten coor`
+- `source = table | fields bridges | flatten bridges`
+- `source = table | fields country, bridges | flatten bridges | fields country, length | stats avg(length) as avg by country`
 
 ```sql
 source = table | eval e = eval status_category =

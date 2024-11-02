@@ -14,16 +14,14 @@ import org.apache.spark.sql.types.DoubleType$;
 import org.apache.spark.sql.types.FloatType$;
 import org.apache.spark.sql.types.IntegerType$;
 import org.apache.spark.sql.types.LongType$;
+import org.apache.spark.sql.types.NullType$;
 import org.apache.spark.sql.types.ShortType$;
 import org.apache.spark.sql.types.StringType$;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.opensearch.sql.ast.expression.SpanUnit;
 import scala.collection.mutable.Seq;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 import static org.opensearch.sql.ast.expression.SpanUnit.DAY;
 import static org.opensearch.sql.ast.expression.SpanUnit.HOUR;
@@ -67,6 +65,8 @@ public interface DataTypeTransformer {
                 return ShortType$.MODULE$;
             case BYTE:
                 return ByteType$.MODULE$;
+            case UNDEFINED:
+                return NullType$.MODULE$;
             default:
                 return StringType$.MODULE$;
         }

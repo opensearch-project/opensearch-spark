@@ -31,6 +31,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`describe command`](PPL-Example-Commands.md/#describe)
   
     - [`fillnull command`](ppl-fillnull-command.md)
+     
+    - [`flatten command`](ppl-flatten-command.md)
 
     - [`eval command`](ppl-eval-command.md)
 
@@ -67,7 +69,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`subquery commands`](ppl-subquery-command.md)
   
     - [`correlation commands`](ppl-correlation-command.md)
-
+  
+    - [`trendline commands`](ppl-trendline-command.md)
 
 * **Functions**
 

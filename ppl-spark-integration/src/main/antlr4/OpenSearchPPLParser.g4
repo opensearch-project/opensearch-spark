@@ -53,6 +53,9 @@ commands
    | renameCommand
    | fillnullCommand
    | fieldsummaryCommand
+   | flattenCommand
+   | expandCommand
+   | trendlineCommand
    ;
 
 commandName
@@ -80,8 +83,11 @@ commandName
    | PATTERNS
    | LOOKUP
    | RENAME
+   | EXPAND
    | FILLNULL
    | FIELDSUMMARY
+   | FLATTEN
+   | TRENDLINE
    ;
 
 searchCommand
@@ -89,7 +95,7 @@ searchCommand
    | (SEARCH)? fromClause logicalExpression     # searchFromFilter
    | (SEARCH)? logicalExpression fromClause     # searchFilterFrom
    ;
-   
+
 fieldsummaryCommand
    : FIELDSUMMARY (fieldsummaryParameter)*
    ;
@@ -246,6 +252,26 @@ fillnullCommand
    : expression
    ;
 
+flattenCommand
+    : FLATTEN fieldExpression
+    ;
+
+expandCommand
+    : EXPAND fieldExpression
+    ;
+
+trendlineCommand
+   : TRENDLINE (SORT sortField)? trendlineClause (trendlineClause)*
+   ;
+
+trendlineClause
+   : trendlineType LT_PRTHS numberOfDataPoints = integerLiteral COMMA field = fieldExpression RT_PRTHS (AS alias = qualifiedName)?
+   ;
+
+trendlineType
+   : SMA
+   | WMA
+   ;
 
 kmeansCommand
    : KMEANS (kmeansParameter)*
@@ -422,6 +448,7 @@ valueExpression
    | positionFunction                                                                           # positionFunctionCall
    | caseFunction                                                                               # caseExpr
    | timestampFunction                                                                          # timestampFunctionCall
+   | geoipFunction                                                                              # geoFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
    ;
@@ -516,6 +543,11 @@ dataTypeFunctionCall
    : CAST LT_PRTHS expression AS convertedDataType RT_PRTHS
    ;
 
+// geoip function
+geoipFunction
+   : GEOIP LT_PRTHS (datasource = functionArg COMMA)? ipAddress = functionArg (COMMA properties = stringLiteral)? RT_PRTHS
+   ;
+
 // boolean functions
 booleanFunctionCall
    : conditionFunctionBase LT_PRTHS functionArgs RT_PRTHS
@@ -549,6 +581,7 @@ evalFunctionName
    | cryptographicFunctionName
    | jsonFunctionName
    | collectionFunctionName
+   | geoipFunctionName
    ;
 
 functionArgs
@@ -856,6 +889,10 @@ collectionFunctionName
    : ARRAY
    ;
 
+geoipFunctionName
+   : GEOIP
+   ; 
+    
 positionFunctionName
    : POSITION
    ;
@@ -1125,4 +1162,5 @@ keywordsCanBeId
    | ANTI
    | BETWEEN
    | CIDRMATCH
+   | trendlineType
    ;
