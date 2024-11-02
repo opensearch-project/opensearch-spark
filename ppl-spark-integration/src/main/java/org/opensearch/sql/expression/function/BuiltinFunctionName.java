@@ -206,7 +206,8 @@ public enum BuiltinFunctionName {
   SUBSTRING(FunctionName.of("substring")),
   TRIM(FunctionName.of("trim")),
   UPPER(FunctionName.of("upper")),
-
+  /** GEOSPATIAL Functions. */
+  GEOIP(FunctionName.of("geoip")),
   /** JSON Functions. */
   // If the function argument is a valid JSON, return itself, or return NULL
   JSON(FunctionName.of("json")),
