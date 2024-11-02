@@ -69,7 +69,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`subquery commands`](ppl-subquery-command.md)
   
     - [`correlation commands`](ppl-correlation-command.md)
-
+  
+    - [`trendline commands`](ppl-trendline-command.md)
 
 * **Functions**
 

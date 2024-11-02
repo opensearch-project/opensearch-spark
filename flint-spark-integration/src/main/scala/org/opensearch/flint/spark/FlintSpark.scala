@@ -60,7 +60,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   private val flintMetadataCacheWriter = FlintMetadataCacheWriterBuilder.build(flintSparkConf)
 
   private val flintAsyncQueryScheduler: AsyncQueryScheduler = {
-    AsyncQuerySchedulerBuilder.build(flintSparkConf.flintOptions())
+    AsyncQuerySchedulerBuilder.build(spark, flintSparkConf.flintOptions())
   }
 
   override protected val flintMetadataLogService: FlintMetadataLogService = {
@@ -183,7 +183,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
           attachLatestLogEntry(indexName, metadata)
         }
         .toList
-        .flatMap(FlintSparkIndexFactory.create)
+        .flatMap(metadata => FlintSparkIndexFactory.create(spark, metadata))
     } else {
       Seq.empty
     }
@@ -202,7 +202,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
     if (flintClient.exists(indexName)) {
       val metadata = flintIndexMetadataService.getIndexMetadata(indexName)
       val metadataWithEntry = attachLatestLogEntry(indexName, metadata)
-      FlintSparkIndexFactory.create(metadataWithEntry)
+      FlintSparkIndexFactory.create(spark, metadataWithEntry)
     } else {
       Option.empty
     }
@@ -327,7 +327,7 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       val index = describeIndex(indexName)
 
       if (index.exists(_.options.autoRefresh())) {
-        val updatedIndex = FlintSparkIndexFactory.createWithDefaultOptions(index.get).get
+        val updatedIndex = FlintSparkIndexFactory.createWithDefaultOptions(spark, index.get).get
         FlintSparkIndexRefresh
           .create(updatedIndex.name(), updatedIndex)
           .validate(spark)
