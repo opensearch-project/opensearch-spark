@@ -5,28 +5,25 @@
 
 package org.opensearch.sql.ppl;
 
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.CaseWhen;
-import org.apache.spark.sql.catalyst.expressions.CurrentRow$;
 import org.apache.spark.sql.catalyst.expressions.Exists$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.In$;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
-import org.apache.spark.sql.catalyst.expressions.LessThan;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
 import org.apache.spark.sql.catalyst.expressions.MakeInterval$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
-import org.apache.spark.sql.catalyst.expressions.RowFrame$;
 import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.catalyst.expressions.ScalarSubquery$;
-import org.apache.spark.sql.catalyst.expressions.SpecifiedWindowFrame;
-import org.apache.spark.sql.catalyst.expressions.WindowExpression;
-import org.apache.spark.sql.catalyst.expressions.WindowSpecDefinition;
+import org.apache.spark.sql.catalyst.expressions.UnresolvedNamedLambdaVariable;
+import org.apache.spark.sql.catalyst.expressions.UnresolvedNamedLambdaVariable$;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.types.DataTypes;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
@@ -38,7 +35,6 @@ import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.BinaryExpression;
 import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Compare;
-import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
@@ -47,6 +43,7 @@ import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
+import org.opensearch.sql.ast.expression.LambdaFunction;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
@@ -61,14 +58,14 @@ import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.FillNull;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.RareTopN;
-import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
-import org.opensearch.sql.expression.function.BuiltinFunctionName;
 import org.opensearch.sql.expression.function.SerializableUdf;
 import org.opensearch.sql.ppl.utils.AggregatorTransformer;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTransformer;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
+import org.opensearch.sql.ppl.utils.JavaToScalaTransformer;
 import scala.Option;
+import scala.PartialFunction;
 import scala.Tuple2;
 import scala.collection.Seq;
 
@@ -430,6 +427,25 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
                 true);
 
         return context.getNamedParseExpressions().push(udf);
+    }
+
+    @Override
+    public Expression visitLambdaFunction(LambdaFunction node, CatalystPlanContext context) {
+        PartialFunction<Expression, Expression> transformer = JavaToScalaTransformer.toPartialFunction(
+            expr -> expr instanceof UnresolvedAttribute,
+            expr -> {
+                UnresolvedAttribute attr = (UnresolvedAttribute) expr;
+                return new UnresolvedNamedLambdaVariable(attr.nameParts());
+            }
+        );
+        Expression functionResult = node.getFunction().accept(this, context).transformUp(transformer);
+        context.popNamedParseExpressions();
+        List<NamedExpression> argsResult = node.getFuncArgs().stream()
+            .map(arg -> UnresolvedNamedLambdaVariable$.MODULE$.apply(seq(arg.getParts())))
+            .collect(Collectors.toList());
+        org.apache.spark.sql.catalyst.expressions.LambdaFunction lambdaFunction = new org.apache.spark.sql.catalyst.expressions.LambdaFunction(functionResult, seq(argsResult), false);
+        context.getNamedParseExpressions().push(lambdaFunction);
+        return lambdaFunction;
     }
 
     private List<Expression> visitExpressionList(List<UnresolvedExpression> expressionList, CatalystPlanContext context) {

@@ -8,12 +8,13 @@ package org.opensearch.flint.spark.ppl
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.common.antlr.SyntaxCheckException
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
+import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, Descending, GreaterThan, Literal, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, GreaterThan, LambdaFunction, Literal, NamedExpression, SortOrder, UnresolvedNamedLambdaVariable}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.command.DescribeTableCommand
@@ -395,5 +396,22 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
         | /* block comment */
         |""".stripMargin),
       context)
+  }
+
+  test("test lambda function") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, """source=t | eval lambda =  (x -> x > 0) """.stripMargin),
+        context)
+    val table = UnresolvedRelation(Seq("t"))
+    val lambda = LambdaFunction(
+      GreaterThan(UnresolvedNamedLambdaVariable(seq("x")), Literal(0)),
+      Seq(UnresolvedNamedLambdaVariable(seq("x"))))
+    val alias = Alias(lambda, "lambda")()
+    val evalProject = Project(Seq(UnresolvedStar(None), alias), table)
+    val projectList = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, evalProject)
+    comparePlans(expectedPlan, logPlan, false)
   }
 }
