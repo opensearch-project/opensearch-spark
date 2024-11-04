@@ -5,17 +5,18 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.opensearch.flint.spark.FlattenGenerator
+import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
+import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
+import org.scalatest.matchers.should.Matchers
+
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Explode, GeneratorOuter, Literal, RegExpExtract}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, DataFrameDropColumns, Generate, Project}
 import org.apache.spark.sql.types.IntegerType
-import org.opensearch.flint.spark.FlattenGenerator
-import org.opensearch.flint.spark.ppl.PlaneUtils.plan
-import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
-import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
-import org.scalatest.matchers.should.Matchers
 
 class PPLLogicalPlanExpandCommandTranslatorTestSuite
     extends SparkFunSuite
@@ -29,9 +30,7 @@ class PPLLogicalPlanExpandCommandTranslatorTestSuite
   test("test expand only field") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(
-        plan(pplParser, "source=relation | expand field_with_array"),
-        context)
+      planTransformer.visit(plan(pplParser, "source=relation | expand field_with_array"), context)
 
     val relation = UnresolvedRelation(Seq("relation"))
     val generator = Explode(UnresolvedAttribute("field_with_array"))
@@ -64,13 +63,12 @@ class PPLLogicalPlanExpandCommandTranslatorTestSuite
       None,
       seq(),
       projectStateCompanyEmployee)
-    val dropSourceColumn = DataFrameDropColumns(Seq(UnresolvedAttribute("employee")), generate)
     val projectStateCompanySalary = Project(
       Seq(
         UnresolvedAttribute("state"),
         UnresolvedAttribute("company"),
-        UnresolvedAttribute("salary")),
-      dropSourceColumn)
+        UnresolvedAttribute("salary"),
+        UnresolvedAttribute("employee")))
     val average = Alias(
       UnresolvedFunction(seq("MAX"), seq(UnresolvedAttribute("salary")), false, None, false),
       "max")()

@@ -5,7 +5,9 @@
 package org.opensearch.flint.spark.ppl
 
 import java.nio.file.Files
+
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
+
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, Explode, GeneratorOuter, Literal, Or}
@@ -13,7 +15,7 @@ import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLExpandITSuite
-  extends QueryTest
+    extends QueryTest
     with LogicalPlanTestUtils
     with FlintPPLSuite
     with StreamTest {
@@ -61,13 +63,14 @@ class FlintSparkPPLExpandITSuite
                        | source = $testTable
                        | | where country = 'England' or country = 'Poland'
                        | | expand bridges 
-                       | | fields city, country, col
+                       | | fields city, country, bridges
                        | """.stripMargin)
 
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
-      Array(Row( "London", "England", Seq(801, "Tower Bridge")),
-        Row( "London", "England", Seq(928, "London Bridge")),
+      Array(
+        Row("London", "England", Seq(801, "Tower Bridge")),
+        Row("London", "England", Seq(928, "London Bridge")),
         Row("Warsaw", "Poland", null))
     // Compare the results
     assert(results.toSet == expectedResults.toSet)
@@ -78,7 +81,12 @@ class FlintSparkPPLExpandITSuite
         EqualTo(UnresolvedAttribute("country"), Literal("England")),
         EqualTo(UnresolvedAttribute("country"), Literal("Poland"))),
       table)
-    val project = Project(Seq(UnresolvedAttribute("city"), UnresolvedAttribute("country"), UnresolvedAttribute("col")), filter)
+    val project = Project(
+      Seq(
+        UnresolvedAttribute("city"),
+        UnresolvedAttribute("country"),
+        UnresolvedAttribute("bridges")),
+      filter)
     val generatorExp = generator("bridges", project)
     val expectedPlan = Project(Seq(UnresolvedStar(None)), generatorExp)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)

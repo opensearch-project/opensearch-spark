@@ -478,8 +478,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         Expression field = visitExpression(node.getField(), context);
         context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
         Explode explodeGenerator = new Explode(field);
-        context.apply(p -> new Generate(new GeneratorOuter(explodeGenerator), seq(), true, (Option) None$.MODULE$, seq(), p));
-        return context.apply(logicalPlan -> DataFrameDropColumns$.MODULE$.apply(seq(field), logicalPlan));
+        return context.apply(p -> new Generate(new GeneratorOuter(explodeGenerator), seq(), true, (Option) None$.MODULE$, seq(), p));
     }
 
     private void visitFieldList(List<Field> fieldList, CatalystPlanContext context) {
