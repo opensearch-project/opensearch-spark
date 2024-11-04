@@ -15,7 +15,7 @@ import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.In$;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
-import org.apache.spark.sql.catalyst.expressions.LambdaFunction;
+import org.apache.spark.sql.catalyst.expressions.LambdaFunction$;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
 import org.apache.spark.sql.catalyst.expressions.MakeInterval$;
@@ -44,7 +44,7 @@ import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
-import org.opensearch.sql.ast.expression.PPLLambdaFunction;
+import org.opensearch.sql.ast.expression.LambdaFunction;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
@@ -431,7 +431,7 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
     }
 
     @Override
-    public Expression visitPPLLambdaFunction(PPLLambdaFunction node, CatalystPlanContext context) {
+    public Expression visitPPLLambdaFunction(LambdaFunction node, CatalystPlanContext context) {
         PartialFunction<Expression, Expression> transformer = JavaToScalaTransformer.toPartialFunction(
             expr -> expr instanceof UnresolvedAttribute,
             expr -> {
@@ -444,9 +444,7 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
         List<NamedExpression> argsResult = node.getFuncArgs().stream()
             .map(arg -> UnresolvedNamedLambdaVariable$.MODULE$.apply(seq(arg.getParts())))
             .collect(Collectors.toList());
-        LambdaFunction lambdaFunction = new LambdaFunction(functionResult, seq(argsResult), false);
-        context.getNamedParseExpressions().push(lambdaFunction);
-        return lambdaFunction;
+        return context.getNamedParseExpressions().push(LambdaFunction$.MODULE$.apply(functionResult, seq(argsResult), false));
     }
 
     private List<Expression> visitExpressionList(List<UnresolvedExpression> expressionList, CatalystPlanContext context) {

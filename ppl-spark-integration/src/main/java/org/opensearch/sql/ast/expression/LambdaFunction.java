@@ -20,7 +20,7 @@ import org.opensearch.sql.ast.AbstractNodeVisitor;
 @Getter
 @EqualsAndHashCode(callSuper = false)
 @RequiredArgsConstructor
-public class PPLLambdaFunction extends UnresolvedExpression {
+public class LambdaFunction extends UnresolvedExpression {
   private final UnresolvedExpression function;
   private final List<QualifiedName> funcArgs;
 
