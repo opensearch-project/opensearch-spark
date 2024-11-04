@@ -440,7 +440,7 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
     }
 
     @Override
-    public Expression visitPPLLambdaFunction(LambdaFunction node, CatalystPlanContext context) {
+    public Expression visitLambdaFunction(LambdaFunction node, CatalystPlanContext context) {
         PartialFunction<Expression, Expression> transformer = JavaToScalaTransformer.toPartialFunction(
             expr -> expr instanceof UnresolvedAttribute,
             expr -> {

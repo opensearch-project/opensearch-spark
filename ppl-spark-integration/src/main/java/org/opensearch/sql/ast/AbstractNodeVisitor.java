@@ -184,7 +184,7 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitChildren(node, context);
   }
 
-  public T visitPPLLambdaFunction(LambdaFunction node, C context) {
+  public T visitLambdaFunction(LambdaFunction node, C context) {
     return visitChildren(node, context);
   }
 

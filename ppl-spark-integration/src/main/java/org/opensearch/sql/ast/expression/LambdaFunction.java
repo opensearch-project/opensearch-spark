@@ -34,7 +34,7 @@ public class LambdaFunction extends UnresolvedExpression {
 
   @Override
   public <R, C> R accept(AbstractNodeVisitor<R, C> nodeVisitor, C context) {
-    return nodeVisitor.visitPPLLambdaFunction(this, context);
+    return nodeVisitor.visitLambdaFunction(this, context);
   }
 
   @Override
