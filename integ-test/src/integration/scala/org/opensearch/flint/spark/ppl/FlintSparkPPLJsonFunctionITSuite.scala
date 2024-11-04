@@ -5,11 +5,11 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, Literal, Not}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
-import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 
 class FlintSparkPPLJsonFunctionITSuite
     extends QueryTest

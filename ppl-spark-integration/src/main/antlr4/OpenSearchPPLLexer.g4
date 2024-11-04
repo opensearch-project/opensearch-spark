@@ -398,6 +398,8 @@ ARRAY:                              'ARRAY';
 //EXISTS:                             'EXISTS';
 FORALL:                             'FORALL';
 FILTER:                             'FILTER';
+TRANSFORM:                          'TRANSFORM';
+REDUCE:                             'REDUCE';
 
 // BOOL FUNCTIONS
 LIKE:                               'LIKE';

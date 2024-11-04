@@ -53,7 +53,6 @@ class FlintSparkPPLLambdaFunctionITSuite
                         | source = $testTable | eval array = json_array(json_object("a",1,"b",-1),json_object("a",-1,"b",-1)), result = exists(array, x -> x.b < 0) | head 1 | fields result
                         | """.stripMargin)
     assertSameRows(Seq(Row(true)), frame4)
-
   }
 
   test("test exists()") {
@@ -100,5 +99,34 @@ class FlintSparkPPLLambdaFunctionITSuite
          | source = $testTable| eval array = json_array(json_object("a",1,"b",-1),json_object("a",-1,"b",-1)), result = filter(array, x -> x.b > 0) | head 1 | fields result
          | """.stripMargin)
     assertSameRows(Seq(Row("""[]""")), frame4.select(to_json(col("result"))))
+  }
+
+  test("test transform()") {
+    val frame = sql(s"""
+                       | source = $testTable | eval array = json_array(1,2,3), result = transform(array, x -> x + 1) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(Seq(2, 3, 4))), frame)
+
+    val frame2 = sql(s"""
+                        | source = $testTable | eval array = json_array(1,2,3), result = transform(array, (x, y) -> x + y) | head 1 | fields result
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(Seq(1, 3, 5))), frame2)
+  }
+
+  test("test reduce()") {
+    val frame = sql(s"""
+                       | source = $testTable | eval array = json_array(1,2,3), result = reduce(array, 0, (acc, x) -> acc + x) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(6)), frame)
+
+    val frame2 = sql(s"""
+                       | source = $testTable | eval array = json_array(1,2,3), result = reduce(array, 1, (acc, x) -> acc + x) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(7)), frame2)
+
+    val frame3 = sql(s"""
+                        | source = $testTable | eval array = json_array(1,2,3), result = reduce(array, 0, (acc, x) -> acc + x, acc -> acc * 10) | head 1 | fields result
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(60)), frame3)
   }
 }

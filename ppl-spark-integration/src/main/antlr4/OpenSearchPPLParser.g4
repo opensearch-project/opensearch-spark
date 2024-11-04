@@ -882,6 +882,8 @@ lambdaFunctionName
    : FORALL
    | EXISTS
    | FILTER
+   | TRANSFORM
+   | REDUCE
    ;
 
 positionFunctionName

@@ -233,6 +233,8 @@ public enum BuiltinFunctionName {
   ARRAY_FORALL(FunctionName.of("forall")),
   ARRAY_EXISTS(FunctionName.of("exists")),
   ARRAY_FILTER(FunctionName.of("filter")),
+  ARRAY_TRANSFORM(FunctionName.of("transform")),
+  ARRAY_AGGREGATE(FunctionName.of("reduce")),
 
   /** NULL Test. */
   IS_NULL(FunctionName.of("is null")),

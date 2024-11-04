@@ -108,3 +108,72 @@ Example:
     +-----------+
     | []        |
     +-----------+
+
+### `TRANSFORM`
+
+**Description**
+
+`transform(array, lambda)` Transform elements in an array using the lambda transform function. The second argument implies the index of the element if using binary lambda function. This is similar to a `map` in functional programming.
+
+**Argument type:** ARRAY, LAMBDA
+
+**Return type:** ARRAY
+
+An ARRAY that contains the result of applying the lambda transform function to each element in the input array.
+
+Example:
+
+    os> source=people | eval array = json_array(1, 2, 3), result = transform(array, x -> x + 1) | fields result
+    fetched rows / total rows = 1/1
+    +--------------+
+    | result       |
+    +--------------+
+    | [2, 3, 4]    |
+    +--------------+
+
+    os> source=people | eval array = json_array(1, 2, 3), result = transform(array, (x, i) -> x + i) | fields result
+    fetched rows / total rows = 1/1
+    +--------------+
+    | result       |
+    +--------------+
+    | [1, 3, 5]    |
+    +--------------+
+
+### `REDUCE`
+
+**Description**
+
+`reduce(array, start, merge_lambda, finish_lambda)` Applies a binary merge lambda function to a start value and all elements in the array, and reduces this to a single state. The final state is converted
+into the final result by applying a finish lambda function.
+
+**Argument type:** ARRAY, ANY, LAMBDA, LAMBDA
+
+**Return type:** ANY
+
+An ARRAY that contains the final result of applying the lambda functions to the start value and the input array.
+
+Example:
+
+    os> source=people | eval array = json_array(1, 2, 3), result = reduce(array, 0, (x, y) -> x + y) | fields result
+    fetched rows / total rows = 1/1
+    +-----------+
+    | result    |
+    +-----------+
+    | 6         |
+    +-----------+
+
+    os> source=people | eval array = json_array(1, 2, 3), result = reduce(array, 10, (x, y) -> x + y) | fields result
+    fetched rows / total rows = 1/1
+    +-----------+
+    | result    |
+    +-----------+
+    | 16        |
+    +-----------+
+
+    os> source=people | eval array = json_array(1, 2, 3), result = reduce(array, 0, (x, y) -> x + y, x -> x * 10) | fields result
+    fetched rows / total rows = 1/1
+    +-----------+
+    | result    |
+    +-----------+
+    | 60        |
+    +-----------+
