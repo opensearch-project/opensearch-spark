@@ -66,7 +66,7 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 [See additional command details](functions/ppl-ip.md)
 
 - `source = table | where cidrmatch(ip, '192.169.1.0/24')`
-- `source = table | where isV6 = false and isValid = true and cidrmatch(ipAddress, '192.168.1.0/24'`
+- `source = table | where isV6 = false and isValid = true and cidrmatch(ipAddress, '192.168.1.0/24')`
 - `source = table | where isV6 = true | eval inRange = case(cidrmatch(ipAddress, '2003:db8::/32'), 'in' else 'out') | fields ip, inRange`
 
 ```sql
