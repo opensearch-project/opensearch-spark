@@ -181,7 +181,7 @@ class PPLLogicalPlanLambdaFunctionsTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          """source=t | eval a = json_array(1, 2, 3), b = transform(a, 0, (x, y) -> x + y, x -> x * 10)""".stripMargin),
+          """source=t | eval a = json_array(1, 2, 3), b = reduce(a, 0, (x, y) -> x + y, x -> x * 10)""".stripMargin),
         context)
     val table = UnresolvedRelation(Seq("t"))
     val jsonFunc =
@@ -199,7 +199,7 @@ class PPLLogicalPlanLambdaFunctionsTranslatorTestSuite
     val aliasB =
       Alias(
         UnresolvedFunction(
-          "transform",
+          "reduce",
           Seq(UnresolvedAttribute("a"), Literal(0), mergeLambda, finishLambda),
           false),
         "b")()
