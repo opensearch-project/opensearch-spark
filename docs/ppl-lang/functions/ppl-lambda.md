@@ -143,14 +143,13 @@ Example:
 
 **Description**
 
-`reduce(array, start, merge_lambda, finish_lambda)` Applies a binary merge lambda function to a start value and all elements in the array, and reduces this to a single state. The final state is converted
-into the final result by applying a finish lambda function.
+`reduce(array, start, merge_lambda, finish_lambda)` Applies a binary merge lambda function to a start value and all elements in the array, and reduces this to a single state. The final state is converted into the final result by applying a finish lambda function.
 
 **Argument type:** ARRAY, ANY, LAMBDA, LAMBDA
 
 **Return type:** ANY
 
-An ARRAY that contains the final result of applying the lambda functions to the start value and the input array.
+The final result of applying the lambda functions to the start value and the input array.
 
 Example:
 

@@ -118,7 +118,7 @@ class PPLLogicalPlanLambdaFunctionsTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
-  test("test transform() - test double arguments of lambda") {
+  test("test transform() - test binary lambda") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
