@@ -381,14 +381,19 @@ JSON_VALID:                         'JSON_VALID';
 //JSON_DELETE:                        'JSON_DELETE';
 //JSON_EXTEND:                        'JSON_EXTEND';
 //JSON_SET:                           'JSON_SET';
-JSON_ARRAY_ALL_MATCH:               'JSON_ARRAY_ALL_MATCH';
-JSON_ARRAY_ANY_MATCH:               'JSON_ARRAY_ANY_MATCH';
-JSON_ARRAY_FILTER:                  'JSON_ARRAY_FILTER';
+//JSON_ARRAY_ALL_MATCH:               'JSON_ARRAY_ALL_MATCH';
+//JSON_ARRAY_ANY_MATCH:               'JSON_ARRAY_ANY_MATCH';
+//JSON_ARRAY_FILTER:                  'JSON_ARRAY_FILTER';
 //JSON_ARRAY_MAP:                     'JSON_ARRAY_MAP';
 //JSON_ARRAY_REDUCE:                  'JSON_ARRAY_REDUCE';
 
 // COLLECTION FUNCTIONS
 ARRAY:                              'ARRAY';
+
+// LAMBDA FUNCTIONS
+//EXISTS:                             'EXISTS';
+FORALL:                             'FORALL';
+FILTER:                             'FILTER';
 
 // BOOL FUNCTIONS
 LIKE:                               'LIKE';

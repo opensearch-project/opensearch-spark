@@ -9,6 +9,7 @@ import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, Literal, Not}
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.functions.{col, to_json}
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLJsonFunctionITSuite
@@ -382,5 +383,74 @@ class FlintSparkPPLJsonFunctionITSuite
         null,
         null))
     assertSameRows(expectedSeq, frame)
+  }
+
+  test("test forall()") {
+    val frame = sql(s"""
+                       | source = $testTable | eval array = json_array(1,2,0,-1,1.1,-0.11), result = forall(array, x -> x > 0) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(false)), frame)
+
+    val frame2 = sql(s"""
+                        | source = $testTable | eval array = json_array(1,2,0,-1,1.1,-0.11), result = forall(array, x -> x > -10) | head 1 | fields result
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(true)), frame2)
+
+    val frame3 = sql(s"""
+                        | source = $testTable | eval array = json_array(json_object("a",1,"b",-1),json_object("a",-1,"b",-1)), result = forall(array, x -> x.a > 0) | head 1 | fields result
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(false)), frame3)
+
+    val frame4 = sql(s"""
+                        | source = $testTable | eval array = json_array(json_object("a",1,"b",-1),json_object("a",-1,"b",-1)), result = exists(array, x -> x.b < 0) | head 1 | fields result
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(true)), frame4)
+
+  }
+
+  test("test exists()") {
+    val frame = sql(s"""
+                       | source = $testTable | eval array = json_array(1,2,0,-1,1.1,-0.11), result = exists(array, x -> x > 0) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(true)), frame)
+
+    val frame2 = sql(s"""
+                        | source = $testTable | eval array = json_array(1,2,0,-1,1.1,-0.11), result = exists(array, x -> x > 10) | head 1 | fields result
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(false)), frame2)
+
+    val frame3 = sql(s"""
+                        | source = $testTable | eval array = json_array(json_object("a",1,"b",-1),json_object("a",-1,"b",-1)), result = exists(array, x -> x.a > 0) | head 1 | fields result
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(true)), frame3)
+
+    val frame4 = sql(s"""
+                        | source = $testTable | eval array = json_array(json_object("a",1,"b",-1),json_object("a",-1,"b",-1)), result = exists(array, x -> x.b > 0) | head 1 | fields result
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(false)), frame4)
+
+  }
+
+  test("test filter()") {
+    val frame = sql(s"""
+         | source = $testTable| eval array = json_array(1,2,0,-1,1.1,-0.11), result = filter(array, x -> x > 0) | head 1 | fields result
+         | """.stripMargin)
+    assertSameRows(Seq(Row(Seq(1, 2, 1.1))), frame)
+
+    val frame2 = sql(s"""
+         | source = $testTable| eval array = json_array(1,2,0,-1,1.1,-0.11), result = filter(array, x -> x > 10) | head 1 | fields result
+         | """.stripMargin)
+    assertSameRows(Seq(Row(Seq())), frame2)
+
+    val frame3 = sql(s"""
+         | source = $testTable| eval array = json_array(json_object("a",1,"b",-1),json_object("a",-1,"b",-1)), result = filter(array, x -> x.a > 0) | head 1 | fields result
+         | """.stripMargin)
+
+    assertSameRows(Seq(Row("""[{"a":1,"b":-1}]""")), frame3.select(to_json(col("result"))))
+
+    val frame4 = sql(s"""
+         | source = $testTable| eval array = json_array(json_object("a",1,"b",-1),json_object("a",-1,"b",-1)), result = filter(array, x -> x.b > 0) | head 1 | fields result
+         | """.stripMargin)
+    assertSameRows(Seq(Row("""[]""")), frame4.select(to_json(col("result"))))
   }
 }

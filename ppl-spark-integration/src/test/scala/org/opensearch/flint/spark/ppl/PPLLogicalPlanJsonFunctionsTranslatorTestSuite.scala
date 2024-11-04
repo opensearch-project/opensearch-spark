@@ -12,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, ArrayExists, ArrayFilter, ArrayForAll, EqualTo, GreaterThan, LambdaFunction, Literal, UnresolvedNamedLambdaVariable}
+import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, GreaterThan, LambdaFunction, Literal, UnresolvedNamedLambdaVariable}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, Project}
 
@@ -232,13 +232,13 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
-  test("test json_array_all_match()") {
+  test("test forall()") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
         plan(
           pplParser,
-          """source=t | eval a = json_array(1, 2, 3), b = json_array_all_match(a, x -> x > 0)""".stripMargin),
+          """source=t | eval a = json_array(1, 2, 3), b = forall(a, x -> x > 0)""".stripMargin),
         context)
     val table = UnresolvedRelation(Seq("t"))
     val jsonFunc =
@@ -247,20 +247,21 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val lambda = LambdaFunction(
       GreaterThan(UnresolvedNamedLambdaVariable(seq("x")), Literal(0)),
       Seq(UnresolvedNamedLambdaVariable(seq("x"))))
-    val aliasB = Alias(ArrayForAll(UnresolvedAttribute("a"), lambda), "b")()
+    val aliasB =
+      Alias(UnresolvedFunction("forall", Seq(UnresolvedAttribute("a"), lambda), false), "b")()
     val evalProject = Project(Seq(UnresolvedStar(None), aliasA, aliasB), table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, evalProject)
     comparePlans(expectedPlan, logPlan, false)
   }
 
-  test("test json_array_any_match()") {
+  test("test exits()") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
         plan(
           pplParser,
-          """source=t | eval a = json_array(1, 2, 3), b = json_array_any_match(a, x -> x > 0)""".stripMargin),
+          """source=t | eval a = json_array(1, 2, 3), b = exists(a, x -> x > 0)""".stripMargin),
         context)
     val table = UnresolvedRelation(Seq("t"))
     val jsonFunc =
@@ -269,20 +270,21 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val lambda = LambdaFunction(
       GreaterThan(UnresolvedNamedLambdaVariable(seq("x")), Literal(0)),
       Seq(UnresolvedNamedLambdaVariable(seq("x"))))
-    val aliasB = Alias(ArrayExists(UnresolvedAttribute("a"), lambda), "b")()
+    val aliasB =
+      Alias(UnresolvedFunction("exists", Seq(UnresolvedAttribute("a"), lambda), false), "b")()
     val evalProject = Project(Seq(UnresolvedStar(None), aliasA, aliasB), table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, evalProject)
     comparePlans(expectedPlan, logPlan, false)
   }
 
-  test("test json_array_filter()") {
+  test("test filter()") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
         plan(
           pplParser,
-          """source=t | eval a = json_array(1, 2, 3), b = json_array_filter(a, x -> x > 0)""".stripMargin),
+          """source=t | eval a = json_array(1, 2, 3), b = filter(a, x -> x > 0)""".stripMargin),
         context)
     val table = UnresolvedRelation(Seq("t"))
     val jsonFunc =
@@ -291,7 +293,8 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val lambda = LambdaFunction(
       GreaterThan(UnresolvedNamedLambdaVariable(seq("x")), Literal(0)),
       Seq(UnresolvedNamedLambdaVariable(seq("x"))))
-    val aliasB = Alias(ArrayFilter(UnresolvedAttribute("a"), lambda), "b")()
+    val aliasB =
+      Alias(UnresolvedFunction("filter", Seq(UnresolvedAttribute("a"), lambda), false), "b")()
     val evalProject = Project(Seq(UnresolvedStar(None), aliasA, aliasB), table)
     val projectList = Seq(UnresolvedStar(None))
     val expectedPlan = Project(projectList, evalProject)

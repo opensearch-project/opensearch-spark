@@ -8,9 +8,6 @@ package org.opensearch.sql.ppl.utils;
 import com.google.common.collect.ImmutableMap;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction$;
-import org.apache.spark.sql.catalyst.expressions.ArrayExists$;
-import org.apache.spark.sql.catalyst.expressions.ArrayFilter$;
-import org.apache.spark.sql.catalyst.expressions.ArrayForAll$;
 import org.apache.spark.sql.catalyst.expressions.CurrentTimeZone$;
 import org.apache.spark.sql.catalyst.expressions.CurrentTimestamp$;
 import org.apache.spark.sql.catalyst.expressions.DateAddInterval$;
@@ -38,9 +35,6 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.DAY_OF_
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.COALESCE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_ARRAY;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_ARRAY_ALL_MATCH;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_ARRAY_ANY_MATCH;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_ARRAY_FILTER;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_ARRAY_LENGTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_EXTRACT;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_KEYS;
@@ -185,18 +179,6 @@ public interface BuiltinFunctionTransformer {
             args -> {
                 return ToUTCTimestamp$.MODULE$.apply(CurrentTimestamp$.MODULE$.apply(), CurrentTimeZone$.MODULE$.apply());
             })
-        .put(
-            JSON_ARRAY_ALL_MATCH,
-            args -> ArrayForAll$.MODULE$.apply(args.get(0), args.get(1))
-        )
-        .put(
-            JSON_ARRAY_ANY_MATCH,
-            args -> ArrayExists$.MODULE$.apply(args.get(0), args.get(1))
-        )
-        .put(
-            JSON_ARRAY_FILTER,
-            args -> ArrayFilter$.MODULE$.apply(args.get(0), args.get(1))
-        )
         .build();
 
     static Expression builtinFunction(org.opensearch.sql.ast.expression.Function function, List<Expression> args) {
