@@ -37,6 +37,8 @@ KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
 FILLNULL:                           'FILLNULL';
+FLATTEN:                            'FLATTEN';
+TRENDLINE:                          'TRENDLINE';
 
 //Native JOIN KEYWORDS
 JOIN:                               'JOIN';
@@ -88,6 +90,9 @@ NUM:                                'NUM';
 FIELDSUMMARY:                       'FIELDSUMMARY';
 INCLUDEFIELDS:                      'INCLUDEFIELDS';
 NULLS:                              'NULLS';
+
+//TRENDLINE KEYWORDS
+SMA:                                'SMA';
 
 // ARGUMENT KEYWORDS
 KEEPEMPTY:                          'KEEPEMPTY';
@@ -295,6 +300,7 @@ CURDATE:                            'CURDATE';
 CURRENT_DATE:                       'CURRENT_DATE';
 CURRENT_TIME:                       'CURRENT_TIME';
 CURRENT_TIMESTAMP:                  'CURRENT_TIMESTAMP';
+CURRENT_TIMEZONE:                   'CURRENT_TIMEZONE';
 CURTIME:                            'CURTIME';
 DATE:                               'DATE';
 DATEDIFF:                           'DATEDIFF';
@@ -393,6 +399,7 @@ ISNULL:                             'ISNULL';
 ISNOTNULL:                          'ISNOTNULL';
 ISPRESENT:                          'ISPRESENT';
 BETWEEN:                            'BETWEEN';
+CIDRMATCH:                          'CIDRMATCH';
 
 // FLOWCONTROL FUNCTIONS
 IFNULL:                             'IFNULL';

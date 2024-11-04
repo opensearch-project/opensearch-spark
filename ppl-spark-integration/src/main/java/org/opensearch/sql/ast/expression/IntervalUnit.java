@@ -17,6 +17,7 @@ public enum IntervalUnit {
   UNKNOWN,
 
   MICROSECOND,
+  MILLISECOND,
   SECOND,
   MINUTE,
   HOUR,

@@ -82,8 +82,8 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
    */
   private String query;
 
-  public AstBuilder(AstExpressionBuilder expressionBuilder, String query) {
-    this.expressionBuilder = expressionBuilder;
+  public AstBuilder(String query) {
+    this.expressionBuilder = new AstExpressionBuilder(this);
     this.query = query;
   }
 
@@ -386,6 +386,30 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
       .collect(Collectors.toMap(and -> (Alias) and.getLeft(), and -> (Field) and.getRight(), (x, y) -> y, LinkedHashMap::new));
   }
 
+  @Override
+  public UnresolvedPlan visitTrendlineCommand(OpenSearchPPLParser.TrendlineCommandContext ctx) {
+    List<Trendline.TrendlineComputation> trendlineComputations = ctx.trendlineClause()
+            .stream()
+            .map(this::toTrendlineComputation)
+            .collect(Collectors.toList());
+    return Optional.ofNullable(ctx.sortField())
+            .map(this::internalVisitExpression)
+            .map(Field.class::cast)
+            .map(sort -> new Trendline(Optional.of(sort), trendlineComputations))
+            .orElse(new Trendline(Optional.empty(), trendlineComputations));
+  }
+
+  private Trendline.TrendlineComputation toTrendlineComputation(OpenSearchPPLParser.TrendlineClauseContext ctx) {
+    int numberOfDataPoints = Integer.parseInt(ctx.numberOfDataPoints.getText());
+    if (numberOfDataPoints < 1) {
+      throw new SyntaxCheckException("Number of trendline data-points must be greater than or equal to 1");
+    }
+    Field dataField = (Field) expressionBuilder.visitFieldExpression(ctx.field);
+    String alias = ctx.alias == null?dataField.getField().toString()+"_trendline":ctx.alias.getText();
+    String computationType = ctx.trendlineType().getText();
+    return new Trendline.TrendlineComputation(numberOfDataPoints, dataField, alias, Trendline.TrendlineType.valueOf(computationType.toUpperCase()));
+  }
+
   /** Top command. */
   @Override
   public UnresolvedPlan visitTopCommand(OpenSearchPPLParser.TopCommandContext ctx) {
@@ -560,6 +584,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     } else {
       throw new SyntaxCheckException("Invalid fillnull command");
     }
+  }
+
+  @Override
+  public UnresolvedPlan visitFlattenCommand(OpenSearchPPLParser.FlattenCommandContext ctx) {
+    Field unresolvedExpression = (Field) internalVisitExpression(ctx.fieldExpression());
+    return new Flatten(unresolvedExpression);
   }
 
   /** AD command. */
