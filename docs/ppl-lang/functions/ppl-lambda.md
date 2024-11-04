@@ -154,7 +154,7 @@ An ARRAY that contains the final result of applying the lambda functions to the 
 
 Example:
 
-    os> source=people | eval array = json_array(1, 2, 3), result = reduce(array, 0, (x, y) -> x + y) | fields result
+    os> source=people | eval array = json_array(1, 2, 3), result = reduce(array, 0, (acc, x) -> acc + x) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |
@@ -162,7 +162,7 @@ Example:
     | 6         |
     +-----------+
 
-    os> source=people | eval array = json_array(1, 2, 3), result = reduce(array, 10, (x, y) -> x + y) | fields result
+    os> source=people | eval array = json_array(1, 2, 3), result = reduce(array, 10, (acc, x) -> acc + x) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |
@@ -170,7 +170,7 @@ Example:
     | 16        |
     +-----------+
 
-    os> source=people | eval array = json_array(1, 2, 3), result = reduce(array, 0, (x, y) -> x + y, x -> x * 10) | fields result
+    os> source=people | eval array = json_array(1, 2, 3), result = reduce(array, 0, (acc, x) -> acc + x, acc -> acc * 10) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |
