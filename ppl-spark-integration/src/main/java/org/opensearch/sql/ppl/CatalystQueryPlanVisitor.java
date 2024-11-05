@@ -476,9 +476,17 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
         }
         Expression field = visitExpression(node.getField(), context);
+        Optional<Expression> alias = node.getAlias().map(aliasNode -> visitExpression(aliasNode, context));
         context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
         Explode explodeGenerator = new Explode(field);
-        return context.apply(p -> new Generate(new GeneratorOuter(explodeGenerator), seq(), true, (Option) None$.MODULE$, seq(), p));
+        scala.collection.mutable.Seq seq = alias.isEmpty() ? seq() : seq(alias.get());
+        if(alias.isEmpty())
+            return context.apply(p -> new Generate(new GeneratorOuter(explodeGenerator), seq(), true, (Option) None$.MODULE$, seq, p));
+        else {
+            //in case an alias does appear - remove the original field from the returning columns
+            context.apply(p -> new Generate(new GeneratorOuter(explodeGenerator), seq(), true, (Option) None$.MODULE$, seq, p));
+            return context.apply(logicalPlan -> DataFrameDropColumns$.MODULE$.apply(seq(field), logicalPlan));
+        }
     }
 
     private void visitFieldList(List<Field> fieldList, CatalystPlanContext context) {

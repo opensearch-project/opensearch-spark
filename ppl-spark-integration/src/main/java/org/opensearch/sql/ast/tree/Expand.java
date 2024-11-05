@@ -10,8 +10,11 @@ import lombok.RequiredArgsConstructor;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Field;
+import org.opensearch.sql.ast.expression.UnresolvedAttribute;
+import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
 import java.util.List;
+import java.util.Optional;
 
 /** Logical plan node of Expand */
 @RequiredArgsConstructor
@@ -20,6 +23,8 @@ public class Expand extends UnresolvedPlan {
 
   @Getter
   private final Field field;
+  @Getter
+  private final Optional<UnresolvedExpression> alias;
   
   @Override
   public Expand attach(UnresolvedPlan child) {

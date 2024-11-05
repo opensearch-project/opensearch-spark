@@ -253,7 +253,7 @@ fillnullCommand
    ;
 
 expandCommand
-    : EXPAND fieldExpression
+    : EXPAND fieldExpression (AS alias = qualifiedName)?
     ;
     
 flattenCommand
