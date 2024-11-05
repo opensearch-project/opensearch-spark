@@ -39,11 +39,7 @@ class PPLLogicalPlanExpandCommandTranslatorTestSuite
     val expectedPlan = Project(seq(UnresolvedStar(None)), generate)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
-
-  /**
-   * 'Project [*] +- 'Generate 'explode('multi_value), false, as, ['exploded_multi_value] +-
-   * 'UnresolvedRelation [spark_catalog, default, flint_ppl_multi_value_test], [], false
-   */
+  
   test("test expand only field with alias") {
     val context = new CatalystPlanContext
     val logPlan =
