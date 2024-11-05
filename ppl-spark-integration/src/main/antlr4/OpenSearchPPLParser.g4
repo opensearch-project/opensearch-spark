@@ -385,6 +385,7 @@ valueExpression
 
 primaryExpression
    : evalFunctionCall
+   | geoIpFunctionCall
    | fieldExpression
    | literalValue
    ;
@@ -465,7 +466,6 @@ wcFieldExpression
 // functions
 evalFunctionCall
    : evalFunctionName LT_PRTHS functionArgs RT_PRTHS
-   | geoipFunction
    ;
 
 // cast function
@@ -782,7 +782,7 @@ coalesceFunctionName
    : COALESCE
    ;
 
-geoipFunction
+geoIpFunctionCall
    : GEOIP LT_PRTHS (datasource = functionArg COMMA)? ipAddress = functionArg (COMMA properties = stringLiteral)? RT_PRTHS
    ;
 
