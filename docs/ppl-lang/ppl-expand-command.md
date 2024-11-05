@@ -7,11 +7,13 @@ Using `expand` command to flatten a field of type:
 
 
 ### Syntax
-`flatten <field>`
+`expand <field> [As alias]`
 
 * field: to be expanded (exploded). The field must be of supported type.
+* alias: Optional to be expanded as the name to be used instead of the original field name
 
 ### Test table
+
 #### Schema
 | col\_name | data\_type                                   |
 |-----------|----------------------------------------------|
@@ -19,6 +21,7 @@ Using `expand` command to flatten a field of type:
 | bridges   | array\<struct\<length:bigint,name:string\>\> |
 | city      | string                                       |
 | country   | string                                       |
+
 #### Data
 | \_time              | bridges                                      | city    | country        |
 |---------------------|----------------------------------------------|---------|----------------|
@@ -34,7 +37,7 @@ Using `expand` command to flatten a field of type:
 ### Example 1: expand struct
 This example shows how to expand an array of struct field.
 PPL query:
-    - `source=table | flatten bridges`
+    - `source=table | expand bridges as britishBridge | fields britishBridge`
 
 | \_time              | bridges                                      | city    | country       | alt | lat    | long   |
 |---------------------|----------------------------------------------|---------|---------------|-----|--------|--------|
@@ -47,12 +50,12 @@ PPL query:
 
 
 
-### Example 2: flatten array
+### Example 2: expand array
 
-The example shows how to flatten an array of struct fields.
+The example shows how to expand an array of struct fields.
 
 PPL query:
-    - `source=table | flatten bridges`
+    - `source=table | expand bridges`
 
 | \_time              | city    | coor                   | country       | length | name              |
 |---------------------|---------|------------------------|---------------|--------|-------------------|
@@ -69,10 +72,10 @@ PPL query:
 | 1990-09-13T12:00:00 | Warsaw  | NULL                   | Poland        | NULL   | NULL              |
 
 
-### Example 3: flatten array and struct
-This example shows how to flatten multiple fields.
+### Example 3: expand array and struct
+This example shows how to expand multiple fields.
 PPL query:
-    - `source=table | flatten bridges | flatten coor`
+    - `source=table | expand bridges | expand coor`
 
 | \_time              | city    | country       | length | name              | alt  | lat    | long   |
 |---------------------|---------|---------------|--------|-------------------|------|--------|--------|
