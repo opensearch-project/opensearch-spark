@@ -34,9 +34,35 @@ class PPLLogicalPlanExpandCommandTranslatorTestSuite
 
     val relation = UnresolvedRelation(Seq("relation"))
     val generator = Explode(UnresolvedAttribute("field_with_array"))
-    val outerGenerator = GeneratorOuter(generator)
-    val generate = Generate(outerGenerator, seq(), true, None, seq(), relation)
+    val generate = Generate(generator, seq(), false, None, seq(), relation)
     val expectedPlan = Project(seq(UnresolvedStar(None)), generate)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test expand on array field which is eval array=json_array") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source = table | eval array=json_array(1, 2, 3) | expand array as uid | fields uid"),
+        context)
+
+    val relation = UnresolvedRelation(Seq("table"))
+    val jsonFunc =
+      UnresolvedFunction("array", Seq(Literal(1), Literal(2), Literal(3)), isDistinct = false)
+    val aliasA = Alias(jsonFunc, "array")()
+    val project = Project(seq(UnresolvedStar(None), aliasA), relation)
+    val generate = Generate(
+      Explode(UnresolvedAttribute("array")),
+      seq(),
+      false,
+      None,
+      seq(UnresolvedAttribute("uid")),
+      project)
+    val dropSourceColumn =
+      DataFrameDropColumns(Seq(UnresolvedAttribute("array")), generate)
+    val expectedPlan = Project(seq(UnresolvedAttribute("uid")), dropSourceColumn)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
@@ -48,12 +74,10 @@ class PPLLogicalPlanExpandCommandTranslatorTestSuite
         context)
 
     val relation = UnresolvedRelation(Seq("relation"))
-    val generator = Explode(UnresolvedAttribute("field_with_array"))
-    val outerGenerator = GeneratorOuter(generator)
     val generate = Generate(
-      outerGenerator,
+      Explode(UnresolvedAttribute("field_with_array")),
       seq(),
-      true,
+      false,
       None,
       seq(UnresolvedAttribute("array_list")),
       relation)
@@ -70,13 +94,8 @@ class PPLLogicalPlanExpandCommandTranslatorTestSuite
     val logPlan =
       planTransformer.visit(plan(pplParser, query), context)
     val table = UnresolvedRelation(Seq("table"))
-    val generate = Generate(
-      GeneratorOuter(Explode(UnresolvedAttribute("employee"))),
-      seq(),
-      true,
-      None,
-      seq(),
-      table)
+    val generate =
+      Generate(Explode(UnresolvedAttribute("employee")), seq(), false, None, seq(), table)
     val average = Alias(
       UnresolvedFunction(seq("MAX"), seq(UnresolvedAttribute("salary")), false, None, false),
       "max")()
@@ -99,14 +118,13 @@ class PPLLogicalPlanExpandCommandTranslatorTestSuite
       planTransformer.visit(plan(pplParser, query), context)
     val table = UnresolvedRelation(Seq("table"))
     val generate = Generate(
-      GeneratorOuter(Explode(UnresolvedAttribute("employee"))),
+      Explode(UnresolvedAttribute("employee")),
       seq(),
-      true,
+      false,
       None,
       seq(UnresolvedAttribute("workers")),
       table)
     val dropSourceColumn = DataFrameDropColumns(Seq(UnresolvedAttribute("employee")), generate)
-    val dropColumn = Project(seq(UnresolvedStar(None)), dropSourceColumn)
     val average = Alias(
       UnresolvedFunction(seq("MAX"), seq(UnresolvedAttribute("salary")), false, None, false),
       "max")()
@@ -128,13 +146,8 @@ class PPLLogicalPlanExpandCommandTranslatorTestSuite
     val query = "source = table | expand employee | eval bonus = salary * 3"
     val logPlan = planTransformer.visit(plan(pplParser, query), context)
     val table = UnresolvedRelation(Seq("table"))
-    val generate = Generate(
-      GeneratorOuter(Explode(UnresolvedAttribute("employee"))),
-      seq(),
-      true,
-      None,
-      seq(),
-      table)
+    val generate =
+      Generate(Explode(UnresolvedAttribute("employee")), seq(), false, None, seq(), table)
     val bonusProject = Project(
       Seq(
         UnresolvedStar(None),
@@ -156,9 +169,9 @@ class PPLLogicalPlanExpandCommandTranslatorTestSuite
     val logPlan = planTransformer.visit(plan(pplParser, query), context)
     val table = UnresolvedRelation(Seq("table"))
     val generate = Generate(
-      GeneratorOuter(Explode(UnresolvedAttribute("employee"))),
+      Explode(UnresolvedAttribute("employee")),
       seq(),
-      true,
+      false,
       None,
       seq(UnresolvedAttribute("worker")),
       table)
@@ -188,13 +201,8 @@ class PPLLogicalPlanExpandCommandTranslatorTestSuite
           "source=table | expand employee | parse description '(?<email>.+@.+)' | fields employee, email"),
         context)
     val table = UnresolvedRelation(Seq("table"))
-    val generator = Generate(
-      GeneratorOuter(Explode(UnresolvedAttribute("employee"))),
-      seq(),
-      true,
-      None,
-      seq(),
-      table)
+    val generator =
+      Generate(Explode(UnresolvedAttribute("employee")), seq(), false, None, seq(), table)
     val emailAlias =
       Alias(
         RegExpExtract(UnresolvedAttribute("description"), Literal("(?<email>.+@.+)"), Literal(1)),
@@ -216,13 +224,8 @@ class PPLLogicalPlanExpandCommandTranslatorTestSuite
           "source=relation | expand employee | parse description '(?<email>.+@.+)' | flatten roles "),
         context)
     val table = UnresolvedRelation(Seq("relation"))
-    val generateEmployee = Generate(
-      GeneratorOuter(Explode(UnresolvedAttribute("employee"))),
-      seq(),
-      true,
-      None,
-      seq(),
-      table)
+    val generateEmployee =
+      Generate(Explode(UnresolvedAttribute("employee")), seq(), false, None, seq(), table)
     val emailAlias =
       Alias(
         RegExpExtract(UnresolvedAttribute("description"), Literal("(?<email>.+@.+)"), Literal(1)),

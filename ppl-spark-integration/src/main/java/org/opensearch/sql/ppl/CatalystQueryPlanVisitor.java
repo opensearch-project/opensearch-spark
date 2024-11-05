@@ -479,12 +479,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         Optional<Expression> alias = node.getAlias().map(aliasNode -> visitExpression(aliasNode, context));
         context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
         Explode explodeGenerator = new Explode(field);
-        scala.collection.mutable.Seq seq = alias.isEmpty() ? seq() : seq(alias.get());
+        scala.collection.mutable.Seq outputs = alias.isEmpty() ? seq() : seq(alias.get());
         if(alias.isEmpty())
-            return context.apply(p -> new Generate(new GeneratorOuter(explodeGenerator), seq(), true, (Option) None$.MODULE$, seq, p));
+            return context.apply(p -> new Generate(explodeGenerator, seq(), false, (Option) None$.MODULE$, outputs, p));
         else {
             //in case an alias does appear - remove the original field from the returning columns
-            context.apply(p -> new Generate(new GeneratorOuter(explodeGenerator), seq(), true, (Option) None$.MODULE$, seq, p));
+            context.apply(p -> new Generate(explodeGenerator, seq(), false, (Option) None$.MODULE$, outputs, p));
             return context.apply(logicalPlan -> DataFrameDropColumns$.MODULE$.apply(seq(field), logicalPlan));
         }
     }

@@ -451,11 +451,12 @@ _- **Limitation: another command usage of (relation) subquery is in `appendcols`
 #### **expand**
 [See additional command details](ppl-expand-command.md)
 ```sql
-   -  `source=  table | expand field_with_array as array_list`
+   -  `source = table | expand field_with_array as array_list`
    -  `source = table | expand employee | stats max(salary) as max by state, company`
-    - `source = table | expand employee as worker | stats max(salary) as max by state, company`
-    - `source = table | expand employee as worker | eval bonus = salary * 3 | fields worker, bonus`
-    - `source = table | expand employee | parse description '(?<email>.+@.+)' | fields employee, email`
+   -  `source = table | expand employee as worker | stats max(salary) as max by state, company`
+   -  `source = table | expand employee as worker | eval bonus = salary * 3 | fields worker, bonus`
+   -  `source = table | expand employee | parse description '(?<email>.+@.+)' | fields employee, email`
+   -  `source = table | eval array=json_array(1, 2, 3) | expand array as uid | fields name, occupation, uid`
 ```
 
 #### Correlation Commands:
