@@ -13,7 +13,7 @@ import org.scalatest.matchers.should.Matchers
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, Descending, GreaterThan, Literal, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Ascending, Descending, GreaterThan, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.command.DescribeTableCommand
@@ -26,6 +26,27 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
+
+  test("test geoip command") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source = t | where isV6 = false | eval country = geoip(ip_field, 'country')"), context)
+
+    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, UnresolvedRelation(Seq("schema", "table")))
+    comparePlans(expectedPlan, logPlan, false)
+
+  }
+  test("test geoip command lat / lon") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source = t | eval lat = geoip(ip_field, 'lat'), lon = geoip(ip_field, 'lon')"), context)
+
+    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, UnresolvedRelation(Seq("schema", "table")))
+    comparePlans(expectedPlan, logPlan, false)
+
+  }
 
   test("test error describe clause") {
     val context = new CatalystPlanContext

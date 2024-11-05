@@ -206,7 +206,8 @@ public enum BuiltinFunctionName {
   SUBSTRING(FunctionName.of("substring")),
   TRIM(FunctionName.of("trim")),
   UPPER(FunctionName.of("upper")),
-
+  /** GEOSPATIAL Functions. */
+  GEOIP(FunctionName.of("geoip")),
   /** JSON Functions. */
   // If the function argument is a valid JSON, return itself, or return NULL
   JSON(FunctionName.of("json")),
@@ -228,6 +229,13 @@ public enum BuiltinFunctionName {
 
   /** COLLECTION Functions **/
   ARRAY(FunctionName.of("array")),
+
+  /** LAMBDA Functions **/
+  ARRAY_FORALL(FunctionName.of("forall")),
+  ARRAY_EXISTS(FunctionName.of("exists")),
+  ARRAY_FILTER(FunctionName.of("filter")),
+  ARRAY_TRANSFORM(FunctionName.of("transform")),
+  ARRAY_AGGREGATE(FunctionName.of("reduce")),
 
   /** NULL Test. */
   IS_NULL(FunctionName.of("is null")),
