@@ -14,6 +14,7 @@ import org.apache.spark.sql.types.DoubleType$;
 import org.apache.spark.sql.types.FloatType$;
 import org.apache.spark.sql.types.IntegerType$;
 import org.apache.spark.sql.types.LongType$;
+import org.apache.spark.sql.types.NullType$;
 import org.apache.spark.sql.types.ShortType$;
 import org.apache.spark.sql.types.StringType$;
 import org.apache.spark.unsafe.types.UTF8String;
@@ -41,6 +42,7 @@ public interface DataTypeTransformer {
     static <T> Seq<T> seq(T... elements) {
         return seq(List.of(elements));
     }
+    
     static <T> Seq<T> seq(List<T> list) {
         return asScalaBufferConverter(list).asScala().seq();
     }
@@ -63,6 +65,8 @@ public interface DataTypeTransformer {
                 return ShortType$.MODULE$;
             case BYTE:
                 return ByteType$.MODULE$;
+            case UNDEFINED:
+                return NullType$.MODULE$;
             default:
                 return StringType$.MODULE$;
         }

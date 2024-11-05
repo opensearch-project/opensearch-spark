@@ -605,31 +605,6 @@ class FlintSparkPPLBuiltinFunctionITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-  test("test time functions - from_unixtime and unix_timestamp") {
-    val frame = sql(s"""
-       | source = $testTable |where unix_timestamp(from_unixtime(1700000001)) > 1700000000 | fields name, age
-       | """.stripMargin)
-
-    val results: Array[Row] = frame.collect()
-    val expectedResults: Array[Row] =
-      Array(Row("Jake", 70), Row("Hello", 30), Row("John", 25), Row("Jane", 20))
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
-
-    val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
-    val filterExpr = GreaterThan(
-      UnresolvedFunction(
-        "unix_timestamp",
-        seq(UnresolvedFunction("from_unixtime", seq(Literal(1700000001)), isDistinct = false)),
-        isDistinct = false),
-      Literal(1700000000))
-    val filterPlan = Filter(filterExpr, table)
-    val projectList = Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age"))
-    val expectedPlan = Project(projectList, filterPlan)
-    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
-  }
-
   test("test arithmetic operators (+ - * / %)") {
     val frame = sql(s"""
        | source = $testTable | where (sqrt(pow(age, 2)) + sqrt(pow(age, 2)) / 1 - sqrt(pow(age, 2)) * 1) % 25.0 = 0 | fields name, age
@@ -808,6 +783,42 @@ class FlintSparkPPLBuiltinFunctionITSuite
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] = Array(Row(null, 10, null, "Canada"))
     assert(results.sameElements(expectedResults))
+  }
+
+  test("test cryptographic hash functions - md5") {
+    val frame = sql(s"""
+                       | source = $testTable | eval a = md5('Spark') = '8cde774d6f7333752ed72cacddb05126' | fields age, a
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(Row(70, true), Row(30, true), Row(25, true), Row(20, true))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+  }
+
+  test("test cryptographic hash functions - sha1") {
+    val frame = sql(s"""
+                       | source = $testTable | eval a = sha1('Spark') = '85f5955f4b27a9a4c2aab6ffe5d7189fc298b92c' | fields age, a
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(Row(70, true), Row(30, true), Row(25, true), Row(20, true))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+  }
+
+  test("test cryptographic hash functions - sha2") {
+    val frame = sql(s"""
+                       | source = $testTable | eval a = sha2('Spark',256) = '529bc3b07127ecb7e53a4dcf1991d9152c24537d919178022b2c42657f79a26b' | fields age, a
+                       | """.stripMargin)
+
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(Row(70, true), Row(30, true), Row(25, true), Row(20, true))
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
   }
 
   // Todo

@@ -25,10 +25,12 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
 
   val testFlintIndex = "flint_test_index"
   val testLatestId: String = Base64.getEncoder.encodeToString(testFlintIndex.getBytes)
-  val testCreateTime = 1234567890123L
+  val testTimestamp = 1234567890123L
   val flintMetadataLogEntry = FlintMetadataLogEntry(
     testLatestId,
-    testCreateTime,
+    testTimestamp,
+    testTimestamp,
+    testTimestamp,
     ACTIVE,
     Map("seqNo" -> UNASSIGNED_SEQ_NO, "primaryTerm" -> UNASSIGNED_PRIMARY_TERM),
     "",
@@ -85,8 +87,10 @@ class FlintMetadataLogITSuite extends OpenSearchTransactionSuite with Matchers {
     val latest = metadataLog.get.getLatest
     latest.isPresent shouldBe true
     latest.get.id shouldBe testLatestId
-    latest.get.createTime shouldBe testCreateTime
+    latest.get.createTime shouldBe testTimestamp
     latest.get.error shouldBe ""
+    latest.get.lastRefreshStartTime shouldBe testTimestamp
+    latest.get.lastRefreshCompleteTime shouldBe testTimestamp
     latest.get.properties.get("dataSourceName").get shouldBe testDataSourceName
   }
 

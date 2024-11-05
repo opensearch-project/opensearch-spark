@@ -132,6 +132,8 @@ class ApplyFlintSparkSkippingIndexSuite extends FlintSuite with Matchers {
           new FlintMetadataLogEntry(
             "id",
             0L,
+            0L,
+            0L,
             indexState,
             Map.empty[String, Any],
             "",

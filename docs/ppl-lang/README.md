@@ -22,6 +22,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
 * **Commands**
 
+    - [`comment`](ppl-comment.md)
+
     - [`explain command `](PPL-Example-Commands.md/#explain)
   
     - [`dedup command `](ppl-dedup-command.md)
@@ -29,6 +31,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`describe command`](PPL-Example-Commands.md/#describe)
   
     - [`fillnull command`](ppl-fillnull-command.md)
+     
+    - [`flatten command`](ppl-flatten-command.md)
 
     - [`eval command`](ppl-eval-command.md)
 
@@ -48,6 +52,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`stats command`](ppl-stats-command.md)
 
+    - [`eventstats command`](ppl-eventstats-command.md)
+
     - [`where command`](ppl-where-command.md)
 
     - [`head command`](ppl-head-command.md)
@@ -63,7 +69,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`subquery commands`](ppl-subquery-command.md)
   
     - [`correlation commands`](ppl-correlation-command.md)
-
+  
+    - [`trendline commands`](ppl-trendline-command.md)
 
 * **Functions**
 
@@ -75,10 +82,17 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`String Functions`](functions/ppl-string.md)
 
+    - [`JSON Functions`](functions/ppl-json.md)
+
     - [`Condition Functions`](functions/ppl-condition.md)
 
     - [`Type Conversion Functions`](functions/ppl-conversion.md)
 
+    - [`Cryptographic Functions`](functions/ppl-cryptographic.md)
+
+    - [`IP Address Functions`](functions/ppl-ip.md)
+     
+    - [`Lambda Functions`](functions/ppl-lambda.md)
 
 ---
 ### PPL On Spark

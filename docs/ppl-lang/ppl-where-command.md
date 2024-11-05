@@ -41,6 +41,10 @@ PPL query:
 - `source = table | where isempty(a)`
 - `source = table | where isblank(a)`
 - `source = table | where case(length(a) > 6, 'True' else 'False') = 'True'`
+- `source = table | where a between 1 and 4` - Note: This returns a >= 1 and a <= 4, i.e. [1, 4]
+- `source = table | where b not between '2024-09-10' and '2025-09-10'` - Note: This returns b >= '2024-09-10' and b <= '2025-09-10'
+- `source = table | where cidrmatch(ip, '192.169.1.0/24')`
+- `source = table | where cidrmatch(ipv6, '2003:db8::/32')`
 
 - `source = table | eval status_category =
       case(a >= 200 AND a < 300, 'Success',

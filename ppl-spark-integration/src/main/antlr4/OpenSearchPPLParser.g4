@@ -52,12 +52,55 @@ commands
    | lookupCommand
    | renameCommand
    | fillnullCommand
+   | fieldsummaryCommand
+   | flattenCommand
+   | trendlineCommand
+   ;
+
+commandName
+   : SEARCH
+   | DESCRIBE
+   | SHOW
+   | AD
+   | ML
+   | KMEANS
+   | WHERE
+   | CORRELATE
+   | JOIN
+   | FIELDS
+   | STATS
+   | EVENTSTATS
+   | DEDUP
+   | EXPLAIN
+   | SORT
+   | HEAD
+   | TOP
+   | RARE
+   | EVAL
+   | GROK
+   | PARSE
+   | PATTERNS
+   | LOOKUP
+   | RENAME
+   | FILLNULL
+   | FIELDSUMMARY
+   | FLATTEN
+   | TRENDLINE
    ;
 
 searchCommand
    : (SEARCH)? fromClause                       # searchFrom
    | (SEARCH)? fromClause logicalExpression     # searchFromFilter
    | (SEARCH)? logicalExpression fromClause     # searchFilterFrom
+   ;
+
+fieldsummaryCommand
+   : FIELDSUMMARY (fieldsummaryParameter)*
+   ;
+
+fieldsummaryParameter
+   : INCLUDEFIELDS EQUAL fieldList          # fieldsummaryIncludeFields
+   | NULLS EQUAL booleanLiteral             # fieldsummaryNulls
    ;
 
 describeCommand
@@ -115,7 +158,7 @@ renameCommand
    ;
 
 statsCommand
-   : STATS (PARTITIONS EQUAL partitions = integerLiteral)? (ALLNUM EQUAL allnum = booleanLiteral)? (DELIM EQUAL delim = stringLiteral)? statsAggTerm (COMMA statsAggTerm)* (statsByClause)? (DEDUP_SPLITVALUES EQUAL dedupsplit = booleanLiteral)?
+   : (STATS | EVENTSTATS) (PARTITIONS EQUAL partitions = integerLiteral)? (ALLNUM EQUAL allnum = booleanLiteral)? (DELIM EQUAL delim = stringLiteral)? statsAggTerm (COMMA statsAggTerm)* (statsByClause)? (DEDUP_SPLITVALUES EQUAL dedupsplit = booleanLiteral)?
    ;
 
 dedupCommand
@@ -207,6 +250,21 @@ fillnullCommand
    : expression
    ;
 
+flattenCommand
+    : FLATTEN fieldExpression
+    ;
+
+trendlineCommand
+   : TRENDLINE (SORT sortField)? trendlineClause (trendlineClause)*
+   ;
+
+trendlineClause
+   : trendlineType LT_PRTHS numberOfDataPoints = integerLiteral COMMA field = fieldExpression RT_PRTHS (AS alias = qualifiedName)?
+   ;
+
+trendlineType
+   : SMA
+   ;
 
 kmeansCommand
    : KMEANS (kmeansParameter)*
@@ -247,17 +305,27 @@ mlArg
 
 // clauses
 fromClause
-   : SOURCE EQUAL tableSourceClause
-   | INDEX EQUAL tableSourceClause
+   : SOURCE EQUAL tableOrSubqueryClause
+   | INDEX EQUAL tableOrSubqueryClause
    ;
 
+tableOrSubqueryClause
+   : LT_SQR_PRTHS subSearch RT_SQR_PRTHS (AS alias = qualifiedName)?
+   | tableSourceClause
+   ;
+
+// One tableSourceClause will generate one Relation node with/without one alias
+// even if the relation contains more than one table sources.
+// These table sources in one relation will be readed one by one in OpenSearch.
+// But it may have different behaivours in different execution backends.
+// For example, a Spark UnresovledRelation node only accepts one data source.
 tableSourceClause
-   : tableSource (COMMA tableSource)*
+   : tableSource (COMMA tableSource)* (AS alias = qualifiedName)?
    ;
 
 // join
 joinCommand
-   : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableSource
+   : (joinType) JOIN sideAlias joinHintList? joinCriteria? right = tableOrSubqueryClause
    ;
 
 joinType
@@ -279,13 +347,13 @@ joinCriteria
    ;
 
 joinHintList
-    : hintPair (COMMA? hintPair)*
-    ;
+   : hintPair (COMMA? hintPair)*
+   ;
 
 hintPair
-    : leftHintKey = LEFT_HINT DOT ID EQUAL leftHintValue = ident             #leftHint
-    | rightHintKey = RIGHT_HINT DOT ID EQUAL rightHintValue = ident          #rightHint
-    ;
+   : leftHintKey = LEFT_HINT DOT ID EQUAL leftHintValue = ident             #leftHint
+   | rightHintKey = RIGHT_HINT DOT ID EQUAL rightHintValue = ident          #rightHint
+   ;
 
 renameClasue
    : orignalField = wcFieldExpression AS renamedField = wcFieldExpression
@@ -340,14 +408,6 @@ statsFunctionName
    | STDDEV_POP
    ;
 
-takeAggFunction
-   : TAKE LT_PRTHS fieldExpression (COMMA size = integerLiteral)? RT_PRTHS
-   ;
-
-percentileAggFunction
-   : PERCENTILE LESS value = integerLiteral GREATER LT_PRTHS aggField = fieldExpression RT_PRTHS
-   ;
-
 // expressions
 expression
    : logicalExpression
@@ -365,7 +425,8 @@ logicalExpression
 
 comparisonExpression
    : left = valueExpression comparisonOperator right = valueExpression  # compareExpr
-   | valueExpression IN valueList                                       # inExpr
+   | valueExpression NOT? IN valueList                                  # inExpr
+   | expr1 = functionArg NOT? BETWEEN expr2 = functionArg AND expr3 = functionArg   # between
    ;
 
 valueExpressionList
@@ -379,8 +440,11 @@ valueExpression
    | primaryExpression                                                                          # valueExpressionDefault
    | positionFunction                                                                           # positionFunctionCall
    | caseFunction                                                                               # caseExpr
+   | timestampFunction                                                                          # timestampFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
+   | ident ARROW expression                                                                     # lambda
+   | LT_PRTHS ident (COMMA ident)+ RT_PRTHS ARROW expression                                    # lambda
    ;
 
 primaryExpression
@@ -399,6 +463,7 @@ booleanExpression
    | isEmptyExpression                                                  # isEmptyExpr
    | valueExpressionList NOT? IN LT_SQR_PRTHS subSearch RT_SQR_PRTHS    # inSubqueryExpr
    | EXISTS LT_SQR_PRTHS subSearch RT_SQR_PRTHS                         # existsSubqueryExpr
+   | cidrMatchFunctionCall                                              # cidrFunctionCallExpr
    ;
 
  isEmptyExpression
@@ -478,6 +543,10 @@ booleanFunctionCall
    : conditionFunctionBase LT_PRTHS functionArgs RT_PRTHS
    ;
 
+cidrMatchFunctionCall
+   : CIDRMATCH LT_PRTHS ipAddress = functionArg COMMA cidrBlock = functionArg RT_PRTHS
+   ;
+
 convertedDataType
    : typeName = DATE
    | typeName = TIME
@@ -499,6 +568,10 @@ evalFunctionName
    | systemFunctionName
    | positionFunctionName
    | coalesceFunctionName
+   | cryptographicFunctionName
+   | jsonFunctionName
+   | collectionFunctionName
+   | lambdaFunctionName
    ;
 
 functionArgs
@@ -614,6 +687,12 @@ trigonometricFunctionName
    | TAN
    ;
 
+cryptographicFunctionName
+   : MD5
+   | SHA1
+   | SHA2
+   ;
+
 dateTimeFunctionName
    : ADDDATE
    | ADDTIME
@@ -622,6 +701,7 @@ dateTimeFunctionName
    | CURRENT_DATE
    | CURRENT_TIME
    | CURRENT_TIMESTAMP
+   | CURRENT_TIMEZONE
    | CURTIME
    | DATE
    | DATEDIFF
@@ -645,6 +725,7 @@ dateTimeFunctionName
    | LOCALTIME
    | LOCALTIMESTAMP
    | MAKEDATE
+   | MAKE_DATE
    | MAKETIME
    | MICROSECOND
    | MINUTE
@@ -746,6 +827,7 @@ conditionFunctionBase
    | IFNULL
    | NULLIF
    | ISPRESENT
+   | JSON_VALID
    ;
 
 systemFunctionName
@@ -772,6 +854,37 @@ textFunctionName
    | REVERSE
    | ISEMPTY
    | ISBLANK
+   ;
+
+jsonFunctionName
+   : JSON
+   | JSON_OBJECT
+   | JSON_ARRAY
+   | JSON_ARRAY_LENGTH
+   | JSON_EXTRACT
+   | JSON_KEYS
+   | JSON_VALID
+//   | JSON_APPEND
+//   | JSON_DELETE
+//   | JSON_EXTEND
+//   | JSON_SET
+//   | JSON_ARRAY_ALL_MATCH
+//   | JSON_ARRAY_ANY_MATCH
+//   | JSON_ARRAY_FILTER
+//   | JSON_ARRAY_MAP
+//   | JSON_ARRAY_REDUCE
+   ;
+
+collectionFunctionName
+   : ARRAY
+   ;
+
+lambdaFunctionName
+   : FORALL
+   | EXISTS
+   | FILTER
+   | TRANSFORM
+   | REDUCE
    ;
 
 positionFunctionName
@@ -817,6 +930,7 @@ literalValue
    | decimalLiteral
    | booleanLiteral
    | datetimeLiteral //#datetime
+   | intervalLiteral
    ;
 
 intervalLiteral
@@ -946,47 +1060,41 @@ keywordsCanBeId
    | intervalUnit
    | dateTimeFunctionName
    | textFunctionName
+   | jsonFunctionName
    | mathematicalFunctionName
    | positionFunctionName
-   // commands
-   | SEARCH
-   | DESCRIBE
-   | SHOW
-   | FROM
-   | WHERE
-   | CORRELATE
-   | FIELDS
-   | RENAME
-   | STATS
-   | DEDUP
-   | SORT
-   | EVAL
-   | HEAD
-   | TOP
-   | RARE
-   | PARSE
-   | METHOD
-   | REGEX
-   | PUNCT
-   | GROK
-   | PATTERN
-   | PATTERNS
-   | NEW_FIELD
-   | KMEANS
-   | AD
-   | ML
-   | EXPLAIN
+   | cryptographicFunctionName
+   | singleFieldRelevanceFunctionName
+   | multiFieldRelevanceFunctionName
+   | commandName
+   | comparisonOperator
+   | explainMode
+   | correlationType
    // commands assist keywords
+   | IN
    | SOURCE
    | INDEX
    | DESC
    | DATASOURCES
-   // CLAUSEKEYWORDS
-   | SORTBY
-   // FIELDKEYWORDSAUTO
+   | AUTO
    | STR
    | IP
    | NUM
+   | FROM
+   | PATTERN
+   | NEW_FIELD
+   | SCOPE
+   | MAPPING
+   | WITH
+   | USING
+   | CAST
+   | GET_FORMAT
+   | EXTRACT
+   | INTERVAL
+   | PLUS
+   | MINUS
+   | INCLUDEFIELDS
+   | NULLS
    // ARGUMENT KEYWORDS
    | KEEPEMPTY
    | CONSECUTIVE
@@ -1009,27 +1117,21 @@ keywordsCanBeId
    | TRAINING_DATA_SIZE
    | ANOMALY_SCORE_THRESHOLD
    // AGGREGATIONS
-   | AVG
-   | COUNT
+   | statsFunctionName
    | DISTINCT_COUNT
+   | PERCENTILE
+   | PERCENTILE_APPROX
    | ESTDC
    | ESTDC_ERROR
-   | MAX
    | MEAN
    | MEDIAN
-   | MIN
    | MODE
    | RANGE
    | STDEV
    | STDEVP
-   | SUM
    | SUMSQ
    | VAR_SAMP
    | VAR_POP
-   | STDDEV_SAMP
-   | STDDEV_POP
-   | PERCENTILE
-   | PERCENTILE_APPROX
    | TAKE
    | FIRST
    | LAST
@@ -1057,4 +1159,7 @@ keywordsCanBeId
    | SEMI
    | ANTI
    | GEOIP
+   | BETWEEN
+   | CIDRMATCH
+   | trendlineType
    ;

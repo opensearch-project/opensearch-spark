@@ -18,6 +18,7 @@ WHERE:                              'WHERE';
 FIELDS:                             'FIELDS';
 RENAME:                             'RENAME';
 STATS:                              'STATS';
+EVENTSTATS:                         'EVENTSTATS';
 DEDUP:                              'DEDUP';
 SORT:                               'SORT';
 EVAL:                               'EVAL';
@@ -36,6 +37,8 @@ KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
 FILLNULL:                           'FILLNULL';
+FLATTEN:                            'FLATTEN';
+TRENDLINE:                          'TRENDLINE';
 
 //Native JOIN KEYWORDS
 JOIN:                               'JOIN';
@@ -73,18 +76,23 @@ INDEX:                              'INDEX';
 D:                                  'D';
 DESC:                               'DESC';
 DATASOURCES:                        'DATASOURCES';
-VALUE:                              'VALUE';
 USING:                              'USING';
 WITH:                               'WITH';
-
-// CLAUSE KEYWORDS
-SORTBY:                             'SORTBY';
 
 // FIELD KEYWORDS
 AUTO:                               'AUTO';
 STR:                                'STR';
 IP:                                 'IP';
 NUM:                                'NUM';
+
+
+// FIELDSUMMARY keywords
+FIELDSUMMARY:                       'FIELDSUMMARY';
+INCLUDEFIELDS:                      'INCLUDEFIELDS';
+NULLS:                              'NULLS';
+
+//TRENDLINE KEYWORDS
+SMA:                                'SMA';
 
 // ARGUMENT KEYWORDS
 KEEPEMPTY:                          'KEEPEMPTY';
@@ -195,6 +203,7 @@ RT_SQR_PRTHS:                       ']';
 SINGLE_QUOTE:                       '\'';
 DOUBLE_QUOTE:                       '"';
 BACKTICK:                           '`';
+ARROW:                              '->';
 
 // Operators. Bit
 
@@ -280,6 +289,11 @@ RADIANS:                            'RADIANS';
 SIN:                                'SIN';
 TAN:                                'TAN';
 
+// CRYPTOGRAPHIC FUNCTIONS
+MD5:                                  'MD5';
+SHA1:                                 'SHA1';
+SHA2:                                 'SHA2';
+
 // DATE AND TIME FUNCTIONS
 ADDDATE:                            'ADDDATE';
 ADDTIME:                            'ADDTIME';
@@ -287,6 +301,7 @@ CURDATE:                            'CURDATE';
 CURRENT_DATE:                       'CURRENT_DATE';
 CURRENT_TIME:                       'CURRENT_TIME';
 CURRENT_TIMESTAMP:                  'CURRENT_TIMESTAMP';
+CURRENT_TIMEZONE:                   'CURRENT_TIMEZONE';
 CURTIME:                            'CURTIME';
 DATE:                               'DATE';
 DATEDIFF:                           'DATEDIFF';
@@ -308,6 +323,7 @@ LAST_DAY:                           'LAST_DAY';
 LOCALTIME:                          'LOCALTIME';
 LOCALTIMESTAMP:                     'LOCALTIMESTAMP';
 MAKEDATE:                           'MAKEDATE';
+MAKE_DATE:                          'MAKE_DATE';
 MAKETIME:                           'MAKETIME';
 MONTHNAME:                          'MONTHNAME';
 NOW:                                'NOW';
@@ -357,11 +373,41 @@ CAST:                               'CAST';
 ISEMPTY:                            'ISEMPTY';
 ISBLANK:                            'ISBLANK';
 
+// JSON TEXT FUNCTIONS
+JSON:                               'JSON';
+JSON_OBJECT:                        'JSON_OBJECT';
+JSON_ARRAY:                         'JSON_ARRAY';
+JSON_ARRAY_LENGTH:                  'JSON_ARRAY_LENGTH';
+JSON_EXTRACT:                       'JSON_EXTRACT';
+JSON_KEYS:                          'JSON_KEYS';
+JSON_VALID:                         'JSON_VALID';
+//JSON_APPEND:                        'JSON_APPEND';
+//JSON_DELETE:                        'JSON_DELETE';
+//JSON_EXTEND:                        'JSON_EXTEND';
+//JSON_SET:                           'JSON_SET';
+//JSON_ARRAY_ALL_MATCH:               'JSON_ARRAY_ALL_MATCH';
+//JSON_ARRAY_ANY_MATCH:               'JSON_ARRAY_ANY_MATCH';
+//JSON_ARRAY_FILTER:                  'JSON_ARRAY_FILTER';
+//JSON_ARRAY_MAP:                     'JSON_ARRAY_MAP';
+//JSON_ARRAY_REDUCE:                  'JSON_ARRAY_REDUCE';
+
+// COLLECTION FUNCTIONS
+ARRAY:                              'ARRAY';
+
+// LAMBDA FUNCTIONS
+//EXISTS:                             'EXISTS';
+FORALL:                             'FORALL';
+FILTER:                             'FILTER';
+TRANSFORM:                          'TRANSFORM';
+REDUCE:                             'REDUCE';
+
 // BOOL FUNCTIONS
 LIKE:                               'LIKE';
 ISNULL:                             'ISNULL';
 ISNOTNULL:                          'ISNOTNULL';
 ISPRESENT:                          'ISPRESENT';
+BETWEEN:                            'BETWEEN';
+CIDRMATCH:                          'CIDRMATCH';
 
 // FLOWCONTROL FUNCTIONS
 IFNULL:                             'IFNULL';
@@ -443,5 +489,7 @@ SQUOTA_STRING:                      '\'' ('\\'. | '\'\'' | ~('\'' | '\\'))* '\''
 BQUOTA_STRING:                      '`' ( '\\'. | '``' | ~('`'|'\\'))* '`';
 fragment DEC_DIGIT:                 [0-9];
 
+LINE_COMMENT:                       '//' ('\\\n' | ~[\r\n])* '\r'? '\n'? -> channel(HIDDEN);
+BLOCK_COMMENT:                      '/*' .*? '*/' -> channel(HIDDEN);
 
 ERROR_RECOGNITION:                  .    -> channel(ERRORCHANNEL);

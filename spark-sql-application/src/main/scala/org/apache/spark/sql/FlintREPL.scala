@@ -17,7 +17,7 @@ import com.codahale.metrics.Timer
 import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession, SessionStates}
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.logging.CustomLogging
-import org.opensearch.flint.core.metrics.MetricConstants
+import org.opensearch.flint.core.metrics.{MetricConstants, ReadWriteBytesSparkListener}
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 
 import org.apache.spark.SparkConf
@@ -314,7 +314,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
     val threadPool = threadPoolFactory.newDaemonThreadPoolScheduledExecutor("flint-repl-query", 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
     val queryResultWriter = instantiateQueryResultWriter(spark, commandContext)
-    var futurePrepareQueryExecution: Future[Either[String, Unit]] = null
+
+    val statementsExecutionManager =
+      instantiateStatementExecutionManager(commandContext)
+
+    var futurePrepareQueryExecution: Future[Either[String, Unit]] = Future {
+      statementsExecutionManager.prepareStatementExecution()
+    }
     try {
       logInfo(s"""Executing session with sessionId: ${sessionId}""")
 
@@ -324,12 +330,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
       var lastCanPickCheckTime = 0L
       while (currentTimeProvider
           .currentEpochMillis() - lastActivityTime <= commandContext.inactivityLimitMillis && canPickUpNextStatement) {
-        val statementsExecutionManager =
-          instantiateStatementExecutionManager(commandContext)
-
-        futurePrepareQueryExecution = Future {
-          statementsExecutionManager.prepareStatementExecution()
-        }
 
         try {
           val commandState = CommandState(
@@ -525,12 +525,16 @@ object FlintREPL extends Logging with FlintJobExecutor {
             val statementTimerContext = getTimerContext(
               MetricConstants.STATEMENT_PROCESSING_TIME_METRIC)
             val (dataToWrite, returnedVerificationResult) =
-              processStatementOnVerification(
-                statementExecutionManager,
-                queryResultWriter,
-                flintStatement,
-                state,
-                context)
+              ReadWriteBytesSparkListener.withMetrics(
+                spark,
+                () => {
+                  processStatementOnVerification(
+                    statementExecutionManager,
+                    queryResultWriter,
+                    flintStatement,
+                    state,
+                    context)
+                })
 
             verificationResult = returnedVerificationResult
             finalizeCommand(

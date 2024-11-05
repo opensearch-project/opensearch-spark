@@ -1,3 +1,8 @@
+/*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package org.opensearch.flint.core.metrics.reporter;
 
 import static org.hamcrest.CoreMatchers.hasItems;

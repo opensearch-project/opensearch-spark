@@ -127,7 +127,7 @@ OR operator :
 
 NOT operator :
 
-    os> source=accounts | where not age in (32, 33) | fields age ;
+    os> source=accounts | where age not in (32, 33) | fields age ;
     fetched rows / total rows = 2/2
     +-------+
     | age   |

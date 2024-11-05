@@ -1,5 +1,10 @@
 ## Example PPL Queries
 
+#### **Comment**
+[See additional command details](ppl-comment.md)
+- `source=accounts | top gender // finds most common gender of all the accounts` (line comment)
+- `source=accounts | dedup 2 gender /* dedup the document with gender field keep 2 duplication */ | fields account_number, gender` (block comment)
+
 #### **Describe**
 - `describe table`  This command is equal to the `DESCRIBE EXTENDED table` SQL command
 - `describe schema.table`
@@ -28,6 +33,12 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | eval b1 = b + 1 | fields - b1,c` (Field `b1` cannot be dropped caused by SPARK-49782)
 - `source = table | eval b1 = lower(b) | fields - b1,c` (Field `b1` cannot be dropped caused by SPARK-49782)
 
+**Field-Summary**
+[See additional command details](ppl-fieldsummary-command.md)
+- `source = t | fieldsummary includefields=status_code nulls=false`
+- `source = t | fieldsummary includefields= id, status_code, request_path nulls=true`
+- `source = t | where status_code != 200 | fieldsummary includefields= status_code nulls=true`
+
 **Nested-Fields**
 - `source = catalog.schema.table1, catalog.schema.table2 | fields A.nested1, B.nested1`
 - `source = catalog.table | where struct_col2.field1.subfield > 'valueA' | sort int_col | fields  int_col, struct_col.field1.subfield, struct_col2.field1.subfield`
@@ -44,6 +55,19 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where isempty(a)`
 - `source = table | where isblank(a)`
 - `source = table | where case(length(a) > 6, 'True' else 'False') = 'True'`
+- `source = table | where a not in (1, 2, 3) | fields a,b,c`
+- `source = table | where a between 1 and 4` - Note: This returns a >= 1 and a <= 4, i.e. [1, 4]
+- `source = table | where b not between '2024-09-10' and '2025-09-10'` - Note: This returns b >= '2024-09-10' and b <= '2025-09-10'
+- `source = table | where cidrmatch(ip, '192.169.1.0/24')` 
+- `source = table | where cidrmatch(ipv6, '2003:db8::/32')`
+- `source = table | trendline sma(2, temperature) as temp_trend`
+
+#### **IP related queries**
+[See additional command details](functions/ppl-ip.md)
+
+- `source = table | where cidrmatch(ip, '192.169.1.0/24')`
+- `source = table | where isV6 = false and isValid = true and cidrmatch(ipAddress, '192.168.1.0/24')`
+- `source = table | where isV6 = true | eval inRange = case(cidrmatch(ipAddress, '2003:db8::/32'), 'in' else 'out') | fields ip, inRange`
 
 ```sql
  source = table | eval status_category =
@@ -92,6 +116,10 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one', a = 2, 'two', a = 3, 'three', a = 4, 'four', a = 5, 'five', a = 6, 'six', a = 7, 'se7en', a = 8, 'eight', a = 9, 'nine')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else 'unknown')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else concat(a, ' is an incorrect binary digit'))`
+- `source = table | eval digest = md5(fieldName) | fields digest`
+- `source = table | eval digest = sha1(fieldName) | fields digest`
+- `source = table | eval digest = sha2(fieldName,256) | fields digest`
+- `source = table | eval digest = sha2(fieldName,512) | fields digest`
 
 #### Fillnull
 Assumptions: `a`, `b`, `c`, `d`, `e` are existing fields in `table`
@@ -101,6 +129,15 @@ Assumptions: `a`, `b`, `c`, `d`, `e` are existing fields in `table`
 - `source = table | fillnull using a = 101`
 - `source = table | fillnull using a = 101, b = 102`
 - `source = table | fillnull using a = concat(b, c), d = 2 * pi() * e`
+
+### Flatten
+[See additional command details](ppl-flatten-command.md)
+Assumptions: `bridges`, `coor` are existing fields in `table`, and the field's types are `struct<?,?>` or `array<struct<?,?>>`  
+- `source = table | flatten bridges`
+- `source = table | flatten coor`
+- `source = table | flatten bridges | flatten coor`
+- `source = table | fields bridges | flatten bridges`
+- `source = table | fields country, bridges | flatten bridges | fields country, length | stats avg(length) as avg by country`
 
 ```sql
 source = table | eval e = eval status_category =
@@ -157,6 +194,34 @@ source = table |  where ispresent(a) |
 **Aggregations Group by Multiple Levels**
 - `source = table | stats avg(age) as avg_state_age by country, state | stats avg(avg_state_age) as avg_country_age by country`
 - `source = table | stats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | stats avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | stats avg(avg_state_age) as avg_adult_country_age by country`
+
+#### **Event Aggregations**
+[See additional command details](ppl-eventstats-command.md)
+
+- `source = table | eventstats avg(a) `
+- `source = table | where a < 50 | eventstats avg(c) `
+- `source = table | eventstats max(c) by b`
+- `source = table | eventstats count(c) by b | head 5`
+- `source = table | eventstats stddev_samp(c)`
+- `source = table | eventstats stddev_pop(c)`
+- `source = table | eventstats percentile(c, 90)`
+- `source = table | eventstats percentile_approx(c, 99)`
+
+**Limitation: distinct aggregation could not used in `eventstats`:**_
+- `source = table | eventstats distinct_count(c)` (throw exception)
+
+**Aggregations With Span**
+- `source = table  | eventstats count(a) by span(a, 10) as a_span`
+- `source = table  | eventstats sum(age) by span(age, 5) as age_span | head 2`
+- `source = table  | eventstats avg(age) by span(age, 20) as age_span, country  | sort - age_span |  head 2`
+
+**Aggregations With TimeWindow Span (tumble windowing function)**
+- `source = table | eventstats sum(productsAmount) by span(transactionDate, 1d) as age_date | sort age_date`
+- `source = table | eventstats sum(productsAmount) by span(transactionDate, 1w) as age_date, productId`
+
+**Aggregations Group by Multiple Times**
+- `source = table | eventstats avg(age) as avg_state_age by country, state | eventstats avg(avg_state_age) as avg_country_age by country`
+- `source = table | eventstats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | eventstats avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | eventstats avg(avg_state_age) as avg_adult_country_age by country`
 
 #### **Dedup**
 
@@ -240,8 +305,7 @@ source = table |  where ispresent(a) |
 - `source = table1 | cross join left = l right = r table2`
 - `source = table1 | left semi join left = l right = r on l.a = r.a table2`
 - `source = table1 | left anti join left = l right = r on l.a = r.a table2`
-
-_- **Limitation: sub-searches is unsupported in join right side now**_
+- `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]`
 
 
 #### **Lookup**
@@ -268,6 +332,8 @@ _- **Limitation: "REPLACE" or "APPEND" clause must contain "AS"**_
 - `source = outer | where a not in [ source = inner | fields b ]`
 - `source = outer | where (a) not in [ source = inner | fields b ]`
 - `source = outer | where (a,b,c) not in [ source = inner | fields d,e,f ]`
+- `source = outer a in [ source = inner | fields b ]` (search filtering with subquery)
+- `source = outer a not in [ source = inner | fields b ]` (search filtering with subquery)
 - `source = outer | where a in [ source = inner1 | where b not in [ source = inner2 | fields c ] | fields b ]` (nested)
 - `source = table1 | inner join left = l right = r on l.a = r.a AND r.a in [ source = inner | fields d ] | fields l.a, r.a, b, c` (as join filter)
 
@@ -317,6 +383,9 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 - `source = outer | where not exists [ source = inner | where a = c ]`
 - `source = outer | where exists [ source = inner | where a = c and b = d ]`
 - `source = outer | where not exists [ source = inner | where a = c and b = d ]`
+- `source = outer exists [ source = inner | where a = c ]` (search filtering with subquery)
+- `source = outer not exists [ source = inner | where a = c ]` (search filtering with subquery)
+- `source = table as t1 exists [ source = table as t2 | where t1.a = t2.a ]` (table alias is useful in exists subquery)
 - `source = outer | where exists [ source = inner1 | where a = c and exists [ source = inner2 | where c = e ] ]` (nested)
 - `source = outer | where exists [ source = inner1 | where a = c | where exists [ source = inner2 | where c = e ] ]` (nested)
 - `source = outer | where exists [ source = inner | where c > 10 ]` (uncorrelated exists)
@@ -332,8 +401,13 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 - `source = outer | eval m = [ source = inner | stats max(c) ] | fields m, a`
 - `source = outer | eval m = [ source = inner | stats max(c) ] + b | fields m, a`
 
-**Uncorrelated scalar subquery in Select and Where**
-- `source = outer | where a > [ source = inner | stats min(c) ] | eval m = [ source = inner | stats max(c) ] | fields m, a`
+**Uncorrelated scalar subquery in Where**
+- `source = outer | where a > [ source = inner | stats min(c) ] | fields a`
+- `source = outer | where [ source = inner | stats min(c) ] > 0 | fields a`
+
+**Uncorrelated scalar subquery in Search filter**
+- `source = outer a > [ source = inner | stats min(c) ] | fields a`
+- `source = outer [ source = inner | stats min(c) ] > 0 | fields a`
 
 **Correlated scalar subquery in Select**
 - `source = outer | eval m = [ source = inner | where outer.b = inner.d | stats max(c) ] | fields m, a`
@@ -345,10 +419,23 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 - `source = outer | where a = [ source = inner | where b = d | stats max(c) ]`
 - `source = outer | where [ source = inner | where outer.b = inner.d OR inner.d = 1 | stats count() ] > 0 | fields a`
 
+**Correlated scalar subquery in Search filter**
+- `source = outer a = [ source = inner | where b = d | stats max(c) ]`
+- `source = outer [ source = inner | where outer.b = inner.d OR inner.d = 1 | stats count() ] > 0 | fields a`
+
 **Nested scalar subquery**
 - `source = outer | where a = [ source = inner | stats max(c) | sort c ] OR b = [ source = inner | where c = 1 | stats min(d) | sort d ]`
 - `source = outer | where a = [ source = inner | where c =  [ source = nested | stats max(e) by f | sort f ] | stats max(d) by c | sort c | head 1 ]`
 
+#### **(Relation) Subquery**
+[See additional command details](ppl-subquery-command.md)
+
+`InSubquery`, `ExistsSubquery` and `ScalarSubquery` are all subquery expressions. But `RelationSubquery` is not a subquery expression, it is a subquery plan which is common used in Join or Search clause.
+
+- `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]` (subquery in join right side)
+- `source = [ source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ] | stats count(a) by b ] as outer | head 1`
+
+_- **Limitation: another command usage of (relation) subquery is in `appendcols` commands which is unsupported**_
 
 ---
 #### Experimental Commands:
@@ -366,7 +453,7 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 ### Planned Commands:
 
 #### **fillnull**
-
+[See additional command details](ppl-fillnull-command.md)
 ```sql
    -  `source=accounts | fillnull fields status_code=101`
    -  `source=accounts | fillnull fields request_path='/not_found', timestamp='*'`
@@ -374,4 +461,3 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
     - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5`
     - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5, field6 = 'N/A'`
 ```
-[See additional command details](planning/ppl-fillnull-command.md)

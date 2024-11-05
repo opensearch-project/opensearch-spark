@@ -21,6 +21,7 @@ import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
+import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
@@ -81,8 +82,8 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
    */
   private String query;
 
-  public AstBuilder(AstExpressionBuilder expressionBuilder, String query) {
-    this.expressionBuilder = expressionBuilder;
+  public AstBuilder(String query) {
+    this.expressionBuilder = new AstExpressionBuilder(this);
     this.query = query;
   }
 
@@ -156,8 +157,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     Join.JoinHint joinHint = getJoinHint(ctx.joinHintList());
     String leftAlias = ctx.sideAlias().leftAlias.getText();
     String rightAlias = ctx.sideAlias().rightAlias.getText();
-    // TODO when sub-search is supported, this part need to change. Now relation is the only supported plan for right side
-    UnresolvedPlan right = new SubqueryAlias(rightAlias, new Relation(this.internalVisitExpression(ctx.tableSource()), rightAlias));
+    if (ctx.tableOrSubqueryClause().alias != null) {
+      // left and right aliases are required in join syntax. Setting by 'AS' causes ambiguous
+      throw new SyntaxCheckException("'AS' is not allowed in right subquery, use right=<rightAlias> instead");
+    }
+    UnresolvedPlan rightRelation = visit(ctx.tableOrSubqueryClause());
+    UnresolvedPlan right = new SubqueryAlias(rightAlias, rightRelation);
     Optional<UnresolvedExpression> joinCondition =
         ctx.joinCriteria() == null ? Optional.empty() : Optional.of(expressionBuilder.visitJoinCriteria(ctx.joinCriteria()));
 
@@ -265,14 +270,24 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
             .map(this::internalVisitExpression)
             .orElse(null);
 
-    Aggregation aggregation =
-        new Aggregation(
-            aggListBuilder.build(),
-            emptyList(),
-            groupList,
-            span,
-            ArgumentFactory.getArgumentList(ctx));
-    return aggregation;
+    if (ctx.STATS() != null) {
+      Aggregation aggregation =
+          new Aggregation(
+              aggListBuilder.build(),
+              emptyList(),
+              groupList,
+              span,
+              ArgumentFactory.getArgumentList(ctx));
+      return aggregation;
+    } else {
+      Window window =
+          new Window(
+              aggListBuilder.build(),
+              groupList,
+              emptyList());
+      window.setSpan(span);
+      return window;
+    }
   }
 
   /** Dedup command. */
@@ -371,6 +386,30 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
       .collect(Collectors.toMap(and -> (Alias) and.getLeft(), and -> (Field) and.getRight(), (x, y) -> y, LinkedHashMap::new));
   }
 
+  @Override
+  public UnresolvedPlan visitTrendlineCommand(OpenSearchPPLParser.TrendlineCommandContext ctx) {
+    List<Trendline.TrendlineComputation> trendlineComputations = ctx.trendlineClause()
+            .stream()
+            .map(this::toTrendlineComputation)
+            .collect(Collectors.toList());
+    return Optional.ofNullable(ctx.sortField())
+            .map(this::internalVisitExpression)
+            .map(Field.class::cast)
+            .map(sort -> new Trendline(Optional.of(sort), trendlineComputations))
+            .orElse(new Trendline(Optional.empty(), trendlineComputations));
+  }
+
+  private Trendline.TrendlineComputation toTrendlineComputation(OpenSearchPPLParser.TrendlineClauseContext ctx) {
+    int numberOfDataPoints = Integer.parseInt(ctx.numberOfDataPoints.getText());
+    if (numberOfDataPoints < 1) {
+      throw new SyntaxCheckException("Number of trendline data-points must be greater than or equal to 1");
+    }
+    Field dataField = (Field) expressionBuilder.visitFieldExpression(ctx.field);
+    String alias = ctx.alias == null?dataField.getField().toString()+"_trendline":ctx.alias.getText();
+    String computationType = ctx.trendlineType().getText();
+    return new Trendline.TrendlineComputation(numberOfDataPoints, dataField, alias, Trendline.TrendlineType.valueOf(computationType.toUpperCase()));
+  }
+
   /** Top command. */
   @Override
   public UnresolvedPlan visitTopCommand(OpenSearchPPLParser.TopCommandContext ctx) {
@@ -411,8 +450,14 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                     groupListBuilder.build());
     return aggregation;
   }
-  
-  /** Rare command. */
+
+    /** Fieldsummary command. */
+    @Override
+    public UnresolvedPlan visitFieldsummaryCommand(OpenSearchPPLParser.FieldsummaryCommandContext ctx) {
+        return new FieldSummary(ctx.fieldsummaryParameter().stream().map(arg -> expressionBuilder.visit(arg)).collect(Collectors.toList()));
+    }
+
+    /** Rare command. */
   @Override
   public UnresolvedPlan visitRareCommand(OpenSearchPPLParser.RareCommandContext ctx) {
     ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
@@ -451,16 +496,22 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     return aggregation;
   }
 
-  /** From clause. */
   @Override
-  public UnresolvedPlan visitFromClause(OpenSearchPPLParser.FromClauseContext ctx) {
-    return visitTableSourceClause(ctx.tableSourceClause());
+  public UnresolvedPlan visitTableOrSubqueryClause(OpenSearchPPLParser.TableOrSubqueryClauseContext ctx) {
+      if (ctx.subSearch() != null) {
+          return ctx.alias != null
+              ? new SubqueryAlias(ctx.alias.getText(), visitSubSearch(ctx.subSearch()))
+              : visitSubSearch(ctx.subSearch());
+      } else {
+          return visitTableSourceClause(ctx.tableSourceClause());
+      }
   }
 
   @Override
   public UnresolvedPlan visitTableSourceClause(OpenSearchPPLParser.TableSourceClauseContext ctx) {
-    return new Relation(
-        ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList()));
+    return ctx.alias == null
+        ? new Relation(ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList()))
+        : new Relation(ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList()), ctx.alias.getText());
   }
 
   @Override
@@ -533,6 +584,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     } else {
       throw new SyntaxCheckException("Invalid fillnull command");
     }
+  }
+
+  @Override
+  public UnresolvedPlan visitFlattenCommand(OpenSearchPPLParser.FlattenCommandContext ctx) {
+    Field unresolvedExpression = (Field) internalVisitExpression(ctx.fieldExpression());
+    return new Flatten(unresolvedExpression);
   }
 
   /** AD command. */

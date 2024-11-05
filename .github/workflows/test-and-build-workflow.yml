@@ -22,8 +22,8 @@ jobs:
           distribution: 'temurin'
           java-version: 11
 
-      - name: Integ Test
-        run: sbt integtest/integration
-
       - name: Style check
         run: sbt scalafmtCheckAll
+
+      - name: Integ Test
+        run: sbt integtest/integration

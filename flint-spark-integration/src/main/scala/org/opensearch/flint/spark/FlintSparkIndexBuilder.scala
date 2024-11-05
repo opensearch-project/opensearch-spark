@@ -92,7 +92,7 @@ abstract class FlintSparkIndexBuilder(flint: FlintSpark) {
     val updatedMetadata = index
       .metadata()
       .copy(options = updatedOptions.options.mapValues(_.asInstanceOf[AnyRef]).asJava)
-    validateIndex(FlintSparkIndexFactory.create(updatedMetadata).get)
+    validateIndex(FlintSparkIndexFactory.create(flint.spark, updatedMetadata).get)
   }
 
   /**
