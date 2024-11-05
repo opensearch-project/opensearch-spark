@@ -377,6 +377,7 @@ JSON:                               'JSON';
 JSON_OBJECT:                        'JSON_OBJECT';
 JSON_ARRAY:                         'JSON_ARRAY';
 JSON_ARRAY_LENGTH:                  'JSON_ARRAY_LENGTH';
+TO_JSON_STRING:                     'TO_JSON_STRING';
 JSON_EXTRACT:                       'JSON_EXTRACT';
 JSON_KEYS:                          'JSON_KEYS';
 JSON_VALID:                         'JSON_VALID';
@@ -392,6 +393,7 @@ JSON_VALID:                         'JSON_VALID';
 
 // COLLECTION FUNCTIONS
 ARRAY:                              'ARRAY';
+ARRAY_LENGTH:                       'ARRAY_LENGTH';
 
 // BOOL FUNCTIONS
 LIKE:                               'LIKE';

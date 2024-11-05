@@ -48,7 +48,7 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, """source=t a = json(json_object('key', array(1, 2, 3)))"""),
+        plan(pplParser, """source=t a = to_json_string(json_object('key', array(1, 2, 3)))"""),
         context)
 
     val table = UnresolvedRelation(Seq("t"))
@@ -97,7 +97,9 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, """source=t a = json(json_object('key', json_array(1, 2, 3)))"""),
+        plan(
+          pplParser,
+          """source=t a = to_json_string(json_object('key', json_array(1, 2, 3)))"""),
         context)
 
     val table = UnresolvedRelation(Seq("t"))
@@ -139,25 +141,21 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
-  test("test json_array_length(json_array())") {
+  test("test array_length(json_array())") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, """source=t a = json_array_length(json_array(1,2,3))"""),
+        plan(pplParser, """source=t a = array_length(json_array(1,2,3))"""),
         context)
 
     val table = UnresolvedRelation(Seq("t"))
     val jsonFunc =
       UnresolvedFunction(
-        "json_array_length",
+        "array_size",
         Seq(
           UnresolvedFunction(
-            "to_json",
-            Seq(
-              UnresolvedFunction(
-                "array",
-                Seq(Literal(1), Literal(2), Literal(3)),
-                isDistinct = false)),
+            "array",
+            Seq(Literal(1), Literal(2), Literal(3)),
             isDistinct = false)),
         isDistinct = false)
     val filterExpr = EqualTo(UnresolvedAttribute("a"), jsonFunc)
