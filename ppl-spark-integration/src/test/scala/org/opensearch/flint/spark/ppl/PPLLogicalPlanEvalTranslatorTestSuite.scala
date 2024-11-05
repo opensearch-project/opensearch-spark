@@ -177,6 +177,10 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
+  test("test eval expression - geoip function") {
+
+  }
+
   // Todo fields-excluded command not supported
   ignore("test eval expressions with fields-excluded command") {
     val context = new CatalystPlanContext

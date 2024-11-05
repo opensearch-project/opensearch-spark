@@ -11,34 +11,10 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RuleContext;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParserBaseVisitor;
-import org.opensearch.sql.ast.expression.AggregateFunction;
-import org.opensearch.sql.ast.expression.Alias;
-import org.opensearch.sql.ast.expression.AllFields;
-import org.opensearch.sql.ast.expression.And;
-import org.opensearch.sql.ast.expression.Argument;
-import org.opensearch.sql.ast.expression.Case;
-import org.opensearch.sql.ast.expression.Compare;
-import org.opensearch.sql.ast.expression.DataType;
-import org.opensearch.sql.ast.expression.EqualTo;
-import org.opensearch.sql.ast.expression.Field;
-import org.opensearch.sql.ast.expression.Function;
+import org.opensearch.sql.ast.expression.*;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
 import org.opensearch.sql.ast.expression.subquery.InSubquery;
-import org.opensearch.sql.ast.expression.Interval;
-import org.opensearch.sql.ast.expression.IntervalUnit;
-import org.opensearch.sql.ast.expression.IsEmpty;
-import org.opensearch.sql.ast.expression.Let;
-import org.opensearch.sql.ast.expression.Literal;
-import org.opensearch.sql.ast.expression.Not;
-import org.opensearch.sql.ast.expression.Or;
-import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
-import org.opensearch.sql.ast.expression.Span;
-import org.opensearch.sql.ast.expression.SpanUnit;
-import org.opensearch.sql.ast.expression.UnresolvedArgument;
-import org.opensearch.sql.ast.expression.UnresolvedExpression;
-import org.opensearch.sql.ast.expression.When;
-import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
@@ -398,6 +374,19 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     public UnresolvedExpression visitExistsSubqueryExpr(OpenSearchPPLParser.ExistsSubqueryExprContext ctx) {
         return new ExistsSubquery(astBuilder.visitSubSearch(ctx.subSearch()));
     }
+
+    @Override
+    public UnresolvedExpression visitGeoIpFunctionCall(OpenSearchPPLParser.GeoIpFunctionCallContext ctx) {
+        UnresolvedExpression datasource = visit(ctx.datasource);
+        UnresolvedExpression ipAddress = visit(ctx.ipAddress);
+        Literal properties = (Literal) visit(ctx.properties);
+        return new GeoIp(datasource, ipAddress, properties);
+    }
+
+    Literal pattern = (Literal) internalVisitExpression(ctx.pattern);
+
+    return new Parse(ParseMethod.REGEX, sourceField, pattern, ImmutableMap.of());
+}
 
     private QualifiedName visitIdentifiers(List<? extends ParserRuleContext> ctx) {
         return new QualifiedName(

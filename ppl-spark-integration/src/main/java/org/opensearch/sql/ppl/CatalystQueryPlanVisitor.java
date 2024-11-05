@@ -10,18 +10,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
-import org.apache.spark.sql.catalyst.expressions.Ascending$;
-import org.apache.spark.sql.catalyst.expressions.CaseWhen;
-import org.apache.spark.sql.catalyst.expressions.Descending$;
-import org.apache.spark.sql.catalyst.expressions.Exists$;
-import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.catalyst.expressions.InSubquery$;
-import org.apache.spark.sql.catalyst.expressions.ListQuery$;
-import org.apache.spark.sql.catalyst.expressions.NamedExpression;
-import org.apache.spark.sql.catalyst.expressions.Predicate;
-import org.apache.spark.sql.catalyst.expressions.ScalarSubquery$;
-import org.apache.spark.sql.catalyst.expressions.SortDirection;
-import org.apache.spark.sql.catalyst.expressions.SortOrder;
+import org.apache.spark.sql.catalyst.expressions.*;
 import org.apache.spark.sql.catalyst.plans.logical.*;
 import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
@@ -29,34 +18,18 @@ import org.apache.spark.sql.execution.command.ExplainCommand;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
-import org.opensearch.sql.ast.expression.AggregateFunction;
+import org.opensearch.sql.ast.expression.*;
 import org.opensearch.sql.ast.expression.Alias;
-import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.expression.And;
-import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.BinaryExpression;
-import org.opensearch.sql.ast.expression.Case;
-import org.opensearch.sql.ast.expression.Compare;
-import org.opensearch.sql.ast.expression.Field;
-import org.opensearch.sql.ast.expression.FieldsMapping;
-import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
-import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
-import org.opensearch.sql.ast.expression.subquery.InSubquery;
-import org.opensearch.sql.ast.expression.Interval;
-import org.opensearch.sql.ast.expression.IsEmpty;
-import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
-import org.opensearch.sql.ast.expression.ParseMethod;
-import org.opensearch.sql.ast.expression.QualifiedName;
-import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
-import org.opensearch.sql.ast.expression.Span;
-import org.opensearch.sql.ast.expression.UnresolvedExpression;
-import org.opensearch.sql.ast.expression.When;
 import org.opensearch.sql.ast.expression.WindowFunction;
-import org.opensearch.sql.ast.expression.Xor;
+import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
+import org.opensearch.sql.ast.expression.subquery.InSubquery;
+import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
 import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
@@ -93,6 +66,8 @@ import scala.collection.IterableLike;
 import scala.collection.Seq;
 
 import java.util.*;
+import java.util.Map;
+import java.util.Stack;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
@@ -828,6 +803,14 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 seq(new java.util.ArrayList<Expression>()),
                 Option.empty());
             return context.getNamedParseExpressions().push(existsSubQuery);
+        }
+
+        @Override
+        public Expression visitGeoIp(GeoIp node, CatalystPlanContext context) {
+
+            ScalaUDF udf = new ScalaUDF();
+
+            return context.getNamedParseExpressions().push(udf);
         }
     }
 }
