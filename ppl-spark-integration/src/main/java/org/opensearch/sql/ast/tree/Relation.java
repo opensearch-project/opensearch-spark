@@ -6,7 +6,6 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -26,10 +25,15 @@ import java.util.stream.Collectors;
 public class Relation extends UnresolvedPlan {
   private static final String COMMA = ",";
 
-  private final List<UnresolvedExpression> tableName;
+  // A relation could contain more than one table/index names, such as
+  // source=account1, account2
+  // source=`account1`,`account2`
+  // source=`account*`
+  // They translated into union call with fields.
+  private final List<UnresolvedExpression> tableNames;
 
   public List<QualifiedName> getQualifiedNames() {
-    return tableName.stream().map(t -> (QualifiedName) t).collect(Collectors.toList());
+    return tableNames.stream().map(t -> (QualifiedName) t).collect(Collectors.toList());
   }
 
   /**
@@ -40,11 +44,11 @@ public class Relation extends UnresolvedPlan {
    * @return TableQualifiedName.
    */
   public QualifiedName getTableQualifiedName() {
-    if (tableName.size() == 1) {
-      return (QualifiedName) tableName.get(0);
+    if (tableNames.size() == 1) {
+      return (QualifiedName) tableNames.get(0);
     } else {
       return new QualifiedName(
-          tableName.stream()
+          tableNames.stream()
               .map(UnresolvedExpression::toString)
               .collect(Collectors.joining(COMMA)));
     }

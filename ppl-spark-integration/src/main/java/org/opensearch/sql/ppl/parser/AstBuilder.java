@@ -165,15 +165,14 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     }
 
     UnresolvedPlan rightRelation = visit(ctx.tableOrSubqueryClause());
+    // Add a SubqueryAlias to the right plan when the right alias is present and no duplicated alias existing in right.
     UnresolvedPlan right;
-    if (rightAlias.isPresent()
-        && rightRelation instanceof SubqueryAlias
-        && rightAlias.get().equals(((SubqueryAlias) rightRelation).getAlias())) {
+    if (rightAlias.isEmpty() ||
+        (rightRelation instanceof SubqueryAlias &&
+            rightAlias.get().equals(((SubqueryAlias) rightRelation).getAlias()))) {
       right = rightRelation;
-    } else if (rightAlias.isPresent()) {
-      right = new SubqueryAlias(rightAlias.get(), rightRelation);
     } else {
-      right = rightRelation;
+      right = new SubqueryAlias(rightAlias.get(), rightRelation);
     }
     Optional<UnresolvedExpression> joinCondition =
         ctx.joinCriteria() == null ? Optional.empty() : Optional.of(expressionBuilder.visitJoinCriteria(ctx.joinCriteria()));
