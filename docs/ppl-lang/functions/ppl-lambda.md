@@ -30,7 +30,16 @@ Example:
     | true      |
     +-----------+
 
- **Note:** The lambda expression can access the nested fields of the array elements. This applies to all lambda functions introduced in this document. See the examples below:
+ **Note:** The lambda expression can access the nested fields of the array elements. This applies to all lambda functions introduced in this document.
+
+Consider constructing the following array:
+    
+    array = [
+        {"a":1, "b":1},
+        {"a":-1, "b":2}
+    ]
+
+and perform lambda functions against the nested fields `a` or `b`. See the examples:
 
     os> source=people | eval array = json_array(json_object("a", 1, "b", 1), json_object("a" , -1, "b", 2)), result = forall(array, x -> x.a > 0) | fields result
     fetched rows / total rows = 1/1
