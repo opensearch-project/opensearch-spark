@@ -33,6 +33,7 @@ import org.apache.spark.sql.catalyst.expressions.WindowExpression;
 import org.apache.spark.sql.catalyst.expressions.WindowSpecDefinition;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.*;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
@@ -435,8 +436,27 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
 
     @Override
     public Expression visitGeoIp(GeoIp node, CatalystPlanContext context) {
+        analyze(node.getDatasource(), context);
+        Expression datasourceExpression = context.getNamedParseExpressions().pop();
+        analyze(node.getIpAddress(), context);
+        Expression ipAddressExpression = context.getNamedParseExpressions().pop();
+        analyze(node.getProperties(), context);
+        Expression propertiesExpression = context.getNamedParseExpressions().pop();
 
-        ScalaUDF udf = new ScalaUDF();
+        ScalaUDF udf = new ScalaUDF(SerializableUdf.geoIpFunction,
+                DataTypes.createStructType(new StructField[]{
+                    DataTypes.createStructField("country", DataTypes.StringType, true),
+                    DataTypes.createStructField("region", DataTypes.StringType, true),
+                    DataTypes.createStructField("city", DataTypes.StringType, true),
+                    DataTypes.createStructField("lat", DataTypes.StringType, true),
+                    DataTypes.createStructField("lon", DataTypes.StringType, true)
+                }),
+                seq(datasourceExpression, ipAddressExpression, propertiesExpression),
+                seq(),
+                Option.empty(),
+                Option.apply("geoip"),
+                false,
+                true);
 
         return context.getNamedParseExpressions().push(udf);
     }

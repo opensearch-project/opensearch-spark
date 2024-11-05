@@ -299,7 +299,9 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitChildren(node, context);
   }
 
-  public T visitGeoIp(GeoIp node, C context) { return visitGeoip(node, context); }
+  public T visitGeoIp(GeoIp node, C context) {
+    return visitChildren(node, context);
+  }
 
   public T visitWindow(Window node, C context) {
     return visitChildren(node, context);
