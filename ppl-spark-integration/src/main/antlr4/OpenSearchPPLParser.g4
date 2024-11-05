@@ -451,6 +451,8 @@ valueExpression
    | geoipFunction                                                                              # geoFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
+   | ident ARROW expression                                                                     # lambda
+   | LT_PRTHS ident (COMMA ident)+ RT_PRTHS ARROW expression                                    # lambda
    ;
 
 primaryExpression
@@ -582,6 +584,7 @@ evalFunctionName
    | jsonFunctionName
    | collectionFunctionName
    | geoipFunctionName
+   | lambdaFunctionName
    ;
 
 functionArgs
@@ -887,6 +890,14 @@ jsonFunctionName
 
 collectionFunctionName
    : ARRAY
+   ;
+
+lambdaFunctionName
+   : FORALL
+   | EXISTS
+   | FILTER
+   | TRANSFORM
+   | REDUCE
    ;
 
 geoipFunctionName
