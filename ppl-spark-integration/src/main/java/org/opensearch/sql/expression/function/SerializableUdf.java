@@ -9,8 +9,12 @@ import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddressString;
 import inet.ipaddr.IPAddressStringParameters;
 import scala.Function2;
+import scala.Function3;
 import scala.Serializable;
 import scala.runtime.AbstractFunction2;
+import scala.runtime.AbstractFunction3;
+
+import java.util.List;
 
 
 public interface SerializableUdf {
@@ -51,7 +55,28 @@ public interface SerializableUdf {
         }
     };
 
+    Function3<String, String, List<String>, Object> geoIpFunction = new SerializableAbstractFunction3<>() {
+
+        @Override
+        public Object apply(String datasource, String ipAddress, List<String> properties) {
+            Object results = "geoip data";
+
+            //TODO:
+            //  1. Check if in-memory cache object for datasource exists.
+            //  2. If cache object does not exists create new in-memory cache object from csv retrieved from datasource manifest.
+            //  3. Search cached object for GeoIP data.
+            //  4. Return GeoIP data.
+
+            return results;
+        }
+    };
+
     abstract class SerializableAbstractFunction2<T1,T2,R> extends AbstractFunction2<T1,T2,R>
             implements Serializable {
+    }
+
+    abstract class SerializableAbstractFunction3<T1,T2,T3,R> extends AbstractFunction3<T1,T2,T3,R>
+            implements  Serializable {
+
     }
 }

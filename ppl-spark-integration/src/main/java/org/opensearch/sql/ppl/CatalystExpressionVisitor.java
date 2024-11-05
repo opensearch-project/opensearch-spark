@@ -33,31 +33,9 @@ import org.apache.spark.sql.catalyst.expressions.WindowExpression;
 import org.apache.spark.sql.catalyst.expressions.WindowSpecDefinition;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
-import org.opensearch.sql.ast.expression.AggregateFunction;
-import org.opensearch.sql.ast.expression.Alias;
-import org.opensearch.sql.ast.expression.AllFields;
-import org.opensearch.sql.ast.expression.And;
-import org.opensearch.sql.ast.expression.Between;
-import org.opensearch.sql.ast.expression.BinaryExpression;
-import org.opensearch.sql.ast.expression.Case;
-import org.opensearch.sql.ast.expression.Compare;
-import org.opensearch.sql.ast.expression.DataType;
-import org.opensearch.sql.ast.expression.FieldsMapping;
-import org.opensearch.sql.ast.expression.Function;
-import org.opensearch.sql.ast.expression.In;
-import org.opensearch.sql.ast.expression.Interval;
-import org.opensearch.sql.ast.expression.IsEmpty;
-import org.opensearch.sql.ast.expression.Literal;
-import org.opensearch.sql.ast.expression.Not;
-import org.opensearch.sql.ast.expression.Or;
-import org.opensearch.sql.ast.expression.LambdaFunction;
-import org.opensearch.sql.ast.expression.QualifiedName;
-import org.opensearch.sql.ast.expression.Span;
-import org.opensearch.sql.ast.expression.UnresolvedExpression;
-import org.opensearch.sql.ast.expression.When;
-import org.opensearch.sql.ast.expression.WindowFunction;
-import org.opensearch.sql.ast.expression.Xor;
+import org.opensearch.sql.ast.expression.*;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
 import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
@@ -454,6 +432,33 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
             .map(arg -> UnresolvedNamedLambdaVariable$.MODULE$.apply(seq(arg.getParts())))
             .collect(Collectors.toList());
         return context.getNamedParseExpressions().push(LambdaFunction$.MODULE$.apply(functionResult, seq(argsResult), false));
+    }
+
+    @Override
+    public Expression visitGeoIp(GeoIp node, CatalystPlanContext context) {
+        analyze(node.getDatasource(), context);
+        Expression datasourceExpression = context.getNamedParseExpressions().pop();
+        analyze(node.getIpAddress(), context);
+        Expression ipAddressExpression = context.getNamedParseExpressions().pop();
+        analyze(node.getProperties(), context);
+        Expression propertiesExpression = context.getNamedParseExpressions().pop();
+
+        ScalaUDF udf = new ScalaUDF(SerializableUdf.geoIpFunction,
+                DataTypes.createStructType(new StructField[]{
+                    DataTypes.createStructField("country", DataTypes.StringType, true),
+                    DataTypes.createStructField("region", DataTypes.StringType, true),
+                    DataTypes.createStructField("city", DataTypes.StringType, true),
+                    DataTypes.createStructField("lat", DataTypes.StringType, true),
+                    DataTypes.createStructField("lon", DataTypes.StringType, true)
+                }),
+                seq(datasourceExpression, ipAddressExpression, propertiesExpression),
+                seq(),
+                Option.empty(),
+                Option.apply("geoip"),
+                false,
+                true);
+
+        return context.getNamedParseExpressions().push(udf);
     }
 
     private List<Expression> visitExpressionList(List<UnresolvedExpression> expressionList, CatalystPlanContext context) {

@@ -6,6 +6,7 @@
 package org.opensearch.sql.ast;
 
 import org.opensearch.sql.ast.expression.*;
+import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
 import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
@@ -153,6 +154,10 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitChildren(node, context);
   }
 
+  public T visitLambdaFunction(LambdaFunction node, C context) {
+    return visitChildren(node, context);
+  }
+
   public T visitIsEmpty(IsEmpty node, C context) {
     return visitChildren(node, context);
   }
@@ -180,6 +185,10 @@ public abstract class AbstractNodeVisitor<T, C> {
   }
 
   public T visitField(Field node, C context) {
+    return visitChildren(node, context);
+  }
+
+  public T visitFieldList(FieldList node, C context) {
     return visitChildren(node, context);
   }
 
@@ -273,8 +282,13 @@ public abstract class AbstractNodeVisitor<T, C> {
   public T visitInSubquery(InSubquery node, C context) {
     return visitChildren(node, context);
   }
+  
   public T visitFillNull(FillNull fillNull, C context) {
     return visitChildren(fillNull, context);
+  }
+  
+  public T visitFieldSummary(FieldSummary fieldSummary, C context) {
+    return visitChildren(fieldSummary, context);
   }
 
   public T visitScalarSubquery(ScalarSubquery node, C context) {
@@ -285,5 +299,18 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitChildren(node, context);
   }
 
-  public T visitGeoIp(GeoIp node, C context) { return visitGeoip(node, context); }
+  public T visitGeoIp(GeoIp node, C context) {
+    return visitChildren(node, context);
+  }
+
+  public T visitWindow(Window node, C context) {
+    return visitChildren(node, context);
+  }
+  public T visitCidr(Cidr node, C context) {
+    return visitChildren(node, context);
+  }
+
+  public T visitFlatten(Flatten flatten, C context) {
+    return visitChildren(flatten, context);
+  }
 }
