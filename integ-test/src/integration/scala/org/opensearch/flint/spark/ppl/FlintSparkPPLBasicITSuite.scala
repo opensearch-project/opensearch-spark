@@ -616,7 +616,7 @@ class FlintSparkPPLBasicITSuite
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
-    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
 
     val allFields1 = UnresolvedStar(None)
     val allFields2 = UnresolvedStar(None)
