@@ -293,6 +293,7 @@ public enum BuiltinFunctionName {
   WILDCARDQUERY(FunctionName.of("wildcardquery")),
   WILDCARD_QUERY(FunctionName.of("wildcard_query")),
 
+  NTH_VALUE(FunctionName.of("nth_value")),
   COALESCE(FunctionName.of("coalesce"));
 
   private FunctionName name;
