@@ -12,72 +12,34 @@ Using `expand` command to flatten a field of type:
 * field: to be expanded (exploded). The field must be of supported type.
 * alias: Optional to be expanded as the name to be used instead of the original field name
 
-### Test table
+### Usage Guidelines
+The expand command produces a row for each element in the specified array or map field, where:
+- Array elements become individual rows.
+- Map key-value pairs are broken into separate rows, with each key-value represented as a row.
 
-#### Schema
-| col\_name | data\_type                                   |
-|-----------|----------------------------------------------|
-| \_time    | string                                       |
-| bridges   | array\<struct\<length:bigint,name:string\>\> |
-| city      | string                                       |
-| country   | string                                       |
+- When an alias is provided, the exploded values are represented under the alias instead of the original field name.
+- This can be used in combination with other commands, such as stats, eval, and parse to manipulate or extract data post-expansion.
 
-#### Data
-| \_time              | bridges                                      | city    | country        |
-|---------------------|----------------------------------------------|---------|----------------|
-| 2024-09-13T12:00:00 | [{801, Tower Bridge}, {928, London Bridge}]  | London  | England        |
-| 2024-09-13T12:00:00 | [{232, Pont Neuf}, {160, Pont Alexandre III}]| Paris   | France         |
-| 2024-09-13T12:00:00 | [{48, Rialto Bridge}, {11, Bridge of Sighs}] | Venice  | Italy          |
-| 2024-09-13T12:00:00 | [{516, Charles Bridge}, {343, Legion Bridge}]| Prague  | Czech Republic |
-| 2024-09-13T12:00:00 | [{375, Chain Bridge}, {333, Liberty Bridge}] | Budapest| Hungary        |
-| 1990-09-13T12:00:00 | NULL                                         | Warsaw  | Poland         |
+### Examples:
+-  `source = table | expand employee | stats max(salary) as max by state, company`
+-  `source = table | expand employee as worker | stats max(salary) as max by state, company`
+-  `source = table | expand employee as worker | eval bonus = salary * 3 | fields worker, bonus`
+-  `source = table | expand employee | parse description '(?<email>.+@.+)' | fields employee, email`
+-  `source = table | eval array=json_array(1, 2, 3) | expand array as uid | fields name, occupation, uid`
+-  `source = table | expand multi_valueA as multiA | expand multi_valueB as multiB`
 
+- Expand command can be used in combination with other commands such as `eval`, `stats` and more
+- Using multiple expand commands will create a cartesian product of all the internal elements within each composite array or map 
 
+### Effective SQL push-down query
+The expand command is translated into an equivalent SQL operation using LATERAL VIEW explode, allowing for efficient exploding of arrays or maps at the SQL query level.
 
-### Example 1: expand struct
-This example shows how to expand an array of struct field.
-PPL query:
-    - `source=table | expand bridges as britishBridge | fields britishBridge`
-
-
-
-### Example 2: expand array
-
-The example shows how to expand an array of struct fields.
-
-PPL query:
-    - `source=table | expand bridges`
-
-| \_time              | city    | coor                   | country       | length | name              |
-|---------------------|---------|------------------------|---------------|--------|-------------------|
-| 2024-09-13T12:00:00 | London  | {35, 51.5074, -0.1278} | England       | 801    | Tower Bridge      |
-| 2024-09-13T12:00:00 | London  | {35, 51.5074, -0.1278} | England       | 928    | London Bridge     |
-| 2024-09-13T12:00:00 | Paris   | {35, 48.8566, 2.3522}  | France        | 232    | Pont Neuf         |
-| 2024-09-13T12:00:00 | Paris   | {35, 48.8566, 2.3522}  | France        | 160    | Pont Alexandre III|
-| 2024-09-13T12:00:00 | Venice  | {2, 45.4408, 12.3155}  | Italy         | 48     | Rialto Bridge     |
-| 2024-09-13T12:00:00 | Venice  | {2, 45.4408, 12.3155}  | Italy         | 11     | Bridge of Sighs   |
-| 2024-09-13T12:00:00 | Prague  | {200, 50.0755, 14.4378}| Czech Republic| 516    | Charles Bridge    |
-| 2024-09-13T12:00:00 | Prague  | {200, 50.0755, 14.4378}| Czech Republic| 343    | Legion Bridge     |
-| 2024-09-13T12:00:00 | Budapest| {96, 47.4979, 19.0402} | Hungary       | 375    | Chain Bridge      |
-| 2024-09-13T12:00:00 | Budapest| {96, 47.4979, 19.0402} | Hungary       | 333    | Liberty Bridge    |
-| 1990-09-13T12:00:00 | Warsaw  | NULL                   | Poland        | NULL   | NULL              |
-
-
-### Example 3: expand array and struct
-This example shows how to expand multiple fields.
-PPL query:
-    - `source=table | expand bridges | expand coor`
-
-| \_time              | city    | country       | length | name              | alt  | lat    | long   |
-|---------------------|---------|---------------|--------|-------------------|------|--------|--------|
-| 2024-09-13T12:00:00 | London  | England       | 801    | Tower Bridge      | 35   | 51.5074| -0.1278|
-| 2024-09-13T12:00:00 | London  | England       | 928    | London Bridge     | 35   | 51.5074| -0.1278|
-| 2024-09-13T12:00:00 | Paris   | France        | 232    | Pont Neuf         | 35   | 48.8566| 2.3522 |
-| 2024-09-13T12:00:00 | Paris   | France        | 160    | Pont Alexandre III| 35   | 48.8566| 2.3522 |
-| 2024-09-13T12:00:00 | Venice  | Italy         | 48     | Rialto Bridge     | 2    | 45.4408| 12.3155|
-| 2024-09-13T12:00:00 | Venice  | Italy         | 11     | Bridge of Sighs   | 2    | 45.4408| 12.3155|
-| 2024-09-13T12:00:00 | Prague  | Czech Republic| 516    | Charles Bridge    | 200  | 50.0755| 14.4378|
-| 2024-09-13T12:00:00 | Prague  | Czech Republic| 343    | Legion Bridge     | 200  | 50.0755| 14.4378|
-| 2024-09-13T12:00:00 | Budapest| Hungary       | 375    | Chain Bridge      | 96   | 47.4979| 19.0402|
-| 2024-09-13T12:00:00 | Budapest| Hungary       | 333    | Liberty Bridge    | 96   | 47.4979| 19.0402|
-| 1990-09-13T12:00:00 | Warsaw  | Poland        | NULL   | NULL              | NULL | NULL   | NULL   |
+```sql
+SELECT customer exploded_productId
+FROM table
+LATERAL VIEW explode(productId) AS exploded_productId
+```
+Where the `explode` command offers the following functionality:
+- it is a column operation that returns a new column
+- it creates a new row for every element in the exploded column
+- internal `null`s are ignored as part of the exploded field (no row is created/exploded for null) 
