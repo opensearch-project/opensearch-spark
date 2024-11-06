@@ -213,6 +213,7 @@ public enum BuiltinFunctionName {
   JSON_OBJECT(FunctionName.of("json_object")),
   JSON_ARRAY(FunctionName.of("json_array")),
   JSON_ARRAY_LENGTH(FunctionName.of("json_array_length")),
+  TO_JSON_STRING(FunctionName.of("to_json_string")),
   JSON_EXTRACT(FunctionName.of("json_extract")),
   JSON_KEYS(FunctionName.of("json_keys")),
   JSON_VALID(FunctionName.of("json_valid")),
@@ -228,6 +229,14 @@ public enum BuiltinFunctionName {
 
   /** COLLECTION Functions **/
   ARRAY(FunctionName.of("array")),
+  ARRAY_LENGTH(FunctionName.of("array_length")),
+
+  /** LAMBDA Functions **/
+  ARRAY_FORALL(FunctionName.of("forall")),
+  ARRAY_EXISTS(FunctionName.of("exists")),
+  ARRAY_FILTER(FunctionName.of("filter")),
+  ARRAY_TRANSFORM(FunctionName.of("transform")),
+  ARRAY_AGGREGATE(FunctionName.of("reduce")),
 
   /** NULL Test. */
   IS_NULL(FunctionName.of("is null")),

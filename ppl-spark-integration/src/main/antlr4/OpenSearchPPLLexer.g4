@@ -38,6 +38,7 @@ AD:                                 'AD';
 ML:                                 'ML';
 FILLNULL:                           'FILLNULL';
 FLATTEN:                            'FLATTEN';
+TRENDLINE:                          'TRENDLINE';
 
 //Native JOIN KEYWORDS
 JOIN:                               'JOIN';
@@ -89,6 +90,9 @@ NUM:                                'NUM';
 FIELDSUMMARY:                       'FIELDSUMMARY';
 INCLUDEFIELDS:                      'INCLUDEFIELDS';
 NULLS:                              'NULLS';
+
+//TRENDLINE KEYWORDS
+SMA:                                'SMA';
 
 // ARGUMENT KEYWORDS
 KEEPEMPTY:                          'KEEPEMPTY';
@@ -199,6 +203,7 @@ RT_SQR_PRTHS:                       ']';
 SINGLE_QUOTE:                       '\'';
 DOUBLE_QUOTE:                       '"';
 BACKTICK:                           '`';
+ARROW:                              '->';
 
 // Operators. Bit
 
@@ -373,6 +378,7 @@ JSON:                               'JSON';
 JSON_OBJECT:                        'JSON_OBJECT';
 JSON_ARRAY:                         'JSON_ARRAY';
 JSON_ARRAY_LENGTH:                  'JSON_ARRAY_LENGTH';
+TO_JSON_STRING:                     'TO_JSON_STRING';
 JSON_EXTRACT:                       'JSON_EXTRACT';
 JSON_KEYS:                          'JSON_KEYS';
 JSON_VALID:                         'JSON_VALID';
@@ -380,14 +386,22 @@ JSON_VALID:                         'JSON_VALID';
 //JSON_DELETE:                        'JSON_DELETE';
 //JSON_EXTEND:                        'JSON_EXTEND';
 //JSON_SET:                           'JSON_SET';
-//JSON_ARRAY_ALL_MATCH:               'JSON_ALL_MATCH';
-//JSON_ARRAY_ANY_MATCH:               'JSON_ANY_MATCH';
-//JSON_ARRAY_FILTER:                  'JSON_FILTER';
+//JSON_ARRAY_ALL_MATCH:               'JSON_ARRAY_ALL_MATCH';
+//JSON_ARRAY_ANY_MATCH:               'JSON_ARRAY_ANY_MATCH';
+//JSON_ARRAY_FILTER:                  'JSON_ARRAY_FILTER';
 //JSON_ARRAY_MAP:                     'JSON_ARRAY_MAP';
 //JSON_ARRAY_REDUCE:                  'JSON_ARRAY_REDUCE';
 
 // COLLECTION FUNCTIONS
 ARRAY:                              'ARRAY';
+ARRAY_LENGTH:                       'ARRAY_LENGTH';
+
+// LAMBDA FUNCTIONS
+//EXISTS:                             'EXISTS';
+FORALL:                             'FORALL';
+FILTER:                             'FILTER';
+TRANSFORM:                          'TRANSFORM';
+REDUCE:                             'REDUCE';
 
 // BOOL FUNCTIONS
 LIKE:                               'LIKE';
