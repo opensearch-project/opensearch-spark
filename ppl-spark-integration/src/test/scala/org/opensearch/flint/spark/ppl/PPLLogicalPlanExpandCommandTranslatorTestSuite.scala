@@ -39,6 +39,38 @@ class PPLLogicalPlanExpandCommandTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
+  test("expand multi columns array table") {
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        s"""
+         | source = table
+         | | expand multi_valueA as multiA
+         | | expand multi_valueB as multiB
+         | """.stripMargin),
+      context)
+
+    val relation = UnresolvedRelation(Seq("table"))
+    val generatorA = Explode(UnresolvedAttribute("multi_valueA"))
+    val generateA =
+      Generate(generatorA, seq(), false, None, seq(UnresolvedAttribute("multiA")), relation)
+    val dropSourceColumnA =
+      DataFrameDropColumns(Seq(UnresolvedAttribute("multi_valueA")), generateA)
+    val generatorB = Explode(UnresolvedAttribute("multi_valueB"))
+    val generateB = Generate(
+      generatorB,
+      seq(),
+      false,
+      None,
+      seq(UnresolvedAttribute("multiB")),
+      dropSourceColumnA)
+    val dropSourceColumnB =
+      DataFrameDropColumns(Seq(UnresolvedAttribute("multi_valueB")), generateB)
+    val expectedPlan = Project(seq(UnresolvedStar(None)), dropSourceColumnB)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
   test("test expand on array field which is eval array=json_array") {
     val context = new CatalystPlanContext
     val logPlan =

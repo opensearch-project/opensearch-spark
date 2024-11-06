@@ -457,6 +457,7 @@ _- **Limitation: another command usage of (relation) subquery is in `appendcols`
    -  `source = table | expand employee as worker | eval bonus = salary * 3 | fields worker, bonus`
    -  `source = table | expand employee | parse description '(?<email>.+@.+)' | fields employee, email`
    -  `source = table | eval array=json_array(1, 2, 3) | expand array as uid | fields name, occupation, uid`
+   -  `source = table | expand multi_valueA as multiA | expand multi_valueB as multiB`
 ```
 
 #### Correlation Commands:

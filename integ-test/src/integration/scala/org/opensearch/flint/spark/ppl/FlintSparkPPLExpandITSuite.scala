@@ -27,6 +27,7 @@ class FlintSparkPPLExpandITSuite
   private val structNestedTable = "spark_catalog.default.flint_ppl_struct_nested_test"
   private val structTable = "spark_catalog.default.flint_ppl_struct_test"
   private val multiValueTable = "spark_catalog.default.flint_ppl_multi_value_test"
+  private val multiArraysTable = "spark_catalog.default.flint_ppl_multi_array_test"
   private val tempFile = Files.createTempFile("jsonTestData", ".json")
 
   override def beforeAll(): Unit = {
@@ -38,6 +39,7 @@ class FlintSparkPPLExpandITSuite
     createStructNestedTable(structNestedTable)
     createStructTable(structTable)
     createMultiValueStructTable(multiValueTable)
+    createMultiColumnArrayTable(multiArraysTable)
   }
 
   protected override def afterEach(): Unit = {
@@ -205,101 +207,49 @@ class FlintSparkPPLExpandITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-  ignore("expand struct table") {
+  test("expand multi columns array table") {
     val frame = sql(s"""
-         | source = $structTable
-         | | expand struct_col
-         | | expand field1
-         | """.stripMargin)
-
-    assert(frame.columns.sameElements(Array("int_col", "field2", "subfield")))
-    val results: Array[Row] = frame.collect()
-    val expectedResults: Array[Row] =
-      Array(Row(30, 123, "value1"), Row(40, 456, "value2"), Row(50, 789, "value3"))
-    // Compare the results
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
-
-    val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_struct_test"))
-    val generate = Generate(
-      Explode(UnresolvedAttribute("bridges")),
-      seq(),
-      outer = false,
-      None,
-      seq(UnresolvedAttribute("britishBridges")),
-      table)
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), generate)
-    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
-  }
-
-  ignore("expand struct nested table") {
-    val frame = sql(s"""
-                       | source = $structNestedTable
-                       | | expand struct_col
-                       | | expand field1
-                       | | expand struct_col2
-                       | | expand field1
+                       | source = $multiArraysTable
+                       | | expand multi_valueA as multiA
+                       | | expand multi_valueB as multiB
                        | """.stripMargin)
 
-    assert(
-      frame.columns.sameElements(Array("int_col", "field2", "subfield", "field2", "subfield")))
     val results: Array[Row] = frame.collect()
-    val expectedResults: Array[Row] =
-      Array(
-        Row(30, 123, "value1", 23, "valueA"),
-        Row(40, 123, "value5", 33, "valueB"),
-        Row(30, 823, "value4", 83, "valueC"),
-        Row(40, 456, "value2", 46, "valueD"),
-        Row(50, 789, "value3", 89, "valueE"))
+    val expectedResults: Array[Row] = Array(
+      Row(1, Row("1_one", 1), Row("2_Monday", 2)),
+      Row(1, Row("1_one", 1), null),
+      Row(1, Row(null, 11), Row("2_Monday", 2)),
+      Row(1, Row(null, 11), null),
+      Row(1, Row("1_three", null), Row("2_Monday", 2)),
+      Row(1, Row("1_three", null), null),
+      Row(2, Row("2_Monday", 2), Row("3_third", 3)),
+      Row(2, Row("2_Monday", 2), Row("3_4th", 4)),
+      Row(2, null, Row("3_third", 3)),
+      Row(2, null, Row("3_4th", 4)),
+      Row(3, Row("3_third", 3), Row("1_one", 1)),
+      Row(3, Row("3_4th", 4), Row("1_one", 1)))
     // Compare the results
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
+    assert(results.toSet == expectedResults.toSet)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    val table =
-      UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_struct_nested_test"))
-//    val expandStructCol = generator("struct_col", table)
-//    val expandField1 = generator("field1", expandStructCol)
-//    val expandStructCol2 = generator("struct_col2", expandField1)
-//    val expandField1Again = generator("field1", expandStructCol2)
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), table)
-    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
-  }
-
-  ignore("expand multi value nullable") {
-    val frame = sql(s"""
-                       | source = $multiValueTable
-                       | | expand multi_value as expand_field
-                       | | fields expand_field
-                       | """.stripMargin)
-
-    assert(frame.columns.sameElements(Array("expand_field")))
-    val results: Array[Row] = frame.collect()
-    val expectedResults: Array[Row] =
-      Array(
-        Row(1, "1_one", 1),
-        Row(1, null, 11),
-        Row(1, "1_three", null),
-        Row(2, "2_Monday", 2),
-        Row(2, null, null),
-        Row(3, "3_third", 3),
-        Row(3, "3_4th", 4),
-        Row(4, null, null))
-    // Compare the results
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
-
-    val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_multi_value_test"))
-    val generate = Generate(
-      Explode(UnresolvedAttribute("bridges")),
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_multi_array_test"))
+    val generatorA = Explode(UnresolvedAttribute("multi_valueA"))
+    val generateA =
+      Generate(generatorA, seq(), false, None, seq(UnresolvedAttribute("multiA")), table)
+    val dropSourceColumnA =
+      DataFrameDropColumns(Seq(UnresolvedAttribute("multi_valueA")), generateA)
+    val generatorB = Explode(UnresolvedAttribute("multi_valueB"))
+    val generateB = Generate(
+      generatorB,
       seq(),
-      outer = false,
+      false,
       None,
-      seq(UnresolvedAttribute("britishBridges")),
-      table)
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), generate)
-    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+      seq(UnresolvedAttribute("multiB")),
+      dropSourceColumnA)
+    val dropSourceColumnB =
+      DataFrameDropColumns(Seq(UnresolvedAttribute("multi_valueB")), generateB)
+    val expectedPlan = Project(seq(UnresolvedStar(None)), dropSourceColumnB)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+
   }
 }
