@@ -37,8 +37,7 @@ where
 */
 
 source = lineitem
-| join left = l right = r
-  ON p_partkey = l_partkey
+| join ON p_partkey = l_partkey
      and p_brand = 'Brand#12'
      and p_container in ('SM CASE', 'SM BOX', 'SM PACK', 'SM PKG')
      and l_quantity >= 1 and l_quantity <= 1 + 10

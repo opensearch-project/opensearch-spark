@@ -30,7 +30,7 @@ order by
 */
 
 source = orders
-| join left = l right = r ON o_orderkey = l_orderkey lineitem
+| join ON o_orderkey = l_orderkey lineitem
 | where l_commitdate < l_receiptdate
     and l_shipdate < l_commitdate
     and l_shipmode in ('MAIL', 'SHIP')

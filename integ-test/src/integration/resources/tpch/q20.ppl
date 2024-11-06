@@ -39,7 +39,7 @@ order by
 */
 
 source = supplier
-| join left = l right = r ON s_nationkey = n_nationkey nation
+| join ON s_nationkey = n_nationkey nation
 | where n_name = 'CANADA'
   and s_suppkey in [
     source = partsupp

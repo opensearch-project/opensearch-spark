@@ -35,11 +35,11 @@ order by
 
 source = [
     source = part
-    | join left = l right = r ON p_partkey = l_partkey lineitem
-    | join left = l right = r ON s_suppkey = l_suppkey supplier
-    | join left = l right = r ON ps_partkey = l_partkey and ps_suppkey = l_suppkey partsupp
-    | join left = l right = r ON o_orderkey = l_orderkey orders
-    | join left = l right = r ON s_nationkey = n_nationkey nation
+    | join ON p_partkey = l_partkey lineitem
+    | join ON s_suppkey = l_suppkey supplier
+    | join ON ps_partkey = l_partkey and ps_suppkey = l_suppkey partsupp
+    | join ON o_orderkey = l_orderkey orders
+    | join ON s_nationkey = n_nationkey nation
     | where like(p_name, '%green%')
     | eval nation = n_name
     | eval o_year = year(o_orderdate)

@@ -33,7 +33,7 @@ order by
 
 // CTE is unsupported in PPL
 source = supplier
-| join left = l right = revenue0 ON s_suppkey = supplier_no [
+| join right = revenue0 ON s_suppkey = supplier_no [
     source = lineitem
     | where l_shipdate >= date('1996-01-01') AND l_shipdate < date_add(date('1996-01-01'), interval 3 month)
     | eval supplier_no = l_suppkey

@@ -172,6 +172,6 @@ trait TPCHQueryBase extends FlintPPLSuite {
     "q18",
     "q19",
     "q20",
-//    "q21", TODO exits subquery seems has an alias related bug.
+    "q21",
     "q22")
 }

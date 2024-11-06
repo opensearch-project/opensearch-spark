@@ -29,14 +29,14 @@ order by
 */
 
 source = partsupp
-| join left = l right = r ON ps_suppkey = s_suppkey supplier
-| join left = l right = r ON s_nationkey = n_nationkey nation
+| join ON ps_suppkey = s_suppkey supplier
+| join ON s_nationkey = n_nationkey nation
 | where n_name = 'GERMANY'
 | stats sum(ps_supplycost * ps_availqty) as value by ps_partkey
 | where value > [
     source = partsupp
-    | join left = l right = r ON ps_suppkey = s_suppkey supplier
-    | join left = l right = r ON s_nationkey = n_nationkey nation
+    | join ON ps_suppkey = s_suppkey supplier
+    | join ON s_nationkey = n_nationkey nation
     | where n_name = 'GERMANY'
     | stats sum(ps_supplycost * ps_availqty) as check
     | eval threshold = check * 0.0001000000

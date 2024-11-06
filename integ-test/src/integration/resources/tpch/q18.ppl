@@ -35,8 +35,8 @@ limit 100
 */
 
 source = customer
-| join left = l right = r ON c_custkey = o_custkey orders
-| join left = l right = r ON o_orderkey = l_orderkey lineitem
+| join ON c_custkey = o_custkey orders
+| join ON o_orderkey = l_orderkey lineitem
 | where o_orderkey in [
     source = lineitem
     | stats sum(l_quantity) as sum by l_orderkey

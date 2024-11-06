@@ -34,9 +34,9 @@ limit 20
 */
 
 source = customer
-| join left = l right = r ON c_custkey = o_custkey orders
-| join left = l right = r ON l_orderkey = o_orderkey lineitem
-| join left = l right = r ON c_nationkey = n_nationkey nation
+| join ON c_custkey = o_custkey orders
+| join ON l_orderkey = o_orderkey lineitem
+| join ON c_nationkey = n_nationkey nation
 | where o_orderdate >= date('1993-10-01')
   AND o_orderdate < date_add(date('1993-10-01'), interval 3 month)
   AND l_returnflag = 'R'

@@ -42,14 +42,14 @@ limit 100
 */
 
 source = supplier
-| join left = l right = l1 ON s_suppkey = l_suppkey lineitem
-| join left = l right = r ON o_orderkey = l_orderkey orders
-| join left = l right = r ON s_nationkey = n_nationkey nation
+| join ON s_suppkey = l1.l_suppkey lineitem as l1
+| join ON o_orderkey = l1.l_orderkey orders
+| join ON s_nationkey = n_nationkey nation
 | where o_orderstatus = 'F'
-  and l_receiptdate > l_commitdate
+  and l1.l_receiptdate > l1.l_commitdate
   and exists [
     source = lineitem as l2
-    | where l2.l_orderkey = l1.l_orderkey // Bug! `l2`.`l_orderkey` cannot be resolved
+    | where l2.l_orderkey = l1.l_orderkey
       and l2.l_suppkey != l1.l_suppkey
   ]
   and not exists [

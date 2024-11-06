@@ -19,7 +19,7 @@ where
 */
 
 source = lineitem
-| join left = l right = r ON p_partkey = l_partkey part
+| join ON p_partkey = l_partkey part
 | where p_brand = 'Brand#23'
     and p_container = 'MED BOX'
     and l_quantity < [

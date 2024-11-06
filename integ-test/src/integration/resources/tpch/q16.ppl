@@ -32,7 +32,7 @@ order by
 */
 
 source = partsupp
-| join left = l right = r ON p_partkey = ps_partkey part
+| join ON p_partkey = ps_partkey part
 | where p_brand != 'Brand#45'
     and not like(p_type, 'MEDIUM POLISHED%')
     and p_size in (49, 14, 23, 45, 19, 3, 36, 9)

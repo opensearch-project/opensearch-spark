@@ -15,7 +15,7 @@ where
 */
 
 source = lineitem
-| join left = l right = r ON l_partkey = p_partkey
+| join ON l_partkey = p_partkey
     AND l_shipdate >= date('1995-09-01')
     AND l_shipdate < date_add(date('1995-09-01'), interval 1 month)
   part
