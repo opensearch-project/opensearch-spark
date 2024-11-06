@@ -29,6 +29,7 @@ import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.IntervalUnit;
 import org.opensearch.sql.ast.expression.IsEmpty;
+import org.opensearch.sql.ast.expression.LambdaFunction;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
@@ -43,6 +44,8 @@ import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
 import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
+import org.opensearch.sql.ast.tree.Trendline;
+import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
@@ -67,7 +70,6 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.TRIM;
  */
 public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedExpression> {
 
-    private static final int DEFAULT_TAKE_FUNCTION_SIZE_VALUE = 10;
     /**
      * The function name mapping between fronted and core engine.
      */
@@ -79,16 +81,10 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                     .build();
     private AstBuilder astBuilder;
 
-    public AstExpressionBuilder() {
-    }
-
-    /**
-     * Set AstBuilder back to AstExpressionBuilder for resolving the subquery plan in subquery expression
-     */
-    public void setAstBuilder(AstBuilder astBuilder) {
+    public AstExpressionBuilder(AstBuilder astBuilder) {
         this.astBuilder = astBuilder;
     }
-
+    
     @Override
     public UnresolvedExpression visitMappingCompareExpr(OpenSearchPPLParser.MappingCompareExprContext ctx) {
         return new Compare(ctx.comparisonOperator().getText(), visit(ctx.left), visit(ctx.right));
@@ -432,6 +428,15 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
             OpenSearchPPLParser.TimestampFunctionCallContext ctx) {
         return new Function(
             ctx.timestampFunction().timestampFunctionName().getText(), timestampFunctionArguments(ctx));
+    }
+
+    @Override
+    public UnresolvedExpression visitLambda(OpenSearchPPLParser.LambdaContext ctx) {
+
+        List<QualifiedName> arguments = ctx.ident().stream().map(x -> this.visitIdentifiers(Collections.singletonList(x))).collect(
+            Collectors.toList());
+        UnresolvedExpression function = visitExpression(ctx.expression());
+        return new LambdaFunction(function, arguments);
     }
 
     private List<UnresolvedExpression> timestampFunctionArguments(

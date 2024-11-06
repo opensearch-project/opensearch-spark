@@ -53,6 +53,8 @@ commands
    | renameCommand
    | fillnullCommand
    | fieldsummaryCommand
+   | flattenCommand
+   | trendlineCommand
    ;
 
 commandName
@@ -82,6 +84,8 @@ commandName
    | RENAME
    | FILLNULL
    | FIELDSUMMARY
+   | FLATTEN
+   | TRENDLINE
    ;
 
 searchCommand
@@ -89,7 +93,7 @@ searchCommand
    | (SEARCH)? fromClause logicalExpression     # searchFromFilter
    | (SEARCH)? logicalExpression fromClause     # searchFilterFrom
    ;
-   
+
 fieldsummaryCommand
    : FIELDSUMMARY (fieldsummaryParameter)*
    ;
@@ -246,6 +250,21 @@ fillnullCommand
    : expression
    ;
 
+flattenCommand
+    : FLATTEN fieldExpression
+    ;
+
+trendlineCommand
+   : TRENDLINE (SORT sortField)? trendlineClause (trendlineClause)*
+   ;
+
+trendlineClause
+   : trendlineType LT_PRTHS numberOfDataPoints = integerLiteral COMMA field = fieldExpression RT_PRTHS (AS alias = qualifiedName)?
+   ;
+
+trendlineType
+   : SMA
+   ;
 
 kmeansCommand
    : KMEANS (kmeansParameter)*
@@ -320,7 +339,7 @@ joinType
    ;
 
 sideAlias
-   : LEFT EQUAL leftAlias = ident COMMA? RIGHT EQUAL rightAlias = ident
+   : (LEFT EQUAL leftAlias = ident)? COMMA? (RIGHT EQUAL rightAlias = ident)?
    ;
 
 joinCriteria
@@ -424,6 +443,8 @@ valueExpression
    | timestampFunction                                                                          # timestampFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
+   | ident ARROW expression                                                                     # lambda
+   | LT_PRTHS ident (COMMA ident)+ RT_PRTHS ARROW expression                                    # lambda
    ;
 
 primaryExpression
@@ -549,6 +570,7 @@ evalFunctionName
    | cryptographicFunctionName
    | jsonFunctionName
    | collectionFunctionName
+   | lambdaFunctionName
    ;
 
 functionArgs
@@ -838,6 +860,7 @@ jsonFunctionName
    | JSON_OBJECT
    | JSON_ARRAY
    | JSON_ARRAY_LENGTH
+   | TO_JSON_STRING
    | JSON_EXTRACT
    | JSON_KEYS
    | JSON_VALID
@@ -854,6 +877,15 @@ jsonFunctionName
 
 collectionFunctionName
    : ARRAY
+   | ARRAY_LENGTH
+   ;
+
+lambdaFunctionName
+   : FORALL
+   | EXISTS
+   | FILTER
+   | TRANSFORM
+   | REDUCE
    ;
 
 positionFunctionName
@@ -1125,4 +1157,5 @@ keywordsCanBeId
    | ANTI
    | BETWEEN
    | CIDRMATCH
+   | trendlineType
    ;
