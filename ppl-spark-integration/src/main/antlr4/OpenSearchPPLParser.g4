@@ -339,7 +339,7 @@ joinType
    ;
 
 sideAlias
-   : LEFT EQUAL leftAlias = ident COMMA? RIGHT EQUAL rightAlias = ident
+   : (LEFT EQUAL leftAlias = ident)? COMMA? (RIGHT EQUAL rightAlias = ident)?
    ;
 
 joinCriteria
