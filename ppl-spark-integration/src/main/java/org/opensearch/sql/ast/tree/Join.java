@@ -25,15 +25,15 @@ import org.opensearch.sql.ast.expression.UnresolvedExpression;
 public class Join extends UnresolvedPlan {
     private UnresolvedPlan left;
     private final UnresolvedPlan right;
-    private final String leftAlias;
-    private final String rightAlias;
+    private final Optional<String> leftAlias;
+    private final Optional<String> rightAlias;
     private final JoinType joinType;
     private final Optional<UnresolvedExpression> joinCondition;
     private final JoinHint joinHint;
 
     @Override
     public UnresolvedPlan attach(UnresolvedPlan child) {
-        this.left = new SubqueryAlias(leftAlias, child);
+        this.left = leftAlias.isEmpty() ? child : new SubqueryAlias(leftAlias.get(), child);
         return this;
     }
 

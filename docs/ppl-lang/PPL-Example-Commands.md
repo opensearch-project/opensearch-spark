@@ -306,7 +306,11 @@ source = table |  where ispresent(a) |
 - `source = table1 | left semi join left = l right = r on l.a = r.a table2`
 - `source = table1 | left anti join left = l right = r on l.a = r.a table2`
 - `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]`
-
+- `source = table1 | inner join on table1.a = table2.a table2 | fields table1.a, table2.a, table1.b, table1.c` (directly refer table name)
+- `source = table1 | inner join on a = c table2 | fields a, b, c, d` (ignore side aliases as long as no ambiguous)
+- `source = table1 as t1 | join left = l right = r on l.a = r.a table2 as t2 | fields l.a, r.a` (side alias overrides table alias)
+- `source = table1 as t1 | join left = l right = r on l.a = r.a table2 as t2 | fields t1.a, t2.a` (error, side alias overrides table alias)
+- `source = table1 | join left = l right = r on l.a = r.a [ source = table2 ] as s | fields l.a, s.a` (error, side alias overrides subquery alias)
 
 #### **Lookup**
 [See additional command details](ppl-lookup-command.md)
