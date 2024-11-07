@@ -136,7 +136,7 @@ class FlintTester:
     if "error" in submit_result:
       self.logger.warning(f"Submit error: {submit_result}")
       return {
-        "query_name": query_name,
+        "query_name": seq_id,
         "query": query,
         "status": "SUBMIT_FAILED",
         "error": submit_result["error"],
@@ -157,7 +157,7 @@ class FlintTester:
     duration = (end_time - start_time).total_seconds()
 
     return {
-      "query_name": query_name,
+      "query_name": seq_id,
       "query": query,
       "query_id": query_id,
       "session_id": session_id,
