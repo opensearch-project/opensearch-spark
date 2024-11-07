@@ -238,7 +238,8 @@ lazy val integtest = (project in file("integ-test"))
     inConfig(IntegrationTest)(Defaults.testSettings ++ Seq(
       IntegrationTest / javaSource := baseDirectory.value / "src/integration/java",
       IntegrationTest / scalaSource := baseDirectory.value / "src/integration/scala",
-      IntegrationTest / parallelExecution := false,
+      IntegrationTest / resourceDirectory := baseDirectory.value / "src/integration/resources",
+        IntegrationTest / parallelExecution := false,
       IntegrationTest / fork := true,
     )),
     inConfig(AwsIntegrationTest)(Defaults.testSettings ++ Seq(
