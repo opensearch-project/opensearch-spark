@@ -13,6 +13,8 @@ import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
 import org.opensearch.flint.spark.scheduler.util.IntervalSchedulerParser
 
+import org.apache.spark.internal.Logging
+
 /**
  * Flint metadata cache defines metadata required to store in read cache for frontend user to
  * access.
@@ -45,7 +47,7 @@ case class FlintMetadataCache(
   }
 }
 
-object FlintMetadataCache {
+object FlintMetadataCache extends Logging {
 
   val metadataCacheVersion = "1.0"
 
@@ -62,10 +64,15 @@ object FlintMetadataCache {
     }
     val sourceTables = metadata.kind match {
       case MV_INDEX_TYPE =>
-        metadata.properties.get("sourceTables") match {
+        val sourceTables = metadata.properties.get("sourceTables")
+        logInfo(s"sourceTables: $sourceTables")
+        sourceTables match {
           case list: java.util.ArrayList[_] =>
+            logInfo("sourceTables is ArrayList")
             list.toArray.map(_.toString)
-          case _ => Array.empty[String]
+          case _ =>
+            logInfo(s"sourceTables is not ArrayList. It is of type: ${sourceTables.getClass.getName}")
+            Array.empty[String]
         }
       case _ => Array(metadata.source)
     }
