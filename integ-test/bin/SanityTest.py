@@ -33,7 +33,7 @@ python FlintSanityTest_Concurrency.py --help
 """
 
 class FlintTester:
-  def __init__(self, base_url, username, password, datasource, max_workers, check_interval, timeout, output_file, start, end):
+  def __init__(self, base_url, username, password, datasource, max_workers, check_interval, timeout, output_file, start_row, end_row):
     self.base_url = base_url
     self.auth = HTTPBasicAuth(username, password)
     self.datasource = datasource
@@ -42,8 +42,8 @@ class FlintTester:
     self.check_interval = check_interval
     self.timeout = timeout
     self.output_file = output_file
-    self.start = start
-    self.end = end
+    self.start = start_row - 1
+    self.end = end_row - 1
     self.max_attempts = (int)(timeout / check_interval)
     self.logger = self._setup_logger()
     self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
@@ -253,7 +253,7 @@ def main():
   parser.add_argument("--check-interval", type=int, default=10, help="optional, Check interval in seconds (default: 10)")
   parser.add_argument("--timeout", type=int, default=600, help="optional, Timeout in seconds (default: 600)")
   parser.add_argument("--start-row", type=int, default=None, help="optionl, The start row of the query to run, start from 1")
-  parser.add_argument("--end-row", type=int, default=None, help="optional, The end row of the query to run")
+  parser.add_argument("--end-row", type=int, default=None, help="optional, The end row of the query to run, not included")
 
   args = parser.parse_args()
 
@@ -266,8 +266,8 @@ def main():
     check_interval=args.check_interval,
     timeout=args.timeout,
     output_file=args.output_file,
-    start=args.start_row,
-    end=args.end_row
+    start_row=args.start_row,
+    end_row=args.end_row
   )
 
   # Register signal handlers to generate report on interrupt
