@@ -36,6 +36,48 @@ class FlintSparkPPLGrokITSuite
     }
   }
 
+  test("test grok hostname | head ") {
+    val frame = sql(s"""
+         | source = $testTable| grok email '.+@%{HOSTNAMES:host}'| sort host | head 5
+         | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(
+      Row("david@anotherdomain.com", "anotherdomain.com"),
+      Row("grace@demo.net", "demo.net"),
+      Row("hank@demonstration.com", "demonstration.com"),
+      Row("charlie@domain.net", "domain.net"),
+      Row("alice@example.com", "example.com"))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val emailAttribute = UnresolvedAttribute("email")
+    val hostExpression = Alias(
+      RegExpExtract(
+        emailAttribute,
+        Literal(
+          ".+@(?<name0>\\b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\\.?|\\b))"),
+        Literal("1")),
+      "host")()
+    val expectedPlan = Project(
+      Seq(UnresolvedStar(None)),
+      GlobalLimit(
+        Literal(1000),
+        LocalLimit(
+          Literal(1000),
+          Project(
+            Seq(emailAttribute, hostExpression, UnresolvedStar(None)),
+            UnresolvedRelation(Seq("accounts"))))))
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+
   test("test grok email expressions parsing") {
     val frame = sql(s"""
          | source = $testTable| grok email '.+@%{HOSTNAME:host}' | fields email, host

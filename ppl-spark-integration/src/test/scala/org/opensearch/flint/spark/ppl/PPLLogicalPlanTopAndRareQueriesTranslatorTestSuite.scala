@@ -97,12 +97,14 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     val expectedPlan = Project(projectList, sortedPlan)
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
-  
+
   test("test simple rare command with a by field test percentage") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logicalPlan =
-      planTransformer.visit(plan(pplParser, "source=accounts | rare address by age sample(50 percent)"), context)
+      planTransformer.visit(
+        plan(pplParser, "source=accounts | rare address by age sample(50 percent)"),
+        context)
     // Retrieve the logical plan
     // Define the expected logical plan
     val addressField = UnresolvedAttribute("address")
@@ -120,13 +122,7 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
       Aggregate(
         Seq(addressField, ageAlias),
         aggregateExpressions,
-        Sample(
-          0,
-          0.5,
-          withReplacement = false,
-          0,
-          UnresolvedRelation(Seq("accounts")))
-      )
+        Sample(0, 0.5, withReplacement = false, 0, UnresolvedRelation(Seq("accounts"))))
 
     val sortedPlan: LogicalPlan =
       Sort(
@@ -250,12 +246,14 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
     comparePlans(expectedPlan, logPlan, false)
   }
-  
+
   test("test simple top 5 command by age field sample(25 percent)") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=accounts | top 5 address by age sample(25 percent)"), context)
+      planTransformer.visit(
+        plan(pplParser, "source=accounts | top 5 address by age sample(25 percent)"),
+        context)
 
     val addressField = UnresolvedAttribute("address")
     val ageField = UnresolvedAttribute("age")
@@ -269,13 +267,7 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
       Aggregate(
         Seq(addressField, ageAlias),
         aggregateExpressions,
-        Sample(
-          0,
-          0.25,
-          withReplacement = false,
-          0,
-          UnresolvedRelation(Seq("accounts")))
-      )
+        Sample(0, 0.25, withReplacement = false, 0, UnresolvedRelation(Seq("accounts"))))
 
     val sortedPlan: LogicalPlan =
       Sort(
