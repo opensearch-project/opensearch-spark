@@ -246,13 +246,15 @@ source = table |  where ispresent(a) |
 
 - `source=accounts | rare gender`
 - `source=accounts | rare age by gender`
+- `source=accounts | rare age by gender sample(50 percent)`
 
 #### **Top**
 [See additional command details](ppl-top-command.md)
 
 - `source=accounts | top gender`
 - `source=accounts | top 1 gender`
-- `source=accounts | top 1 age by gender`
+- `source=accounts | top 5 gender sample(50 percent)`
+- `source=accounts | top 5 age by gender`
 
 #### **Parse**
 [See additional command details](ppl-parse-command.md)

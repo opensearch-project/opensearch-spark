@@ -5,11 +5,12 @@ Using ``top`` command to find the most common tuple of values of all fields in t
 
 
 ### Syntax
-`top [N] <field-list> [by-clause]`
+`top [N] <field-list> [by-clause] [sample(? percent)]`
 
 * N: number of results to return. **Default**: 10
 * field-list: mandatory. comma-delimited list of field names.
 * by-clause: optional. one or more fields to group the results by.
+* sample: optional. allows reducing the amount of fields being scanned using table sample strategy favour velocity over precision 
 
 
 ### Example 1: Find the most common values in a field
@@ -55,4 +56,13 @@ PPL query:
     | F        | 28    |
     | M        | 32    |
     +----------+-------+
+
+## Example 2: Find the most common values organized by gender using sample strategy
+
+The example finds most common age of all the accounts group by gender sample only 50 % of rows.
+
+PPL query:
+
+    os> source=accounts | top 1 age by gender sample(50 percent);
+    fetched rows / total rows = 1/2
 
