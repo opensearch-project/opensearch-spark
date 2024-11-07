@@ -6,6 +6,7 @@
 package org.opensearch.sql.ast.tree;
 
 import com.google.common.collect.ImmutableList;
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,6 +17,7 @@ import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /** Logical plan node of Aggregation, the interface for building aggregation actions in queries. */
 @Getter
@@ -29,7 +31,8 @@ public class Aggregation extends UnresolvedPlan {
   private UnresolvedExpression span;
   private List<Argument> argExprList;
   private UnresolvedPlan child;
-
+  private Optional<TablesampleContext> sample;
+  
   /** Aggregation Constructor without span and argument. */
   public Aggregation(
       List<UnresolvedExpression> aggExprList,
@@ -71,4 +74,14 @@ public class Aggregation extends UnresolvedPlan {
   public <T, C> T accept(AbstractNodeVisitor<T, C> nodeVisitor, C context) {
     return nodeVisitor.visitAggregation(this, context);
   }
+
+  @Getter
+  @Setter
+  @ToString
+  @EqualsAndHashCode(callSuper = false)
+  @AllArgsConstructor
+  public static class TablesampleContext {
+    public int percentage;
+  }
+
 }

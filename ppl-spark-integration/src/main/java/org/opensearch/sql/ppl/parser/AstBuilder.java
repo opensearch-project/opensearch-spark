@@ -21,6 +21,7 @@ import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
+import org.opensearch.sql.ast.tree.Aggregation.TablesampleContext;
 import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Let;
@@ -448,6 +449,10 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                     aggListBuilder.build(),
                     aggListBuilder.build(),
                     groupListBuilder.build());
+    if(ctx.sampleClause()!=null) {
+      int percentage = Integer.parseInt(ctx.sampleClause().percentage.getText());
+      aggregation.setSample(Optional.of(new TablesampleContext(percentage)));
+    }
     return aggregation;
   }
 
@@ -493,6 +498,10 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                     aggListBuilder.build(),
                     aggListBuilder.build(),
                     groupListBuilder.build());
+    if(ctx.sampleClause()!=null) {
+      int percentage = Integer.parseInt(ctx.sampleClause().percentage.getText());
+      aggregation.setSample(Optional.of(new TablesampleContext(percentage)));
+    }
     return aggregation;
   }
 
