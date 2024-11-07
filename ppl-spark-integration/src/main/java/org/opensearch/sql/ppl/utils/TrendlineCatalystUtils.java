@@ -111,35 +111,34 @@ public interface TrendlineCatalystUtils {
                                                                Trendline.TrendlineComputation node,
                                                                Field sortField,
                                                                CatalystPlanContext context) {
-
+        int dataPoints = node.getNumberOfDataPoints();
         //window lower boundary
         Expression windowLowerBoundary = getIntExpression(visitor, context,
-                Math.negateExact(node.getNumberOfDataPoints() - 1));
+                Math.negateExact(dataPoints - 1));
         //window definition
         visitor.analyze(sortField, context);
         Expression sortDefinition = context.popNamedParseExpressions().get();
-        WindowSpecDefinition windowDefinition = getCommonWindowDefinition(
+        WindowSpecDefinition windowDefinition = getWmaCommonWindowDefinition(
                 sortDefinition,
                 SortUtils.isSortedAscending(sortField),
                 windowLowerBoundary);
         // Divisor
-        Expression divider = getIntExpression(visitor, context,
-                (node.getNumberOfDataPoints() * (node.getNumberOfDataPoints()+1) / 2));
+        Expression divisor = getIntExpression(visitor, context,
+                (dataPoints * (dataPoints + 1) / 2));
         // Aggregation
-        Expression WMAExpression = getNthValueAggregations(visitor, node, context, windowDefinition,
-                        node.getNumberOfDataPoints())
+        Expression WMAExpression = getNthValueAggregations(visitor, node, context, windowDefinition, dataPoints)
                         .stream()
                         .reduce(Add::new)
                         .orElse(null);
 
-        return getAlias(node.getAlias(), new Divide(WMAExpression, divider));
+        return getAlias(node.getAlias(), new Divide(WMAExpression, divisor));
     }
 
     /**
      * Helper method to produce an Alias Expression with provide value and name.
      * @param name The name for the Alias.
      * @param expression The expression which will be evaluated.
-     * @return A Alias instance with logical plan representation of `expression AS name`.
+     * @return An Alias instance with logical plan representation of `expression AS name`.
      */
     private static NamedExpression getAlias(String name, Expression expression) {
         return org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(expression,
@@ -151,7 +150,7 @@ public interface TrendlineCatalystUtils {
     }
 
     /**
-     * Helper method to retrieve an Int in expression form for logical plan composition purpose.
+     * Helper method to retrieve an Int expression instance for logical plan composition purpose.
      * @param expressionVisitor Visitor instance to process the incoming object.
      * @param context Context instance to retrieve the Expression instance.
      * @param i Target value for the expression.
@@ -167,12 +166,13 @@ public interface TrendlineCatalystUtils {
     /**
      * Helper method to retrieve a WindowSpecDefinition with provided sorting condition.
      *  `windowspecdefinition('sortField ascending NULLS FIRST, specifiedwindowframe(RowFrame, windowLowerBoundary, currentrow$())`
+     *
      * @param sortField The field being used for the sorting operation.
      * @param ascending The boolean instance for the sorting order.
      * @param windowLowerBoundary The Integer expression instance which specify the even lookbehind / lookahead.
      * @return A WindowSpecDefinition instance which will be used to composite the WMA calculation.
      */
-    static WindowSpecDefinition getCommonWindowDefinition(Expression sortField, boolean ascending, Expression windowLowerBoundary) {
+    static WindowSpecDefinition getWmaCommonWindowDefinition(Expression sortField, boolean ascending, Expression windowLowerBoundary) {
         return new WindowSpecDefinition(
                 seq(),
                 seq(SortUtils.sortOrder(sortField, ascending)),
@@ -180,7 +180,7 @@ public interface TrendlineCatalystUtils {
     }
 
     /**
-     * To produce a list of Expression with responsible to return appropriate lookbehind / lookahead value for WMA calculation, sample logical plan listed below.
+     * To produce a list of Expressions responsible to return appropriate lookbehind / lookahead value for WMA calculation, sample logical plan listed below.
      * (((('nth_value('salary, 1) windowspecdefinition(Field(field=age, fieldArgs=[]) ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2, currentrow$())) * 1) +
      *
      * @param visitor Visitor instance to resolve Expression.
@@ -195,7 +195,6 @@ public interface TrendlineCatalystUtils {
                                                             CatalystPlanContext context,
                                                             WindowSpecDefinition windowDefinition,
                                                             int dataPoints) {
-
         List<Expression> expressions = new ArrayList<>();
         for (int i = 1; i <= dataPoints; i++) {
             // Get the offset parameter
