@@ -31,7 +31,7 @@ public class Aggregation extends UnresolvedPlan {
   private UnresolvedExpression span;
   private List<Argument> argExprList;
   private UnresolvedPlan child;
-  private Optional<TablesampleContext> sample;
+  private Optional<TablesampleContext> sample = Optional.empty();
   
   /** Aggregation Constructor without span and argument. */
   public Aggregation(
