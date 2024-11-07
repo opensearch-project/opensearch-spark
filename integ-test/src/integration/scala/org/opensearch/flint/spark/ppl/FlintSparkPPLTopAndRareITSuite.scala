@@ -83,7 +83,7 @@ class FlintSparkPPLTopAndRareITSuite
     val expectedPlan = Project(projectList, sortedPlan)
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
-  
+
   test("create ppl rare address field query test sample 75 %") {
     val frame = sql(s"""
          | source = $testTable| rare address sample(75 percent)
@@ -159,10 +159,7 @@ class FlintSparkPPLTopAndRareITSuite
     val aggregateExpressions = Seq(countExpr, addressField, ageAlias)
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val aggregatePlan =
-      Aggregate(
-        Seq(addressField, ageAlias),
-        aggregateExpressions,
-        table)
+      Aggregate(Seq(addressField, ageAlias), aggregateExpressions, table)
 
     val sortedPlan: LogicalPlan =
       Sort(
@@ -178,7 +175,7 @@ class FlintSparkPPLTopAndRareITSuite
     val expectedPlan = Project(projectList, sortedPlan)
     comparePlans(expectedPlan, logicalPlan, false)
   }
-  
+
   test("create ppl rare address by age field query test sample 75 %") {
     val frame = sql(s"""
          | source = $testTable| rare address by age sample(75 percent)
@@ -321,7 +318,7 @@ class FlintSparkPPLTopAndRareITSuite
     val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
-  
+
   test("create ppl top 3 countries query test sample 75 %") {
     val frame = sql(s"""
          | source = $newTestTable| top 3 country sample(75 percent)
@@ -392,10 +389,7 @@ class FlintSparkPPLTopAndRareITSuite
     val aggregateExpressions = Seq(countExpr, countryField, occupationFieldAlias)
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "new_flint_ppl_test"))
     val aggregatePlan =
-      Aggregate(
-        Seq(countryField, occupationFieldAlias),
-        aggregateExpressions,
-        table)
+      Aggregate(Seq(countryField, occupationFieldAlias), aggregateExpressions, table)
 
     val sortedPlan: LogicalPlan =
       Sort(
@@ -414,7 +408,7 @@ class FlintSparkPPLTopAndRareITSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
 
   }
-  
+
   test("create ppl top 2 countries by occupation field query test sample 85 %") {
     val frame = sql(s"""
          | source = $newTestTable| top 3 country by occupation sample(85 percent)
@@ -423,7 +417,7 @@ class FlintSparkPPLTopAndRareITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     assert(results.length == 3)
-    
+
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val countryField = UnresolvedAttribute("country")
