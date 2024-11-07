@@ -14,7 +14,7 @@ import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
-import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getSourceTablesFromMetadata, MV_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.SKIPPING_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
@@ -141,9 +141,9 @@ object FlintSparkIndexFactory extends Logging {
   }
 
   private def getMvSourceTables(spark: SparkSession, metadata: FlintMetadata): Array[String] = {
-    val sourceTables = getArrayString(metadata.properties, "sourceTables")
+    val sourceTables = getSourceTablesFromMetadata(metadata)
     if (sourceTables.isEmpty) {
-      FlintSparkMaterializedView.extractSourceTableNames(spark, metadata.source)
+      FlintSparkMaterializedView.extractSourceTablesFromQuery(spark, metadata.source)
     } else {
       sourceTables
     }
@@ -159,14 +159,6 @@ object FlintSparkIndexFactory extends Logging {
       None
     } else {
       Some(value.asInstanceOf[String])
-    }
-  }
-
-  private def getArrayString(map: java.util.Map[String, AnyRef], key: String): Array[String] = {
-    map.get(key) match {
-      case list: java.util.ArrayList[_] =>
-        list.toArray.map(_.toString)
-      case _ => Array.empty[String]
     }
   }
 }

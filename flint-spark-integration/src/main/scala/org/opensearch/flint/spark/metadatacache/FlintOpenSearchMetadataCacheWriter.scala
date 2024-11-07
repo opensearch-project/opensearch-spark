@@ -98,7 +98,6 @@ class FlintOpenSearchMetadataCacheWriter(options: FlintOptions)
    */
   private def buildPropertiesMap(metadata: FlintMetadata): util.Map[String, AnyRef] = {
     val metadataCacheProperties = FlintMetadataCache(metadata).toMap
-    logInfo(s"metadataCacheProperties: $metadataCacheProperties")
 
     if (includeSpec) {
       (metadataCacheProperties ++ metadata.properties.asScala).asJava

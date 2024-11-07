@@ -10,10 +10,8 @@ import scala.collection.JavaConverters.mapAsScalaMapConverter
 import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.spark.FlintSparkIndexOptions
-import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getSourceTablesFromMetadata, MV_INDEX_TYPE}
 import org.opensearch.flint.spark.scheduler.util.IntervalSchedulerParser
-
-import org.apache.spark.internal.Logging
 
 /**
  * Flint metadata cache defines metadata required to store in read cache for frontend user to
@@ -47,7 +45,7 @@ case class FlintMetadataCache(
   }
 }
 
-object FlintMetadataCache extends Logging {
+object FlintMetadataCache {
 
   val metadataCacheVersion = "1.0"
 
@@ -63,17 +61,7 @@ object FlintMetadataCache extends Logging {
       None
     }
     val sourceTables = metadata.kind match {
-      case MV_INDEX_TYPE =>
-        val sourceTables = metadata.properties.get("sourceTables")
-        logInfo(s"sourceTables: $sourceTables")
-        sourceTables match {
-          case list: java.util.ArrayList[_] =>
-            logInfo("sourceTables is ArrayList")
-            list.toArray.map(_.toString)
-          case _ =>
-            logInfo(s"sourceTables is not ArrayList. It is of type: ${sourceTables.getClass.getName}")
-            Array.empty[String]
-        }
+      case MV_INDEX_TYPE => getSourceTablesFromMetadata(metadata)
       case _ => Array(metadata.source)
     }
     val lastRefreshTime: Option[Long] = metadata.latestLogEntry.flatMap { entry =>

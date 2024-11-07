@@ -7,6 +7,7 @@ package org.opensearch.flint.spark.mv
 
 import java.util.Locale
 
+import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.convert.ImplicitConversions.`map AsScala`
 
@@ -18,6 +19,7 @@ import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getFlintIndexName, MV_INDEX_TYPE}
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedFunction, UnresolvedRelation}
@@ -147,7 +149,7 @@ case class FlintSparkMaterializedView(
   }
 }
 
-object FlintSparkMaterializedView {
+object FlintSparkMaterializedView extends Logging {
 
   /** MV index type name */
   val MV_INDEX_TYPE = "mv"
@@ -179,13 +181,43 @@ object FlintSparkMaterializedView {
    * @return
    *   source table names
    */
-  def extractSourceTableNames(spark: SparkSession, query: String): Array[String] = {
-    spark.sessionState.sqlParser
+  def extractSourceTablesFromQuery(spark: SparkSession, query: String): Array[String] = {
+    logInfo(s"Extracting source tables from query $query")
+    val sourceTables = spark.sessionState.sqlParser
       .parsePlan(query)
       .collect { case relation: UnresolvedRelation =>
         qualifyTableName(spark, relation.tableName)
       }
       .toArray
+    logInfo(s"Extracted tables: [${sourceTables.mkString(", ")}]")
+    sourceTables
+  }
+
+  /**
+   * Get source tables from Flint metadata properties field. TODO: test case
+   *
+   * @param metadata
+   *   Flint metadata
+   * @return
+   *   source table names
+   */
+  def getSourceTablesFromMetadata(metadata: FlintMetadata): Array[String] = {
+    logInfo(s"Getting source tables from metadata $metadata")
+    metadata.properties.get("sourceTables") match {
+      case list: java.util.ArrayList[_] =>
+        logInfo(s"sourceTables is java.util.ArrayList: [${list.asScala.mkString(", ")}]")
+        list.toArray.map(_.toString)
+      case array: Array[_] =>
+        logInfo(s"sourceTables is Array: [${array.mkString(", ")}]")
+        array.map(_.toString)
+      case null =>
+        logInfo("sourceTables property does not exist")
+        Array.empty[String]
+      case _ =>
+        logInfo(
+          s"sourceTables is of type: ${metadata.properties.get("sourceTables").getClass.getName}")
+        Array.empty[String]
+    }
   }
 
   /** Builder class for MV build */
@@ -217,7 +249,7 @@ object FlintSparkMaterializedView {
      */
     def query(query: String): Builder = {
       this.query = query
-      this.sourceTables = extractSourceTableNames(flint.spark, query)
+      this.sourceTables = extractSourceTablesFromQuery(flint.spark, query)
       this
     }
 
