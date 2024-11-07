@@ -10,6 +10,7 @@ import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.Sample;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
 import org.apache.spark.sql.types.Metadata;
@@ -20,8 +21,10 @@ import scala.collection.Seq;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.Stack;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -34,6 +37,7 @@ import static scala.collection.JavaConverters.asScalaBuffer;
 
 /**
  * The context used for Catalyst logical plan.
+ * A query which translates into multiple plans (sub-query / join-subQuery / scala-subQuery) will have multiple contexts
  */
 public class CatalystPlanContext {
     /**
@@ -56,6 +60,10 @@ public class CatalystPlanContext {
      * The current traversal context the visitor is going threw
      */
     private Stack<LogicalPlan> planTraversalContext = new Stack<>();
+    /**
+     * indicate this plan has to sample the relation rather than take the entire data
+     */
+    public Optional<Integer> samplePercentage = Optional.empty();
 
     /**
      * NamedExpression contextual parameters
@@ -130,6 +138,18 @@ public class CatalystPlanContext {
     }
 
     /**
+     * indicate this plan context is using table sampling
+     */
+    public CatalystPlanContext withSamplePercentage(int percentage) {
+        this.samplePercentage = Optional.of(percentage);
+        return this;
+    } 
+    
+    public Optional<Integer> getSamplePercentage() {
+        return this.samplePercentage;
+    }
+    
+    /**
      * append relation to relations list
      *
      * @param relation
@@ -138,6 +158,17 @@ public class CatalystPlanContext {
     public LogicalPlan withRelation(UnresolvedRelation relation) {
         this.relations.add(relation);
         return with(relation);
+    }
+
+    /**
+     * append sample-relation to relations list
+     *
+     * @param sampleRelation
+     * @return
+     */
+    public LogicalPlan withSampleRelation(Sample sampleRelation) {
+        this.relations.add(sampleRelation.child());
+        return with(sampleRelation);
     }
 
     public void withSubqueryAlias(SubqueryAlias subqueryAlias) {

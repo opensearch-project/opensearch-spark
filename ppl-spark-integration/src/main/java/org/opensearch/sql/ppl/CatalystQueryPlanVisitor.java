@@ -13,13 +13,6 @@ import org.apache.spark.sql.catalyst.expressions.Ascending$;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GeneratorOuter;
-import org.apache.spark.sql.catalyst.expressions.In$;
-import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
-import org.apache.spark.sql.catalyst.expressions.InSubquery$;
-import org.apache.spark.sql.catalyst.expressions.LessThan;
-import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
-import org.apache.spark.sql.catalyst.expressions.ListQuery$;
-import org.apache.spark.sql.catalyst.expressions.MakeInterval$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
@@ -30,6 +23,7 @@ import org.apache.spark.sql.catalyst.plans.logical.Generate;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Project$;
+import org.apache.spark.sql.catalyst.plans.logical.Sample;
 import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
@@ -148,10 +142,15 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                             DescribeRelation$.MODULE$.getOutputAttrs()));
         }
         //regular sql algebraic relations
-        node.getQualifiedNames().forEach(q ->
-                // Resolving the qualifiedName which is composed of a datasource.schema.table
-                context.withRelation(new UnresolvedRelation(getTableIdentifier(q).nameParts(), CaseInsensitiveStringMap.empty(), false))
-        );
+        node.getQualifiedNames().forEach(q -> {
+            // Resolving the qualifiedName which is composed of a datasource.schema.table
+            UnresolvedRelation relation = new UnresolvedRelation(getTableIdentifier(q).nameParts(), CaseInsensitiveStringMap.empty(), false);
+            if(context.getSamplePercentage().isPresent()) {
+                context.withSampleRelation(new Sample(0, (double)context.getSamplePercentage().get() / 100, false, 0, relation));
+            } else {
+                context.withRelation(relation);
+            }
+        });
         return context.getPlan();
     }
 
@@ -327,6 +326,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         if ((node instanceof TopAggregation) && ((TopAggregation) node).getResults().isPresent()) {
             context.apply(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
                     ((TopAggregation) node).getResults().get().getValue(), org.apache.spark.sql.types.DataTypes.IntegerType), p));
+            //add sample context (if exists) to the plan context
+            if(node.getSample().isPresent()) {
+                context.withSamplePercentage(node.getSample().get().getPercentage());
+            }
         }
         return logicalPlan;
     }
