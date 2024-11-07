@@ -1,3 +1,8 @@
+"""
+Copyright OpenSearch Contributors
+SPDX-License-Identifier: Apache-2.0
+"""
+
 import signal
 import sys
 import requests
@@ -17,12 +22,11 @@ Environment: python3
 
 Example to use this script:
 
-
-python FlintSanityTest_Concurrency.py --base-url ${URL_ADDRESS} --username *** --password *** --datasource ${DATASOURCE_NAME} --input-csv test_queries.csv --output-file test_report --max-workers 2 --check-interval 10 --timeout 600 --start 1 --end None
+python FlintSanityTest_Concurrency.py --base-url ${URL_ADDRESS} --username *** --password *** --datasource ${DATASOURCE_NAME} --input-csv test_queries.csv --output-file test_report --max-workers 2 --check-interval 10 --timeout 600
 
 The input file test_queries.csv should contain column: `query`
 
-For more details, please command
+For more details, please use command:
 
 python FlintSanityTest_Concurrency.py --help
 
