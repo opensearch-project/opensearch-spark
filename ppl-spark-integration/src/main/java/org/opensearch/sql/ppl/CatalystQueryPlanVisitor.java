@@ -326,10 +326,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         if ((node instanceof TopAggregation) && ((TopAggregation) node).getResults().isPresent()) {
             context.apply(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
                     ((TopAggregation) node).getResults().get().getValue(), org.apache.spark.sql.types.DataTypes.IntegerType), p));
-            //add sample context (if exists) to the plan context
-            if(node.getSample().isPresent()) {
-                context.withSamplePercentage(node.getSample().get().getPercentage());
-            }
+        }
+        //add sample context (if exists) to the plan context
+        if(node.getSample().isPresent()) {
+            context.withSamplePercentage(node.getSample().get().getPercentage());
         }
         return logicalPlan;
     }

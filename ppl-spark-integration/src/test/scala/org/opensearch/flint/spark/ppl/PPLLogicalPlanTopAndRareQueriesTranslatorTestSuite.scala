@@ -97,6 +97,51 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     val expectedPlan = Project(projectList, sortedPlan)
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
+  
+  test("test simple rare command with a by field test percentage") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logicalPlan =
+      planTransformer.visit(plan(pplParser, "source=accounts | rare address by age sample(50 percent)"), context)
+    // Retrieve the logical plan
+    // Define the expected logical plan
+    val addressField = UnresolvedAttribute("address")
+    val ageField = UnresolvedAttribute("age")
+    val ageAlias = Alias(ageField, "age")()
+
+    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
+
+    val countExpr = Alias(
+      UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
+      "count_address")()
+
+    val aggregateExpressions = Seq(countExpr, addressField, ageAlias)
+    val aggregatePlan =
+      Aggregate(
+        Seq(addressField, ageAlias),
+        aggregateExpressions,
+        Sample(
+          0,
+          0.5,
+          withReplacement = false,
+          0,
+          UnresolvedRelation(Seq("accounts")))
+      )
+
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(
+          SortOrder(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
+              "count_address")(),
+            Ascending)),
+        global = true,
+        aggregatePlan)
+
+    val expectedPlan = Project(projectList, sortedPlan)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
 
   test("test simple top command with a single field") {
     // if successful build ppl logical plan and translate to catalyst logical plan
@@ -116,6 +161,44 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
 
     val aggregatePlan =
       Aggregate(Seq(addressField), aggregateExpressions, tableRelation)
+
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(
+          SortOrder(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
+              "count_address")(),
+            Descending)),
+        global = true,
+        aggregatePlan)
+    val expectedPlan = Project(projectList, sortedPlan)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test simple top command with a single field sample(50 percent) ") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=accounts | top address sample(50 percent)"),
+        context)
+    val addressField = UnresolvedAttribute("address")
+    val tableRelation = UnresolvedRelation(Seq("accounts"))
+
+    val projectList: Seq[NamedExpression] = Seq(UnresolvedStar(None))
+
+    val aggregateExpressions = Seq(
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
+        "count_address")(),
+      addressField)
+
+    val aggregatePlan =
+      Aggregate(
+        Seq(addressField),
+        aggregateExpressions,
+        Sample(0, 0.5, withReplacement = false, 0, tableRelation))
 
     val sortedPlan: LogicalPlan =
       Sort(
@@ -167,6 +250,49 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
     comparePlans(expectedPlan, logPlan, false)
   }
+  
+  test("test simple top 5 command by age field sample(25 percent)") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=accounts | top 5 address by age sample(25 percent)"), context)
+
+    val addressField = UnresolvedAttribute("address")
+    val ageField = UnresolvedAttribute("age")
+    val ageAlias = Alias(ageField, "age")()
+
+    val countExpr = Alias(
+      UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
+      "count_address")()
+    val aggregateExpressions = Seq(countExpr, addressField, ageAlias)
+    val aggregatePlan =
+      Aggregate(
+        Seq(addressField, ageAlias),
+        aggregateExpressions,
+        Sample(
+          0,
+          0.25,
+          withReplacement = false,
+          0,
+          UnresolvedRelation(Seq("accounts")))
+      )
+
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(
+          SortOrder(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(addressField), isDistinct = false),
+              "count_address")(),
+            Descending)),
+        global = true,
+        aggregatePlan)
+
+    val planWithLimit =
+      GlobalLimit(Literal(5), LocalLimit(Literal(5), sortedPlan))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
+    comparePlans(expectedPlan, logPlan, false)
+  }
 
   test("create ppl top 3 countries by occupation field query test") {
     // if successful build ppl logical plan and translate to catalyst logical plan
@@ -189,6 +315,46 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
         Seq(countryField, occupationFieldAlias),
         aggregateExpressions,
         UnresolvedRelation(Seq("accounts")))
+
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(
+          SortOrder(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(countryField), isDistinct = false),
+              "count_country")(),
+            Descending)),
+        global = true,
+        aggregatePlan)
+
+    val planWithLimit =
+      GlobalLimit(Literal(3), LocalLimit(Literal(3), sortedPlan))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("create ppl top 3 countries by occupation field query test with sample(25 percent)") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=accounts | top 3 country by occupation sample(25 percent)"),
+        context)
+
+    val tableRelation = UnresolvedRelation(Seq("accounts"))
+    val countryField = UnresolvedAttribute("country")
+    val occupationField = UnresolvedAttribute("occupation")
+    val occupationFieldAlias = Alias(occupationField, "occupation")()
+
+    val countExpr = Alias(
+      UnresolvedFunction(Seq("COUNT"), Seq(countryField), isDistinct = false),
+      "count_country")()
+    val aggregateExpressions = Seq(countExpr, countryField, occupationFieldAlias)
+    val aggregatePlan =
+      Aggregate(
+        Seq(countryField, occupationFieldAlias),
+        aggregateExpressions,
+        Sample(0, 0.25, withReplacement = false, 0, tableRelation))
 
     val sortedPlan: LogicalPlan =
       Sort(
