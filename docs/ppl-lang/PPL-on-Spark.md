@@ -34,7 +34,7 @@ sbt clean sparkPPLCosmetic/publishM2
 ```
 then add org.opensearch:opensearch-spark_2.12 when run spark application, for example,
 ```
-bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.6.0-SNAPSHOT"
+bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.7.0-SNAPSHOT"
 ```
 
 ### PPL Extension Usage
@@ -46,7 +46,7 @@ spark-sql --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintPPLSparkE
 ```
 
 ### Running With both Flint & PPL Extensions
-In order to make use of both flint and ppl extension, one can simply add both jars (`org.opensearch:opensearch-spark-ppl_2.12:0.6.0-SNAPSHOT`,`org.opensearch:opensearch-spark_2.12:0.6.0-SNAPSHOT`) to the cluster's
+In order to make use of both flint and ppl extension, one can simply add both jars (`org.opensearch:opensearch-spark-ppl_2.12:0.7.0-SNAPSHOT`,`org.opensearch:opensearch-spark_2.12:0.7.0-SNAPSHOT`) to the cluster's
 classpath.
 
 Next need to configure both extensions :
