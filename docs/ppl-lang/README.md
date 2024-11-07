@@ -105,6 +105,10 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 See samples of [PPL queries](PPL-Example-Commands.md) 
 
 ---
+### TPC-H PPL Query Rewriting
+See samples of [TPC-H PPL query rewriting](ppl-tpch.md)
+
+---
 ### Planned PPL Commands
 
  - [`FillNull`](planning/ppl-fillnull-command.md)
