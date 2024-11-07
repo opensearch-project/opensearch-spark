@@ -108,6 +108,10 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitChildren(node, context);
   }
 
+  public T visitExpand(Expand node, C context) {
+    return visitChildren(node, context);
+  }
+
   public T visitLookup(Lookup node, C context) {
     return visitChildren(node, context);
   }
