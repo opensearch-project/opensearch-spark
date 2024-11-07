@@ -177,12 +177,16 @@ headCommand
    : HEAD (number = integerLiteral)? (FROM from = integerLiteral)?
    ;
 
+sampleClause
+   : SAMPLE '(' (percentage = integerLiteral PERCENT ) ')'
+   ;
+
 topCommand
-   : TOP (number = integerLiteral)? fieldList (byClause)?
+   : TOP (number = integerLiteral)? fieldList (byClause)? (sampleClause)?
    ;
 
 rareCommand
-   : RARE fieldList (byClause)?
+   : RARE fieldList (byClause)? (sampleClause)?
    ;
 
 grokCommand

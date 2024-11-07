@@ -24,6 +24,7 @@ SORT:                               'SORT';
 EVAL:                               'EVAL';
 HEAD:                               'HEAD';
 TOP:                                'TOP';
+SAMPLE:                             'SAMPLE';
 RARE:                               'RARE';
 PARSE:                              'PARSE';
 METHOD:                             'METHOD';
@@ -78,6 +79,7 @@ DESC:                               'DESC';
 DATASOURCES:                        'DATASOURCES';
 USING:                              'USING';
 WITH:                               'WITH';
+PERCENT:                            'PERCENT';
 
 // FIELD KEYWORDS
 AUTO:                               'AUTO';
