@@ -252,7 +252,7 @@ def main():
   parser.add_argument("--max-workers", type=int, default=2, help="optional, Maximum number of worker threads (default: 2)")
   parser.add_argument("--check-interval", type=int, default=10, help="optional, Check interval in seconds (default: 10)")
   parser.add_argument("--timeout", type=int, default=600, help="optional, Timeout in seconds (default: 600)")
-  parser.add_argument("--start-row", type=int, default=None, help="optionl, The start row of the query to run, start from 0")
+  parser.add_argument("--start-row", type=int, default=None, help="optionl, The start row of the query to run, start from 1")
   parser.add_argument("--end-row", type=int, default=None, help="optional, The end row of the query to run")
 
   args = parser.parse_args()
