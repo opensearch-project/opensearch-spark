@@ -64,9 +64,9 @@ public enum BuiltinFunctionName {
   DATE(FunctionName.of("date")),
   DATEDIFF(FunctionName.of("datediff")),
 //  DATETIME(FunctionName.of("datetime")),
-//  DATE_ADD(FunctionName.of("date_add")),
+  DATE_ADD(FunctionName.of("date_add")),
   DATE_FORMAT(FunctionName.of("date_format")),
-//  DATE_SUB(FunctionName.of("date_sub")),
+  DATE_SUB(FunctionName.of("date_sub")),
   DAY(FunctionName.of("day")),
 //  DAYNAME(FunctionName.of("dayname")),
   DAYOFMONTH(FunctionName.of("dayofmonth")),
@@ -105,14 +105,15 @@ public enum BuiltinFunctionName {
 //  TIMEDIFF(FunctionName.of("timediff")),
 //  TIME_TO_SEC(FunctionName.of("time_to_sec")),
   TIMESTAMP(FunctionName.of("timestamp")),
-//  TIMESTAMPADD(FunctionName.of("timestampadd")),
-//  TIMESTAMPDIFF(FunctionName.of("timestampdiff")),
+  TIMESTAMPADD(FunctionName.of("timestampadd")),
+  TIMESTAMPDIFF(FunctionName.of("timestampdiff")),
 //  TIME_FORMAT(FunctionName.of("time_format")),
 //  TO_DAYS(FunctionName.of("to_days")),
 //  TO_SECONDS(FunctionName.of("to_seconds")),
 //  UTC_DATE(FunctionName.of("utc_date")),
 //  UTC_TIME(FunctionName.of("utc_time")),
-//  UTC_TIMESTAMP(FunctionName.of("utc_timestamp")),
+  UTC_TIMESTAMP(FunctionName.of("utc_timestamp")),
+  CURRENT_TIMEZONE(FunctionName.of("current_timezone")),
   UNIX_TIMESTAMP(FunctionName.of("unix_timestamp")),
   WEEK(FunctionName.of("week")),
   WEEKDAY(FunctionName.of("weekday")),
@@ -212,6 +213,7 @@ public enum BuiltinFunctionName {
   JSON_OBJECT(FunctionName.of("json_object")),
   JSON_ARRAY(FunctionName.of("json_array")),
   JSON_ARRAY_LENGTH(FunctionName.of("json_array_length")),
+  TO_JSON_STRING(FunctionName.of("to_json_string")),
   JSON_EXTRACT(FunctionName.of("json_extract")),
   JSON_KEYS(FunctionName.of("json_keys")),
   JSON_VALID(FunctionName.of("json_valid")),
@@ -227,6 +229,14 @@ public enum BuiltinFunctionName {
 
   /** COLLECTION Functions **/
   ARRAY(FunctionName.of("array")),
+  ARRAY_LENGTH(FunctionName.of("array_length")),
+
+  /** LAMBDA Functions **/
+  ARRAY_FORALL(FunctionName.of("forall")),
+  ARRAY_EXISTS(FunctionName.of("exists")),
+  ARRAY_FILTER(FunctionName.of("filter")),
+  ARRAY_TRANSFORM(FunctionName.of("transform")),
+  ARRAY_AGGREGATE(FunctionName.of("reduce")),
 
   /** NULL Test. */
   IS_NULL(FunctionName.of("is null")),

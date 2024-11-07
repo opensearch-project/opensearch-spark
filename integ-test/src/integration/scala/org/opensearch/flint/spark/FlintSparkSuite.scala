@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
 import java.util.Comparator
 import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture}
 
@@ -23,6 +23,7 @@ import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.{FlintSuite, SparkConf}
 import org.apache.spark.sql.QueryTest
+import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{CHECKPOINT_MANDATORY, HOST_ENDPOINT, HOST_PORT, REFRESH_POLICY}
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -49,6 +50,8 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    // Revoke override in FlintSuite on IT
+    conf.unsetConf(FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key)
 
     // Replace executor to avoid impact on IT.
     // TODO: Currently no IT test scheduler so no need to restore it back.
@@ -534,6 +537,50 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          |""".stripMargin)
   }
 
+  protected def createMultiValueStructTable(testTable: String): Unit = {
+    // CSV doesn't support struct field
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   int_col INT,
+           |   multi_value Array<STRUCT<name: STRING, value: INT>>
+           | )
+           | USING JSON
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | SELECT /*+ COALESCE(1) */ *
+           | FROM VALUES
+           | ( 1, array(STRUCT("1_one", 1), STRUCT(null, 11), STRUCT("1_three", null)) ),
+           | ( 2, array(STRUCT("2_Monday", 2), null) ),
+           | ( 3, array(STRUCT("3_third", 3), STRUCT("3_4th", 4)) ),
+           | ( 4, null )
+           |""".stripMargin)
+  }
+
+  protected def createMultiColumnArrayTable(testTable: String): Unit = {
+    // CSV doesn't support struct field
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   int_col INT,
+           |   multi_valueA Array<STRUCT<name: STRING, value: INT>>,
+           |   multi_valueB Array<STRUCT<name: STRING, value: INT>>
+           | )
+           | USING JSON
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES
+           | ( 1, array(STRUCT("1_one", 1), STRUCT(null, 11), STRUCT("1_three", null)),  array(STRUCT("2_Monday", 2), null) ),
+           | ( 2, array(STRUCT("2_Monday", 2), null) , array(STRUCT("3_third", 3), STRUCT("3_4th", 4)) ),
+           | ( 3, array(STRUCT("3_third", 3), STRUCT("3_4th", 4)) , array(STRUCT("1_one", 1))),
+           | ( 4, null, array(STRUCT("1_one", 1)))
+           |""".stripMargin)
+  }
+
   protected def createTableIssue112(testTable: String): Unit = {
     sql(s"""
            | CREATE TABLE $testTable (
@@ -668,5 +715,127 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            |        (10, 'invalid json', false),
            |        (11, null, false)
            | """.stripMargin)
+  }
+
+  protected def createIpAddressTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   id INT,
+           |   ipAddress STRING,
+           |   isV6 BOOLEAN,
+           |   isValid BOOLEAN
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES (1, '127.0.0.1', false, true),
+           |        (2, '192.168.1.0', false, true),
+           |        (3, '192.168.1.1', false, true),
+           |        (4, '192.168.2.1', false, true),
+           |        (5, '192.168.2.', false, false),
+           |        (6, '2001:db8::ff00:12:3455', true, true),
+           |        (7, '2001:db8::ff00:12:3456', true, true),
+           |        (8, '2001:db8::ff00:13:3457', true, true),
+           |        (9, '2001:db8::ff00:12:', true, false)
+           | """.stripMargin)
+  }
+
+  protected def createNestedJsonContentTable(tempFile: Path, testTable: String): Unit = {
+    val json =
+      """
+        |[
+        |  {
+        |    "_time": "2024-09-13T12:00:00",
+        |    "bridges": [
+        |      {"name": "Tower Bridge", "length": 801},
+        |      {"name": "London Bridge", "length": 928}
+        |    ],
+        |    "city": "London",
+        |    "country": "England",
+        |    "coor": {
+        |      "lat": 51.5074,
+        |      "long": -0.1278,
+        |      "alt": 35
+        |    }
+        |  },
+        |  {
+        |    "_time": "2024-09-13T12:00:00",
+        |    "bridges": [
+        |      {"name": "Pont Neuf", "length": 232},
+        |      {"name": "Pont Alexandre III", "length": 160}
+        |    ],
+        |    "city": "Paris",
+        |    "country": "France",
+        |    "coor": {
+        |      "lat": 48.8566,
+        |      "long": 2.3522,
+        |      "alt": 35
+        |    }
+        |  },
+        |  {
+        |    "_time": "2024-09-13T12:00:00",
+        |    "bridges": [
+        |      {"name": "Rialto Bridge", "length": 48},
+        |      {"name": "Bridge of Sighs", "length": 11}
+        |    ],
+        |    "city": "Venice",
+        |    "country": "Italy",
+        |    "coor": {
+        |      "lat": 45.4408,
+        |      "long": 12.3155,
+        |      "alt": 2
+        |    }
+        |  },
+        |  {
+        |    "_time": "2024-09-13T12:00:00",
+        |    "bridges": [
+        |      {"name": "Charles Bridge", "length": 516},
+        |      {"name": "Legion Bridge", "length": 343}
+        |    ],
+        |    "city": "Prague",
+        |    "country": "Czech Republic",
+        |    "coor": {
+        |      "lat": 50.0755,
+        |      "long": 14.4378,
+        |      "alt": 200
+        |    }
+        |  },
+        |  {
+        |    "_time": "2024-09-13T12:00:00",
+        |    "bridges": [
+        |      {"name": "Chain Bridge", "length": 375},
+        |      {"name": "Liberty Bridge", "length": 333}
+        |    ],
+        |    "city": "Budapest",
+        |    "country": "Hungary",
+        |    "coor": {
+        |      "lat": 47.4979,
+        |      "long": 19.0402,
+        |      "alt": 96
+        |    }
+        |  },
+        |  {
+        |    "_time": "1990-09-13T12:00:00",
+        |    "bridges": null,
+        |    "city": "Warsaw",
+        |    "country": "Poland",
+        |    "coor": null
+        |  }
+        |]
+        |""".stripMargin
+    val tempFile = Files.createTempFile("jsonTestData", ".json")
+    val absolutPath = tempFile.toAbsolutePath.toString;
+    Files.write(tempFile, json.getBytes)
+    sql(s"""
+         | CREATE TEMPORARY VIEW $testTable
+         | USING org.apache.spark.sql.json
+         | OPTIONS (
+         |  path "$absolutPath",
+         |  multiLine true
+         | );
+         |""".stripMargin)
   }
 }

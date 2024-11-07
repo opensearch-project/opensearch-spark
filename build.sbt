@@ -154,6 +154,7 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
       "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
       "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
       "org.projectlombok" % "lombok" % "1.18.30",
+      "com.github.seancfoley" % "ipaddress" % "5.5.1",
     ),
     libraryDependencies ++= deps(sparkVersion),
     // ANTLR settings
@@ -237,7 +238,8 @@ lazy val integtest = (project in file("integ-test"))
     inConfig(IntegrationTest)(Defaults.testSettings ++ Seq(
       IntegrationTest / javaSource := baseDirectory.value / "src/integration/java",
       IntegrationTest / scalaSource := baseDirectory.value / "src/integration/scala",
-      IntegrationTest / parallelExecution := false,
+      IntegrationTest / resourceDirectory := baseDirectory.value / "src/integration/resources",
+        IntegrationTest / parallelExecution := false,
       IntegrationTest / fork := true,
     )),
     inConfig(AwsIntegrationTest)(Defaults.testSettings ++ Seq(

@@ -58,6 +58,16 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where a not in (1, 2, 3) | fields a,b,c`
 - `source = table | where a between 1 and 4` - Note: This returns a >= 1 and a <= 4, i.e. [1, 4]
 - `source = table | where b not between '2024-09-10' and '2025-09-10'` - Note: This returns b >= '2024-09-10' and b <= '2025-09-10'
+- `source = table | where cidrmatch(ip, '192.169.1.0/24')` 
+- `source = table | where cidrmatch(ipv6, '2003:db8::/32')`
+- `source = table | trendline sma(2, temperature) as temp_trend`
+
+#### **IP related queries**
+[See additional command details](functions/ppl-ip.md)
+
+- `source = table | where cidrmatch(ip, '192.169.1.0/24')`
+- `source = table | where isV6 = false and isValid = true and cidrmatch(ipAddress, '192.168.1.0/24')`
+- `source = table | where isV6 = true | eval inRange = case(cidrmatch(ipAddress, '2003:db8::/32'), 'in' else 'out') | fields ip, inRange`
 
 ```sql
  source = table | eval status_category =
@@ -119,6 +129,15 @@ Assumptions: `a`, `b`, `c`, `d`, `e` are existing fields in `table`
 - `source = table | fillnull using a = 101`
 - `source = table | fillnull using a = 101, b = 102`
 - `source = table | fillnull using a = concat(b, c), d = 2 * pi() * e`
+
+### Flatten
+[See additional command details](ppl-flatten-command.md)
+Assumptions: `bridges`, `coor` are existing fields in `table`, and the field's types are `struct<?,?>` or `array<struct<?,?>>`  
+- `source = table | flatten bridges`
+- `source = table | flatten coor`
+- `source = table | flatten bridges | flatten coor`
+- `source = table | fields bridges | flatten bridges`
+- `source = table | fields country, bridges | flatten bridges | fields country, length | stats avg(length) as avg by country`
 
 ```sql
 source = table | eval e = eval status_category =
@@ -287,7 +306,11 @@ source = table |  where ispresent(a) |
 - `source = table1 | left semi join left = l right = r on l.a = r.a table2`
 - `source = table1 | left anti join left = l right = r on l.a = r.a table2`
 - `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]`
-
+- `source = table1 | inner join on table1.a = table2.a table2 | fields table1.a, table2.a, table1.b, table1.c` (directly refer table name)
+- `source = table1 | inner join on a = c table2 | fields a, b, c, d` (ignore side aliases as long as no ambiguous)
+- `source = table1 as t1 | join left = l right = r on l.a = r.a table2 as t2 | fields l.a, r.a` (side alias overrides table alias)
+- `source = table1 as t1 | join left = l right = r on l.a = r.a table2 as t2 | fields t1.a, t2.a` (error, side alias overrides table alias)
+- `source = table1 | join left = l right = r on l.a = r.a [ source = table2 ] as s | fields l.a, s.a` (error, side alias overrides subquery alias)
 
 #### **Lookup**
 [See additional command details](ppl-lookup-command.md)
@@ -418,8 +441,30 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 
 _- **Limitation: another command usage of (relation) subquery is in `appendcols` commands which is unsupported**_
 
----
-#### Experimental Commands:
+
+#### **fillnull**
+[See additional command details](ppl-fillnull-command.md)
+```sql
+   -  `source=accounts | fillnull fields status_code=101`
+   -  `source=accounts | fillnull fields request_path='/not_found', timestamp='*'`
+    - `source=accounts | fillnull using field1=101`
+    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5`
+    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5, field6 = 'N/A'`
+```
+
+#### **expand**
+[See additional command details](ppl-expand-command.md)
+```sql
+   -  `source = table | expand field_with_array as array_list`
+   -  `source = table | expand employee | stats max(salary) as max by state, company`
+   -  `source = table | expand employee as worker | stats max(salary) as max by state, company`
+   -  `source = table | expand employee as worker | eval bonus = salary * 3 | fields worker, bonus`
+   -  `source = table | expand employee | parse description '(?<email>.+@.+)' | fields employee, email`
+   -  `source = table | eval array=json_array(1, 2, 3) | expand array as uid | fields name, occupation, uid`
+   -  `source = table | expand multi_valueA as multiA | expand multi_valueB as multiB`
+```
+
+#### Correlation Commands:
 [See additional command details](ppl-correlation-command.md)
 
 ```sql
@@ -431,14 +476,3 @@ _- **Limitation: another command usage of (relation) subquery is in `appendcols`
 > ppl-correlation-command is an experimental command - it may be removed in future versions
 
 ---
-### Planned Commands:
-
-#### **fillnull**
-[See additional command details](ppl-fillnull-command.md)
-```sql
-   -  `source=accounts | fillnull fields status_code=101`
-   -  `source=accounts | fillnull fields request_path='/not_found', timestamp='*'`
-    - `source=accounts | fillnull using field1=101`
-    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5`
-    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5, field6 = 'N/A'`
-```

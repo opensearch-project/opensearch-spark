@@ -9,7 +9,6 @@ import scala.jdk.CollectionConverters.mapAsJavaMapConverter
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
 import org.json4s.native.JsonMethods._
-import org.opensearch.OpenSearchException
 import org.opensearch.action.get.GetRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.flint.core.FlintOptions
@@ -207,13 +206,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
 
       val indexInitial = flint.describeIndex(testIndex).get
       indexInitial.options.refreshInterval() shouldBe Some("4 Minute")
-      the[OpenSearchException] thrownBy {
-        val client =
-          OpenSearchClientUtils.createClient(new FlintOptions(openSearchOptions.asJava))
-        client.get(
-          new GetRequest(OpenSearchAsyncQueryScheduler.SCHEDULER_INDEX_NAME, testIndex),
-          RequestOptions.DEFAULT)
-      }
+      indexInitial.options.isExternalSchedulerEnabled() shouldBe false
 
       // Update Flint index to change refresh interval
       val updatedIndex = flint
@@ -228,6 +221,7 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
       val indexFinal = flint.describeIndex(testIndex).get
       indexFinal.options.autoRefresh() shouldBe true
       indexFinal.options.refreshInterval() shouldBe Some("5 Minutes")
+      indexFinal.options.isExternalSchedulerEnabled() shouldBe true
       indexFinal.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
 
       // Verify scheduler index is updated

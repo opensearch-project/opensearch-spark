@@ -13,7 +13,7 @@ import org.scalatest.matchers.should.Matchers
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, Descending, GreaterThan, Literal, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Ascending, Descending, EqualTo, GreaterThan, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.command.DescribeTableCommand
@@ -288,6 +288,44 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
     val expectedPlan =
       Union(Seq(projectedTable1, projectedTable2), byName = true, allowMissingCol = true)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("Search multiple tables - with table alias") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          """
+            | source=table1, table2, table3 as t
+            | | where t.name = 'Molly'
+            |""".stripMargin),
+        context)
+
+    val table1 = UnresolvedRelation(Seq("table1"))
+    val table2 = UnresolvedRelation(Seq("table2"))
+    val table3 = UnresolvedRelation(Seq("table3"))
+    val star = UnresolvedStar(None)
+    val plan1 = Project(
+      Seq(star),
+      Filter(
+        EqualTo(UnresolvedAttribute("t.name"), Literal("Molly")),
+        SubqueryAlias("t", table1)))
+    val plan2 = Project(
+      Seq(star),
+      Filter(
+        EqualTo(UnresolvedAttribute("t.name"), Literal("Molly")),
+        SubqueryAlias("t", table2)))
+    val plan3 = Project(
+      Seq(star),
+      Filter(
+        EqualTo(UnresolvedAttribute("t.name"), Literal("Molly")),
+        SubqueryAlias("t", table3)))
+
+    val expectedPlan =
+      Union(Seq(plan1, plan2, plan3), byName = true, allowMissingCol = true)
 
     comparePlans(expectedPlan, logPlan, false)
   }

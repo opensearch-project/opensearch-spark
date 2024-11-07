@@ -5,6 +5,7 @@
 
 package org.opensearch.sql.ppl;
 
+import lombok.Getter;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.Expression;
@@ -39,19 +40,19 @@ public class CatalystPlanContext {
     /**
      * Catalyst relations list
      **/
-    private List<UnresolvedExpression> projectedFields = new ArrayList<>();
+    @Getter private List<UnresolvedExpression> projectedFields = new ArrayList<>();
     /**
      * Catalyst relations list
      **/
-    private List<LogicalPlan> relations = new ArrayList<>();
+    @Getter private List<LogicalPlan> relations = new ArrayList<>();
     /**
      * Catalyst SubqueryAlias list
      **/
-    private List<LogicalPlan> subqueryAlias = new ArrayList<>();
+    @Getter private List<LogicalPlan> subqueryAlias = new ArrayList<>();
     /**
      * Catalyst evolving logical plan
      **/
-    private Stack<LogicalPlan> planBranches = new Stack<>();
+    @Getter private Stack<LogicalPlan> planBranches = new Stack<>();
     /**
      * The current traversal context the visitor is going threw
      */
@@ -60,28 +61,12 @@ public class CatalystPlanContext {
     /**
      * NamedExpression contextual parameters
      **/
-    private final Stack<org.apache.spark.sql.catalyst.expressions.Expression> namedParseExpressions = new Stack<>();
+    @Getter private final Stack<org.apache.spark.sql.catalyst.expressions.Expression> namedParseExpressions = new Stack<>();
 
     /**
      * Grouping NamedExpression contextual parameters
      **/
-    private final Stack<org.apache.spark.sql.catalyst.expressions.Expression> groupingParseExpressions = new Stack<>();
-
-    public Stack<LogicalPlan> getPlanBranches() {
-        return planBranches;
-    }
-
-    public List<LogicalPlan> getRelations() {
-        return relations;
-    }
-
-    public List<LogicalPlan> getSubqueryAlias() {
-        return subqueryAlias;
-    }
-
-    public List<UnresolvedExpression> getProjectedFields() {
-        return projectedFields;
-    }
+    @Getter private final Stack<org.apache.spark.sql.catalyst.expressions.Expression> groupingParseExpressions = new Stack<>();
 
     public LogicalPlan getPlan() {
         if (this.planBranches.isEmpty()) return null;
@@ -101,10 +86,6 @@ public class CatalystPlanContext {
         return planTraversalContext;
     }
 
-    public Stack<Expression> getNamedParseExpressions() {
-        return namedParseExpressions;
-    }
-
     public void setNamedParseExpressions(Stack<org.apache.spark.sql.catalyst.expressions.Expression> namedParseExpressions) {
         this.namedParseExpressions.clear();
         this.namedParseExpressions.addAll(namedParseExpressions);
@@ -112,10 +93,6 @@ public class CatalystPlanContext {
 
     public Optional<Expression> popNamedParseExpressions() {
         return namedParseExpressions.isEmpty() ? Optional.empty() : Optional.of(namedParseExpressions.pop());
-    }
-
-    public Stack<Expression> getGroupingParseExpressions() {
-        return groupingParseExpressions;
     }
 
     /**
@@ -154,13 +131,13 @@ public class CatalystPlanContext {
         this.projectedFields.addAll(projectedFields);
         return getPlan();
     }
-    
+
     public LogicalPlan applyBranches(List<Function<LogicalPlan, LogicalPlan>> plans) {
         plans.forEach(plan -> with(plan.apply(planBranches.get(0))));
         planBranches.remove(0);
         return getPlan();
-    }    
-    
+    }
+
     /**
      * append plan with evolving plans branches
      *
@@ -288,4 +265,21 @@ public class CatalystPlanContext {
         return Optional.empty();
     }
 
+    @Getter private boolean isResolvingJoinCondition = false;
+
+    /**
+     * Resolve the join condition with the given function.
+     * A flag will be set to true ahead expression resolving, then false after resolving.
+     * @param expr
+     * @param transformFunction
+     * @return
+     */
+    public Expression resolveJoinCondition(
+            UnresolvedExpression expr,
+            BiFunction<UnresolvedExpression, CatalystPlanContext, Expression> transformFunction) {
+        isResolvingJoinCondition = true;
+        Expression result = transformFunction.apply(expr, this);
+        isResolvingJoinCondition = false;
+        return result;
+    }
 }

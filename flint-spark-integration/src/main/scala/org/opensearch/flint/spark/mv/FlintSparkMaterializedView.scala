@@ -34,6 +34,8 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
  *   MV name
  * @param query
  *   source query that generates MV data
+ * @param sourceTables
+ *   source table names
  * @param outputSchema
  *   output schema
  * @param options
@@ -44,6 +46,7 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 case class FlintSparkMaterializedView(
     mvName: String,
     query: String,
+    sourceTables: Array[String],
     outputSchema: Map[String, String],
     override val options: FlintSparkIndexOptions = empty,
     override val latestLogEntry: Option[FlintMetadataLogEntry] = None)
@@ -64,6 +67,7 @@ case class FlintSparkMaterializedView(
     metadataBuilder(this)
       .name(mvName)
       .source(query)
+      .addProperty("sourceTables", sourceTables)
       .indexedColumns(indexColumnMaps)
       .schema(schema)
       .build()
@@ -171,10 +175,30 @@ object FlintSparkMaterializedView {
     flintIndexNamePrefix(mvName)
   }
 
+  /**
+   * Extract source table names (possibly more than one) from the query.
+   *
+   * @param spark
+   *   Spark session
+   * @param query
+   *   source query that generates MV data
+   * @return
+   *   source table names
+   */
+  def extractSourceTableNames(spark: SparkSession, query: String): Array[String] = {
+    spark.sessionState.sqlParser
+      .parsePlan(query)
+      .collect { case relation: UnresolvedRelation =>
+        qualifyTableName(spark, relation.tableName)
+      }
+      .toArray
+  }
+
   /** Builder class for MV build */
   class Builder(flint: FlintSpark) extends FlintSparkIndexBuilder(flint) {
     private var mvName: String = ""
     private var query: String = ""
+    private var sourceTables: Array[String] = Array.empty[String]
 
     /**
      * Set MV name.
@@ -199,6 +223,7 @@ object FlintSparkMaterializedView {
      */
     def query(query: String): Builder = {
       this.query = query
+      this.sourceTables = extractSourceTableNames(flint.spark, query)
       this
     }
 
@@ -227,7 +252,7 @@ object FlintSparkMaterializedView {
           field.name -> field.dataType.simpleString
         }
         .toMap
-      FlintSparkMaterializedView(mvName, query, outputSchema, indexOptions)
+      FlintSparkMaterializedView(mvName, query, sourceTables, outputSchema, indexOptions)
     }
   }
 }
