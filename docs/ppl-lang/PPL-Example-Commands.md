@@ -65,6 +65,7 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where cidrmatch(ip, '192.169.1.0/24')` 
 - `source = table | where cidrmatch(ipv6, '2003:db8::/32')`
 - `source = table | trendline sma(2, temperature) as temp_trend`
+- `source = table | trendline sort timestamp wma(2, temperature) as temp_trend`
 
 #### **IP related queries**
 [See additional command details](functions/ppl-ip.md)
