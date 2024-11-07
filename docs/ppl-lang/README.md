@@ -71,6 +71,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`correlation commands`](ppl-correlation-command.md)
   
     - [`trendline commands`](ppl-trendline-command.md)
+  
+    - [`expand commands`](ppl-expand-command.md)
 
 * **Functions**
 
