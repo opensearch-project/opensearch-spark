@@ -5,9 +5,12 @@
 
 package org.opensearch.flint.core.storage;
 
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.indices.CreateIndexRequest;
+import org.opensearch.client.indices.CreateIndexResponse;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.common.unit.TimeValue;
@@ -16,11 +19,15 @@ import org.opensearch.flint.common.metadata.FlintMetadata;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
+import org.opensearch.flint.core.metrics.MetricConstants;
+import org.opensearch.flint.core.metrics.MetricsUtil;
 import scala.Option;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -48,11 +55,12 @@ public class FlintOpenSearchClient implements FlintClient {
     String osIndexName = sanitizeIndexName(indexName);
     try (IRestHighLevelClient client = createClient()) {
       CreateIndexRequest request = new CreateIndexRequest(osIndexName);
+      String indexKind = retrieveIndexKind(mapping).orElseThrow(); // For now assume mapping kind is always available
       request.mapping(mapping, XContentType.JSON);
       if (settings.isDefined()) {
         request.settings(settings.get(), XContentType.JSON);
       }
-      client.createIndex(request, RequestOptions.DEFAULT);
+      withIndexCreationMetric(() -> client.createIndex(request, RequestOptions.DEFAULT), indexKind);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to create Flint index " + osIndexName, e);
     }
@@ -121,5 +129,48 @@ public class FlintOpenSearchClient implements FlintClient {
 
   private String sanitizeIndexName(String indexName) {
     return OpenSearchClientUtils.sanitizeIndexName(indexName);
+  }
+
+  /**
+   * Given a mapping specifying a Spark index, determine what kind of index is specified. Empty if the type could not
+   * be determined. This information is always available if serializing from metadata directly, but can be missing if
+   * an invalid index is passed to the protected createIndex directly.
+   */
+  private Optional<String> retrieveIndexKind(String mapping) {
+    try {
+      String indexKind = JsonParser.parseString(mapping)
+              .getAsJsonObject()
+              .getAsJsonObject("_meta")
+              .getAsJsonObject("kind")
+              .getAsString();
+      return Optional.of(indexKind);
+    } catch (JsonParseException ex) {
+      return Optional.empty(); // Could not retrieve the key
+    } catch (UnsupportedOperationException ex) {
+      return Optional.empty(); // The key was present but of the wrong type
+    }
+  }
+
+  private void withIndexCreationMetric(Callable<CreateIndexResponse> fn, String indexKind) throws Exception {
+    try {
+      fn.call();
+      emitIndexCreationMetric(indexKind, true);
+    } catch (Exception ex) {
+      emitIndexCreationMetric(indexKind, false);
+      throw ex;
+    }
+  }
+
+  private void emitIndexCreationMetric(String indexKind, boolean createSuccessful) {
+    String stateStr = createSuccessful ? "success" : "failed";
+    switch (indexKind) {
+      case "skipping":
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_SKIPPING_INDICES, stateStr), 1);
+      case "covering":
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_COVERING_INDICES, stateStr), 1);
+      case "mv":
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_MV_INDICES, stateStr), 1);
+        break;
+    }
   }
 }
