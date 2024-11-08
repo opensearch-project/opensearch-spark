@@ -194,7 +194,7 @@ object FlintSparkMaterializedView extends Logging {
   }
 
   /**
-   * Get source tables from Flint metadata properties field. TODO: test case
+   * Get source tables from Flint metadata properties field.
    *
    * @param metadata
    *   Flint metadata
