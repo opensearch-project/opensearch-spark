@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.apache.spark.sql.{QueryTest, Row}
+import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Divide, EqualTo, Floor, GreaterThan, LessThan, Literal, Multiply, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.{Cross, Inner, LeftAnti, LeftOuter, LeftSemi, RightOuter}
@@ -923,5 +923,272 @@ class FlintSparkPPLJoinITSuite
     assert(frame.queryExecution.analyzed.collect { case s: SubqueryAlias =>
       s
     }.size == 13)
+  }
+
+  test("test multiple joins without table aliases") {
+    val frame = sql(s"""
+                       | source = $testTable1
+                       | | JOIN ON $testTable1.name = $testTable2.name $testTable2
+                       | | JOIN ON $testTable2.name = $testTable3.name $testTable3
+                       | | fields $testTable1.name, $testTable2.name, $testTable3.name
+                       | """.stripMargin)
+    assertSameRows(
+      Array(
+        Row("Jake", "Jake", "Jake"),
+        Row("Hello", "Hello", "Hello"),
+        Row("John", "John", "John"),
+        Row("David", "David", "David"),
+        Row("David", "David", "David"),
+        Row("Jane", "Jane", "Jane")),
+      frame)
+
+    val logicalPlan = frame.queryExecution.logical
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val table3 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test3"))
+    val joinPlan1 = Join(
+      table1,
+      table2,
+      Inner,
+      Some(
+        EqualTo(
+          UnresolvedAttribute(s"$testTable1.name"),
+          UnresolvedAttribute(s"$testTable2.name"))),
+      JoinHint.NONE)
+    val joinPlan2 = Join(
+      joinPlan1,
+      table3,
+      Inner,
+      Some(
+        EqualTo(
+          UnresolvedAttribute(s"$testTable2.name"),
+          UnresolvedAttribute(s"$testTable3.name"))),
+      JoinHint.NONE)
+    val expectedPlan = Project(
+      Seq(
+        UnresolvedAttribute(s"$testTable1.name"),
+        UnresolvedAttribute(s"$testTable2.name"),
+        UnresolvedAttribute(s"$testTable3.name")),
+      joinPlan2)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test multiple joins with part subquery aliases") {
+    val frame = sql(s"""
+                       | source = $testTable1
+                       | | JOIN left = t1 right = t2 ON t1.name = t2.name $testTable2
+                       | | JOIN right = t3 ON t1.name = t3.name $testTable3
+                       | | fields t1.name, t2.name, t3.name
+                       | """.stripMargin)
+    assertSameRows(
+      Array(
+        Row("Jake", "Jake", "Jake"),
+        Row("Hello", "Hello", "Hello"),
+        Row("John", "John", "John"),
+        Row("David", "David", "David"),
+        Row("David", "David", "David"),
+        Row("Jane", "Jane", "Jane")),
+      frame)
+
+    val logicalPlan = frame.queryExecution.logical
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val table3 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test3"))
+    val joinPlan1 = Join(
+      SubqueryAlias("t1", table1),
+      SubqueryAlias("t2", table2),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("t1.name"), UnresolvedAttribute("t2.name"))),
+      JoinHint.NONE)
+    val joinPlan2 = Join(
+      joinPlan1,
+      SubqueryAlias("t3", table3),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("t1.name"), UnresolvedAttribute("t3.name"))),
+      JoinHint.NONE)
+    val expectedPlan = Project(
+      Seq(
+        UnresolvedAttribute("t1.name"),
+        UnresolvedAttribute("t2.name"),
+        UnresolvedAttribute("t3.name")),
+      joinPlan2)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test multiple joins with self join 1") {
+    val frame = sql(s"""
+                       | source = $testTable1
+                       | | JOIN left = t1 right = t2 ON t1.name = t2.name $testTable2
+                       | | JOIN right = t3 ON t1.name = t3.name $testTable3
+                       | | JOIN right = t4 ON t1.name = t4.name $testTable1
+                       | | fields t1.name, t2.name, t3.name, t4.name
+                       | """.stripMargin)
+    assertSameRows(
+      Array(
+        Row("Jake", "Jake", "Jake", "Jake"),
+        Row("Hello", "Hello", "Hello", "Hello"),
+        Row("John", "John", "John", "John"),
+        Row("David", "David", "David", "David"),
+        Row("David", "David", "David", "David"),
+        Row("Jane", "Jane", "Jane", "Jane")),
+      frame)
+
+    val logicalPlan = frame.queryExecution.logical
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val table3 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test3"))
+    val joinPlan1 = Join(
+      SubqueryAlias("t1", table1),
+      SubqueryAlias("t2", table2),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("t1.name"), UnresolvedAttribute("t2.name"))),
+      JoinHint.NONE)
+    val joinPlan2 = Join(
+      joinPlan1,
+      SubqueryAlias("t3", table3),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("t1.name"), UnresolvedAttribute("t3.name"))),
+      JoinHint.NONE)
+    val joinPlan3 = Join(
+      joinPlan2,
+      SubqueryAlias("t4", table1),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("t1.name"), UnresolvedAttribute("t4.name"))),
+      JoinHint.NONE)
+    val expectedPlan = Project(
+      Seq(
+        UnresolvedAttribute("t1.name"),
+        UnresolvedAttribute("t2.name"),
+        UnresolvedAttribute("t3.name"),
+        UnresolvedAttribute("t4.name")),
+      joinPlan3)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test multiple joins with self join 2") {
+    val frame = sql(s"""
+                       | source = $testTable1
+                       | | JOIN left = t1 right = t2 ON t1.name = t2.name $testTable2
+                       | | JOIN right = t3 ON t1.name = t3.name $testTable3
+                       | | JOIN ON t1.name = t4.name
+                       |   [
+                       |     source = $testTable1
+                       |   ] as t4
+                       | | fields t1.name, t2.name, t3.name, t4.name
+                       | """.stripMargin)
+    assertSameRows(
+      Array(
+        Row("Jake", "Jake", "Jake", "Jake"),
+        Row("Hello", "Hello", "Hello", "Hello"),
+        Row("John", "John", "John", "John"),
+        Row("David", "David", "David", "David"),
+        Row("David", "David", "David", "David"),
+        Row("Jane", "Jane", "Jane", "Jane")),
+      frame)
+
+    val logicalPlan = frame.queryExecution.logical
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val table3 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test3"))
+    val joinPlan1 = Join(
+      SubqueryAlias("t1", table1),
+      SubqueryAlias("t2", table2),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("t1.name"), UnresolvedAttribute("t2.name"))),
+      JoinHint.NONE)
+    val joinPlan2 = Join(
+      joinPlan1,
+      SubqueryAlias("t3", table3),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("t1.name"), UnresolvedAttribute("t3.name"))),
+      JoinHint.NONE)
+    val joinPlan3 = Join(
+      joinPlan2,
+      SubqueryAlias("t4", table1),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("t1.name"), UnresolvedAttribute("t4.name"))),
+      JoinHint.NONE)
+    val expectedPlan = Project(
+      Seq(
+        UnresolvedAttribute("t1.name"),
+        UnresolvedAttribute("t2.name"),
+        UnresolvedAttribute("t3.name"),
+        UnresolvedAttribute("t4.name")),
+      joinPlan3)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("check access the reference by aliases") {
+    var frame = sql(s"""
+                       | source = $testTable1
+                       | | JOIN left = t1 ON t1.name = t2.name $testTable2 as t2
+                       | | fields t1.name, t2.name
+                       | """.stripMargin)
+    assert(frame.collect().length > 0)
+
+    frame = sql(s"""
+                   | source = $testTable1 as t1
+                   | | JOIN ON t1.name = t2.name $testTable2 as t2
+                   | | fields t1.name, t2.name
+                   | """.stripMargin)
+    assert(frame.collect().length > 0)
+
+    frame = sql(s"""
+                   | source = $testTable1
+                   | | JOIN left = t1 ON t1.name = t2.name [ source = $testTable2 ] as t2
+                   | | fields t1.name, t2.name
+                   | """.stripMargin)
+    assert(frame.collect().length > 0)
+
+    frame = sql(s"""
+                   | source = $testTable1
+                   | | JOIN left = t1 ON t1.name = t2.name [ source = $testTable2 as t2 ]
+                   | | fields t1.name, t2.name
+                   | """.stripMargin)
+    assert(frame.collect().length > 0)
+  }
+
+  test("access the reference by override aliases should throw exception") {
+    var ex = intercept[AnalysisException](sql(s"""
+         | source = $testTable1
+         | | JOIN left = t1 right = t2 ON t1.name = t2.name $testTable2 as tt
+         | | fields tt.name
+         | """.stripMargin))
+    assert(ex.getMessage.contains("`tt`.`name` cannot be resolved"))
+
+    ex = intercept[AnalysisException](sql(s"""
+         | source = $testTable1 as tt
+         | | JOIN left = t1 right = t2 ON t1.name = t2.name $testTable2
+         | | fields tt.name
+         | """.stripMargin))
+    assert(ex.getMessage.contains("`tt`.`name` cannot be resolved"))
+
+    ex = intercept[AnalysisException](sql(s"""
+         | source = $testTable1
+         | | JOIN left = t1 right = t2 ON t1.name = t2.name [ source = $testTable2 as tt ]
+         | | fields tt.name
+         | """.stripMargin))
+    assert(ex.getMessage.contains("`tt`.`name` cannot be resolved"))
+
+    ex = intercept[AnalysisException](sql(s"""
+         | source = $testTable1
+         | | JOIN left = t1 ON t1.name = t2.name [ source = $testTable2 as tt ] as t2
+         | | fields tt.name
+         | """.stripMargin))
+    assert(ex.getMessage.contains("`tt`.`name` cannot be resolved"))
+
+    ex = intercept[AnalysisException](sql(s"""
+         | source = $testTable1
+         | | JOIN left = t1 right = t2 ON t1.name = t2.name [ source = $testTable2 ] as tt
+         | | fields tt.name
+         | """.stripMargin))
+    assert(ex.getMessage.contains("`tt`.`name` cannot be resolved"))
+
+    ex = intercept[AnalysisException](sql(s"""
+         | source = $testTable1 as tt
+         | | JOIN left = t1 ON t1.name = t2.name $testTable2 as t2
+         | | fields tt.name
+         | """.stripMargin))
+    assert(ex.getMessage.contains("`tt`.`name` cannot be resolved"))
   }
 }

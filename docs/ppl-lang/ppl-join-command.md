@@ -65,8 +65,8 @@ WHERE t1.serviceName = `order`
 SEARCH source=<left-table>
 | <other piped command>
 | [joinType] JOIN
-    leftAlias
-    rightAlias
+    [leftAlias]
+    [rightAlias]
     [joinHints]
     ON joinCriteria
     <right-table>
@@ -79,12 +79,12 @@ SEARCH source=<left-table>
 
 **leftAlias**
 - Syntax: `left = <leftAlias>`
-- Required
+- Optional
 - Description: The subquery alias to use with the left join side, to avoid ambiguous naming.
 
 **rightAlias**
 - Syntax: `right = <rightAlias>`
-- Required
+- Optional
 - Description: The subquery alias to use with the right join side, to avoid ambiguous naming.
 
 **joinHints**
@@ -138,11 +138,11 @@ Rewritten by PPL Join query:
 ```sql
 SEARCH source=customer
 | FIELDS c_custkey
-| LEFT OUTER JOIN left = c, right = o
-    ON c.c_custkey = o.o_custkey AND o_comment NOT LIKE '%unusual%packages%'
+| LEFT OUTER JOIN
+    ON c_custkey = o_custkey AND o_comment NOT LIKE '%unusual%packages%'
     orders
-| STATS count(o_orderkey) AS c_count BY c.c_custkey
-| STATS count(1) AS custdist BY c_count
+| STATS count(o_orderkey) AS c_count BY c_custkey
+| STATS count() AS custdist BY c_count
 | SORT - custdist, - c_count
 ```
 _- **Limitation: sub-searches is unsupported in join right side**_
@@ -151,14 +151,15 @@ If sub-searches is supported, above ppl query could be rewritten as:
 ```sql
 SEARCH source=customer
 | FIELDS c_custkey
-| LEFT OUTER JOIN left = c, right = o ON c.c_custkey = o.o_custkey
+| LEFT OUTER JOIN
+   ON c_custkey = o_custkey
    [
       SEARCH source=orders
       | WHERE o_comment NOT LIKE '%unusual%packages%'
       | FIELDS o_orderkey, o_custkey
    ]
-| STATS count(o_orderkey) AS c_count BY c.c_custkey
-| STATS count(1) AS custdist BY c_count
+| STATS count(o_orderkey) AS c_count BY c_custkey
+| STATS count() AS custdist BY c_count
 | SORT - custdist, - c_count
 ```
 

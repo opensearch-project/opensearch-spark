@@ -133,6 +133,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   }
 
   @Override
+  public UnresolvedPlan visitExpandCommand(OpenSearchPPLParser.ExpandCommandContext ctx) {
+    return new Expand((Field) internalVisitExpression(ctx.fieldExpression()),
+            ctx.alias!=null ? Optional.of(internalVisitExpression(ctx.alias)) : Optional.empty());
+  }
+
+  @Override
   public UnresolvedPlan visitCorrelateCommand(OpenSearchPPLParser.CorrelateCommandContext ctx) {
     return new Correlation(ctx.correlationType().getText(),
             ctx.fieldList().fieldExpression().stream()
@@ -156,14 +162,25 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
       joinType = Join.JoinType.CROSS;
     }
     Join.JoinHint joinHint = getJoinHint(ctx.joinHintList());
-    String leftAlias = ctx.sideAlias().leftAlias.getText();
-    String rightAlias = ctx.sideAlias().rightAlias.getText();
+    Optional<String> leftAlias = ctx.sideAlias().leftAlias != null ? Optional.of(ctx.sideAlias().leftAlias.getText()) : Optional.empty();
+    Optional<String> rightAlias = Optional.empty();
     if (ctx.tableOrSubqueryClause().alias != null) {
-      // left and right aliases are required in join syntax. Setting by 'AS' causes ambiguous
-      throw new SyntaxCheckException("'AS' is not allowed in right subquery, use right=<rightAlias> instead");
+      rightAlias = Optional.of(ctx.tableOrSubqueryClause().alias.getText());
     }
+    if (ctx.sideAlias().rightAlias != null) {
+      rightAlias = Optional.of(ctx.sideAlias().rightAlias.getText());
+    }
+
     UnresolvedPlan rightRelation = visit(ctx.tableOrSubqueryClause());
-    UnresolvedPlan right = new SubqueryAlias(rightAlias, rightRelation);
+    // Add a SubqueryAlias to the right plan when the right alias is present and no duplicated alias existing in right.
+    UnresolvedPlan right;
+    if (rightAlias.isEmpty() ||
+        (rightRelation instanceof SubqueryAlias &&
+            rightAlias.get().equals(((SubqueryAlias) rightRelation).getAlias()))) {
+      right = rightRelation;
+    } else {
+      right = new SubqueryAlias(rightAlias.get(), rightRelation);
+    }
     Optional<UnresolvedExpression> joinCondition =
         ctx.joinCriteria() == null ? Optional.empty() : Optional.of(expressionBuilder.visitJoinCriteria(ctx.joinCriteria()));
 
@@ -371,7 +388,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   /** Lookup command */
   @Override
   public UnresolvedPlan visitLookupCommand(OpenSearchPPLParser.LookupCommandContext ctx) {
-    Relation lookupRelation = new Relation(this.internalVisitExpression(ctx.tableSource()));
+    Relation lookupRelation = new Relation(Collections.singletonList(this.internalVisitExpression(ctx.tableSource())));
     Lookup.OutputStrategy strategy =
         ctx.APPEND() != null ? Lookup.OutputStrategy.APPEND : Lookup.OutputStrategy.REPLACE;
     java.util.Map<Alias, Field> lookupMappingList = buildLookupPair(ctx.lookupMappingList().lookupPair());
@@ -518,9 +535,8 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   @Override
   public UnresolvedPlan visitTableSourceClause(OpenSearchPPLParser.TableSourceClauseContext ctx) {
-    return ctx.alias == null
-        ? new Relation(ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList()))
-        : new Relation(ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList()), ctx.alias.getText());
+    Relation relation = new Relation(ctx.tableSource().stream().map(this::internalVisitExpression).collect(Collectors.toList()));
+    return ctx.alias != null ? new SubqueryAlias(ctx.alias.getText(), relation) : relation;
   }
 
   @Override

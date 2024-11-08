@@ -11,6 +11,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
+import org.apache.spark.sql.catalyst.expressions.Explode;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GeneratorOuter;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
@@ -88,6 +89,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static java.util.List.of;
+import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDuplicateEvents;
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDuplicateEventsAndKeepEmpty;
@@ -285,7 +287,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         visitChild(node, context);
         return context.apply(left -> {
             LogicalPlan right = node.getRight().accept(this, context);
-            Optional<Expression> joinCondition = node.getJoinCondition().map(c -> visitExpression(c, context));
+            Optional<Expression> joinCondition = node.getJoinCondition()
+                .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context));
             context.retainAllNamedParseExpressions(p -> p);
             context.retainAllPlans(p -> p);
             return join(left, right, node.getJoinType(), joinCondition, node.getJoinHint());
@@ -475,11 +478,32 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             // Create an UnresolvedStar for all-fields projection
             context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
         }
-        Expression field = visitExpression(flatten.getFieldToBeFlattened(), context);
+        Expression field = visitExpression(flatten.getField(), context);
         context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
         FlattenGenerator flattenGenerator = new FlattenGenerator(field);
         context.apply(p -> new Generate(new GeneratorOuter(flattenGenerator), seq(), true, (Option) None$.MODULE$, seq(), p));
         return context.apply(logicalPlan -> DataFrameDropColumns$.MODULE$.apply(seq(field), logicalPlan));
+    }
+
+    @Override
+    public LogicalPlan visitExpand(org.opensearch.sql.ast.tree.Expand node, CatalystPlanContext context) {
+        node.getChild().get(0).accept(this, context);
+        if (context.getNamedParseExpressions().isEmpty()) {
+            // Create an UnresolvedStar for all-fields projection
+            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+        }
+        Expression field = visitExpression(node.getField(), context);
+        Optional<Expression> alias = node.getAlias().map(aliasNode -> visitExpression(aliasNode, context));
+        context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+        Explode explodeGenerator = new Explode(field);
+        scala.collection.mutable.Seq outputs = alias.isEmpty() ? seq() : seq(alias.get());
+        if(alias.isEmpty())
+            return context.apply(p -> new Generate(explodeGenerator, seq(), false, (Option) None$.MODULE$, outputs, p));
+        else {
+            //in case an alias does appear - remove the original field from the returning columns
+            context.apply(p -> new Generate(explodeGenerator, seq(), false, (Option) None$.MODULE$, outputs, p));
+            return context.apply(logicalPlan -> DataFrameDropColumns$.MODULE$.apply(seq(field), logicalPlan));
+        }
     }
 
     private void visitFieldList(List<Field> fieldList, CatalystPlanContext context) {
