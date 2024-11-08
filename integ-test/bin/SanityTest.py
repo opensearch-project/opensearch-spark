@@ -42,8 +42,8 @@ class FlintTester:
     self.check_interval = check_interval
     self.timeout = timeout
     self.output_file = output_file
-    self.start = start_row - 1
-    self.end = end_row - 1
+    self.start = start_row - 1 if start_row else None
+    self.end = end_row - 1 if end_row else None
     self.max_attempts = (int)(timeout / check_interval)
     self.logger = self._setup_logger()
     self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
@@ -128,7 +128,7 @@ class FlintTester:
       self.logger.warning(f"Cancel query [{query_id}] error: {str(e)}, got response {response_json}")
 
   # Run the test and return the result
-  def run_test(self, query, seq_id):
+  def run_test(self, query, seq_id, expected_status):
     self.logger.info(f"Starting test: {seq_id}, {query}")
     start_time = datetime.now()
     pre_session_id = self.get_session_id()
@@ -138,7 +138,9 @@ class FlintTester:
       return {
         "query_name": seq_id,
         "query": query,
+        "expected_status": expected_status,
         "status": "SUBMIT_FAILED",
+        "check_expected": "SUBMIT_FAILED" == expected_status if expected_status else None,
         "error": submit_result["error"],
         "duration": 0,
         "start_time": start_time,
@@ -161,7 +163,9 @@ class FlintTester:
       "query": query,
       "query_id": query_id,
       "session_id": session_id,
+      "expected_status": expected_status,
       "status": test_result["status"],
+      "check_expected": test_result["status"] == expected_status if expected_status else None,
       "error": test_result.get("error", ""),
       "result": test_result if test_result["status"] == "SUCCESS" else None,
       "duration": duration,
@@ -190,13 +194,13 @@ class FlintTester:
   def run_tests_from_csv(self, csv_file):
     with open(csv_file, 'r') as f:
       reader = csv.DictReader(f)
-      queries = [(row['query'], i) for i, row in enumerate(reader, start=1) if row['query'].strip()]
+      queries = [(row['query'], i, row.get('expected_status', None)) for i, row in enumerate(reader, start=1) if row['query'].strip()]
 
     # Filtering queries based on start and end
     queries = queries[self.start:self.end]
 
     # Parallel execution
-    futures = [self.executor.submit(self.run_test, query, seq_id) for query, seq_id in queries]
+    futures = [self.executor.submit(self.run_test, query, seq_id, expected_status) for query, seq_id, expected_status in queries]
     for future in as_completed(futures):
       result = future.result()
       self.test_results.append(result)
@@ -250,7 +254,7 @@ def main():
   parser.add_argument("--input-csv", required=True, help="Path to the CSV file containing test queries")
   parser.add_argument("--output-file", required=True, help="Path to the output report file")
   parser.add_argument("--max-workers", type=int, default=2, help="optional, Maximum number of worker threads (default: 2)")
-  parser.add_argument("--check-interval", type=int, default=10, help="optional, Check interval in seconds (default: 10)")
+  parser.add_argument("--check-interval", type=int, default=5, help="optional, Check interval in seconds (default: 5)")
   parser.add_argument("--timeout", type=int, default=600, help="optional, Timeout in seconds (default: 600)")
   parser.add_argument("--start-row", type=int, default=None, help="optionl, The start row of the query to run, start from 1")
   parser.add_argument("--end-row", type=int, default=None, help="optional, The end row of the query to run, not included")
