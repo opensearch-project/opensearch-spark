@@ -5,6 +5,7 @@
 
 package org.opensearch.sql.ppl;
 
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
@@ -15,6 +16,7 @@ import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.In$;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
+import org.apache.spark.sql.catalyst.expressions.LambdaFunction$;
 import org.apache.spark.sql.catalyst.expressions.LessThan;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
@@ -24,6 +26,8 @@ import org.apache.spark.sql.catalyst.expressions.Predicate;
 import org.apache.spark.sql.catalyst.expressions.RowFrame$;
 import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.catalyst.expressions.ScalarSubquery$;
+import org.apache.spark.sql.catalyst.expressions.UnresolvedNamedLambdaVariable;
+import org.apache.spark.sql.catalyst.expressions.UnresolvedNamedLambdaVariable$;
 import org.apache.spark.sql.catalyst.expressions.SpecifiedWindowFrame;
 import org.apache.spark.sql.catalyst.expressions.WindowExpression;
 import org.apache.spark.sql.catalyst.expressions.WindowSpecDefinition;
@@ -47,6 +51,7 @@ import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
+import org.opensearch.sql.ast.expression.LambdaFunction;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
@@ -68,7 +73,9 @@ import org.opensearch.sql.expression.function.SerializableUdf;
 import org.opensearch.sql.ppl.utils.AggregatorTransformer;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTransformer;
 import org.opensearch.sql.ppl.utils.ComparatorTransformer;
+import org.opensearch.sql.ppl.utils.JavaToScalaTransformer;
 import scala.Option;
+import scala.PartialFunction;
 import scala.Tuple2;
 import scala.collection.Seq;
 
@@ -101,6 +108,11 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
 
     public Expression analyze(UnresolvedExpression unresolved, CatalystPlanContext context) {
         return unresolved.accept(this, context);
+    }
+
+    /** This method is only for analyze the join condition expression */
+    public Expression analyzeJoinCondition(UnresolvedExpression unresolved, CatalystPlanContext context) {
+        return context.resolveJoinCondition(unresolved, this::analyze);
     }
 
     @Override
@@ -190,6 +202,11 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
 
     @Override
     public Expression visitQualifiedName(QualifiedName node, CatalystPlanContext context) {
+        // When the qualified name is part of join condition, for example: table1.id = table2.id
+        // findRelation(context.traversalContext() only returns relation table1 which cause table2.id fail to resolve
+        if (context.isResolvingJoinCondition()) {
+            return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
+        }
         List<UnresolvedRelation> relation = findRelation(context.traversalContext());
         if (!relation.isEmpty()) {
             Optional<QualifiedName> resolveField = resolveField(relation, node, context.getRelations());
@@ -430,6 +447,23 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
                 true);
 
         return context.getNamedParseExpressions().push(udf);
+    }
+
+    @Override
+    public Expression visitLambdaFunction(LambdaFunction node, CatalystPlanContext context) {
+        PartialFunction<Expression, Expression> transformer = JavaToScalaTransformer.toPartialFunction(
+            expr -> expr instanceof UnresolvedAttribute,
+            expr -> {
+                UnresolvedAttribute attr = (UnresolvedAttribute) expr;
+                return new UnresolvedNamedLambdaVariable(attr.nameParts());
+            }
+        );
+        Expression functionResult = node.getFunction().accept(this, context).transformUp(transformer);
+        context.popNamedParseExpressions();
+        List<NamedExpression> argsResult = node.getFuncArgs().stream()
+            .map(arg -> UnresolvedNamedLambdaVariable$.MODULE$.apply(seq(arg.getParts())))
+            .collect(Collectors.toList());
+        return context.getNamedParseExpressions().push(LambdaFunction$.MODULE$.apply(functionResult, seq(argsResult), false));
     }
 
     private List<Expression> visitExpressionList(List<UnresolvedExpression> expressionList, CatalystPlanContext context) {

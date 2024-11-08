@@ -597,4 +597,68 @@ class FlintSparkPPLBasicITSuite
           | """.stripMargin))
     assert(ex.getMessage().contains("Invalid table name"))
   }
+
+  test("Search multiple tables - translated into union call with fields") {
+    val frame = sql(s"""
+                       | source = $t1, $t2
+                       | """.stripMargin)
+    assertSameRows(
+      Seq(
+        Row("Hello", 30, "New York", "USA", 2023, 4),
+        Row("Hello", 30, "New York", "USA", 2023, 4),
+        Row("Jake", 70, "California", "USA", 2023, 4),
+        Row("Jake", 70, "California", "USA", 2023, 4),
+        Row("Jane", 20, "Quebec", "Canada", 2023, 4),
+        Row("Jane", 20, "Quebec", "Canada", 2023, 4),
+        Row("John", 25, "Ontario", "Canada", 2023, 4),
+        Row("John", 25, "Ontario", "Canada", 2023, 4)),
+      frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+
+    val allFields1 = UnresolvedStar(None)
+    val allFields2 = UnresolvedStar(None)
+
+    val projectedTable1 = Project(Seq(allFields1), table1)
+    val projectedTable2 = Project(Seq(allFields2), table2)
+
+    val expectedPlan =
+      Union(Seq(projectedTable1, projectedTable2), byName = true, allowMissingCol = true)
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("Search multiple tables - with table alias") {
+    val frame = sql(s"""
+                       | source = $t1, $t2 as t | where t.country = "USA"
+                       | """.stripMargin)
+    assertSameRows(
+      Seq(
+        Row("Hello", 30, "New York", "USA", 2023, 4),
+        Row("Hello", 30, "New York", "USA", 2023, 4),
+        Row("Jake", 70, "California", "USA", 2023, 4),
+        Row("Jake", 70, "California", "USA", 2023, 4)),
+      frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+
+    val plan1 = Filter(
+      EqualTo(UnresolvedAttribute("t.country"), Literal("USA")),
+      SubqueryAlias("t", table1))
+    val plan2 = Filter(
+      EqualTo(UnresolvedAttribute("t.country"), Literal("USA")),
+      SubqueryAlias("t", table2))
+
+    val projectedTable1 = Project(Seq(UnresolvedStar(None)), plan1)
+    val projectedTable2 = Project(Seq(UnresolvedStar(None)), plan2)
+
+    val expectedPlan =
+      Union(Seq(projectedTable1, projectedTable2), byName = true, allowMissingCol = true)
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
 }

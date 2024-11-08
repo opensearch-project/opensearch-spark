@@ -71,6 +71,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`correlation commands`](ppl-correlation-command.md)
   
     - [`trendline commands`](ppl-trendline-command.md)
+  
+    - [`expand commands`](ppl-expand-command.md)
 
 * **Functions**
 
@@ -91,6 +93,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`Cryptographic Functions`](functions/ppl-cryptographic.md)
 
     - [`IP Address Functions`](functions/ppl-ip.md)
+     
+    - [`Lambda Functions`](functions/ppl-lambda.md)
 
 ---
 ### PPL On Spark
@@ -101,6 +105,10 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 ---
 ### Example PPL Queries
 See samples of [PPL queries](PPL-Example-Commands.md) 
+
+---
+### TPC-H PPL Query Rewriting
+See samples of [TPC-H PPL query rewriting](ppl-tpch.md)
 
 ---
 ### Planned PPL Commands

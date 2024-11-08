@@ -54,6 +54,7 @@ commands
    | fillnullCommand
    | fieldsummaryCommand
    | flattenCommand
+   | expandCommand
    | trendlineCommand
    ;
 
@@ -82,6 +83,7 @@ commandName
    | PATTERNS
    | LOOKUP
    | RENAME
+   | EXPAND
    | FILLNULL
    | FIELDSUMMARY
    | FLATTEN
@@ -250,6 +252,10 @@ fillnullCommand
    : expression
    ;
 
+expandCommand
+    : EXPAND fieldExpression (AS alias = qualifiedName)?
+    ;
+    
 flattenCommand
     : FLATTEN fieldExpression
     ;
@@ -339,7 +345,7 @@ joinType
    ;
 
 sideAlias
-   : LEFT EQUAL leftAlias = ident COMMA? RIGHT EQUAL rightAlias = ident
+   : (LEFT EQUAL leftAlias = ident)? COMMA? (RIGHT EQUAL rightAlias = ident)?
    ;
 
 joinCriteria
@@ -443,6 +449,8 @@ valueExpression
    | timestampFunction                                                                          # timestampFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
+   | ident ARROW expression                                                                     # lambda
+   | LT_PRTHS ident (COMMA ident)+ RT_PRTHS ARROW expression                                    # lambda
    ;
 
 primaryExpression
@@ -568,6 +576,7 @@ evalFunctionName
    | cryptographicFunctionName
    | jsonFunctionName
    | collectionFunctionName
+   | lambdaFunctionName
    ;
 
 functionArgs
@@ -857,6 +866,7 @@ jsonFunctionName
    | JSON_OBJECT
    | JSON_ARRAY
    | JSON_ARRAY_LENGTH
+   | TO_JSON_STRING
    | JSON_EXTRACT
    | JSON_KEYS
    | JSON_VALID
@@ -873,6 +883,15 @@ jsonFunctionName
 
 collectionFunctionName
    : ARRAY
+   | ARRAY_LENGTH
+   ;
+
+lambdaFunctionName
+   : FORALL
+   | EXISTS
+   | FILTER
+   | TRANSFORM
+   | REDUCE
    ;
 
 positionFunctionName

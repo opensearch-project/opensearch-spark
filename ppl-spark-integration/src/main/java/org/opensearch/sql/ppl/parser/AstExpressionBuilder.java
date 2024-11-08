@@ -29,6 +29,7 @@ import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.IntervalUnit;
 import org.opensearch.sql.ast.expression.IsEmpty;
+import org.opensearch.sql.ast.expression.LambdaFunction;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
@@ -427,6 +428,15 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
             OpenSearchPPLParser.TimestampFunctionCallContext ctx) {
         return new Function(
             ctx.timestampFunction().timestampFunctionName().getText(), timestampFunctionArguments(ctx));
+    }
+
+    @Override
+    public UnresolvedExpression visitLambda(OpenSearchPPLParser.LambdaContext ctx) {
+
+        List<QualifiedName> arguments = ctx.ident().stream().map(x -> this.visitIdentifiers(Collections.singletonList(x))).collect(
+            Collectors.toList());
+        UnresolvedExpression function = visitExpression(ctx.expression());
+        return new LambdaFunction(function, arguments);
     }
 
     private List<UnresolvedExpression> timestampFunctionArguments(

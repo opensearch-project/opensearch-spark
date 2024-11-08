@@ -166,8 +166,10 @@ public class FlintOpenSearchClient implements FlintClient {
     switch (indexKind) {
       case "skipping":
         MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_SKIPPING_INDICES, stateStr), 1);
+        break;
       case "covering":
         MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_COVERING_INDICES, stateStr), 1);
+        break;
       case "mv":
         MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_MV_INDICES, stateStr), 1);
         break;

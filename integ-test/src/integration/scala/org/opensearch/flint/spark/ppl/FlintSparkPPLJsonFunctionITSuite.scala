@@ -163,30 +163,32 @@ class FlintSparkPPLJsonFunctionITSuite
     assert(ex.getMessage().contains("should all be the same type"))
   }
 
-  test("test json_array() with json()") {
+  test("test json_array() with to_json_tring()") {
     val frame = sql(s"""
-                       | source = $testTable | eval result = json(json_array(1,2,0,-1,1.1,-0.11)) | head 1 | fields result
+                       | source = $testTable | eval result = to_json_string(json_array(1,2,0,-1,1.1,-0.11)) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(Seq(Row("""[1.0,2.0,0.0,-1.0,1.1,-0.11]""")), frame)
   }
 
-  test("test json_array_length()") {
+  test("test array_length()") {
     var frame = sql(s"""
-                   | source = $testTable | eval result = json_array_length(json_array('this', 'is', 'a', 'string', 'array')) | head 1 | fields result
-                   | """.stripMargin)
+         | source = $testTable| eval result = array_length(json_array('this', 'is', 'a', 'string', 'array')) | head 1 | fields result
+         | """.stripMargin)
     assertSameRows(Seq(Row(5)), frame)
 
     frame = sql(s"""
-                   | source = $testTable | eval result = json_array_length(json_array(1, 2, 0, -1, 1.1, -0.11)) | head 1 | fields result
-                   | """.stripMargin)
+         | source = $testTable| eval result = array_length(json_array(1, 2, 0, -1, 1.1, -0.11)) | head 1 | fields result
+         | """.stripMargin)
     assertSameRows(Seq(Row(6)), frame)
 
     frame = sql(s"""
-                   | source = $testTable | eval result = json_array_length(json_array()) | head 1 | fields result
-                   | """.stripMargin)
+         | source = $testTable| eval result = array_length(json_array()) | head 1 | fields result
+         | """.stripMargin)
     assertSameRows(Seq(Row(0)), frame)
+  }
 
-    frame = sql(s"""
+  test("test json_array_length()") {
+    var frame = sql(s"""
                    | source = $testTable | eval result = json_array_length('[]') | head 1 | fields result
                    | """.stripMargin)
     assertSameRows(Seq(Row(0)), frame)
@@ -211,24 +213,24 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_object()") {
     // test value is a string
     var frame = sql(s"""
-         | source = $testTable| eval result = json(json_object('key', 'string_value')) | head 1 | fields result
+         | source = $testTable| eval result = to_json_string(json_object('key', 'string_value')) | head 1 | fields result
          | """.stripMargin)
     assertSameRows(Seq(Row("""{"key":"string_value"}""")), frame)
 
     // test value is a number
     frame = sql(s"""
-         | source = $testTable| eval result = json(json_object('key', 123.45)) | head 1 | fields result
+         | source = $testTable| eval result = to_json_string(json_object('key', 123.45)) | head 1 | fields result
          | """.stripMargin)
     assertSameRows(Seq(Row("""{"key":123.45}""")), frame)
 
     // test value is a boolean
     frame = sql(s"""
-         | source = $testTable| eval result = json(json_object('key', true)) | head 1 | fields result
+         | source = $testTable| eval result = to_json_string(json_object('key', true)) | head 1 | fields result
          | """.stripMargin)
     assertSameRows(Seq(Row("""{"key":true}""")), frame)
 
     frame = sql(s"""
-         | source = $testTable| eval result = json(json_object("a", 1, "b", 2, "c", 3)) | head 1 | fields result
+         | source = $testTable| eval result = to_json_string(json_object("a", 1, "b", 2, "c", 3)) | head 1 | fields result
          | """.stripMargin)
     assertSameRows(Seq(Row("""{"a":1,"b":2,"c":3}""")), frame)
   }
@@ -236,13 +238,13 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_object() and json_array()") {
     // test value is an empty array
     var frame = sql(s"""
-         | source = $testTable| eval result = json(json_object('key', array())) | head 1 | fields result
+         | source = $testTable| eval result = to_json_string(json_object('key', array())) | head 1 | fields result
          | """.stripMargin)
     assertSameRows(Seq(Row("""{"key":[]}""")), frame)
 
     // test value is an array
     frame = sql(s"""
-         | source = $testTable| eval result = json(json_object('key', array(1, 2, 3))) | head 1 | fields result
+         | source = $testTable| eval result = to_json_string(json_object('key', array(1, 2, 3))) | head 1 | fields result
          | """.stripMargin)
     assertSameRows(Seq(Row("""{"key":[1,2,3]}""")), frame)
 
@@ -272,14 +274,14 @@ class FlintSparkPPLJsonFunctionITSuite
 
   test("test json_object() nested") {
     val frame = sql(s"""
-                   | source = $testTable | eval result = json(json_object('outer', json_object('inner', 123.45))) | head 1 | fields result
+                   | source = $testTable | eval result = to_json_string(json_object('outer', json_object('inner', 123.45))) | head 1 | fields result
                    | """.stripMargin)
     assertSameRows(Seq(Row("""{"outer":{"inner":123.45}}""")), frame)
   }
 
   test("test json_object(), json_array() and json()") {
     val frame = sql(s"""
-                       | source = $testTable | eval result = json(json_object("array", json_array(1,2,0,-1,1.1,-0.11))) | head 1 | fields result
+                       | source = $testTable | eval result = to_json_string(json_object("array", json_array(1,2,0,-1,1.1,-0.11))) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(Seq(Row("""{"array":[1.0,2.0,0.0,-1.0,1.1,-0.11]}""")), frame)
   }

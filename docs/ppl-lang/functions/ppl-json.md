@@ -4,11 +4,11 @@
 
 **Description**
 
-`json(value)` Evaluates whether a value can be parsed as JSON. Returns the json string if valid, null otherwise.
+`json(value)` Evaluates whether a string can be parsed as JSON format. Returns the string value if valid, null otherwise.
 
-**Argument type:** STRING/JSON_ARRAY/JSON_OBJECT
+**Argument type:** STRING
 
-**Return type:** STRING
+**Return type:** STRING/NULL
 
 A STRING expression of a valid JSON object format.
 
@@ -47,7 +47,7 @@ A StructType expression of a valid JSON object.
 
 Example:
 
-    os> source=people | eval result = json(json_object('key', 123.45)) | fields result
+    os> source=people | eval result = json_object('key', 123.45) | fields result
     fetched rows / total rows = 1/1
     +------------------+
     | result           |
@@ -55,7 +55,7 @@ Example:
     | {"key":123.45}   |
     +------------------+
 
-    os> source=people | eval result = json(json_object('outer', json_object('inner', 123.45))) | fields result
+    os> source=people | eval result = json_object('outer', json_object('inner', 123.45)) | fields result
     fetched rows / total rows = 1/1
     +------------------------------+
     | result                       |
@@ -81,13 +81,13 @@ Example:
 
     os> source=people | eval `json_array` = json_array(1, 2, 0, -1, 1.1, -0.11)
     fetched rows / total rows = 1/1
-    +----------------------------+
-    | json_array                 |
-    +----------------------------+
-    | 1.0,2.0,0.0,-1.0,1.1,-0.11 |
-    +----------------------------+
+    +------------------------------+
+    | json_array                   |
+    +------------------------------+
+    | [1.0,2.0,0.0,-1.0,1.1,-0.11] |
+    +------------------------------+
 
-    os> source=people | eval `json_array_object` = json(json_object("array", json_array(1, 2, 0, -1, 1.1, -0.11)))
+    os> source=people | eval `json_array_object` = json_object("array", json_array(1, 2, 0, -1, 1.1, -0.11))
     fetched rows / total rows = 1/1
     +----------------------------------------+
     | json_array_object                      |
@@ -95,15 +95,44 @@ Example:
     | {"array":[1.0,2.0,0.0,-1.0,1.1,-0.11]} |
     +----------------------------------------+
 
+### `TO_JSON_STRING`
+
+**Description**
+
+`to_json_string(jsonObject)` Returns a JSON string with a given json object value.
+
+**Argument type:** JSON_OBJECT (Spark StructType/ArrayType)
+
+**Return type:** STRING
+
+Example:
+
+    os> source=people | eval `json_string` = to_json_string(json_array(1, 2, 0, -1, 1.1, -0.11)) | fields json_string
+    fetched rows / total rows = 1/1
+    +--------------------------------+
+    | json_string                    |
+    +--------------------------------+
+    | [1.0,2.0,0.0,-1.0,1.1,-0.11]   |
+    +--------------------------------+
+
+    os> source=people | eval `json_string` = to_json_string(json_object('key', 123.45)) | fields json_string
+    fetched rows / total rows = 1/1
+    +-----------------+
+    | json_string     |
+    +-----------------+
+    | {'key', 123.45} |
+    +-----------------+
+
+
 ### `JSON_ARRAY_LENGTH`
 
 **Description**
 
-`json_array_length(jsonArray)` Returns the number of elements in the outermost JSON array.
+`json_array_length(jsonArrayString)` Returns the number of elements in the outermost JSON array string.
 
-**Argument type:** STRING/JSON_ARRAY
+**Argument type:** STRING
 
-A STRING expression of a valid JSON array format, or JSON_ARRAY object.
+A STRING expression of a valid JSON array format.
 
 **Return type:** INTEGER
 
@@ -119,6 +148,21 @@ Example:
     | 4         | 5         | null        |
     +-----------+-----------+-------------+
 
+
+### `ARRAY_LENGTH`
+
+**Description**
+
+`array_length(jsonArray)` Returns the number of elements in the outermost array.
+
+**Argument type:** ARRAY
+
+ARRAY or JSON_ARRAY object.
+
+**Return type:** INTEGER
+
+Example:
+
     os> source=people | eval `json_array` = json_array_length(json_array(1,2,3,4)), `empty_array` = json_array_length(json_array())
     fetched rows / total rows = 1/1
     +--------------+---------------+
@@ -126,6 +170,7 @@ Example:
     +--------------+---------------+
     | 4            | 0             |
     +--------------+---------------+
+
 
 ### `JSON_EXTRACT`
 
