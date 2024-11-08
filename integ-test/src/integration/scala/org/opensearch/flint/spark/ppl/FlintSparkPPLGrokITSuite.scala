@@ -35,7 +35,7 @@ class FlintSparkPPLGrokITSuite
       job.awaitTermination()
     }
   }
-  
+
   test("test grok email expressions parsing") {
     val frame = sql(s"""
          | source = $testTable| grok email '.+@%{HOSTNAME:host}' | fields email, host
