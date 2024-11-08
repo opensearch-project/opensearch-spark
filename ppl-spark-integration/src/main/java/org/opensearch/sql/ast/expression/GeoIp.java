@@ -1,5 +1,6 @@
 package org.opensearch.sql.ast.expression;
 
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
