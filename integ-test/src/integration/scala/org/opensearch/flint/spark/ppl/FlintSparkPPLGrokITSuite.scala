@@ -38,7 +38,7 @@ class FlintSparkPPLGrokITSuite
 
   test("test grok hostname | head ") {
     val frame = sql(s"""
-         | source = $testTable| grok email '.+@%{HOSTNAMES:host}'| sort host | head 5
+         | source = $testTable| grok email '.+@%{HOSTNAME:host}'| sort host | head 5
          | """.stripMargin)
 
     // Retrieve the results
