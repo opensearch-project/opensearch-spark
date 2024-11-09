@@ -53,6 +53,7 @@ import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.Aggregation;
 import org.opensearch.sql.ast.tree.Correlation;
+import org.opensearch.sql.ast.tree.CountedAggregation;
 import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Eval;
@@ -327,9 +328,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Sort(sortElements, true, logicalPlan));
         }
         //visit TopAggregation results limit
-        if ((node instanceof TopAggregation) && ((TopAggregation) node).getResults().isPresent()) {
+        if ((node instanceof CountedAggregation) && ((CountedAggregation) node).getResults().isPresent()) {
             context.apply(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
-                    ((TopAggregation) node).getResults().get().getValue(), org.apache.spark.sql.types.DataTypes.IntegerType), p));
+                    ((CountedAggregation) node).getResults().get().getValue(), org.apache.spark.sql.types.DataTypes.IntegerType), p));
         }
         return logicalPlan;
     }
