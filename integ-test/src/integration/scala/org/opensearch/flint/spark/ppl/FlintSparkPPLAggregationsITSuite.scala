@@ -835,6 +835,43 @@ class FlintSparkPPLAggregationsITSuite
     comparePlans(expectedPlan, logicalPlan, false)
   }
 
+  test("create ppl simple country distinct_count using approximation ") {
+    val frame = sql(s"""
+                       | source = $testTable| stats distinct_count_approx(country)
+                       | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(Row(2L))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](1))
+    assert(
+      results.sorted.sameElements(expectedResults.sorted),
+      s"Expected: ${expectedResults.mkString(", ")}, but got: ${results.mkString(", ")}")
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val countryField = UnresolvedAttribute("country")
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("APPROX_COUNT_DISTINCT"), Seq(countryField), isDistinct = true),
+        "distinct_count_approx(country)")()
+
+    val aggregatePlan =
+      Aggregate(Seq.empty, Seq(aggregateExpressions), table)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    // Compare the two plans
+    comparePlans(expectedPlan, logicalPlan, false)
+  }
+
   test("create ppl simple age distinct_count group by country query test with sort") {
     val frame = sql(s"""
                        | source = $testTable | stats distinct_count(age) by country | sort country
@@ -864,6 +901,53 @@ class FlintSparkPPLAggregationsITSuite
       Alias(
         UnresolvedFunction(Seq("COUNT"), Seq(ageField), isDistinct = true),
         "distinct_count(age)")()
+    val productAlias = Alias(countryField, "country")()
+
+    val aggregatePlan =
+      Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), table)
+    val sortedPlan: LogicalPlan =
+      Sort(
+        Seq(SortOrder(UnresolvedAttribute("country"), Ascending)),
+        global = true,
+        aggregatePlan)
+    val expectedPlan = Project(star, sortedPlan)
+
+    // Compare the two plans
+    assert(
+      compareByString(expectedPlan) === compareByString(logicalPlan),
+      s"Expected plan: ${compareByString(expectedPlan)}, but got: ${compareByString(logicalPlan)}")
+  }
+
+  test(
+    "create ppl simple age distinct_count group by country query test with sort using approximation") {
+    val frame = sql(s"""
+                       | source = $testTable | stats distinct_count_approx(age) by country | sort country
+                       | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(Row(2L, "Canada"), Row(2L, "USA"))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](1))
+    assert(
+      results.sorted.sameElements(expectedResults.sorted),
+      s"Expected: ${expectedResults.mkString(", ")}, but got: ${results.mkString(", ")}")
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+
+    val groupByAttributes = Seq(Alias(countryField, "country")())
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("APPROX_COUNT_DISTINCT"), Seq(ageField), isDistinct = true),
+        "distinct_count_approx(age)")()
     val productAlias = Alias(countryField, "country")()
 
     val aggregatePlan =
@@ -911,6 +995,46 @@ class FlintSparkPPLAggregationsITSuite
       Alias(
         UnresolvedFunction(Seq("COUNT"), Seq(ageField), isDistinct = true),
         "distinct_count(age)")()
+    val productAlias = Alias(countryField, "country")()
+    val aggregatePlan =
+      Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), filterPlan)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    // Compare the two plans
+    assert(compareByString(expectedPlan) === compareByString(logicalPlan))
+  }
+
+  test(
+    "create ppl simple age distinct_count group by country with state filter query test using approximation") {
+    val frame = sql(s"""
+                       | source = $testTable | where state != 'Ontario' | stats distinct_count_approx(age) by country
+                       | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(Row(1L, "Canada"), Row(2L, "USA"))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](1))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val stateField = UnresolvedAttribute("state")
+    val countryField = UnresolvedAttribute("country")
+    val ageField = UnresolvedAttribute("age")
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+
+    val groupByAttributes = Seq(Alias(countryField, "country")())
+    val filterExpr = Not(EqualTo(stateField, Literal("Ontario")))
+    val filterPlan = Filter(filterExpr, table)
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("APPROX_COUNT_DISTINCT"), Seq(ageField), isDistinct = true),
+        "distinct_count_approx(age)")()
     val productAlias = Alias(countryField, "country")()
     val aggregatePlan =
       Aggregate(groupByAttributes, Seq(aggregateExpressions, productAlias), filterPlan)
