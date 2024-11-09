@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Stack;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
@@ -188,6 +189,13 @@ public class CatalystPlanContext {
         }).orElse(getPlan()));
     }
 
+    /**
+     * update context using the given action and node 
+     */
+    public CatalystPlanContext update(UnaryOperator<CatalystPlanContext> action) {
+        return action.apply(this);
+    } 
+    
     /**
      * apply for each plan with the given function
      *
