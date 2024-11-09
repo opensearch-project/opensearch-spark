@@ -753,11 +753,13 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
 
     comparePlans(expectedPlan, logPlan, false)
   }
-  
+
   test("test approx distinct count product group by brand sorted") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats distinct_count_approx(product) by brand | sort brand"),
+      plan(
+        pplParser,
+        "source = table | stats distinct_count_approx(product) by brand | sort brand"),
       context)
     val star = Seq(UnresolvedStar(None))
     val brandField = UnresolvedAttribute("brand")
@@ -828,8 +830,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
 
     comparePlans(expectedPlan, logPlan, false)
   }
-  
-  test("test distinct count age by span of interval of 10 years query with sort using approximation ") {
+
+  test(
+    "test distinct count age by span of interval of 10 years query with sort using approximation ") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
       plan(
@@ -890,8 +893,9 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     // Compare the two plans
     comparePlans(expectedPlan, logPlan, false)
   }
-  
-  test("test distinct count status by week window and group by status with limit using approximation") {
+
+  test(
+    "test distinct count status by week window and group by status with limit using approximation") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
       plan(

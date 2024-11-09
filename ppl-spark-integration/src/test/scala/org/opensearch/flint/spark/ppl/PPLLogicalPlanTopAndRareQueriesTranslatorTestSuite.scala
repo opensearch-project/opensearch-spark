@@ -58,7 +58,7 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
     val expectedPlan = Project(projectList, sortedPlan)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
-  
+
   test("test simple rare command with a single field approximation") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
@@ -83,7 +83,10 @@ class PPLLogicalPlanTopAndRareQueriesTranslatorTestSuite
         Seq(
           SortOrder(
             Alias(
-              UnresolvedFunction(Seq("APPROX_COUNT_DISTINCT"), Seq(addressField), isDistinct = false),
+              UnresolvedFunction(
+                Seq("APPROX_COUNT_DISTINCT"),
+                Seq(addressField),
+                isDistinct = false),
               "count_address")(),
             Ascending)),
         global = true,

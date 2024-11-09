@@ -92,7 +92,7 @@ class FlintSparkPPLTopAndRareITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     assert(results.length == 3)
- 
+
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     // Define the expected logical plan
@@ -114,7 +114,10 @@ class FlintSparkPPLTopAndRareITSuite
         Seq(
           SortOrder(
             Alias(
-              UnresolvedFunction(Seq("APPROX_COUNT_DISTINCT"), Seq(addressField), isDistinct = false),
+              UnresolvedFunction(
+                Seq("APPROX_COUNT_DISTINCT"),
+                Seq(addressField),
+                isDistinct = false),
               "count_address")(),
             Ascending)),
         global = true,
@@ -170,7 +173,7 @@ class FlintSparkPPLTopAndRareITSuite
     val expectedPlan = Project(projectList, sortedPlan)
     comparePlans(expectedPlan, logicalPlan, false)
   }
-  
+
   test("create ppl rare 3 address by age field query test") {
     val frame = sql(s"""
          | source = $testTable| rare 3 address by age
@@ -220,7 +223,7 @@ class FlintSparkPPLTopAndRareITSuite
     val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
     comparePlans(expectedPlan, logicalPlan, false)
   }
-  
+
   test("create ppl rare 3 address by age field query test with approximation") {
     val frame = sql(s"""
          | source = $testTable| rare_approx 3 address by age
@@ -229,7 +232,6 @@ class FlintSparkPPLTopAndRareITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     assert(results.length == 3)
-
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
@@ -255,7 +257,10 @@ class FlintSparkPPLTopAndRareITSuite
         Seq(
           SortOrder(
             Alias(
-              UnresolvedFunction(Seq("APPROX_COUNT_DISTINCT"), Seq(addressField), isDistinct = false),
+              UnresolvedFunction(
+                Seq("APPROX_COUNT_DISTINCT"),
+                Seq(addressField),
+                isDistinct = false),
               "count_address")(),
             Ascending)),
         global = true,
@@ -313,7 +318,7 @@ class FlintSparkPPLTopAndRareITSuite
     val expectedPlan = Project(projectList, sortedPlan)
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
-  
+
   test("create ppl top address field query test  with approximation") {
     val frame = sql(s"""
          | source = $testTable| top_approx address
@@ -322,7 +327,6 @@ class FlintSparkPPLTopAndRareITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     assert(results.length == 3)
-
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
@@ -345,7 +349,10 @@ class FlintSparkPPLTopAndRareITSuite
         Seq(
           SortOrder(
             Alias(
-              UnresolvedFunction(Seq("APPROX_COUNT_DISTINCT"), Seq(addressField), isDistinct = false),
+              UnresolvedFunction(
+                Seq("APPROX_COUNT_DISTINCT"),
+                Seq(addressField),
+                isDistinct = false),
               "count_address")(),
             Descending)),
         global = true,
@@ -400,7 +407,7 @@ class FlintSparkPPLTopAndRareITSuite
     val expectedPlan = Project(Seq(UnresolvedStar(None)), planWithLimit)
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
-  
+
   test("create ppl top 3 countries query test with approximation") {
     val frame = sql(s"""
          | source = $newTestTable| top_approx 3 country
@@ -409,7 +416,7 @@ class FlintSparkPPLTopAndRareITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     assert(results.length == 3)
-    
+
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val countryField = UnresolvedAttribute("country")
@@ -428,7 +435,10 @@ class FlintSparkPPLTopAndRareITSuite
         Seq(
           SortOrder(
             Alias(
-              UnresolvedFunction(Seq("APPROX_COUNT_DISTINCT"), Seq(countryField), isDistinct = false),
+              UnresolvedFunction(
+                Seq("APPROX_COUNT_DISTINCT"),
+                Seq(countryField),
+                isDistinct = false),
               "count_country")(),
             Descending)),
         global = true,
@@ -491,7 +501,7 @@ class FlintSparkPPLTopAndRareITSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
 
   }
-  
+
   test("create ppl top 2 countries by occupation field query test  with approximation") {
     val frame = sql(s"""
          | source = $newTestTable| top_approx 3 country by occupation
@@ -522,7 +532,10 @@ class FlintSparkPPLTopAndRareITSuite
         Seq(
           SortOrder(
             Alias(
-              UnresolvedFunction(Seq("APPROX_COUNT_DISTINCT"), Seq(countryField), isDistinct = false),
+              UnresolvedFunction(
+                Seq("APPROX_COUNT_DISTINCT"),
+                Seq(countryField),
+                isDistinct = false),
               "count_country")(),
             Descending)),
         global = true,
