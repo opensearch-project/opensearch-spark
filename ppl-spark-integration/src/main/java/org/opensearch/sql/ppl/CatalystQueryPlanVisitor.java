@@ -139,6 +139,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitRelation(Relation node, CatalystPlanContext context) {
+        //relations doesnt have a visitFirstChild call since its the leaf of the AST tree 
         if (node instanceof DescribeRelation) {
             TableIdentifier identifier = getTableIdentifier(node.getTableQualifiedName());
             return context.with(
