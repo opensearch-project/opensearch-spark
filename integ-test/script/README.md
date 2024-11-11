@@ -22,15 +22,15 @@ pip install requests pandas
 
 After getting the requisite libraries, you can run the script with the following command line parameters in your shell:
 ```shell
-python FlintSanityTest_Concurrency.py --base-url ${URL_ADDRESS} --username *** --password *** --datasource ${DATASOURCE_NAME} --input-csv test_cases.csv --output-file test_report --max-workers 2 --check-interval 10 --timeout 600
+python SanityTest.py --base-url ${URL_ADDRESS} --username *** --password *** --datasource ${DATASOURCE_NAME} --input-csv test_cases.csv --output-file test_report --max-workers 2 --check-interval 10 --timeout 600
 ```
 You need to replace the placeholders with your actual values of URL_ADDRESS, DATASOURCE_NAME and USERNAME, PASSWORD for authentication to your endpoint.
 
 For more details of the command line parameters, you can see the help manual via command:
 ```shell
-python FlintSanityTest_Concurrency.py --help   
+python SanityTest.py --help   
 
-usage: FlintSanityTest_Concurrency.py [-h] --base-url BASE_URL --username USERNAME --password PASSWORD --datasource DATASOURCE --input-csv INPUT_CSV
+usage: SanityTest.py [-h] --base-url BASE_URL --username USERNAME --password PASSWORD --datasource DATASOURCE --input-csv INPUT_CSV
                                       --output-file OUTPUT_FILE [--max-workers MAX_WORKERS] [--check-interval CHECK_INTERVAL] [--timeout TIMEOUT]
                                       [--start-row START_ROW] [--end-row END_ROW]
 
