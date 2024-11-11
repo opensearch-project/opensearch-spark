@@ -34,14 +34,9 @@ class MetricsSparkListener extends SparkListener with Logging {
     recordsWritten += outputMetrics.recordsWritten
     totalJvmGcTime += taskEnd.taskMetrics.jvmGCTime
 
-    MetricsUtil.addHistoricGauge(MetricConstants.TASK_JVM_GC_TIME_METRIC, taskEnd.taskMetrics.jvmGCTime)
-  }
-
-  override def onExecutorMetricsUpdate(executorMetricsUpdate: SparkListenerExecutorMetricsUpdate): Unit = {
-    executorMetricsUpdate.executorUpdates.foreach { case (taskId, metrics) =>
-      val totalGcTime = metrics.getMetricValue("totalGCTime")
-      logInfo(s"ExecutorID: ${executorMetricsUpdate.execId}, Task ID: $taskId, Executor totalGcTime: $totalGcTime")
-    }
+    MetricsUtil.addHistoricGauge(
+      MetricConstants.TASK_JVM_GC_TIME_METRIC,
+      taskEnd.taskMetrics.jvmGCTime)
   }
 
   def emitMetrics(): Unit = {
