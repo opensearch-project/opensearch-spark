@@ -14,13 +14,6 @@ import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Explode;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GeneratorOuter;
-import org.apache.spark.sql.catalyst.expressions.In$;
-import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
-import org.apache.spark.sql.catalyst.expressions.InSubquery$;
-import org.apache.spark.sql.catalyst.expressions.LessThan;
-import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
-import org.apache.spark.sql.catalyst.expressions.ListQuery$;
-import org.apache.spark.sql.catalyst.expressions.MakeInterval$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
@@ -38,6 +31,7 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.flint.spark.FlattenGenerator;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
+import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.Field;
@@ -53,6 +47,7 @@ import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.Aggregation;
 import org.opensearch.sql.ast.tree.Correlation;
+import org.opensearch.sql.ast.tree.CountedAggregation;
 import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Eval;
@@ -72,7 +67,6 @@ import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.SubqueryAlias;
-import org.opensearch.sql.ast.tree.TopAggregation;
 import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
@@ -90,6 +84,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
@@ -132,6 +127,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         return node.getPlan().accept(this, context);
     }
 
+    public LogicalPlan visitFirstChild(Node node, CatalystPlanContext context) {
+        return node.getChild().get(0).accept(this, context);
+    }
+
     @Override
     public LogicalPlan visitExplain(Explain node, CatalystPlanContext context) {
         node.getStatement().accept(this, context);
@@ -140,6 +139,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitRelation(Relation node, CatalystPlanContext context) {
+        //relations doesnt have a visitFirstChild call since its the leaf of the AST tree 
         if (node instanceof DescribeRelation) {
             TableIdentifier identifier = getTableIdentifier(node.getTableQualifiedName());
             return context.with(
@@ -159,7 +159,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitFilter(Filter node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         return context.apply(p -> {
             Expression conditionExpression = visitExpression(node.getCondition(), context);
             Optional<Expression> innerConditionExpression = context.popNamedParseExpressions();
@@ -173,8 +173,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
      */
     @Override
     public LogicalPlan visitLookup(Lookup node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
-
+        visitFirstChild(node, context);
         return context.apply( searchSide -> {
             LogicalPlan lookupTable = node.getLookupRelation().accept(this, context);
             Expression lookupCondition = buildLookupMappingCondition(node, expressionAnalyzer, context);
@@ -230,8 +229,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitTrendline(Trendline node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
-
+        visitFirstChild(node, context);
         node.getSortByField()
                 .ifPresent(sortField -> {
                     Expression sortFieldExpression = visitExpression(sortField, context);
@@ -254,7 +252,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitCorrelation(Correlation node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         context.reduce((left, right) -> {
             visitFieldList(node.getFieldsList().stream().map(Field::new).collect(Collectors.toList()), context);
             Seq<Expression> fields = context.retainAllNamedParseExpressions(e -> e);
@@ -272,7 +270,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitJoin(Join node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         return context.apply(left -> {
             LogicalPlan right = node.getRight().accept(this, context);
             Optional<Expression> joinCondition = node.getJoinCondition()
@@ -285,7 +283,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitSubqueryAlias(SubqueryAlias node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         return context.apply(p -> {
             var alias = org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$.MODULE$.apply(node.getAlias(), p);
             context.withSubqueryAlias(alias);
@@ -296,7 +294,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitAggregation(Aggregation node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         List<Expression> aggsExpList = visitExpressionList(node.getAggExprList(), context);
         List<Expression> groupExpList = visitExpressionList(node.getGroupExprList(), context);
         if (!groupExpList.isEmpty()) {
@@ -327,9 +325,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Sort(sortElements, true, logicalPlan));
         }
         //visit TopAggregation results limit
-        if ((node instanceof TopAggregation) && ((TopAggregation) node).getResults().isPresent()) {
+        if ((node instanceof CountedAggregation) && ((CountedAggregation) node).getResults().isPresent()) {
             context.apply(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
-                    ((TopAggregation) node).getResults().get().getValue(), org.apache.spark.sql.types.DataTypes.IntegerType), p));
+                    ((CountedAggregation) node).getResults().get().getValue(), org.apache.spark.sql.types.DataTypes.IntegerType), p));
         }
         return logicalPlan;
     }
@@ -342,7 +340,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitWindow(Window node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         List<Expression> windowFunctionExpList = visitExpressionList(node.getWindowFunctionList(), context);
         Seq<Expression> windowFunctionExpressions = context.retainAllNamedParseExpressions(p -> p);
         List<Expression> partitionExpList = visitExpressionList(node.getPartExprList(), context);
@@ -372,10 +370,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitProject(Project node, CatalystPlanContext context) {
+        //update plan's context prior to visiting node children
         if (node.isExcluded()) {
             List<UnresolvedExpression> intersect = context.getProjectedFields().stream()
-                .filter(node.getProjectList()::contains)
-                .collect(Collectors.toList());
+                    .filter(node.getProjectList()::contains)
+                    .collect(Collectors.toList());
             if (!intersect.isEmpty()) {
                 // Fields in parent projection, but they have be excluded in child. For example,
                 // source=t | fields - A, B | fields A, B, C will throw "[Field A, Field B] can't be resolved"
@@ -384,7 +383,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         } else {
             context.withProjectedFields(node.getProjectList());
         }
-        LogicalPlan child = node.getChild().get(0).accept(this, context);
+        LogicalPlan child = visitFirstChild(node, context);
         visitExpressionList(node.getProjectList(), context);
 
         // Create a projection list from the existing expressions
@@ -405,7 +404,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitSort(Sort node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         visitFieldList(node.getSortList(), context);
         Seq<SortOrder> sortElements = context.retainAllNamedParseExpressions(exp -> SortUtils.getSortDirection(node, (NamedExpression) exp));
         return context.apply(p -> (LogicalPlan) new org.apache.spark.sql.catalyst.plans.logical.Sort(sortElements, true, p));
@@ -413,20 +412,20 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitHead(Head node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         return context.apply(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
                 node.getSize(), DataTypes.IntegerType), p));
     }
 
     @Override
     public LogicalPlan visitFieldSummary(FieldSummary fieldSummary, CatalystPlanContext context) {
-        fieldSummary.getChild().get(0).accept(this, context);
+        visitFirstChild(fieldSummary, context);
         return FieldSummaryTransformer.translate(fieldSummary, context);
     }
 
     @Override
     public LogicalPlan visitFillNull(FillNull fillNull, CatalystPlanContext context) {
-        fillNull.getChild().get(0).accept(this, context);
+        visitFirstChild(fillNull, context);
         List<UnresolvedExpression> aliases = new ArrayList<>();
         for(FillNull.NullableFieldFill nullableFieldFill : fillNull.getNullableFieldFills()) {
             Field field = nullableFieldFill.getNullableFieldReference();
@@ -457,7 +456,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitFlatten(Flatten flatten, CatalystPlanContext context) {
-        flatten.getChild().get(0).accept(this, context);
+        visitFirstChild(flatten, context);
         if (context.getNamedParseExpressions().isEmpty()) {
             // Create an UnresolvedStar for all-fields projection
             context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
@@ -471,7 +470,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitExpand(org.opensearch.sql.ast.tree.Expand node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         if (context.getNamedParseExpressions().isEmpty()) {
             // Create an UnresolvedStar for all-fields projection
             context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
@@ -507,7 +506,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitParse(Parse node, CatalystPlanContext context) {
-        LogicalPlan child = node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         Expression sourceField = visitExpression(node.getSourceField(), context);
         ParseMethod parseMethod = node.getParseMethod();
         java.util.Map<String, Literal> arguments = node.getArguments();
@@ -517,7 +516,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitRename(Rename node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         if (context.getNamedParseExpressions().isEmpty()) {
             // Create an UnresolvedStar for all-fields projection
             context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.empty()));
@@ -534,7 +533,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitEval(Eval node, CatalystPlanContext context) {
-        LogicalPlan child = node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         List<UnresolvedExpression> aliases = new ArrayList<>();
         List<Let> letExpressions = node.getExpressionList();
         for (Let let : letExpressions) {
@@ -548,8 +547,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         List<Expression> expressionList = visitExpressionList(aliases, context);
         Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
         // build the plan with the projection step
-        child = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
-        return child;
+        return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
     }
 
     @Override
@@ -574,7 +572,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitDedupe(Dedupe node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         List<Argument> options = node.getOptions();
         Integer allowedDuplication = (Integer) options.get(0).getValue().getValue();
         Boolean keepEmpty = (Boolean) options.get(1).getValue().getValue();
