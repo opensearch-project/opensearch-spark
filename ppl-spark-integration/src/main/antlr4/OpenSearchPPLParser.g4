@@ -1124,6 +1124,7 @@ keywordsCanBeId
    // AGGREGATIONS
    | statsFunctionName
    | DISTINCT_COUNT
+   | DISTINCT_COUNT_APPROX
    | PERCENTILE
    | PERCENTILE_APPROX
    | ESTDC

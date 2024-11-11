@@ -188,13 +188,6 @@ public class CatalystPlanContext {
             return result;
         }).orElse(getPlan()));
     }
-
-    /**
-     * update context using the given action and node 
-     */
-    public CatalystPlanContext update(UnaryOperator<CatalystPlanContext> action) {
-        return action.apply(this);
-    } 
     
     /**
      * apply for each plan with the given function

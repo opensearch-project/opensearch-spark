@@ -25,7 +25,7 @@ EVAL:                               'EVAL';
 HEAD:                               'HEAD';
 TOP_APPROX:                         'TOP_APPROX';
 TOP:                                'TOP';
-RARE_APPROX:                         'RARE_APPROX';
+RARE_APPROX:                        'RARE_APPROX';
 RARE:                               'RARE';
 PARSE:                              'PARSE';
 METHOD:                             'METHOD';

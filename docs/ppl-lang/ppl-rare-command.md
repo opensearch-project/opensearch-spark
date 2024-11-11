@@ -12,7 +12,7 @@ Using ``rare`` command to find the least common tuple of values of all fields in
 * N: number of results to return. **Default**: 10
 * field-list: mandatory. comma-delimited list of field names.
 * by-clause: optional. one or more fields to group the results by.
-* top_approx: approximate the count by using estimated [cardinality by HyperLogLog++ algorithm](https://spark.apache.org/docs/3.5.2/sql-ref-functions-builtin.html).
+* rare_approx: approximate count of the rare (n) fields by using estimated [cardinality by HyperLogLog++ algorithm](https://spark.apache.org/docs/3.5.2/sql-ref-functions-builtin.html).
 
 
 ### Example 1: Find the least common values in a field
@@ -22,6 +22,7 @@ The example finds least common gender of all the accounts.
 PPL query:
 
     os> source=accounts | rare gender;
+    os> source=accounts | rare_approx 10 gender;
     os> source=accounts | rare_approx gender;
     fetched rows / total rows = 2/2
     +----------+
