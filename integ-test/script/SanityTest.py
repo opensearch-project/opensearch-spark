@@ -22,13 +22,13 @@ Environment: python3
 
 Example to use this script:
 
-python FlintSanityTest_Concurrency.py --base-url ${URL_ADDRESS} --username *** --password *** --datasource ${DATASOURCE_NAME} --input-csv test_queries.csv --output-file test_report --max-workers 2 --check-interval 10 --timeout 600
+python SanityTest.py --base-url ${URL_ADDRESS} --username *** --password *** --datasource ${DATASOURCE_NAME} --input-csv test_queries.csv --output-file test_report --max-workers 2 --check-interval 10 --timeout 600
 
 The input file test_queries.csv should contain column: `query`
 
 For more details, please use command:
 
-python FlintSanityTest_Concurrency.py --help
+python SanityTest.py --help
 
 """
 
@@ -140,7 +140,7 @@ class FlintTester:
         "query": query,
         "expected_status": expected_status,
         "status": "SUBMIT_FAILED",
-        "check_expected": "SUBMIT_FAILED" == expected_status if expected_status else None,
+        "check_status": "SUBMIT_FAILED" == expected_status if expected_status else None,
         "error": submit_result["error"],
         "duration": 0,
         "start_time": start_time,
@@ -165,7 +165,7 @@ class FlintTester:
       "session_id": session_id,
       "expected_status": expected_status,
       "status": test_result["status"],
-      "check_expected": test_result["status"] == expected_status if expected_status else None,
+      "check_status": test_result["status"] == expected_status if expected_status else None,
       "error": test_result.get("error", ""),
       "result": test_result if test_result["status"] == "SUCCESS" else None,
       "duration": duration,
