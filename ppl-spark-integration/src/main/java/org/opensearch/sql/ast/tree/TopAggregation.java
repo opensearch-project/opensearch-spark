@@ -20,7 +20,7 @@ import java.util.Optional;
 @ToString
 @Getter
 @EqualsAndHashCode(callSuper = true)
-public class TopAggregation extends Aggregation {
+public class TopAggregation extends Aggregation  implements CountedAggregation {
   private final Optional<Literal> results;
 
   /** Aggregation Constructor without span and argument. */

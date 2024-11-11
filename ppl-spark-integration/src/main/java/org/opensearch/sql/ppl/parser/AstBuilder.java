@@ -432,8 +432,9 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   public UnresolvedPlan visitTopCommand(OpenSearchPPLParser.TopCommandContext ctx) {
     ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
     ImmutableList.Builder<UnresolvedExpression> groupListBuilder = new ImmutableList.Builder<>();
+    String funcName = ctx.TOP_APPROX() != null ? "approx_count_distinct" : "count";
     ctx.fieldList().fieldExpression().forEach(field -> {
-      UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field),
+    AggregateFunction aggExpression = new AggregateFunction(funcName,internalVisitExpression(field),
               Collections.singletonList(new Argument("countParam", new Literal(1, DataType.INTEGER))));
       String name = field.qualifiedName().getText();
       Alias alias = new Alias("count_"+name, aggExpression);
@@ -458,14 +459,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                                             .collect(Collectors.toList()))
                     .orElse(emptyList())
     );
-    UnresolvedExpression unresolvedPlan = (ctx.number != null ? internalVisitExpression(ctx.number) : null);
-    TopAggregation aggregation =
-            new TopAggregation(
-                    Optional.ofNullable((Literal) unresolvedPlan),
+    UnresolvedExpression expectedResults = (ctx.number != null ? internalVisitExpression(ctx.number) : null);
+    return new TopAggregation(
+                    Optional.ofNullable((Literal) expectedResults),
                     aggListBuilder.build(),
                     aggListBuilder.build(),
                     groupListBuilder.build());
-    return aggregation;
   }
 
     /** Fieldsummary command. */
@@ -479,8 +478,9 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   public UnresolvedPlan visitRareCommand(OpenSearchPPLParser.RareCommandContext ctx) {
     ImmutableList.Builder<UnresolvedExpression> aggListBuilder = new ImmutableList.Builder<>();
     ImmutableList.Builder<UnresolvedExpression> groupListBuilder = new ImmutableList.Builder<>();
+    String funcName = ctx.RARE_APPROX() != null ? "approx_count_distinct" : "count";
     ctx.fieldList().fieldExpression().forEach(field -> {
-      UnresolvedExpression aggExpression = new AggregateFunction("count",internalVisitExpression(field),
+      AggregateFunction aggExpression = new AggregateFunction(funcName,internalVisitExpression(field),
               Collections.singletonList(new Argument("countParam", new Literal(1, DataType.INTEGER))));
       String name = field.qualifiedName().getText();
       Alias alias = new Alias("count_"+name, aggExpression);
@@ -505,12 +505,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
                                             .collect(Collectors.toList()))
                     .orElse(emptyList())
     );
-    RareAggregation aggregation =
-            new RareAggregation(
+    UnresolvedExpression expectedResults = (ctx.number != null ? internalVisitExpression(ctx.number) : null);
+      return new RareAggregation(
+                    Optional.ofNullable((Literal) expectedResults),
                     aggListBuilder.build(),
                     aggListBuilder.build(),
                     groupListBuilder.build());
-    return aggregation;
   }
 
   @Override

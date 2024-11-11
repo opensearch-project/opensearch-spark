@@ -185,6 +185,7 @@ public enum BuiltinFunctionName {
   NESTED(FunctionName.of("nested")),
   PERCENTILE(FunctionName.of("percentile")),
   PERCENTILE_APPROX(FunctionName.of("percentile_approx")),
+  APPROX_COUNT_DISTINCT(FunctionName.of("approx_count_distinct")),
 
   /** Text Functions. */
   ASCII(FunctionName.of("ascii")),
@@ -332,6 +333,7 @@ public enum BuiltinFunctionName {
           .put("take", BuiltinFunctionName.TAKE)
           .put("percentile", BuiltinFunctionName.PERCENTILE)
           .put("percentile_approx", BuiltinFunctionName.PERCENTILE_APPROX)
+          .put("approx_count_distinct", BuiltinFunctionName.APPROX_COUNT_DISTINCT)
           .build();
 
   public static Optional<BuiltinFunctionName> of(String str) {

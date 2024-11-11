@@ -26,8 +26,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import static org.opensearch.flint.spark.ppl.OpenSearchPPLLexer.DISTINCT_COUNT_APPROX;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADD;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADDDATE;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.APPROX_COUNT_DISTINCT;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ARRAY_LENGTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATEDIFF;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATE_ADD;
@@ -109,6 +111,7 @@ public interface BuiltinFunctionTransformer {
             .put(TO_JSON_STRING, "to_json")
             .put(JSON_KEYS, "json_object_keys")
             .put(JSON_EXTRACT, "get_json_object")
+            .put(APPROX_COUNT_DISTINCT, "approx_count_distinct")
             .build();
 
     /**
