@@ -33,7 +33,7 @@ python SanityTest.py --help
 """
 
 class FlintTester:
-  def __init__(self, base_url, username, password, datasource, max_workers, check_interval, timeout, output_file, start_row, end_row):
+  def __init__(self, base_url, username, password, datasource, max_workers, check_interval, timeout, output_file, start_row, end_row, log_level):
     self.base_url = base_url
     self.auth = HTTPBasicAuth(username, password)
     self.datasource = datasource
@@ -44,6 +44,7 @@ class FlintTester:
     self.output_file = output_file
     self.start = start_row - 1 if start_row else None
     self.end = end_row - 1 if end_row else None
+    self.log_level = log_level
     self.max_attempts = (int)(timeout / check_interval)
     self.logger = self._setup_logger()
     self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
@@ -52,13 +53,13 @@ class FlintTester:
 
   def _setup_logger(self):
     logger = logging.getLogger('FlintTester')
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(self.log_level)
 
     fh = logging.FileHandler('flint_test.log')
-    fh.setLevel(logging.DEBUG)
+    fh.setLevel(self.log_level)
 
     ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
+    ch.setLevel(self.log_level)
 
     formatter = logging.Formatter(
       '%(asctime)s - %(threadName)s - %(levelname)s - %(message)s'
@@ -256,8 +257,9 @@ def main():
   parser.add_argument("--max-workers", type=int, default=2, help="optional, Maximum number of worker threads (default: 2)")
   parser.add_argument("--check-interval", type=int, default=5, help="optional, Check interval in seconds (default: 5)")
   parser.add_argument("--timeout", type=int, default=600, help="optional, Timeout in seconds (default: 600)")
-  parser.add_argument("--start-row", type=int, default=None, help="optionl, The start row of the query to run, start from 1")
+  parser.add_argument("--start-row", type=int, default=None, help="optional, The start row of the query to run, start from 1")
   parser.add_argument("--end-row", type=int, default=None, help="optional, The end row of the query to run, not included")
+  parser.add_argument("--log-level", default="INFO", help="optional, Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL, default: INFO)")
 
   args = parser.parse_args()
 
@@ -271,7 +273,8 @@ def main():
     timeout=args.timeout,
     output_file=args.output_file,
     start_row=args.start_row,
-    end_row=args.end_row
+    end_row=args.end_row,
+    log_level=args.log_level,
   )
 
   # Register signal handlers to generate report on interrupt

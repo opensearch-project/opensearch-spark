@@ -53,8 +53,10 @@ options:
                         optional, Check interval in seconds (default: 10)
   --timeout TIMEOUT     optional, Timeout in seconds (default: 600)
   --start-row START_ROW
-                        optionl, The start row of the query to run, start from 0
-  --end-row END_ROW     optional, The end row of the query to run
+                        optional, The start row of the query to run, start from 1
+  --end-row END_ROW     optional, The end row of the query to run, not included
+  --log-level LOG_LEVEL
+                        optional, Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL, default: INFO)
 ```
 
 ### Input CSV File
