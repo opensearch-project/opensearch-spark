@@ -467,4 +467,33 @@ class FlintSparkPPLFiltersITSuite
     val expectedPlan = Project(Seq(UnresolvedAttribute("state")), filter)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
+
+  test("test parenthesis in filter") {
+    val frame = sql(s"""
+                       | source = $testTable | where country = 'Canada' or age > 60 and age < 25 | fields name, age, country
+                       | """.stripMargin)
+    assertSameRows(Seq(Row("John", 25, "Canada"), Row("Jane", 20, "Canada")), frame)
+
+    val frameWithParenthesis = sql(s"""
+                       | source = $testTable | where (country = 'Canada' or age > 60) and age < 25 | fields name, age, country
+                       | """.stripMargin)
+    assertSameRows(Seq(Row("Jane", 20, "Canada")), frameWithParenthesis)
+
+    val logicalPlan: LogicalPlan = frameWithParenthesis.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val filter = Filter(
+      And(
+        Or(
+          EqualTo(UnresolvedAttribute("country"), Literal("Canada")),
+          GreaterThan(UnresolvedAttribute("age"), Literal(60))),
+        LessThan(UnresolvedAttribute("age"), Literal(25))),
+      table)
+    val expectedPlan = Project(
+      Seq(
+        UnresolvedAttribute("name"),
+        UnresolvedAttribute("age"),
+        UnresolvedAttribute("country")),
+      filter)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
 }
