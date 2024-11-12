@@ -136,6 +136,17 @@ public final class MetricConstants {
     public static final String QUERY_EXECUTION_TIME_METRIC = "query.execution.processingTime";
 
     /**
+     * Metric for query count of each query type (DROP/VACUUM/ALTER/REFRESH/CREATE INDEX)
+     */
+    public static final String QUERY_DROP_COUNT_METRIC = "query.drop.count";
+    public static final String QUERY_VACUUM_COUNT_METRIC = "query.vacuum.count";
+    public static final String QUERY_ALTER_COUNT_METRIC = "query.alter.count";
+    public static final String QUERY_REFRESH_COUNT_METRIC = "query.refresh.count";
+    public static final String QUERY_CREATE_INDEX_COUNT_METRIC = "query.createIndex.count";
+    public static final String QUERY_CREATE_INDEX_AUTO_REFRESH_COUNT_METRIC = "query.createIndex.autoRefresh.count";
+    public static final String QUERY_CREATE_INDEX_MANUAL_REFRESH_COUNT_METRIC = "query.createIndex.manualRefresh.count";
+
+    /**
      * Metric for tracking the total bytes read from input
      */
     public static final String INPUT_TOTAL_BYTES_READ = "input.totalBytesRead.count";

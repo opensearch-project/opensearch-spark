@@ -14,7 +14,7 @@ import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind.{BLOOM_FILTER, MIN_MAX, PARTITION, VALUE_SET}
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy.VALUE_SET_MAX_SIZE_KEY
-import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
+import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, IndexMetricHelper, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
@@ -26,7 +26,9 @@ import org.apache.spark.sql.types.StringType
 /**
  * Flint Spark AST builder that builds Spark command for Flint skipping index statement.
  */
-trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
+trait FlintSparkSkippingIndexAstBuilder
+    extends FlintSparkSqlExtensionsVisitor[AnyRef]
+    with IndexMetricHelper {
   self: SparkSqlAstBuilder =>
 
   override def visitCreateSkippingIndexStatement(
@@ -73,6 +75,8 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
       val indexOptions = visitPropertyList(ctx.propertyList())
       val indexName = getSkippingIndexName(flint, ctx.tableName)
 
+      emitCreateIndexMetric(indexOptions.autoRefresh())
+
       indexBuilder
         .options(indexOptions, indexName)
         .create(ignoreIfExists)
@@ -88,6 +92,7 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
   override def visitRefreshSkippingIndexStatement(
       ctx: RefreshSkippingIndexStatementContext): Command =
     FlintSparkSqlCommand() { flint =>
+      emitRefreshIndexMetric()
       val indexName = getSkippingIndexName(flint, ctx.tableName)
       flint.refreshIndex(indexName)
       Seq.empty
@@ -115,6 +120,7 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
   override def visitAlterSkippingIndexStatement(
       ctx: AlterSkippingIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
+      emitAlterIndexMetric()
       val indexName = getSkippingIndexName(flint, ctx.tableName)
       val indexOptions = visitPropertyList(ctx.propertyList())
       val index = flint
@@ -142,6 +148,7 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
 
   override def visitDropSkippingIndexStatement(ctx: DropSkippingIndexStatementContext): Command =
     FlintSparkSqlCommand() { flint =>
+      emitDropIndexMetric()
       val indexName = getSkippingIndexName(flint, ctx.tableName)
       flint.deleteIndex(indexName)
       Seq.empty
@@ -150,6 +157,7 @@ trait FlintSparkSkippingIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
   override def visitVacuumSkippingIndexStatement(
       ctx: VacuumSkippingIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
+      emitVacuumIndexMetric()
       val indexName = getSkippingIndexName(flint, ctx.tableName)
       flint.vacuumIndex(indexName)
       Seq.empty
