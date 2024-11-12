@@ -138,25 +138,32 @@ class PPLLogicalPlanTrendlineCommandTranslatorTestSuite
   test("WMA - with sort") {
     val context = new CatalystPlanContext
     val logPlan =
-    planTransformer.visit(plan(pplParser, "source=relation | trendline sort age wma(3, age)"), context)
+      planTransformer.visit(
+        plan(pplParser, "source=relation | trendline sort age wma(3, age)"),
+        context)
 
-    val dividend = Add(Add(getNthValueAggregation("age", "age", 1, -2),
-                getNthValueAggregation("age", "age", 2, -2)),
-                getNthValueAggregation("age", "age", 3, -2))
+    val dividend = Add(
+      Add(
+        getNthValueAggregation("age", "age", 1, -2),
+        getNthValueAggregation("age", "age", 2, -2)),
+      getNthValueAggregation("age", "age", 3, -2))
     val wmaExpression = Divide(dividend, Literal(6))
     val trendlineProjectList = Seq(UnresolvedStar(None), Alias(wmaExpression, "age_trendline")())
     val sortedTable = Sort(
-          Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, UnresolvedRelation(Seq("relation")))
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), Project(trendlineProjectList, sortedTable))
+      Seq(SortOrder(UnresolvedAttribute("age"), Ascending)),
+      global = true,
+      UnresolvedRelation(Seq("relation")))
+    val expectedPlan =
+      Project(Seq(UnresolvedStar(None)), Project(trendlineProjectList, sortedTable))
+
     /**
-     * Expected logical plan:
-     * 'Project [*]
-     * !+- 'Project [*, (((
-     *      ('nth_value('age, 1) windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2, currentrow$())) * 1) +
-     *      ('nth_value('age, 2) windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2, currentrow$())) * 2)) +
-     *      ('nth_value('age, 3) windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2, currentrow$())) * 3)) / 6) AS age_trendline#0]
-     * !   +- 'Sort ['age ASC NULLS FIRST], true
-     * !      +- 'UnresolvedRelation [relation], [], false
+     * Expected logical plan: 'Project [*] !+- 'Project [*, ((( ('nth_value('age, 1)
+     * windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2,
+     * currentrow$())) * 1) + ('nth_value('age, 2) windowspecdefinition('age ASC NULLS FIRST,
+     * specifiedwindowframe(RowFrame, -2, currentrow$())) * 2)) + ('nth_value('age, 3)
+     * windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2,
+     * currentrow$())) * 3)) / 6) AS age_trendline#0] ! +- 'Sort ['age ASC NULLS FIRST], true ! +-
+     * 'UnresolvedRelation [relation], [], false
      */
     comparePlans(logPlan, expectedPlan, checkAnalysis = false)
   }
@@ -164,28 +171,34 @@ class PPLLogicalPlanTrendlineCommandTranslatorTestSuite
   test("WMA - with sort and alias") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=relation | trendline sort age wma(3, age) as TEST_CUSTOM_COLUMN"), context)
+      planTransformer.visit(
+        plan(pplParser, "source=relation | trendline sort age wma(3, age) as TEST_CUSTOM_COLUMN"),
+        context)
 
-    val dividend = Add(Add(getNthValueAggregation("age", "age", 1, -2),
-      getNthValueAggregation("age", "age", 2, -2)),
+    val dividend = Add(
+      Add(
+        getNthValueAggregation("age", "age", 1, -2),
+        getNthValueAggregation("age", "age", 2, -2)),
       getNthValueAggregation("age", "age", 3, -2))
     val wmaExpression = Divide(dividend, Literal(6))
-    val trendlineProjectList = Seq(UnresolvedStar(None), Alias(wmaExpression, "TEST_CUSTOM_COLUMN")())
+    val trendlineProjectList =
+      Seq(UnresolvedStar(None), Alias(wmaExpression, "TEST_CUSTOM_COLUMN")())
     val sortedTable = Sort(
-      Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true,
+      Seq(SortOrder(UnresolvedAttribute("age"), Ascending)),
+      global = true,
       UnresolvedRelation(Seq("relation")))
 
     /**
-     * Expected logical plan:
-     * 'Project [*]
-     * !+- 'Project [*, (((
-     *      ('nth_value('age, 1) windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2, currentrow$())) * 1) +
-     *      ('nth_value('age, 2) windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2, currentrow$())) * 2)) +
-     *      ('nth_value('age, 3) windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2, currentrow$())) * 3)) / 6) AS TEST_CUSTOM_COLUMN#0]
-     * !   +- 'Sort ['age ASC NULLS FIRST], true
-     * !      +- 'UnresolvedRelation [relation], [], false
+     * Expected logical plan: 'Project [*] !+- 'Project [*, ((( ('nth_value('age, 1)
+     * windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2,
+     * currentrow$())) * 1) + ('nth_value('age, 2) windowspecdefinition('age ASC NULLS FIRST,
+     * specifiedwindowframe(RowFrame, -2, currentrow$())) * 2)) + ('nth_value('age, 3)
+     * windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2,
+     * currentrow$())) * 3)) / 6) AS TEST_CUSTOM_COLUMN#0] ! +- 'Sort ['age ASC NULLS FIRST], true
+     * ! +- 'UnresolvedRelation [relation], [], false
      */
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), Project(trendlineProjectList, sortedTable))
+    val expectedPlan =
+      Project(Seq(UnresolvedStar(None)), Project(trendlineProjectList, sortedTable))
     comparePlans(logPlan, expectedPlan, checkAnalysis = false)
 
   }
@@ -193,50 +206,67 @@ class PPLLogicalPlanTrendlineCommandTranslatorTestSuite
   test("WMA - multiple trendline commands") {
     val context = new CatalystPlanContext
     val logPlan =
-      planTransformer.visit(plan(pplParser, "source=relation | trendline sort age wma(2, age) as two_points_wma wma(3, age) as three_points_wma"), context)
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source=relation | trendline sort age wma(2, age) as two_points_wma wma(3, age) as three_points_wma"),
+        context)
 
-    val dividendTwo = Add(getNthValueAggregation("age", "age", 1, -1),
+    val dividendTwo = Add(
+      getNthValueAggregation("age", "age", 1, -1),
       getNthValueAggregation("age", "age", 2, -1))
     val twoPointsExpression = Divide(dividendTwo, Literal(3))
 
-    val dividend = Add(Add(getNthValueAggregation("age", "age", 1, -2),
-      getNthValueAggregation("age", "age", 2, -2)),
+    val dividend = Add(
+      Add(
+        getNthValueAggregation("age", "age", 1, -2),
+        getNthValueAggregation("age", "age", 2, -2)),
       getNthValueAggregation("age", "age", 3, -2))
     val threePointsExpression = Divide(dividend, Literal(6))
-    val trendlineProjectList = Seq(UnresolvedStar(None), Alias(twoPointsExpression, "two_points_wma")(), Alias(threePointsExpression, "three_points_wma")())
+    val trendlineProjectList = Seq(
+      UnresolvedStar(None),
+      Alias(twoPointsExpression, "two_points_wma")(),
+      Alias(threePointsExpression, "three_points_wma")())
     val sortedTable = Sort(
-      Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true,
+      Seq(SortOrder(UnresolvedAttribute("age"), Ascending)),
+      global = true,
       UnresolvedRelation(Seq("relation")))
+
     /**
-     * Expected logical plan:
-     * 'Project [*]
-     * +- 'Project [*, ((
-     *    ('nth_value('age, 1) windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -1, currentrow$())) * 1) +
-     *    ('nth_value('age, 2) windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -1, currentrow$())) * 2)) / 3) AS two_points_wma#0,
+     * Expected logical plan: 'Project [*] +- 'Project [*, (( ('nth_value('age, 1)
+     * windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -1,
+     * currentrow$())) * 1) + ('nth_value('age, 2) windowspecdefinition('age ASC NULLS FIRST,
+     * specifiedwindowframe(RowFrame, -1, currentrow$())) * 2)) / 3) AS two_points_wma#0,
      *
-     * (((
-     *    ('nth_value('age, 1) windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2, currentrow$())) * 1) +
-     *    ('nth_value('age, 2) windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2, currentrow$())) * 2)) +
-     *    ('nth_value('age, 3) windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2, currentrow$())) * 3)) / 6) AS three_points_wma#1]
-     * +- 'Sort ['age ASC NULLS FIRST], true
-     * +- 'UnresolvedRelation [relation], [], false
+     * ((( ('nth_value('age, 1) windowspecdefinition('age ASC NULLS FIRST,
+     * specifiedwindowframe(RowFrame, -2, currentrow$())) * 1) + ('nth_value('age, 2)
+     * windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2,
+     * currentrow$())) * 2)) + ('nth_value('age, 3) windowspecdefinition('age ASC NULLS FIRST,
+     * specifiedwindowframe(RowFrame, -2, currentrow$())) * 3)) / 6) AS three_points_wma#1] +-
+     * 'Sort ['age ASC NULLS FIRST], true +- 'UnresolvedRelation [relation], [], false
      */
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), Project(trendlineProjectList, sortedTable))
+    val expectedPlan =
+      Project(Seq(UnresolvedStar(None)), Project(trendlineProjectList, sortedTable))
     comparePlans(logPlan, expectedPlan, checkAnalysis = false)
 
   }
 
-  private def getNthValueAggregation(dataField: String, sortField: String, lookBackPos: Int, lookBackRange: Int): Expression = {
+  private def getNthValueAggregation(
+      dataField: String,
+      sortField: String,
+      lookBackPos: Int,
+      lookBackRange: Int): Expression = {
     Multiply(
       WindowExpression(
-        UnresolvedFunction("nth_value", Seq(UnresolvedAttribute(dataField), Literal(lookBackPos)), isDistinct = false),
+        UnresolvedFunction(
+          "nth_value",
+          Seq(UnresolvedAttribute(dataField), Literal(lookBackPos)),
+          isDistinct = false),
         WindowSpecDefinition(
           Seq(),
           seq(SortUtils.sortOrder(UnresolvedAttribute(sortField), true)),
-          SpecifiedWindowFrame(RowFrame, Literal(lookBackRange), CurrentRow)
-        )),
+          SpecifiedWindowFrame(RowFrame, Literal(lookBackRange), CurrentRow))),
       Literal(lookBackPos))
   }
-
 
 }
