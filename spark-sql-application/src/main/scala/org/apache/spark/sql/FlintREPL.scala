@@ -17,7 +17,7 @@ import com.codahale.metrics.Timer
 import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession, SessionStates}
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.logging.CustomLogging
-import org.opensearch.flint.core.metrics.{MetricConstants, ReadWriteBytesSparkListener}
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil, ReadWriteBytesSparkListener}
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 
 import org.apache.spark.SparkConf
@@ -57,6 +57,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
   private val sessionRunningCount = new AtomicInteger(0)
   private val statementRunningCount = new AtomicInteger(0)
+  private var queryCountMetric = 0
 
   def main(args: Array[String]) {
     val (queryOption, resultIndexOption) = parseArgs(args)
@@ -365,6 +366,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       if (threadPool != null) {
         threadPoolFactory.shutdownThreadPool(threadPool)
       }
+      MetricsUtil.addHistoricGauge(MetricConstants.REPL_QUERY_COUNT_METRIC, queryCountMetric)
     }
   }
 
@@ -521,6 +523,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
             flintStatement.running()
             statementExecutionManager.updateStatement(flintStatement)
             statementRunningCount.incrementAndGet()
+            queryCountMetric += 1
 
             val statementTimerContext = getTimerContext(
               MetricConstants.STATEMENT_PROCESSING_TIME_METRIC)
