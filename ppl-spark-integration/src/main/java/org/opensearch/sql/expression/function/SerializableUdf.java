@@ -9,7 +9,6 @@ import com.google.common.cache.Cache;
 import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddressString;
 import inet.ipaddr.IPAddressStringParameters;
-import org.apache.spark.sql.Row;
 import org.opensearch.sql.common.geospatial.CidrGeoMap;
 import org.opensearch.sql.common.geospatial.DatasourceDao;
 import org.opensearch.sql.common.geospatial.DatasourceDaoFactory;
@@ -62,12 +61,12 @@ public interface SerializableUdf {
         }
     };
 
-    Function3<String, String, String, Row> geoIpFunction = new SerializableAbstractFunction3<>() {
+    Function3<String, String, List<String>, GeoIpData> geoIpFunction = new SerializableAbstractFunction3<>() {
 
         @Override
-        public Row apply(String datasource, String ipAddress, String properties) {
+        public GeoIpData apply(String datasource, String ipAddress, List<String> properties) {
 
-            GeoIpData result = null;
+            GeoIpData results = null;
 
             Cache<String, CidrGeoMap> geoIpCache = GeoIpCache.getInstance().cache;
             CidrGeoMap cidrGeoMap = geoIpCache.getIfPresent(datasource);
@@ -79,14 +78,10 @@ public interface SerializableUdf {
             }
 
             try {
-                result =  cidrGeoMap.lookup(ipAddress);
+                return cidrGeoMap.lookup(ipAddress);
             } catch (UnknownHostException e) {
                 throw new RuntimeException("The given ipAddress '"+ipAddress+"' is invalid. It must be a valid IPv4 or IPv6 address. Error details: "+e.getMessage());
             }
-
-            //TODO: throw exception if results are null.
-
-            return result.getRow();
         }
     };
 
