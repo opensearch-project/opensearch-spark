@@ -1,41 +1,58 @@
 package org.opensearch.sql.common.geospatial;
 
+import javafx.util.Pair;
+
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.BitSet;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-public class CidrGeoMap extends HashMap<String, GeoIpData> {
+public class CidrGeoMap {
 
-    private String toBinaryString(String ip) {
-        StringBuilder binary = new StringBuilder();
-        for (String octet : ip.split("\\.")) {
-            binary.append(String.format("%8s", Integer.toBinaryString(Integer.parseInt(octet)))
-                    .replace(' ', '0'));
-        }
-        return binary.toString();
+    private HashMap<BitSet, GeoIpData> cidrGeoMap;
+
+    public CidrGeoMap(DatasourceDao datasourceDao) {
+        Stream<Pair<BitSet, GeoIpData>> dataStream = datasourceDao.getGeoIps();
+        cidrGeoMap = dataStream.collect(
+                Collectors.toMap(
+                        pair -> pair.getKey(),
+                        pair -> pair.getValue(),
+                        (existing, replacement) -> existing,
+                        HashMap::new
+                )
+        );
     }
 
-    @Override
-    public GeoIpData put(String cidr, GeoIpData data) {
-        String[] parts = cidr.split("/");
-        String cidrKey = toBinaryString(parts[0]);
-        int prefixLength = Integer.parseInt(parts[1]);
-        cidrKey = cidrKey.substring(0, prefixLength - 1);
-
-        super.put(cidrKey, data);
-
-        return data;
-    }
-
-    @Override
-    public GeoIpData get(Object ipAddress) {
-        String binaryIP = toBinaryString(ipAddress.toString());
+    public GeoIpData lookup(String ipAddress) throws UnknownHostException {
+        BitSet binaryIP = ipStringToBitSet(ipAddress);
 
         GeoIpData res = null;
 
         while (binaryIP.length() > 0 && res == null) {
-            res = super.get(binaryIP);
-            binaryIP = binaryIP.substring(0, binaryIP.length() - 2);
+            res = cidrGeoMap.get(binaryIP);
+            binaryIP = binaryIP.get(0, binaryIP.length() - 2);
         }
+
+        // TODO: throw error if no results found
+
+        return res;
+    }
+
+    private void put(String cidr, GeoIpData data) throws UnknownHostException {
+        String[] parts = cidr.split("/");
+        BitSet cidrKey = ipStringToBitSet(parts[0]);
+        int prefixLength = Integer.parseInt(parts[1]);
+        cidrKey = cidrKey.get(0, prefixLength - 1);
+
+        cidrGeoMap.put(cidrKey, data);
+    }
+
+    private BitSet ipStringToBitSet(String ipAddress) throws UnknownHostException {
+        InetAddress inetAddress = InetAddress.getByName(ipAddress);
+        byte[] bytes = inetAddress.getAddress();
+        return BitSet.valueOf(bytes);
     }
 }
 
