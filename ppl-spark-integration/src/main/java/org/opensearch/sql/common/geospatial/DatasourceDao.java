@@ -5,7 +5,7 @@
 
 package org.opensearch.sql.common.geospatial;
 
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.BitSet;
 import java.util.stream.Stream;

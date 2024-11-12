@@ -5,12 +5,25 @@
 
 package org.opensearch.sql.common.geospatial;
 
+import static org.opensearch.sql.common.geospatial.DatasourceDao.createCidrBitSet;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
+import java.util.BitSet;
+import java.util.Map;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
-import org.apache.commons.CSVParser;
-import org.apache.commons.CSVRecord;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class ManifestDao implements DatasourceDao {
 
@@ -24,13 +37,12 @@ public class ManifestDao implements DatasourceDao {
   private final DatasourceManifest manifest;
   private CSVParser manifestCsv;
 
-  public ManifestDao() {
+  public ManifestDao() throws MalformedURLException {
     manifest = DatasourceManifest.Builder.build(new URL(DATASOURCE_ENDPOINT));
   }
 
   @Override
-  public Stream<Pair<String, GeoIpCache>> getGeoIps(String datasource) {
-    // TODO: Check the datasource against the manifest.
+  public Stream<Pair<BitSet, GeoIpData>> getGeoIps() {
     manifestCsv = getDatabaseReader(manifest);
 
     Map<String, Integer> headerMap = manifestCsv.getHeaderMap();
@@ -46,9 +58,9 @@ public class ManifestDao implements DatasourceDao {
     int lon_index              = headerMap.get("lon");
 
     return StreamSupport.stream(manifestCsv.spliterator(), false)
-        .map(CSVRecord record -> {
-          return new Pair(
-              DatasourceDao.createCidrBitSet(record.get(cidr_index)),
+        .map(record -> {
+          return Pair.of(
+              createCidrBitSet(record.get(cidr_index)),
               GeoIpData.builder()
                 .country_iso_code(record.get(country_iso_code_index))
                 .country_name(record.get(country_name_index))
@@ -77,20 +89,17 @@ public class ManifestDao implements DatasourceDao {
    * @param manifest Datasource manifest
    * @return CSVParser for GeoIP data
    */
-  @SuppressForbidden(reason = "Need to connect to http endpoint to read GeoIP database file")
   public CSVParser getDatabaseReader(final DatasourceManifest manifest) {
     try {
       URL zipUrl = new URL(manifest.getUrl());
       return internalGetDatabaseReader(manifest, zipUrl.openConnection());
     } catch (IOException e) {
-      throw new OpenSearchException("failed to read geoip data from {}", manifest.getUrl(), e);
+      throw new RuntimeException(String.format("failed to read geoip data from %s", manifest.getUrl()), e);
     }
   }
 
-  @VisibleForTesting
-  @SuppressForbidden(reason = "Need to connect to http endpoint to read GeoIP database file")
   protected CSVParser internalGetDatabaseReader(final DatasourceManifest manifest, final URLConnection connection) throws IOException {
-    connection.addRequestProperty(Constants.USER_AGENT_KEY, Constants.USER_AGENT_VALUE);
+  //  connection.addRequestProperty(Constants.USER_AGENT_KEY, Constants.USER_AGENT_VALUE);
     ZipInputStream zipIn = new ZipInputStream(connection.getInputStream());
     ZipEntry zipEntry = zipIn.getNextEntry();
     while (zipEntry != null) {
@@ -100,6 +109,6 @@ public class ManifestDao implements DatasourceDao {
       }
       return new CSVParser(new BufferedReader(new InputStreamReader(zipIn)), CSVFormat.RFC4180);
     }
-    throw new OpenSearchException("database file [{}] does not exist in the zip file [{}]", manifest.getDbName(), manifest.getUrl());
+    throw new RuntimeException(String.format("database file [%s] does not exist in the zip file [%s]", manifest.getDbName(), manifest.getUrl()));
   }
 }

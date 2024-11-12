@@ -78,14 +78,10 @@ public interface SerializableUdf {
             }
 
             try {
-                results =  cidrGeoMap.lookup(ipAddress);
+                return cidrGeoMap.lookup(ipAddress);
             } catch (UnknownHostException e) {
                 throw new RuntimeException("The given ipAddress '"+ipAddress+"' is invalid. It must be a valid IPv4 or IPv6 address. Error details: "+e.getMessage());
             }
-
-            //TODO: throw exception if results are null.
-
-            return results;
         }
     };
 

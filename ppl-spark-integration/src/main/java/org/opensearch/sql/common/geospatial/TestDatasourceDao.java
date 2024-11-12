@@ -1,6 +1,6 @@
 package org.opensearch.sql.common.geospatial;
 
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.BitSet;
 import java.util.stream.Stream;
@@ -23,8 +23,8 @@ public class TestDatasourceDao implements DatasourceDao {
         BitSet bitSet2 = DatasourceDao.createCidrBitSet("10.0.0.0/8");     // Example CIDR mask
 
         return Stream.of(
-                new Pair<BitSet, GeoIpData>(bitSet1, geoIp1),
-                new Pair<BitSet, GeoIpData>(bitSet2, geoIp2)
+                Pair.of(bitSet1, geoIp1),
+                Pair.of(bitSet2, geoIp2)
         );
     }
 
