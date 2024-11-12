@@ -20,6 +20,7 @@ import scala.Serializable;
 import scala.runtime.AbstractFunction2;
 import scala.runtime.AbstractFunction3;
 
+import java.net.UnknownHostException;
 import java.util.List;
 
 public interface SerializableUdf {
@@ -65,16 +66,22 @@ public interface SerializableUdf {
         @Override
         public GeoIpData apply(String datasource, String ipAddress, List<String> properties) {
 
+            GeoIpData results = null;
+
             Cache<String, CidrGeoMap> geoIpCache = GeoIpCache.getInstance().cache;
             CidrGeoMap cidrGeoMap = geoIpCache.getIfPresent(datasource);
 
             if (cidrGeoMap == null) {
                 DatasourceDao datasourceDao = DatasourceDaoFactory.GetDatasourceDaoFactory(datasource);
-                CidrGeoMap cidrGeoMap = new CidrGeoMap(datasourceDao);
+                cidrGeoMap = new CidrGeoMap(datasourceDao);
                 geoIpCache.put(datasource, cidrGeoMap);
             }
 
-            GeoIpData results = cidrGeoMap.lookup(ipAddress);
+            try {
+                results =  cidrGeoMap.lookup(ipAddress);
+            } catch (UnknownHostException e) {
+                throw new RuntimeException("The given ipAddress '"+ipAddress+"' is invalid. It must be a valid IPv4 or IPv6 address. Error details: "+e.getMessage());
+            }
 
             //TODO: throw exception if results are null.
 
