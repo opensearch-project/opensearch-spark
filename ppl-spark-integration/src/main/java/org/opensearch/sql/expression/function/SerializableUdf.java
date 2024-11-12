@@ -5,9 +5,15 @@
 
 package org.opensearch.sql.expression.function;
 
+import com.google.common.cache.Cache;
 import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddressString;
 import inet.ipaddr.IPAddressStringParameters;
+import org.opensearch.sql.common.geospatial.CidrGeoMap;
+import org.opensearch.sql.common.geospatial.DatasourceDao;
+import org.opensearch.sql.common.geospatial.DatasourceDaoFactory;
+import org.opensearch.sql.common.geospatial.GeoIpCache;
+import org.opensearch.sql.common.geospatial.GeoIpData;
 import scala.Function2;
 import scala.Function3;
 import scala.Serializable;
@@ -15,7 +21,6 @@ import scala.runtime.AbstractFunction2;
 import scala.runtime.AbstractFunction3;
 
 import java.util.List;
-
 
 public interface SerializableUdf {
 
@@ -55,17 +60,23 @@ public interface SerializableUdf {
         }
     };
 
-    Function3<String, String, List<String>, Object> geoIpFunction = new SerializableAbstractFunction3<>() {
+    Function3<String, String, List<String>, GeoIpData> geoIpFunction = new SerializableAbstractFunction3<>() {
 
         @Override
-        public Object apply(String datasource, String ipAddress, List<String> properties) {
-            Object results = "geoip data";
+        public GeoIpData apply(String datasource, String ipAddress, List<String> properties) {
 
-            //TODO:
-            //  1. Check if in-memory cache object for datasource exists.
-            //  2. If cache object does not exists create new in-memory cache object from csv retrieved from datasource manifest.
-            //  3. Search cached object for GeoIP data.
-            //  4. Return GeoIP data.
+            Cache<String, CidrGeoMap> geoIpCache = GeoIpCache.getInstance().cache;
+            CidrGeoMap cidrGeoMap = geoIpCache.getIfPresent(datasource);
+
+            if (cidrGeoMap == null) {
+                DatasourceDao datasourceDao = DatasourceDaoFactory.GetDatasourceDaoFactory(datasource);
+                CidrGeoMap cidrGeoMap = new CidrGeoMap(datasourceDao);
+                geoIpCache.put(datasource, cidrGeoMap);
+            }
+
+            GeoIpData results = cidrGeoMap.lookup(ipAddress);
+
+            //TODO: throw exception if results are null.
 
             return results;
         }
