@@ -10,7 +10,7 @@ import scala.collection.JavaConverters.mapAsScalaMapConverter
 import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.spark.FlintSparkIndexOptions
-import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getSourceTablesFromMetadata, MV_INDEX_TYPE}
 import org.opensearch.flint.spark.scheduler.util.IntervalSchedulerParser
 
 /**
@@ -61,12 +61,7 @@ object FlintMetadataCache {
       None
     }
     val sourceTables = metadata.kind match {
-      case MV_INDEX_TYPE =>
-        metadata.properties.get("sourceTables") match {
-          case list: java.util.ArrayList[_] =>
-            list.toArray.map(_.toString)
-          case _ => Array.empty[String]
-        }
+      case MV_INDEX_TYPE => getSourceTablesFromMetadata(metadata)
       case _ => Array(metadata.source)
     }
     val lastRefreshTime: Option[Long] = metadata.latestLogEntry.flatMap { entry =>
