@@ -18,7 +18,7 @@ import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
 import org.opensearch.flint.spark.FlintSparkIndex.quotedTableName
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
-import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{extractSourceTableNames, getFlintIndexName}
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{extractSourceTablesFromQuery, getFlintIndexName, getSourceTablesFromMetadata, MV_INDEX_TYPE}
 import org.opensearch.flint.spark.scheduler.OpenSearchAsyncQueryScheduler
 import org.scalatest.matchers.must.Matchers._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -65,14 +65,76 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
         | FROM spark_catalog.default.`table/3`
         | INNER JOIN spark_catalog.default.`table.4`
         |""".stripMargin
-    extractSourceTableNames(flint.spark, testComplexQuery) should contain theSameElementsAs
+    extractSourceTablesFromQuery(flint.spark, testComplexQuery) should contain theSameElementsAs
       Array(
         "spark_catalog.default.table1",
         "spark_catalog.default.table2",
         "spark_catalog.default.`table/3`",
         "spark_catalog.default.`table.4`")
 
-    extractSourceTableNames(flint.spark, "SELECT 1") should have size 0
+    extractSourceTablesFromQuery(flint.spark, "SELECT 1") should have size 0
+  }
+
+  test("get source table names from index metadata successfully") {
+    val mv = FlintSparkMaterializedView(
+      "spark_catalog.default.mv",
+      s"SELECT 1 FROM $testTable",
+      Array(testTable),
+      Map("1" -> "integer"))
+    val metadata = mv.metadata()
+    getSourceTablesFromMetadata(metadata) should contain theSameElementsAs Array(testTable)
+  }
+
+  test("get source table names from deserialized metadata successfully") {
+    val metadata = FlintOpenSearchIndexMetadataService.deserialize(s""" {
+        |   "_meta": {
+        |     "kind": "$MV_INDEX_TYPE",
+        |     "properties": {
+        |       "sourceTables": [
+        |         "$testTable"
+        |       ]
+        |     }
+        |   },
+        |   "properties": {
+        |     "age": {
+        |       "type": "integer"
+        |     }
+        |   }
+        | }
+        |""".stripMargin)
+    getSourceTablesFromMetadata(metadata) should contain theSameElementsAs Array(testTable)
+  }
+
+  test("get empty source tables from invalid field in metadata") {
+    val metadataWrongType = FlintOpenSearchIndexMetadataService.deserialize(s""" {
+        |   "_meta": {
+        |     "kind": "$MV_INDEX_TYPE",
+        |     "properties": {
+        |       "sourceTables": "$testTable"
+        |     }
+        |   },
+        |   "properties": {
+        |     "age": {
+        |       "type": "integer"
+        |     }
+        |   }
+        | }
+        |""".stripMargin)
+    val metadataMissingField = FlintOpenSearchIndexMetadataService.deserialize(s""" {
+        |   "_meta": {
+        |     "kind": "$MV_INDEX_TYPE",
+        |     "properties": { }
+        |   },
+        |   "properties": {
+        |     "age": {
+        |       "type": "integer"
+        |     }
+        |   }
+        | }
+        |""".stripMargin)
+
+    getSourceTablesFromMetadata(metadataWrongType) shouldBe empty
+    getSourceTablesFromMetadata(metadataMissingField) shouldBe empty
   }
 
   test("create materialized view with metadata successfully") {
