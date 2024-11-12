@@ -14,7 +14,7 @@ public class Flatten extends UnresolvedPlan {
     private UnresolvedPlan child;
 
     @Getter
-    private final Field fieldToBeFlattened;
+    private final Field field;
 
     @Override
     public UnresolvedPlan attach(UnresolvedPlan child) {
@@ -26,7 +26,7 @@ public class Flatten extends UnresolvedPlan {
     public List<? extends Node> getChild() {
         return child == null ? List.of() : List.of(child);
     }
-
+    
     @Override
     public <T, C> T accept(AbstractNodeVisitor<T, C> nodeVisitor, C context) {
         return nodeVisitor.visitFlatten(this, context);

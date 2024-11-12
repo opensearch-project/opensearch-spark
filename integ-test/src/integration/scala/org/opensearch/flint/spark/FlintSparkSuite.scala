@@ -559,6 +559,28 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            |""".stripMargin)
   }
 
+  protected def createMultiColumnArrayTable(testTable: String): Unit = {
+    // CSV doesn't support struct field
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   int_col INT,
+           |   multi_valueA Array<STRUCT<name: STRING, value: INT>>,
+           |   multi_valueB Array<STRUCT<name: STRING, value: INT>>
+           | )
+           | USING JSON
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES
+           | ( 1, array(STRUCT("1_one", 1), STRUCT(null, 11), STRUCT("1_three", null)),  array(STRUCT("2_Monday", 2), null) ),
+           | ( 2, array(STRUCT("2_Monday", 2), null) , array(STRUCT("3_third", 3), STRUCT("3_4th", 4)) ),
+           | ( 3, array(STRUCT("3_third", 3), STRUCT("3_4th", 4)) , array(STRUCT("1_one", 1))),
+           | ( 4, null, array(STRUCT("1_one", 1)))
+           |""".stripMargin)
+  }
+
   protected def createTableIssue112(testTable: String): Unit = {
     sql(s"""
            | CREATE TABLE $testTable (
