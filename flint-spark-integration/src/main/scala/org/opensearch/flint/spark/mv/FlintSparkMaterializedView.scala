@@ -7,8 +7,7 @@ package org.opensearch.flint.spark.mv
 
 import java.util.Locale
 
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`map AsScala`
 
 import org.opensearch.flint.common.metadata.FlintMetadata
@@ -66,10 +65,14 @@ case class FlintSparkMaterializedView(
       }.toArray
     val schema = generateSchema(outputSchema).asJava
 
+    // Convert Scala Array to Java ArrayList for consistency with OpenSearch JSON parsing.
+    // OpenSearch uses Jackson, which deserializes JSON arrays into ArrayLists.
+    val sourceTablesProperty = new java.util.ArrayList[String](sourceTables.toSeq.asJava)
+
     metadataBuilder(this)
       .name(mvName)
       .source(query)
-      .addProperty("sourceTables", sourceTables)
+      .addProperty("sourceTables", sourceTablesProperty)
       .indexedColumns(indexColumnMaps)
       .schema(schema)
       .build()
@@ -203,19 +206,16 @@ object FlintSparkMaterializedView extends Logging {
    */
   def getSourceTablesFromMetadata(metadata: FlintMetadata): Array[String] = {
     logInfo(s"Getting source tables from metadata $metadata")
-    metadata.properties.get("sourceTables") match {
+    val sourceTables = metadata.properties.get("sourceTables")
+    sourceTables match {
       case list: java.util.ArrayList[_] =>
-        logInfo(s"sourceTables is java.util.ArrayList: [${list.asScala.mkString(", ")}]")
+        logInfo(s"sourceTables is [${list.asScala.mkString(", ")}]")
         list.toArray.map(_.toString)
-      case array: Array[_] =>
-        logInfo(s"sourceTables is Array: [${array.mkString(", ")}]")
-        array.map(_.toString)
       case null =>
         logInfo("sourceTables property does not exist")
         Array.empty[String]
       case _ =>
-        logInfo(
-          s"sourceTables is of type: ${metadata.properties.get("sourceTables").getClass.getName}")
+        logInfo(s"sourceTables has unexpected type: ${sourceTables.getClass.getName}")
         Array.empty[String]
     }
   }

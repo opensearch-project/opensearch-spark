@@ -82,7 +82,6 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
       Array(testTable),
       Map("1" -> "integer"))
     val metadata = mv.metadata()
-    metadata.properties.get("sourceTables") shouldBe a[Array[String]]
     getSourceTablesFromMetadata(metadata) should contain theSameElementsAs Array(testTable)
   }
 
@@ -103,7 +102,6 @@ class FlintSparkMaterializedViewITSuite extends FlintSparkSuite {
         |   }
         | }
         |""".stripMargin)
-    metadata.properties.get("sourceTables") shouldBe a[java.util.ArrayList[String]]
     getSourceTablesFromMetadata(metadata) should contain theSameElementsAs Array(testTable)
   }
 

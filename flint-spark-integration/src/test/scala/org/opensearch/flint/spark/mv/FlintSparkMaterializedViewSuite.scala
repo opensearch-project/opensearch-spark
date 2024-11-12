@@ -64,7 +64,9 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     metadata.kind shouldBe MV_INDEX_TYPE
     metadata.source shouldBe "SELECT 1"
     metadata.properties should contain key "sourceTables"
-    metadata.properties.get("sourceTables").asInstanceOf[Array[String]] should have size 0
+    metadata.properties
+      .get("sourceTables")
+      .asInstanceOf[java.util.ArrayList[String]] should have size 0
     metadata.indexedColumns shouldBe Array(
       Map("columnName" -> "test_col", "columnType" -> "integer").asJava)
     metadata.schema shouldBe Map("test_col" -> Map("type" -> "integer").asJava).asJava

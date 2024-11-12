@@ -162,8 +162,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
       properties
         .get("sourceTables")
-        .asInstanceOf[List[String]]
-        .toArray should contain theSameElementsAs Array(testTable)
+        .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(
+        testTable)
     }
   }
 
@@ -181,8 +181,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties
       .get("sourceTables")
-      .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array(testTable)
+      .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(testTable)
   }
 
   test("write metadata cache with source tables from deserialized metadata") {
@@ -213,8 +212,9 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties
       .get("sourceTables")
-      .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array(testTable, testTable2)
+      .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(
+      testTable,
+      testTable2)
   }
 
   test("write metadata cache to index mappings with refresh interval") {
