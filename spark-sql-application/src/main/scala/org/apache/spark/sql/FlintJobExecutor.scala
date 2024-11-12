@@ -10,7 +10,6 @@ import java.util.Locale
 import com.amazonaws.services.glue.model.{AccessDeniedException, AWSGlueException}
 import com.amazonaws.services.s3.model.AmazonS3Exception
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.apache.commons.text.StringEscapeUtils.unescapeJava
 import org.opensearch.common.Strings
 import org.opensearch.flint.core.IRestHighLevelClient
@@ -45,7 +44,6 @@ trait FlintJobExecutor {
   this: Logging =>
 
   val mapper = new ObjectMapper()
-  mapper.registerModule(DefaultScalaModule)
 
   var currentTimeProvider: TimeProvider = new RealTimeProvider()
   var threadPoolFactory: ThreadPoolFactory = new DefaultThreadPoolFactory()
@@ -442,9 +440,10 @@ trait FlintJobExecutor {
       errorSource: Option[String] = None,
       statusCode: Option[Int] = None): String = {
     val errorMessage = s"$messagePrefix: ${e.getMessage}"
-    val errorDetails = Map("Message" -> errorMessage) ++
-      errorSource.map("ErrorSource" -> _) ++
-      statusCode.map(code => "StatusCode" -> code.toString)
+    val errorDetails = new java.util.LinkedHashMap[String, String]()
+    errorDetails.put("Message", errorMessage)
+    errorSource.foreach(es => errorDetails.put("ErrorSource", es))
+    statusCode.foreach(code => errorDetails.put("StatusCode", code.toString))
 
     val errorJson = mapper.writeValueAsString(errorDetails)
 
