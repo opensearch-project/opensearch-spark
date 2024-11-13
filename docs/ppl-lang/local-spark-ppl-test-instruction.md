@@ -126,6 +126,18 @@ age	email	host
 Time taken: 1.555 seconds, Fetched 3 row(s)
 ```
 
+### Test `grok` | `top` commands combination
+```sql
+source=emails| grok email '.+@%{HOSTNAME:host}' | fields email, host | top 3 host;
+
+count_host	host
+2	examples.com
+1	demonstration.com
+1	test.org
+
+Time taken: 1.274 seconds, Fetched 3 row(s)
+```
+
 ### Test `fieldsummary` command
 
 ```sql
@@ -259,6 +271,35 @@ int_col	multi_valueB	value	name
 4	[{"name":"1_one","value":1}]	NULL	1_zero
 
 Time taken: 0.111 seconds, Fetched 8 row(s)
+```
+## ip table
+
+```sql
+CREATE TABLE ipTable ( id INT,ipAddress STRING,isV6 BOOLEAN, isValid BOOLEAN) using csv OPTIONS (header 'false',delimiter '\\t');
+INSERT INTO ipTable values (1, '127.0.0.1', false, true), (2, '192.168.1.0', false, true),(3, '192.168.1.1', false, true),(4, '192.168.2.1', false, true), (5, '192.168.2.', false, false),(6, '2001:db8::ff00:12:3455', true, true),(7, '2001:db8::ff00:12:3456', true, true),(8, '2001:db8::ff00:13:3457', true, true), (9, '2001:db8::ff00:12:', true, false);
+```
+
+### Test `cidr` command
+
+```sql
+source=ipTable | where isV6 = false and isValid = true and cidrmatch(ipAddress, '192.168.1.0/24');
+
+id	ipAddress	isV6	isValid
+2	192.168.1.0	false	true
+3	192.168.1.1	false	true
+
+Time taken: 0.317 seconds, Fetched 2 row(s)
+```
+
+```sql
+source=ipTable | where isV6 = true and isValid = true and cidrmatch(ipAddress, '2001:db8::/32');
+
+id	ipAddress	isV6	isValid
+6	2001:db8::ff00:12:3455	true	true
+8	2001:db8::ff00:13:3457	true	true
+7	2001:db8::ff00:12:3456	true	true
+
+Time taken: 0.09 seconds, Fetched 3 row(s)
 ```
 
 ---
