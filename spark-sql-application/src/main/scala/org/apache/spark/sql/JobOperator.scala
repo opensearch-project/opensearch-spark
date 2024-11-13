@@ -14,7 +14,7 @@ import scala.util.{Failure, Success, Try}
 
 import org.opensearch.flint.common.model.FlintStatement
 import org.opensearch.flint.common.scheduler.model.LangType
-import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil, ReadWriteBytesSparkListener}
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsSparkListener, MetricsUtil}
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
 import org.opensearch.flint.spark.FlintSpark
 
@@ -70,7 +70,7 @@ case class JobOperator(
     val statementExecutionManager =
       instantiateStatementExecutionManager(commandContext, resultIndex, osClient)
 
-    val readWriteBytesSparkListener = new ReadWriteBytesSparkListener()
+    val readWriteBytesSparkListener = new MetricsSparkListener()
     sparkSession.sparkContext.addSparkListener(readWriteBytesSparkListener)
 
     val statement =
