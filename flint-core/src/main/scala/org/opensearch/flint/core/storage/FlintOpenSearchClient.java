@@ -47,20 +47,20 @@ public class FlintOpenSearchClient implements FlintClient {
   @Override
   public void createIndex(String indexName, FlintMetadata metadata) {
     LOG.info("Creating Flint index " + indexName + " with metadata " + metadata);
-    createIndex(indexName, FlintOpenSearchIndexMetadataService.serialize(metadata, false), metadata.indexSettings());
+    withIndexCreationMetric(() -> createIndex(indexName, FlintOpenSearchIndexMetadataService.serialize(metadata, false), metadata.indexSettings()), metadata.kind());
   }
 
-  protected void createIndex(String indexName, String mapping, Option<String> settings) {
+  protected Void createIndex(String indexName, String mapping, Option<String> settings) {
     LOG.info("Creating Flint index " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
     try (IRestHighLevelClient client = createClient()) {
       CreateIndexRequest request = new CreateIndexRequest(osIndexName);
-      String indexKind = retrieveIndexKind(mapping).orElseThrow(); // For now assume mapping kind is always available
       request.mapping(mapping, XContentType.JSON);
       if (settings.isDefined()) {
         request.settings(settings.get(), XContentType.JSON);
       }
-      withIndexCreationMetric(() -> client.createIndex(request, RequestOptions.DEFAULT), indexKind);
+      client.createIndex(request, RequestOptions.DEFAULT);
+      return null;
     } catch (Exception e) {
       throw new IllegalStateException("Failed to create Flint index " + osIndexName, e);
     }
@@ -131,33 +131,15 @@ public class FlintOpenSearchClient implements FlintClient {
     return OpenSearchClientUtils.sanitizeIndexName(indexName);
   }
 
-  /**
-   * Given a mapping specifying a Spark index, determine what kind of index is specified. Empty if the type could not
-   * be determined. This information is always available if serializing from metadata directly, but can be missing if
-   * an invalid index is passed to the protected createIndex directly.
-   */
-  private Optional<String> retrieveIndexKind(String mapping) {
-    try {
-      String indexKind = JsonParser.parseString(mapping)
-              .getAsJsonObject()
-              .getAsJsonObject("_meta")
-              .getAsJsonObject("kind")
-              .getAsString();
-      return Optional.of(indexKind);
-    } catch (JsonParseException ex) {
-      return Optional.empty(); // Could not retrieve the key
-    } catch (UnsupportedOperationException ex) {
-      return Optional.empty(); // The key was present but of the wrong type
-    }
-  }
-
-  private void withIndexCreationMetric(Callable<CreateIndexResponse> fn, String indexKind) throws Exception {
+  private void withIndexCreationMetric(Callable<Void> fn, String indexKind) {
     try {
       fn.call();
       emitIndexCreationMetric(indexKind, true);
-    } catch (Exception ex) {
+    } catch (IllegalStateException ex) {
       emitIndexCreationMetric(indexKind, false);
       throw ex;
+    } catch (Exception ex) {
+      throw new AssertionError("Index creation callable must only raise IllegalStateException, but another exception was found");
     }
   }
 
