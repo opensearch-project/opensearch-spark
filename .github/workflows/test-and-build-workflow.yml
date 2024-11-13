@@ -26,6 +26,7 @@ jobs:
         run: sbt scalafmtCheckAll
 
       - name: Set SBT_OPTS
+        # Needed to extend the JVM memory size to avoid OutOfMemoryError for HTML test report
         run: echo "SBT_OPTS=-Xmx2G" >> $GITHUB_ENV
 
       - name: Integ Test
