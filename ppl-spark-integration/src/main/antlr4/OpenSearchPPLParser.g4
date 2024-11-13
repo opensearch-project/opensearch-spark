@@ -54,6 +54,7 @@ commands
    | fillnullCommand
    | fieldsummaryCommand
    | flattenCommand
+   | expandCommand
    | trendlineCommand
    ;
 
@@ -82,6 +83,7 @@ commandName
    | PATTERNS
    | LOOKUP
    | RENAME
+   | EXPAND
    | FILLNULL
    | FIELDSUMMARY
    | FLATTEN
@@ -250,6 +252,10 @@ fillnullCommand
    : expression
    ;
 
+expandCommand
+    : EXPAND fieldExpression (AS alias = qualifiedName)?
+    ;
+    
 flattenCommand
     : FLATTEN fieldExpression
     ;

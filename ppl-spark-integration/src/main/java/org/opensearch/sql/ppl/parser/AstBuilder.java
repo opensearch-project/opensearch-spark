@@ -132,6 +132,12 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   }
 
   @Override
+  public UnresolvedPlan visitExpandCommand(OpenSearchPPLParser.ExpandCommandContext ctx) {
+    return new Expand((Field) internalVisitExpression(ctx.fieldExpression()),
+            ctx.alias!=null ? Optional.of(internalVisitExpression(ctx.alias)) : Optional.empty());
+  }
+
+  @Override
   public UnresolvedPlan visitCorrelateCommand(OpenSearchPPLParser.CorrelateCommandContext ctx) {
     return new Correlation(ctx.correlationType().getText(),
             ctx.fieldList().fieldExpression().stream()
