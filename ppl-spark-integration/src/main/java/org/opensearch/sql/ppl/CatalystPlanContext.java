@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Stack;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
@@ -187,7 +188,7 @@ public class CatalystPlanContext {
             return result;
         }).orElse(getPlan()));
     }
-
+    
     /**
      * apply for each plan with the given function
      *

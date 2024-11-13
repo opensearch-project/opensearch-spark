@@ -180,6 +180,16 @@ public final class MetricConstants {
      */
     public static final String INITIAL_CONDITION_CHECK_FAILED_PREFIX = "initialConditionCheck.failed.";
 
+    /**
+     * Metric for tracking the JVM GC time per task
+     */
+    public static final String TASK_JVM_GC_TIME_METRIC = "task.jvmGCTime.count";
+
+    /**
+     * Metric for tracking the total JVM GC time for query
+     */
+    public static final String TOTAL_JVM_GC_TIME_METRIC = "query.totalJvmGCTime.count";
+
     private MetricConstants() {
         // Private constructor to prevent instantiation
     }
