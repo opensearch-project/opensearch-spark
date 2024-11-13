@@ -59,6 +59,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
   private val statementRunningCount = new AtomicInteger(0)
   private var queryCountMetric = 0
 
+  // After handling any exceptions from stopping the Spark session,
+  // check if there's a stored exception and throw it if it's an UnrecoverableException
+  sys.addShutdownHook(checkAndThrowUnrecoverableExceptions())
+
   def main(args: Array[String]) {
     val (queryOption, resultIndexOption) = parseArgs(args)
 
@@ -187,9 +191,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
         }
         recordSessionSuccess(sessionTimerContext)
       } catch {
-        case e: Exception =>
+        case t: Throwable =>
           handleSessionError(
-            e,
+            t,
             applicationId,
             jobId,
             sessionId,
@@ -420,24 +424,29 @@ object FlintREPL extends Logging with FlintJobExecutor {
   }
 
   def handleSessionError(
-      e: Exception,
+      t: Throwable,
       applicationId: String,
       jobId: String,
       sessionId: String,
       sessionManager: SessionManager,
       jobStartTime: Long,
       sessionTimerContext: Timer.Context): Unit = {
-    val error = s"Session error: ${e.getMessage}"
-    CustomLogging.logError(error, e)
+    throwableHandler.recordThrowable(s"Session error: ${t.getMessage}", t)
 
-    refreshSessionState(
-      applicationId,
-      jobId,
-      sessionId,
-      sessionManager,
-      jobStartTime,
-      SessionStates.FAIL,
-      Some(e.getMessage))
+    try {
+      refreshSessionState(
+        applicationId,
+        jobId,
+        sessionId,
+        sessionManager,
+        jobStartTime,
+        SessionStates.FAIL,
+        Some(t.getMessage))
+    } catch {
+      case t: Throwable =>
+        throwableHandler.recordThrowable(s"Failed to update session state.", t)
+    }
+
     recordSessionFailed(sessionTimerContext)
   }
 
@@ -485,8 +494,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       startTime)
   }
 
-  def processQueryException(ex: Exception, flintStatement: FlintStatement): String = {
-    val error = super.processQueryException(ex)
+  def processQueryException(t: Throwable, flintStatement: FlintStatement): String = {
+    val error = super.processQueryException(t)
     flintStatement.fail()
     flintStatement.error = Some(error)
     error
@@ -581,11 +590,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
     } catch {
       // e.g., maybe due to authentication service connection issue
       // or invalid catalog (e.g., we are operating on data not defined in provided data source)
-      case e: Exception =>
-        val error = s"""Fail to write result of ${flintStatement}, cause: ${e.getMessage}"""
-        CustomLogging.logError(error, e)
+      case e: Throwable =>
+        throwableHandler.recordThrowable(
+          s"""Fail to write result of ${flintStatement}, cause: ${e.getMessage}""",
+          e)
         flintStatement.fail()
     } finally {
+      logInfo(s"command complete: $flintStatement")
       statementExecutionManager.updateStatement(flintStatement)
       recordStatementStateChange(flintStatement, statementTimerContext)
     }
@@ -671,8 +682,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
             flintStatement,
             sessionId,
             startTime))
-      case e: Exception =>
-        val error = processQueryException(e, flintStatement)
+      case t: Throwable =>
+        val error = processQueryException(t, flintStatement)
         Some(
           handleCommandFailureAndGetFailedData(
             applicationId,
@@ -747,7 +758,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
                 startTime))
           case NonFatal(e) =>
             val error = s"An unexpected error occurred: ${e.getMessage}"
-            CustomLogging.logError(error, e)
+            throwableHandler.recordThrowable(error, e)
             dataToWrite = Some(
               handleCommandFailureAndGetFailedData(
                 applicationId,
@@ -786,7 +797,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
           queryWaitTimeMillis)
     }
 
-    logInfo(s"command complete: $flintStatement")
     (dataToWrite, verificationResult)
   }
 
@@ -858,7 +868,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
           }
         }
       } catch {
-        case e: Exception => logError(s"Failed to update session state for $sessionId", e)
+        case t: Throwable =>
+          throwableHandler.recordThrowable(s"Failed to update session state for $sessionId", t)
       }
     }
   }
@@ -897,10 +908,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
                 MetricConstants.REQUEST_METADATA_HEARTBEAT_FAILED_METRIC
               ) // Record heartbeat failure metric
             // maybe due to invalid sequence number or primary term
-            case e: Exception =>
-              CustomLogging.logWarning(
+            case t: Throwable =>
+              throwableHandler.recordThrowable(
                 s"""Fail to update the last update time of the flint instance ${sessionId}""",
-                e)
+                t)
               incrementCounter(
                 MetricConstants.REQUEST_METADATA_HEARTBEAT_FAILED_METRIC
               ) // Record heartbeat failure metric
@@ -948,8 +959,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
       }
     } catch {
       // still proceed since we are not sure what happened (e.g., OpenSearch cluster may be unresponsive)
-      case e: Exception =>
-        CustomLogging.logError(s"""Fail to find id ${sessionId} from session index.""", e)
+      case t: Throwable =>
+        throwableHandler.recordThrowable(
+          s"""Fail to find id ${sessionId} from session index.""",
+          t)
         true
     }
   }
