@@ -6,9 +6,10 @@
 package org.opensearch.flint.spark.sql.covering
 
 import org.antlr.v4.runtime.tree.RuleNode
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsUtil}
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
-import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
+import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, IndexMetricHelper, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
@@ -20,7 +21,9 @@ import org.apache.spark.sql.types.StringType
 /**
  * Flint Spark AST builder that builds Spark command for Flint covering index statement.
  */
-trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
+trait FlintSparkCoveringIndexAstBuilder
+    extends FlintSparkSqlExtensionsVisitor[AnyRef]
+    with IndexMetricHelper {
   self: SparkSqlAstBuilder =>
 
   override def visitCreateCoveringIndexStatement(
@@ -49,6 +52,8 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
         .options(indexOptions, indexName)
         .create(ignoreIfExists)
 
+      emitCreateIndexMetric(indexOptions.autoRefresh())
+
       // Trigger auto refresh if enabled and not using external scheduler
       if (indexOptions
           .autoRefresh() && !indexBuilder.isExternalSchedulerEnabled()) {
@@ -62,6 +67,7 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
   override def visitRefreshCoveringIndexStatement(
       ctx: RefreshCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
+      MetricsUtil.incrementCounter(MetricConstants.QUERY_REFRESH_COUNT_METRIC)
       val flintIndexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
       flint.refreshIndex(flintIndexName)
       Seq.empty
@@ -107,6 +113,7 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
   override def visitAlterCoveringIndexStatement(
       ctx: AlterCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
+      emitAlterIndexMetric()
       val indexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
       val indexOptions = visitPropertyList(ctx.propertyList())
       val index = flint
@@ -121,6 +128,7 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
   override def visitDropCoveringIndexStatement(
       ctx: DropCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
+      emitDropIndexMetric()
       val flintIndexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
       flint.deleteIndex(flintIndexName)
       Seq.empty
@@ -130,6 +138,7 @@ trait FlintSparkCoveringIndexAstBuilder extends FlintSparkSqlExtensionsVisitor[A
   override def visitVacuumCoveringIndexStatement(
       ctx: VacuumCoveringIndexStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
+      emitVacuumIndexMetric()
       val flintIndexName = getFlintIndexName(flint, ctx.indexName, ctx.tableName)
       flint.vacuumIndex(flintIndexName)
       Seq.empty
