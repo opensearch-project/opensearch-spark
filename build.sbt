@@ -56,7 +56,6 @@ lazy val commonSettings = Seq(
   // Enable HTML report and output to separate folder per package
   Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-h", s"target/test-reports/${name.value}"),
   Test / test := ((Test / test) dependsOn testScalastyle).value,
-  Test / javaOptions += "-Xmx2G",
   // Needed for HTML report
   libraryDependencies += "com.vladsch.flexmark" % "flexmark-all" % "0.64.8",
   dependencyOverrides ++= Seq(
@@ -182,6 +181,8 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
     },
+    Test / fork := true,
+    Test / javaOptions += "-Xmx2G",
     assembly / test := (Test / test).value)
 
 lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
