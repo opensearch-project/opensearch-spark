@@ -71,6 +71,11 @@ public final class MetricConstants {
     public static final String REPL_PROCESSING_TIME_METRIC = "session.processingTime";
 
     /**
+     * Metric name for counting the number of queries executed per session.
+     */
+    public static final String REPL_QUERY_COUNT_METRIC = "session.query.count";
+
+    /**
      * Prefix for metrics related to the request metadata read operations.
      */
     public static final String REQUEST_METADATA_READ_METRIC_PREFIX = "request.metadata.read";
