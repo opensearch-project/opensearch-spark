@@ -47,7 +47,13 @@ public class FlintOpenSearchClient implements FlintClient {
   @Override
   public void createIndex(String indexName, FlintMetadata metadata) {
     LOG.info("Creating Flint index " + indexName + " with metadata " + metadata);
-    withIndexCreationMetric(() -> createIndex(indexName, FlintOpenSearchIndexMetadataService.serialize(metadata, false), metadata.indexSettings()), metadata.kind());
+    try {
+      createIndex(indexName, FlintOpenSearchIndexMetadataService.serialize(metadata, false), metadata.indexSettings());
+      emitIndexCreationMetric(metadata.kind(), true);
+    } catch (IllegalStateException ex) {
+      emitIndexCreationMetric(metadata.kind(), false);
+      throw ex;
+    }
   }
 
   protected Void createIndex(String indexName, String mapping, Option<String> settings) {
@@ -129,18 +135,6 @@ public class FlintOpenSearchClient implements FlintClient {
 
   private String sanitizeIndexName(String indexName) {
     return OpenSearchClientUtils.sanitizeIndexName(indexName);
-  }
-
-  private void withIndexCreationMetric(Callable<Void> fn, String indexKind) {
-    try {
-      fn.call();
-      emitIndexCreationMetric(indexKind, true);
-    } catch (IllegalStateException ex) {
-      emitIndexCreationMetric(indexKind, false);
-      throw ex;
-    } catch (Exception ex) {
-      throw new AssertionError("Index creation callable must only raise IllegalStateException, but another exception was found");
-    }
   }
 
   private void emitIndexCreationMetric(String indexKind, boolean createSuccessful) {
