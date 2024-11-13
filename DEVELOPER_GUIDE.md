@@ -13,7 +13,7 @@ sbt test
 ```
 To run a specific unit test in SBT, use the testOnly command with the full path of the test class:
 ```
-sbt test:testOnly org.opensearch.flint.spark.ppl.PPLLogicalPlanTrendlineCommandTranslatorTestSuite
+sbt "; project pplSparkIntegration; test:testOnly org.opensearch.flint.spark.ppl.PPLLogicalPlanTrendlineCommandTranslatorTestSuite"
 ```
 
 
@@ -30,7 +30,7 @@ If you get integration test failures with error message "Previous attempts to fi
 
 Running only a selected set of integration test suites is possible with the following command:
 ```
-sbt "project integtest" it:testOnly org.opensearch.flint.spark.ppl.FlintSparkPPLTrendlineITSuite
+sbt "; project integtest; it:testOnly org.opensearch.flint.spark.ppl.FlintSparkPPLTrendlineITSuite"
 ```
 This command runs only the specified test suite within the integtest submodule.
 

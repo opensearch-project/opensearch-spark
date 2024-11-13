@@ -5,6 +5,7 @@
 
 package org.opensearch.sql.ppl.utils;
 
+import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.expressions.*;
 import org.opensearch.sql.ast.expression.*;
 import org.opensearch.sql.ast.expression.Literal;
@@ -12,6 +13,7 @@ import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
 import org.opensearch.sql.ppl.CatalystExpressionVisitor;
 import org.opensearch.sql.ppl.CatalystPlanContext;
+import scala.collection.mutable.Seq;
 import scala.Option;
 import scala.Tuple2;
 
@@ -22,6 +24,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
+import static scala.Option.empty;
+import static scala.collection.JavaConverters.asScalaBufferConverter;
 
 public interface TrendlineCatalystUtils {
 
@@ -208,13 +212,14 @@ public interface TrendlineCatalystUtils {
         for (int i = 1; i <= dataPoints; i++) {
             // Get the offset parameter
             Expression offSetExpression = parseIntToExpression(visitor, context, i);
-
-            // Composite the nth_value expression.
-            Function func =  new Function(BuiltinFunctionName.NTH_VALUE.name(),
-                    List.of(node.getDataField(), new Literal(i, DataType.INTEGER)));
-
-            visitor.visitFunction(func, context);
-            Expression nthValueExp = context.popNamedParseExpressions().get();
+            // Get the dataField in Expression
+            visitor.analyze(node.getDataField(), context);
+            Expression dataField = context.popNamedParseExpressions().get();
+            // nth_value Expression
+            UnresolvedFunction nthValueExp = new UnresolvedFunction(
+                    asScalaBufferConverter(List.of("nth_value")).asScala().seq(),
+                    asScalaBufferConverter(List.of(dataField, offSetExpression)).asScala().seq(),
+                    false, empty(), false);
 
             expressions.add(new Multiply(
                     new WindowExpression(nthValueExp, windowDefinition), offSetExpression));
