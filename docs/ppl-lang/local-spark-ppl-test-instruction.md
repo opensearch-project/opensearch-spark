@@ -158,5 +158,107 @@ Ivy	9	ivy@examples.com	606 Fir St, Denver	2023	4	10.5
 Time taken: 1.048 seconds, Fetched 10 row(s)
 ```
 
+## nested table
+
+```sql
+CREATE TABLE nested (int_col INT, struct_col STRUCT<field1: STRUCT<subfield:STRING>, field2: INT>, struct_col2 STRUCT<field1: STRUCT<subfield:STRING>, field2: INT>) USING JSON;
+INSERT INTO nested SELECT /*+ COALESCE(1) */ * from VALUES ( 30, STRUCT(STRUCT("value1"),123), STRUCT(STRUCT("valueA"),23) ), ( 40, STRUCT(STRUCT("value5"),123), STRUCT(STRUCT("valueB"),33) ), ( 30, STRUCT(STRUCT("value4"),823), STRUCT(STRUCT("valueC"),83) ), ( 40, STRUCT(STRUCT("value2"),456), STRUCT(STRUCT("valueD"),46) ), ( 50, STRUCT(STRUCT("value3"),789), STRUCT(STRUCT("valueE"),89) );
+```
+
+### Test `flatten` command
+
+```sql
+source=nested | flatten struct_col | flatten field1 | flatten struct_col2;
+
+int_col	field2	subfield	field1	field2
+30	123	value1	{"subfield":"valueA"}	23
+40	123	value5	{"subfield":"valueB"}	33
+30	823	value4	{"subfield":"valueC"}	83
+40	456	value2	{"subfield":"valueD"}	46
+50	789	value3	{"subfield":"valueE"}	89
+30	123	value1	{"subfield":"valueA"}	23
+
+Time taken: 2.682 seconds, Fetched 6 row(s)
+```
+
+```sql
+source=nested| where struct_col.field2 > 200 | sort  - struct_col.field2 | fields  int_col, struct_col.field2;
+
+int_col	field2
+30	823
+50	789
+40	456
+
+Time taken: 0.722 seconds, Fetched 3 row(s)
+```
+
+## array table
+
+```sql
+CREATE TABLE arrayTable (int_col INT, multi_valueA ARRAY<STRUCT<name: STRING, value: INT>>, multi_valueB ARRAY<STRUCT<name: STRING, value: INT>>) USING JSON;
+INSERT INTO arrayTable VALUES (1, array(STRUCT("1_one", 1), STRUCT(null, 11), STRUCT("1_three", null)), array(STRUCT("2_Monday", 2), null)), (2, array(STRUCT("2_Monday", 2), null), array(STRUCT("3_third", 3), STRUCT("3_4th", 4))), (3, array(STRUCT("3_third", 3), STRUCT("3_4th", 4)), array(STRUCT("1_one", 1))), (4, null, array(STRUCT("1_one", 1)));
+```
+
+### Test `expand` command
+
+```sql
+source=arrayTable | expand multi_valueA as multiA | expand multi_valueB as multiB;
+
+int_col	multiA	multiB
+1	{"name":"1_one","value":1}	{"name":"2_Monday","value":2}
+1	{"name":"1_one","value":1}	NULL
+1	{"name":null,"value":11}	{"name":"2_Monday","value":2}
+1	{"name":null,"value":11}	NULL
+1	{"name":"1_three","value":null}	{"name":"2_Monday","value":2}
+1	{"name":"1_three","value":null}	NULL
+2	{"name":"2_Monday","value":2}	{"name":"3_third","value":3}
+2	{"name":"2_Monday","value":2}	{"name":"3_4th","value":4}
+2	NULL	{"name":"3_third","value":3}
+2	NULL	{"name":"3_4th","value":4}
+3	{"name":"3_third","value":3}	{"name":"1_one","value":1}
+3	{"name":"3_4th","value":4}	{"name":"1_one","value":1}
+
+Time taken: 0.173 seconds, Fetched 12 row(s)
+```
+
+### Test `expand` | `flattern` command combination
+
+```sql
+source=arrayTable | flatten multi_valueA | expand multi_valueB;
+
+int_col	multi_valueB	name	value	col
+1	[{"name":"2_Monday","value":2},null]	1_one	1	{"name":"2_Monday","value":2}
+1	[{"name":"2_Monday","value":2},null]	1_one	1	NULL
+1	[{"name":"2_Monday","value":2},null]	NULL	11	{"name":"2_Monday","value":2}
+1	[{"name":"2_Monday","value":2},null]	NULL	11	NULL
+1	[{"name":"2_Monday","value":2},null]	1_three	NULL	{"name":"2_Monday","value":2}
+1	[{"name":"2_Monday","value":2},null]	1_three	NULL	NULL
+2	[{"name":"3_third","value":3},{"name":"3_4th","value":4}]	2_Monday	2	{"name":"3_third","value":3}
+2	[{"name":"3_third","value":3},{"name":"3_4th","value":4}]	2_Monday	2	{"name":"3_4th","value":4}
+2	[{"name":"3_third","value":3},{"name":"3_4th","value":4}]	NULL	NULL	{"name":"3_third","value":3}
+2	[{"name":"3_third","value":3},{"name":"3_4th","value":4}]	NULL	NULL	{"name":"3_4th","value":4}
+3	[{"name":"1_one","value":1}]	3_third	3	{"name":"1_one","value":1}
+3	[{"name":"1_one","value":1}]	3_4th	4	{"name":"1_one","value":1}
+4	[{"name":"1_one","value":1}]	NULL	NULL	{"name":"1_one","value":1}
+
+Time taken: 0.12 seconds, Fetched 13 row(s)
+```
+### Test `fillnull` | `flattern` command combination
+
+```sql
+source=arrayTable | flatten multi_valueA | fillnull with '1_zero' in name;
+
+int_col	multi_valueB	value	name
+1	[{"name":"2_Monday","value":2},null]	1	1_one
+1	[{"name":"2_Monday","value":2},null]	11	1_zero
+1	[{"name":"2_Monday","value":2},null]	NULL	1_three
+2	[{"name":"3_third","value":3},{"name":"3_4th","value":4}]	2	2_Monday
+2	[{"name":"3_third","value":3},{"name":"3_4th","value":4}]	NULL	1_zero
+3	[{"name":"1_one","value":1}]	3	3_third
+3	[{"name":"1_one","value":1}]	4	3_4th
+4	[{"name":"1_one","value":1}]	NULL	1_zero
+
+Time taken: 0.111 seconds, Fetched 8 row(s)
+```
 
 ---
