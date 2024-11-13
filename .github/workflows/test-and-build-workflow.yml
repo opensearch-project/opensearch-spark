@@ -27,3 +27,10 @@ jobs:
 
       - name: Integ Test
         run: sbt integtest/integration
+
+      - name: Upload test report
+        if: always() # Ensures the artifact is saved even if tests fail
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-reports
+          path: target/test-reports # Adjust this path if necessary
