@@ -25,6 +25,9 @@ jobs:
       - name: Style check
         run: sbt scalafmtCheckAll
 
+      - name: Set SBT_OPTS
+        run: echo "SBT_OPTS=-Xmx2G" >> $GITHUB_ENV
+
       - name: Integ Test
         run: sbt integtest/integration
 

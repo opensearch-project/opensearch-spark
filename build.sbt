@@ -181,8 +181,6 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
     },
-    Test / fork := true,
-    Test / javaOptions += "-Xmx2G",
     assembly / test := (Test / test).value)
 
 lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
