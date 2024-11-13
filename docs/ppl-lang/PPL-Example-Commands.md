@@ -181,6 +181,7 @@ source = table |  where ispresent(a) |
 - `source = table | stats max(c) by b`
 - `source = table | stats count(c) by b | head 5`
 - `source = table | stats distinct_count(c)`
+- `source = table | stats distinct_count_approx(c)`
 - `source = table | stats stddev_samp(c)`
 - `source = table | stats stddev_pop(c)`
 - `source = table | stats percentile(c, 90)`
@@ -205,6 +206,7 @@ source = table |  where ispresent(a) |
 - `source = table | eventstats avg(a) `
 - `source = table | where a < 50 | eventstats avg(c) `
 - `source = table | eventstats max(c) by b`
+- `source = table | eventstats count(c) by b | head 5`
 - `source = table | eventstats count(c) by b | head 5`
 - `source = table | eventstats stddev_samp(c)`
 - `source = table | eventstats stddev_pop(c)`
@@ -250,12 +252,15 @@ source = table |  where ispresent(a) |
 
 - `source=accounts | rare gender`
 - `source=accounts | rare age by gender`
+- `source=accounts | rare 5 age by gender`
+- `source=accounts | rare_approx age by gender`
 
 #### **Top**
 [See additional command details](ppl-top-command.md)
 
 - `source=accounts | top gender`
 - `source=accounts | top 1 gender`
+- `source=accounts | top_approx 5 gender`
 - `source=accounts | top 1 age by gender`
 
 #### **Parse**
