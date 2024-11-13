@@ -169,6 +169,36 @@ Ivy	9	ivy@examples.com	606 Fir St, Denver	2023	4	10.5
 
 Time taken: 1.048 seconds, Fetched 10 row(s)
 ```
+### Test `expand` command
+
+```sql
+
+source=testTable |  eval array=json_array(1, 2 ) | expand array as uid | fields uid, name, age, email;
+
+uid	name	age	email
+1	Hank	32	hank@demonstration.com
+2	Hank	32	hank@demonstration.com
+1	Bob	55	bob@test.org
+2	Bob	55	bob@test.org
+1	Jack	12	jack@sample.net
+2	Jack	12	jack@sample.net
+1	Frank	76	frank@sample.org
+2	Frank	76	frank@sample.org
+1	David	19	david@anotherdomain.com
+2	David	19	david@anotherdomain.com
+1	Grace	41	grace@demo.net
+2	Grace	41	grace@demo.net
+1	Alice	30	alice@example.com
+2	Alice	30	alice@example.com
+1	Ivy	9	ivy@examples.com
+2	Ivy	9	ivy@examples.com
+1	Eve	21	eve@examples.com
+2	Eve	21	eve@examples.com
+1	Charlie	65	charlie@domain.net
+2	Charlie	65	charlie@domain.net
+
+Time taken: 0.495 seconds, Fetched 20 row(s)
+```
 
 ## nested table
 
