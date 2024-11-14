@@ -5,7 +5,12 @@
 
 package org.opensearch.sql.common.geospatial;
 
-import lombok.*;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.ToString;
+
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
 
 @Getter
 @ToString
@@ -20,4 +25,18 @@ public class GeoIpData {
     private final String time_zone;
     private final String lat;
     private final String lon;
+
+    public Row getRow() {
+        return RowFactory.create(
+                country_iso_code,
+                country_name,
+                continent_name,
+                region_iso_code,
+                region_name,
+                city_name,
+                time_zone,
+                lat,
+                lon
+        );
+    }
 }
