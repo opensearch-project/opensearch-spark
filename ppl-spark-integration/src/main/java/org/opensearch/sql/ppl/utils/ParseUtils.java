@@ -138,10 +138,6 @@ public class ParseUtils {
     public static class GrokExpression {
         private static final GrokCompiler grokCompiler = GrokCompiler.newInstance();
 
-        static {
-            grokCompiler.registerDefaultPatterns();
-        }
-
         public static Expression getRegExpCommand(Expression sourceField, org.apache.spark.sql.catalyst.expressions.Literal patternLiteral, org.apache.spark.sql.catalyst.expressions.Literal groupIndexLiteral) {
             return new RegExpExtract(sourceField, patternLiteral, groupIndexLiteral);
         }
