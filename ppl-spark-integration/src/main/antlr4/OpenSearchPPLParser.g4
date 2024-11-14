@@ -423,6 +423,7 @@ expression
 
 logicalExpression
    : NOT logicalExpression                                      # logicalNot
+   | LT_PRTHS logicalExpression RT_PRTHS                        # parentheticLogicalExpr
    | comparisonExpression                                       # comparsion
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
    | left = logicalExpression OR right = logicalExpression      # logicalOr

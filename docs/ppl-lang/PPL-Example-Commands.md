@@ -50,6 +50,10 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where a < 1 | fields a,b,c`
 - `source = table | where b != 'test' | fields a,b,c`
 - `source = table | where c = 'test' | fields a,b,c | head 3`
+- `source = table | where c = 'test' AND a = 1 | fields a,b,c`
+- `source = table | where c != 'test' OR a > 1 | fields a,b,c`
+- `source = table | where (b > 1 OR a > 1) AND c != 'test' | fields a,b,c`
+- `source = table | where c = 'test' NOT a > 1 | fields a,b,c` - Note: "AND" is optional
 - `source = table | where ispresent(b)`
 - `source = table | where isnull(coalesce(a, b)) | fields a,b,c | head 3`
 - `source = table | where isempty(a)`
