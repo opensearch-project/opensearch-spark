@@ -155,6 +155,10 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
       "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
       "org.projectlombok" % "lombok" % "1.18.30",
       "com.github.seancfoley" % "ipaddress" % "5.5.1",
+      "org.apache.commons" % "commons-lang3" % "3.17.0",
+      "org.apache.commons" % "commons-csv" % "1.12.0",
+      "org.apache.commons" % "commons-csv" % "1.12.0",
+      "com.fasterxml.jackson.core" % "jackson-annotations" % "2.14.2",
     ),
     libraryDependencies ++= deps(sparkVersion),
     // ANTLR settings

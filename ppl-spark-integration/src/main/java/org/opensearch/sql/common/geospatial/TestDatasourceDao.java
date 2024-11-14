@@ -5,7 +5,7 @@
 
 package org.opensearch.sql.common.geospatial;
 
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.net.UnknownHostException;
 import java.util.BitSet;
@@ -37,8 +37,8 @@ public class TestDatasourceDao implements DatasourceDao {
         }
 
         return Stream.of(
-                new Pair<BitSet, GeoIpData>(bitSet1, geoIp1),
-                new Pair<BitSet, GeoIpData>(bitSet2, geoIp2)
+                Pair.of(bitSet1, geoIp1),
+                Pair.of(bitSet2, geoIp2)
         );
     }
 

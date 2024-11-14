@@ -67,8 +67,6 @@ public interface SerializableUdf {
         @Override
         public Row apply(String datasource, String ipAddress, String properties) {
 
-            GeoIpData result = null;
-
             Cache<String, CidrGeoMap> geoIpCache = GeoIpCache.getInstance().cache;
             CidrGeoMap cidrGeoMap = geoIpCache.getIfPresent(datasource);
 
@@ -79,14 +77,10 @@ public interface SerializableUdf {
             }
 
             try {
-                result =  cidrGeoMap.lookup(ipAddress);
+                return cidrGeoMap.lookup(ipAddress).getRow();
             } catch (UnknownHostException e) {
-                throw new RuntimeException("The given ipAddress '"+ipAddress+"' is invalid. It must be a valid IPv4 or IPv6 address. Error details: "+e.getMessage());
+                throw new RuntimeException("The given ipAddress '" + ipAddress + "' is invalid. It must be a valid IPv4 or IPv6 address. Error details: " + e.getMessage());
             }
-
-            //TODO: throw exception if results are null.
-
-            return result.getRow();
         }
     };
 
