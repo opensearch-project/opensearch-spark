@@ -13,7 +13,7 @@ Download spark from the [official website](https://spark.apache.org/downloads.ht
 ## Start Spark with the plugin
 Once installed, run spark with the generated PPL artifact: 
 ```shell
-bin/spark-sql --jars "/PATH_TO_ARTIFACT/oopensearch-spark-ppl-assembly-x.y.z-SNAPSHOT.jar" \
+bin/spark-sql --jars "/PATH_TO_ARTIFACT/opensearch-spark-ppl-assembly-x.y.z-SNAPSHOT.jar" \
 --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintPPLSparkExtensions"  \
 --conf "spark.sql.catalog.dev=org.apache.spark.opensearch.catalog.OpenSearchCatalog" \
 --conf "spark.hadoop.hive.cli.print.header=true"
