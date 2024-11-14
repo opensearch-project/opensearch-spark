@@ -25,5 +25,16 @@ jobs:
       - name: Style check
         run: sbt scalafmtCheckAll
 
+      - name: Set SBT_OPTS
+        # Needed to extend the JVM memory size to avoid OutOfMemoryError for HTML test report
+        run: echo "SBT_OPTS=-Xmx2G" >> $GITHUB_ENV
+
       - name: Integ Test
         run: sbt integtest/integration
+
+      - name: Upload test report
+        if: always() # Ensures the artifact is saved even if tests fail
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-reports
+          path: target/test-reports # Adjust this path if necessary
