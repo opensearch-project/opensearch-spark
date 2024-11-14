@@ -5,9 +5,14 @@
 
 package org.opensearch.flint.spark.ppl
 
+import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
+import org.opensearch.sql.ppl.utils.SortUtils
+import org.scalatest.matchers.should.Matchers.{a, convertToAnyShouldWrapper}
+
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, CaseWhen, CurrentRow, Descending, LessThan, Literal, RowFrame, SortOrder, SpecifiedWindowFrame, WindowExpression, WindowSpecDefinition}
+import org.apache.spark.sql.catalyst.expressions.{Add, Alias, Ascending, CaseWhen, CurrentRow, Descending, Divide, Expression, LessThan, Literal, Multiply, RowFrame, SortOrder, SpecifiedWindowFrame, WindowExpression, WindowSpecDefinition}
+import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -244,4 +249,265 @@ class FlintSparkPPLTrendlineITSuite
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
   }
+
+  test("test trendline wma command with sort field and without alias") {
+    val frame = sql(s"""
+                       | source = $testTable | trendline sort + age wma(3, age)
+                       | """.stripMargin)
+
+    // Compare the headers
+    assert(
+      frame.columns.sameElements(
+        Array("name", "age", "state", "country", "year", "month", "age_trendline")))
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(
+        Row("Jane", 20, "Quebec", "Canada", 2023, 4, null),
+        Row("John", 25, "Ontario", "Canada", 2023, 4, null),
+        Row("Hello", 30, "New York", "USA", 2023, 4, 26.666666666666668),
+        Row("Jake", 70, "California", "USA", 2023, 4, 49.166666666666664))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Compare the logical plans
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val dividend = Add(
+      Add(
+        getNthValueAggregation("age", "age", 1, -2),
+        getNthValueAggregation("age", "age", 2, -2)),
+      getNthValueAggregation("age", "age", 3, -2))
+    val wmaExpression = Divide(dividend, Literal(6))
+    val trendlineProjectList = Seq(UnresolvedStar(None), Alias(wmaExpression, "age_trendline")())
+    val unresolvedRelation = UnresolvedRelation(testTable.split("\\.").toSeq)
+    val sortedTable = Sort(
+      Seq(SortOrder(UnresolvedAttribute("age"), Ascending)),
+      global = true,
+      unresolvedRelation)
+    val expectedPlan =
+      Project(Seq(UnresolvedStar(None)), Project(trendlineProjectList, sortedTable))
+
+    /**
+     * Expected logical plan: 'Project [*] +- 'Project [*, ((( ('nth_value('age, 1)
+     * windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2,
+     * currentrow$())) * 1) + ('nth_value('age, 2) windowspecdefinition('age ASC NULLS FIRST,
+     * specifiedwindowframe(RowFrame, -2, currentrow$())) * 2)) + ('nth_value('age, 3)
+     * windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2,
+     * currentrow$())) * 3)) / 6) AS age_trendline#185] +- 'Sort ['age ASC NULLS FIRST], true +-
+     * 'UnresolvedRelation [spark_catalog, default, flint_ppl_test], [], false
+     */
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test trendline wma command with sort field and with alias") {
+    val frame = sql(s"""
+                       | source = $testTable | trendline sort + age wma(3, age) as trendline_alias
+                       | """.stripMargin)
+
+    // Compare the headers
+    assert(
+      frame.columns.sameElements(
+        Array("name", "age", "state", "country", "year", "month", "trendline_alias")))
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(
+        Row("Jane", 20, "Quebec", "Canada", 2023, 4, null),
+        Row("John", 25, "Ontario", "Canada", 2023, 4, null),
+        Row("Hello", 30, "New York", "USA", 2023, 4, 26.666666666666668),
+        Row("Jake", 70, "California", "USA", 2023, 4, 49.166666666666664))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Compare the logical plans
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val dividend = Add(
+      Add(
+        getNthValueAggregation("age", "age", 1, -2),
+        getNthValueAggregation("age", "age", 2, -2)),
+      getNthValueAggregation("age", "age", 3, -2))
+    val wmaExpression = Divide(dividend, Literal(6))
+    val trendlineProjectList =
+      Seq(UnresolvedStar(None), Alias(wmaExpression, "trendline_alias")())
+    val unresolvedRelation = UnresolvedRelation(testTable.split("\\.").toSeq)
+    val sortedTable = Sort(
+      Seq(SortOrder(UnresolvedAttribute("age"), Ascending)),
+      global = true,
+      unresolvedRelation)
+    val expectedPlan =
+      Project(Seq(UnresolvedStar(None)), Project(trendlineProjectList, sortedTable))
+
+    /**
+     * 'Project [*] +- 'Project [*, ((( ('nth_value('age, 1) windowspecdefinition('age ASC NULLS
+     * FIRST, specifiedwindowframe(RowFrame, -2, currentrow$())) * 1) + ('nth_value('age, 2)
+     * windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2,
+     * currentrow$())) * 2)) + ('nth_value('age, 3) windowspecdefinition('age ASC NULLS FIRST,
+     * specifiedwindowframe(RowFrame, -2, currentrow$())) * 3)) / 6) AS trendline_alias#185] +-
+     * 'Sort ['age ASC NULLS FIRST], true +- 'UnresolvedRelation [spark_catalog, default,
+     * flint_ppl_test], [], false
+     */
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test multiple trendline wma commands") {
+    val frame = sql(s"""
+                       | source = $testTable | trendline sort + age wma(2, age) as two_points_wma wma(3, age) as three_points_wma
+                       | """.stripMargin)
+
+    // Compare the headers
+    assert(
+      frame.columns.sameElements(
+        Array(
+          "name",
+          "age",
+          "state",
+          "country",
+          "year",
+          "month",
+          "two_points_wma",
+          "three_points_wma")))
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(
+        Row("Jane", 20, "Quebec", "Canada", 2023, 4, null, null),
+        Row("John", 25, "Ontario", "Canada", 2023, 4, 23.333333333333332, null),
+        Row("Hello", 30, "New York", "USA", 2023, 4, 28.333333333333332, 26.666666666666668),
+        Row("Jake", 70, "California", "USA", 2023, 4, 56.666666666666664, 49.166666666666664))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Compare the logical plans
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val dividendTwo = Add(
+      getNthValueAggregation("age", "age", 1, -1),
+      getNthValueAggregation("age", "age", 2, -1))
+    val twoPointsExpression = Divide(dividendTwo, Literal(3))
+
+    val dividend = Add(
+      Add(
+        getNthValueAggregation("age", "age", 1, -2),
+        getNthValueAggregation("age", "age", 2, -2)),
+      getNthValueAggregation("age", "age", 3, -2))
+    val threePointsExpression = Divide(dividend, Literal(6))
+
+    val trendlineProjectList = Seq(
+      UnresolvedStar(None),
+      Alias(twoPointsExpression, "two_points_wma")(),
+      Alias(threePointsExpression, "three_points_wma")())
+    val unresolvedRelation = UnresolvedRelation(testTable.split("\\.").toSeq)
+    val sortedTable = Sort(
+      Seq(SortOrder(UnresolvedAttribute("age"), Ascending)),
+      global = true,
+      unresolvedRelation)
+    val expectedPlan =
+      Project(Seq(UnresolvedStar(None)), Project(trendlineProjectList, sortedTable))
+
+    /**
+     * 'Project [*] +- 'Project [*, (( ('nth_value('age, 1) windowspecdefinition('age ASC NULLS
+     * FIRST, specifiedwindowframe(RowFrame, -1, currentrow$())) * 1) + ('nth_value('age, 2)
+     * windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -1,
+     * currentrow$())) * 2)) / 3) AS two_points_wma#247,
+     *
+     * ((( ('nth_value('age, 1) windowspecdefinition('age ASC NULLS FIRST,
+     * specifiedwindowframe(RowFrame, -2, currentrow$())) * 1) + ('nth_value('age, 2)
+     * windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -2,
+     * currentrow$())) * 2)) + ('nth_value('age, 3) windowspecdefinition('age ASC NULLS FIRST,
+     * specifiedwindowframe(RowFrame, -2, currentrow$())) * 3)) / 6) AS three_points_wma#248] +-
+     * 'Sort ['age ASC NULLS FIRST], true +- 'UnresolvedRelation [spark_catalog, default,
+     * flint_ppl_test], [], false
+     */
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test trendline wma command on evaluated column") {
+    val frame = sql(s"""
+                       | source = $testTable | eval doubled_age = age * 2 | trendline sort + age wma(2, doubled_age) as doubled_age_wma | fields name, doubled_age, doubled_age_wma
+                       | """.stripMargin)
+
+    // Compare the headers
+    assert(frame.columns.sameElements(Array("name", "doubled_age", "doubled_age_wma")))
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(
+        Row("Jane", 40, null),
+        Row("John", 50, 46.666666666666664),
+        Row("Hello", 60, 56.666666666666664),
+        Row("Jake", 140, 113.33333333333333))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Compare the logical plans
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val dividend = Add(
+      getNthValueAggregation("doubled_age", "age", 1, -1),
+      getNthValueAggregation("doubled_age", "age", 2, -1))
+    val wmaExpression = Divide(dividend, Literal(3))
+    val trendlineProjectList =
+      Seq(UnresolvedStar(None), Alias(wmaExpression, "doubled_age_wma")())
+    val unresolvedRelation = UnresolvedRelation(testTable.split("\\.").toSeq)
+    val doubledAged = Alias(
+      UnresolvedFunction(
+        seq("*"),
+        seq(UnresolvedAttribute("age"), Literal(2)),
+        isDistinct = false),
+      "doubled_age")()
+    val doubleAgeProject = Project(seq(UnresolvedStar(None), doubledAged), unresolvedRelation)
+    val sortedTable =
+      Sort(Seq(SortOrder(UnresolvedAttribute("age"), Ascending)), global = true, doubleAgeProject)
+    val expectedPlan = Project(
+      Seq(
+        UnresolvedAttribute("name"),
+        UnresolvedAttribute("doubled_age"),
+        UnresolvedAttribute("doubled_age_wma")),
+      Project(trendlineProjectList, sortedTable))
+
+    /**
+     * 'Project ['name, 'doubled_age, 'doubled_age_wma] +- 'Project [*, ((
+     * ('nth_value('doubled_age, 1) windowspecdefinition('age ASC NULLS FIRST,
+     * specifiedwindowframe(RowFrame, -1, currentrow$())) * 1) + ('nth_value('doubled_age, 2)
+     * windowspecdefinition('age ASC NULLS FIRST, specifiedwindowframe(RowFrame, -1,
+     * currentrow$())) * 2)) / 3) AS doubled_age_wma#288] +- 'Sort ['age ASC NULLS FIRST], true +-
+     * 'Project [*, '`*`('age, 2) AS doubled_age#287] +- 'UnresolvedRelation [spark_catalog,
+     * default, flint_ppl_test], [], false
+     */
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+
+  }
+
+  test("test invalid wma command with negative dataPoint value") {
+    val exception = intercept[ParseException](sql(s"""
+           | source = $testTable | trendline sort + age wma(-3, age)
+           | """.stripMargin))
+    assert(exception.getMessage contains "[PARSE_SYNTAX_ERROR] Syntax error")
+  }
+
+  private def getNthValueAggregation(
+      dataField: String,
+      sortField: String,
+      lookBackPos: Int,
+      lookBackRange: Int): Expression = {
+    Multiply(
+      WindowExpression(
+        UnresolvedFunction(
+          "nth_value",
+          Seq(UnresolvedAttribute(dataField), Literal(lookBackPos)),
+          isDistinct = false),
+        WindowSpecDefinition(
+          Seq(),
+          seq(SortUtils.sortOrder(UnresolvedAttribute(sortField), true)),
+          SpecifiedWindowFrame(RowFrame, Literal(lookBackRange), CurrentRow))),
+      Literal(lookBackPos))
+  }
+
 }
