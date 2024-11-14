@@ -107,6 +107,11 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 See samples of [PPL queries](PPL-Example-Commands.md) 
 
 ---
+
+### Experiment PPL locally using Spark-Cluster
+See ppl usage sample on local spark cluster[PPL on local spark ](local-spark-ppl-test-instruction.md) 
+
+---
 ### TPC-H PPL Query Rewriting
 See samples of [TPC-H PPL query rewriting](ppl-tpch.md)
 
