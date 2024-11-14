@@ -896,7 +896,23 @@ coalesceFunctionName
    ;
 
 geoIpFunctionCall
-   : GEOIP LT_PRTHS (datasource = functionArg COMMA)? ipAddress = functionArg (COMMA properties = stringLiteral)? RT_PRTHS
+   : GEOIP LT_PRTHS (datasource = functionArg COMMA)? ipAddress = functionArg (COMMA properties = geoIpPropertyList)? RT_PRTHS
+   ;
+
+geoIpPropertyList
+   : geoIpProperty (COMMA geoIpProperty)*
+   ;
+
+geoIpProperty
+   : COUNTRY_ISO_CODE
+   | COUNTRY_NAME
+   | CONTINENT_NAME
+   | REGION_ISO_CODE
+   | REGION_NAME
+   | CITY_NAME
+   | TIME_ZONE
+   | LAT
+   | LON
    ;
 
 // operators
