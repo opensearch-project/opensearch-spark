@@ -5,12 +5,9 @@
 
 package org.opensearch.flint.core.storage;
 
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.indices.CreateIndexRequest;
-import org.opensearch.client.indices.CreateIndexResponse;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.client.indices.GetIndexResponse;
 import org.opensearch.common.unit.TimeValue;
@@ -26,8 +23,6 @@ import scala.Option;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.Callable;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -56,7 +51,7 @@ public class FlintOpenSearchClient implements FlintClient {
     }
   }
 
-  protected Void createIndex(String indexName, String mapping, Option<String> settings) {
+  protected void createIndex(String indexName, String mapping, Option<String> settings) {
     LOG.info("Creating Flint index " + indexName);
     String osIndexName = sanitizeIndexName(indexName);
     try (IRestHighLevelClient client = createClient()) {
@@ -66,7 +61,6 @@ public class FlintOpenSearchClient implements FlintClient {
         request.settings(settings.get(), XContentType.JSON);
       }
       client.createIndex(request, RequestOptions.DEFAULT);
-      return null;
     } catch (Exception e) {
       throw new IllegalStateException("Failed to create Flint index " + osIndexName, e);
     }
