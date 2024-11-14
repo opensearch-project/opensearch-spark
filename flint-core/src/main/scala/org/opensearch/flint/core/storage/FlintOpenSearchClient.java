@@ -132,31 +132,23 @@ public class FlintOpenSearchClient implements FlintClient {
   }
 
   private void emitIndexCreationSuccessMetric(String indexKind) {
-    switch (indexKind) {
-      case "skipping":
-        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_SKIPPING_INDICES, "success"), 1);
-        break;
-      case "covering":
-        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_COVERING_INDICES, "success"), 1);
-        break;
-      case "mv":
-        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_MV_INDICES, "success"), 1);
-        break;
-      default:
-        break;
-    }
+    emitIndexCreationMetric(indexKind, "success");
   }
 
   private void emitIndexCreationFailureMetric(String indexKind) {
+    emitIndexCreationMetric(indexKind, "failed");
+  }
+
+  private void emitIndexCreationMetric(String indexKind, String status) {
     switch (indexKind) {
       case "skipping":
-        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_SKIPPING_INDICES, "failed"), 1);
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_SKIPPING_INDICES, status), 1);
         break;
       case "covering":
-        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_COVERING_INDICES, "failed"), 1);
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_COVERING_INDICES, status), 1);
         break;
       case "mv":
-        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_MV_INDICES, "failed"), 1);
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_MV_INDICES, status), 1);
         break;
       default:
         break;
