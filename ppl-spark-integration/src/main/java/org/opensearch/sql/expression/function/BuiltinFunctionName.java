@@ -291,7 +291,6 @@ public enum BuiltinFunctionName {
   MULTIMATCHQUERY(FunctionName.of("multimatchquery")),
   WILDCARDQUERY(FunctionName.of("wildcardquery")),
   WILDCARD_QUERY(FunctionName.of("wildcard_query")),
-
   COALESCE(FunctionName.of("coalesce"));
 
   private FunctionName name;
