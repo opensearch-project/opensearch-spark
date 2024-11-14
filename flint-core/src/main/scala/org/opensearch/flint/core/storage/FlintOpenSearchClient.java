@@ -44,9 +44,9 @@ public class FlintOpenSearchClient implements FlintClient {
     LOG.info("Creating Flint index " + indexName + " with metadata " + metadata);
     try {
       createIndex(indexName, FlintOpenSearchIndexMetadataService.serialize(metadata, false), metadata.indexSettings());
-      emitIndexCreationMetric(metadata.kind(), true);
+      emitIndexCreationSuccessMetric(metadata.kind());
     } catch (IllegalStateException ex) {
-      emitIndexCreationMetric(metadata.kind(), false);
+      emitIndexCreationFailureMetric(metadata.kind());
       throw ex;
     }
   }
@@ -131,17 +131,30 @@ public class FlintOpenSearchClient implements FlintClient {
     return OpenSearchClientUtils.sanitizeIndexName(indexName);
   }
 
-  private void emitIndexCreationMetric(String indexKind, boolean createSuccessful) {
-    String stateStr = createSuccessful ? "success" : "failed";
+  private void emitIndexCreationSuccessMetric(String indexKind) {
     switch (indexKind) {
       case "skipping":
-        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_SKIPPING_INDICES, stateStr), 1);
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_SKIPPING_INDICES, "success"), 1);
         break;
       case "covering":
-        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_COVERING_INDICES, stateStr), 1);
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_COVERING_INDICES, "success"), 1);
         break;
       case "mv":
-        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_MV_INDICES, stateStr), 1);
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_MV_INDICES, "success"), 1);
+        break;
+    }
+  }
+
+  private void emitIndexCreationFailureMetric(String indexKind) {
+    switch (indexKind) {
+      case "skipping":
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_SKIPPING_INDICES, "failed"), 1);
+        break;
+      case "covering":
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_COVERING_INDICES, "failed"), 1);
+        break;
+      case "mv":
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_MV_INDICES, "failed"), 1);
         break;
     }
   }
