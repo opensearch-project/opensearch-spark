@@ -72,7 +72,7 @@ public interface SerializableUdf {
             CidrGeoMap cidrGeoMap = geoIpCache.getIfPresent(datasource);
 
             if (cidrGeoMap == null) {
-                DatasourceDao datasourceDao = DatasourceDaoFactory.GetDatasourceDaoFactory(datasource);
+                DatasourceDao datasourceDao = DatasourceDaoFactory.GetDatasourceDao("TestDatasourceDao", datasource);
                 cidrGeoMap = new CidrGeoMap(datasourceDao);
                 geoIpCache.put(datasource, cidrGeoMap);
             }
