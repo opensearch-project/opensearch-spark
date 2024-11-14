@@ -19,6 +19,8 @@ Please refer to the [Flint Index Reference Manual](./docs/index.md) for more inf
 
 * For additional details on Spark PPL commands project, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
 
+* Experiment ppl queries on local spark cluster[PPL on local spark ](docs/ppl-lang/local-spark-ppl-test-instruction.md)
+
 ## Prerequisites
 
 Version compatibility:
@@ -75,13 +77,19 @@ To build and run this PPL in Spark, you can run (requires Java 11):
 ```
 sbt clean sparkPPLCosmetic/publishM2
 ```
-then add org.opensearch:opensearch-spark-ppl_2.12 when run spark application, for example,
+
+Then add org.opensearch:opensearch-spark-ppl_2.12 when run spark application, for example,
+
 ```
 bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.7.0-SNAPSHOT" \
                 --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintPPLSparkExtensions" \
                 --conf "spark.sql.catalog.dev=org.apache.spark.opensearch.catalog.OpenSearchCatalog"
 
 ```
+
+### PPL Run queries on a local spark cluster
+See ppl usage sample on local spark cluster[PPL on local spark ](local-spark-ppl-test-instruction.md)
+
 
 ## Code of Conduct
 
