@@ -17,7 +17,7 @@ import com.codahale.metrics.Timer
 import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession, SessionStates}
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.logging.CustomLogging
-import org.opensearch.flint.core.metrics.{MetricConstants, MetricsSparkListener}
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsSparkListener, MetricsUtil}
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 
 import org.apache.spark.SparkConf
