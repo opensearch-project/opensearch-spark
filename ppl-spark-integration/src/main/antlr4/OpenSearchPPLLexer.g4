@@ -421,6 +421,16 @@ COALESCE:                           'COALESCE';
 //GEOLOCATION FUNCTIONS
 GEOIP:                              'GEOIP';
 
+//GEOLOCATION PROPERTIES
+COUNTRY_ISO_CODE:                   'COUNTRY_ISO_CODE';
+COUNTRY_NAME:                       'COUNTRY_NAME';
+CONTINENT_NAME:                     'CONTINENT_NAME';
+REGION_ISO_CODE:                    'REGION_ISO_CODE';
+REGION_NAME:                        'REGION_NAME';
+CITY_NAME:                          'CITY_NAME';
+LAT:                                'LAT';
+LON:                                'LON';
+
 // RELEVANCE FUNCTIONS AND PARAMETERS
 MATCH:                              'MATCH';
 MATCH_PHRASE:                       'MATCH_PHRASE';
