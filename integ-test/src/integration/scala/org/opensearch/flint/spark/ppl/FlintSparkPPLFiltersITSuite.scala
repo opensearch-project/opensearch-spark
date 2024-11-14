@@ -467,4 +467,96 @@ class FlintSparkPPLFiltersITSuite
     val expectedPlan = Project(Seq(UnresolvedAttribute("state")), filter)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
+
+  test("test parenthesis in filter") {
+    val frame = sql(s"""
+                       | source = $testTable | where country = 'Canada' or age > 60 and age < 25 | fields name, age, country
+                       | """.stripMargin)
+    assertSameRows(Seq(Row("John", 25, "Canada"), Row("Jane", 20, "Canada")), frame)
+
+    val frameWithParenthesis = sql(s"""
+                       | source = $testTable | where (country = 'Canada' or age > 60) and age < 25 | fields name, age, country
+                       | """.stripMargin)
+    assertSameRows(Seq(Row("Jane", 20, "Canada")), frameWithParenthesis)
+
+    val logicalPlan: LogicalPlan = frameWithParenthesis.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val filter = Filter(
+      And(
+        Or(
+          EqualTo(UnresolvedAttribute("country"), Literal("Canada")),
+          GreaterThan(UnresolvedAttribute("age"), Literal(60))),
+        LessThan(UnresolvedAttribute("age"), Literal(25))),
+      table)
+    val expectedPlan = Project(
+      Seq(
+        UnresolvedAttribute("name"),
+        UnresolvedAttribute("age"),
+        UnresolvedAttribute("country")),
+      filter)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test complex and nested parenthesis in filter") {
+    val frame1 = sql(s"""
+                        | source = $testTable | WHERE (age > 18 AND (state = 'California' OR state = 'New York'))
+                        | """.stripMargin)
+    assertSameRows(
+      Seq(
+        Row("Hello", 30, "New York", "USA", 2023, 4),
+        Row("Jake", 70, "California", "USA", 2023, 4)),
+      frame1)
+
+    val frame2 = sql(s"""
+                        | source = $testTable | WHERE ((((age > 18) AND ((((state = 'California') OR state = 'New York'))))))
+                        | """.stripMargin)
+    assertSameRows(
+      Seq(
+        Row("Hello", 30, "New York", "USA", 2023, 4),
+        Row("Jake", 70, "California", "USA", 2023, 4)),
+      frame2)
+
+    val frame3 = sql(s"""
+                        | source = $testTable | WHERE (year = 2023 AND (month BETWEEN 1 AND 6)) AND (age >= 31 OR country = 'Canada')
+                        | """.stripMargin)
+    assertSameRows(
+      Seq(
+        Row("John", 25, "Ontario", "Canada", 2023, 4),
+        Row("Jake", 70, "California", "USA", 2023, 4),
+        Row("Jane", 20, "Quebec", "Canada", 2023, 4)),
+      frame3)
+
+    val frame4 = sql(s"""
+                        | source = $testTable | WHERE ((state = 'Texas' OR state = 'California') AND (age < 30 OR (country = 'USA' AND year > 2020)))
+                        | """.stripMargin)
+    assertSameRows(Seq(Row("Jake", 70, "California", "USA", 2023, 4)), frame4)
+
+    val frame5 = sql(s"""
+                        | source = $testTable | WHERE (LIKE(LOWER(name), 'a%') OR LIKE(LOWER(name), 'j%')) AND (LENGTH(state) > 6 OR (country = 'USA' AND age > 18))
+                        | """.stripMargin)
+    assertSameRows(
+      Seq(
+        Row("John", 25, "Ontario", "Canada", 2023, 4),
+        Row("Jake", 70, "California", "USA", 2023, 4)),
+      frame5)
+
+    val frame6 = sql(s"""
+                        | source = $testTable | WHERE (age BETWEEN 25 AND 40) AND ((state IN ('California', 'New York', 'Texas') AND year = 2023) OR (country != 'USA' AND (month = 1 OR month = 12)))
+                        | """.stripMargin)
+    assertSameRows(Seq(Row("Hello", 30, "New York", "USA", 2023, 4)), frame6)
+
+    val frame7 = sql(s"""
+                        | source = $testTable | WHERE NOT (age < 18 OR (state = 'Alaska' AND year < 2020)) AND (country = 'USA' OR (country = 'Mexico' AND month BETWEEN 6 AND 8))
+                        | """.stripMargin)
+    assertSameRows(
+      Seq(
+        Row("Jake", 70, "California", "USA", 2023, 4),
+        Row("Hello", 30, "New York", "USA", 2023, 4)),
+      frame7)
+
+    val frame8 = sql(s"""
+                        | source = $testTable | WHERE (NOT (year < 2020 OR age < 18)) AND ((state = 'Texas' AND month % 2 = 0) OR (country = 'Mexico' AND (year = 2023 OR (year = 2022 AND month > 6))))
+                        | """.stripMargin)
+    assertSameRows(Seq(), frame8)
+  }
 }

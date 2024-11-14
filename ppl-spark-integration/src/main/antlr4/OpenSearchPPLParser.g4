@@ -267,11 +267,12 @@ trendlineCommand
    ;
 
 trendlineClause
-   : trendlineType LT_PRTHS numberOfDataPoints = integerLiteral COMMA field = fieldExpression RT_PRTHS (AS alias = qualifiedName)?
+   : trendlineType LT_PRTHS numberOfDataPoints = INTEGER_LITERAL COMMA field = fieldExpression RT_PRTHS (AS alias = qualifiedName)?
    ;
 
 trendlineType
    : SMA
+   | WMA
    ;
 
 kmeansCommand
@@ -424,6 +425,7 @@ expression
 
 logicalExpression
    : NOT logicalExpression                                      # logicalNot
+   | LT_PRTHS logicalExpression RT_PRTHS                        # parentheticLogicalExpr
    | comparisonExpression                                       # comparsion
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
    | left = logicalExpression OR right = logicalExpression      # logicalOr

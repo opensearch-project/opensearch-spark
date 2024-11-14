@@ -50,6 +50,10 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where a < 1 | fields a,b,c`
 - `source = table | where b != 'test' | fields a,b,c`
 - `source = table | where c = 'test' | fields a,b,c | head 3`
+- `source = table | where c = 'test' AND a = 1 | fields a,b,c`
+- `source = table | where c != 'test' OR a > 1 | fields a,b,c`
+- `source = table | where (b > 1 OR a > 1) AND c != 'test' | fields a,b,c`
+- `source = table | where c = 'test' NOT a > 1 | fields a,b,c` - Note: "AND" is optional
 - `source = table | where ispresent(b)`
 - `source = table | where isnull(coalesce(a, b)) | fields a,b,c | head 3`
 - `source = table | where isempty(a)`
@@ -61,6 +65,7 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where cidrmatch(ip, '192.169.1.0/24')` 
 - `source = table | where cidrmatch(ipv6, '2003:db8::/32')`
 - `source = table | trendline sma(2, temperature) as temp_trend`
+- `source = table | trendline sort timestamp wma(2, temperature) as temp_trend`
 
 #### **IP related queries**
 [See additional command details](functions/ppl-ip.md)

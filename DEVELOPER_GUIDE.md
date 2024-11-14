@@ -11,6 +11,11 @@ To execute the unit tests, run the following command:
 ```
 sbt test
 ```
+To run a specific unit test in SBT, use the testOnly command with the full path of the test class:
+```
+sbt "; project pplSparkIntegration; test:testOnly org.opensearch.flint.spark.ppl.PPLLogicalPlanTrendlineCommandTranslatorTestSuite"
+```
+
 
 ## Integration Test
 The integration test is defined in the `integration` directory of the project. The integration tests will automatically trigger unit tests and will only run if all unit tests pass. If you want to run the integration test for the project, you can do so by running the following command:
@@ -22,6 +27,13 @@ If you get integration test failures with error message "Previous attempts to fi
 2. Check if the file /var/run/docker.sock exists. If not, go to `3`.
 3. Run `sudo ln -s $HOME/.docker/desktop/docker.sock /var/run/docker.sock` or `sudo ln -s $HOME/.docker/run/docker.sock /var/run/docker.sock`
 4. If you use Docker Desktop, as an alternative of `3`, check mark the "Allow the default Docker socket to be used (requires password)" in advanced settings of Docker Desktop.
+
+Running only a selected set of integration test suites is possible with the following command:
+```
+sbt "; project integtest; it:testOnly org.opensearch.flint.spark.ppl.FlintSparkPPLTrendlineITSuite"
+```
+This command runs only the specified test suite within the integtest submodule.
+
 
 ### AWS Integration Test
 The `aws-integration` folder contains tests for cloud server providers. For instance, test against AWS OpenSearch domain, configure the following settings. The client will use the default credential provider to access the AWS OpenSearch domain.
