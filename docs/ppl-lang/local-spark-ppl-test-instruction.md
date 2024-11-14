@@ -1,18 +1,19 @@
 # Testing PPL using local Spark
 
 ## Produce the PPL artifact
-The first step would be to produce the spark-ppl artifact: `sbt clean sparkPPLCosmetic/publishM2`
+The first step would be to produce the spark-ppl artifact: `sbt clean sparkPPLCosmetic/assembly`
 
-The resulting artifact would be located in the local `.m2/` folder, for example:
-`/Users/USER_NAME/.m2/repository/org/opensearch/opensearch-spark-ppl_XX/0.X.0-SNAPSHOT/opensearch-spark-ppl_XX-0.X.0-SNAPSHOT.jar"`
-
+The resulting artifact would be located in the project's build directory:
+```sql
+[info] Built: ./opensearch-spark/sparkPPLCosmetic/target/scala-2.12/opensearch-spark-ppl-assembly-x.y.z-SNAPSHOT.jar
+```
 ## Downloading spark 3.5.3 version
 Download spark from the [official website](https://spark.apache.org/downloads.html) and install locally.
 
 ## Start Spark with the plugin
 Once installed, run spark with the generated PPL artifact: 
 ```shell
-bin/spark-sql --jars "/PATH_TO_ARTIFACT/opensearch-spark-ppl_XX-0.X.0-SNAPSHOT.jar" \
+bin/spark-sql --jars "/PATH_TO_ARTIFACT/oopensearch-spark-ppl-assembly-x.y.z-SNAPSHOT.jar" \
 --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintPPLSparkExtensions"  \
 --conf "spark.sql.catalog.dev=org.apache.spark.opensearch.catalog.OpenSearchCatalog" \
 --conf "spark.hadoop.hive.cli.print.header=true"
@@ -53,7 +54,7 @@ In order to test ppl commands using the spark-sql command line - create and popu
 ## emails table
 ```sql
 CREATE TABLE emails (name STRING, age INT, email STRING, street_address STRING, year INT, month INT) PARTITIONED BY (year, month);
-INSERT INTO testTable (name, age, email, street_address, year, month) VALUES ('Alice', 30, 'alice@example.com', '123 Main St, Seattle', 2023, 4), ('Bob', 55, 'bob@test.org', '456 Elm St, Portland', 2023, 5), ('Charlie', 65, 'charlie@domain.net', '789 Pine St, San Francisco', 2023, 4), ('David', 19, 'david@anotherdomain.com', '101 Maple St, New York', 2023, 5), ('Eve', 21, 'eve@examples.com', '202 Oak St, Boston', 2023, 4), ('Frank', 76, 'frank@sample.org', '303 Cedar St, Austin', 2023, 5), ('Grace', 41, 'grace@demo.net', '404 Birch St, Chicago', 2023, 4), ('Hank', 32, 'hank@demonstration.com', '505 Spruce St, Miami', 2023, 5), ('Ivy', 9, 'ivy@examples.com', '606 Fir St, Denver', 2023, 4), ('Jack', 12, 'jack@sample.net', '707 Ash St, Seattle', 2023, 5);
+INSERT INTO emails (name, age, email, street_address, year, month) VALUES ('Alice', 30, 'alice@example.com', '123 Main St, Seattle', 2023, 4), ('Bob', 55, 'bob@test.org', '456 Elm St, Portland', 2023, 5), ('Charlie', 65, 'charlie@domain.net', '789 Pine St, San Francisco', 2023, 4), ('David', 19, 'david@anotherdomain.com', '101 Maple St, New York', 2023, 5), ('Eve', 21, 'eve@examples.com', '202 Oak St, Boston', 2023, 4), ('Frank', 76, 'frank@sample.org', '303 Cedar St, Austin', 2023, 5), ('Grace', 41, 'grace@demo.net', '404 Birch St, Chicago', 2023, 4), ('Hank', 32, 'hank@demonstration.com', '505 Spruce St, Miami', 2023, 5), ('Ivy', 9, 'ivy@examples.com', '606 Fir St, Denver', 2023, 4), ('Jack', 12, 'jack@sample.net', '707 Ash St, Seattle', 2023, 5);
 ```
 
 Now one can run the following ppl commands to test functionality:
@@ -78,15 +79,15 @@ month               	int
 # Detailed Table Information	                    	                    
 Catalog             	spark_catalog       	                    
 Database            	default             	                    
-Table               	testtable           	                    
-Owner               	lioperry            	                    
+Table               	emails           	                    
+Owner               	USER            	                    
 Created Time        	Wed Nov 13 14:45:12 MST 2024	                    
 Last Access         	UNKNOWN             	                    
 Created By          	Spark 3.5.3         	                    
 Type                	MANAGED             	                    
 Provider            	hive                	                    
 Table Properties    	[transient_lastDdlTime=1731534312]	                    
-Location            	file:/Users/USER/tools/spark-3.5.3-bin-hadoop3/bin/spark-warehouse/testtable	                    
+Location            	file:/Users/USER/tools/spark-3.5.3-bin-hadoop3/bin/spark-warehouse/emails	                    
 Serde Library       	org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe	                    
 InputFormat         	org.apache.hadoop.mapred.TextInputFormat	                    
 OutputFormat        	org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat	                    
@@ -173,7 +174,7 @@ Time taken: 1.048 seconds, Fetched 10 row(s)
 
 ```sql
 
-source=testTable |  eval array=json_array(1, 2 ) | expand array as uid | fields uid, name, age, email;
+source=emails |  eval array=json_array(1, 2 ) | expand array as uid | fields uid, name, age, email;
 
 uid	name	age	email
 1	Hank	32	hank@demonstration.com
