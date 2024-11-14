@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark.ppl
 
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.sql.common.antlr.SyntaxCheckException
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 import org.opensearch.sql.ppl.utils.SortUtils
@@ -249,6 +250,14 @@ class PPLLogicalPlanTrendlineCommandTranslatorTestSuite
       Project(Seq(UnresolvedStar(None)), Project(trendlineProjectList, sortedTable))
     comparePlans(logPlan, expectedPlan, checkAnalysis = false)
 
+  }
+
+  test("WMA - with negative dataPoint value") {
+    val context = new CatalystPlanContext
+    val exception = intercept[SyntaxCheckException](
+      planTransformer
+        .visit(plan(pplParser, "source=relation | trendline sort age wma(-3, age)"), context))
+    assert(exception.getMessage startsWith "Failed to parse query due to offending symbol [-]")
   }
 
   private def getNthValueAggregation(

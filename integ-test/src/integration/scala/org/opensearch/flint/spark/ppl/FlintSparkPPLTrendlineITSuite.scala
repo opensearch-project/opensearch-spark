@@ -7,10 +7,12 @@ package org.opensearch.flint.spark.ppl
 
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 import org.opensearch.sql.ppl.utils.SortUtils
+import org.scalatest.matchers.should.Matchers.{a, convertToAnyShouldWrapper}
 
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Add, Alias, Ascending, CaseWhen, CurrentRow, Descending, Divide, Expression, LessThan, Literal, Multiply, RowFrame, SortOrder, SpecifiedWindowFrame, WindowExpression, WindowSpecDefinition}
+import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -481,6 +483,13 @@ class FlintSparkPPLTrendlineITSuite
      */
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
 
+  }
+
+  test("test invalid wma command with negative dataPoint value") {
+    val exception = intercept[ParseException](sql(s"""
+           | source = $testTable | trendline sort + age wma(-3, age)
+           | """.stripMargin))
+    assert(exception.getMessage contains "[PARSE_SYNTAX_ERROR] Syntax error")
   }
 
   private def getNthValueAggregation(
