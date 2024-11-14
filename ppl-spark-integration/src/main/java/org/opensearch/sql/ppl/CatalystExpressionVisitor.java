@@ -445,9 +445,13 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
 
         ScalaUDF udf = new ScalaUDF(SerializableUdf.geoIpFunction,
                 DataTypes.createStructType(new StructField[]{
-                    DataTypes.createStructField("country", DataTypes.StringType, true),
-                    DataTypes.createStructField("region", DataTypes.StringType, true),
-                    DataTypes.createStructField("city", DataTypes.StringType, true),
+                    DataTypes.createStructField("country_iso_code", DataTypes.StringType, true),
+                    DataTypes.createStructField("country_name", DataTypes.StringType, true),
+                    DataTypes.createStructField("continent_name", DataTypes.StringType, true),
+                    DataTypes.createStructField("region_iso_code", DataTypes.StringType, true),
+                    DataTypes.createStructField("region_name", DataTypes.StringType, true),
+                    DataTypes.createStructField("city_name", DataTypes.StringType, true),
+                    DataTypes.createStructField("time_zone", DataTypes.StringType, true),
                     DataTypes.createStructField("lat", DataTypes.StringType, true),
                     DataTypes.createStructField("lon", DataTypes.StringType, true)
                 }),

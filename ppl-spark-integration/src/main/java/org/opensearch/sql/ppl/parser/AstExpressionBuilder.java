@@ -414,9 +414,14 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
 
     @Override
     public UnresolvedExpression visitGeoIpFunctionCall(OpenSearchPPLParser.GeoIpFunctionCallContext ctx) {
-        UnresolvedExpression datasource = visit(ctx.datasource);
+        UnresolvedExpression datasource =
+            (ctx.datasource != null) ?
+                    visit(ctx.datasource) :
+                    // TODO Make default value var
+                    new Literal("https://geoip.maps.opensearch.org/v1/geolite2-city/manifest.json", DataType.STRING);
         UnresolvedExpression ipAddress = visit(ctx.ipAddress);
-        Literal properties = (Literal) visit(ctx.properties);
+        Literal properties = (ctx.properties != null) ? (Literal) visit(ctx.properties) :
+                new Literal("", DataType.STRING);
         return new GeoIp(datasource, ipAddress, properties);
     }
 
