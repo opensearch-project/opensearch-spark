@@ -11,8 +11,10 @@ import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.FlintJsonHelper._
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{Column, DataFrame, SparkSession}
+import org.apache.spark.sql.catalyst.plans.logical.Aggregate
 import org.apache.spark.sql.flint.datatype.FlintDataType
+import org.apache.spark.sql.functions.{col, concat_ws, expr, sha1}
 import org.apache.spark.sql.types.StructType
 
 /**
@@ -115,6 +117,38 @@ object FlintSparkIndex {
 
     val parts = fullTableName.split('.')
     s"${parts(0)}.${parts(1)}.`${parts.drop(2).mkString(".")}`"
+  }
+
+  /**
+   * Generate an ID column in the precedence below:
+   * ```
+   * 1. Use ID expression provided in the index option;
+   * 2. SHA-1 based on all output columns if aggregated;
+   * 3. Otherwise, no ID column generated.
+   * ```
+   *
+   * @param df
+   *   which DataFrame to generate ID column
+   * @param options
+   *   Flint index options
+   * @return
+   *   DataFrame with/without ID column
+   */
+  def generateIdColumn(df: DataFrame, options: FlintSparkIndexOptions): DataFrame = {
+    // Assume output rows must be unique if a simple query plan has aggregate operator
+    def isAggregated: Boolean = {
+      df.queryExecution.logical.exists(_.isInstanceOf[Aggregate])
+    }
+
+    val idExpr = options.idExpression()
+    if (idExpr.exists(_.nonEmpty)) {
+      df.withColumn(ID_COLUMN, expr(idExpr.get))
+    } else if (isAggregated) {
+      val allOutputCols = df.columns.map(col)
+      df.withColumn(ID_COLUMN, sha1(concat_ws("\0", allOutputCols: _*)))
+    } else {
+      df
+    }
   }
 
   /**
