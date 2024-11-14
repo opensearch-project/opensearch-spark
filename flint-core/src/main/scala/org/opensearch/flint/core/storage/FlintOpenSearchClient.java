@@ -142,6 +142,8 @@ public class FlintOpenSearchClient implements FlintClient {
       case "mv":
         MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_MV_INDICES, "success"), 1);
         break;
+      default:
+        break;
     }
   }
 
@@ -155,6 +157,8 @@ public class FlintOpenSearchClient implements FlintClient {
         break;
       case "mv":
         MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_MV_INDICES, "failed"), 1);
+        break;
+      default:
         break;
     }
   }
