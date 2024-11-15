@@ -67,9 +67,11 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
   test("test read table with backticks and more then 3 parts") {
     val context = new CatalystPlanContext
-    val logPlan =
+    val logPlan = {
       planTransformer.visit(plan(pplParser, "source=`t`.b.`c.d`.`e.f`"), context)
-    val table = UnresolvedRelation(Seq("t", "b", "c.d.e.f"))
+    }
+
+    val table = UnresolvedRelation(Seq("t", "b", "c.d", "e.f"))
     val expectedPlan = Project(Seq(UnresolvedStar(None)), table)
     comparePlans(expectedPlan, logPlan, false)
   }
@@ -100,13 +102,14 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          "source=`_Basic`.default.`startTime:0,endTime:1`.`logGroups(logGroupIdentifier:['hello/service_log'])`"),
+          "source=`_Basic`.default.`startTime:0,endTime:1`.`123.logGroups(logGroupIdentifier:['hello.world/service_log'])`"),
         context)
     val table = UnresolvedRelation(
       Seq(
         "_Basic",
         "default",
-        "startTime:0,endTime:1.logGroups(logGroupIdentifier:['hello/service_log'])"))
+        "startTime:0,endTime:1",
+        "123.logGroups(logGroupIdentifier:['hello.world/service_log'])"))
     val expectedPlan = Project(Seq(UnresolvedStar(None)), table)
     comparePlans(expectedPlan, logPlan, false)
   }
