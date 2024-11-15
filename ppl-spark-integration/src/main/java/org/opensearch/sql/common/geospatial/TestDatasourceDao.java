@@ -29,12 +29,8 @@ public class TestDatasourceDao implements DatasourceDao {
         BitSet bitSet1 = null;
         BitSet bitSet2 = null;
 
-        try {
-            bitSet1 = DatasourceDao.createCidrBitSet("192.168.0.0/24"); // Example CIDR mask
-            bitSet2 = DatasourceDao.createCidrBitSet("10.0.0.0/8");     // Example CIDR mask
-        } catch (UnknownHostException e) {
-
-        }
+        bitSet1 = DatasourceDao.cidrToBitSet("192.168.0.0/24"); // Example CIDR mask
+        bitSet2 = DatasourceDao.cidrToBitSet("10.0.0.0/8");     // Example CIDR mask
 
         return Stream.of(
                 Pair.of(bitSet1, geoIp1),

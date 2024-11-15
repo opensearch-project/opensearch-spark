@@ -11,12 +11,15 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import static org.opensearch.sql.common.geospatial.ManifestDao.USER_AGENT_KEY;
+import static org.opensearch.sql.common.geospatial.ManifestDao.USER_AGENT_VALUE;
 
 /**
  * Ip2Geo datasource manifest file object
@@ -25,10 +28,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 @Setter
 @Getter
-@AllArgsConstructor
+@NoArgsConstructor
 public class DatasourceManifest {
   /**
-   * @param url URL of a ZIP file conFtaining a database
+   * @param url URL of a ZIP file containing a database
    * @return URL of a ZIP file containing a database
    */
   public String url;
@@ -36,6 +39,7 @@ public class DatasourceManifest {
    * @param dbName A database file name inside the ZIP file
    * @return A database file name inside the ZIP file
    */
+  @JsonProperty("db_name")
   public String dbName;
   /**
    * @param sha256Hash SHA256 hash value of a database file
@@ -83,7 +87,7 @@ public class DatasourceManifest {
     }
 
     protected static DatasourceManifest internalBuild(final URLConnection connection) throws IOException {
-//      connection.addRequestProperty(Constants.USER_AGENT_KEY, Constants.USER_AGENT_VALUE);
+      connection.addRequestProperty(USER_AGENT_KEY, USER_AGENT_VALUE);
       final ObjectMapper mapper = new ObjectMapper();
       InputStreamReader inputStreamReader = new InputStreamReader(connection.getInputStream());
       try (BufferedReader reader = new BufferedReader(inputStreamReader)) {
