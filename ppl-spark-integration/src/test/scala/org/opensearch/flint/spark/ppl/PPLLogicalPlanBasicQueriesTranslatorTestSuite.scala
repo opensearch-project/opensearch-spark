@@ -27,7 +27,8 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
 
-  test("test error describe clause") {
+  // TODO Do not support 4+ parts table identifier in future (may be reverted this PR in 0.8.0)
+  ignore("test error describe clause") {
     val context = new CatalystPlanContext
     val thrown = intercept[IllegalArgumentException] {
       planTransformer.visit(plan(pplParser, "describe t.b.c.d"), context)

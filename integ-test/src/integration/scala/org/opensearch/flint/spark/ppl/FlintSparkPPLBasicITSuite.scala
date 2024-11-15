@@ -541,11 +541,6 @@ class FlintSparkPPLBasicITSuite
            | """.stripMargin))
       assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
     }
-    val t7 = "spark_catalog.default.flint_ppl_test7.log"
-    val ex = intercept[IllegalArgumentException](sql(s"""
-           | source = $t7| head 2
-           | """.stripMargin))
-    assert(ex.getMessage().contains("Invalid table name"))
   }
 
   test("test describe backtick table names and name contains '.'") {
@@ -564,11 +559,6 @@ class FlintSparkPPLBasicITSuite
            | """.stripMargin))
       assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
     }
-    val t7 = "spark_catalog.default.flint_ppl_test7.log"
-    val ex = intercept[IllegalArgumentException](sql(s"""
-           | describe $t7
-           | """.stripMargin))
-    assert(ex.getMessage().contains("Invalid table name"))
   }
 
   test("test explain backtick table names and name contains '.'") {
@@ -590,12 +580,26 @@ class FlintSparkPPLBasicITSuite
         Project(Seq(UnresolvedStar(None)), relation),
         ExplainMode.fromString("extended"))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
 
+  // TODO Do not support 4+ parts table identifier in future (may be reverted this PR in 0.8.0)
+  test("test table name with more than 3 parts") {
     val t7 = "spark_catalog.default.flint_ppl_test7.log"
-    val ex = intercept[IllegalArgumentException](sql(s"""
-          | explain extended | source = $t7
-          | """.stripMargin))
-    assert(ex.getMessage().contains("Invalid table name"))
+    val t4Parts = "`spark_catalog`.default.`startTime:1,endTime:2`.`this(is:['a/name'])`"
+    val t5Parts = "`spark_catalog`.default.`startTime:1,endTime:2`.`this(is:['sub/name'])`.`this(is:['sub-sub/name'])`"
+    Seq(t7, t4Parts, t5Parts).foreach { table =>
+      val ex = intercept[AnalysisException](sql(s"""
+                                                   | source = $table| head 2
+                                                   | """.stripMargin))
+      assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
+    }
+
+    Seq(t7, t4Parts, t5Parts).foreach { table =>
+      val ex = intercept[AnalysisException](sql(s"""
+                                                   | describe $table
+                                                   | """.stripMargin))
+      assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
+    }
   }
 
   test("Search multiple tables - translated into union call with fields") {
