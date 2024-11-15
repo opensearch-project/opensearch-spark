@@ -172,6 +172,21 @@ public final class MetricConstants {
     public static final String OUTPUT_TOTAL_RECORDS_WRITTEN = "output.totalRecordsWritten.count";
 
     /**
+     * Metric group related to skipping indices, such as create success and failure
+     */
+    public static final String CREATE_SKIPPING_INDICES = "query.execution.index.skipping";
+
+    /**
+     * Metric group related to covering indices, such as create success and failure
+     */
+    public static final String CREATE_COVERING_INDICES = "query.execution.index.covering";
+
+    /**
+     * Metric group related to materialized view indices, such as create success and failure
+     */
+    public static final String CREATE_MV_INDICES = "query.execution.index.mv";
+
+    /**
      * Metric for tracking the latency of checkpoint deletion
      */
     public static final String CHECKPOINT_DELETE_TIME_METRIC = "checkpoint.delete.processingTime";
