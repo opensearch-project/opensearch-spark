@@ -59,10 +59,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
   private val statementRunningCount = new AtomicInteger(0)
   private var queryCountMetric = 0
 
-  // After handling any exceptions from stopping the Spark session,
-  // check if there's a stored exception and throw it if it's an UnrecoverableException
-  sys.addShutdownHook(checkAndThrowUnrecoverableExceptions())
-
   def main(args: Array[String]) {
     val (queryOption, resultIndexOption) = parseArgs(args)
 
@@ -207,6 +203,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
         }
         stopTimer(sessionTimerContext)
         spark.stop()
+
+        // After handling any exceptions from stopping the Spark session,
+        // check if there's a stored exception and throw it if it's an UnrecoverableException
+        checkAndThrowUnrecoverableExceptions()
 
         // Check for non-daemon threads that may prevent the driver from shutting down.
         // Non-daemon threads other than the main thread indicate that the driver is still processing tasks,
@@ -360,6 +360,11 @@ object FlintREPL extends Logging with FlintJobExecutor {
           verificationResult = updatedVerificationResult
           canPickUpNextStatement = updatedCanPickUpNextStatement
           lastCanPickCheckTime = updatedLastCanPickCheckTime
+        } catch {
+          case t: Throwable =>
+            // Record and rethrow in query loop
+            throwableHandler.recordThrowable(s"Query loop execution failed.", t)
+            throw t
         } finally {
           statementsExecutionManager.terminateStatementExecution()
         }
@@ -416,10 +421,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
           error = error,
           excludedJobIds = excludedJobIds))
     logInfo(s"Current session: ${sessionDetails}")
-    logInfo(s"State is: ${sessionDetails.state}")
     sessionDetails.state = state
-    logInfo(s"State is: ${sessionDetails.state}")
+    sessionDetails.error = error
     sessionManager.updateSessionDetails(sessionDetails, updateMode = UPSERT)
+    logInfo(s"Updated session: ${sessionDetails}")
     sessionDetails
   }
 
@@ -431,7 +436,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       sessionManager: SessionManager,
       jobStartTime: Long,
       sessionTimerContext: Timer.Context): Unit = {
-    throwableHandler.recordThrowable(s"Session error: ${t.getMessage}", t)
+    val error = s"Session error: ${t.getMessage}"
+    throwableHandler.recordThrowable(error, t)
 
     try {
       refreshSessionState(
@@ -441,10 +447,12 @@ object FlintREPL extends Logging with FlintJobExecutor {
         sessionManager,
         jobStartTime,
         SessionStates.FAIL,
-        Some(t.getMessage))
+        Some(error))
     } catch {
       case t: Throwable =>
-        throwableHandler.recordThrowable(s"Failed to update session state.", t)
+        throwableHandler.recordThrowable(
+          s"Failed to update session state. Original error: $error",
+          t)
     }
 
     recordSessionFailed(sessionTimerContext)
