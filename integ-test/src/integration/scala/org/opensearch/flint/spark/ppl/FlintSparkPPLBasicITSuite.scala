@@ -586,7 +586,8 @@ class FlintSparkPPLBasicITSuite
   test("test table name with more than 3 parts") {
     val t7 = "spark_catalog.default.flint_ppl_test7.log"
     val t4Parts = "`spark_catalog`.default.`startTime:1,endTime:2`.`this(is:['a/name'])`"
-    val t5Parts = "`spark_catalog`.default.`startTime:1,endTime:2`.`this(is:['sub/name'])`.`this(is:['sub-sub/name'])`"
+    val t5Parts =
+      "`spark_catalog`.default.`startTime:1,endTime:2`.`this(is:['sub/name'])`.`this(is:['sub-sub/name'])`"
     Seq(t7, t4Parts, t5Parts).foreach { table =>
       val ex = intercept[AnalysisException](sql(s"""
                                                    | source = $table| head 2
