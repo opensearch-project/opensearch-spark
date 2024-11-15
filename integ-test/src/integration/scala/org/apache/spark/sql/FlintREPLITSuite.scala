@@ -17,14 +17,48 @@ import org.opensearch.OpenSearchStatusException
 import org.opensearch.flint.OpenSearchSuite
 import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession}
 import org.opensearch.flint.core.{FlintClient, FlintOptions}
-import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintReader, OpenSearchUpdater}
-import org.opensearch.search.sort.SortOrder
+import org.opensearch.flint.core.storage.{FlintOpenSearchClient, OpenSearchUpdater}
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.FlintREPLConfConstants.DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY
-import org.apache.spark.sql.flint.config.FlintSparkConf.{DATA_SOURCE_NAME, EXCLUDE_JOB_IDS, HOST_ENDPOINT, HOST_PORT, JOB_TYPE, REFRESH_POLICY, REPL_INACTIVITY_TIMEOUT_MILLIS, REQUEST_INDEX, SESSION_ID}
+import org.apache.spark.sql.exception.UnrecoverableException
+import org.apache.spark.sql.flint.config.FlintSparkConf.{CUSTOM_STATEMENT_MANAGER, DATA_SOURCE_NAME, EXCLUDE_JOB_IDS, HOST_ENDPOINT, HOST_PORT, JOB_TYPE, REFRESH_POLICY, REPL_INACTIVITY_TIMEOUT_MILLIS, REQUEST_INDEX, SESSION_ID}
 import org.apache.spark.sql.util.MockEnvironment
 import org.apache.spark.util.ThreadUtils
+
+/**
+ * A StatementExecutionManagerImpl that throws UnrecoverableException during statement execution.
+ * Used for testing error handling in FlintREPL.
+ */
+class FailingStatementExecutionManager(
+    private var spark: SparkSession,
+    private var sessionId: String)
+    extends StatementExecutionManager {
+
+  def this() = {
+    this(null, null)
+  }
+
+  override def prepareStatementExecution(): Either[String, Unit] = {
+    throw UnrecoverableException(new RuntimeException("Simulated execution failure"))
+  }
+
+  override def executeStatement(statement: FlintStatement): DataFrame = {
+    throw UnrecoverableException(new RuntimeException("Simulated execution failure"))
+  }
+
+  override def getNextStatement(): Option[FlintStatement] = {
+    throw UnrecoverableException(new RuntimeException("Simulated execution failure"))
+  }
+
+  override def updateStatement(statement: FlintStatement): Unit = {
+    throw UnrecoverableException(new RuntimeException("Simulated execution failure"))
+  }
+
+  override def terminateStatementExecution(): Unit = {
+    throw UnrecoverableException(new RuntimeException("Simulated execution failure"))
+  }
+}
 
 class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
 
@@ -581,6 +615,27 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
       threadLocalFuture.remove()
 
       // shutdown hook is called after all tests have finished. We cannot verify if session has correctly been set in IT.
+    }
+  }
+
+  test("REPL should handle unrecoverable exception from statement execution") {
+    // Note: This test sharing system property with other test cases so cannot run alone
+    System.setProperty(
+      CUSTOM_STATEMENT_MANAGER.key,
+      "org.apache.spark.sql.FailingStatementExecutionManager")
+    try {
+      createSession(jobRunId, "")
+      FlintREPL.main(Array(resultIndex))
+      fail("The REPL should throw an unrecoverable exception, but it succeeded instead.")
+    } catch {
+      case ex: UnrecoverableException =>
+        assert(
+          ex.getMessage.contains("Simulated execution failure"),
+          s"Unexpected exception message: ${ex.getMessage}")
+      case ex: Throwable =>
+        fail(s"Unexpected exception type: ${ex.getClass} with message: ${ex.getMessage}")
+    } finally {
+      System.setProperty(CUSTOM_STATEMENT_MANAGER.key, "")
     }
   }
 

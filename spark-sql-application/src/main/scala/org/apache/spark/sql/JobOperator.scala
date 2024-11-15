@@ -82,9 +82,6 @@ case class JobOperator(
         LangType.SQL,
         currentTimeProvider.currentEpochMillis())
 
-    var exceptionThrown = true
-    var error: String = null
-
     try {
       val futurePrepareQueryExecution = Future {
         statementExecutionManager.prepareStatementExecution()
@@ -94,7 +91,7 @@ case class JobOperator(
         ThreadUtils.awaitResult(futurePrepareQueryExecution, Duration(1, MINUTES)) match {
           case Right(_) => data
           case Left(err) =>
-            error = err
+            throwableHandler.setError(err)
             constructErrorDF(
               applicationId,
               jobId,
@@ -107,11 +104,9 @@ case class JobOperator(
               "",
               startTime)
         })
-      exceptionThrown = false
     } catch {
       case e: TimeoutException =>
-        error = s"Preparation for query execution timed out"
-        logError(error, e)
+        throwableHandler.recordThrowable(s"Preparation for query execution timed out", e)
         dataToWrite = Some(
           constructErrorDF(
             applicationId,
@@ -119,13 +114,13 @@ case class JobOperator(
             sparkSession,
             dataSource,
             "TIMEOUT",
-            error,
+            throwableHandler.error,
             queryId,
             query,
             "",
             startTime))
-      case e: Exception =>
-        val error = processQueryException(e)
+      case t: Throwable =>
+        val error = processQueryException(t)
         dataToWrite = Some(
           constructErrorDF(
             applicationId,
@@ -146,27 +141,32 @@ case class JobOperator(
       try {
         dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
       } catch {
-        case e: Exception =>
-          exceptionThrown = true
-          error = s"Failed to write to result index. originalError='${error}'"
-          logError(error, e)
+        case t: Throwable =>
+          throwableHandler.recordThrowable(
+            s"Failed to write to result index. originalError='${throwableHandler.error}'",
+            t)
       }
-      if (exceptionThrown) statement.fail() else statement.complete()
-      statement.error = Some(error)
-      statementExecutionManager.updateStatement(statement)
+      if (throwableHandler.hasException) statement.fail() else statement.complete()
+      statement.error = Some(throwableHandler.error)
 
-      cleanUpResources(exceptionThrown, threadPool, startTime)
+      try {
+        statementExecutionManager.updateStatement(statement)
+      } catch {
+        case t: Throwable =>
+          throwableHandler.recordThrowable(
+            s"Failed to update statement. originalError='${throwableHandler.error}'",
+            t)
+      }
+
+      cleanUpResources(threadPool)
     }
   }
 
-  def cleanUpResources(
-      exceptionThrown: Boolean,
-      threadPool: ThreadPoolExecutor,
-      startTime: Long): Unit = {
+  def cleanUpResources(threadPool: ThreadPoolExecutor): Unit = {
     val isStreaming = jobType.equalsIgnoreCase(FlintJobType.STREAMING)
     try {
       // Wait for streaming job complete if no error
-      if (!exceptionThrown && isStreaming) {
+      if (!throwableHandler.hasException && isStreaming) {
         // Clean Spark shuffle data after each microBatch.
         sparkSession.streams.addListener(new ShuffleCleaner(sparkSession))
         // Await index monitor before the main thread terminates
@@ -174,7 +174,7 @@ case class JobOperator(
       } else {
         logInfo(s"""
            | Skip streaming job await due to conditions not met:
-           |  - exceptionThrown: $exceptionThrown
+           |  - exceptionThrown: ${throwableHandler.hasException}
            |  - streaming: $isStreaming
            |  - activeStreams: ${sparkSession.streams.active.mkString(",")}
            |""".stripMargin)
@@ -190,7 +190,7 @@ case class JobOperator(
     } catch {
       case e: Exception => logError("Fail to close threadpool", e)
     }
-    recordStreamingCompletionStatus(exceptionThrown)
+    recordStreamingCompletionStatus(throwableHandler.hasException)
 
     // Check for non-daemon threads that may prevent the driver from shutting down.
     // Non-daemon threads other than the main thread indicate that the driver is still processing tasks,
@@ -219,8 +219,13 @@ case class JobOperator(
       logInfo("Stopped Spark session")
     } match {
       case Success(_) =>
-      case Failure(e) => logError("unexpected error while stopping spark session", e)
+      case Failure(e) =>
+        throwableHandler.recordThrowable("unexpected error while stopping spark session", e)
     }
+
+    // After handling any exceptions from stopping the Spark session,
+    // check if there's a stored exception and throw it if it's an UnrecoverableException
+    checkAndThrowUnrecoverableExceptions()
   }
 
   /**
