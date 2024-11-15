@@ -430,6 +430,7 @@ valueExpression
    | positionFunction                                                                           # positionFunctionCall
    | caseFunction                                                                               # caseExpr
    | timestampFunction                                                                          # timestampFunctionCall
+   | geoipFunction                                                                              # geoFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
    | ident ARROW expression                                                                     # lambda
@@ -526,6 +527,11 @@ dataTypeFunctionCall
    : CAST LT_PRTHS expression AS convertedDataType RT_PRTHS
    ;
 
+// geoip function
+geoipFunction
+   : GEOIP LT_PRTHS (datasource = functionArg COMMA)? ipAddress = functionArg (COMMA properties = stringLiteral)? RT_PRTHS
+   ;
+
 // boolean functions
 booleanFunctionCall
    : conditionFunctionBase LT_PRTHS functionArgs RT_PRTHS
@@ -555,6 +561,7 @@ evalFunctionName
    | cryptographicFunctionName
    | jsonFunctionName
    | collectionFunctionName
+   | geoipFunctionName
    | lambdaFunctionName
    ;
 
@@ -873,6 +880,10 @@ lambdaFunctionName
    | REDUCE
    ;
 
+geoipFunctionName
+   : GEOIP
+   ; 
+    
 positionFunctionName
    : POSITION
    ;
