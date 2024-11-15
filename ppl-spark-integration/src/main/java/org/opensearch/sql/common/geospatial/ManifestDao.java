@@ -5,8 +5,6 @@
 
 package org.opensearch.sql.common.geospatial;
 
-import static org.opensearch.sql.common.geospatial.DatasourceDao.createCidrBitSet;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -14,7 +12,10 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Spliterator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
@@ -24,8 +25,13 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.lang3.tuple.Pair;
+import org.glassfish.jersey.server.model.Suspendable;
 
 public class ManifestDao implements DatasourceDao {
+
+  public static final String USER_AGENT_KEY = "User-Agent";
+
+  public static final String USER_AGENT_VALUE = String.format(Locale.ROOT, "OpenSearchSpark/%s vanilla", System.getProperty("sparkVersion"));
 
   /**
    * Default endpoint to be used in GeoIP datasource creation API
@@ -37,42 +43,61 @@ public class ManifestDao implements DatasourceDao {
   private final DatasourceManifest manifest;
   private CSVParser manifestCsv;
 
-  public ManifestDao() throws MalformedURLException {
-    manifest = DatasourceManifest.Builder.build(new URL(DATASOURCE_ENDPOINT));
+  public ManifestDao(String datasource) throws MalformedURLException {
+    manifest = DatasourceManifest.Builder.build(new URL(datasource));
   }
 
   @Override
   public Stream<Pair<BitSet, GeoIpData>> getGeoIps() {
     manifestCsv = getDatabaseReader(manifest);
 
-    Map<String, Integer> headerMap = manifestCsv.getHeaderMap();
-    int cidr_index             = headerMap.get("cidr");
-    int country_iso_code_index = headerMap.get("country_iso_code");
-    int country_name_index     = headerMap.get("country_name");
-    int continent_name_index   = headerMap.get("continent_name");
-    int region_iso_code_index  = headerMap.get("region_iso_code");
-    int region_name_index      = headerMap.get("region_name");
-    int city_name_index        = headerMap.get("city_name");
-    int time_zone_index        = headerMap.get("time_zone");
-    int lat_index              = headerMap.get("lat");
-    int lon_index              = headerMap.get("lon");
+    Spliterator<CSVRecord> spliterator = manifestCsv.spliterator();
+    Map<String, Integer> headerMap = new HashMap<>();
 
-    return StreamSupport.stream(manifestCsv.spliterator(), false)
-        .map(record -> {
-          return Pair.of(
-              createCidrBitSet(record.get(cidr_index)),
-              GeoIpData.builder()
-                .country_iso_code(record.get(country_iso_code_index))
-                .country_name(record.get(country_name_index))
-                .continent_name(record.get(continent_name_index))
-                .region_iso_code(record.get(region_iso_code_index))
-                .region_name(record.get(region_name_index))
-                .city_name(record.get(city_name_index))
-                .time_zone(record.get(time_zone_index))
-                .lat(record.get(lat_index))
-                .lon(record.get(lon_index))
-                .build());
-        });
+    spliterator.tryAdvance(headerRecord -> {
+      for (int i = 0; i < headerRecord.size(); i++) {
+        headerMap.put(headerRecord.get(i), i);
+      }
+    });
+
+    int cidr_index = headerMap.get("cidr");
+    int country_iso_code_index = headerMap.get("country_iso_code");
+    int country_name_index = headerMap.get("country_name");
+    int continent_name_index = headerMap.get("continent_name");
+    int region_iso_code_index = headerMap.get("region_iso_code");
+    int region_name_index = headerMap.get("region_name");
+    int city_name_index = headerMap.get("city_name");
+    int time_zone_index = headerMap.get("time_zone");
+    int location_index = headerMap.get("location");
+
+
+    return StreamSupport.stream(spliterator, false)
+              .map(record -> {
+                String location = record.get(location_index);
+                String[] latLon;
+                if (location == null || !location.contains(",")) {
+                  latLon = new String[]{null, null};
+                } else {
+                  latLon = location.split(",", 2);
+                }
+
+                String lat = latLon[0];
+                String lon = latLon[1];
+
+              return Pair.of(
+                      DatasourceDao.cidrToBitSet(record.get(cidr_index)),
+                      GeoIpData.builder()
+                              .country_iso_code(record.get(country_iso_code_index))
+                              .country_name(record.get(country_name_index))
+                              .continent_name(record.get(continent_name_index))
+                              .region_iso_code(record.get(region_iso_code_index))
+                              .region_name(record.get(region_name_index))
+                              .city_name(record.get(city_name_index))
+                              .time_zone(record.get(time_zone_index))
+                              .lat(lat)
+                              .lon(lon)
+                              .build());
+            });
   }
 
   @Override
@@ -99,7 +124,7 @@ public class ManifestDao implements DatasourceDao {
   }
 
   protected CSVParser internalGetDatabaseReader(final DatasourceManifest manifest, final URLConnection connection) throws IOException {
-  //  connection.addRequestProperty(Constants.USER_AGENT_KEY, Constants.USER_AGENT_VALUE);
+    connection.addRequestProperty(USER_AGENT_KEY, USER_AGENT_VALUE);
     ZipInputStream zipIn = new ZipInputStream(connection.getInputStream());
     ZipEntry zipEntry = zipIn.getNextEntry();
     while (zipEntry != null) {
