@@ -17,7 +17,7 @@ Apart from the basic feature, it also has some advanced functionality includes:
 ### Usage
 To use this script, you need to have Python **3.6** or higher installed. It also requires the following Python libraries:
 ```shell
-pip install requests pandas
+pip install requests pandas openpyxl
 ```
 
 After getting the requisite libraries, you can run the script with the following command line parameters in your shell:

@@ -101,7 +101,7 @@ class FlintTester:
       response.raise_for_status()
       return response_json
     except Exception as e:
-      return {"error": str(e), "response": response_json}
+      return {"error": f"{str(e)}, got response {response_json}"}
 
   # Call get API to check the query status
   def get_query_result(self, query_id):
@@ -113,7 +113,7 @@ class FlintTester:
       response.raise_for_status()
       return response_json
     except Exception as e:
-      return {"status": "FAILED", "error": str(e), "response": response_json}
+      return {"status": "FAILED", "error": f"{str(e)}, got response {response_json}"}
 
   # Call delete API to cancel the query
   def cancel_query(self, query_id):
@@ -204,6 +204,7 @@ class FlintTester:
     futures = [self.executor.submit(self.run_test, query, seq_id, expected_status) for query, seq_id, expected_status in queries]
     for future in as_completed(futures):
       result = future.result()
+      self.logger.info(f"Completed test: {result["query_name"]}, {result["query"]}, got result status: {result["status"]}")
       self.test_results.append(result)
 
   def generate_report(self):
