@@ -22,6 +22,7 @@ import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
+import org.apache.spark.sql.exception.UnrecoverableException
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 import org.apache.spark.sql.types._
@@ -44,12 +45,13 @@ trait FlintJobExecutor {
   this: Logging =>
 
   val mapper = new ObjectMapper()
+  val throwableHandler = new ThrowableHandler()
 
   var currentTimeProvider: TimeProvider = new RealTimeProvider()
   var threadPoolFactory: ThreadPoolFactory = new DefaultThreadPoolFactory()
   var environmentProvider: EnvironmentProvider = new RealEnvironment()
   var enableHiveSupport: Boolean = true
-  // termiante JVM in the presence non-deamon thread before exiting
+  // terminate JVM in the presence non-daemon thread before exiting
   var terminateJVM = true
 
   // The enabled setting, which can be applied only to the top-level mapping definition and to object fields,
@@ -435,11 +437,13 @@ trait FlintJobExecutor {
   }
 
   private def handleQueryException(
-      e: Exception,
+      t: Throwable,
       messagePrefix: String,
       errorSource: Option[String] = None,
       statusCode: Option[Int] = None): String = {
-    val errorMessage = s"$messagePrefix: ${e.getMessage}"
+    throwableHandler.setThrowable(t)
+
+    val errorMessage = s"$messagePrefix: ${t.getMessage}"
     val errorDetails = new java.util.LinkedHashMap[String, String]()
     errorDetails.put("Message", errorMessage)
     errorSource.foreach(es => errorDetails.put("ErrorSource", es))
@@ -450,25 +454,25 @@ trait FlintJobExecutor {
     // CustomLogging will call log4j logger.error() underneath
     statusCode match {
       case Some(code) =>
-        CustomLogging.logError(new OperationMessage(errorMessage, code), e)
+        CustomLogging.logError(new OperationMessage(errorMessage, code), t)
       case None =>
-        CustomLogging.logError(errorMessage, e)
+        CustomLogging.logError(errorMessage, t)
     }
 
     errorJson
   }
 
-  def getRootCause(e: Throwable): Throwable = {
-    if (e.getCause == null) e
-    else getRootCause(e.getCause)
+  def getRootCause(t: Throwable): Throwable = {
+    if (t.getCause == null) t
+    else getRootCause(t.getCause)
   }
 
   /**
    * This method converts query exception into error string, which then persist to query result
    * metadata
    */
-  def processQueryException(ex: Exception): String = {
-    getRootCause(ex) match {
+  def processQueryException(throwable: Throwable): String = {
+    getRootCause(throwable) match {
       case r: ParseException =>
         handleQueryException(r, ExceptionMessages.SyntaxErrorPrefix)
       case r: AmazonS3Exception =>
@@ -495,15 +499,15 @@ trait FlintJobExecutor {
         handleQueryException(r, ExceptionMessages.QueryAnalysisErrorPrefix)
       case r: SparkException =>
         handleQueryException(r, ExceptionMessages.SparkExceptionErrorPrefix)
-      case r: Exception =>
-        val rootCauseClassName = r.getClass.getName
-        val errMsg = r.getMessage
+      case t: Throwable =>
+        val rootCauseClassName = t.getClass.getName
+        val errMsg = t.getMessage
         if (rootCauseClassName == "org.apache.hadoop.hive.metastore.api.MetaException" &&
           errMsg.contains("com.amazonaws.services.glue.model.AccessDeniedException")) {
           val e = new SecurityException(ExceptionMessages.GlueAccessDeniedMessage)
           handleQueryException(e, ExceptionMessages.QueryRunErrorPrefix)
         } else {
-          handleQueryException(r, ExceptionMessages.QueryRunErrorPrefix)
+          handleQueryException(t, ExceptionMessages.QueryRunErrorPrefix)
         }
     }
   }
@@ -532,6 +536,14 @@ trait FlintJobExecutor {
     throw t
   }
 
+  def checkAndThrowUnrecoverableExceptions(): Unit = {
+    throwableHandler.exceptionThrown.foreach {
+      case e: UnrecoverableException =>
+        throw e
+      case _ => // Do nothing for other types of exceptions
+    }
+  }
+
   def instantiate[T](defaultConstructor: => T, className: String, args: Any*): T = {
     if (Strings.isNullOrEmpty(className)) {
       defaultConstructor
@@ -551,5 +563,4 @@ trait FlintJobExecutor {
       }
     }
   }
-
 }
