@@ -53,8 +53,15 @@ public interface RelationUtils {
                 Option$.MODULE$.apply(qualifiedName.getParts().get(1)),
                 Option$.MODULE$.apply(qualifiedName.getParts().get(0)));
         } else {
-            throw new IllegalArgumentException("Invalid table name: " + qualifiedName
-                + " Syntax: [ database_name. ] table_name");
+            // TODO Do not support 4+ parts table identifier in future (may be reverted this PR in 0.8.0)
+            // qualifiedName.getParts().size() > 3
+            // A Spark TableIdentifier should only contain 3 parts: tableName, databaseName and catalogName.
+            // If the qualifiedName has more than 3 parts,
+            // we merge all parts from 3 to last parts into the tableName as one whole
+            identifier = new TableIdentifier(
+                String.join(".", qualifiedName.getParts().subList(2, qualifiedName.getParts().size())),
+                Option$.MODULE$.apply(qualifiedName.getParts().get(1)),
+                Option$.MODULE$.apply(qualifiedName.getParts().get(0)));
         }
         return identifier;
     }
