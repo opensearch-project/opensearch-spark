@@ -30,7 +30,6 @@ class PPLLogicalPlanGrokTranslatorTestSuite
 
   test("test grok email & host expressions") {
     val grokCompiler = GrokCompiler.newInstance
-    grokCompiler.registerDefaultPatterns()
 
     /* Grok pattern to compile, here httpd logs */ /* Grok pattern to compile, here httpd logs */
     val grok = grokCompiler.compile(".+@%{HOSTNAME:host}")
