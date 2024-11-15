@@ -74,6 +74,43 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
+  test("test describe with complex backticks and more then 3 parts") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "describe `_Basic`.default.`startTime:0,endTime:1`.`logGroups(logGroupIdentifier:['hello/service_log'])`"),
+        context)
+
+    val expectedPlan = DescribeTableCommand(
+      TableIdentifier(
+        "startTime:0,endTime:1.logGroups(logGroupIdentifier:['hello/service_log'])",
+        Option("default"),
+        Option("_Basic")),
+      Map.empty[String, String].empty,
+      isExtended = true,
+      output = DescribeRelation.getOutputAttrs)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test read complex table with backticks and more then 3 parts") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source=`_Basic`.default.`startTime:0,endTime:1`.`logGroups(logGroupIdentifier:['hello/service_log'])`"),
+        context)
+    val table = UnresolvedRelation(
+      Seq(
+        "_Basic",
+        "default",
+        "startTime:0,endTime:1.logGroups(logGroupIdentifier:['hello/service_log'])"))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), table)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
   test("test describe FQN table clause") {
     val context = new CatalystPlanContext
     val logPlan =
