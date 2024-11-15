@@ -588,11 +588,16 @@ class FlintSparkPPLBasicITSuite
     val t4Parts = "`spark_catalog`.default.`startTime:1,endTime:2`.`this(is:['a/name'])`"
     val t5Parts =
       "`spark_catalog`.default.`startTime:1,endTime:2`.`this(is:['sub/name'])`.`this(is:['sub-sub/name'])`"
+
     Seq(t7, t4Parts, t5Parts).foreach { table =>
       val ex = intercept[AnalysisException](sql(s"""
-                                                   | source = $table| head 2
-                                                   | """.stripMargin))
-      assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
+           | source = $table| head 2
+           | """.stripMargin))
+      // Expected since V2SessionCatalog only supports 3 parts
+      assert(
+        ex.getMessage()
+          .contains(
+            "[REQUIRES_SINGLE_PART_NAMESPACE] spark_catalog requires a single-part namespace"))
     }
 
     Seq(t7, t4Parts, t5Parts).foreach { table =>
