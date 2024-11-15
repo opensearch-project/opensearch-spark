@@ -52,7 +52,7 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   }
 
   // TODO Do not support 4+ parts table identifier in future (may be reverted this PR in 0.8.0)
-  test("test describe with backticks with more then 3 parts") {
+  test("test describe with backticks and more then 3 parts") {
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(plan(pplParser, "describe `t`.b.`c.d`.`e.f`"), context)
@@ -62,6 +62,15 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
       Map.empty[String, String].empty,
       isExtended = true,
       output = DescribeRelation.getOutputAttrs)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test read table with backticks and more then 3 parts") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "source=`t`.b.`c.d`.`e.f`"), context)
+    val table = UnresolvedRelation(Seq("t", "b", "c.d.e.f"))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), table)
     comparePlans(expectedPlan, logPlan, false)
   }
 
