@@ -51,6 +51,20 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
+  // TODO Do not support 4+ parts table identifier in future (may be reverted this PR in 0.8.0)
+  test("test describe with backticks with more then 3 parts") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "describe `t`.b.`c.d`.`e.f`"), context)
+
+    val expectedPlan = DescribeTableCommand(
+      TableIdentifier("c.d.e.f", Option("b"), Option("t")),
+      Map.empty[String, String].empty,
+      isExtended = true,
+      output = DescribeRelation.getOutputAttrs)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
   test("test describe FQN table clause") {
     val context = new CatalystPlanContext
     val logPlan =
