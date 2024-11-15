@@ -5,12 +5,18 @@
 
 package org.opensearch.flint.spark.covering
 
+import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
+import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.scalatest.matchers.must.Matchers.contain
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.{col, expr}
 
 class FlintSparkCoveringIndexSuite extends FlintSuite {
+
+  private val testTable = "spark_catalog.default.ci_test"
 
   test("get covering index name") {
     val index =
@@ -52,6 +58,86 @@ class FlintSparkCoveringIndexSuite extends FlintSuite {
   test("should fail if no indexed column given") {
     assertThrows[IllegalArgumentException] {
       new FlintSparkCoveringIndex("ci", "default.test", Map.empty)
+    }
+  }
+
+  test("build batch with ID expression option") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (timestamp TIMESTAMP, name STRING) USING JSON")
+      val index =
+        FlintSparkCoveringIndex(
+          "name_idx",
+          testTable,
+          Map("name" -> "string"),
+          options = FlintSparkIndexOptions(Map("id_expression" -> "name")))
+
+      comparePlans(
+        index.build(spark, None).queryExecution.logical,
+        spark
+          .table(testTable)
+          .select(col("name"))
+          .withColumn(ID_COLUMN, expr("name"))
+          .queryExecution
+          .logical,
+        checkAnalysis = false)
+    }
+  }
+
+  test("build batch should not have ID column without ID expression option") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
+      val index = FlintSparkCoveringIndex("name_idx", testTable, Map("name" -> "string"))
+
+      comparePlans(
+        index.build(spark, None).queryExecution.logical,
+        spark
+          .table(testTable)
+          .select(col("name"))
+          .queryExecution
+          .logical,
+        checkAnalysis = false)
+    }
+  }
+
+  test("build stream with ID expression option") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
+      val index = FlintSparkCoveringIndex(
+        "name_idx",
+        testTable,
+        Map("name" -> "string"),
+        options =
+          FlintSparkIndexOptions(Map("auto_refresh" -> "true", "id_expression" -> "name")))
+
+      comparePlans(
+        index.build(spark, Some(spark.table(testTable))).queryExecution.logical,
+        spark
+          .table(testTable)
+          .select("name")
+          .withColumn(ID_COLUMN, col("name"))
+          .queryExecution
+          .logical,
+        checkAnalysis = false)
+    }
+  }
+
+  test("build stream should not have ID column without ID expression option") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
+      val index = FlintSparkCoveringIndex(
+        "name_idx",
+        testTable,
+        Map("name" -> "string"),
+        options = FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
+
+      comparePlans(
+        index.build(spark, Some(spark.table(testTable))).queryExecution.logical,
+        spark
+          .table(testTable)
+          .select(col("name"))
+          .queryExecution
+          .logical,
+        checkAnalysis = false)
     }
   }
 }

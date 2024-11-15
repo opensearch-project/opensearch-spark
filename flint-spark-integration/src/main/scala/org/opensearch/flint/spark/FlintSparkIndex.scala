@@ -136,18 +136,18 @@ object FlintSparkIndex {
    */
   def generateIdColumn(df: DataFrame, options: FlintSparkIndexOptions): DataFrame = {
     // Assume output rows must be unique if a simple query plan has aggregate operator
-    def isAggregated: Boolean = {
+    def isAggregated: Boolean =
       df.queryExecution.logical.exists(_.isInstanceOf[Aggregate])
-    }
 
-    val idExpr = options.idExpression()
-    if (idExpr.exists(_.nonEmpty)) {
-      df.withColumn(ID_COLUMN, expr(idExpr.get))
-    } else if (isAggregated) {
-      val allOutputCols = df.columns.map(col)
-      df.withColumn(ID_COLUMN, sha1(concat_ws("\0", allOutputCols: _*)))
-    } else {
-      df
+    options.idExpression() match {
+      case Some(idExpr) if idExpr.nonEmpty =>
+        df.withColumn(ID_COLUMN, expr(idExpr))
+
+      case None if isAggregated =>
+        val allOutputCols = df.columns.map(col)
+        df.withColumn(ID_COLUMN, sha1(concat_ws("\0", allOutputCols: _*)))
+
+      case _ => df
     }
   }
 
