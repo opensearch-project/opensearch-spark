@@ -151,8 +151,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         }
         //regular sql algebraic relations
         node.getQualifiedNames().forEach(q ->
-                // Resolving the qualifiedName which is composed of a datasource.schema.table
-                context.withRelation(new UnresolvedRelation(getTableIdentifier(q).nameParts(), CaseInsensitiveStringMap.empty(), false))
+            // TODO Do not support 4+ parts table identifier in future (may be reverted this PR in 0.8.0)
+            // node.getQualifiedNames.getParts().size() > 3
+            // A Spark TableIdentifier should only contain 3 parts: tableName, databaseName and catalogName.
+            // If the qualifiedName has more than 3 parts,
+            // we merge all parts from 3 to last parts into the tableName as one whole
+            context.withRelation(new UnresolvedRelation(seq(q.getParts()), CaseInsensitiveStringMap.empty(), false))
         );
         return context.getPlan();
     }
