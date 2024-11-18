@@ -17,7 +17,7 @@ public class Flatten extends UnresolvedPlan {
     @Getter
     private final Field field;
     @Getter
-    private final List<UnresolvedExpression> aliases;
+    private final List<UnresolvedExpression> aliasSequence;
 
     @Override
     public UnresolvedPlan attach(UnresolvedPlan child) {

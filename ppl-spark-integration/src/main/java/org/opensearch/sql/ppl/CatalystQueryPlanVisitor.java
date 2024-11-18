@@ -460,7 +460,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
         }
         Expression field = visitExpression(flatten.getField(), context);
-        List<Expression> alias = flatten.getAliases().stream()
+        List<Expression> alias = flatten.getAliasSequence().stream()
             .map(aliasNode -> visitExpression(aliasNode, context))
             .collect(Collectors.toList());
         context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
