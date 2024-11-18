@@ -7,9 +7,10 @@ Using `flatten` command to flatten a field of type:
 
 
 ### Syntax
-`flatten <field>`
+`flatten <field> [As alias]`
 
 * field: to be flattened. The field must be of supported type.
+* alias: to be used as alias for the flattened-output fields. Need to put the alias in brace if there is more than one field.
 
 ### Test table
 #### Schema
@@ -88,3 +89,17 @@ PPL query:
 | 2024-09-13T12:00:00 | Budapest| Hungary       | 375    | Chain Bridge      | 96   | 47.4979| 19.0402|
 | 2024-09-13T12:00:00 | Budapest| Hungary       | 333    | Liberty Bridge    | 96   | 47.4979| 19.0402|
 | 1990-09-13T12:00:00 | Warsaw  | Poland        | NULL   | NULL              | NULL | NULL   | NULL   |
+
+### Example 4: flatten with alias
+This example shows how to flatten with alias.
+PPL query:
+    - `source=table | flatten coor as (altitude, latitude, longitude)`
+
+| \_time              | bridges                                      | city    | country       | altitude | latitude | longtitude |
+|---------------------|----------------------------------------------|---------|---------------|----------|----------|------------|
+| 2024-09-13T12:00:00 | [{801, Tower Bridge}, {928, London Bridge}]  | London  | England       | 35       | 51.5074  | -0.1278    |
+| 2024-09-13T12:00:00 | [{232, Pont Neuf}, {160, Pont Alexandre III}]| Paris   | France        | 35       | 48.8566  | 2.3522     |
+| 2024-09-13T12:00:00 | [{48, Rialto Bridge}, {11, Bridge of Sighs}] | Venice  | Italy         | 2        | 45.4408  | 12.3155    |
+| 2024-09-13T12:00:00 | [{516, Charles Bridge}, {343, Legion Bridge}]| Prague  | Czech Republic| 200      | 50.0755  | 14.4378    |
+| 2024-09-13T12:00:00 | [{375, Chain Bridge}, {333, Liberty Bridge}] | Budapest| Hungary       | 96       | 47.4979  | 19.0402    |
+| 1990-09-13T12:00:00 | NULL                                         | Warsaw  | Poland        | NULL     | NULL     | NULL       |

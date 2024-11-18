@@ -330,6 +330,11 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     }
 
     @Override
+    public UnresolvedExpression visitIdentsAsQualifiedNameSeq(OpenSearchPPLParser.IdentsAsQualifiedNameSeqContext ctx) {
+        return new AttributeList(ctx.qualifiedName().stream().map(this::visit).collect(Collectors.toList()));
+    }
+
+    @Override
     public UnresolvedExpression visitIdentsAsTableQualifiedName(
             OpenSearchPPLParser.IdentsAsTableQualifiedNameContext ctx) {
         return visitIdentifiers(

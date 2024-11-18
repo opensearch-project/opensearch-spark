@@ -347,4 +347,30 @@ class FlintSparkPPLFlattenITSuite
     val expectedPlan = Project(Seq(UnresolvedStar(None)), flattenMultiValue)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
+
+  test("flatten struct nested table using alias") {
+    val frame = sql(s"""
+                       | source = $structNestedTable
+                       | | flatten struct_col
+                       | | flatten field1 as subfield_1
+                       | | flatten struct_col2 as (field1, field2_2)
+                       | | flatten field1 as subfield_2
+                       | """.stripMargin)
+
+    assert(
+      frame.columns.sameElements(
+        Array("int_col", "field2", "subfield_1", "field2_2", "subfield_2")))
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(
+        Row(30, 123, "value1", 23, "valueA"),
+        Row(40, 123, "value5", 33, "valueB"),
+        Row(30, 823, "value4", 83, "valueC"),
+        Row(40, 456, "value2", 46, "valueD"),
+        Row(50, 789, "value3", 89, "valueE"))
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+  }
+
 }

@@ -259,7 +259,7 @@ expandCommand
     ;
     
 flattenCommand
-    : FLATTEN fieldExpression
+    : FLATTEN fieldExpression (AS alias = identifierSeq)?
     ;
 
 trendlineCommand
@@ -1030,6 +1030,11 @@ valueList
 
 qualifiedName
    : ident (DOT ident)* # identsAsQualifiedName
+   ;
+
+identifierSeq
+   : qualifiedName (COMMA qualifiedName)* # identsAsQualifiedNameSeq
+   | LT_PRTHS qualifiedName (COMMA qualifiedName)* RT_PRTHS # identsAsQualifiedNameSeq
    ;
 
 tableQualifiedName
