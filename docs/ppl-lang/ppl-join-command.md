@@ -1,4 +1,4 @@
-## PPL Join Command
+## PPL `join` command
 
 ### Description
 

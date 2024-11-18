@@ -1,4 +1,4 @@
-## PPL `head` Command
+## PPL `head` command
 
 **Description**
 The ``head`` command returns the first N number of specified results after an optional offset in search order.

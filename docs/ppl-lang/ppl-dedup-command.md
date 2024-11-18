@@ -1,4 +1,4 @@
-## PPL dedup command
+## PPL `dedup` command
 
 ### Table of contents
 

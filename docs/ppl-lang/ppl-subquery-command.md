@@ -1,7 +1,7 @@
-## PPL SubQuery Commands
+## PPL `subquery` command
 
 ### Description
-The subquery command has 4 types: `InSubquery`, `ExistsSubquery`, `ScalarSubquery` and `RelationSubquery`.
+The subquery commands contain 4 types: `InSubquery`, `ExistsSubquery`, `ScalarSubquery` and `RelationSubquery`.
 `InSubquery`, `ExistsSubquery` and `ScalarSubquery` are subquery expressions, their common usage is in Where clause(`where <boolean expression>`) and Search filter(`search source=* <boolean expression>`).
 
 For example, a subquery expression could be used in boolean expression:

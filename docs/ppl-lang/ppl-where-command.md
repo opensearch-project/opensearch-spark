@@ -1,4 +1,4 @@
-## PPL where Command
+## PPL `where` command
 
 ### Description
 The ``where`` command bool-expression to filter the search result. The ``where`` command only return the result when bool-expression evaluated to true.

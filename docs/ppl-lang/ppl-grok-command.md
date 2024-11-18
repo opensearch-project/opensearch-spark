@@ -1,4 +1,4 @@
-## PPL Grok Command
+## PPL `grok` command
 
 
 ### Description

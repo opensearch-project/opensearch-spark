@@ -1,4 +1,4 @@
-## PPL Lookup Command
+## PPL `lookup` command
 
 ### Description
 Lookup command enriches your search data by adding or replacing data from a lookup index (dimension table).

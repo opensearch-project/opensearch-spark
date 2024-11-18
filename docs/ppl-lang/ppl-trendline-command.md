@@ -1,7 +1,7 @@
-## PPL trendline Command
+## PPL `trendline` command
 
 ### Description
-Using ``trendline`` command to calculate moving averages of fields.
+Using `trendline` command to calculate moving averages of fields.
 
 ### Syntax - SMA (Simple Moving Average)
 `TRENDLINE [sort <[+|-] sort-field>] SMA(number-of-datapoints, field) [AS alias] [SMA(number-of-datapoints, field) [AS alias]]...`
