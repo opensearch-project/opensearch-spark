@@ -87,26 +87,28 @@ RelationSubquery:
 
 ### Examples 1: TPC-H q20
 
+InSubquery and ScalarSubquery
+
 PPL query:
 
     os> source=supplier
         | join ON s_nationkey = n_nationkey nation
         | where n_name = 'CANADA'
-            and s_suppkey in [  // InSubquery
+            and s_suppkey in [                      // InSubquery
                 source = partsupp
-                | where ps_partkey in [ // InSubquery
+                | where ps_partkey in [             // InSubquery
                     source = part
                     | where like(p_name, 'forest%')
                     | fields p_partkey
                 ]
-                and ps_availqty > [ // ScalarSubquery
+                and ps_availqty > [                 // ScalarSubquery
                     source = lineitem
                     | where l_partkey = ps_partkey
                         and l_suppkey = ps_suppkey
                         and l_shipdate >= date('1994-01-01')
                         and l_shipdate < date_add(date('1994-01-01'), interval 1 year)
                     | stats sum(l_quantity) as sum_l_quantity
-                    | eval half_sum_l_quantity = 0.5 * sum_l_quantity // Stats and Eval commands can combine when issues/819 resolved
+                    | eval half_sum_l_quantity = 0.5 * sum_l_quantity
                     | fields half_sum_l_quantity
                 ]
             | fields ps_suppkey
@@ -131,18 +133,20 @@ PPL query:
 
 ### Examples 2: TPC-H q22
 
+RelationSubquery, ScalarSubquery and ExistsSubquery
+
 PPL query:
 
-    os> source = [
+    os> source = [                                  // RelationSubquery
             source = customer
             | where substring(c_phone, 1, 2) in ('13', '31', '23', '29', '30', '18', '17')
-            and c_acctbal > [
+            and c_acctbal > [                       // ScalarSubquery
                 source = customer
                 | where c_acctbal > 0.00
                     and substring(c_phone, 1, 2) in ('13', '31', '23', '29', '30', '18', '17')
                 | stats avg(c_acctbal)
             ]
-            and not exists [
+            and not exists [                        // ExistsSubquery
                 source = orders
                 | where o_custkey = c_custkey
             ]
