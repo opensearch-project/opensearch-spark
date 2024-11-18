@@ -1,4 +1,4 @@
-## PPL Correlation Command
+## PPL Grok Command
 
 
 ### Description

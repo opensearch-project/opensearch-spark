@@ -94,7 +94,7 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`IP Address Functions`](functions/ppl-ip.md)
      
-    - [`Lambda Functions`](functions/ppl-lambda.md)
+    - [`Collection Functions`](functions/ppl-collection)
 
 ---
 ### PPL On Spark

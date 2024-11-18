@@ -1,6 +1,6 @@
 ## PPL trendline Command
 
-**Description**
+### Description
 Using ``trendline`` command to calculate moving averages of fields.
 
 ### Syntax - SMA (Simple Moving Average)
