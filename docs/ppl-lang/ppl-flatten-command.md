@@ -7,10 +7,10 @@ Using `flatten` command to flatten a field of type:
 
 
 ### Syntax
-`flatten <field> [As alias]`
+`flatten <field> [As aliasSequence]`
 
 * field: to be flattened. The field must be of supported type.
-* alias: to be used as alias for the flattened-output fields. Need to put the alias in brace if there is more than one field.
+* aliasSequence: to be used as aliasSequence for the flattened-output fields. Better to put the aliasSequence in brace if there is more than one field.
 
 ### Test table
 #### Schema
@@ -90,8 +90,8 @@ PPL query:
 | 2024-09-13T12:00:00 | Budapest| Hungary       | 333    | Liberty Bridge    | 96   | 47.4979| 19.0402|
 | 1990-09-13T12:00:00 | Warsaw  | Poland        | NULL   | NULL              | NULL | NULL   | NULL   |
 
-### Example 4: flatten with alias
-This example shows how to flatten with alias.
+### Example 4: flatten with aliasSequence
+This example shows how to flatten with aliasSequence.
 PPL query:
     - `source=table | flatten coor as (altitude, latitude, longitude)`
 
