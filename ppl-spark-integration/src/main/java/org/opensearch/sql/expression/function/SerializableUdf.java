@@ -9,11 +9,17 @@ import com.google.common.cache.Cache;
 import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddressString;
 import inet.ipaddr.IPAddressStringParameters;
+
+import org.apache.parquet.Strings;
+import org.apache.spark.sql.Row;
+
+import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.common.geospatial.CidrGeoMap;
 import org.opensearch.sql.common.geospatial.DatasourceDao;
 import org.opensearch.sql.common.geospatial.DatasourceDaoFactory;
 import org.opensearch.sql.common.geospatial.GeoIpCache;
 import org.opensearch.sql.common.geospatial.GeoIpData;
+import scala.Array;
 import scala.Function2;
 import scala.Function3;
 import scala.Serializable;
@@ -58,15 +64,12 @@ public interface SerializableUdf {
             }
 
             return parsedCidrBlock.contains(parsedIpAddress);
-        }
-    };
+        }};
 
-    Function3<String, String, List<String>, GeoIpData> geoIpFunction = new SerializableAbstractFunction3<>() {
+    Function3<String, String, String, Row> geoIpFunction = new SerializableAbstractFunction3<>() {
 
         @Override
-        public GeoIpData apply(String datasource, String ipAddress, List<String> properties) {
-
-            GeoIpData results = null;
+        public Row apply(String datasource, String ipAddress, String properties) {
 
             Cache<String, CidrGeoMap> geoIpCache = GeoIpCache.getInstance().cache;
             CidrGeoMap cidrGeoMap = geoIpCache.getIfPresent(datasource);
@@ -77,10 +80,12 @@ public interface SerializableUdf {
                 geoIpCache.put(datasource, cidrGeoMap);
             }
 
+            String[] propertiesArray = Strings.isNullOrEmpty(properties) ? null : properties.split("\\|");
+
             try {
-                return cidrGeoMap.lookup(ipAddress);
+                return cidrGeoMap.lookup(ipAddress).getRow(propertiesArray);
             } catch (UnknownHostException e) {
-                throw new RuntimeException("The given ipAddress '"+ipAddress+"' is invalid. It must be a valid IPv4 or IPv6 address. Error details: "+e.getMessage());
+                throw new RuntimeException("The given ipAddress '" + ipAddress + "' is invalid. It must be a valid IPv4 or IPv6 address. Error details: " + e.getMessage());
             }
         }
     };

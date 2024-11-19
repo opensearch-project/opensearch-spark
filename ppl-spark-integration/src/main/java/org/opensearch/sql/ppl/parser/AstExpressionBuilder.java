@@ -54,6 +54,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -420,9 +421,41 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                     // TODO Make default value var
                     new Literal("https://geoip.maps.opensearch.org/v1/geolite2-city/manifest.json", DataType.STRING);
         UnresolvedExpression ipAddress = visit(ctx.ipAddress);
-        Literal properties = (ctx.properties != null) ? (Literal) visit(ctx.properties) :
-                new Literal("", DataType.STRING);
+        UnresolvedExpression properties = ctx.properties == null ? new AttributeList(Collections.emptyList()) : visit(ctx.properties);
         return new GeoIp(datasource, ipAddress, properties);
+    }
+
+    @Override
+    public UnresolvedExpression visitGeoIpPropertyList(OpenSearchPPLParser.GeoIpPropertyListContext ctx) {
+        ImmutableList.Builder<UnresolvedExpression> properties = ImmutableList.builder();
+        if (ctx != null) {
+            for (OpenSearchPPLParser.GeoIpPropertyContext property : ctx.geoIpProperty()) {
+                String propertyName;
+                if (property.COUNTRY_ISO_CODE() != null) {
+                    propertyName = "COUNTRY_ISO_CODE";
+                } else if (property.COUNTRY_NAME() != null) {
+                    propertyName = "COUNTRY_NAME";
+                } else if (property.CONTINENT_NAME() != null) {
+                    propertyName = "CONTINENT_NAME";
+                } else if (property.REGION_ISO_CODE() != null) {
+                    propertyName = "REGION_ISO_CODE";
+                } else if (property.CITY_NAME() != null) {
+                    propertyName = "CITY_NAME";
+                } else if (property.TIME_ZONE() != null) {
+                    propertyName = "TIME_ZONE";
+                } else if (property.LAT() != null) {
+                    propertyName = "LAT";
+                } else if (property.LON() != null) {
+                    propertyName = "LON";
+                } else {
+                    continue;
+                }
+
+                properties.add(new Literal(propertyName, DataType.STRING));
+            }
+        }
+
+        return new AttributeList(properties.build());
     }
 
     @Override
