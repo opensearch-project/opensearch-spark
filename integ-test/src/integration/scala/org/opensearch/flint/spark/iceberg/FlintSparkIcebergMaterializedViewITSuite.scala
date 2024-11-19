@@ -15,7 +15,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
 
 class FlintSparkIcebergMaterializedViewITSuite
     extends FlintSparkMaterializedViewSqlITSuite
-    with FlintSparkIcebergSuite{
+    with FlintSparkIcebergSuite {
 
   private val testTable = s"$catalogName.default.mv_test_iceberg"
   private val testMvName = s"$catalogName.default.mv_test_iceberg_metrics"
