@@ -1,4 +1,4 @@
-## PPL Correlation Command
+## PPL `correlation` command
 
 > This is an experimental command - it may be removed in future versions
 

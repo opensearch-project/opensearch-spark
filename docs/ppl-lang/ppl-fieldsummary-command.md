@@ -1,11 +1,11 @@
 ## PPL `fieldsummary` command
 
-**Description**
+### Description
 Using `fieldsummary` command to :
  - Calculate basic statistics for each field (count, distinct count, min, max, avg, stddev, mean )
  - Determine the data type of each field
 
-**Syntax**
+### Syntax
 
 `... | fieldsummary <field-list> (nulls=true/false)`
 

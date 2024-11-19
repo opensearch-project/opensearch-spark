@@ -1,7 +1,7 @@
-## PPL `sort`command
+## PPL `sort` command
 
 ### Description
-Using ``sort`` command to sorts all the search result by the specified fields.
+Using `sort` command to sorts all the search result by the specified fields.
 
 
 ### Syntax

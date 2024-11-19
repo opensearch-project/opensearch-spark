@@ -1,20 +1,18 @@
-## PPL Lookup Command
+## PPL `lookup` command
 
-## Overview
+### Description
 Lookup command enriches your search data by adding or replacing data from a lookup index (dimension table).
 You can extend fields of an index with values from a dimension table, append or replace values when lookup condition is matched.
 As an alternative of [Join command](ppl-join-command), lookup command is more suitable for enriching the source data with a static dataset.
 
 
-### Syntax of Lookup Command
+### Syntax
 
-```sql
-SEARCH source=<sourceIndex>
-| <other piped command>
-| LOOKUP <lookupIndex> (<lookupMappingField> [AS <sourceMappingField>])...
-    [(REPLACE | APPEND) (<inputField> [AS <outputField>])...]
-| <other piped command>
 ```
+LOOKUP <lookupIndex> (<lookupMappingField> [AS <sourceMappingField>])...
+       [(REPLACE | APPEND) (<inputField> [AS <outputField>])...]
+```
+
 **lookupIndex**
 - Required
 - Description: the name of lookup index (dimension table)
@@ -44,26 +42,49 @@ SEARCH source=<sourceIndex>
 - Description: If you specify REPLACE, matched values in \<lookupIndex\> field overwrite the values in result. If you specify APPEND, matched values in \<lookupIndex\> field only append to the missing values in result.
 
 ### Usage
-> LOOKUP <lookupIndex> id AS cid REPLACE mail AS email</br>
-> LOOKUP <lookupIndex> name REPLACE mail AS email</br>
-> LOOKUP <lookupIndex> id AS cid, name APPEND address, mail AS email</br>
-> LOOKUP <lookupIndex> id</br>
+- `LOOKUP <lookupIndex> id AS cid REPLACE mail AS email`
+- `LOOKUP <lookupIndex> name REPLACE mail AS email`
+- `LOOKUP <lookupIndex> id AS cid, name APPEND address, mail AS email`
+- `LOOKUP <lookupIndex> id`
 
-### Example
-```sql
-SEARCH source=<sourceIndex>
-| WHERE orderType = 'Cancelled'
-| LOOKUP account_list, mkt_id AS mkt_code REPLACE amount, account_name AS name
-| STATS count(mkt_code), avg(amount) BY name
-```
-```sql
-SEARCH source=<sourceIndex>
-| DEDUP market_id
-| EVAL category=replace(category, "-", ".")
-| EVAL category=ltrim(category, "dvp.")
-| LOOKUP bounce_category category AS category APPEND classification
-```
-```sql
-SEARCH source=<sourceIndex>
-| LOOKUP bounce_category category
-```
+### Examples 1: replace
+
+PPL query:
+
+    os>source=people | LOOKUP work_info uid AS id REPLACE department | head 10
+    fetched rows / total rows = 10/10
+    +------+-----------+-------------+-----------+--------+------------------+
+    | id   | name      | occupation  | country   | salary | department       |
+    +------+-----------+-------------+-----------+--------+------------------+
+    | 1000 | Daniel    | Teacher     | Canada    | 56486  | CUSTOMER_SERVICE |
+    | 1001 | Joseph    | Lawyer      | Denmark   | 135943 | FINANCE          |
+    | 1002 | David     | Artist      | Finland   | 60391  | DATA             |
+    | 1003 | Charlotte | Lawyer      | Denmark   | 42173  | LEGAL            |
+    | 1004 | Isabella  | Veterinarian| Australia | 117699 | MARKETING        |
+    | 1005 | Lily      | Engineer    | Italy     | 37526  | IT               |
+    | 1006 | Emily     | Dentist     | Denmark   | 125340 | MARKETING        |
+    | 1007 | James     | Lawyer      | Germany   | 56532  | LEGAL            |
+    | 1008 | Lucas     | Lawyer      | Japan     | 87782  | DATA             |
+    | 1009 | Sophia    | Architect   | Sweden    | 37597  | MARKETING        |
+    +------+-----------+-------------+-----------+--------+------------------+
+
+### Examples 2: append
+
+PPL query:
+
+    os>source=people| LOOKUP work_info uid AS ID, name APPEND department | where isnotnull(department) | head 10
+    fetched rows / total rows = 10/10
+    +------+---------+-------------+-------------+--------+------------+
+    | id   | name    | occupation  | country     | salary | department |
+    +------+---------+-------------+-------------+--------+------------+
+    | 1018 | Emma    | Architect   | USA         | 72400  | IT         |
+    | 1032 | James   | Pilot       | Netherlands | 71698  | SALES      |
+    | 1043 | Jane    | Nurse       | Brazil      | 45016  | FINANCE    |
+    | 1046 | Joseph  | Pharmacist  | Mexico      | 109152 | OPERATIONS |
+    | 1064 | Joseph  | Electrician | New Zealand | 50253  | LEGAL      |
+    | 1090 | Matthew | Psychologist| Germany     | 73396  | DATA       |
+    | 1103 | Emily   | Electrician | Switzerland | 98391  | DATA       |
+    | 1114 | Jake    | Nurse       | Denmark     | 53418  | SALES      |
+    | 1115 | Sofia   | Engineer    | Mexico      | 64829  | OPERATIONS |
+    | 1122 | Oliver  | Scientist   | Netherlands | 31146  | DATA       |
+    +------+---------+-------------+-------------+--------+------------+
