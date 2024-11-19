@@ -458,11 +458,16 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            | USING ICEBERG
            |""".stripMargin)
 
-    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:01:00', 'A', 30, 'Seattle', Map('mapkey1', 'mapvalue1'))")
-    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:10:00', 'B', 20, 'Seattle', Map('mapkey2', 'mapvalue2'))")
-    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:15:00', 'C', 35, 'Portland', Map('mapkey3', 'mapvalue3'))")
-    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 01:00:00', 'D', 40, 'Portland', Map('mapkey4', 'mapvalue4'))")
-    sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 03:00:00', 'E', 15, 'Vancouver', Map('mapkey5', 'mapvalue5'))")
+    sql(
+      s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:01:00', 'A', 30, 'Seattle', Map('mapkey1', 'mapvalue1'))")
+    sql(
+      s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:10:00', 'B', 20, 'Seattle', Map('mapkey2', 'mapvalue2'))")
+    sql(
+      s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:15:00', 'C', 35, 'Portland', Map('mapkey3', 'mapvalue3'))")
+    sql(
+      s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 01:00:00', 'D', 40, 'Portland', Map('mapkey4', 'mapvalue4'))")
+    sql(
+      s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 03:00:00', 'E', 15, 'Vancouver', Map('mapkey5', 'mapvalue5'))")
   }
 
   protected def createTimeSeriesTransactionTable(testTable: String): Unit = {

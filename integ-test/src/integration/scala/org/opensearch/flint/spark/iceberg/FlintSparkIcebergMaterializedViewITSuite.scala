@@ -66,8 +66,7 @@ class FlintSparkIcebergMaterializedViewITSuite
           Row(Row(null, "mapvalue5", null, null, null)),
           Row(Row(null, null, "mapvalue3", null, null)),
           Row(Row(null, null, null, "mapvalue4", null)),
-          Row(Row(null, null, null, null, "mapvalue1"))
-        ))
+          Row(Row(null, null, null, null, "mapvalue1"))))
     }
   }
 }
