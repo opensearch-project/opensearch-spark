@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.mv
 
 import java.util.Locale
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`map AsScala`
 
 import org.opensearch.flint.common.metadata.FlintMetadata
@@ -18,6 +18,7 @@ import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getFlintIndexName, MV_INDEX_TYPE}
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedFunction, UnresolvedRelation}
@@ -64,10 +65,14 @@ case class FlintSparkMaterializedView(
       }.toArray
     val schema = generateSchema(outputSchema).asJava
 
+    // Convert Scala Array to Java ArrayList for consistency with OpenSearch JSON parsing.
+    // OpenSearch uses Jackson, which deserializes JSON arrays into ArrayLists.
+    val sourceTablesProperty = new java.util.ArrayList[String](sourceTables.toSeq.asJava)
+
     metadataBuilder(this)
       .name(mvName)
       .source(query)
-      .addProperty("sourceTables", sourceTables)
+      .addProperty("sourceTables", sourceTablesProperty)
       .indexedColumns(indexColumnMaps)
       .schema(schema)
       .build()
@@ -133,8 +138,14 @@ case class FlintSparkMaterializedView(
 
       // Assume first aggregate item must be time column
       val winFunc = winFuncs.head
-      val timeCol = winFunc.arguments.head.asInstanceOf[Attribute]
-      Some(agg, timeCol)
+      val timeCol = winFunc.arguments.head
+      timeCol match {
+        case attr: Attribute =>
+          Some(agg, attr)
+        case _ =>
+          throw new IllegalArgumentException(
+            s"Tumble function only supports simple timestamp column, but found: $timeCol")
+      }
     }
 
     private def isWindowingFunction(func: UnresolvedFunction): Boolean = {
@@ -147,7 +158,7 @@ case class FlintSparkMaterializedView(
   }
 }
 
-object FlintSparkMaterializedView {
+object FlintSparkMaterializedView extends Logging {
 
   /** MV index type name */
   val MV_INDEX_TYPE = "mv"
@@ -179,13 +190,40 @@ object FlintSparkMaterializedView {
    * @return
    *   source table names
    */
-  def extractSourceTableNames(spark: SparkSession, query: String): Array[String] = {
-    spark.sessionState.sqlParser
+  def extractSourceTablesFromQuery(spark: SparkSession, query: String): Array[String] = {
+    logInfo(s"Extracting source tables from query $query")
+    val sourceTables = spark.sessionState.sqlParser
       .parsePlan(query)
       .collect { case relation: UnresolvedRelation =>
         qualifyTableName(spark, relation.tableName)
       }
       .toArray
+    logInfo(s"Extracted tables: [${sourceTables.mkString(", ")}]")
+    sourceTables
+  }
+
+  /**
+   * Get source tables from Flint metadata properties field.
+   *
+   * @param metadata
+   *   Flint metadata
+   * @return
+   *   source table names
+   */
+  def getSourceTablesFromMetadata(metadata: FlintMetadata): Array[String] = {
+    logInfo(s"Getting source tables from metadata $metadata")
+    val sourceTables = metadata.properties.get("sourceTables")
+    sourceTables match {
+      case list: java.util.ArrayList[_] =>
+        logInfo(s"sourceTables is [${list.asScala.mkString(", ")}]")
+        list.toArray.map(_.toString)
+      case null =>
+        logInfo("sourceTables property does not exist")
+        Array.empty[String]
+      case _ =>
+        logInfo(s"sourceTables has unexpected type: ${sourceTables.getClass.getName}")
+        Array.empty[String]
+    }
   }
 
   /** Builder class for MV build */
@@ -217,7 +255,7 @@ object FlintSparkMaterializedView {
      */
     def query(query: String): Builder = {
       this.query = query
-      this.sourceTables = extractSourceTableNames(flint.spark, query)
+      this.sourceTables = extractSourceTablesFromQuery(flint.spark, query)
       this
     }
 

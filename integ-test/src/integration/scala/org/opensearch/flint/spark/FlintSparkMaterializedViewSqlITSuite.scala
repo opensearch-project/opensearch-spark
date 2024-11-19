@@ -448,5 +448,80 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     }
   }
 
+  test("tumble function should raise error for non-simple time column") {
+    val httpLogs = s"$catalogName.default.mv_test_tumble"
+    withTable(httpLogs) {
+      createTableHttpLog(httpLogs)
+
+      withTempDir { checkpointDir =>
+        val ex = the[IllegalStateException] thrownBy {
+          sql(s"""
+               | CREATE MATERIALIZED VIEW `$catalogName`.`default`.`mv_test_metrics`
+               | AS
+               | SELECT
+               |   window.start AS startTime,
+               |   COUNT(*) AS count
+               | FROM $httpLogs
+               | GROUP BY
+               |   TUMBLE(CAST(timestamp AS TIMESTAMP), '10 Minute')
+               | WITH (
+               |   auto_refresh = true,
+               |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+               |   watermark_delay = '1 Second'
+               | )
+               |""".stripMargin)
+        }
+        ex.getCause should have message
+          "Tumble function only supports simple timestamp column, but found: cast('timestamp as timestamp)"
+      }
+    }
+  }
+
+  test("tumble function should succeed with casted time column within subquery") {
+    val httpLogs = s"$catalogName.default.mv_test_tumble"
+    withTable(httpLogs) {
+      createTableHttpLog(httpLogs)
+
+      withTempDir { checkpointDir =>
+        sql(s"""
+             | CREATE MATERIALIZED VIEW `$catalogName`.`default`.`mv_test_metrics`
+             | AS
+             | SELECT
+             |   window.start AS startTime,
+             |   COUNT(*) AS count
+             | FROM (
+             |   SELECT CAST(timestamp AS TIMESTAMP) AS time
+             |   FROM $httpLogs
+             | )
+             | GROUP BY
+             |   TUMBLE(time, '10 Minute')
+             | WITH (
+             |   auto_refresh = true,
+             |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+             |   watermark_delay = '1 Second'
+             | )
+             |""".stripMargin)
+
+        // Wait for streaming job complete current micro batch
+        val job = spark.streams.active.find(_.name == testFlintIndex)
+        job shouldBe defined
+        failAfter(streamingTimeout) {
+          job.get.processAllAvailable()
+        }
+
+        checkAnswer(
+          flint.queryIndex(testFlintIndex).select("startTime", "count"),
+          Seq(
+            Row(timestamp("2023-10-01 10:00:00"), 2),
+            Row(timestamp("2023-10-01 10:10:00"), 2)
+            /*
+             * The last row is pending to fire upon watermark
+             *   Row(timestamp("2023-10-01 10:20:00"), 2)
+             */
+          ))
+      }
+    }
+  }
+
   private def timestamp(ts: String): Timestamp = Timestamp.valueOf(ts)
 }

@@ -23,7 +23,9 @@ DEDUP:                              'DEDUP';
 SORT:                               'SORT';
 EVAL:                               'EVAL';
 HEAD:                               'HEAD';
+TOP_APPROX:                         'TOP_APPROX';
 TOP:                                'TOP';
+RARE_APPROX:                        'RARE_APPROX';
 RARE:                               'RARE';
 PARSE:                              'PARSE';
 METHOD:                             'METHOD';
@@ -37,6 +39,7 @@ KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
 FILLNULL:                           'FILLNULL';
+EXPAND:                             'EXPAND';
 FLATTEN:                            'FLATTEN';
 TRENDLINE:                          'TRENDLINE';
 
@@ -93,6 +96,7 @@ NULLS:                              'NULLS';
 
 //TRENDLINE KEYWORDS
 SMA:                                'SMA';
+WMA:                                'WMA';
 
 // ARGUMENT KEYWORDS
 KEEPEMPTY:                          'KEEPEMPTY';
@@ -215,6 +219,7 @@ BIT_XOR_OP:                         '^';
 AVG:                                'AVG';
 COUNT:                              'COUNT';
 DISTINCT_COUNT:                     'DISTINCT_COUNT';
+DISTINCT_COUNT_APPROX:              'DISTINCT_COUNT_APPROX';
 ESTDC:                              'ESTDC';
 ESTDC_ERROR:                        'ESTDC_ERROR';
 MAX:                                'MAX';
@@ -378,6 +383,7 @@ JSON:                               'JSON';
 JSON_OBJECT:                        'JSON_OBJECT';
 JSON_ARRAY:                         'JSON_ARRAY';
 JSON_ARRAY_LENGTH:                  'JSON_ARRAY_LENGTH';
+TO_JSON_STRING:                     'TO_JSON_STRING';
 JSON_EXTRACT:                       'JSON_EXTRACT';
 JSON_KEYS:                          'JSON_KEYS';
 JSON_VALID:                         'JSON_VALID';
@@ -393,6 +399,7 @@ JSON_VALID:                         'JSON_VALID';
 
 // COLLECTION FUNCTIONS
 ARRAY:                              'ARRAY';
+ARRAY_LENGTH:                       'ARRAY_LENGTH';
 
 // LAMBDA FUNCTIONS
 //EXISTS:                             'EXISTS';
@@ -408,6 +415,9 @@ ISNOTNULL:                          'ISNOTNULL';
 ISPRESENT:                          'ISPRESENT';
 BETWEEN:                            'BETWEEN';
 CIDRMATCH:                          'CIDRMATCH';
+
+// Geo Loction 
+GEOIP:                              'GEOIP';
 
 // FLOWCONTROL FUNCTIONS
 IFNULL:                             'IFNULL';

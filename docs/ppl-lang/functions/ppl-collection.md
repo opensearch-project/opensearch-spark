@@ -1,4 +1,56 @@
-## Lambda Functions
+## PPL Collection Functions
+
+### `ARRAY`
+
+**Description**
+
+`array(<value>...)` Returns an array with the given elements.
+
+**Argument type:**
+- A \<value\> can be any kind of value such as string, number, or boolean.
+
+**Return type:** ARRAY
+
+Example:
+
+    os> source=people | eval `array` = array(1, 2, 0, -1, 1.1, -0.11)
+    fetched rows / total rows = 1/1
+    +------------------------------+
+    | array                        |
+    +------------------------------+
+    | [1.0,2.0,0.0,-1.0,1.1,-0.11] |
+    +------------------------------+
+    os> source=people | eval `array` = array(true, false, true, true)
+    fetched rows / total rows = 1/1
+    +------------------------------+
+    | array                        |
+    +------------------------------+
+    | [true, false, true, true]    |
+    +------------------------------+
+
+
+### `ARRAY_LENGTH`
+
+**Description**
+
+`array_length(array)` Returns the number of elements in the outermost array.
+
+**Argument type:** ARRAY
+
+ARRAY or JSON_ARRAY object.
+
+**Return type:** INTEGER
+
+Example:
+
+    os> source=people | eval `array` = array_length(array(1,2,3,4)), `empty_array` = array_length(array())
+    fetched rows / total rows = 1/1
+    +---------+---------------+
+    | array   | empty_array   |
+    +---------+---------------+
+    | 4       | 0             |
+    +---------+---------------+
+
 
 ### `FORALL`
 
@@ -14,7 +66,7 @@ Returns `TRUE` if all elements in the array satisfy the lambda predicate, otherw
 
 Example:
 
-    os> source=people | eval array = json_array(1, -1, 2), result = forall(array, x -> x > 0) | fields result
+    os> source=people | eval array = array(1, -1, 2), result = forall(array, x -> x > 0) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |
@@ -22,7 +74,7 @@ Example:
     | false     |
     +-----------+
 
-    os> source=people | eval array = json_array(1, 3, 2), result = forall(array, x -> x > 0) | fields result
+    os> source=people | eval array = array(1, 3, 2), result = forall(array, x -> x > 0) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |
@@ -41,7 +93,7 @@ Consider constructing the following array:
 
 and perform lambda functions against the nested fields `a` or `b`. See the examples:
 
-    os> source=people | eval array = json_array(json_object("a", 1, "b", 1), json_object("a" , -1, "b", 2)), result = forall(array, x -> x.a > 0) | fields result
+    os> source=people | eval array = array(json_object("a", 1, "b", 1), json_object("a" , -1, "b", 2)), result = forall(array, x -> x.a > 0) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |
@@ -49,7 +101,7 @@ and perform lambda functions against the nested fields `a` or `b`. See the examp
     | false     |
     +-----------+
 
-    os> source=people | eval array = json_array(json_object("a", 1, "b", 1), json_object("a" , -1, "b", 2)), result = forall(array, x -> x.b > 0) | fields result
+    os> source=people | eval array = array(json_object("a", 1, "b", 1), json_object("a" , -1, "b", 2)), result = forall(array, x -> x.b > 0) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |
@@ -71,7 +123,7 @@ Returns `TRUE` if at least one element in the array satisfies the lambda predica
 
 Example:
 
-    os> source=people | eval array = json_array(1, -1, 2), result = exists(array, x -> x > 0) | fields result
+    os> source=people | eval array = array(1, -1, 2), result = exists(array, x -> x > 0) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |
@@ -79,7 +131,7 @@ Example:
     | true      |
     +-----------+
 
-    os> source=people | eval array = json_array(-1, -3, -2), result = exists(array, x -> x > 0) | fields result
+    os> source=people | eval array = array(-1, -3, -2), result = exists(array, x -> x > 0) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |
@@ -102,7 +154,7 @@ An ARRAY that contains all elements in the input array that satisfy the lambda p
 
 Example:
 
-    os> source=people | eval array = json_array(1, -1, 2), result = filter(array, x -> x > 0) | fields result
+    os> source=people | eval array = array(1, -1, 2), result = filter(array, x -> x > 0) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |
@@ -110,7 +162,7 @@ Example:
     | [1, 2]    |
     +-----------+
 
-    os> source=people | eval array = json_array(-1, -3, -2), result = filter(array, x -> x > 0) | fields result
+    os> source=people | eval array = array(-1, -3, -2), result = filter(array, x -> x > 0) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |
@@ -132,7 +184,7 @@ An ARRAY that contains the result of applying the lambda transform function to e
 
 Example:
 
-    os> source=people | eval array = json_array(1, 2, 3), result = transform(array, x -> x + 1) | fields result
+    os> source=people | eval array = array(1, 2, 3), result = transform(array, x -> x + 1) | fields result
     fetched rows / total rows = 1/1
     +--------------+
     | result       |
@@ -140,7 +192,7 @@ Example:
     | [2, 3, 4]    |
     +--------------+
 
-    os> source=people | eval array = json_array(1, 2, 3), result = transform(array, (x, i) -> x + i) | fields result
+    os> source=people | eval array = array(1, 2, 3), result = transform(array, (x, i) -> x + i) | fields result
     fetched rows / total rows = 1/1
     +--------------+
     | result       |
@@ -162,7 +214,7 @@ The final result of applying the lambda functions to the start value and the inp
 
 Example:
 
-    os> source=people | eval array = json_array(1, 2, 3), result = reduce(array, 0, (acc, x) -> acc + x) | fields result
+    os> source=people | eval array = array(1, 2, 3), result = reduce(array, 0, (acc, x) -> acc + x) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |
@@ -170,7 +222,7 @@ Example:
     | 6         |
     +-----------+
 
-    os> source=people | eval array = json_array(1, 2, 3), result = reduce(array, 10, (acc, x) -> acc + x) | fields result
+    os> source=people | eval array = array(1, 2, 3), result = reduce(array, 10, (acc, x) -> acc + x) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |
@@ -178,7 +230,7 @@ Example:
     | 16        |
     +-----------+
 
-    os> source=people | eval array = json_array(1, 2, 3), result = reduce(array, 0, (acc, x) -> acc + x, acc -> acc * 10) | fields result
+    os> source=people | eval array = array(1, 2, 3), result = reduce(array, 0, (acc, x) -> acc + x, acc -> acc * 10) | fields result
     fetched rows / total rows = 1/1
     +-----------+
     | result    |

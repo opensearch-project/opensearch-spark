@@ -71,6 +71,11 @@ public final class MetricConstants {
     public static final String REPL_PROCESSING_TIME_METRIC = "session.processingTime";
 
     /**
+     * Metric name for counting the number of queries executed per session.
+     */
+    public static final String REPL_QUERY_COUNT_METRIC = "session.query.count";
+
+    /**
      * Prefix for metrics related to the request metadata read operations.
      */
     public static final String REQUEST_METADATA_READ_METRIC_PREFIX = "request.metadata.read";
@@ -136,6 +141,17 @@ public final class MetricConstants {
     public static final String QUERY_EXECUTION_TIME_METRIC = "query.execution.processingTime";
 
     /**
+     * Metric for query count of each query type (DROP/VACUUM/ALTER/REFRESH/CREATE INDEX)
+     */
+    public static final String QUERY_DROP_COUNT_METRIC = "query.drop.count";
+    public static final String QUERY_VACUUM_COUNT_METRIC = "query.vacuum.count";
+    public static final String QUERY_ALTER_COUNT_METRIC = "query.alter.count";
+    public static final String QUERY_REFRESH_COUNT_METRIC = "query.refresh.count";
+    public static final String QUERY_CREATE_INDEX_COUNT_METRIC = "query.createIndex.count";
+    public static final String QUERY_CREATE_INDEX_AUTO_REFRESH_COUNT_METRIC = "query.createIndex.autoRefresh.count";
+    public static final String QUERY_CREATE_INDEX_MANUAL_REFRESH_COUNT_METRIC = "query.createIndex.manualRefresh.count";
+
+    /**
      * Metric for tracking the total bytes read from input
      */
     public static final String INPUT_TOTAL_BYTES_READ = "input.totalBytesRead.count";
@@ -156,6 +172,21 @@ public final class MetricConstants {
     public static final String OUTPUT_TOTAL_RECORDS_WRITTEN = "output.totalRecordsWritten.count";
 
     /**
+     * Metric group related to skipping indices, such as create success and failure
+     */
+    public static final String CREATE_SKIPPING_INDICES = "query.execution.index.skipping";
+
+    /**
+     * Metric group related to covering indices, such as create success and failure
+     */
+    public static final String CREATE_COVERING_INDICES = "query.execution.index.covering";
+
+    /**
+     * Metric group related to materialized view indices, such as create success and failure
+     */
+    public static final String CREATE_MV_INDICES = "query.execution.index.mv";
+
+    /**
      * Metric for tracking the latency of checkpoint deletion
      */
     public static final String CHECKPOINT_DELETE_TIME_METRIC = "checkpoint.delete.processingTime";
@@ -174,6 +205,16 @@ public final class MetricConstants {
      * Metric for tracking the index state transitions
      */
     public static final String INITIAL_CONDITION_CHECK_FAILED_PREFIX = "initialConditionCheck.failed.";
+
+    /**
+     * Metric for tracking the JVM GC time per task
+     */
+    public static final String TASK_JVM_GC_TIME_METRIC = "task.jvmGCTime.count";
+
+    /**
+     * Metric for tracking the total JVM GC time for query
+     */
+    public static final String TOTAL_JVM_GC_TIME_METRIC = "query.totalJvmGCTime.count";
 
     private MetricConstants() {
         // Private constructor to prevent instantiation

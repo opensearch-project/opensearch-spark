@@ -1,7 +1,7 @@
 ## PPL `stats` command
 
 ### Description
-Using ``stats`` command to calculate the aggregation from search result.
+Using `stats` command to calculate the aggregation from search result.
  
 ### NULL/MISSING values handling:
 

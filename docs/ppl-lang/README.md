@@ -71,6 +71,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`correlation commands`](ppl-correlation-command.md)
   
     - [`trendline commands`](ppl-trendline-command.md)
+  
+    - [`expand commands`](ppl-expand-command.md)
 
 * **Functions**
 
@@ -92,7 +94,7 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`IP Address Functions`](functions/ppl-ip.md)
      
-    - [`Lambda Functions`](functions/ppl-lambda.md)
+    - [`Collection Functions`](functions/ppl-collection)
 
 ---
 ### PPL On Spark
@@ -103,6 +105,15 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 ---
 ### Example PPL Queries
 See samples of [PPL queries](PPL-Example-Commands.md) 
+
+---
+
+### Experiment PPL locally using Spark-Cluster
+See ppl usage sample on local spark cluster[PPL on local spark ](local-spark-ppl-test-instruction.md) 
+
+---
+### TPC-H PPL Query Rewriting
+See samples of [TPC-H PPL query rewriting](ppl-tpch.md)
 
 ---
 ### Planned PPL Commands

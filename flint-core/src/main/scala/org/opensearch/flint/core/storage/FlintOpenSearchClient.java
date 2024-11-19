@@ -16,6 +16,8 @@ import org.opensearch.flint.common.metadata.FlintMetadata;
 import org.opensearch.flint.core.FlintClient;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.IRestHighLevelClient;
+import org.opensearch.flint.core.metrics.MetricConstants;
+import org.opensearch.flint.core.metrics.MetricsUtil;
 import scala.Option;
 
 import java.io.IOException;
@@ -40,7 +42,13 @@ public class FlintOpenSearchClient implements FlintClient {
   @Override
   public void createIndex(String indexName, FlintMetadata metadata) {
     LOG.info("Creating Flint index " + indexName + " with metadata " + metadata);
-    createIndex(indexName, FlintOpenSearchIndexMetadataService.serialize(metadata, false), metadata.indexSettings());
+    try {
+      createIndex(indexName, FlintOpenSearchIndexMetadataService.serialize(metadata, false), metadata.indexSettings());
+      emitIndexCreationSuccessMetric(metadata.kind());
+    } catch (IllegalStateException ex) {
+      emitIndexCreationFailureMetric(metadata.kind());
+      throw ex;
+    }
   }
 
   protected void createIndex(String indexName, String mapping, Option<String> settings) {
@@ -121,5 +129,29 @@ public class FlintOpenSearchClient implements FlintClient {
 
   private String sanitizeIndexName(String indexName) {
     return OpenSearchClientUtils.sanitizeIndexName(indexName);
+  }
+
+  private void emitIndexCreationSuccessMetric(String indexKind) {
+    emitIndexCreationMetric(indexKind, "success");
+  }
+
+  private void emitIndexCreationFailureMetric(String indexKind) {
+    emitIndexCreationMetric(indexKind, "failed");
+  }
+
+  private void emitIndexCreationMetric(String indexKind, String status) {
+    switch (indexKind) {
+      case "skipping":
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_SKIPPING_INDICES, status), 1);
+        break;
+      case "covering":
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_COVERING_INDICES, status), 1);
+        break;
+      case "mv":
+        MetricsUtil.addHistoricGauge(String.format("%s.%s.count", MetricConstants.CREATE_MV_INDICES, status), 1);
+        break;
+      default:
+        break;
+    }
   }
 }

@@ -52,7 +52,7 @@ class InteractiveSession(
     val lastUpdateTime: Long,
     val jobStartTime: Long = 0,
     val excludedJobIds: Seq[String] = Seq.empty[String],
-    val error: Option[String] = None,
+    var error: Option[String] = None,
     sessionContext: Map[String, Any] = Map.empty[String, Any])
     extends ContextualDataStore
     with Logging {
@@ -72,7 +72,7 @@ class InteractiveSession(
     val excludedJobIdsStr = excludedJobIds.mkString("[", ", ", "]")
     val errorStr = error.getOrElse("None")
     // Does not include context, which could contain sensitive information.
-    s"FlintInstance(applicationId=$applicationId, jobId=$jobId, sessionId=$sessionId, state=$state, " +
+    s"InteractiveSession(applicationId=$applicationId, jobId=$jobId, sessionId=$sessionId, state=$state, " +
       s"lastUpdateTime=$lastUpdateTime, jobStartTime=$jobStartTime, excludedJobIds=$excludedJobIdsStr, error=$errorStr)"
   }
 }

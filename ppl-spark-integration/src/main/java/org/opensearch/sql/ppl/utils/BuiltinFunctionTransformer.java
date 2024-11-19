@@ -26,8 +26,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import static org.opensearch.flint.spark.ppl.OpenSearchPPLLexer.DISTINCT_COUNT_APPROX;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADD;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADDDATE;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.APPROX_COUNT_DISTINCT;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.ARRAY_LENGTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATEDIFF;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATE_ADD;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATE_SUB;
@@ -58,6 +61,7 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.SUBDATE
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SYSDATE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.TIMESTAMPADD;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.TIMESTAMPDIFF;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.TO_JSON_STRING;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.TRIM;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.UTC_TIMESTAMP;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.WEEK;
@@ -102,9 +106,12 @@ public interface BuiltinFunctionTransformer {
             .put(COALESCE, "coalesce")
             .put(LENGTH, "length")
             .put(TRIM, "trim")
+            .put(ARRAY_LENGTH, "array_size")
             // json functions
+            .put(TO_JSON_STRING, "to_json")
             .put(JSON_KEYS, "json_object_keys")
             .put(JSON_EXTRACT, "get_json_object")
+            .put(APPROX_COUNT_DISTINCT, "approx_count_distinct")
             .build();
 
     /**
@@ -126,26 +133,12 @@ public interface BuiltinFunctionTransformer {
         .put(
             JSON_ARRAY_LENGTH,
             args -> {
-                // Check if the input is an array (from json_array()) or a JSON string
-                if (args.get(0) instanceof UnresolvedFunction) {
-                    // Input is a JSON array
-                    return UnresolvedFunction$.MODULE$.apply("json_array_length",
-                        seq(UnresolvedFunction$.MODULE$.apply("to_json", seq(args), false)), false);
-                } else {
-                    // Input is a JSON string
-                    return UnresolvedFunction$.MODULE$.apply("json_array_length", seq(args.get(0)), false);
-                }
+                return UnresolvedFunction$.MODULE$.apply("json_array_length", seq(args.get(0)), false);
             })
         .put(
             JSON,
             args -> {
-                // Check if the input is a named_struct (from json_object()) or a JSON string
-                if (args.get(0) instanceof UnresolvedFunction) {
-                    return UnresolvedFunction$.MODULE$.apply("to_json", seq(args.get(0)), false);
-                } else {
-                    return UnresolvedFunction$.MODULE$.apply("get_json_object",
-                        seq(args.get(0), Literal$.MODULE$.apply("$")), false);
-                }
+                return UnresolvedFunction$.MODULE$.apply("get_json_object", seq(args.get(0), Literal$.MODULE$.apply("$")), false);
             })
         .put(
             JSON_VALID,

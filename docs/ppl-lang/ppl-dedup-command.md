@@ -1,6 +1,6 @@
-# PPL dedup command
+## PPL `dedup` command
 
-## Table of contents
+### Table of contents
 
 - [Description](#description)
 - [Syntax](#syntax)
@@ -11,11 +11,11 @@
     - [Example 4: Dedup in consecutive document](#example-4-dedup-in-consecutive-document)
 - [Limitation](#limitation)
 
-## Description
+### Description
 
 Using `dedup` command to remove identical document defined by field from the search result.
 
-## Syntax
+### Syntax
 
 ```sql
 dedup [int] <field-list> [keepempty=<bool>] [consecutive=<bool>]

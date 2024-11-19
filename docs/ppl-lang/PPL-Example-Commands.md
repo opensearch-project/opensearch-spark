@@ -50,6 +50,10 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where a < 1 | fields a,b,c`
 - `source = table | where b != 'test' | fields a,b,c`
 - `source = table | where c = 'test' | fields a,b,c | head 3`
+- `source = table | where c = 'test' AND a = 1 | fields a,b,c`
+- `source = table | where c != 'test' OR a > 1 | fields a,b,c`
+- `source = table | where (b > 1 OR a > 1) AND c != 'test' | fields a,b,c`
+- `source = table | where c = 'test' NOT a > 1 | fields a,b,c` - Note: "AND" is optional
 - `source = table | where ispresent(b)`
 - `source = table | where isnull(coalesce(a, b)) | fields a,b,c | head 3`
 - `source = table | where isempty(a)`
@@ -61,6 +65,7 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where cidrmatch(ip, '192.169.1.0/24')` 
 - `source = table | where cidrmatch(ipv6, '2003:db8::/32')`
 - `source = table | trendline sma(2, temperature) as temp_trend`
+- `source = table | trendline sort timestamp wma(2, temperature) as temp_trend`
 
 #### **IP related queries**
 [See additional command details](functions/ppl-ip.md)
@@ -177,6 +182,7 @@ source = table |  where ispresent(a) |
 - `source = table | stats max(c) by b`
 - `source = table | stats count(c) by b | head 5`
 - `source = table | stats distinct_count(c)`
+- `source = table | stats distinct_count_approx(c)`
 - `source = table | stats stddev_samp(c)`
 - `source = table | stats stddev_pop(c)`
 - `source = table | stats percentile(c, 90)`
@@ -201,6 +207,7 @@ source = table |  where ispresent(a) |
 - `source = table | eventstats avg(a) `
 - `source = table | where a < 50 | eventstats avg(c) `
 - `source = table | eventstats max(c) by b`
+- `source = table | eventstats count(c) by b | head 5`
 - `source = table | eventstats count(c) by b | head 5`
 - `source = table | eventstats stddev_samp(c)`
 - `source = table | eventstats stddev_pop(c)`
@@ -246,12 +253,15 @@ source = table |  where ispresent(a) |
 
 - `source=accounts | rare gender`
 - `source=accounts | rare age by gender`
+- `source=accounts | rare 5 age by gender`
+- `source=accounts | rare_approx age by gender`
 
 #### **Top**
 [See additional command details](ppl-top-command.md)
 
 - `source=accounts | top gender`
 - `source=accounts | top 1 gender`
+- `source=accounts | top_approx 5 gender`
 - `source=accounts | top 1 age by gender`
 
 #### **Parse**
@@ -306,7 +316,11 @@ source = table |  where ispresent(a) |
 - `source = table1 | left semi join left = l right = r on l.a = r.a table2`
 - `source = table1 | left anti join left = l right = r on l.a = r.a table2`
 - `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]`
-
+- `source = table1 | inner join on table1.a = table2.a table2 | fields table1.a, table2.a, table1.b, table1.c` (directly refer table name)
+- `source = table1 | inner join on a = c table2 | fields a, b, c, d` (ignore side aliases as long as no ambiguous)
+- `source = table1 as t1 | join left = l right = r on l.a = r.a table2 as t2 | fields l.a, r.a` (side alias overrides table alias)
+- `source = table1 as t1 | join left = l right = r on l.a = r.a table2 as t2 | fields t1.a, t2.a` (error, side alias overrides table alias)
+- `source = table1 | join left = l right = r on l.a = r.a [ source = table2 ] as s | fields l.a, s.a` (error, side alias overrides subquery alias)
 
 #### **Lookup**
 [See additional command details](ppl-lookup-command.md)
@@ -437,8 +451,30 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 
 _- **Limitation: another command usage of (relation) subquery is in `appendcols` commands which is unsupported**_
 
----
-#### Experimental Commands:
+
+#### **fillnull**
+[See additional command details](ppl-fillnull-command.md)
+```sql
+   -  `source=accounts | fillnull fields status_code=101`
+   -  `source=accounts | fillnull fields request_path='/not_found', timestamp='*'`
+    - `source=accounts | fillnull using field1=101`
+    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5`
+    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5, field6 = 'N/A'`
+```
+
+#### **expand**
+[See additional command details](ppl-expand-command.md)
+```sql
+   -  `source = table | expand field_with_array as array_list`
+   -  `source = table | expand employee | stats max(salary) as max by state, company`
+   -  `source = table | expand employee as worker | stats max(salary) as max by state, company`
+   -  `source = table | expand employee as worker | eval bonus = salary * 3 | fields worker, bonus`
+   -  `source = table | expand employee | parse description '(?<email>.+@.+)' | fields employee, email`
+   -  `source = table | eval array=json_array(1, 2, 3) | expand array as uid | fields name, occupation, uid`
+   -  `source = table | expand multi_valueA as multiA | expand multi_valueB as multiB`
+```
+
+#### Correlation Commands:
 [See additional command details](ppl-correlation-command.md)
 
 ```sql
@@ -450,14 +486,3 @@ _- **Limitation: another command usage of (relation) subquery is in `appendcols`
 > ppl-correlation-command is an experimental command - it may be removed in future versions
 
 ---
-### Planned Commands:
-
-#### **fillnull**
-[See additional command details](ppl-fillnull-command.md)
-```sql
-   -  `source=accounts | fillnull fields status_code=101`
-   -  `source=accounts | fillnull fields request_path='/not_found', timestamp='*'`
-    - `source=accounts | fillnull using field1=101`
-    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5`
-    - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5, field6 = 'N/A'`
-```

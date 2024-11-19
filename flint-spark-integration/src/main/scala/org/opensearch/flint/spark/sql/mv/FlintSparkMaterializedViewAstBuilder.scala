@@ -10,7 +10,7 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import org.antlr.v4.runtime.tree.RuleNode
 import org.opensearch.flint.spark.FlintSpark
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
-import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, SparkSqlAstBuilder}
+import org.opensearch.flint.spark.sql.{FlintSparkSqlCommand, FlintSparkSqlExtensionsVisitor, IndexMetricHelper, SparkSqlAstBuilder}
 import org.opensearch.flint.spark.sql.FlintSparkSqlAstBuilder.{getFullTableName, getSqlText, IndexBelongsTo}
 import org.opensearch.flint.spark.sql.FlintSparkSqlExtensionsParser._
 
@@ -22,7 +22,9 @@ import org.apache.spark.sql.types.StringType
 /**
  * Flint Spark AST builder that builds Spark command for Flint materialized view statement.
  */
-trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisitor[AnyRef] {
+trait FlintSparkMaterializedViewAstBuilder
+    extends FlintSparkSqlExtensionsVisitor[AnyRef]
+    with IndexMetricHelper {
   self: SparkSqlAstBuilder =>
 
   override def visitCreateMaterializedViewStatement(
@@ -40,6 +42,8 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
       val indexOptions = visitPropertyList(ctx.propertyList())
       val flintIndexName = getFlintIndexName(flint, ctx.mvName)
 
+      emitCreateIndexMetric(indexOptions.autoRefresh())
+
       mvBuilder
         .options(indexOptions, flintIndexName)
         .create(ignoreIfExists)
@@ -56,6 +60,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
   override def visitRefreshMaterializedViewStatement(
       ctx: RefreshMaterializedViewStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
+      emitRefreshIndexMetric()
       val flintIndexName = getFlintIndexName(flint, ctx.mvName)
       flint.refreshIndex(flintIndexName)
       Seq.empty
@@ -106,6 +111,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
   override def visitAlterMaterializedViewStatement(
       ctx: AlterMaterializedViewStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
+      emitAlterIndexMetric()
       val indexName = getFlintIndexName(flint, ctx.mvName)
       val indexOptions = visitPropertyList(ctx.propertyList())
       val index = flint
@@ -120,6 +126,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
   override def visitDropMaterializedViewStatement(
       ctx: DropMaterializedViewStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
+      emitDropIndexMetric()
       flint.deleteIndex(getFlintIndexName(flint, ctx.mvName))
       Seq.empty
     }
@@ -128,6 +135,7 @@ trait FlintSparkMaterializedViewAstBuilder extends FlintSparkSqlExtensionsVisito
   override def visitVacuumMaterializedViewStatement(
       ctx: VacuumMaterializedViewStatementContext): Command = {
     FlintSparkSqlCommand() { flint =>
+      emitVacuumIndexMetric()
       flint.vacuumIndex(getFlintIndexName(flint, ctx.mvName))
       Seq.empty
     }

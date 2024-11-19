@@ -18,6 +18,7 @@ import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.{FlintOpenSearchClient, FlintOpenSearchIndexMetadataService}
 import org.opensearch.flint.spark.{FlintSparkIndexOptions, FlintSparkSuite}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.{getSkippingIndexName, SKIPPING_INDEX_TYPE}
 import org.scalatest.Entry
@@ -161,12 +162,29 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
       properties
         .get("sourceTables")
-        .asInstanceOf[List[String]]
-        .toArray should contain theSameElementsAs Array(testTable)
+        .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(
+        testTable)
     }
   }
 
-  test(s"write metadata cache to materialized view index mappings with source tables") {
+  test("write metadata cache with source tables from index metadata") {
+    val mv = FlintSparkMaterializedView(
+      "spark_catalog.default.mv",
+      s"SELECT 1 FROM $testTable",
+      Array(testTable),
+      Map("1" -> "integer"))
+    val metadata = mv.metadata().copy(latestLogEntry = Some(flintMetadataLogEntry))
+
+    flintClient.createIndex(testFlintIndex, metadata)
+    flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
+
+    val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
+    properties
+      .get("sourceTables")
+      .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(testTable)
+  }
+
+  test("write metadata cache with source tables from deserialized metadata") {
     val testTable2 = "spark_catalog.default.metadatacache_test2"
     val content =
       s""" {
@@ -194,8 +212,9 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
     properties
       .get("sourceTables")
-      .asInstanceOf[List[String]]
-      .toArray should contain theSameElementsAs Array(testTable, testTable2)
+      .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(
+      testTable,
+      testTable2)
   }
 
   test("write metadata cache to index mappings with refresh interval") {

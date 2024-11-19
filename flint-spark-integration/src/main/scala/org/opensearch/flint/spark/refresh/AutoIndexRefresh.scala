@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.refresh
 
 import java.util.Collections
 
-import org.opensearch.flint.core.metrics.ReadWriteBytesSparkListener
+import org.opensearch.flint.core.metrics.MetricsSparkListener
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkIndexOptions, FlintSparkValidationHelper}
 import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, StreamingRefresh}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{AUTO, RefreshMode}
@@ -68,7 +68,7 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
       // Flint index has specialized logic and capability for incremental refresh
       case refresh: StreamingRefresh =>
         logInfo("Start refreshing index in streaming style")
-        val job = ReadWriteBytesSparkListener.withMetrics(
+        val job = MetricsSparkListener.withMetrics(
           spark,
           () =>
             refresh
