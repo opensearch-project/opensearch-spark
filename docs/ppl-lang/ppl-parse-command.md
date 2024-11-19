@@ -1,4 +1,4 @@
-## PPL Parse Command
+## PPL `parse` command
 
 
 ### Description

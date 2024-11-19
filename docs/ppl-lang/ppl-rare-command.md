@@ -1,11 +1,11 @@
-## PPL rare Command
+## PPL `rare` command
 
-**Description**
-Using ``rare`` command to find the least common tuple of values of all fields in the field list.
+### Description
+Using `rare` command to find the least common tuple of values of all fields in the field list.
 
 **Note**: A maximum of 10 results is returned for each distinct tuple of values of the group-by fields.
 
-**Syntax**
+### Syntax
 `rare [N] <field-list> [by-clause]`
 `rare_approx [N] <field-list> [by-clause]`
 
