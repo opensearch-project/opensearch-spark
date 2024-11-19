@@ -8,32 +8,29 @@ package org.opensearch.sql.ppl;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.CaseWhen;
-import org.apache.spark.sql.catalyst.expressions.CurrentRow$;
 import org.apache.spark.sql.catalyst.expressions.Exists$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.In$;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
 import org.apache.spark.sql.catalyst.expressions.LambdaFunction$;
-import org.apache.spark.sql.catalyst.expressions.LessThan;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
 import org.apache.spark.sql.catalyst.expressions.MakeInterval$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
-import org.apache.spark.sql.catalyst.expressions.RowFrame$;
 import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.catalyst.expressions.ScalarSubquery$;
 import org.apache.spark.sql.catalyst.expressions.UnresolvedNamedLambdaVariable;
 import org.apache.spark.sql.catalyst.expressions.UnresolvedNamedLambdaVariable$;
-import org.apache.spark.sql.catalyst.expressions.SpecifiedWindowFrame;
-import org.apache.spark.sql.catalyst.expressions.WindowExpression;
-import org.apache.spark.sql.catalyst.expressions.WindowSpecDefinition;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
+import org.apache.spark.unsafe.types.UTF8String;
+
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.*;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
@@ -44,9 +41,8 @@ import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.FillNull;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.RareTopN;
-import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
-import org.opensearch.sql.expression.function.BuiltinFunctionName;
+import org.opensearch.sql.common.geospatial.GeoIpData;
 import org.opensearch.sql.expression.function.SerializableUdf;
 import org.opensearch.sql.ppl.utils.AggregatorTransformer;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTransformer;
@@ -59,6 +55,7 @@ import scala.collection.Seq;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Stack;
 import java.util.function.BiFunction;
@@ -441,21 +438,24 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
         analyze(node.getIpAddress(), context);
         Expression ipAddressExpression = context.getNamedParseExpressions().pop();
         analyze(node.getProperties(), context);
-        Expression propertiesExpression = context.getNamedParseExpressions().pop();
 
+        List<String> attributeList = new ArrayList<>();
+        Expression nextExpression = context.getNamedParseExpressions().peek();
+        while (nextExpression != null && !(nextExpression instanceof UnresolvedStar)) {
+            String attributeName = nextExpression.toString();
+            if (attributeList.contains(attributeName)) {
+                throw new IllegalStateException("Duplicate attribute in GEOIP attribute list");
+            }
+
+            attributeList.add(0, attributeName);
+            context.getNamedParseExpressions().pop();
+            nextExpression = context.getNamedParseExpressions().peek();
+        }
+
+        StructField[] fields = createGeoIpStructFields(attributeList);
         ScalaUDF udf = new ScalaUDF(SerializableUdf.geoIpFunction,
-                DataTypes.createStructType(new StructField[]{
-                    DataTypes.createStructField("country_iso_code", DataTypes.StringType, true),
-                    DataTypes.createStructField("country_name", DataTypes.StringType, true),
-                    DataTypes.createStructField("continent_name", DataTypes.StringType, true),
-                    DataTypes.createStructField("region_iso_code", DataTypes.StringType, true),
-                    DataTypes.createStructField("region_name", DataTypes.StringType, true),
-                    DataTypes.createStructField("city_name", DataTypes.StringType, true),
-                    DataTypes.createStructField("time_zone", DataTypes.StringType, true),
-                    DataTypes.createStructField("lat", DataTypes.StringType, true),
-                    DataTypes.createStructField("lon", DataTypes.StringType, true)
-                }),
-                seq(datasourceExpression, ipAddressExpression, propertiesExpression),
+                DataTypes.createStructType(fields),
+                seq(datasourceExpression, ipAddressExpression, new org.apache.spark.sql.catalyst.expressions.Literal(UTF8String.fromString(String.join("|", attributeList)), DataTypes.StringType)),
                 seq(),
                 Option.empty(),
                 Option.apply("geoip"),
@@ -463,6 +463,29 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
                 true);
 
         return context.getNamedParseExpressions().push(udf);
+    }
+
+    private StructField[] createGeoIpStructFields(List<String> attributeList) {
+        List<String> attributeListToUse;
+        if (attributeList == null || attributeList.isEmpty()) {
+            attributeListToUse = List.of(
+                "country_iso_code",
+                "country_name",
+                "continent_name",
+                "region_iso_code",
+                "region_name",
+                "city_name",
+                "time_zone",
+                "lat",
+                "lon"
+            );
+        } else {
+            attributeListToUse = attributeList;
+        }
+
+        return attributeListToUse.stream()
+            .map(a -> DataTypes.createStructField(a.toLowerCase(Locale.ROOT), DataTypes.StringType, true))
+            .toArray(StructField[]::new);
     }
 
     private List<Expression> visitExpressionList(List<UnresolvedExpression> expressionList, CatalystPlanContext context) {

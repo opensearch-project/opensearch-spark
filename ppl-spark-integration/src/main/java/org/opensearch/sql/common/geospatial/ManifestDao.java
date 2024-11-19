@@ -25,7 +25,6 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.lang3.tuple.Pair;
-import org.glassfish.jersey.server.model.Suspendable;
 
 public class ManifestDao implements DatasourceDao {
 

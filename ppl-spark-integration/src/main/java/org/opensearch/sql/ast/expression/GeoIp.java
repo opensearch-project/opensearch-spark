@@ -1,6 +1,5 @@
 package org.opensearch.sql.ast.expression;
 
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +14,7 @@ import java.util.List;
 public class GeoIp extends UnresolvedExpression {
     private final UnresolvedExpression datasource;
     private final UnresolvedExpression ipAddress;
-    private final Literal properties;
+    private final UnresolvedExpression properties;
 
     @Override
     public List<UnresolvedExpression> getChild() {
