@@ -12,10 +12,10 @@ import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.FlintJsonHelper._
 
 import org.apache.spark.sql.{Column, DataFrame, SparkSession}
-import org.apache.spark.sql.catalyst.plans.logical.Aggregate
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Project}
 import org.apache.spark.sql.flint.datatype.FlintDataType
-import org.apache.spark.sql.functions.{col, concat_ws, expr, sha1}
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.functions.{col, concat_ws, expr, sha1, to_json}
+import org.apache.spark.sql.types.{MapType, StructType}
 
 /**
  * Flint index interface in Spark.
@@ -144,7 +144,18 @@ object FlintSparkIndex {
         df.withColumn(ID_COLUMN, expr(idExpr))
 
       case None if isAggregated =>
-        val allOutputCols = df.columns.map(col)
+        // Since concat doesn't support struct or map type, convert these to json which is more
+        // deterministic than casting to string, as its format may vary across Spark versions.
+        val allOutputCols = df.schema.fields.map { field =>
+          field.dataType match {
+            case _: StructType | _: MapType =>
+              to_json(col(field.name))
+            case _ =>
+              col(field.name)
+          }
+        }
+
+        // TODO: use only grouping columns
         df.withColumn(ID_COLUMN, sha1(concat_ws("\0", allOutputCols: _*)))
 
       case _ => df
