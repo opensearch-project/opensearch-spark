@@ -32,7 +32,8 @@ case class JobOperator(
     dataSource: String,
     resultIndex: String,
     jobType: String,
-    streamingRunningCount: AtomicInteger)
+    streamingRunningCount: AtomicInteger,
+    statementContext: Map[String, Any] = Map.empty[String, Any])
     extends Logging
     with FlintJobExecutor {
 
@@ -47,6 +48,7 @@ case class JobOperator(
 
     val startTime = System.currentTimeMillis()
     streamingRunningCount.incrementAndGet()
+    val segmentName = sparkSession.conf.get("spark.dynamicAllocation.maxExecutors")
 
     // osClient needs spark session to be created first to get FlintOptions initialized.
     // Otherwise, we will have connection exception from EMR-S to OS.
@@ -80,7 +82,9 @@ case class JobOperator(
         "",
         queryId,
         LangType.SQL,
-        currentTimeProvider.currentEpochMillis())
+        currentTimeProvider.currentEpochMillis(),
+        Option.empty,
+        statementContext)
 
     try {
       val futurePrepareQueryExecution = Future {
@@ -107,6 +111,8 @@ case class JobOperator(
     } catch {
       case e: TimeoutException =>
         throwableHandler.recordThrowable(s"Preparation for query execution timed out", e)
+        incrementCounter(
+          String.format("%se.%s", segmentName, MetricConstants.STREAMING_EXECUTION_FAILED_METRIC))
         dataToWrite = Some(
           constructErrorDF(
             applicationId,
@@ -120,6 +126,8 @@ case class JobOperator(
             "",
             startTime))
       case t: Throwable =>
+        incrementCounter(
+          String.format("%se.%s", segmentName, MetricConstants.STREAMING_EXECUTION_FAILED_METRIC))
         val error = processQueryException(t)
         dataToWrite = Some(
           constructErrorDF(
@@ -134,10 +142,11 @@ case class JobOperator(
             "",
             startTime))
     } finally {
-      emitQueryExecutionTimeMetric(startTime)
+      emitQueryExecutionTimeMetric(startTime, segmentName)
       readWriteBytesSparkListener.emitMetrics()
       sparkSession.sparkContext.removeSparkListener(readWriteBytesSparkListener)
 
+      val resultWriteStartTime = System.currentTimeMillis()
       try {
         dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
       } catch {
@@ -145,6 +154,12 @@ case class JobOperator(
           throwableHandler.recordThrowable(
             s"Failed to write to result index. originalError='${throwableHandler.error}'",
             t)
+      } finally {
+        incrementCounter(
+          String
+            .format("%se.%s", segmentName, MetricConstants.STREAMING_RESULT_WRITER_FAILED_METRIC))
+        emitResultWriterTimeMetric(resultWriteStartTime, segmentName)
+        emitTotalTimeMetric(startTime, segmentName)
       }
       if (throwableHandler.hasException) statement.fail() else statement.complete()
       statement.error = Some(throwableHandler.error)
@@ -158,11 +173,11 @@ case class JobOperator(
             t)
       }
 
-      cleanUpResources(threadPool)
+      cleanUpResources(threadPool, segmentName)
     }
   }
 
-  def cleanUpResources(threadPool: ThreadPoolExecutor): Unit = {
+  def cleanUpResources(threadPool: ThreadPoolExecutor, segmentName: String): Unit = {
     val isStreaming = jobType.equalsIgnoreCase(FlintJobType.STREAMING)
     try {
       // Wait for streaming job complete if no error
@@ -190,7 +205,7 @@ case class JobOperator(
     } catch {
       case e: Exception => logError("Fail to close threadpool", e)
     }
-    recordStreamingCompletionStatus(throwableHandler.hasException)
+    recordStreamingCompletionStatus(throwableHandler.hasException, segmentName)
 
     // Check for non-daemon threads that may prevent the driver from shutting down.
     // Non-daemon threads other than the main thread indicate that the driver is still processing tasks,
@@ -205,10 +220,24 @@ case class JobOperator(
     }
   }
 
-  private def emitQueryExecutionTimeMetric(startTime: Long): Unit = {
+  private def emitQueryExecutionTimeMetric(startTime: Long, segmentName: String): Unit = {
     MetricsUtil
       .addHistoricGauge(
-        MetricConstants.QUERY_EXECUTION_TIME_METRIC,
+        String.format("%se.%s", segmentName, MetricConstants.QUERY_EXECUTION_TIME_METRIC),
+        System.currentTimeMillis() - startTime)
+  }
+
+  private def emitResultWriterTimeMetric(startTime: Long, segmentName: String): Unit = {
+    MetricsUtil
+      .addHistoricGauge(
+        String.format("%se.%s", segmentName, MetricConstants.RESULT_WRITER_TIME_METRIC),
+        System.currentTimeMillis() - startTime)
+  }
+
+  private def emitTotalTimeMetric(startTime: Long, segmentName: String): Unit = {
+    MetricsUtil
+      .addHistoricGauge(
+        String.format("%se.%s", segmentName, MetricConstants.QUERY_TOTAL_TIME_METRIC),
         System.currentTimeMillis() - startTime)
   }
 
@@ -236,15 +265,21 @@ case class JobOperator(
    * @param exceptionThrown
    *   Indicates whether an exception was thrown during the streaming job execution.
    */
-  private def recordStreamingCompletionStatus(exceptionThrown: Boolean): Unit = {
+  private def recordStreamingCompletionStatus(
+      exceptionThrown: Boolean,
+      segmentName: String): Unit = {
     // Decrement the metric for running streaming jobs as the job is now completing.
     if (streamingRunningCount.get() > 0) {
       streamingRunningCount.decrementAndGet()
     }
 
     exceptionThrown match {
-      case true => incrementCounter(MetricConstants.STREAMING_FAILED_METRIC)
-      case false => incrementCounter(MetricConstants.STREAMING_SUCCESS_METRIC)
+      case true =>
+        incrementCounter(
+          String.format("%se.%s", segmentName, MetricConstants.STREAMING_FAILED_METRIC))
+      case false =>
+        incrementCounter(
+          String.format("%se.%s", segmentName, MetricConstants.STREAMING_SUCCESS_METRIC))
     }
   }
 

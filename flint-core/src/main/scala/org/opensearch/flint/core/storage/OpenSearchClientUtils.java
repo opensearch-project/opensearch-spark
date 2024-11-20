@@ -18,6 +18,10 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.spark.SparkContext;
+import org.apache.spark.sql.SparkSession;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
 import org.opensearch.client.RestHighLevelClient;
@@ -44,6 +48,7 @@ public class OpenSearchClientUtils {
    */
   private final static Set<Character> INVALID_INDEX_NAME_CHARS =
       Set.of(' ', ',', ':', '"', '+', '/', '\\', '|', '?', '#', '>', '<');
+  private static final Logger log = LogManager.getLogger(OpenSearchClientUtils.class);
 
   /**
    * Used in IT.
@@ -115,6 +120,7 @@ public class OpenSearchClientUtils {
     final AtomicReference<AWSCredentialsProvider> customAWSCredentialsProvider =
         new AtomicReference<>(new DefaultAWSCredentialsProviderChain());
     String customProviderClass = options.getCustomAwsCredentialsProvider();
+
     if (!Strings.isNullOrEmpty(customProviderClass)) {
       instantiateProvider(customProviderClass, customAWSCredentialsProvider);
     }

@@ -12,6 +12,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.http.FlintRetryOptions
+import org.opensearch.flint.core.logging.CustomLogging
 
 import org.apache.spark.internal.config.ConfigReader
 import org.apache.spark.network.util.ByteUnit
@@ -266,6 +267,10 @@ object FlintSparkConf {
   val CUSTOM_QUERY_RESULT_WRITER =
     FlintConfig("spark.flint.job.customQueryResultWriter")
       .createOptional()
+  val WARMPOOL_ENABLED =
+    FlintConfig(s"spark.flint.job.warmpoolEnabled")
+      .createWithDefault("false")
+
 }
 
 /**
