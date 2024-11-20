@@ -140,6 +140,7 @@ Assumptions: `a`, `b`, `c`, `d`, `e` are existing fields in `table`
 Assumptions: `bridges`, `coor` are existing fields in `table`, and the field's types are `struct<?,?>` or `array<struct<?,?>>`  
 - `source = table | flatten bridges`
 - `source = table | flatten coor`
+- `source = table | flatten coor as (altitude, latitude, longitude)`
 - `source = table | flatten bridges | flatten coor`
 - `source = table | fields bridges | flatten bridges`
 - `source = table | fields country, bridges | flatten bridges | fields country, length | stats avg(length) as avg by country`
