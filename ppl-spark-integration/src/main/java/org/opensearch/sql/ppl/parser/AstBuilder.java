@@ -21,6 +21,9 @@ import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
+import org.opensearch.sql.ast.statement.ProjectStatement;
+import org.opensearch.sql.ast.statement.Query;
+import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Let;
@@ -627,4 +630,15 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     Token stop = ctx.getStop();
     return query.substring(start.getStartIndex(), stop.getStopIndex() + 1);
   }
+  
+  public Statement buildProjectStatement(Query query, OpenSearchPPLParser.ProjectCommandContext ctx) {
+    List<UnresolvedExpression> list = Collections.singletonList(this.internalVisitExpression(ctx.tableQualifiedName()));
+    boolean override = (ctx.IF()==null);
+    Optional<UnresolvedExpression> using = (ctx.USING()!=null) ? Optional.of(expressionBuilder.visit(ctx.datasourceValues())) : Optional.empty();
+    Optional<UnresolvedExpression> options = (ctx.options!=null) ? Optional.of( expressionBuilder.visit(ctx.options)) : Optional.empty();
+    Optional<UnresolvedExpression> partitionColumns = (ctx.partitionColumnNames!=null) ? Optional.of(expressionBuilder.visit(ctx.partitionColumnNames)) : Optional.empty();
+    Optional<UnresolvedExpression> location = (ctx.locationSpec()!=null) ? Optional.of(expressionBuilder.visit(ctx.locationSpec())) : Optional.empty();
+    return new ProjectStatement(list, using, options, partitionColumns, location, query, override);
+  }
+  
 }

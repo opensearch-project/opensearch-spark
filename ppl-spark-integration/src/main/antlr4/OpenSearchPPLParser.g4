@@ -17,7 +17,7 @@ pplStatement
    ;
 
 dmlStatement
-   : (explainCommand PIPE)? queryStatement
+   : (explainCommand PIPE | projectCommand PIPE)? queryStatement
    ;
 
 queryStatement
@@ -82,6 +82,7 @@ commandName
    | EVAL
    | GROK
    | PARSE
+   | PROJECT
    | PATTERNS
    | LOOKUP
    | RENAME
@@ -192,6 +193,49 @@ rareCommand
 grokCommand
    : GROK (source_field = expression) (pattern = stringLiteral)
    ;
+
+projectCommand
+   : PROJECT (IF NOT EXISTS)? tableQualifiedName (USING datasourceValues)? (OPTIONS options=tablePropertyList)? (PARTITIONED BY partitionColumnNames=identifierList)? locationSpec?
+   ;
+
+locationSpec
+    : LOCATION STRING
+    ;
+
+tablePropertyList
+    : '(' tableProperty (',' tableProperty)* ')'
+    ;
+
+tableProperty
+    : key=tablePropertyKey (EQUAL? value=tablePropertyValue)?
+    ;
+
+tablePropertyKey
+    : stringLiteral ('.' stringLiteral)*
+    | STRING
+    ;
+
+datasourceValues
+    : JSON
+    | CSV
+    | PARQUET
+    | TEXT
+    ;
+    
+tablePropertyValue
+    : INTEGER
+    | DOUBLE
+    | BOOLEAN
+    | STRING
+    ;
+
+identifierList
+    : '(' identifierSeq ')'
+    ;
+
+identifierSeq
+    : stringLiteral (',' stringLiteral)*
+    ;
 
 parseCommand
    : PARSE (source_field = expression) (pattern = stringLiteral)
@@ -403,7 +447,7 @@ statsAggTerm
 statsFunction
    : statsFunctionName LT_PRTHS valueExpression RT_PRTHS                                                                            # statsFunctionCall
    | COUNT LT_PRTHS RT_PRTHS                                                                                                        # countAllFunctionCall
-   | (DISTINCT_COUNT | DC | DISTINCT_COUNT_APPROX) LT_PRTHS valueExpression RT_PRTHS                                                                        # distinctCountFunctionCall
+   | (DISTINCT_COUNT | DC | DISTINCT_COUNT_APPROX) LT_PRTHS valueExpression RT_PRTHS                                                # distinctCountFunctionCall
    | percentileFunctionName = (PERCENTILE | PERCENTILE_APPROX) LT_PRTHS valueExpression COMMA percent = integerLiteral RT_PRTHS     # percentileFunctionCall
    ;
 
@@ -1118,6 +1162,7 @@ keywordsCanBeId
    | CONSECUTIVE
    | DEDUP_SPLITVALUES
    | PARTITIONS
+   | PARTITIONED
    | ALLNUM
    | DELIM
    | CENTROIDS

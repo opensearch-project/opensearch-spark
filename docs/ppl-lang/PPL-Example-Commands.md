@@ -273,7 +273,25 @@ source = table |  where ispresent(a) |
 - `source=accounts | parse email '.+@(?<host>.+)' | eval eval_result=1 | fields host, eval_result`
 - `source=accounts | parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host`
 - `source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street`
-- Limitation: [see limitations](ppl-parse-command.md#limitations)
+
+#### **Project**
+[See additional command details](ppl-project-command.md)
+
+```sql
+project newTableName as |
+   source = table | where fieldA > value | stats count(fieldA) by fieldB
+
+project ipRanges as |
+       source = table | where isV6 = true | eval inRange = case(cidrmatch(ipAddress, '2003:db8::/32'), 'in' else 'out') | fields ip, inRange
+
+project avgBridgesByCountry as |
+       source = table | fields country, bridges | flatten bridges | fields country, length | stats avg(length) as avg by country
+
+project ageDistribByCountry as |
+       source = table | stats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | stats 
+            avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | stats avg(avg_state_age) as 
+            avg_adult_country_age by country
+```
 
 #### **Grok**
 [See additional command details](ppl-grok-command.md)

@@ -28,6 +28,7 @@ TOP:                                'TOP';
 RARE_APPROX:                        'RARE_APPROX';
 RARE:                               'RARE';
 PARSE:                              'PARSE';
+PROJECT:                            'PROJECT';
 METHOD:                             'METHOD';
 REGEX:                              'REGEX';
 PUNCT:                              'PUNCT';
@@ -82,6 +83,11 @@ DATASOURCES:                        'DATASOURCES';
 USING:                              'USING';
 WITH:                               'WITH';
 
+// DATASOURCE TYPES
+PARQUET:                            'PARQUET';
+CSV:                                'CSV';
+TEXT:                               'TEXT';
+    
 // FIELD KEYWORDS
 AUTO:                               'AUTO';
 STR:                                'STR';
@@ -103,6 +109,8 @@ KEEPEMPTY:                          'KEEPEMPTY';
 CONSECUTIVE:                        'CONSECUTIVE';
 DEDUP_SPLITVALUES:                  'DEDUP_SPLITVALUES';
 PARTITIONS:                         'PARTITIONS';
+PARTITIONED:                        'PARTITIONED';
+OPTIONS:                            'OPTIONS';
 ALLNUM:                             'ALLNUM';
 DELIM:                              'DELIM';
 CENTROIDS:                          'CENTROIDS';
@@ -372,6 +380,7 @@ RIGHT:                              'RIGHT';
 LEFT:                               'LEFT';
 ASCII:                              'ASCII';
 LOCATE:                             'LOCATE';
+LOCATION:                           'LOCATION';
 REPLACE:                            'REPLACE';
 REVERSE:                            'REVERSE';
 CAST:                               'CAST';

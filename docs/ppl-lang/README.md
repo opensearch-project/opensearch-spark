@@ -41,6 +41,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`grok command`](ppl-grok-command.md)
 
     - [`parse command`](ppl-parse-command.md)
+    - 
+    - [`project command`](ppl-project-command.md)
 
     - [`patterns command`](ppl-patterns-command.md)
 

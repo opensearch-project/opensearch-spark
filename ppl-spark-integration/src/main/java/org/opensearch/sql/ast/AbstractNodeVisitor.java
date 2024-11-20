@@ -19,6 +19,7 @@ import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldList;
 import org.opensearch.sql.ast.expression.LambdaFunction;
+import org.opensearch.sql.ast.statement.ProjectStatement;
 import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
@@ -137,6 +138,10 @@ public abstract class AbstractNodeVisitor<T, C> {
   }
 
   public T visitProject(Project node, C context) {
+    return visitChildren(node, context);
+  }
+
+  public T visitProjectStatement(ProjectStatement node, C context) {
     return visitChildren(node, context);
   }
 

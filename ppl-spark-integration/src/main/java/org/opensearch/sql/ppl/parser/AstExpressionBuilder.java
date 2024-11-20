@@ -21,6 +21,7 @@ import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Cidr;
 import org.opensearch.sql.ast.expression.Compare;
+import org.opensearch.sql.ast.expression.DataSourceType;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
@@ -453,6 +454,15 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                 visitFunctionArg(ctx.timestampFunction().firstArg),
                 visitFunctionArg(ctx.timestampFunction().secondArg));
         return args;
+    }
+
+    @Override
+    public UnresolvedExpression visitDatasourceValues(OpenSearchPPLParser.DatasourceValuesContext ctx) {
+        if(ctx.JSON()!=null) return new Literal(DataSourceType.JSON, DataType.STRING);  
+        if(ctx.CSV()!=null) return new Literal(DataSourceType.CSV, DataType.STRING);  
+        if(ctx.TEXT()!=null) return new Literal(DataSourceType.TEXT, DataType.STRING);  
+        if(ctx.PARQUET()!=null) return new Literal(DataSourceType.PARQUET, DataType.STRING);
+        throw new IllegalArgumentException("No datasource type was found");
     }
 
     private QualifiedName visitIdentifiers(List<? extends ParserRuleContext> ctx) {

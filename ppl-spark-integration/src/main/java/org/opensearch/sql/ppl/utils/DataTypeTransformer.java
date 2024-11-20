@@ -19,9 +19,13 @@ import org.apache.spark.sql.types.ShortType$;
 import org.apache.spark.sql.types.StringType$;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.opensearch.sql.ast.expression.SpanUnit;
+import scala.Option;
+import scala.collection.JavaConverters;
 import scala.collection.mutable.Seq;
+import scala.collection.immutable.Map;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.opensearch.sql.ast.expression.SpanUnit.DAY;
 import static org.opensearch.sql.ast.expression.SpanUnit.HOUR;
@@ -39,6 +43,15 @@ import static scala.collection.JavaConverters.asScalaBufferConverter;
  * translate the PPL ast expressions data-types into catalyst data-types 
  */
 public interface DataTypeTransformer {
+    
+    static <T> Option<T> option(Optional<T> optional) {
+        return Option.apply(optional.orElse(null));
+    }
+
+    static <K, V> Map<K, V> map(java.util.Map<K, V> javaMap) {
+        return JavaConverters.mapAsScalaMap(javaMap).toMap(scala.Predef.$conforms());
+    }
+
     static <T> Seq<T> seq(T... elements) {
         return seq(List.of(elements));
     }
