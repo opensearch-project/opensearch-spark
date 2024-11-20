@@ -618,6 +618,44 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
     flint.queryIndex(testIndex).collect().toSet should have size 2
   }
 
+  test("update full refresh index to auto refresh should start job with external scheduler") {
+    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, "true")
+
+    withTempDir { checkpointDir =>
+      // Create full refresh Flint index
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(FlintSparkIndexOptions(Map("auto_refresh" -> "false")), testIndex)
+        .create()
+
+      spark.streams.active.find(_.name == testIndex) shouldBe empty
+      flint.queryIndex(testIndex).collect().toSet should have size 0
+      val indexInitial = flint.describeIndex(testIndex).get
+      indexInitial.options.isExternalSchedulerEnabled() shouldBe false
+
+      val updatedIndex = flint
+        .skippingIndex()
+        .copyWithUpdate(
+          indexInitial,
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+
+      val jobId = flint.updateIndex(updatedIndex)
+      jobId shouldBe empty
+      val indexFinal = flint.describeIndex(testIndex).get
+      indexFinal.options.isExternalSchedulerEnabled() shouldBe true
+      indexFinal.options.autoRefresh() shouldBe true
+      indexFinal.options.refreshInterval() shouldBe Some(
+        FlintOptions.DEFAULT_EXTERNAL_SCHEDULER_INTERVAL)
+
+      verifySchedulerIndex(testIndex, 5, "MINUTES")
+    }
+  }
+
   test("update incremental refresh index to auto refresh should start job") {
     withTempDir { checkpointDir =>
       // Create incremental refresh Flint index and wait for complete
@@ -664,6 +702,51 @@ class FlintSparkUpdateIndexITSuite extends FlintSparkSuite {
 
       // Expect to only refresh the new file
       flint.queryIndex(testIndex).collect().toSet should have size 1
+    }
+  }
+
+  test(
+    "update incremental refresh index to auto refresh should start job with external scheduler") {
+    setFlintSparkConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED, "true")
+
+    withTempDir { checkpointDir =>
+      // Create incremental refresh Flint index
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addPartitions("year", "month")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "incremental_refresh" -> "true",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testIndex)
+        .create()
+
+      spark.streams.active.find(_.name == testIndex) shouldBe empty
+      flint.queryIndex(testIndex).collect().toSet should have size 0
+      val indexInitial = flint.describeIndex(testIndex).get
+      indexInitial.options.isExternalSchedulerEnabled() shouldBe false
+
+      val updatedIndex = flint
+        .skippingIndex()
+        .copyWithUpdate(
+          indexInitial,
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "incremental_refresh" -> "false",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)))
+
+      val jobId = flint.updateIndex(updatedIndex)
+      jobId shouldBe empty
+      val indexFinal = flint.describeIndex(testIndex).get
+      indexFinal.options.isExternalSchedulerEnabled() shouldBe true
+      indexFinal.options.autoRefresh() shouldBe true
+      indexFinal.options.refreshInterval() shouldBe Some(
+        FlintOptions.DEFAULT_EXTERNAL_SCHEDULER_INTERVAL)
+
+      verifySchedulerIndex(testIndex, 5, "MINUTES")
     }
   }
 
