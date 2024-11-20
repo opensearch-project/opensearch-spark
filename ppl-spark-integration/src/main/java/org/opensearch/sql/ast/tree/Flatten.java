@@ -7,6 +7,7 @@ import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Field;
 
 import java.util.List;
+import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
 @RequiredArgsConstructor
 public class Flatten extends UnresolvedPlan {
@@ -15,6 +16,8 @@ public class Flatten extends UnresolvedPlan {
 
     @Getter
     private final Field field;
+    @Getter
+    private final List<UnresolvedExpression> aliasSequence;
 
     @Override
     public UnresolvedPlan attach(UnresolvedPlan child) {

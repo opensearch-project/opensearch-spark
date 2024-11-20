@@ -13,9 +13,9 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Descending, GeneratorOuter, Literal, NullsLast, RegExpExtract, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, GeneratorOuter, Literal, RegExpExtract}
 import org.apache.spark.sql.catalyst.plans.PlanTest
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, DataFrameDropColumns, Generate, GlobalLimit, LocalLimit, Project, Sort}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, DataFrameDropColumns, Generate, Project}
 import org.apache.spark.sql.types.IntegerType
 
 class PPLLogicalPlanFlattenCommandTranslatorTestSuite
@@ -150,6 +150,47 @@ class PPLLogicalPlanFlattenCommandTranslatorTestSuite
     val dropSourceColumnRoles =
       DataFrameDropColumns(Seq(UnresolvedAttribute("roles")), generateRoles)
     val expectedPlan = Project(Seq(UnresolvedStar(None)), dropSourceColumnRoles)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test flatten with one alias") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=relation | flatten field_with_array as col1"),
+        context)
+
+    val relation = UnresolvedRelation(Seq("relation"))
+    val flattenGenerator = new FlattenGenerator(UnresolvedAttribute("field_with_array"))
+    val outerGenerator = GeneratorOuter(flattenGenerator)
+    val generate =
+      Generate(outerGenerator, seq(), true, None, Seq(UnresolvedAttribute("col1")), relation)
+    val dropSourceColumn =
+      DataFrameDropColumns(Seq(UnresolvedAttribute("field_with_array")), generate)
+    val expectedPlan = Project(seq(UnresolvedStar(None)), dropSourceColumn)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test flatten with alias list") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=relation | flatten field_with_array as (col1, col2)"),
+        context)
+
+    val relation = UnresolvedRelation(Seq("relation"))
+    val flattenGenerator = new FlattenGenerator(UnresolvedAttribute("field_with_array"))
+    val outerGenerator = GeneratorOuter(flattenGenerator)
+    val generate = Generate(
+      outerGenerator,
+      seq(),
+      true,
+      None,
+      Seq(UnresolvedAttribute("col1"), UnresolvedAttribute("col2")),
+      relation)
+    val dropSourceColumn =
+      DataFrameDropColumns(Seq(UnresolvedAttribute("field_with_array")), generate)
+    val expectedPlan = Project(seq(UnresolvedStar(None)), dropSourceColumn)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
