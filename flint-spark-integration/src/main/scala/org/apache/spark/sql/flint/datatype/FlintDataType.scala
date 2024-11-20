@@ -153,6 +153,9 @@ object FlintDataType {
       // objects
       case st: StructType => serializeJValue(st)
 
+      // Serialize maps as empty objects and let the map entries automap
+      case mt: MapType => serializeJValue(new StructType())
+
       // array
       case ArrayType(elementType, _) => serializeField(elementType, Metadata.empty)
 
