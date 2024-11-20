@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark
 
+import java.sql.Timestamp
+
 import org.opensearch.flint.spark.FlintSparkIndex.{generateIdColumn, ID_COLUMN}
 import org.scalatest.matchers.should.Matchers
 
@@ -42,6 +44,25 @@ class FlintSparkIndexSuite extends QueryTest with FlintSuite with Matchers {
     resultDf.select(ID_COLUMN).distinct().count() shouldBe 2
   }
 
+  test("should generate ID column for aggregated query using tumble function") {
+    val df = spark
+      .createDataFrame(
+        Seq(
+          (Timestamp.valueOf("2023-01-01 00:00:00"), 1, "Alice"),
+          (Timestamp.valueOf("2023-01-01 00:10:00"), 2, "Bob"),
+          (Timestamp.valueOf("2023-01-01 00:15:00"), 3, "Alice")))
+      .toDF("timestamp", "id", "name")
+    val groupByDf = df
+      .selectExpr("TUMBLE(timestamp, '10 minutes') as window", "name")
+      .groupBy("window", "name")
+      .count()
+      .select("window.start", "name", "count")
+    val options = FlintSparkIndexOptions.empty
+
+    val resultDf = generateIdColumn(groupByDf, options)
+    resultDf.select(ID_COLUMN).distinct().count() shouldBe 3
+  }
+
   test("should not generate ID column for aggregated query if ID expression is empty") {
     val df = spark.createDataFrame(Seq((1, "Alice"), (2, "Bob"))).toDF("id", "name")
     val options = FlintSparkIndexOptions.empty
@@ -58,7 +79,7 @@ class FlintSparkIndexSuite extends QueryTest with FlintSuite with Matchers {
     resultDf.columns should not contain ID_COLUMN
   }
 
-  test("should generate ID column for aggregated query with multiple columns") {
+  test("should generate ID column for aggregated query with various column types") {
     val schema = StructType.fromDDL("""
       boolean_col BOOLEAN,
       string_col STRING,
@@ -93,7 +114,7 @@ class FlintSparkIndexSuite extends QueryTest with FlintSuite with Matchers {
         "float_col",
         "timestamp_col",
         "date_col",
-        "struct_col.subfield1",
+        "struct_col",
         "struct_col.subfield2")
       .count()
 
