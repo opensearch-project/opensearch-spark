@@ -94,7 +94,6 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static java.util.List.of;
-import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDuplicateEvents;
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDuplicateEventsAndKeepEmpty;
@@ -467,9 +466,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
         }
         Expression field = visitExpression(flatten.getField(), context);
+        List<Expression> alias = flatten.getAliasSequence().stream()
+            .map(aliasNode -> visitExpression(aliasNode, context))
+            .collect(Collectors.toList());
         context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
         FlattenGenerator flattenGenerator = new FlattenGenerator(field);
-        context.apply(p -> new Generate(new GeneratorOuter(flattenGenerator), seq(), true, (Option) None$.MODULE$, seq(), p));
+        scala.collection.mutable.Seq outputs = alias.isEmpty() ? seq() : seq(alias);
+        context.apply(p -> new Generate(new GeneratorOuter(flattenGenerator), seq(), true, (Option) None$.MODULE$, outputs, p));
         return context.apply(logicalPlan -> DataFrameDropColumns$.MODULE$.apply(seq(field), logicalPlan));
     }
 
