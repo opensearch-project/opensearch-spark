@@ -361,16 +361,16 @@ class FlintSparkPPLFlattenITSuite
       frame.columns.sameElements(
         Array("int_col", "field2", "subfield_1", "field2_2", "subfield_2")))
     val results: Array[Row] = frame.collect()
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](0))
     val expectedResults: Array[Row] =
       Array(
         Row(30, 123, "value1", 23, "valueA"),
         Row(40, 123, "value5", 33, "valueB"),
         Row(30, 823, "value4", 83, "valueC"),
         Row(40, 456, "value2", 46, "valueD"),
-        Row(50, 789, "value3", 89, "valueE"))
+        Row(50, 789, "value3", 89, "valueE")).sorted
     // Compare the results
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
+    assert(results.sorted.sameElements(expectedResults))
 
     // duplicate alias names
     val frame2 = sql(s"""
@@ -385,7 +385,7 @@ class FlintSparkPPLFlattenITSuite
     assert(
       frame2.columns.sameElements(
         Array("int_col", "field2_2", "subfield_1", "field2_2", "subfield_2")))
-    assert(frame2.collect().sorted.sameElements(expectedResults.sorted))
+    assert(frame2.collect().sorted.sameElements(expectedResults))
 
     val frame3 = sql(s"""
                         | source = $structNestedTable
@@ -397,11 +397,11 @@ class FlintSparkPPLFlattenITSuite
 
     assert(
       frame3.columns.sameElements(Array("int_col", "field2_2", "int_col", "field2_2", "int_col")))
-    assert(frame3.collect().sorted.sameElements(expectedResults.sorted))
+    assert(frame3.collect().sorted.sameElements(expectedResults))
 
     // Throw AnalysisException if The number of aliases supplied in the AS clause does not match the
     // number of columns output
-    assertThrows[AnalysisException] {
+    val except = intercept[AnalysisException] {
       sql(s"""
            | source = $structNestedTable
            | | flatten struct_col as (field1)
@@ -410,6 +410,22 @@ class FlintSparkPPLFlattenITSuite
            | | flatten field1 as int_col
            | """.stripMargin)
     }
+    assert(except.message.contains(
+      "The number of aliases supplied in the AS clause does not match the number of columns output by the UDTF"))
+
+    // Throw AnalysisException because of ambiguous
+    val except2 = intercept[AnalysisException] {
+      sql(s"""
+             | source = $structNestedTable
+             | | flatten struct_col as (field1, field2_2)
+             | | flatten field1 as int_col
+             | | flatten struct_col2 as (field1, field2_2)
+             | | flatten field1 as int_col
+             | | fields field2_2
+             | """.stripMargin)
+    }
+    assert(except2.message.contains(
+      "[AMBIGUOUS_REFERENCE] Reference `field2_2` is ambiguous, could be: [`field2_2`, `field2_2`]."))
   }
 
 }
