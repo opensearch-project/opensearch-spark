@@ -42,7 +42,7 @@ ThisBuild / Test / parallelExecution := false
 /**
  * Set the parallelism of forked tests to 4 to accelerate integration test
  */
-concurrentRestrictions in Global := Seq(Tags.limit(Tags.ForkedTestGroup, 3))
+concurrentRestrictions in Global := Seq(Tags.limit(Tags.ForkedTestGroup, 4))
 
 // Run as part of compile task.
 lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")
@@ -287,7 +287,7 @@ lazy val integtest = (project in file("integ-test"))
         val tests = (IntegrationTest / definedTests).value
         val forkOptions = ForkOptions()
         // Random shuffle the tests and split them into 3 groups
-        val groups = Random.shuffle(tests).grouped(tests.size / 3 + 1).zipWithIndex.map { case (group, index) =>
+        val groups = Random.shuffle(tests).grouped(tests.size / 4 + 1).zipWithIndex.map { case (group, index) =>
           val groupName = s"group-${index + 1}"
           new Tests.Group(
             name = groupName,
