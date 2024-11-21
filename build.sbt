@@ -2,6 +2,8 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
+import scala.util.Random
+
 import Dependencies.*
 
 lazy val scala212 = "2.12.14"
@@ -284,7 +286,8 @@ lazy val integtest = (project in file("integ-test"))
       IntegrationTest / testGrouping := {
         val tests = (IntegrationTest / definedTests).value
         val forkOptions = ForkOptions()
-        val groups = tests.grouped(tests.size / 3 + 1).zipWithIndex.map { case (group, index) =>
+        // Random shuffle the tests and split them into 3 groups
+        val groups = Random.shuffle(tests).grouped(tests.size / 3 + 1).zipWithIndex.map { case (group, index) =>
           val groupName = s"group-${index + 1}"
           new Tests.Group(
             name = groupName,
