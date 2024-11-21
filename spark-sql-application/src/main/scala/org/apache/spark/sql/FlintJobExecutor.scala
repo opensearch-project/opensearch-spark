@@ -450,7 +450,8 @@ trait FlintJobExecutor {
     statusCode.foreach(code => errorDetails.put("StatusCode", code.toString))
 
     val errorJson = mapper.writeValueAsString(errorDetails)
-
+    // Record the processed error message
+    throwableHandler.setError(errorJson)
     // CustomLogging will call log4j logger.error() underneath
     statusCode match {
       case Some(code) =>
