@@ -103,7 +103,7 @@ object FlintSparkIndex {
   }
 
   /**
-   * Add backticks to table name to escape special character
+   * Add backticks to all parts of full table name to escape special character
    *
    * @param fullTableName
    *   source full table name
@@ -114,7 +114,7 @@ object FlintSparkIndex {
     require(fullTableName.split('.').length >= 3, s"Table name $fullTableName is not qualified")
 
     val parts = fullTableName.split('.')
-    s"${parts(0)}.${parts(1)}.`${parts.drop(2).mkString(".")}`"
+    s"`${parts(0)}`.`${parts(1)}`.`${parts.drop(2).mkString(".")}`"
   }
 
   /**
