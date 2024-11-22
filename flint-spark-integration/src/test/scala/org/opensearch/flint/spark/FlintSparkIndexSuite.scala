@@ -5,9 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import java.sql.Timestamp
-
-import org.opensearch.flint.spark.FlintSparkIndex.{generateIdColumn, ID_COLUMN}
+import org.opensearch.flint.spark.FlintSparkIndex.{addIdColumn, ID_COLUMN}
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.FlintSuite
@@ -16,31 +14,31 @@ import org.apache.spark.sql.types.StructType
 
 class FlintSparkIndexSuite extends QueryTest with FlintSuite with Matchers {
 
-  test("should generate ID column if ID expression is provided") {
+  test("should add ID column if ID expression is provided") {
     val df = spark.createDataFrame(Seq((1, "Alice"), (2, "Bob"))).toDF("id", "name")
     val options = new FlintSparkIndexOptions(Map("id_expression" -> "id + 10"))
 
-    val resultDf = generateIdColumn(df, options)
+    val resultDf = addIdColumn(df, options)
     checkAnswer(resultDf.select(ID_COLUMN), Seq(Row(11), Row(12)))
   }
 
-  test("should not generate ID column if ID expression is not provided") {
+  test("should not add ID column if ID expression is not provided") {
     val df = spark.createDataFrame(Seq((1, "Alice"), (2, "Bob"))).toDF("id", "name")
     val options = FlintSparkIndexOptions.empty
 
-    val resultDf = generateIdColumn(df, options)
+    val resultDf = addIdColumn(df, options)
     resultDf.columns should not contain ID_COLUMN
   }
 
-  test("should not generate ID column if ID expression is empty") {
+  test("should not add ID column if ID expression is empty") {
     val df = spark.createDataFrame(Seq((1, "Alice"), (2, "Bob"))).toDF("id", "name")
     val options = FlintSparkIndexOptions.empty
 
-    val resultDf = generateIdColumn(df, options)
+    val resultDf = addIdColumn(df, options)
     resultDf.columns should not contain ID_COLUMN
   }
 
-  test("should generate ID column for aggregated query") {
+  test("should add ID column for aggregated query") {
     val df = spark
       .createDataFrame(Seq((1, "Alice"), (2, "Bob"), (3, "Alice")))
       .toDF("id", "name")
@@ -48,7 +46,7 @@ class FlintSparkIndexSuite extends QueryTest with FlintSuite with Matchers {
       .count()
     val options = FlintSparkIndexOptions.empty
 
-    val resultDf = generateIdColumn(df, options)
+    val resultDf = addIdColumn(df, options)
     resultDf.columns should contain(ID_COLUMN)
     resultDf.select(ID_COLUMN).distinct().count() shouldBe 2
   }
@@ -93,7 +91,7 @@ class FlintSparkIndexSuite extends QueryTest with FlintSuite with Matchers {
       .count()
     val options = FlintSparkIndexOptions.empty
 
-    val resultDf = generateIdColumn(aggregatedDf, options)
+    val resultDf = addIdColumn(aggregatedDf, options)
     resultDf.columns should contain(ID_COLUMN)
     resultDf.select(ID_COLUMN).distinct().count() shouldBe 1
   }

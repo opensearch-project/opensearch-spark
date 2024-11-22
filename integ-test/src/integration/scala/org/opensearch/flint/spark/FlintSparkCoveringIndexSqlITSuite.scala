@@ -119,6 +119,10 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
 
     val indexData = flint.queryIndex(testFlintTimeSeriesIndex)
     indexData.count() shouldBe 3 // only 3 rows left due to same ID
+
+    // Rerun should not generate duplicate data
+    sql(s"REFRESH INDEX $testIndex ON $testTimeSeriesTable")
+    indexData.count() shouldBe 3
   }
 
   test("create covering index with index settings") {

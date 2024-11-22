@@ -14,7 +14,6 @@ import org.apache.spark.FlintSuite
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.expressions.Alias
 import org.apache.spark.sql.catalyst.plans.logical.Project
-import org.apache.spark.sql.functions.{col, expr}
 
 class FlintSparkCoveringIndexSuite extends FlintSuite {
 
