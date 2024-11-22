@@ -98,15 +98,15 @@ public interface IRestHighLevelClient extends Closeable {
      * Otherwise, it increments a general failure metric counter based on the status code category (e.g., 4xx, 5xx).
      *
      * @param metricNamePrefix the prefix for the metric name which is used to construct the full metric name for failure
-     * @param e                the exception encountered during the operation, used to determine the type of failure
+     * @param t                the exception encountered during the operation, used to determine the type of failure
      */
-    static void recordOperationFailure(String metricNamePrefix, Exception e) {
-        OpenSearchException openSearchException = extractOpenSearchException(e);
+    static void recordOperationFailure(String metricNamePrefix, Throwable t) {
+        OpenSearchException openSearchException = extractOpenSearchException(t);
         int statusCode = openSearchException != null ? openSearchException.status().getStatus() : 500;
         if (openSearchException != null) {
             CustomLogging.logError(new OperationMessage("OpenSearch Operation failed.", statusCode), openSearchException);
         } else {
-            CustomLogging.logError("OpenSearch Operation failed with an exception.", e);
+            CustomLogging.logError("OpenSearch Operation failed with an exception.", t);
         }
         if (statusCode == 403) {
             String forbiddenErrorMetricName = metricNamePrefix + ".403.count";

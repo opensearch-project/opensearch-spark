@@ -168,10 +168,12 @@ trait FlintJobExecutor {
       IRestHighLevelClient.recordOperationSuccess(
         MetricConstants.RESULT_METADATA_WRITE_METRIC_PREFIX)
     } catch {
-      case e: Exception =>
+      case t: Throwable =>
         IRestHighLevelClient.recordOperationFailure(
           MetricConstants.RESULT_METADATA_WRITE_METRIC_PREFIX,
-          e)
+          t)
+        // Re-throw the exception
+        throw t
     }
   }
 
