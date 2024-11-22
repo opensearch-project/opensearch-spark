@@ -11,7 +11,9 @@ import org.scalatest.matchers.must.Matchers.contain
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
+import org.apache.spark.sql.catalyst.expressions.Alias
+import org.apache.spark.sql.catalyst.plans.logical.Project
 import org.apache.spark.sql.functions.{col, expr}
 
 class FlintSparkCoveringIndexSuite extends FlintSuite {
@@ -71,31 +73,12 @@ class FlintSparkCoveringIndexSuite extends FlintSuite {
           Map("name" -> "string"),
           options = FlintSparkIndexOptions(Map("id_expression" -> "name")))
 
-      comparePlans(
-        index.build(spark, None).queryExecution.logical,
-        spark
-          .table(testTable)
-          .select(col("name"))
-          .withColumn(ID_COLUMN, expr("name"))
-          .queryExecution
-          .logical,
-        checkAnalysis = false)
-    }
-  }
-
-  test("build batch should not have ID column without ID expression option") {
-    withTable(testTable) {
-      sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
-      val index = FlintSparkCoveringIndex("name_idx", testTable, Map("name" -> "string"))
-
-      comparePlans(
-        index.build(spark, None).queryExecution.logical,
-        spark
-          .table(testTable)
-          .select(col("name"))
-          .queryExecution
-          .logical,
-        checkAnalysis = false)
+      val batchDf = index.build(spark, None)
+      batchDf.queryExecution.logical.collectFirst { case Project(projectList, _) =>
+        projectList.collectFirst { case Alias(child, ID_COLUMN) =>
+          child
+        }
+      }.flatten shouldBe Some(UnresolvedAttribute(Seq("name")))
     }
   }
 
@@ -109,35 +92,12 @@ class FlintSparkCoveringIndexSuite extends FlintSuite {
         options =
           FlintSparkIndexOptions(Map("auto_refresh" -> "true", "id_expression" -> "name")))
 
-      comparePlans(
-        index.build(spark, Some(spark.table(testTable))).queryExecution.logical,
-        spark
-          .table(testTable)
-          .select("name")
-          .withColumn(ID_COLUMN, col("name"))
-          .queryExecution
-          .logical,
-        checkAnalysis = false)
-    }
-  }
-
-  test("build stream should not have ID column without ID expression option") {
-    withTable(testTable) {
-      sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
-      val index = FlintSparkCoveringIndex(
-        "name_idx",
-        testTable,
-        Map("name" -> "string"),
-        options = FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
-
-      comparePlans(
-        index.build(spark, Some(spark.table(testTable))).queryExecution.logical,
-        spark
-          .table(testTable)
-          .select(col("name"))
-          .queryExecution
-          .logical,
-        checkAnalysis = false)
+      val streamDf = index.build(spark, Some(spark.table(testTable)))
+      streamDf.queryExecution.logical.collectFirst { case Project(projectList, _) =>
+        projectList.collectFirst { case Alias(child, ID_COLUMN) =>
+          child
+        }
+      }.flatten shouldBe Some(UnresolvedAttribute(Seq("name")))
     }
   }
 }

@@ -155,7 +155,7 @@ object FlintSparkIndex {
           }
         }
 
-        // TODO: use only grouping columns
+        // TODO: 1) use only grouping columns; 2) ensure aggregation is on top level
         df.withColumn(ID_COLUMN, sha1(concat_ws("\0", allOutputCols: _*)))
 
       case _ => df

@@ -24,6 +24,14 @@ class FlintSparkIndexSuite extends QueryTest with FlintSuite with Matchers {
     checkAnswer(resultDf.select(ID_COLUMN), Seq(Row(11), Row(12)))
   }
 
+  test("should not generate ID column if ID expression is not provided") {
+    val df = spark.createDataFrame(Seq((1, "Alice"), (2, "Bob"))).toDF("id", "name")
+    val options = FlintSparkIndexOptions.empty
+
+    val resultDf = generateIdColumn(df, options)
+    resultDf.columns should not contain ID_COLUMN
+  }
+
   test("should not generate ID column if ID expression is empty") {
     val df = spark.createDataFrame(Seq((1, "Alice"), (2, "Bob"))).toDF("id", "name")
     val options = FlintSparkIndexOptions.empty
@@ -41,45 +49,11 @@ class FlintSparkIndexSuite extends QueryTest with FlintSuite with Matchers {
     val options = FlintSparkIndexOptions.empty
 
     val resultDf = generateIdColumn(df, options)
+    resultDf.columns should contain(ID_COLUMN)
     resultDf.select(ID_COLUMN).distinct().count() shouldBe 2
   }
 
-  test("should generate ID column for aggregated query using tumble function") {
-    val df = spark
-      .createDataFrame(
-        Seq(
-          (Timestamp.valueOf("2023-01-01 00:00:00"), 1, "Alice"),
-          (Timestamp.valueOf("2023-01-01 00:10:00"), 2, "Bob"),
-          (Timestamp.valueOf("2023-01-01 00:15:00"), 3, "Alice")))
-      .toDF("timestamp", "id", "name")
-    val groupByDf = df
-      .selectExpr("TUMBLE(timestamp, '10 minutes') as window", "name")
-      .groupBy("window", "name")
-      .count()
-      .select("window.start", "name", "count")
-    val options = FlintSparkIndexOptions.empty
-
-    val resultDf = generateIdColumn(groupByDf, options)
-    resultDf.select(ID_COLUMN).distinct().count() shouldBe 3
-  }
-
-  test("should not generate ID column for aggregated query if ID expression is empty") {
-    val df = spark.createDataFrame(Seq((1, "Alice"), (2, "Bob"))).toDF("id", "name")
-    val options = FlintSparkIndexOptions.empty
-
-    val resultDf = generateIdColumn(df, options)
-    resultDf.columns should not contain ID_COLUMN
-  }
-
-  test("should not generate ID column if ID expression is not provided") {
-    val df = spark.createDataFrame(Seq((1, "Alice"), (2, "Bob"))).toDF("id", "name")
-    val options = FlintSparkIndexOptions.empty
-
-    val resultDf = generateIdColumn(df, options)
-    resultDf.columns should not contain ID_COLUMN
-  }
-
-  test("should generate ID column for aggregated query with various column types") {
+  test("should generate ID column for various column types") {
     val schema = StructType.fromDDL("""
       boolean_col BOOLEAN,
       string_col STRING,
@@ -117,9 +91,10 @@ class FlintSparkIndexSuite extends QueryTest with FlintSuite with Matchers {
         "struct_col",
         "struct_col.subfield2")
       .count()
-
     val options = FlintSparkIndexOptions.empty
+
     val resultDf = generateIdColumn(aggregatedDf, options)
+    resultDf.columns should contain(ID_COLUMN)
     resultDf.select(ID_COLUMN).distinct().count() shouldBe 1
   }
 }
