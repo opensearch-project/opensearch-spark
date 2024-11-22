@@ -11,8 +11,9 @@ import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.FlintJsonHelper._
 
-import org.apache.spark.sql.{Column, DataFrame, SparkSession}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Project}
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.catalyst.plans.logical.Aggregate
 import org.apache.spark.sql.flint.datatype.FlintDataType
 import org.apache.spark.sql.functions.{col, concat_ws, expr, sha1, to_json}
 import org.apache.spark.sql.types.{MapType, StructType}
@@ -64,7 +65,7 @@ trait FlintSparkIndex {
   def build(spark: SparkSession, df: Option[DataFrame]): DataFrame
 }
 
-object FlintSparkIndex {
+object FlintSparkIndex extends Logging {
 
   /**
    * Interface indicates a Flint index has custom streaming refresh capability other than foreach
@@ -134,13 +135,13 @@ object FlintSparkIndex {
    * @return
    *   DataFrame with/without ID column
    */
-  def generateIdColumn(df: DataFrame, options: FlintSparkIndexOptions): DataFrame = {
-    // Assume output rows must be unique if a simple query plan has aggregate operator
+  def addIdColumn(df: DataFrame, options: FlintSparkIndexOptions): DataFrame = {
     def isAggregated: Boolean =
       df.queryExecution.logical.exists(_.isInstanceOf[Aggregate])
 
     options.idExpression() match {
       case Some(idExpr) if idExpr.nonEmpty =>
+        logInfo(s"Using user-provided ID expression: $idExpr")
         df.withColumn(ID_COLUMN, expr(idExpr))
 
       case None if isAggregated =>
@@ -156,7 +157,9 @@ object FlintSparkIndex {
         }
 
         // TODO: 1) use only grouping columns; 2) ensure aggregation is on top level
-        df.withColumn(ID_COLUMN, sha1(concat_ws("\0", allOutputCols: _*)))
+        val idCol = sha1(concat_ws("\0", allOutputCols: _*))
+        logInfo(s"Generated ID column for aggregated query: $idCol")
+        df.withColumn(ID_COLUMN, idCol)
 
       case _ => df
     }

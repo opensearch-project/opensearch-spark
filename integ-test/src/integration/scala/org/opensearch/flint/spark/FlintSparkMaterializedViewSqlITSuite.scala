@@ -191,7 +191,11 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     sql(s"REFRESH MATERIALIZED VIEW $testMvName")
 
     // 2 rows missing due to ID conflict intentionally
-    val indexData = spark.read.format(FLINT_DATASOURCE).load(testFlintIndex)
+    val indexData = flint.queryIndex(testFlintIndex)
+    indexData.count() shouldBe 2
+
+    // Rerun should not generate duplicate data
+    sql(s"REFRESH MATERIALIZED VIEW $testMvName")
     indexData.count() shouldBe 2
   }
 
