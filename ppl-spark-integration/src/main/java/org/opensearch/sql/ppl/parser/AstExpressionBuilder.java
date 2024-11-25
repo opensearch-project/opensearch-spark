@@ -25,6 +25,7 @@ import org.opensearch.sql.ast.expression.DataSourceType;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
+import org.opensearch.sql.ast.expression.FieldList;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
@@ -58,6 +59,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static java.util.stream.Collectors.toList;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NOT_NULL;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NULL;
@@ -192,7 +194,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     public UnresolvedExpression visitFieldsummaryIncludeFields(OpenSearchPPLParser.FieldsummaryIncludeFieldsContext ctx) {
         List<UnresolvedExpression> list = ctx.fieldList().fieldExpression().stream()
                 .map(this::visitFieldExpression)
-                .collect(Collectors.toList());
+                .collect(toList());
         return new AttributeList(list);
     }
 
@@ -250,7 +252,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                     UnresolvedExpression result = visit(valueExpressionContext);
                     return new When(condition, result);
                 })
-                .collect(Collectors.toList());
+                .collect(toList());
         UnresolvedExpression elseValue = new Literal(null, DataType.NULL);
         if (ctx.caseFunction().valueExpression().size() > ctx.caseFunction().logicalExpression().size()) {
             // else value is present
@@ -294,7 +296,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     private Function buildFunction(
             String functionName, List<OpenSearchPPLParser.FunctionArgContext> args) {
         return new Function(
-                functionName, args.stream().map(this::visitFunctionArg).collect(Collectors.toList()));
+                functionName, args.stream().map(this::visitFunctionArg).collect(toList()));
     }
 
     @Override
@@ -335,7 +337,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
             OpenSearchPPLParser.IdentsAsTableQualifiedNameContext ctx) {
         return visitIdentifiers(
                 Stream.concat(Stream.of(ctx.tableIdent()), ctx.ident().stream())
-                        .collect(Collectors.toList()));
+                        .collect(toList()));
     }
 
     @Override
@@ -403,7 +405,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     public UnresolvedExpression visitInSubqueryExpr(OpenSearchPPLParser.InSubqueryExprContext ctx) {
         UnresolvedExpression expr = new InSubquery(
                 ctx.valueExpressionList().valueExpression().stream()
-                        .map(this::visit).collect(Collectors.toList()),
+                        .map(this::visit).collect(toList()),
                 astBuilder.visitSubSearch(ctx.subSearch()));
         return ctx.NOT() != null ? new Not(expr) : expr;
     }
@@ -421,7 +423,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitInExpr(OpenSearchPPLParser.InExprContext ctx) {
         UnresolvedExpression expr = new In(visit(ctx.valueExpression()),
-            ctx.valueList().literalValue().stream().map(this::visit).collect(Collectors.toList()));
+            ctx.valueList().literalValue().stream().map(this::visit).collect(toList()));
         return ctx.NOT() != null ? new Not(expr) : expr;
     }
 
@@ -441,7 +443,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     public UnresolvedExpression visitLambda(OpenSearchPPLParser.LambdaContext ctx) {
 
         List<QualifiedName> arguments = ctx.ident().stream().map(x -> this.visitIdentifiers(Collections.singletonList(x))).collect(
-            Collectors.toList());
+            toList());
         UnresolvedExpression function = visitExpression(ctx.expression());
         return new LambdaFunction(function, arguments);
     }
@@ -457,6 +459,15 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     }
 
     @Override
+    public UnresolvedExpression visitIdentifierList(OpenSearchPPLParser.IdentifierListContext ctx) {
+        OpenSearchPPLParser.IdentifierSeqContext seq = ctx.identifierSeq();
+        return new FieldList(seq.stringLiteral().stream()
+                .map(p-> new Field(new QualifiedName((Literal) visitStringLiteral(p))))
+                .collect(toList()));
+    }
+
+
+    @Override
     public UnresolvedExpression visitDatasourceValues(OpenSearchPPLParser.DatasourceValuesContext ctx) {
         if(ctx.JSON()!=null) return new Literal(DataSourceType.JSON, DataType.STRING);  
         if(ctx.CSV()!=null) return new Literal(DataSourceType.CSV, DataType.STRING);  
@@ -470,7 +481,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                 ctx.stream()
                         .map(RuleContext::getText)
                         .map(StringUtils::unquoteIdentifier)
-                        .collect(Collectors.toList()));
+                        .collect(toList()));
     }
 
     private List<UnresolvedExpression> singleFieldRelevanceArguments(

@@ -632,11 +632,11 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   }
   
   public Statement buildProjectStatement(Query query, OpenSearchPPLParser.ProjectCommandContext ctx) {
-    List<UnresolvedExpression> list = Collections.singletonList(this.internalVisitExpression(ctx.tableQualifiedName()));
+    List<UnresolvedExpression> list = Collections.singletonList(internalVisitExpression(ctx.tableQualifiedName()));
     boolean override = (ctx.IF()==null);
     Optional<UnresolvedExpression> using = (ctx.USING()!=null) ? Optional.of(expressionBuilder.visit(ctx.datasourceValues())) : Optional.empty();
     Optional<UnresolvedExpression> options = (ctx.options!=null) ? Optional.of( expressionBuilder.visit(ctx.options)) : Optional.empty();
-    Optional<UnresolvedExpression> partitionColumns = (ctx.partitionColumnNames!=null) ? Optional.of(expressionBuilder.visit(ctx.partitionColumnNames)) : Optional.empty();
+    Optional<UnresolvedExpression> partitionColumns = (ctx.partitionColumnNames!=null) ? Optional.of(internalVisitExpression(ctx.partitionColumnNames)) : Optional.empty();
     Optional<UnresolvedExpression> location = (ctx.locationSpec()!=null) ? Optional.of(expressionBuilder.visit(ctx.locationSpec())) : Optional.empty();
     return new ProjectStatement(list, using, options, partitionColumns, location, query, override);
   }

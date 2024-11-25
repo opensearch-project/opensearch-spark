@@ -6,7 +6,7 @@
 package org.opensearch.flint.spark.ppl
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, ExprId}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, CreateTableAsSelect, LogicalPlan, Project}
 
 /**
  * general utility functions for ppl to spark transformation test
@@ -42,6 +42,13 @@ trait LogicalPlanTestUtils {
           case other => other
         }
         agg.copy(groupingExpressions = newGrouping, aggregateExpressions = newAggregations)
+
+      // Normalize CreateTableAsSelect by ignoring partitioning and other specific fields
+      case ctas: CreateTableAsSelect =>
+        ctas.copy(
+          partitioning = Seq.empty, // Ignore partitioning by setting it to an empty sequence
+          isAnalyzed = false
+        )
 
       case other => other
     }

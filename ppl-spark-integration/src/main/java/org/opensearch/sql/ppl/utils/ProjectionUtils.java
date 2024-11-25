@@ -5,23 +5,26 @@
 
 package org.opensearch.sql.ppl.utils;
 
-import com.google.flatbuffers.FlexBuffers;
-import lombok.val;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedIdentifier;
 import org.apache.spark.sql.catalyst.plans.logical.CreateTableAsSelect;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.OptionList;
 import org.apache.spark.sql.catalyst.plans.logical.UnresolvedTableSpec;
+import org.apache.spark.sql.connector.expressions.FieldReference;
+import org.apache.spark.sql.connector.expressions.IdentityTransform;
+import org.apache.spark.sql.connector.expressions.Transform;
 import org.opensearch.sql.ast.Node;
-import org.opensearch.sql.ast.expression.DataSourceType;
+import org.opensearch.sql.ast.expression.FieldList;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.statement.ProjectStatement;
 import org.opensearch.sql.ppl.CatalystPlanContext;
 import scala.Option;
+import scala.collection.mutable.Seq;
 
 import java.util.Optional;
 
 import static java.util.Collections.emptyMap;
+import static java.util.stream.Collectors.toList;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.map;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.option;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
@@ -41,11 +44,13 @@ public interface ProjectionUtils {
         Optional<UnresolvedExpression> options = node.getOptions();
         Optional<UnresolvedExpression> partitionColumns = node.getPartitionColumns();
         partitionColumns.map(Node::getChild);
-//        new IdentityTransform(new FieldReference(partitionColumns));
+        IdentityTransform transform = new IdentityTransform(new FieldReference(seq(partitionColumns.toString())));
 
         Optional<UnresolvedExpression> location = node.getLocation();
         UnresolvedIdentifier name = new UnresolvedIdentifier(seq(node.getTableQualifiedName().getParts()), false);
         UnresolvedTableSpec tableSpec = new UnresolvedTableSpec(map(emptyMap()), option(using), new OptionList(seq()), Option.empty(), Option.empty(), Option.empty(), false);
-        return new CreateTableAsSelect(name, seq(), plan, tableSpec, map(emptyMap()), !node.isOverride(), false);   
+        Seq<Transform> partitioning = partitionColumns.isPresent() ?
+             seq(((FieldList) partitionColumns.get()).getFieldList().stream().map(f -> new IdentityTransform(new FieldReference(seq(f.getField().getParts())))).collect(toList())) : seq();
+        return new CreateTableAsSelect(name, partitioning, plan, tableSpec, map(emptyMap()), !node.isOverride(), false);   
     }
 }

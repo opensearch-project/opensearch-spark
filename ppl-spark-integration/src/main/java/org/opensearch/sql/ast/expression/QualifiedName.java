@@ -29,6 +29,10 @@ public class QualifiedName extends UnresolvedExpression {
     this.parts = Collections.singletonList(name);
   }
 
+  public QualifiedName(Literal name) {
+    this.parts = Collections.singletonList(name.toString());
+  }
+
   /** QualifiedName Constructor. */
   public QualifiedName(Iterable<String> parts) {
     List<String> partsList = StreamSupport.stream(parts.spliterator(), false).collect(toList());
