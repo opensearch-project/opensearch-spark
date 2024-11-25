@@ -97,7 +97,7 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
   def indexSettings(): Option[String] = getOptionValue(INDEX_SETTINGS)
 
   /**
-   * An expression that generates unique value as source data row ID.
+   * An expression that generates unique value as index data row ID.
    *
    * @return
    *   ID expression
