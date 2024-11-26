@@ -14,6 +14,7 @@ import org.apache.spark.sql.connector.expressions.FieldReference;
 import org.apache.spark.sql.connector.expressions.IdentityTransform;
 import org.apache.spark.sql.connector.expressions.Transform;
 import org.opensearch.sql.ast.Node;
+import org.opensearch.sql.ast.expression.AttributeList;
 import org.opensearch.sql.ast.expression.FieldList;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.statement.ProjectStatement;
@@ -50,7 +51,7 @@ public interface ProjectionUtils {
         UnresolvedIdentifier name = new UnresolvedIdentifier(seq(node.getTableQualifiedName().getParts()), false);
         UnresolvedTableSpec tableSpec = new UnresolvedTableSpec(map(emptyMap()), option(using), new OptionList(seq()), Option.empty(), Option.empty(), Option.empty(), false);
         Seq<Transform> partitioning = partitionColumns.isPresent() ?
-             seq(((FieldList) partitionColumns.get()).getFieldList().stream().map(f -> new IdentityTransform(new FieldReference(seq(f.getField().getParts())))).collect(toList())) : seq();
+             seq(((AttributeList) partitionColumns.get()).getAttrList().stream().map(f -> new IdentityTransform(new FieldReference(seq(f.toString())))).collect(toList())) : seq();
         return new CreateTableAsSelect(name, partitioning, plan, tableSpec, map(emptyMap()), !node.isOverride(), false);   
     }
 }

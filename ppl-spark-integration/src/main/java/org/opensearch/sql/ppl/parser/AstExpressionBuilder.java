@@ -462,16 +462,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                 visitFunctionArg(ctx.timestampFunction().secondArg));
         return args;
     }
-
-    @Override
-    public UnresolvedExpression visitIdentifierList(OpenSearchPPLParser.IdentifierListContext ctx) {
-        OpenSearchPPLParser.IdentifierSeqContext seq = ctx.identifierSeq();
-        return new FieldList(seq.stringLiteral().stream()
-                .map(p-> new Field(new QualifiedName((Literal) visitStringLiteral(p))))
-                .collect(toList()));
-    }
-
-
+    
     @Override
     public UnresolvedExpression visitDatasourceValues(OpenSearchPPLParser.DatasourceValuesContext ctx) {
         if(ctx.JSON()!=null) return new Literal(DataSourceType.JSON, DataType.STRING);  

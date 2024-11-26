@@ -195,7 +195,7 @@ grokCommand
    ;
 
 projectCommand
-   : PROJECT (IF NOT EXISTS)? tableQualifiedName (USING datasourceValues)? (OPTIONS options=tablePropertyList)? (PARTITIONED BY partitionColumnNames=identifierList)? locationSpec?
+   : PROJECT (IF NOT EXISTS)? tableQualifiedName (USING datasourceValues)? (OPTIONS options=tablePropertyList)? (PARTITIONED BY partitionColumnNames=identifierSeq)? locationSpec?
    ;
 
 locationSpec
@@ -227,14 +227,6 @@ tablePropertyValue
     | DOUBLE
     | BOOLEAN
     | STRING
-    ;
-
-identifierList
-    : '(' identifierSeq ')'
-    ;
-
-identifierSeq
-    : stringLiteral (',' stringLiteral)*
     ;
 
 parseCommand

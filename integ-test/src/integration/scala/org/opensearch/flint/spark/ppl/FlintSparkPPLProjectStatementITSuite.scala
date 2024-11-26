@@ -27,6 +27,7 @@ class FlintSparkPPLProjectStatementITSuite
   private val t2 = "`spark_catalog`.default.`flint_ppl_test2`"
   private val t3 = "spark_catalog.`default`.`flint_ppl_test3`"
   private val t4 = "`spark_catalog`.`default`.flint_ppl_test4"
+  private val viewName = "simpleView"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -41,6 +42,7 @@ class FlintSparkPPLProjectStatementITSuite
 
   protected override def afterEach(): Unit = {
     super.afterEach()
+    sql(s"DROP TABLE $viewName")
     // Stop all streaming jobs if any
     spark.streams.active.foreach { job =>
       job.stop()
@@ -73,7 +75,7 @@ class FlintSparkPPLProjectStatementITSuite
 
   test("project using csv") {
     val frame = sql(s"""
-                       | project simpleView using csv | source = $testTable | where state != 'California' | fields name
+                       | project $viewName using csv | source = $testTable | where state != 'California' | fields name
                        | """.stripMargin)
 
     // Retrieve the logical plan
@@ -81,7 +83,7 @@ class FlintSparkPPLProjectStatementITSuite
     frame.collect()
     // verify new view was created correctly
     val results = sql(s"""
-         | source = simpleView
+         | source = $viewName
          | """.stripMargin).collect()
 
     // Define the expected results
@@ -99,7 +101,7 @@ class FlintSparkPPLProjectStatementITSuite
       Filter(Not(EqualTo(UnresolvedAttribute("state"), Literal("California"))), relation)
     val expectedPlan: LogicalPlan =
       CreateTableAsSelect(
-        UnresolvedIdentifier(Seq("simpleView")),
+        UnresolvedIdentifier(Seq(viewName)),
         Seq(),
         Project(Seq(UnresolvedAttribute("name")), filter),
         UnresolvedTableSpec(
@@ -119,7 +121,7 @@ class FlintSparkPPLProjectStatementITSuite
 
   test("project using csv partition by age") {
     val frame = sql(s"""
-                       | project simpleView using csv partitioned by ('age') | source = $testTable | where state != 'California' | fields name, age
+                       | project $viewName using csv partitioned by (age) | source = $testTable | where state != 'California' | fields name, age
                        | """.stripMargin)
 
     // Retrieve the logical plan
@@ -127,7 +129,7 @@ class FlintSparkPPLProjectStatementITSuite
     frame.collect()
     // verify new view was created correctly
     val results = sql(s"""
-         | source = simpleView
+         | source = $viewName
          | """.stripMargin).collect()
 
     // Define the expected results
@@ -145,7 +147,7 @@ class FlintSparkPPLProjectStatementITSuite
       Filter(Not(EqualTo(UnresolvedAttribute("state"), Literal("California"))), relation)
     val expectedPlan: LogicalPlan =
       CreateTableAsSelect(
-        UnresolvedIdentifier(Seq("simpleView")),
+        UnresolvedIdentifier(Seq(viewName)),
 //      Seq(IdentityTransform.apply(FieldReference.apply("age"))),
         Seq(),
         Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")), filter),
@@ -168,13 +170,13 @@ class FlintSparkPPLProjectStatementITSuite
 
   test("project using csv partition by state and country") {
     val frame = sql(s"""
-                       |project simpleView using csv partitioned by ('state', 'country') | source = $testTable | dedup name | fields name, state, country
+                       |project $viewName using csv partitioned by (state, country) | source = $testTable | dedup name | fields name, state, country
                        | """.stripMargin)
     
     frame.collect()
     // verify new view was created correctly
     val results = sql(s"""
-                         | source = simpleView
+                         | source = $viewName
                          | """.stripMargin).collect()
 
     // Define the expected results
@@ -188,7 +190,7 @@ class FlintSparkPPLProjectStatementITSuite
 
     // verify new view was created correctly
     val describe = sql(s"""
-                         | describe simpleView
+                         | describe $viewName
                          | """.stripMargin).collect()
 
     // Define the expected results
@@ -223,7 +225,7 @@ class FlintSparkPPLProjectStatementITSuite
       Deduplicate(Seq(nameAttribute), Filter(IsNotNull(nameAttribute), relation))
     val expectedPlan: LogicalPlan =
       CreateTableAsSelect(
-        UnresolvedIdentifier(Seq("simpleView")),
+        UnresolvedIdentifier(Seq(viewName)),
         //      Seq(IdentityTransform.apply(FieldReference.apply("age")), IdentityTransform.apply(FieldReference.apply("state")),
         Seq(),
         Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("state"), UnresolvedAttribute("country")), dedup),
@@ -246,13 +248,13 @@ class FlintSparkPPLProjectStatementITSuite
 
   test("project using parquet partition by state & country") {
     val frame = sql(s"""
-                       |project simpleView using parquet partitioned by ('state', 'country') | source = $testTable | dedup name | fields name, state, country
+                       |project $viewName using parquet partitioned by (state, country) | source = $testTable | dedup name | fields name, state, country
                        | """.stripMargin)
 
     frame.collect()
     // verify new view was created correctly
     val results = sql(s"""
-                         | source = simpleView
+                         | source = $viewName
                          | """.stripMargin).collect()
 
     // Define the expected results
@@ -266,7 +268,7 @@ class FlintSparkPPLProjectStatementITSuite
 
     // verify new view was created correctly
     val describe = sql(s"""
-                          | describe simpleView
+                          | describe $viewName
                           | """.stripMargin).collect()
 
     // Define the expected results
@@ -301,7 +303,7 @@ class FlintSparkPPLProjectStatementITSuite
       Deduplicate(Seq(nameAttribute), Filter(IsNotNull(nameAttribute), relation))
     val expectedPlan: LogicalPlan =
       CreateTableAsSelect(
-        UnresolvedIdentifier(Seq("simpleView")),
+        UnresolvedIdentifier(Seq(viewName)),
         //      Seq(IdentityTransform.apply(FieldReference.apply("age")), IdentityTransform.apply(FieldReference.apply("state")),
         Seq(),
         Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("state"), UnresolvedAttribute("country")), dedup),
