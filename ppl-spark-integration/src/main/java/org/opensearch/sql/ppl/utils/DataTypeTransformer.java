@@ -85,6 +85,10 @@ public interface DataTypeTransformer {
         }
     }
     
+    static Object translate(Object value) {
+        return translate(value, org.opensearch.sql.ast.expression.DataType.STRING);
+    }
+    
     static Object translate(Object value, org.opensearch.sql.ast.expression.DataType source) {
         switch (source.getCoreType()) {
             case STRING:

@@ -6,6 +6,8 @@
 package org.opensearch.sql.ppl.utils;
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedIdentifier;
+import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.Literal;
 import org.apache.spark.sql.catalyst.plans.logical.CreateTableAsSelect;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.OptionList;
@@ -13,17 +15,23 @@ import org.apache.spark.sql.catalyst.plans.logical.UnresolvedTableSpec;
 import org.apache.spark.sql.connector.expressions.FieldReference;
 import org.apache.spark.sql.connector.expressions.IdentityTransform;
 import org.apache.spark.sql.connector.expressions.Transform;
+import org.apache.spark.sql.types.DataTypes;
+import org.jetbrains.annotations.NotNull;
 import org.opensearch.sql.ast.Node;
+import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.AttributeList;
 import org.opensearch.sql.ast.expression.FieldList;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.statement.ProjectStatement;
 import org.opensearch.sql.ppl.CatalystPlanContext;
 import scala.Option;
+import scala.Tuple2;
 import scala.collection.mutable.Seq;
 
+import java.util.Collections;
 import java.util.Optional;
 
+import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.stream.Collectors.toList;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.map;
@@ -45,13 +53,21 @@ public interface ProjectionUtils {
         Optional<UnresolvedExpression> options = node.getOptions();
         Optional<UnresolvedExpression> partitionColumns = node.getPartitionColumns();
         partitionColumns.map(Node::getChild);
-        IdentityTransform transform = new IdentityTransform(new FieldReference(seq(partitionColumns.toString())));
 
         Optional<UnresolvedExpression> location = node.getLocation();
         UnresolvedIdentifier name = new UnresolvedIdentifier(seq(node.getTableQualifiedName().getParts()), false);
-        UnresolvedTableSpec tableSpec = new UnresolvedTableSpec(map(emptyMap()), option(using), new OptionList(seq()), Option.empty(), Option.empty(), Option.empty(), false);
+        UnresolvedTableSpec tableSpec = getTableSpec(options, using);
         Seq<Transform> partitioning = partitionColumns.isPresent() ?
              seq(((AttributeList) partitionColumns.get()).getAttrList().stream().map(f -> new IdentityTransform(new FieldReference(seq(f.toString())))).collect(toList())) : seq();
         return new CreateTableAsSelect(name, partitioning, plan, tableSpec, map(emptyMap()), !node.isOverride(), false);   
+    }
+
+    private static @NotNull UnresolvedTableSpec getTableSpec(Optional<UnresolvedExpression> options, Optional<String> using) {
+        Seq<Tuple2<String, Expression>> optionsSeq = options.isPresent() ?
+                seq(((AttributeList) options.get()).getAttrList().stream()
+                        .map(p -> (Argument) p)
+                        .map(p -> new Tuple2<>(p.getName(), (Expression) Literal.create(p.getValue().getValue(), DataTypes.StringType)))
+                        .collect(toList())) : seq(emptyList());
+        return new UnresolvedTableSpec(map(emptyMap()), option(using), new OptionList(optionsSeq), Option.empty(), Option.empty(), Option.empty(), false);
     }
 }

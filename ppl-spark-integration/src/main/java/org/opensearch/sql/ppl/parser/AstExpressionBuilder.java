@@ -66,6 +66,7 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NULL
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.LENGTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.POSITION;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.TRIM;
+import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
 
 
 /**
@@ -472,6 +473,15 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         throw new IllegalArgumentException("No datasource type was found");
     }
 
+    @Override
+    public UnresolvedExpression visitTablePropertyList(OpenSearchPPLParser.TablePropertyListContext ctx) {
+        return new AttributeList(
+                ctx.tableProperty().stream()
+                        .map(p-> new Argument(translate(p.key.getText()).toString(),
+                                new Literal(translate(p.value.getText()), DataType.STRING)))
+                        .collect(toList()));
+    }
+    
     private QualifiedName visitIdentifiers(List<? extends ParserRuleContext> ctx) {
         return new QualifiedName(
                 ctx.stream()
@@ -480,6 +490,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                         .collect(toList()));
     }
 
+    
     private List<UnresolvedExpression> singleFieldRelevanceArguments(
             OpenSearchPPLParser.SingleFieldRelevanceFunctionContext ctx) {
         // all the arguments are defaulted to string values

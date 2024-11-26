@@ -207,7 +207,7 @@ tablePropertyList
     ;
 
 tableProperty
-    : key=tablePropertyKey (EQUAL? value=tablePropertyValue)?
+    : key=tablePropertyKey (EQUAL? value=stringLiteral)?
     ;
 
 tablePropertyKey
@@ -222,13 +222,6 @@ datasourceValues
     | TEXT
     ;
     
-tablePropertyValue
-    : INTEGER
-    | DOUBLE
-    | BOOLEAN
-    | STRING
-    ;
-
 parseCommand
    : PARSE (source_field = expression) (pattern = stringLiteral)
    ;

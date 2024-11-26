@@ -50,10 +50,14 @@ class FlintSparkPPLProjectStatementITSuite
     }
   }
 
-  ignore("project sql test using csv") {
+  test("project sql test using csv") {
     val frame = sql(s"""
                         | CREATE TABLE student_partition_bucket
                         |    USING parquet
+                        |    OPTIONS (
+                        |      'parquet.bloom.filter.enabled'='true',
+                        |      'parquet.bloom.filter.enabled#age'='false'
+                        |    )
                         |    PARTITIONED BY (age, country)
                         |    AS SELECT * FROM $testTable;
                         | """.stripMargin)
@@ -311,6 +315,88 @@ class FlintSparkPPLProjectStatementITSuite
           Map.empty,
           Option("PARQUET"),
           OptionList(Seq()),
+          Option.empty,
+          Option.empty,
+          Option.empty,
+          external = false),
+        Map.empty,
+        ignoreIfExists = false,
+        isAnalyzed = false)
+    // Compare the two plans
+    assert(
+      compareByString(logicalPlan) == expectedPlan.toString
+    )
+  }
+  
+  test("project using parquet with options & partition by state & country") {
+    val frame = sql(s"""
+                       | project $viewName using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false')
+                       | partitioned by (state, country) | source = $testTable | dedup name | fields name, state, country
+                       | """.stripMargin)
+
+    frame.collect()
+    // verify new view was created correctly
+    val results = sql(s"""
+                         | source = $viewName
+                         | """.stripMargin).collect()
+
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(Row("Jane", "Quebec", "Canada"), Row("John", "Ontario", "Canada"), Row("Jake", "California", "USA"), Row("Hello", "New York", "USA"))
+    // Convert actual results to a Set for quick lookup
+    val resultsSet: Set[Row] = results.toSet
+    // Check that each expected row is present in the actual results
+    expectedResults.foreach { expectedRow =>
+      assert(resultsSet.contains(expectedRow), s"Expected row $expectedRow not found in results")
+    }
+
+    // verify new view was created correctly
+    val describe = sql(s"""
+                          | describe $viewName
+                          | """.stripMargin).collect()
+
+    // Define the expected results
+    val expectedDescribeResults: Array[Row] = Array(
+      Row("Database", "default"),
+      Row("Partition Provider", "Catalog"),
+      Row("Type", "MANAGED"),
+      Row("country", "string", "null"),
+      Row("Catalog", "spark_catalog"),
+      Row("state", "string", "null"),
+      Row("# Partition Information", ""),
+      Row("Created By", "Spark 3.5.1"),
+      Row("Provider", "PARQUET"),
+      Row("# Detailed Table Information", ""),
+      Row("Table", "simpleview"),
+      Row("Last Access", "UNKNOWN"),
+      Row("# col_name", "data_type", "comment"),
+      Row("name", "string", "null"))
+    // Convert actual results to a Set for quick lookup
+    val describeResults: Set[Row] = describe.toSet
+    // Check that each expected row is present in the actual results
+    expectedDescribeResults.foreach { expectedRow =>
+      assert(expectedDescribeResults.contains(expectedRow), s"Expected row $expectedRow not found in results")
+    }
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val nameAttribute = UnresolvedAttribute("name")
+    val dedup =
+      Deduplicate(Seq(nameAttribute), Filter(IsNotNull(nameAttribute), relation))
+    val expectedPlan: LogicalPlan =
+      CreateTableAsSelect(
+        UnresolvedIdentifier(Seq(viewName)),
+        //      Seq(IdentityTransform.apply(FieldReference.apply("age")), IdentityTransform.apply(FieldReference.apply("state")),
+        Seq(),
+        Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("state"), UnresolvedAttribute("country")), dedup),
+        UnresolvedTableSpec(
+          Map.empty,
+          Option("PARQUET"),
+          OptionList(Seq(
+            ("parquet.bloom.filter.enabled", Literal("true")),
+            ("parquet.bloom.filter.enabled#age", Literal("false")))
+          ),
           Option.empty,
           Option.empty,
           Option.empty,
