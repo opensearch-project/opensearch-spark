@@ -43,7 +43,7 @@ trait LogicalPlanTestUtils {
         }
         agg.copy(groupingExpressions = newGrouping, aggregateExpressions = newAggregations)
 
-      // Normalize CreateTableAsSelect by ignoring partitioning and other specific fields
+      // Normalize CreateTableAsSelect by ignoring partitioning
       case ctas: CreateTableAsSelect =>
         ctas.copy(
           partitioning = Seq.empty, // Ignore partitioning by setting it to an empty sequence
