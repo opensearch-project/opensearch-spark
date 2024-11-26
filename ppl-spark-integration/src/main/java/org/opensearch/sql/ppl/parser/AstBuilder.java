@@ -18,6 +18,7 @@ import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Argument;
+import org.opensearch.sql.ast.expression.AttributeList;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
@@ -337,6 +338,18 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
         ctx.evalClause().stream()
             .map(ct -> (Let) internalVisitExpression(ct))
             .collect(Collectors.toList()));
+  }
+
+  @Override
+  public UnresolvedPlan visitGeoipCommand(OpenSearchPPLParser.GeoipCommandContext ctx) {
+    UnresolvedExpression datasource =
+            (ctx.datasource != null) ?
+                    internalVisitExpression(ctx.datasource) :
+                    // TODO Make default value var
+                    new Literal("https://geoip.maps.opensearch.org/v1/geolite2-city/manifest.json", DataType.STRING);
+    UnresolvedExpression ipAddress = internalVisitExpression(ctx.ipAddress);
+    UnresolvedExpression properties = ctx.properties == null ? new AttributeList(Collections.emptyList()) : internalVisitExpression(ctx.properties);
+    return new GeoIp(datasource, ipAddress, properties);
   }
 
   private List<UnresolvedExpression> getGroupByList(OpenSearchPPLParser.ByClauseContext ctx) {

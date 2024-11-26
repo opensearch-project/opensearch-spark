@@ -25,7 +25,7 @@ import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.Function;
-import org.opensearch.sql.ast.expression.GeoIp;
+import org.opensearch.sql.ast.tree.GeoIp;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.IntervalUnit;
@@ -45,8 +45,6 @@ import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
 import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
-import org.opensearch.sql.ast.tree.Trendline;
-import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
@@ -54,7 +52,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -420,15 +417,31 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     }
 
     @Override
-    public UnresolvedExpression visitGeoIpFunctionCall(OpenSearchPPLParser.GeoIpFunctionCallContext ctx) {
-        UnresolvedExpression datasource =
-            (ctx.datasource != null) ?
-                    visit(ctx.datasource) :
-                    // TODO Make default value var
-                    new Literal("https://geoip.maps.opensearch.org/v1/geolite2-city/manifest.json", DataType.STRING);
-        UnresolvedExpression ipAddress = visit(ctx.ipAddress);
-        UnresolvedExpression properties = ctx.properties == null ? new AttributeList(Collections.emptyList()) : visit(ctx.properties);
-        return new GeoIp(datasource, ipAddress, properties);
+    public UnresolvedExpression visitInExpr(OpenSearchPPLParser.InExprContext ctx) {
+        UnresolvedExpression expr = new In(visit(ctx.valueExpression()),
+            ctx.valueList().literalValue().stream().map(this::visit).collect(Collectors.toList()));
+        return ctx.NOT() != null ? new Not(expr) : expr;
+    }
+
+    @Override
+    public UnresolvedExpression visitCidrMatchFunctionCall(OpenSearchPPLParser.CidrMatchFunctionCallContext ctx) {
+        return new Cidr(visit(ctx.ipAddress), visit(ctx.cidrBlock));
+    }
+
+    @Override
+    public UnresolvedExpression visitTimestampFunctionCall(
+            OpenSearchPPLParser.TimestampFunctionCallContext ctx) {
+        return new Function(
+            ctx.timestampFunction().timestampFunctionName().getText(), timestampFunctionArguments(ctx));
+    }
+
+    @Override
+    public UnresolvedExpression visitLambda(OpenSearchPPLParser.LambdaContext ctx) {
+
+        List<QualifiedName> arguments = ctx.ident().stream().map(x -> this.visitIdentifiers(Collections.singletonList(x))).collect(
+            Collectors.toList());
+        UnresolvedExpression function = visitExpression(ctx.expression());
+        return new LambdaFunction(function, arguments);
     }
 
     @Override
@@ -462,34 +475,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         }
 
         return new AttributeList(properties.build());
-    }
-
-    @Override
-    public UnresolvedExpression visitInExpr(OpenSearchPPLParser.InExprContext ctx) {
-        UnresolvedExpression expr = new In(visit(ctx.valueExpression()),
-            ctx.valueList().literalValue().stream().map(this::visit).collect(Collectors.toList()));
-        return ctx.NOT() != null ? new Not(expr) : expr;
-    }
-
-    @Override
-    public UnresolvedExpression visitCidrMatchFunctionCall(OpenSearchPPLParser.CidrMatchFunctionCallContext ctx) {
-        return new Cidr(visit(ctx.ipAddress), visit(ctx.cidrBlock));
-    }
-
-    @Override
-    public UnresolvedExpression visitTimestampFunctionCall(
-            OpenSearchPPLParser.TimestampFunctionCallContext ctx) {
-        return new Function(
-            ctx.timestampFunction().timestampFunctionName().getText(), timestampFunctionArguments(ctx));
-    }
-
-    @Override
-    public UnresolvedExpression visitLambda(OpenSearchPPLParser.LambdaContext ctx) {
-
-        List<QualifiedName> arguments = ctx.ident().stream().map(x -> this.visitIdentifiers(Collections.singletonList(x))).collect(
-            Collectors.toList());
-        UnresolvedExpression function = visitExpression(ctx.expression());
-        return new LambdaFunction(function, arguments);
     }
 
     private List<UnresolvedExpression> timestampFunctionArguments(

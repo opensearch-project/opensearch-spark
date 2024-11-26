@@ -8,6 +8,7 @@ package org.opensearch.sql.ppl;
 import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
@@ -28,6 +29,7 @@ import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.flint.spark.FlattenGenerator;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
@@ -36,6 +38,7 @@ import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.Function;
+import org.opensearch.sql.ast.tree.GeoIp;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
@@ -82,9 +85,9 @@ import scala.collection.Seq;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
@@ -275,6 +278,14 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitJoin(Join node, CatalystPlanContext context) {
         visitFirstChild(node, context);
+
+        System.out.println("RIGHT:");
+        System.out.println(node.getRight().accept(this, context));
+        System.out.println("JOIN CONDITION:");
+        System.out.println(node.getJoinCondition()
+                .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context)));
+
+
         return context.apply(left -> {
             LogicalPlan right = node.getRight().accept(this, context);
             Optional<Expression> joinCondition = node.getJoinCondition()
@@ -293,7 +304,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.withSubqueryAlias(alias);
             return alias;
         });
-
     }
 
     @Override
@@ -552,6 +562,75 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
         // build the plan with the projection step
         return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+    }
+
+    @Override
+    public LogicalPlan visitGeoIp(GeoIp node, CatalystPlanContext context) {
+
+        visitFirstChild(node, context);
+
+//        expressionAnalyzer.analyze(node.getDatasource(), context);
+//        Expression datasourceExpression = context.getNamedParseExpressions().pop();
+//        expressionAnalyzer.analyze(node.getIpAddress(), context);
+//        Expression ipAddressExpression = context.getNamedParseExpressions().pop();
+//        expressionAnalyzer.analyze(node.getProperties(), context);
+
+//        List<String> attributeList = new ArrayList<>();
+//        Expression nextExpression = context.getNamedParseExpressions().peek();
+//        while (nextExpression != null && !(nextExpression instanceof UnresolvedStar)) {
+//            String attributeName = nextExpression.toString();
+//
+//            if (attributeList.contains(attributeName)) {
+//                throw new IllegalStateException("Duplicate attribute in GEOIP attribute list");
+//            }
+//
+//            attributeList.add(0, attributeName);
+//            context.getNamedParseExpressions().pop();
+//            nextExpression = context.getNamedParseExpressions().peek();
+//        }
+
+        System.out.println("Wow I like Waffles");
+
+        UnresolvedRelation geoipTable = new UnresolvedRelation(seq("geoip"), CaseInsensitiveStringMap.empty(), false);
+        LogicalPlan plan = new SubqueryAlias(geoipTable, "r");
+
+//        LogicalPlan plan = context.apply(left -> {
+//            UnresolvedRelation geoipTable = new UnresolvedRelation(seq("geoip"), CaseInsensitiveStringMap.empty(), false);
+//            LogicalPlan right = new SubqueryAlias(geoipTable, "r");
+//            Optional<Expression> joinCondition = node.getJoinCondition()
+//                    .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context));
+//            context.retainAllNamedParseExpressions(p -> p);
+//            context.retainAllPlans(p -> p);
+//            return join(left, right, node.getJoinType(), joinCondition, node.getJoinHint());
+//        })
+
+        System.out.println("Wow I like Pancakes");
+
+        return plan;
+//        return null;
+    }
+
+    private StructField[] createGeoIpStructFields(List<String> attributeList) {
+        List<String> attributeListToUse;
+        if (attributeList == null || attributeList.isEmpty()) {
+            attributeListToUse = List.of(
+                    "country_iso_code",
+                    "country_name",
+                    "continent_name",
+                    "region_iso_code",
+                    "region_name",
+                    "city_name",
+                    "time_zone",
+                    "lat",
+                    "lon"
+            );
+        } else {
+            attributeListToUse = attributeList;
+        }
+
+        return attributeListToUse.stream()
+                .map(a -> DataTypes.createStructField(a.toLowerCase(Locale.ROOT), DataTypes.StringType, true))
+                .toArray(StructField[]::new);
     }
 
     @Override
