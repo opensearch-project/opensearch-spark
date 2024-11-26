@@ -10,7 +10,11 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.{QueryTest, Row}
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
+import org.apache.spark.sql.catalyst.expressions.{Add, ConcatWs, Literal, Sha1, StructsToJson}
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.types.{StringType, StructType}
+import org.apache.spark.unsafe.types.UTF8String
 
 class FlintSparkIndexSuite extends QueryTest with FlintSuite with Matchers {
 
@@ -19,6 +23,7 @@ class FlintSparkIndexSuite extends QueryTest with FlintSuite with Matchers {
     val options = new FlintSparkIndexOptions(Map("id_expression" -> "id + 10"))
 
     val resultDf = addIdColumn(df, options)
+    resultDf.idColumn() shouldBe Some(Add(UnresolvedAttribute("id"), Literal(10)))
     checkAnswer(resultDf.select(ID_COLUMN), Seq(Row(11), Row(12)))
   }
 
@@ -47,7 +52,37 @@ class FlintSparkIndexSuite extends QueryTest with FlintSuite with Matchers {
     val options = FlintSparkIndexOptions.empty
 
     val resultDf = addIdColumn(df, options)
-    resultDf.columns should contain(ID_COLUMN)
+    resultDf.idColumn() shouldBe Some(
+      Sha1(
+        ConcatWs(
+          Seq(
+            Literal(UTF8String.fromString("\0"), StringType),
+            UnresolvedAttribute(Seq("name")),
+            UnresolvedAttribute(Seq("count"))))))
+    resultDf.select(ID_COLUMN).distinct().count() shouldBe 2
+  }
+
+  test("should add ID column for aggregated query with quoted alias") {
+    val df = spark
+      .createDataFrame(
+        sparkContext.parallelize(
+          Seq(
+            Row(1, "Alice", Row("WA", "Seattle")),
+            Row(2, "Bob", Row("OR", "Portland")),
+            Row(3, "Alice", Row("WA", "Seattle")))),
+        StructType.fromDDL("id INT, name STRING, address STRUCT<state: STRING, city: String>"))
+      .toDF("id", "name", "address")
+      .groupBy(col("name").as("test.name"), col("address").as("test.address"))
+      .count()
+    val options = FlintSparkIndexOptions.empty
+
+    val resultDf = addIdColumn(df, options)
+    resultDf.idColumn() shouldBe Some(
+      Sha1(ConcatWs(Seq(
+        Literal(UTF8String.fromString("\0"), StringType),
+        UnresolvedAttribute(Seq("test.name")),
+        new StructsToJson(UnresolvedAttribute(Seq("test.address"))),
+        UnresolvedAttribute(Seq("count"))))))
     resultDf.select(ID_COLUMN).distinct().count() shouldBe 2
   }
 
@@ -92,7 +127,20 @@ class FlintSparkIndexSuite extends QueryTest with FlintSuite with Matchers {
     val options = FlintSparkIndexOptions.empty
 
     val resultDf = addIdColumn(aggregatedDf, options)
-    resultDf.columns should contain(ID_COLUMN)
+    resultDf.idColumn() shouldBe Some(
+      Sha1(ConcatWs(Seq(
+        Literal(UTF8String.fromString("\0"), StringType),
+        UnresolvedAttribute(Seq("boolean_col")),
+        UnresolvedAttribute(Seq("string_col")),
+        UnresolvedAttribute(Seq("long_col")),
+        UnresolvedAttribute(Seq("int_col")),
+        UnresolvedAttribute(Seq("double_col")),
+        UnresolvedAttribute(Seq("float_col")),
+        UnresolvedAttribute(Seq("timestamp_col")),
+        UnresolvedAttribute(Seq("date_col")),
+        new StructsToJson(UnresolvedAttribute(Seq("struct_col"))),
+        UnresolvedAttribute(Seq("subfield2")),
+        UnresolvedAttribute(Seq("count"))))))
     resultDf.select(ID_COLUMN).distinct().count() shouldBe 1
   }
 }

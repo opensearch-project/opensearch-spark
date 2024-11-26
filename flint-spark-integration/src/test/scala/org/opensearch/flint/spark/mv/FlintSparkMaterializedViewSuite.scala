@@ -7,10 +7,9 @@ package org.opensearch.flint.spark.mv
 
 import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
 
-import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
-import org.opensearch.flint.spark.mv.FlintSparkMaterializedViewSuite.{streamingRelation, DataFrameIdColumnExtractor, StreamingDslLogicalPlan}
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedViewSuite.{streamingRelation, StreamingDslLogicalPlan}
 import org.scalatest.matchers.should.Matchers._
 import org.scalatestplus.mockito.MockitoSugar.mock
 
@@ -19,8 +18,8 @@ import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation}
 import org.apache.spark.sql.catalyst.dsl.expressions.{intToLiteral, stringToLiteral, DslAttr, DslExpression, StringToAttributeConversionHelper}
 import org.apache.spark.sql.catalyst.dsl.plans.DslLogicalPlan
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, ConcatWs, Expression, Literal, Sha1}
-import org.apache.spark.sql.catalyst.plans.logical.{EventTimeWatermark, LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, ConcatWs, Literal, Sha1}
+import org.apache.spark.sql.catalyst.plans.logical.{EventTimeWatermark, LogicalPlan}
 import org.apache.spark.sql.catalyst.util.IntervalUtils
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -383,17 +382,6 @@ object FlintSparkMaterializedViewSuite {
         colName,
         IntervalUtils.stringToInterval(UTF8String.fromString(interval)),
         logicalPlan)
-    }
-  }
-
-  implicit class DataFrameIdColumnExtractor(val df: DataFrame) {
-
-    def idColumn(): Option[Expression] = {
-      df.queryExecution.logical.collectFirst { case Project(projectList, _) =>
-        projectList.collectFirst { case Alias(child, ID_COLUMN) =>
-          child
-        }
-      }.flatten
     }
   }
 }
