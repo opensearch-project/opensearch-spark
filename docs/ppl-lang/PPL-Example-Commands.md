@@ -279,16 +279,14 @@ source = table |  where ispresent(a) |
 [See additional command details](ppl-project-command.md)
 
 ```sql
-project newTableName as |
-   source = table | where fieldA > value | stats count(fieldA) by fieldB
+project newTableName using csv | source = table | where fieldA > value | stats count(fieldA) by fieldB
 
-project ipRanges as |
-       source = table | where isV6 = true | eval inRange = case(cidrmatch(ipAddress, '2003:db8::/32'), 'in' else 'out') | fields ip, inRange
+project ageDistribByCountry using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false') partitioned by (age, country) |
+       source = table | stats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | stats 
+            avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | stats avg(avg_state_age) as 
+            avg_adult_country_age by country
 
-project avgBridgesByCountry as |
-       source = table | fields country, bridges | flatten bridges | fields country, length | stats avg(length) as avg by country
-
-project ageDistribByCountry as |
+project ageDistribByCountry using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false') partitioned by (age, country)  location 's://demo-app/my-bucket'|
        source = table | stats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | stats 
             avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | stats avg(avg_state_age) as 
             avg_adult_country_age by country

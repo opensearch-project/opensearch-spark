@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.spark.ppl
 
+import java.nio.file.{Files, Paths}
+
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedIdentifier, UnresolvedRelation, UnresolvedStar}
@@ -14,8 +16,6 @@ import org.apache.spark.sql.connector.expressions.{FieldReference, IdentityTrans
 import org.apache.spark.sql.execution.ExplainMode
 import org.apache.spark.sql.execution.command.{DescribeTableCommand, ExplainCommand}
 import org.apache.spark.sql.streaming.StreamTest
-
-import java.nio.file.{Files, Paths}
 
 class FlintSparkPPLProjectStatementITSuite
     extends QueryTest
@@ -49,8 +49,11 @@ class FlintSparkPPLProjectStatementITSuite
     sql(s"DROP TABLE $viewName")
     // Delete the directory if it exists
     if (Files.exists(viewFolderLocation)) {
-      Files.walk(viewFolderLocation)
-        .sorted(java.util.Comparator.reverseOrder()) // Reverse order to delete files before directories
+      Files
+        .walk(viewFolderLocation)
+        .sorted(
+          java.util.Comparator.reverseOrder()
+        ) // Reverse order to delete files before directories
         .forEach(Files.delete)
     }
     // Stop all streaming jobs if any
@@ -179,16 +182,14 @@ class FlintSparkPPLProjectStatementITSuite
         ignoreIfExists = false,
         isAnalyzed = false)
     // Compare the two plans
-    assert(
-      compareByString(logicalPlan) == expectedPlan.toString
-    )
+    assert(compareByString(logicalPlan) == expectedPlan.toString)
   }
 
   test("project using csv partition by state and country") {
     val frame = sql(s"""
                        |project $viewName using csv partitioned by (state, country) | source = $testTable | dedup name | fields name, state, country
                        | """.stripMargin)
-    
+
     frame.collect()
     // verify new view was created correctly
     val results = sql(s"""
@@ -196,7 +197,11 @@ class FlintSparkPPLProjectStatementITSuite
                          | """.stripMargin).collect()
 
     // Define the expected results
-    val expectedResults: Array[Row] = Array(Row("Jane", "Quebec", "Canada"), Row("John", "Ontario", "Canada"), Row("Jake", "California", "USA"), Row("Hello", "New York", "USA"))
+    val expectedResults: Array[Row] = Array(
+      Row("Jane", "Quebec", "Canada"),
+      Row("John", "Ontario", "Canada"),
+      Row("Jake", "California", "USA"),
+      Row("Hello", "New York", "USA"))
     // Convert actual results to a Set for quick lookup
     val resultsSet: Set[Row] = results.toSet
     // Check that each expected row is present in the actual results
@@ -229,7 +234,9 @@ class FlintSparkPPLProjectStatementITSuite
     val describeResults: Set[Row] = describe.toSet
     // Check that each expected row is present in the actual results
     expectedDescribeResults.foreach { expectedRow =>
-      assert(expectedDescribeResults.contains(expectedRow), s"Expected row $expectedRow not found in results")
+      assert(
+        expectedDescribeResults.contains(expectedRow),
+        s"Expected row $expectedRow not found in results")
     }
 
     // Retrieve the logical plan
@@ -244,7 +251,12 @@ class FlintSparkPPLProjectStatementITSuite
         UnresolvedIdentifier(Seq(viewName)),
         //      Seq(IdentityTransform.apply(FieldReference.apply("age")), IdentityTransform.apply(FieldReference.apply("state")),
         Seq(),
-        Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("state"), UnresolvedAttribute("country")), dedup),
+        Project(
+          Seq(
+            UnresolvedAttribute("name"),
+            UnresolvedAttribute("state"),
+            UnresolvedAttribute("country")),
+          dedup),
         UnresolvedTableSpec(
           Map.empty,
           Option("CSV"),
@@ -257,9 +269,7 @@ class FlintSparkPPLProjectStatementITSuite
         ignoreIfExists = false,
         isAnalyzed = false)
     // Compare the two plans
-    assert(
-      compareByString(logicalPlan) == expectedPlan.toString
-    )
+    assert(compareByString(logicalPlan) == expectedPlan.toString)
   }
 
   test("project using parquet partition by state & country") {
@@ -274,7 +284,11 @@ class FlintSparkPPLProjectStatementITSuite
                          | """.stripMargin).collect()
 
     // Define the expected results
-    val expectedResults: Array[Row] = Array(Row("Jane", "Quebec", "Canada"), Row("John", "Ontario", "Canada"), Row("Jake", "California", "USA"), Row("Hello", "New York", "USA"))
+    val expectedResults: Array[Row] = Array(
+      Row("Jane", "Quebec", "Canada"),
+      Row("John", "Ontario", "Canada"),
+      Row("Jake", "California", "USA"),
+      Row("Hello", "New York", "USA"))
     // Convert actual results to a Set for quick lookup
     val resultsSet: Set[Row] = results.toSet
     // Check that each expected row is present in the actual results
@@ -307,7 +321,9 @@ class FlintSparkPPLProjectStatementITSuite
     val describeResults: Set[Row] = describe.toSet
     // Check that each expected row is present in the actual results
     expectedDescribeResults.foreach { expectedRow =>
-      assert(expectedDescribeResults.contains(expectedRow), s"Expected row $expectedRow not found in results")
+      assert(
+        expectedDescribeResults.contains(expectedRow),
+        s"Expected row $expectedRow not found in results")
     }
 
     // Retrieve the logical plan
@@ -322,7 +338,12 @@ class FlintSparkPPLProjectStatementITSuite
         UnresolvedIdentifier(Seq(viewName)),
         //      Seq(IdentityTransform.apply(FieldReference.apply("age")), IdentityTransform.apply(FieldReference.apply("state")),
         Seq(),
-        Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("state"), UnresolvedAttribute("country")), dedup),
+        Project(
+          Seq(
+            UnresolvedAttribute("name"),
+            UnresolvedAttribute("state"),
+            UnresolvedAttribute("country")),
+          dedup),
         UnresolvedTableSpec(
           Map.empty,
           Option("PARQUET"),
@@ -335,11 +356,9 @@ class FlintSparkPPLProjectStatementITSuite
         ignoreIfExists = false,
         isAnalyzed = false)
     // Compare the two plans
-    assert(
-      compareByString(logicalPlan) == expectedPlan.toString
-    )
+    assert(compareByString(logicalPlan) == expectedPlan.toString)
   }
-  
+
   test("project using parquet with options & partition by state & country") {
     val frame = sql(s"""
                        | project $viewName using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false')
@@ -353,7 +372,11 @@ class FlintSparkPPLProjectStatementITSuite
                          | """.stripMargin).collect()
 
     // Define the expected results
-    val expectedResults: Array[Row] = Array(Row("Jane", "Quebec", "Canada"), Row("John", "Ontario", "Canada"), Row("Jake", "California", "USA"), Row("Hello", "New York", "USA"))
+    val expectedResults: Array[Row] = Array(
+      Row("Jane", "Quebec", "Canada"),
+      Row("John", "Ontario", "Canada"),
+      Row("Jake", "California", "USA"),
+      Row("Hello", "New York", "USA"))
     // Convert actual results to a Set for quick lookup
     val resultsSet: Set[Row] = results.toSet
     // Check that each expected row is present in the actual results
@@ -386,7 +409,9 @@ class FlintSparkPPLProjectStatementITSuite
     val describeResults: Set[Row] = describe.toSet
     // Check that each expected row is present in the actual results
     expectedDescribeResults.foreach { expectedRow =>
-      assert(expectedDescribeResults.contains(expectedRow), s"Expected row $expectedRow not found in results")
+      assert(
+        expectedDescribeResults.contains(expectedRow),
+        s"Expected row $expectedRow not found in results")
     }
 
     // Retrieve the logical plan
@@ -401,14 +426,19 @@ class FlintSparkPPLProjectStatementITSuite
         UnresolvedIdentifier(Seq(viewName)),
         //      Seq(IdentityTransform.apply(FieldReference.apply("age")), IdentityTransform.apply(FieldReference.apply("state")),
         Seq(),
-        Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("state"), UnresolvedAttribute("country")), dedup),
+        Project(
+          Seq(
+            UnresolvedAttribute("name"),
+            UnresolvedAttribute("state"),
+            UnresolvedAttribute("country")),
+          dedup),
         UnresolvedTableSpec(
           Map.empty,
           Option("PARQUET"),
-          OptionList(Seq(
-            ("parquet.bloom.filter.enabled", Literal("true")),
-            ("parquet.bloom.filter.enabled#age", Literal("false")))
-          ),
+          OptionList(
+            Seq(
+              ("parquet.bloom.filter.enabled", Literal("true")),
+              ("parquet.bloom.filter.enabled#age", Literal("false")))),
           Option.empty,
           Option.empty,
           Option.empty,
@@ -417,11 +447,9 @@ class FlintSparkPPLProjectStatementITSuite
         ignoreIfExists = false,
         isAnalyzed = false)
     // Compare the two plans
-    assert(
-      compareByString(logicalPlan) == expectedPlan.toString
-    )
+    assert(compareByString(logicalPlan) == expectedPlan.toString)
   }
-  
+
   test("project using parquet with options & location with partition by state & country") {
     val viewLocation = viewFolderLocation.toAbsolutePath.toString
     val frame = sql(s"""
@@ -436,7 +464,11 @@ class FlintSparkPPLProjectStatementITSuite
                          | """.stripMargin).collect()
 
     // Define the expected results
-    val expectedResults: Array[Row] = Array(Row("Jane", "Quebec", "Canada"), Row("John", "Ontario", "Canada"), Row("Jake", "California", "USA"), Row("Hello", "New York", "USA"))
+    val expectedResults: Array[Row] = Array(
+      Row("Jane", "Quebec", "Canada"),
+      Row("John", "Ontario", "Canada"),
+      Row("Jake", "California", "USA"),
+      Row("Hello", "New York", "USA"))
     // Convert actual results to a Set for quick lookup
     val resultsSet: Set[Row] = results.toSet
     // Check that each expected row is present in the actual results
@@ -469,7 +501,9 @@ class FlintSparkPPLProjectStatementITSuite
     val describeResults: Set[Row] = describe.toSet
     // Check that each expected row is present in the actual results
     expectedDescribeResults.foreach { expectedRow =>
-      assert(expectedDescribeResults.contains(expectedRow), s"Expected row $expectedRow not found in results")
+      assert(
+        expectedDescribeResults.contains(expectedRow),
+        s"Expected row $expectedRow not found in results")
     }
 
     // Retrieve the logical plan
@@ -484,14 +518,19 @@ class FlintSparkPPLProjectStatementITSuite
         UnresolvedIdentifier(Seq(viewName)),
         //      Seq(IdentityTransform.apply(FieldReference.apply("age")), IdentityTransform.apply(FieldReference.apply("state")),
         Seq(),
-        Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("state"), UnresolvedAttribute("country")), dedup),
+        Project(
+          Seq(
+            UnresolvedAttribute("name"),
+            UnresolvedAttribute("state"),
+            UnresolvedAttribute("country")),
+          dedup),
         UnresolvedTableSpec(
           Map.empty,
           Option("PARQUET"),
-          OptionList(Seq(
-            ("parquet.bloom.filter.enabled", Literal("true")),
-            ("parquet.bloom.filter.enabled#age", Literal("false")))
-          ),
+          OptionList(
+            Seq(
+              ("parquet.bloom.filter.enabled", Literal("true")),
+              ("parquet.bloom.filter.enabled#age", Literal("false")))),
           Option(viewLocation),
           Option.empty,
           Option.empty,
@@ -500,9 +539,7 @@ class FlintSparkPPLProjectStatementITSuite
         ignoreIfExists = false,
         isAnalyzed = false)
     // Compare the two plans
-    assert(
-      compareByString(logicalPlan) == expectedPlan.toString
-    )
+    assert(compareByString(logicalPlan) == expectedPlan.toString)
   }
 
 }

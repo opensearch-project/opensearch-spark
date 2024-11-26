@@ -47,8 +47,7 @@ trait LogicalPlanTestUtils {
       case ctas: CreateTableAsSelect =>
         ctas.copy(
           partitioning = Seq.empty, // Ignore partitioning by setting it to an empty sequence
-          isAnalyzed = false
-        )
+          isAnalyzed = false)
 
       case other => other
     }
