@@ -33,11 +33,11 @@ class FlintSparkIcebergMaterializedViewITSuite
   }
 
   override def afterAll(): Unit = {
-    super.afterAll()
     deleteTestIndex(testFlintIndex)
     sql(s"DROP TABLE $testTable")
     conf.unsetConf(FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key)
     conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
+    super.afterAll()
   }
 
   test("create materialized view with decimal and map types") {
