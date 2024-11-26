@@ -15,7 +15,7 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
 
 class FlintSparkIcebergMaterializedViewITSuite
     extends FlintSparkMaterializedViewSqlITSuite
-      with FlintSparkIcebergSuite{
+    with FlintSparkIcebergSuite {
 
   private val testTable = s"$catalogName.default.mv_test_iceberg"
   private val testMvName = s"$catalogName.default.mv_test_iceberg_metrics"
@@ -39,7 +39,7 @@ class FlintSparkIcebergMaterializedViewITSuite
     conf.unsetConf(FlintSparkConf.EXTERNAL_SCHEDULER_ENABLED.key)
   }
 
-  test("create materialized view with map type") {
+  test("create materialized view with decimal and map types") {
     withTempDir { checkpointDir =>
       sql(s"""
              | CREATE MATERIALIZED VIEW $testMvName
@@ -65,8 +65,7 @@ class FlintSparkIcebergMaterializedViewITSuite
           Row(4.1415926, Row("mapvalue2", null, null, null, null)),
           Row(5.1415926, Row(null, null, "mapvalue3", null, null)),
           Row(6.1415926, Row(null, null, null, "mapvalue4", null)),
-          Row(7.1415926, Row(null, "mapvalue5", null, null, null)),
-        ))
+          Row(7.1415926, Row(null, "mapvalue5", null, null, null))))
     }
   }
 }
