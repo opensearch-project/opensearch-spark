@@ -199,7 +199,7 @@ projectCommand
    ;
 
 locationSpec
-    : LOCATION STRING
+    : LOCATION location=stringLiteral
     ;
 
 tablePropertyList

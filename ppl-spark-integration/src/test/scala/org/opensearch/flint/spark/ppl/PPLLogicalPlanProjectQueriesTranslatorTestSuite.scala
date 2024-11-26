@@ -17,6 +17,8 @@ import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.connector.expressions.{Expression, FieldReference, IdentityTransform, NamedReference, Transform}
 
+import java.nio.file.Paths
+
 
 class PPLLogicalPlanProjectQueriesTranslatorTestSuite
     extends SparkFunSuite
@@ -26,6 +28,7 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
 
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
+  private val viewFolderLocation = Paths.get(".", "spark-warehouse", "student_partition_bucket")
 
   test("test project a simple search with only one table using csv ") {
     // if successful build ppl logical plan and translate to catalyst logical plan
@@ -160,6 +163,49 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
             ("parquet.bloom.filter.enabled#age", Literal("false")))
           ),
           Option.empty,
+          Option.empty,
+          Option.empty,
+          external = false),
+        Map.empty,
+        ignoreIfExists = true,
+        isAnalyzed = false)
+    // Compare the two plans
+    assert(
+      compareByString(logPlan) == expectedPlan.toString
+    )
+  }
+  
+  test("test project a simple search with only one table using parquet with location and Options with multiple partitioned fields ") {
+    // if successful build ppl logical plan and translate to catalyst logical plan
+    val viewLocation = viewFolderLocation.toAbsolutePath.toString
+    val context = new CatalystPlanContext
+    val logPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        s"""
+         | project if not exists simpleView using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false') 
+         | partitioned by (age, country) location '$viewLocation' | source = table | where state != 'California'
+        """.stripMargin),
+      context)
+    
+    // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("table"))
+    val filter =
+      Filter(Not(EqualTo(UnresolvedAttribute("state"), Literal("California"))), relation)
+    val expectedPlan: LogicalPlan =
+      CreateTableAsSelect(
+        UnresolvedIdentifier(Seq("simpleView")),
+        Seq(),
+//        Seq(IdentityTransform.apply(FieldReference.apply("age")), IdentityTransform.apply(FieldReference.apply("country"))),
+        Project(Seq(UnresolvedStar(None)), filter),
+        UnresolvedTableSpec(
+          Map.empty,
+          Option("PARQUET"),
+          OptionList(Seq(
+            ("parquet.bloom.filter.enabled", Literal("true")),
+            ("parquet.bloom.filter.enabled#age", Literal("false")))
+          ),
+          Option(viewLocation),
           Option.empty,
           Option.empty,
           external = false),

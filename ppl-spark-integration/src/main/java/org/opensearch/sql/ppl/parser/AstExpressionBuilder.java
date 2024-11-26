@@ -490,7 +490,11 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                         .collect(toList()));
     }
 
-    
+    @Override
+    public UnresolvedExpression visitLocationSpec(OpenSearchPPLParser.LocationSpecContext ctx) {
+        return new Literal(translate(ctx.stringLiteral().getText()), DataType.STRING);
+    }
+
     private List<UnresolvedExpression> singleFieldRelevanceArguments(
             OpenSearchPPLParser.SingleFieldRelevanceFunctionContext ctx) {
         // all the arguments are defaulted to string values

@@ -20,7 +20,6 @@ import org.jetbrains.annotations.NotNull;
 import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.AttributeList;
-import org.opensearch.sql.ast.expression.FieldList;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.statement.ProjectStatement;
 import org.opensearch.sql.ppl.CatalystPlanContext;
@@ -28,7 +27,6 @@ import scala.Option;
 import scala.Tuple2;
 import scala.collection.mutable.Seq;
 
-import java.util.Collections;
 import java.util.Optional;
 
 import static java.util.Collections.emptyList;
@@ -54,20 +52,20 @@ public interface ProjectionUtils {
         Optional<UnresolvedExpression> partitionColumns = node.getPartitionColumns();
         partitionColumns.map(Node::getChild);
 
-        Optional<UnresolvedExpression> location = node.getLocation();
         UnresolvedIdentifier name = new UnresolvedIdentifier(seq(node.getTableQualifiedName().getParts()), false);
-        UnresolvedTableSpec tableSpec = getTableSpec(options, using);
+        UnresolvedTableSpec tableSpec = getTableSpec(options, using, node.getLocation());
         Seq<Transform> partitioning = partitionColumns.isPresent() ?
              seq(((AttributeList) partitionColumns.get()).getAttrList().stream().map(f -> new IdentityTransform(new FieldReference(seq(f.toString())))).collect(toList())) : seq();
         return new CreateTableAsSelect(name, partitioning, plan, tableSpec, map(emptyMap()), !node.isOverride(), false);   
     }
 
-    private static @NotNull UnresolvedTableSpec getTableSpec(Optional<UnresolvedExpression> options, Optional<String> using) {
+    private static @NotNull UnresolvedTableSpec getTableSpec(Optional<UnresolvedExpression> options, Optional<String> using, Optional<UnresolvedExpression> location) {
         Seq<Tuple2<String, Expression>> optionsSeq = options.isPresent() ?
                 seq(((AttributeList) options.get()).getAttrList().stream()
                         .map(p -> (Argument) p)
                         .map(p -> new Tuple2<>(p.getName(), (Expression) Literal.create(p.getValue().getValue(), DataTypes.StringType)))
                         .collect(toList())) : seq(emptyList());
-        return new UnresolvedTableSpec(map(emptyMap()), option(using), new OptionList(optionsSeq), Option.empty(), Option.empty(), Option.empty(), false);
+        Option<String> locationOption = location.isPresent() ?  Option.apply(((org.opensearch.sql.ast.expression.Literal) location.get()).getValue().toString()) : Option.empty();
+        return new UnresolvedTableSpec(map(emptyMap()), option(using), new OptionList(optionsSeq), locationOption, Option.empty(), Option.empty(), false);
     }
 }

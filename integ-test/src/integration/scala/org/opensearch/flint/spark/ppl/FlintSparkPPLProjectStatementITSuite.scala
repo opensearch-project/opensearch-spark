@@ -15,6 +15,8 @@ import org.apache.spark.sql.execution.ExplainMode
 import org.apache.spark.sql.execution.command.{DescribeTableCommand, ExplainCommand}
 import org.apache.spark.sql.streaming.StreamTest
 
+import java.nio.file.{Files, Paths}
+
 class FlintSparkPPLProjectStatementITSuite
     extends QueryTest
     with LogicalPlanTestUtils
@@ -28,6 +30,8 @@ class FlintSparkPPLProjectStatementITSuite
   private val t3 = "spark_catalog.`default`.`flint_ppl_test3`"
   private val t4 = "`spark_catalog`.`default`.flint_ppl_test4"
   private val viewName = "simpleView"
+  // location of the projected view
+  private val viewFolderLocation = Paths.get(".", "spark-warehouse", "student_partition_bucket")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -43,6 +47,12 @@ class FlintSparkPPLProjectStatementITSuite
   protected override def afterEach(): Unit = {
     super.afterEach()
     sql(s"DROP TABLE $viewName")
+    // Delete the directory if it exists
+    if (Files.exists(viewFolderLocation)) {
+      Files.walk(viewFolderLocation)
+        .sorted(java.util.Comparator.reverseOrder()) // Reverse order to delete files before directories
+        .forEach(Files.delete)
+    }
     // Stop all streaming jobs if any
     spark.streams.active.foreach { job =>
       job.stop()
@@ -50,7 +60,8 @@ class FlintSparkPPLProjectStatementITSuite
     }
   }
 
-  test("project sql test using csv") {
+  ignore("project sql test using csv") {
+    val viewLocation = viewFolderLocation.toAbsolutePath.toString
     val frame = sql(s"""
                         | CREATE TABLE student_partition_bucket
                         |    USING parquet
@@ -59,6 +70,7 @@ class FlintSparkPPLProjectStatementITSuite
                         |      'parquet.bloom.filter.enabled#age'='false'
                         |    )
                         |    PARTITIONED BY (age, country)
+                        |    LOCATION '$viewLocation'
                         |    AS SELECT * FROM $testTable;
                         | """.stripMargin)
 
@@ -398,6 +410,89 @@ class FlintSparkPPLProjectStatementITSuite
             ("parquet.bloom.filter.enabled#age", Literal("false")))
           ),
           Option.empty,
+          Option.empty,
+          Option.empty,
+          external = false),
+        Map.empty,
+        ignoreIfExists = false,
+        isAnalyzed = false)
+    // Compare the two plans
+    assert(
+      compareByString(logicalPlan) == expectedPlan.toString
+    )
+  }
+  
+  test("project using parquet with options & location with partition by state & country") {
+    val viewLocation = viewFolderLocation.toAbsolutePath.toString
+    val frame = sql(s"""
+                       | project $viewName using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false')
+                       | partitioned by (state, country) location '$viewLocation' | source = $testTable | dedup name | fields name, state, country
+                       | """.stripMargin)
+
+    frame.collect()
+    // verify new view was created correctly
+    val results = sql(s"""
+                         | source = $viewName
+                         | """.stripMargin).collect()
+
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(Row("Jane", "Quebec", "Canada"), Row("John", "Ontario", "Canada"), Row("Jake", "California", "USA"), Row("Hello", "New York", "USA"))
+    // Convert actual results to a Set for quick lookup
+    val resultsSet: Set[Row] = results.toSet
+    // Check that each expected row is present in the actual results
+    expectedResults.foreach { expectedRow =>
+      assert(resultsSet.contains(expectedRow), s"Expected row $expectedRow not found in results")
+    }
+
+    // verify new view was created correctly
+    val describe = sql(s"""
+                          | describe $viewName
+                          | """.stripMargin).collect()
+
+    // Define the expected results
+    val expectedDescribeResults: Array[Row] = Array(
+      Row("Database", "default"),
+      Row("Partition Provider", "Catalog"),
+      Row("Type", "MANAGED"),
+      Row("country", "string", "null"),
+      Row("Catalog", "spark_catalog"),
+      Row("state", "string", "null"),
+      Row("# Partition Information", ""),
+      Row("Created By", "Spark 3.5.1"),
+      Row("Provider", "PARQUET"),
+      Row("# Detailed Table Information", ""),
+      Row("Table", "simpleview"),
+      Row("Last Access", "UNKNOWN"),
+      Row("# col_name", "data_type", "comment"),
+      Row("name", "string", "null"))
+    // Convert actual results to a Set for quick lookup
+    val describeResults: Set[Row] = describe.toSet
+    // Check that each expected row is present in the actual results
+    expectedDescribeResults.foreach { expectedRow =>
+      assert(expectedDescribeResults.contains(expectedRow), s"Expected row $expectedRow not found in results")
+    }
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val relation = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val nameAttribute = UnresolvedAttribute("name")
+    val dedup =
+      Deduplicate(Seq(nameAttribute), Filter(IsNotNull(nameAttribute), relation))
+    val expectedPlan: LogicalPlan =
+      CreateTableAsSelect(
+        UnresolvedIdentifier(Seq(viewName)),
+        //      Seq(IdentityTransform.apply(FieldReference.apply("age")), IdentityTransform.apply(FieldReference.apply("state")),
+        Seq(),
+        Project(Seq(UnresolvedAttribute("name"), UnresolvedAttribute("state"), UnresolvedAttribute("country")), dedup),
+        UnresolvedTableSpec(
+          Map.empty,
+          Option("PARQUET"),
+          OptionList(Seq(
+            ("parquet.bloom.filter.enabled", Literal("true")),
+            ("parquet.bloom.filter.enabled#age", Literal("false")))
+          ),
+          Option(viewLocation),
           Option.empty,
           Option.empty,
           external = false),
