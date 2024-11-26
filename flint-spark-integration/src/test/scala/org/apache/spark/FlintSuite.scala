@@ -6,9 +6,12 @@
 package org.apache.spark
 
 import org.opensearch.flint.spark.FlintSparkExtensions
+import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 
-import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.catalyst.expressions.{Alias, CodegenObjectFactoryMode, Expression}
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
+import org.apache.spark.sql.catalyst.plans.logical.Project
 import org.apache.spark.sql.flint.config.{FlintConfigEntry, FlintSparkConf}
 import org.apache.spark.sql.flint.config.FlintSparkConf.{EXTERNAL_SCHEDULER_ENABLED, HYBRID_SCAN_ENABLED, METADATA_CACHE_WRITE}
 import org.apache.spark.sql.internal.SQLConf
@@ -66,6 +69,17 @@ trait FlintSuite extends SharedSparkSession {
       block
     } finally {
       setFlintSparkConf(METADATA_CACHE_WRITE, "false")
+    }
+  }
+
+  protected implicit class DataFrameExtensions(val df: DataFrame) {
+
+    def idColumn(): Option[Expression] = {
+      df.queryExecution.logical.collectFirst { case Project(projectList, _) =>
+        projectList.collectFirst { case Alias(child, ID_COLUMN) =>
+          child
+        }
+      }.flatten
     }
   }
 }

@@ -14,6 +14,7 @@ import org.opensearch.flint.core.metadata.FlintJsonHelper._
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate
+import org.apache.spark.sql.catalyst.util.quoteIfNeeded
 import org.apache.spark.sql.flint.datatype.FlintDataType
 import org.apache.spark.sql.functions.{col, concat_ws, expr, sha1, to_json}
 import org.apache.spark.sql.types.{MapType, StructType}
@@ -150,9 +151,9 @@ object FlintSparkIndex extends Logging {
         val allOutputCols = df.schema.fields.map { field =>
           field.dataType match {
             case _: StructType | _: MapType =>
-              to_json(col(field.name))
+              to_json(col(quoteIfNeeded(field.name)))
             case _ =>
-              col(field.name)
+              col(quoteIfNeeded(field.name))
           }
         }
 
