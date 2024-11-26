@@ -42,7 +42,6 @@ import org.opensearch.sql.ast.tree.FillNull;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
-import org.opensearch.sql.common.geospatial.GeoIpData;
 import org.opensearch.sql.expression.function.SerializableUdf;
 import org.opensearch.sql.ppl.utils.AggregatorTransformer;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTransformer;
@@ -117,7 +116,6 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
             return context.getNamedParseExpressions().push(right.get());
         }
         return null;
-
     }
 
     @Override
@@ -441,62 +439,6 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
         return context.getNamedParseExpressions().push(LambdaFunction$.MODULE$.apply(functionResult, seq(argsResult), false));
     }
 
-    @Override
-    public Expression visitGeoIp(GeoIp node, CatalystPlanContext context) {
-        analyze(node.getDatasource(), context);
-        Expression datasourceExpression = context.getNamedParseExpressions().pop();
-        analyze(node.getIpAddress(), context);
-        Expression ipAddressExpression = context.getNamedParseExpressions().pop();
-        analyze(node.getProperties(), context);
-
-        List<String> attributeList = new ArrayList<>();
-        Expression nextExpression = context.getNamedParseExpressions().peek();
-        while (nextExpression != null && !(nextExpression instanceof UnresolvedStar)) {
-            String attributeName = nextExpression.toString();
-            if (attributeList.contains(attributeName)) {
-                throw new IllegalStateException("Duplicate attribute in GEOIP attribute list");
-            }
-
-            attributeList.add(0, attributeName);
-            context.getNamedParseExpressions().pop();
-            nextExpression = context.getNamedParseExpressions().peek();
-        }
-
-        StructField[] fields = createGeoIpStructFields(attributeList);
-        ScalaUDF udf = new ScalaUDF(SerializableUdf.geoIpFunction,
-                DataTypes.createStructType(fields),
-                seq(datasourceExpression, ipAddressExpression, new org.apache.spark.sql.catalyst.expressions.Literal(UTF8String.fromString(String.join("|", attributeList)), DataTypes.StringType)),
-                seq(),
-                Option.empty(),
-                Option.apply("geoip"),
-                false,
-                true);
-
-        return context.getNamedParseExpressions().push(udf);
-    }
-
-    private StructField[] createGeoIpStructFields(List<String> attributeList) {
-        List<String> attributeListToUse;
-        if (attributeList == null || attributeList.isEmpty()) {
-            attributeListToUse = List.of(
-                "country_iso_code",
-                "country_name",
-                "continent_name",
-                "region_iso_code",
-                "region_name",
-                "city_name",
-                "time_zone",
-                "lat",
-                "lon"
-            );
-        } else {
-            attributeListToUse = attributeList;
-        }
-
-        return attributeListToUse.stream()
-            .map(a -> DataTypes.createStructField(a.toLowerCase(Locale.ROOT), DataTypes.StringType, true))
-            .toArray(StructField[]::new);
-    }
 
     private List<Expression> visitExpressionList(List<UnresolvedExpression> expressionList, CatalystPlanContext context) {
         return expressionList.isEmpty()
