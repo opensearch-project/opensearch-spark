@@ -27,12 +27,13 @@ class FlintSparkIcebergMaterializedViewITSuite
        | FROM $testTable
        |""".stripMargin
 
-  override def beforeEach(): Unit = {
+  override def beforeAll(): Unit = {
     super.beforeAll()
     createIcebergTimeSeriesTable(testTable)
   }
 
-  override def afterEach(): Unit = {
+  override def afterAll(): Unit = {
+    super.afterAll()
     deleteTestIndex(testFlintIndex)
     sql(s"DROP TABLE $testTable")
     conf.unsetConf(FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key)
