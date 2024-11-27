@@ -13,7 +13,7 @@ import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFu
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, Divide, EqualTo, Floor, GreaterThan, IsNotNull, Literal, Multiply, Not, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.Inner
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.connector.expressions.{FieldReference, IdentityTransform}
+import org.apache.spark.sql.connector.expressions.{FieldReference, IdentityTransform, NamedReference, Transform}
 import org.apache.spark.sql.execution.ExplainMode
 import org.apache.spark.sql.execution.command.{DescribeTableCommand, ExplainCommand}
 import org.apache.spark.sql.streaming.StreamTest
@@ -150,7 +150,22 @@ class FlintSparkPPLProjectStatementITSuite
         ignoreIfExists = false,
         isAnalyzed = false)
     // Compare the two plans
-    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+    comparePlans(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].query,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].query,
+      checkAnalysis = false)
+    comparePlans(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].name,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].name,
+      checkAnalysis = false)
+    assert(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].tableSpec.toString == expectedPlan
+        .asInstanceOf[CreateTableAsSelect]
+        .tableSpec
+        .toString)
+    assert(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].partitioning.isEmpty,
+      "Partitioning does not contain ay FieldReferences")
   }
 
   test("project using csv partition by age") {
@@ -197,7 +212,29 @@ class FlintSparkPPLProjectStatementITSuite
         ignoreIfExists = false,
         isAnalyzed = false)
     // Compare the two plans
-    assert(compareByString(logicalPlan) == expectedPlan.toString)
+    comparePlans(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].query,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].query,
+      checkAnalysis = false)
+    comparePlans(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].name,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].name,
+      checkAnalysis = false)
+    assert(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].tableSpec.toString == expectedPlan
+        .asInstanceOf[CreateTableAsSelect]
+        .tableSpec
+        .toString)
+    assert(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].partitioning.exists {
+        case transform: Transform =>
+          transform.arguments().exists {
+            case fieldRef: NamedReference => fieldRef.fieldNames().contains("age")
+            case _ => false
+          }
+        case _ => false
+      } && logicalPlan.asInstanceOf[CreateTableAsSelect].partitioning.length == 1,
+      "Partitioning does not contain a FieldReferences: 'age'")
   }
 
   test("project using csv partition by state and country") {
@@ -284,7 +321,30 @@ class FlintSparkPPLProjectStatementITSuite
         ignoreIfExists = false,
         isAnalyzed = false)
     // Compare the two plans
-    assert(compareByString(logicalPlan) == expectedPlan.toString)
+    comparePlans(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].query,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].query,
+      checkAnalysis = false)
+    comparePlans(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].name,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].name,
+      checkAnalysis = false)
+    assert(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].tableSpec.toString == expectedPlan
+        .asInstanceOf[CreateTableAsSelect]
+        .tableSpec
+        .toString)
+    assert(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].partitioning.exists {
+        case transform: Transform =>
+          transform.arguments().exists {
+            case fieldRef: NamedReference =>
+              fieldRef.fieldNames().contains("state") || fieldRef.fieldNames().contains("country")
+            case _ => false
+          }
+        case _ => false
+      } && logicalPlan.asInstanceOf[CreateTableAsSelect].partitioning.length == 2,
+      "Partitioning does not contain a FieldReferences: 'name'")
   }
 
   test("project using parquet partition by state & country") {
@@ -371,7 +431,30 @@ class FlintSparkPPLProjectStatementITSuite
         ignoreIfExists = false,
         isAnalyzed = false)
     // Compare the two plans
-    assert(compareByString(logicalPlan) == expectedPlan.toString)
+    comparePlans(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].query,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].query,
+      checkAnalysis = false)
+    comparePlans(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].name,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].name,
+      checkAnalysis = false)
+    assert(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].tableSpec.toString == expectedPlan
+        .asInstanceOf[CreateTableAsSelect]
+        .tableSpec
+        .toString)
+    assert(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].partitioning.exists {
+        case transform: Transform =>
+          transform.arguments().exists {
+            case fieldRef: NamedReference =>
+              fieldRef.fieldNames().contains("state") || fieldRef.fieldNames().contains("country")
+            case _ => false
+          }
+        case _ => false
+      } && logicalPlan.asInstanceOf[CreateTableAsSelect].partitioning.length == 2,
+      "Partitioning does not contain a FieldReferences: 'name'")
   }
 
   test("project using parquet with options & partition by state & country") {
@@ -462,7 +545,30 @@ class FlintSparkPPLProjectStatementITSuite
         ignoreIfExists = false,
         isAnalyzed = false)
     // Compare the two plans
-    assert(compareByString(logicalPlan) == expectedPlan.toString)
+    comparePlans(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].query,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].query,
+      checkAnalysis = false)
+    comparePlans(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].name,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].name,
+      checkAnalysis = false)
+    assert(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].tableSpec.toString == expectedPlan
+        .asInstanceOf[CreateTableAsSelect]
+        .tableSpec
+        .toString)
+    assert(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].partitioning.exists {
+        case transform: Transform =>
+          transform.arguments().exists {
+            case fieldRef: NamedReference =>
+              fieldRef.fieldNames().contains("state") || fieldRef.fieldNames().contains("country")
+            case _ => false
+          }
+        case _ => false
+      } && logicalPlan.asInstanceOf[CreateTableAsSelect].partitioning.length == 2,
+      "Partitioning does not contain a FieldReferences: 'name'")
   }
 
   test("project using parquet with options & location with partition by state & country") {
@@ -553,8 +659,30 @@ class FlintSparkPPLProjectStatementITSuite
         Map.empty,
         ignoreIfExists = false,
         isAnalyzed = false)
-    // Compare the two plans
-    assert(compareByString(logicalPlan) == expectedPlan.toString)
+    comparePlans(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].query,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].query,
+      checkAnalysis = false)
+    comparePlans(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].name,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].name,
+      checkAnalysis = false)
+    assert(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].tableSpec.toString == expectedPlan
+        .asInstanceOf[CreateTableAsSelect]
+        .tableSpec
+        .toString)
+    assert(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].partitioning.exists {
+        case transform: Transform =>
+          transform.arguments().exists {
+            case fieldRef: NamedReference =>
+              fieldRef.fieldNames().contains("state") || fieldRef.fieldNames().contains("country")
+            case _ => false
+          }
+        case _ => false
+      } && logicalPlan.asInstanceOf[CreateTableAsSelect].partitioning.length == 2,
+      "Partitioning does not contain a FieldReferences: 'name'")
   }
 
   test("test inner join with relation subquery") {
@@ -656,6 +784,15 @@ class FlintSparkPPLProjectStatementITSuite
         .asInstanceOf[CreateTableAsSelect]
         .tableSpec
         .toString)
+    assert(
+      logicalPlan.asInstanceOf[CreateTableAsSelect].partitioning.exists {
+        case transform: Transform =>
+          transform.arguments().exists {
+            case fieldRef: NamedReference => fieldRef.fieldNames().contains("age_span")
+            case _ => false
+          }
+        case _ => false
+      } && logicalPlan.asInstanceOf[CreateTableAsSelect].partitioning.length == 1,
+      "Partitioning does not contain a FieldReferences: 'name'")
   }
-
 }

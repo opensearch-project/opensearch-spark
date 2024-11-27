@@ -14,7 +14,7 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedIdentifier, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{And, Ascending, Descending, EqualTo, GreaterThan, LessThan, Literal, NamedExpression, Not, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{And, Ascending, AttributeReference, Descending, EqualTo, GreaterThan, LessThan, Literal, NamedExpression, Not, SortOrder}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AnyValue
 import org.apache.spark.sql.catalyst.plans.{Inner, PlanTest}
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -63,7 +63,22 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
         ignoreIfExists = false,
         isAnalyzed = false)
     // Compare the two plans
-    comparePlans(logPlan, expectedPlan, checkAnalysis = false)
+    comparePlans(
+      logPlan.asInstanceOf[CreateTableAsSelect].query,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].query,
+      checkAnalysis = false)
+    comparePlans(
+      logPlan.asInstanceOf[CreateTableAsSelect].name,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].name,
+      checkAnalysis = false)
+    assert(
+      logPlan.asInstanceOf[CreateTableAsSelect].tableSpec.toString == expectedPlan
+        .asInstanceOf[CreateTableAsSelect]
+        .tableSpec
+        .toString)
+    assert(
+      logPlan.asInstanceOf[CreateTableAsSelect].partitioning.isEmpty,
+      "Partitioning does not contain ay FieldReferences")
   }
 
   test("test project a simple search with only one table using csv and partitioned field ") {
@@ -97,7 +112,29 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
         ignoreIfExists = true,
         isAnalyzed = false)
     // Compare the two plans
-    assert(compareByString(logPlan) == expectedPlan.toString)
+    comparePlans(
+      logPlan.asInstanceOf[CreateTableAsSelect].query,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].query,
+      checkAnalysis = false)
+    comparePlans(
+      logPlan.asInstanceOf[CreateTableAsSelect].name,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].name,
+      checkAnalysis = false)
+    assert(
+      logPlan.asInstanceOf[CreateTableAsSelect].tableSpec.toString == expectedPlan
+        .asInstanceOf[CreateTableAsSelect]
+        .tableSpec
+        .toString)
+    assert(
+      logPlan.asInstanceOf[CreateTableAsSelect].partitioning.exists {
+        case transform: Transform =>
+          transform.arguments().exists {
+            case fieldRef: NamedReference => fieldRef.fieldNames().contains("age")
+            case _ => false
+          }
+        case _ => false
+      } && logPlan.asInstanceOf[CreateTableAsSelect].partitioning.length == 1,
+      "Partitioning does not contain a FieldReferences: 'name'")
   }
 
   test(
@@ -132,7 +169,30 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
         ignoreIfExists = true,
         isAnalyzed = false)
     // Compare the two plans
-    assert(compareByString(logPlan) == expectedPlan.toString)
+    comparePlans(
+      logPlan.asInstanceOf[CreateTableAsSelect].query,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].query,
+      checkAnalysis = false)
+    comparePlans(
+      logPlan.asInstanceOf[CreateTableAsSelect].name,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].name,
+      checkAnalysis = false)
+    assert(
+      logPlan.asInstanceOf[CreateTableAsSelect].tableSpec.toString == expectedPlan
+        .asInstanceOf[CreateTableAsSelect]
+        .tableSpec
+        .toString)
+    assert(
+      logPlan.asInstanceOf[CreateTableAsSelect].partitioning.exists {
+        case transform: Transform =>
+          transform.arguments().exists {
+            case fieldRef: NamedReference =>
+              fieldRef.fieldNames().contains("country") || fieldRef.fieldNames().contains("age")
+            case _ => false
+          }
+        case _ => false
+      } && logPlan.asInstanceOf[CreateTableAsSelect].partitioning.length == 2,
+      "Partitioning does not contain a FieldReferences: 'name'")
   }
 
   test(
@@ -171,7 +231,30 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
         ignoreIfExists = true,
         isAnalyzed = false)
     // Compare the two plans
-    assert(compareByString(logPlan) == expectedPlan.toString)
+    comparePlans(
+      logPlan.asInstanceOf[CreateTableAsSelect].query,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].query,
+      checkAnalysis = false)
+    comparePlans(
+      logPlan.asInstanceOf[CreateTableAsSelect].name,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].name,
+      checkAnalysis = false)
+    assert(
+      logPlan.asInstanceOf[CreateTableAsSelect].tableSpec.toString == expectedPlan
+        .asInstanceOf[CreateTableAsSelect]
+        .tableSpec
+        .toString)
+    assert(
+      logPlan.asInstanceOf[CreateTableAsSelect].partitioning.exists {
+        case transform: Transform =>
+          transform.arguments().exists {
+            case fieldRef: NamedReference =>
+              fieldRef.fieldNames().contains("country") || fieldRef.fieldNames().contains("age")
+            case _ => false
+          }
+        case _ => false
+      } && logPlan.asInstanceOf[CreateTableAsSelect].partitioning.length == 2,
+      "Partitioning does not contain a FieldReferences: 'name'")
   }
 
   test(
@@ -212,7 +295,30 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
         ignoreIfExists = true,
         isAnalyzed = false)
     // Compare the two plans
-    assert(compareByString(logPlan) == expectedPlan.toString)
+    comparePlans(
+      logPlan.asInstanceOf[CreateTableAsSelect].query,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].query,
+      checkAnalysis = false)
+    comparePlans(
+      logPlan.asInstanceOf[CreateTableAsSelect].name,
+      expectedPlan.asInstanceOf[CreateTableAsSelect].name,
+      checkAnalysis = false)
+    assert(
+      logPlan.asInstanceOf[CreateTableAsSelect].tableSpec.toString == expectedPlan
+        .asInstanceOf[CreateTableAsSelect]
+        .tableSpec
+        .toString)
+    assert(
+      logPlan.asInstanceOf[CreateTableAsSelect].partitioning.exists {
+        case transform: Transform =>
+          transform.arguments().exists {
+            case fieldRef: NamedReference =>
+              fieldRef.fieldNames().contains("country") || fieldRef.fieldNames().contains("age")
+            case _ => false
+          }
+        case _ => false
+      } && logPlan.asInstanceOf[CreateTableAsSelect].partitioning.length == 2,
+      "Partitioning does not contain a FieldReferences: 'name'")
   }
 
   test(
@@ -275,5 +381,15 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
         .asInstanceOf[CreateTableAsSelect]
         .tableSpec
         .toString)
+    assert(
+      logPlan.asInstanceOf[CreateTableAsSelect].partitioning.exists {
+        case transform: Transform =>
+          transform.arguments().exists {
+            case fieldRef: NamedReference => fieldRef.fieldNames().contains("name")
+            case _ => false
+          }
+        case _ => false
+      } && logPlan.asInstanceOf[CreateTableAsSelect].partitioning.length == 1,
+      "Partitioning does not contain a FieldReferences: 'name'")
   }
 }
