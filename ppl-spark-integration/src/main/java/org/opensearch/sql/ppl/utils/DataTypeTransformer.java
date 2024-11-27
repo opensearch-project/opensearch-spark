@@ -9,6 +9,7 @@ package org.opensearch.sql.ppl.utils;
 import org.apache.spark.sql.types.BooleanType$;
 import org.apache.spark.sql.types.ByteType$;
 import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.DateType$;
 import org.apache.spark.sql.types.DoubleType$;
 import org.apache.spark.sql.types.FloatType$;
@@ -49,8 +50,10 @@ public interface DataTypeTransformer {
     
     static DataType translate(org.opensearch.sql.ast.expression.DataType source) {
         switch (source.getCoreType()) {
-            case TIME:
+            case DATE:
                 return DateType$.MODULE$;
+            case TIMESTAMP:
+                return DataTypes.TimestampType;
             case INTEGER:
                 return IntegerType$.MODULE$;
             case LONG:

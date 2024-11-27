@@ -19,6 +19,7 @@ import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.AttributeList;
 import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.Case;
+import org.opensearch.sql.ast.expression.Cast;
 import org.opensearch.sql.ast.expression.Cidr;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.DataType;
@@ -279,9 +280,8 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         return buildFunction(ctx.evalFunctionName().getText(), ctx.functionArgs().functionArg());
     }
 
-    @Override
-    public UnresolvedExpression visitConvertedDataType(OpenSearchPPLParser.ConvertedDataTypeContext ctx) {
-        return new Literal(ctx.getText(), DataType.STRING);
+    @Override public UnresolvedExpression visitDataTypeFunctionCall(OpenSearchPPLParser.DataTypeFunctionCallContext ctx) {
+        return new Cast(this.visit(ctx.expression()), DataType.fromString(ctx.convertedDataType().getText()));
     }
 
     @Override
