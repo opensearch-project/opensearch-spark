@@ -207,7 +207,7 @@ class PPLLogicalPlanEvalTranslatorTestSuite
     )
 
     val ip_int = ScalaUDF(
-      SerializableUdf.isIpv4,
+      SerializableUdf.ipToInt,
       DataTypes.IntegerType,
       seq(ipAddress),
       seq(),
