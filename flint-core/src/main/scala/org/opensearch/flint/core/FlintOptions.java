@@ -91,6 +91,7 @@ public class FlintOptions implements Serializable {
 
   public static final String REQUEST_COMPLETION_DELAY_MILLIS = "request.completionDelayMillis";
   public static final int DEFAULT_REQUEST_COMPLETION_DELAY_MILLIS = 0;
+  public static final int DEFAULT_AOSS_REQUEST_COMPLETION_DELAY_MILLIS = 2000;
 
   public static final String DATA_SOURCE_NAME = "spark.flint.datasource.name";
 
@@ -182,7 +183,10 @@ public class FlintOptions implements Serializable {
   }
 
   public int getRequestCompletionDelayMillis() {
-    return Integer.parseInt(options.getOrDefault(REQUEST_COMPLETION_DELAY_MILLIS, String.valueOf(DEFAULT_REQUEST_COMPLETION_DELAY_MILLIS)));
+    int defaultValue = SERVICE_NAME_AOSS.equals(getServiceName())
+        ? DEFAULT_AOSS_REQUEST_COMPLETION_DELAY_MILLIS
+        : DEFAULT_REQUEST_COMPLETION_DELAY_MILLIS;
+    return Integer.parseInt(options.getOrDefault(REQUEST_COMPLETION_DELAY_MILLIS, String.valueOf(defaultValue)));
   }
 
   public String getDataSourceName() {

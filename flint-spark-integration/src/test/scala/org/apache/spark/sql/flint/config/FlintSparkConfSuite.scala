@@ -118,6 +118,11 @@ class FlintSparkConfSuite extends FlintSuite {
     FlintSparkConf().flintOptions().getRequestCompletionDelayMillis shouldBe 0
   }
 
+  test("test request completionDelayMillis default value for aoss") {
+    val options = FlintSparkConf(Map("auth.servicename" -> "aoss").asJava).flintOptions()
+    options.getRequestCompletionDelayMillis shouldBe 2000
+  }
+
   test("test specified request completionDelayMillis") {
     val options =
       FlintSparkConf(Map("request.completionDelayMillis" -> "1000").asJava).flintOptions()
