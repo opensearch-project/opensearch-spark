@@ -47,6 +47,7 @@ class FlintSparkConfSuite extends FlintSuite {
     val retryOptions = FlintSparkConf().flintOptions().getRetryOptions
     retryOptions.getMaxRetries shouldBe DEFAULT_MAX_RETRIES
     retryOptions.getRetryableHttpStatusCodes shouldBe DEFAULT_RETRYABLE_HTTP_STATUS_CODES
+    retryOptions.getRetryableHttpResponseMessages shouldBe DEFAULT_RETRYABLE_HTTP_RESPONSE_MESSAGES
     retryOptions.getRetryableExceptionClassNames shouldBe Optional.empty
   }
 
@@ -55,12 +56,14 @@ class FlintSparkConfSuite extends FlintSuite {
       Map(
         "retry.max_retries" -> "5",
         "retry.http_status_codes" -> "429,502,503,504",
+        "retry.http_response_messages" -> "message1,message2",
         "retry.exception_class_names" -> "java.net.ConnectException").asJava)
       .flintOptions()
       .getRetryOptions
 
     retryOptions.getMaxRetries shouldBe 5
     retryOptions.getRetryableHttpStatusCodes shouldBe "429,502,503,504"
+    retryOptions.getRetryableHttpResponseMessages shouldBe "message1,message2"
     retryOptions.getRetryableExceptionClassNames.get() shouldBe "java.net.ConnectException"
   }
 
