@@ -7,6 +7,7 @@ package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.AliasIdentifier;
 import org.apache.spark.sql.catalyst.TableIdentifier;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
@@ -20,8 +21,12 @@ import org.apache.spark.sql.catalyst.expressions.Explode;
 import org.apache.spark.sql.catalyst.expressions.ExprId;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GeneratorOuter;
+import org.apache.spark.sql.catalyst.expressions.GreaterThan;
+import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
+import org.apache.spark.sql.catalyst.expressions.LessThan;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
+import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
@@ -81,6 +86,7 @@ import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
+import org.opensearch.sql.expression.function.SerializableUdf;
 import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
 import org.opensearch.sql.ppl.utils.ParseTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
@@ -586,52 +592,43 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 //            context.getNamedParseExpressions().pop();
 //            nextExpression = context.getNamedParseExpressions().peek();
 //        }
+        
+        ScalaUDF ipInt = new ScalaUDF(SerializableUdf.ipToInt,
+                DataTypes.BooleanType,
+                seq(ipAddressExpression),
+                seq(),
+                Option.empty(),
+                Option.apply("ip_to_int"),
+                false,
+                true);
 
-        System.out.println("Wow I like Waffles");
-
+        ScalaUDF isIpv4 = new ScalaUDF(SerializableUdf.isIpv4,
+                DataTypes.BooleanType,
+                seq(ipAddressExpression),
+                seq(),
+                Option.empty(),
+                Option.apply("is_ipv4"),
+                false,
+                true);
 
         LogicalPlan plan = context.apply(left -> {
             LogicalPlan right = new UnresolvedRelation(seq("geoip"), CaseInsensitiveStringMap.empty(), false);
-//            LogicalPlan right = new org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias(
-//                    new AliasIdentifier("r"),
-//                    new Union(seq(left, geoTablePlan),true,true)
-//            );
-//            Optional<Expression> joinCondition = node.getJoinCondition()
-//                    .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context));
             Optional<Expression> joinCondition = Optional.of(new And(
-//                new And(
-                    new LessThanOrEqual(
-                        ipAddressExpression,
-                        new AttributeReference(
-                            "ip_range_start",
-                            DataTypes.IntegerType,
-                            false, Metadata.empty(),
-                            ExprId.apply(0),
-                            seq()
-                        )
+                new And(
+                    new GreaterThanOrEqual(
+                        ipInt,
+                        UnresolvedAttribute$.MODULE$.apply(seq("ip_range_start"))
                     ),
-                    new LessThanOrEqual(
-                        ipAddressExpression,
-                        new AttributeReference(
-                            "ip_range_end",
-                            DataTypes.IntegerType,
-                            false, Metadata.empty(),
-                            ExprId.apply(0L),
-                            seq()
-                        )
+                    new LessThan(
+                        ipInt,
+                        UnresolvedAttribute$.MODULE$.apply(seq("ip_range_end"))
                     )
+                ),
+                new EqualTo(
+                    isIpv4,
+                    UnresolvedAttribute$.MODULE$.apply(seq("ip_type"))
                 )
-//                new EqualTo(
-//                    ipAddressExpression,
-//                    new AttributeReference(
-//                        "ip_type",
-//                        DataTypes.StringType,
-//                        false, Metadata.empty(),
-//                        NamedExpression.newExprId(),
-//                        seq("r")
-//                    )
-//                )
-            );
+            ));
             context.retainAllNamedParseExpressions(p -> p);
             context.retainAllPlans(p -> p);
             return join(left,
