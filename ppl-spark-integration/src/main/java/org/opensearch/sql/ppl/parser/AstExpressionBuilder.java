@@ -281,6 +281,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     }
 
     @Override public UnresolvedExpression visitDataTypeFunctionCall(OpenSearchPPLParser.DataTypeFunctionCallContext ctx) {
+        // TODO: for long term consideration, needs to implement DataTypeBuilder/Visitor to parse all data types
         return new Cast(this.visit(ctx.expression()), DataType.fromString(ctx.convertedDataType().getText()));
     }
 
