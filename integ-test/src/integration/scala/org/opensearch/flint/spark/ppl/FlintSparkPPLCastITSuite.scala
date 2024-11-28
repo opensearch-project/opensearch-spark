@@ -63,20 +63,18 @@ class FlintSparkPPLCastITSuite
                        | cast_true = cast("True" as boolean),
                        | cast_false = cast("false" as boolean),
                        | cast_timestamp = cast("2024-11-26 23:39:06" as timestamp),
-                       | cast_date = cast("2024-11-26" as date),
-                       | cast_time = cast("12:34:56" as time)
-                       | | fields id_int, cast_true, cast_false, cast_timestamp, cast_date, cast_time | head 1
+                       | cast_date = cast("2024-11-26" as date)
+                       | | fields id_int, cast_true, cast_false, cast_timestamp, cast_date | head 1
                        | """.stripMargin)
 
-    // Note: Spark doesn't support data type of `Time`, cast it to StringTypes by default.
     assert(
-      frame.dtypes.sameElements(Array(
-        ("id_int", "IntegerType"),
-        ("cast_true", "BooleanType"),
-        ("cast_false", "BooleanType"),
-        ("cast_timestamp", "TimestampType"),
-        ("cast_date", "DateType"),
-        ("cast_time", "StringType"))))
+      frame.dtypes.sameElements(
+        Array(
+          ("id_int", "IntegerType"),
+          ("cast_true", "BooleanType"),
+          ("cast_false", "BooleanType"),
+          ("cast_timestamp", "TimestampType"),
+          ("cast_date", "DateType"))))
     assertSameRows(
       Seq(
         Row(
@@ -84,8 +82,7 @@ class FlintSparkPPLCastITSuite
           true,
           false,
           Timestamp.valueOf("2024-11-26 23:39:06"),
-          Date.valueOf("2024-11-26"),
-          "12:34:56")),
+          Date.valueOf("2024-11-26"))),
       frame)
   }
 

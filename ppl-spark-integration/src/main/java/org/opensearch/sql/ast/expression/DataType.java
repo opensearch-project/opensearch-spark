@@ -37,6 +37,8 @@ public enum DataType {
     switch (upperName) {
       case "INT":
         return INTEGER;
+      case "BOOL":
+        return BOOLEAN;
       default:
         return valueOf(upperName);
     }

@@ -54,6 +54,8 @@ public interface DataTypeTransformer {
                 return DateType$.MODULE$;
             case TIMESTAMP:
                 return DataTypes.TimestampType;
+            case STRING:
+                return DataTypes.StringType;
             case INTEGER:
                 return IntegerType$.MODULE$;
             case LONG:
@@ -71,7 +73,7 @@ public interface DataTypeTransformer {
             case UNDEFINED:
                 return NullType$.MODULE$;
             default:
-                return StringType$.MODULE$;
+                throw new IllegalArgumentException("Unsupported data type for Spark: " + source);
         }
     }
     

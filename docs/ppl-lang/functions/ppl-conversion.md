@@ -7,23 +7,26 @@
 `cast(expr as dateType)` cast the expr to dataType. return the value of dataType. The following conversion rules are used:
 
 ```
-+------------+--------+--------+---------+-------------+--------+--------+
-| Src/Target | STRING | NUMBER | BOOLEAN | TIMESTAMP   | DATE   | TIME   |
-+------------+--------+--------+---------+-------------+--------+--------+
-| STRING     |        | Note1  | Note1   | TIMESTAMP() | DATE() | TIME() |
-+------------+--------+--------+---------+-------------+--------+--------+
-| NUMBER     | Note1  |        | v!=0    | N/A         | N/A    | N/A    |
-+------------+--------+--------+---------+-------------+--------+--------+
-| BOOLEAN    | Note1  | v?1:0  |         | N/A         | N/A    | N/A    |
-+------------+--------+--------+---------+-------------+--------+--------+
-| TIMESTAMP  | Note1  | N/A    | N/A     |             | DATE() | N/A    |
-+------------+--------+--------+---------+-------------+--------+--------+
-| DATE       | Note1  | N/A    | N/A     | N/A         |        | N/A    |
-+------------+--------+--------+---------+-------------+--------+--------+
-| TIME       | Note1  | N/A    | N/A     | N/A         | N/A    |        |
-+------------+--------+--------+---------+-------------+--------+--------+
++------------+--------+--------+---------+-------------+--------+
+| Src/Target | STRING | NUMBER | BOOLEAN | TIMESTAMP   | DATE   |
++------------+--------+--------+---------+-------------+--------+
+| STRING     |        | Note1  | Note1   | TIMESTAMP() | DATE() |
++------------+--------+--------+---------+-------------+--------+
+| NUMBER     | Note1  |        | v!=0    | N/A         | N/A    |
++------------+--------+--------+---------+-------------+--------+
+| BOOLEAN    | Note1  | v?1:0  |         | N/A         | N/A    |
++------------+--------+--------+---------+-------------+--------+
+| TIMESTAMP  | Note1  | N/A    | N/A     |             | DATE() |
++------------+--------+--------+---------+-------------+--------+
+| DATE       | Note1  | N/A    | N/A     | N/A         |        |
++------------+--------+--------+---------+-------------+--------+
+| TIME       | Note1  | N/A    | N/A     | N/A         | N/A    |
++------------+--------+--------+---------+-------------+--------+
 ```
-Note: Spark does not support the `TIME` type. Using the `CAST` function will convert it to **STRING**.
+- `NUMBER` includes `INTEGER` (alias `INT`), `LONG`, `FLOAT`, `DOUBLE`.
+
+- `BOOLEAN` has the alias `BOOL`.
+
 
 Cast to **string** example:
 
@@ -47,13 +50,13 @@ Cast to **number** example:
 
 Cast to **date** example:
 
-    os> source=people | eval `cdate` = CAST('2012-08-07' as date), `ctime` = CAST('01:01:01' as time), `ctimestamp` = CAST('2012-08-07 01:01:01' as timestamp) | fields `cdate`, `ctime`, `ctimestamp`
+    os> source=people | eval `cdate` = CAST('2012-08-07' as date), `ctimestamp` = CAST('2012-08-07 01:01:01' as timestamp) | fields `cdate`, `ctimestamp`
     fetched rows / total rows = 1/1
-    +------------+----------+---------------------+
-    | cdate      | ctime    | ctimestamp          |
-    |------------+----------+---------------------|
-    | 2012-08-07 | 01:01:01 | 2012-08-07 01:01:01 |
-    +------------+----------+---------------------+
+    +------------+---------------------+
+    | cdate      | ctimestamp          |
+    |------------+---------------------|
+    | 2012-08-07 | 2012-08-07 01:01:01 |
+    +------------+---------------------+
 
 Cast function can be **chained**:
 

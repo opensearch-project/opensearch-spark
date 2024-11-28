@@ -108,6 +108,7 @@ class PPLLogicalPlanCastTestSuite
   }
 
   test("test cast with unsupported dataType") {
+    // Unsupported data type for opensearch parser
     val context = new CatalystPlanContext
     val exception = intercept[SyntaxCheckException] {
       planTransformer.visit(
@@ -117,6 +118,13 @@ class PPLLogicalPlanCastTestSuite
     assert(
       exception.getMessage.contains(
         "Failed to parse query due to offending symbol [UNSUPPORTED_DATATYPE]"))
+
+    // Unsupported data type for Spark
+    val context2 = new CatalystPlanContext
+    val exception2 = intercept[IllegalArgumentException] {
+      planTransformer.visit(plan(pplParser, """source=t | eval a = cast(a as time)"""), context2)
+    }
+    assert(exception2.getMessage == "Unsupported data type for Spark: TIME")
   }
 
 }
