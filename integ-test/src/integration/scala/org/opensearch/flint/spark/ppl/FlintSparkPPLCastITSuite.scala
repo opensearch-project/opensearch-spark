@@ -59,7 +59,7 @@ class FlintSparkPPLCastITSuite
   test("test cast string to compatible data types") {
     val frame = sql(s"""
                        | source=$testTable | eval
-                       | id_int = cast(cast(id as string) as int),
+                       | id_int = cast(cast(id as string) as integer),
                        | cast_true = cast("True" as boolean),
                        | cast_false = cast("false" as boolean),
                        | cast_timestamp = cast("2024-11-26 23:39:06" as timestamp),

@@ -23,10 +23,7 @@
 | TIME       | Note1  | N/A    | N/A     | N/A         | N/A    |
 +------------+--------+--------+---------+-------------+--------+
 ```
-- `NUMBER` includes `INTEGER` (alias `INT`), `LONG`, `FLOAT`, `DOUBLE`.
-
-- `BOOLEAN` has the alias `BOOL`.
-
+- `NUMBER` includes `INTEGER`, `LONG`, `FLOAT`, `DOUBLE`.
 
 Cast to **string** example:
 
@@ -40,7 +37,7 @@ Cast to **string** example:
 
 Cast to **number** example:
 
-    os> source=people | eval `cbool` = CAST(true as int), `cstring` = CAST('1' as int) | fields `cbool`, `cstring`
+    os> source=people | eval `cbool` = CAST(true as integer), `cstring` = CAST('1' as integer) | fields `cbool`, `cstring`
     fetched rows / total rows = 1/1
     +---------+-----------+
     | cbool   | cstring   |

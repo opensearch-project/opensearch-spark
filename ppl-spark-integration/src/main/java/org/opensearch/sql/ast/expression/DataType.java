@@ -32,15 +32,6 @@ public enum DataType {
   @Getter private final  ExprCoreType coreType;
 
   public static DataType fromString(String name) {
-    String upperName = name.toUpperCase();
-    // Cover some dataType alias
-    switch (upperName) {
-      case "INT":
-        return INTEGER;
-      case "BOOL":
-        return BOOLEAN;
-      default:
-        return valueOf(upperName);
-    }
+    return valueOf(name.toUpperCase());
   }
 }

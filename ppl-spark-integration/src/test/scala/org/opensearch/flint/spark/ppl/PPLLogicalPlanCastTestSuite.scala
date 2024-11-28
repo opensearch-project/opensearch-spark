@@ -49,28 +49,6 @@ class PPLLogicalPlanCastTestSuite
     comparePlans(expectedPlan, logPlan2, false)
   }
 
-  test("test cast with alias") {
-    val table = UnresolvedRelation(Seq("t"))
-    val expectedPlan = Project(
-      seq(UnresolvedStar(None)),
-      Project(
-        seq(UnresolvedStar(None), Alias(Cast(UnresolvedAttribute("a"), IntegerType), "a")()),
-        table))
-
-    val context = new CatalystPlanContext
-    val logPlan =
-      planTransformer.visit(
-        plan(pplParser, """source=t | eval a = cast(a as integer)"""),
-        context)
-    comparePlans(expectedPlan, logPlan, false)
-
-    // test dataType alias
-    val context2 = new CatalystPlanContext
-    val logPlan2 =
-      planTransformer.visit(plan(pplParser, """source=t | eval a = cast(a as int)"""), context2)
-    comparePlans(expectedPlan, logPlan2, false)
-  }
-
   test("test cast literal") {
     val table = UnresolvedRelation(Seq("t"))
     val expectedPlan = Project(
@@ -84,7 +62,7 @@ class PPLLogicalPlanCastTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, """source=t | eval a = cast(cast("a" as INT) as STRING)"""),
+        plan(pplParser, """source=t | eval a = cast(cast("a" as INTEGER) as STRING)"""),
         context)
     comparePlans(expectedPlan, logPlan, false)
   }
@@ -102,7 +80,7 @@ class PPLLogicalPlanCastTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, """source=t | eval a = cast(cast(a as INT) as STRING)"""),
+        plan(pplParser, """source=t | eval a = cast(cast(a as INTEGER) as STRING)"""),
         context)
     comparePlans(expectedPlan, logPlan, false)
   }

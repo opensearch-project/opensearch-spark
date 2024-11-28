@@ -490,8 +490,8 @@ _- **Limitation: another command usage of (relation) subquery is in `appendcols`
 #### **Cast**
 [See additional command details](functions/ppl-conversion.md)
 -  `source = table | eval int_to_string = cast(1 as string) | fields int_to_string`
--  `source = table | eval int_to_string = cast(int_col as string) | fields int_col, int_to_string`
+-  `source = table | eval int_to_string = cast(int_col as string), string_to_int = cast(string_col as integer) | fields int_to_string, string_to_int`
 -  `source = table | eval cdate = CAST('2012-08-07' as date), ctime = cast('2012-08-07T08:07:06' as timestamp) | fields cdate, ctime`
--  `source = table | eval chained_cast = cast(cast("true" as boolean) as int) | fields chained_cast`
+-  `source = table | eval chained_cast = cast(cast("true" as boolean) as integer) | fields chained_cast`
 
 ---
