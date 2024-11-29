@@ -10,6 +10,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.CaseWhen;
+import org.apache.spark.sql.catalyst.expressions.Cast$;
 import org.apache.spark.sql.catalyst.expressions.CurrentRow$;
 import org.apache.spark.sql.catalyst.expressions.Exists$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
@@ -41,6 +42,7 @@ import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.BinaryExpression;
 import org.opensearch.sql.ast.expression.Case;
+import org.opensearch.sql.ast.expression.Cast;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.FieldsMapping;
@@ -464,6 +466,17 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
             .map(arg -> UnresolvedNamedLambdaVariable$.MODULE$.apply(seq(arg.getParts())))
             .collect(Collectors.toList());
         return context.getNamedParseExpressions().push(LambdaFunction$.MODULE$.apply(functionResult, seq(argsResult), false));
+    }
+
+    @Override
+    public Expression visitCast(Cast node, CatalystPlanContext context) {
+        analyze(node.getExpression(), context);
+        Optional<Expression> ret = context.popNamedParseExpressions();
+        if (ret.isEmpty()) {
+            throw new UnsupportedOperationException(
+                String.format("Invalid use of expression %s", node.getExpression()));
+        }
+        return context.getNamedParseExpressions().push(Cast$.MODULE$.apply(ret.get(), translate(node.getDataType()), false));
     }
 
     private List<Expression> visitExpressionList(List<UnresolvedExpression> expressionList, CatalystPlanContext context) {
