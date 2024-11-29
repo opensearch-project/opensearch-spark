@@ -445,6 +445,7 @@ primaryExpression
    : evalFunctionCall
    | fieldExpression
    | literalValue
+   | dataTypeFunctionCall
    ;
 
 positionFunction
