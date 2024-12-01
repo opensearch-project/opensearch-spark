@@ -445,7 +445,10 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 03:00:00', 'E', 15, 'Vancouver')")
   }
 
-  protected def createIcebergTimeSeriesTable(testTable: String): Unit = {
+  protected def createMapAndDecimalTimeSeriesTable(testTable: String): Unit = {
+    // CSV tables do not support MAP types so we use JSON instead
+    val finalTableType = if (tableType == "CSV") "JSON" else tableType
+
     sql(s"""
            | CREATE TABLE $testTable
            | (
@@ -455,7 +458,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            |   base_score DECIMAL(8, 7),
            |   mymap MAP<STRING, STRING>
            | )
-           | USING ICEBERG
+           | USING $finalTableType $tableOptions
            |""".stripMargin)
 
     sql(
