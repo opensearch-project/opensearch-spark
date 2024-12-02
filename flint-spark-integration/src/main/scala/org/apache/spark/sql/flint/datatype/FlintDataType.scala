@@ -142,6 +142,7 @@ object FlintDataType {
       case ByteType => JObject("type" -> JString("byte"))
       case DoubleType => JObject("type" -> JString("double"))
       case FloatType => JObject("type" -> JString("float"))
+      case DecimalType() => JObject("type" -> JString("double"))
 
       // Date
       case TimestampType | _: TimestampNTZType =>

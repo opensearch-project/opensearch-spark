@@ -577,6 +577,10 @@ The following table define the data type mapping between Flint data type and Spa
 * Spark data types VarcharType(length) and CharType(length) are both currently mapped to Flint data
   type *keyword*, dropping their length property. On the other hand, Flint data type *keyword* only
   maps to StringType.
+* Spark data type MapType is mapped to an empty OpenSearch object. The inner fields then rely on 
+  dynamic mapping. On the other hand, Flint data type *object* only maps to StructType.
+* Spark data type DecimalType is mapped to an OpenSearch double. On the other hand, Flint data type 
+  *double* only maps to DoubleType.
 
 Unsupported Spark data types:
 * DecimalType
