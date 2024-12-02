@@ -118,6 +118,7 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
 - `source = table | eval r = coalesce(a, b, c) | fields r`
 - `source = table | eval e = isempty(a) | fields e`
 - `source = table | eval e = isblank(a) | fields e`
+- `source = table | eval e = cast(a as timestamp) | fields e`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one', a = 2, 'two', a = 3, 'three', a = 4, 'four', a = 5, 'five', a = 6, 'six', a = 7, 'se7en', a = 8, 'eight', a = 9, 'nine')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else 'unknown')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else concat(a, ' is an incorrect binary digit'))`
@@ -501,5 +502,12 @@ _- **Limitation: another command usage of (relation) subquery is in `appendcols`
 ```
 
 > ppl-correlation-command is an experimental command - it may be removed in future versions
+
+#### **Cast**
+[See additional command details](functions/ppl-conversion.md)
+-  `source = table | eval int_to_string = cast(1 as string) | fields int_to_string`
+-  `source = table | eval int_to_string = cast(int_col as string), string_to_int = cast(string_col as integer) | fields int_to_string, string_to_int`
+-  `source = table | eval cdate = CAST('2012-08-07' as date), ctime = cast('2012-08-07T08:07:06' as timestamp) | fields cdate, ctime`
+-  `source = table | eval chained_cast = cast(cast("true" as boolean) as integer) | fields chained_cast`
 
 ---

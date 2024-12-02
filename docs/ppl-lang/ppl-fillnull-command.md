@@ -17,7 +17,7 @@ The example show fillnull one field.
 
 PPL query:
 
-    os> source=logs | fields status_code | eval input=status_code | fillnull value = 0 status_code;
+    os> source=logs | fields status_code | eval input=status_code | fillnull with 0 in status_code;
 | input | status_code |
 |-------|-------------|
 | 403   | 403         |
@@ -43,7 +43,7 @@ The example show fillnull applied to multiple fields.
 
 PPL query:
 
-    os> source=logs | fields request_path, timestamp | eval input_request_path=request_path, input_timestamp = timestamp | fillnull value = '???' request_path, timestamp;
+    os> source=logs | fields request_path, timestamp | eval input_request_path=request_path, input_timestamp = timestamp | fillnull with '???' in request_path, timestamp;
 | input_request_path | input_timestamp       | request_path | timestamp              |
 |--------------------|-----------------------|--------------|------------------------|
 | /contact           | NULL                  | /contact     | ???                    |
