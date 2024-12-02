@@ -38,7 +38,7 @@ The data is augmented by adding 3 fields.
 
 1. Create a copy of the scala file `load_geoip_data.scala`
 2. Edit the copy of the file `load_geoip_data.scala`
-3. There are three variables that need to be updated.
+   There are three variables that need to be updated.
    1. `FILE_PATH_TO_INPUT_CSV` - the full path to the CSV file to load
    2. `FILE_PATH_TO_OUTPUT_CSV` - the full path of the CSV file to write the sanitized data to
    3. `TABLE_NAME` - name of the index to create in OpenSearch. No table is created if this is null
