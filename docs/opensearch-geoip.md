@@ -28,19 +28,19 @@ The script will cleanup the data by splitting IP address subnets so that an IP a
 
 The data is augmented by adding 3 fields.
 
-| Column Name | Description                                                        |
-|-------------|--------------------------------------------------------------------|
-| start       | An integer value used to determine if an IP address is in a subnet |
-| end         | An integer value used to determine if an IP address is in a subnet |
-| ipv4        | A boolean value, `true` if the IP address subnet is in IPv4 format |
+| Column Name    | Description                                                        |
+|----------------|--------------------------------------------------------------------|
+| ip_range_start | An integer value used to determine if an IP address is in a subnet |
+| ip_range_end   | An integer value used to determine if an IP address is in a subnet |
+| ipv4           | A boolean value, `true` if the IP address subnet is in IPv4 format |
 
 ## Run the Script
 
 1. Create a copy of the scala file `load_geoip_data.scala`
-2. Edit the file
+2. Edit the copy of the file `load_geoip_data.scala`
 3. There are three variables that need to be updated.
-   1. `INPUT_FILE` - the full path to the CSV file to load
-   2. `OUTPUT_FILE` - the full path of the CSV file to write the sanitized data to
+   1. `FILE_PATH_TO_INPUT_CSV` - the full path to the CSV file to load
+   2. `FILE_PATH_TO_OUTPUT_CSV` - the full path of the CSV file to write the sanitized data to
    3. `TABLE_NAME` - name of the index to create in OpenSearch. No table is created if this is null
 4. Save the file
 5. Run the Apache Spark CLI and connect to the database
@@ -53,5 +53,38 @@ The data is augmented by adding 3 fields.
 ## Notes for EMR
 
 With EMR it is necessary to load the data from an S3 object. Follow the instructions for
-**Run the Script**, but make sure that `TABLE_NAME` is set to `null`. Upload the `OUTPUT_FILE`
-to S3.
+**Run the Script**, but make sure that `TABLE_NAME` is set to `null`. Upload the
+`FILE_PATH_TO_OUTPUT_CSV` to S3.
+
+## End-to-End
+
+How to download a sample data GeoIP location data set, clean it up and import it into a
+Spark table.
+
+1. Use a web browser to download the [data set Zip file](https://geoip.maps.opensearch.org/v1/geolite2-city/data/geolite2-city_1732905911000.zip)
+2. Extract the Zip file
+3. Copy the file `geolite2-City.csv` to the computer where you run `spark-shell`
+4. Copy the file file `load_geoip_data.scala` to the computer where you run `spark-shell`
+5. Connect to the computer where you run `spark-shell`
+6. Change to the directory containing `geolite2-City.csv` and `load_geoip_data.scala`
+7. Update the `load_geoip_data.scala` file to specify the CSV files to read and write. Also update
+   it to specify the Spark table to create (`geo_ip_data` in this case).
+   ```
+   sed -i \
+       -e "s#^var FILE_PATH_TO_INPUT_CSV: String =.*#var FILE_PATH_TO_INPUT_CSV: String = \"${PWD}/geolite2-City.csv\"#" \
+       load_geoip_data.scala
+   sed -i \
+       -e "s#^var FILE_PATH_TO_OUTPUT_CSV: String = .*#var FILE_PATH_TO_OUTPUT_CSV: String = \"${PWD}/geolite2-City-fixed.csv\"#" \
+       load_geoip_data.scala
+   sed -i \
+       -e 's#^var TABLE_NAME: String = .*#var TABLE_NAME: String = "geo_ip_data"#' \
+       load_geoip_data.scala
+   ```
+8. Run `spark-shell`
+   ```
+   spark-shell
+   ```
+9. Load and run the `load_geoip_data.scala` script
+   ```
+   :load load_geoip_data.scala
+   ```

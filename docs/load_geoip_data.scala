@@ -1,8 +1,18 @@
+/*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import java.io.BufferedReader
 import java.io.FileReader
 import java.io.PrintStream
 import java.math.BigInteger
 import scala.collection.mutable.ListBuffer
+
+var ipv4NodeCount = 0
+var ipv6NodeCount = 0
+var ipv4NodeOutputCount = 0
+var ipv6NodeOutputCount = 0
 
 /* Create a binary tree based on the bits of the start IP address of the subnets. Only use the
    first bits needed for the netmask. For example with a subnet of "192.168.2.0/24", only use the
@@ -136,6 +146,14 @@ class TreeNode(var ipAddressBytes: Array[Byte], var netmask: Int, var isIPv4: Bo
         return fullArray
     }
 
+    def incrementNodeCount(): Unit = {
+        if (isIPv4) {
+            ipv4NodeCount += ipv4NodeCount
+        } else {
+            ipv6NodeCount += ipv6NodeCount
+        }
+    }
+
     // Split a node. Make sure that both children exist and remove the subnet for the current node.
     def split(): Unit = {
         if (ipAddressBytes == null) {
@@ -183,7 +201,7 @@ class TreeNode(var ipAddressBytes: Array[Byte], var netmask: Int, var isIPv4: Bo
         }
     }
     
-    def printTree(outStream: PrintStream): Unit = {
+    def printTree(outStream: PrintStream, tenPercentCount: Int): Unit = {
         if (ipAddressBytes != null) {
             outStream.print(ipAddressString())
             outStream.print("/")
@@ -196,13 +214,24 @@ class TreeNode(var ipAddressBytes: Array[Byte], var netmask: Int, var isIPv4: Bo
             outStream.print(getEnd().toString())
             outStream.print(",")
             outStream.println(isIPv4.toString)
+
+            var currentNodeCount = if (isIPv4) ipv4NodeOutputCount else ipv6NodeOutputCount
+            if (currentNodeCount % tenPercentCount == 0) {
+                print((currentNodeCount * 10 / tenPercentCount).toString + "%..")
+            }
+
+            if (isIPv4) {
+                ipv4NodeOutputCount += 1
+            } else {
+                ipv6NodeOutputCount += 1
+            }
         }
         
         if (falseChild != null) {
-            falseChild.printTree(outStream)
+            falseChild.printTree(outStream, tenPercentCount)
         }
         if (trueChild != null) {
-            trueChild.printTree(outStream)
+            trueChild.printTree(outStream, tenPercentCount)
         }
     }
 }
@@ -305,8 +334,10 @@ def readSubnets(fileName: String, ipv4Root: TreeNode, ipv6Root: TreeNode): Unit 
         var newNode = createTreeNode(line)
         if (newNode.isIPv4) {
             ipv4Root.addNode(newNode)
+            ipv4NodeCount += 1
         } else {
             ipv6Root.addNode(newNode)
+            ipv6NodeCount += 1
         }
         
         line = reader.readLine()
@@ -318,11 +349,18 @@ def readSubnets(fileName: String, ipv4Root: TreeNode, ipv6Root: TreeNode): Unit 
 def writeSubnets(fileName: String, ipv4Root: TreeNode, ipv6Root: TreeNode): Unit = {
     var outStream = new PrintStream(fileName)
     outStream.print(header)
-    outStream.print(",start,end,ipv4")
+    outStream.print(",ip_range_start,ip_range_end,ipv4")
     outStream.print("\r\n")
 
-    ipv4Root.printTree(outStream)
-    ipv6Root.printTree(outStream)
+    println("Writing IPv4 data")
+    ipv4NodeOutputCount = 0
+    ipv4Root.printTree(outStream, (ipv4NodeCount / 10).floor.toInt)
+    println()
+
+    println("Writing IPv6 data")
+    ipv6NodeOutputCount = 0
+    ipv6Root.printTree(outStream, (ipv6NodeCount / 10).floor.toInt)
+    println()
 
     outStream.close()
 }
@@ -396,7 +434,7 @@ def cleanAndImport(inputFile: String, outputFile: String, tableName: String): Un
     println("Done")
 }
 
-var INPUT_FILE: String = "/Users/normanj/Documents/geoip/geolite2-City.csv"
-var OUTPUT_FILE: String = "/Users/normanj/Documents/geoip/test.csv"
-var TABLE_NAME: String = "geoip_data"
-var result = cleanAndImport(INPUT_FILE, OUTPUT_FILE, TABLE_NAME)
+var FILE_PATH_TO_INPUT_CSV: String = "/replace/this/value"
+var FILE_PATH_TO_OUTPUT_CSV: String = "/replace/this/value"
+var TABLE_NAME: String = null
+var result = cleanAndImport(FILE_PATH_TO_INPUT_CSV, FILE_PATH_TO_OUTPUT_CSV, TABLE_NAME)
