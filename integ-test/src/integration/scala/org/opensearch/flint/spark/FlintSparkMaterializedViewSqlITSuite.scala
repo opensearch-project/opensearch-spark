@@ -448,5 +448,45 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     }
   }
 
+  test("create materialized view with decimal and map types") {
+    val decimalAndMapTable = s"$catalogName.default.mv_test_decimal_map"
+    val decimalAndMapMv = s"$catalogName.default.mv_test_decimal_map_ser"
+    withTable(decimalAndMapTable) {
+      createMapAndDecimalTimeSeriesTable(decimalAndMapTable)
+
+      withTempDir { checkpointDir =>
+        sql(s"""
+             | CREATE MATERIALIZED VIEW $decimalAndMapMv
+             | AS
+             | SELECT
+             |   base_score, mymap
+             | FROM $decimalAndMapTable
+             | WITH (
+             |   auto_refresh = true,
+             |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+             | )
+             |""".stripMargin)
+
+        // Wait for streaming job complete current micro batch
+        val flintIndex = getFlintIndexName(decimalAndMapMv)
+        val job = spark.streams.active.find(_.name == flintIndex)
+        job shouldBe defined
+        failAfter(streamingTimeout) {
+          job.get.processAllAvailable()
+        }
+
+        flint.describeIndex(flintIndex) shouldBe defined
+        checkAnswer(
+          flint.queryIndex(flintIndex).select("base_score", "mymap"),
+          Seq(
+            Row(3.1415926, Row(null, null, null, null, "mapvalue1")),
+            Row(4.1415926, Row("mapvalue2", null, null, null, null)),
+            Row(5.1415926, Row(null, null, "mapvalue3", null, null)),
+            Row(6.1415926, Row(null, null, null, "mapvalue4", null)),
+            Row(7.1415926, Row(null, "mapvalue5", null, null, null))))
+      }
+    }
+  }
+
   private def timestamp(ts: String): Timestamp = Timestamp.valueOf(ts)
 }
