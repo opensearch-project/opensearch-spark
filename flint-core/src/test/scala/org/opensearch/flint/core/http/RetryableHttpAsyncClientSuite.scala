@@ -83,14 +83,6 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
     }
   }
 
-  it should "retry if response message contains retryable message" in {
-    retryableClient
-      .whenResponse(
-        400,
-        "OpenSearchStatusException[OpenSearch exception [type=resource_already_exists_exception,")
-      .shouldExecute(times(DEFAULT_MAX_RETRIES + 1))
-  }
-
   it should "not retry if response code is not on the retryable status code list" in {
     retryableClient
       .whenStatusCode(400)
@@ -161,6 +153,23 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
       .shouldExecute(
         expectExecuteTimes = times(DEFAULT_MAX_RETRIES + 1),
         expectFutureGetTimes = times(0))
+  }
+
+  it should "retry if AOSS response is retryable" in {
+    retryableClient
+      .withOption("auth.servicename", "aoss")
+      .whenResponse(
+        400,
+        "OpenSearchStatusException[OpenSearch exception [type=resource_already_exists_exception,")
+      .shouldExecute(times(DEFAULT_MAX_RETRIES + 1))
+  }
+
+  it should "not apply retry policy for AOSS response if service is not AOSS" in {
+    retryableClient
+      .whenResponse(
+        400,
+        "OpenSearchStatusException[OpenSearch exception [type=resource_already_exists_exception,")
+      .shouldExecute(times(1))
   }
 
   private def retryableClient: AssertionHelper = new AssertionHelper

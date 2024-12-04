@@ -11,10 +11,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.entity.BufferedHttpEntity;
 import org.apache.http.util.EntityUtils;
 
-import java.util.Arrays;
-import java.util.Set;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /**
  * Failure handler based on HTTP response from AOSS.
@@ -53,7 +50,6 @@ public class HttpAOSSResultPredicate<T> implements CheckedPredicate<T> {
 
     try {
       String responseContent = EntityUtils.toString(bufferedEntity);
-      // Reset the entity's content
       bufferedEntity.getContent().reset();
 
       boolean isRetryable = responseContent.contains(RESOURCE_ALREADY_EXISTS_EXCEPTION_MESSAGE);
