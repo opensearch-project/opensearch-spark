@@ -203,6 +203,123 @@ Example:
     +----------------+
 
 
+### `JSON_DELETE`
+
+**Description**
+
+`json_delete(json, [keys list])` Deletes json elements from a json object based on json specific keys. Return the updated object after keys deletion .
+
+**Argument type:** JSON, List<STRING>
+
+**Return type:** JSON
+
+A JSON object format.
+
+Example:
+
+    os> source=people | eval deleted = json_delete({"a":"valueA", "b":"valueB"}, ["a"]) 
+    fetched rows / total rows = 1/1
+    +----------------------------------+
+    | deleted                          |
+    +----------------------------------+
+    | {"a": "valueA" }                 |
+    +----------------------------------+
+
+    os> source=people | eval  eval deleted = json_delete({"a":[{"b":1},{"b":2},{"c":3}]}, ["a.b"])
+    fetched rows / total rows = 1/1
+    +-----------------------------------------------------------+
+    | deleted                                                   |
+    +-----------------------------------------------------------+
+    | {"a":[{"c":3}] }                                          |
+    +-----------------------------------------------------------+
+
+    os> source=people | eval `no_action` =  json_delete({"a":[{"b":1},{"b":2},{"c":3}]}, ["b.b"])
+    fetched rows / total rows = 1/1
+    +-----------------------------------+
+    | no_action                         |
+    +-----------------------------------+
+    | {"a":[{"b":1},{"b":2},{"c":3}]}   |
+    +-----------------------------------+
+
+### `JSON_APPEND`
+
+**Description**
+
+`json_append(json, [path_value list])`  appends values to end of an array within the json elements. Return the updated json object after appending .
+
+**Argument type:** JSON, List<[(STRING, STRING>)]>
+
+**Return type:** JSON
+
+A JSON object format.
+
+**Note**
+Append adds the value to the end of the existing array with the following cases:
+  - path is an object value - append is ignored and the value is returned
+  - path is an existing array not empty - the value are added to the array's tail
+  - path is an existing array is empty - create a new array with the given value
+
+Example:
+
+    os> source=people | eval append = json_append(`{"a":["valueA", "valueB"]}`, ["a","valueC"]) 
+    fetched rows / total rows = 1/1
+    +-------------------------------------------------+
+    | append                                          |
+    +-------------------------------------------------+
+    | {"a":["valueA", "valueB", "valueC"]}            |
+    +-------------------------------------------------+
+
+    os> source=people | eval append = json_append(`{"a":["valueA", "valueB"]}`, {"a":["valueC"]}) 
+    fetched rows / total rows = 1/1
+    +-----------------------------------------------+
+    | append                                        |
+    +-----------------------------------------------+
+    | {"a":["valueA", "valueB", ["valueC"]]}        |
+    +-----------------------------------------------+
+
+    os> source=people | eval append = json_append(`{"root":{ "a":["valueA", "valueB"]}}`, {"root.a":"valueC"}) 
+    fetched rows / total rows = 1/1
+    +-----------------------------------------------+
+    | append                                        |
+    +-----------------------------------------------+
+    |{"root": {"a":["valueA", "valueB", "valueC"]}} |
+    +-----------------------------------------------+
+
+
+
+### `JSON_EXTEND`
+
+**Description**
+
+`json_extend(json, [path_value_pairs list])` extend appends multiple (array) values to an existing array json elements. Return the updated object after extending.
+
+**Argument type:** JSON, List<[(STRING, List<STRING>)]>
+
+**Return type:** JSON
+
+A JSON object format.
+
+**Note**
+Extend arrays as individual values separates the `json_extend` functionality from the `json_append` - which is a similar function that appends the `<value>` as a single element.
+
+Example:
+
+    os> source=people | eval extend = json_extend(`{"a":["valueA", "valueB"]}`, ["valueC","valueD"]) 
+    fetched rows / total rows = 1/1
+    +-------------------------------------------------+
+    | extend                                          |
+    +-------------------------------------------------+
+    | {"a":["valueA", "valueB", "valueC", "valueD"]}  |
+    +-------------------------------------------------+
+
+    os> source=people | eval extend = json_extend(`{"a":["valueA", "valueB"]}`, {"b":["valueC","valueD"]}) 
+    fetched rows / total rows = 1/1
+    +-------------------------------------------------------------+
+    | extend                                                      |
+    +-------------------------------------------------------------+
+    | {"a":["valueA", "valueB", {"b":"valueC"}, {"b":"valueD"}]}  |
+    +-------------------------------------------------------------+
+
 ### `JSON_KEYS`
 
 **Description**
