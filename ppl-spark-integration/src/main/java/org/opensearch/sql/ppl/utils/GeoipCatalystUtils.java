@@ -113,7 +113,6 @@ public interface GeoipCatalystUtils {
 
         List<Expression> dropList = createGeoIpStructFields(new ArrayList<>());
         dropList.addAll(List.of(
-
                 UnresolvedAttribute$.MODULE$.apply(seq("t2","cidr")),
                 UnresolvedAttribute$.MODULE$.apply(seq("t2","start")),
                 UnresolvedAttribute$.MODULE$.apply(seq("t2","end")),

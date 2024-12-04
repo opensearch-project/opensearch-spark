@@ -76,7 +76,6 @@ To build and run this PPL in Spark, you can run (requires Java 11):
 
 ```
 sbt clean sparkPPLCosmetic/publishM2
-
 ```
 
 Then add org.opensearch:opensearch-spark-ppl_2.12 when run spark application, for example,
