@@ -5,49 +5,29 @@
 
 package org.opensearch.sql.ppl;
 
-import org.apache.spark.sql.catalyst.AliasIdentifier;
 import org.apache.spark.sql.catalyst.TableIdentifier;
-import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
-import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
-import org.apache.spark.sql.catalyst.expressions.And;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
-import org.apache.spark.sql.catalyst.expressions.AttributeReference;
-import org.apache.spark.sql.catalyst.expressions.CreateStruct;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
-import org.apache.spark.sql.catalyst.expressions.EqualTo;
-import org.apache.spark.sql.catalyst.expressions.Exp;
 import org.apache.spark.sql.catalyst.expressions.Explode;
-import org.apache.spark.sql.catalyst.expressions.ExprId;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GeneratorOuter;
-import org.apache.spark.sql.catalyst.expressions.GreaterThan;
-import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
-import org.apache.spark.sql.catalyst.expressions.LessThan;
-import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
-import org.apache.spark.sql.catalyst.expressions.Log;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
-import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
 import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns$;
 import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
-import org.apache.spark.sql.catalyst.plans.logical.DropColumns;
-import org.apache.spark.sql.catalyst.plans.logical.DropColumns$;
 import org.apache.spark.sql.catalyst.plans.logical.Generate;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Project$;
-import org.apache.spark.sql.catalyst.plans.logical.Union;
 import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
 import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.Metadata;
-import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.flint.spark.FlattenGenerator;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
@@ -92,8 +72,8 @@ import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
-import org.opensearch.sql.expression.function.SerializableUdf;
 import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
+import org.opensearch.sql.ppl.utils.GeoipCatalystUtils;
 import org.opensearch.sql.ppl.utils.ParseTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import org.opensearch.sql.ppl.utils.TrendlineCatalystUtils;
@@ -101,20 +81,16 @@ import org.opensearch.sql.ppl.utils.WindowSpecTransformer;
 import scala.None$;
 import scala.Option;
 import scala.collection.IterableLike;
-import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
-import javax.naming.Name;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static java.util.List.of;
-import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDuplicateEvents;
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDuplicateEventsAndKeepEmpty;
@@ -593,10 +569,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         List<String> attributeList = new ArrayList<>();
 
         while (!context.getNamedParseExpressions().isEmpty()) {
-
             Expression nextExpression = context.getNamedParseExpressions().pop();
             String attributeName = nextExpression.toString();
-
 
             if (attributeList.contains(attributeName)) {
                 throw new IllegalStateException("Duplicate attribute in GEOIP attribute list");
@@ -605,112 +579,17 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             attributeList.add(0, attributeName);
         }
 
-        Expression ipAddressExpression = visitExpression(node.getIpAddress(), context);
         Expression fieldExpression = visitExpression(node.getField(), context);
+        Expression ipAddressExpression = visitExpression(node.getIpAddress(), context);
 
-        ScalaUDF ipInt = new ScalaUDF(SerializableUdf.ipToInt,
-                DataTypes.createDecimalType(38,0),
-                seq(ipAddressExpression),
-                seq(),
-                Option.empty(),
-                Option.apply("ip_to_int"),
-                false,
-                true);
-
-        ScalaUDF isIpv4 = new ScalaUDF(SerializableUdf.isIpv4,
-                DataTypes.BooleanType,
-                seq(ipAddressExpression),
-                seq(), Option.empty(),
-                Option.apply("is_ipv4"),
-                false,
-                true);
-
-        LogicalPlan joinPlan = context.apply(left -> {
-            LogicalPlan right = new UnresolvedRelation(seq("geoip"), CaseInsensitiveStringMap.empty(), false);
-            LogicalPlan leftAlias = org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$.MODULE$.apply("t1", left);
-            LogicalPlan rightAlias = org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$.MODULE$.apply("t2", right);
-            Optional<Expression> joinCondition = Optional.of(new And(
-                new And(
-                    new GreaterThanOrEqual(
-                        ipInt,
-                        UnresolvedAttribute$.MODULE$.apply(seq("t2","start"))
-                    ),
-                    new LessThan(
-                        ipInt,
-                        UnresolvedAttribute$.MODULE$.apply(seq("t2","end"))
-                    )
-                ),
-                new EqualTo(
-                    isIpv4,
-                    UnresolvedAttribute$.MODULE$.apply(seq("t2","ipv4"))
-                )
-            ));
-            context.retainAllNamedParseExpressions(p -> p);
-            context.retainAllPlans(p -> p);
-            return join(leftAlias,
-                    rightAlias,
-                    Join.JoinType.INNER,
-                    joinCondition,
-                    new Join.JoinHint());
-        });
-
-        org.apache.spark.sql.catalyst.plans.logical.Join lol = (org.apache.spark.sql.catalyst.plans.logical.Join) joinPlan;
-        System.out.println(JavaConverters.seqAsJavaListConverter(lol.right().output()).asJava().size());
-
-        List<NamedExpression> projectExpressions = JavaConverters.seqAsJavaListConverter(lol.left().output()).asJava()
-                .stream()
-                .map(attr -> (NamedExpression) attr)
-                .collect(Collectors.toList());
-
-        projectExpressions.add(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
-
-        NamedExpression geoCol = org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(
-                CreateStruct.apply(seq(createGeoIpStructFields(attributeList))),
-                fieldExpression.toString(),
-                NamedExpression.newExprId(),
-                seq(new java.util.ArrayList<String>()),
-                Option.empty(),
-                seq(new java.util.ArrayList<String>()));
-
-        projectExpressions.add(geoCol);
-
-        for (NamedExpression expression : projectExpressions) {
-            System.out.println(expression);
-        }
-
-        List<Expression> dropList = createGeoIpStructFields(new ArrayList<>());
-        dropList.addAll(List.of(
-
-            UnresolvedAttribute$.MODULE$.apply(seq("t2","cidr")),
-            UnresolvedAttribute$.MODULE$.apply(seq("t2","start")),
-            UnresolvedAttribute$.MODULE$.apply(seq("t2","end")),
-            UnresolvedAttribute$.MODULE$.apply(seq("t2","ipv4"))
-        ));
-
-        context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(seq(projectExpressions), joinPlan));
-        return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns(seq(dropList), p));
-    }
-
-    private List<Expression> createGeoIpStructFields(List<String> attributeList) {
-        List<String> attributeListToUse;
-        if (attributeList == null || attributeList.isEmpty()) {
-            attributeListToUse = List.of(
-                    "country_iso_code",
-                    "country_name",
-                    "continent_name",
-                    "region_iso_code",
-                    "region_name",
-                    "city_name",
-                    "time_zone",
-                    "location"
-            );
-        } else {
-            attributeListToUse = attributeList;
-        }
-
-        return attributeListToUse.stream()
-                .map(a -> UnresolvedAttribute$.MODULE$.apply(seq("t2",a.toLowerCase(Locale.ROOT))))
-                .collect(Collectors.toList());
+        return GeoipCatalystUtils.getGeoipLogicalPlan(
+            new GeoipCatalystUtils.GeoIpParameters(
+                    fieldExpression,
+                    ipAddressExpression,
+                    attributeList
+            ),
+            context
+        );
     }
 
     @Override

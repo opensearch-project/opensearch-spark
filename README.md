@@ -75,7 +75,7 @@ bin/spark-shell --packages "org.opensearch:opensearch-spark-standalone_2.12:0.7.
 To build and run this PPL in Spark, you can run (requires Java 11):
 
 ```
-
+sbt clean sparkPPLCosmetic/publishM2
 
 ```
 
