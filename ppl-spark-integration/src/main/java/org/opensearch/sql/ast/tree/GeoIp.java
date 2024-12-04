@@ -7,10 +7,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
+import org.opensearch.sql.ast.expression.AttributeList;
+import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 @ToString
 @Getter
@@ -18,9 +21,9 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = false)
 public class GeoIp extends UnresolvedPlan {
     private UnresolvedPlan child;
-    private final UnresolvedExpression datasource;
+    private final Field field;
     private final UnresolvedExpression ipAddress;
-    private final UnresolvedExpression properties;
+    private final AttributeList properties;
 
     @Override
     public List<? extends Node> getChild() {

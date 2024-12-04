@@ -45,7 +45,6 @@ commands
    | headCommand
    | topCommand
    | rareCommand
-   | geoipCommand
    | evalCommand
    | grokCommand
    | parseCommand
@@ -176,10 +175,6 @@ sortCommand
 
 evalCommand
    : EVAL evalClause (COMMA evalClause)*
-   ;
-
-geoipCommand
-   : EVAL fieldExpression EQUAL GEOIP LT_PRTHS (datasource = functionArg COMMA)? ipAddress = functionArg (COMMA properties = geoIpPropertyList)? RT_PRTHS
    ;
 
 headCommand
@@ -397,6 +392,11 @@ sortbyClause
 
 evalClause
    : fieldExpression EQUAL expression
+   | geoipCommand
+   ;
+
+geoipCommand
+   : fieldExpression EQUAL GEOIP LT_PRTHS ipAddress = functionArg (COMMA properties = geoIpPropertyList)? RT_PRTHS
    ;
 
 // aggregation terms
@@ -902,10 +902,6 @@ lambdaFunctionName
    | TRANSFORM
    | REDUCE
    ;
-
-geoipFunctionName
-   : GEOIP
-   ; 
     
 positionFunctionName
    : POSITION
@@ -927,8 +923,7 @@ geoIpProperty
    | REGION_NAME
    | CITY_NAME
    | TIME_ZONE
-   | LAT
-   | LON
+   | LOCATION
    ;
 
 // operators

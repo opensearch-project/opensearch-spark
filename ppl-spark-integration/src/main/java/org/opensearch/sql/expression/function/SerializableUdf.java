@@ -15,6 +15,10 @@ import scala.Serializable;
 import scala.runtime.AbstractFunction1;
 import scala.runtime.AbstractFunction2;
 
+import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 public interface SerializableUdf {
 
     Function2<String,String,Boolean> cidrFunction = new SerializableAbstractFunction2<>() {
@@ -75,7 +79,7 @@ public interface SerializableUdf {
             return parsedIpAddress.isIPv4();
         }};
 
-    Function1<String,Boolean> ipToInt = new SerializableAbstractFunction1<>() {
+    Function1<String,BigInteger> ipToInt = new SerializableAbstractFunction1<>() {
 
         IPAddressStringParameters valOptions = new IPAddressStringParameters.Builder()
                 .allowEmpty(false)
@@ -85,18 +89,19 @@ public interface SerializableUdf {
                 .toParams();
 
         @Override
-        public Boolean apply(String ipAddress) {
-
-            IPAddressString parsedIpAddress = new IPAddressString(ipAddress, valOptions);
-
+        public BigInteger apply(String ipAddress) {
             try {
-                parsedIpAddress.validate();
-            } catch (AddressStringException e) {
-                throw new RuntimeException("The given ipAddress '"+ipAddress+"' is invalid. It must be a valid IPv4 or IPv6 address. Error details: "+e.getMessage());
-            }
+                InetAddress inetAddress = InetAddress.getByName(ipAddress);
+                byte[] addressBytes = inetAddress.getAddress();
 
-            return parsedIpAddress.isIPv4();
-        }};
+                // Convert the byte array to a BigInteger
+                return new BigInteger(1, addressBytes);
+            } catch (UnknownHostException e) {
+                System.err.println("Invalid IP address: " + e.getMessage());
+            }
+            return null;
+        }
+    };
 
     abstract class SerializableAbstractFunction1<T1,R> extends AbstractFunction1<T1,R>
             implements Serializable {

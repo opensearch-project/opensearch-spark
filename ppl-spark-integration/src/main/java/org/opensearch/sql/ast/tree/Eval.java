@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
+import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Let;
 
 import java.util.List;
@@ -23,7 +24,7 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = false)
 @RequiredArgsConstructor
 public class Eval extends UnresolvedPlan {
-  private final List<Let> expressionList;
+  private final List<Node> expressionList;
   private UnresolvedPlan child;
 
   @Override

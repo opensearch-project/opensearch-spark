@@ -15,8 +15,10 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.And;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
 import org.apache.spark.sql.catalyst.expressions.AttributeReference;
+import org.apache.spark.sql.catalyst.expressions.CreateStruct;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.EqualTo;
+import org.apache.spark.sql.catalyst.expressions.Exp;
 import org.apache.spark.sql.catalyst.expressions.Explode;
 import org.apache.spark.sql.catalyst.expressions.ExprId;
 import org.apache.spark.sql.catalyst.expressions.Expression;
@@ -25,6 +27,7 @@ import org.apache.spark.sql.catalyst.expressions.GreaterThan;
 import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.LessThan;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
+import org.apache.spark.sql.catalyst.expressions.Log;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
@@ -32,6 +35,8 @@ import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
 import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns$;
 import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
+import org.apache.spark.sql.catalyst.plans.logical.DropColumns;
+import org.apache.spark.sql.catalyst.plans.logical.DropColumns$;
 import org.apache.spark.sql.catalyst.plans.logical.Generate;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
@@ -84,6 +89,7 @@ import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.Trendline;
+import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.expression.function.SerializableUdf;
@@ -95,8 +101,10 @@ import org.opensearch.sql.ppl.utils.WindowSpecTransformer;
 import scala.None$;
 import scala.Option;
 import scala.collection.IterableLike;
+import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
+import javax.naming.Name;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -135,7 +143,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     public LogicalPlan visit(Statement plan, CatalystPlanContext context) {
         return plan.accept(this, context);
     }
-    
+
     /**
      * Handle Query Statement.
      */
@@ -156,7 +164,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitRelation(Relation node, CatalystPlanContext context) {
-        //relations doesnt have a visitFirstChild call since its the leaf of the AST tree 
+        //relations doesnt have a visitFirstChild call since its the leaf of the AST tree
         if (node instanceof DescribeRelation) {
             TableIdentifier identifier = getTableIdentifier(node.getTableQualifiedName());
             return context.with(
@@ -555,15 +563,24 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     public LogicalPlan visitEval(Eval node, CatalystPlanContext context) {
         visitFirstChild(node, context);
         List<UnresolvedExpression> aliases = new ArrayList<>();
-        List<Let> letExpressions = node.getExpressionList();
-        for (Let let : letExpressions) {
-            Alias alias = new Alias(let.getVar().getField().toString(), let.getExpression());
-            aliases.add(alias);
+        List<Node> expressions = node.getExpressionList();
+
+        for (Node expr : expressions) {
+            if (expr instanceof Let) {
+                Let let = (Let) expr;
+                Alias alias = new Alias(let.getVar().getField().toString(), let.getExpression());
+                aliases.add(alias);
+            } else if (expr instanceof UnresolvedPlan) {
+                expr.accept(this, context);
+            } else {
+                throw new SyntaxCheckException("Unexpected node type when visiting EVAL");
+            }
         }
         if (context.getNamedParseExpressions().isEmpty()) {
             // Create an UnresolvedStar for all-fields projection
             context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
         }
+
         List<Expression> expressionList = visitExpressionList(aliases, context);
         Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
         // build the plan with the projection step
@@ -572,29 +589,27 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitGeoIp(GeoIp node, CatalystPlanContext context) {
+        visitExpression(node.getProperties(), context);
+        List<String> attributeList = new ArrayList<>();
 
-        visitFirstChild(node, context);
-//        expressionAnalyzer.analyze(node.getDatasource(), context);
-//        Expression datasourceExpression = context.getNamedParseExpressions().pop();
+        while (!context.getNamedParseExpressions().isEmpty()) {
+
+            Expression nextExpression = context.getNamedParseExpressions().pop();
+            String attributeName = nextExpression.toString();
+
+
+            if (attributeList.contains(attributeName)) {
+                throw new IllegalStateException("Duplicate attribute in GEOIP attribute list");
+            }
+
+            attributeList.add(0, attributeName);
+        }
+
         Expression ipAddressExpression = visitExpression(node.getIpAddress(), context);
-//        expressionAnalyzer.analyze(node.getProperties(), context);
+        Expression fieldExpression = visitExpression(node.getField(), context);
 
-//        List<String> attributeList = new ArrayList<>();
-//        Expression nextExpression = context.getNamedParseExpressions().peek();
-//        while (nextExpression != null && !(nextExpression instanceof UnresolvedStar)) {
-//            String attributeName = nextExpression.toString();
-//
-//            if (attributeList.contains(attributeName)) {
-//                throw new IllegalStateException("Duplicate attribute in GEOIP attribute list");
-//            }
-//
-//            attributeList.add(0, attributeName);
-//            context.getNamedParseExpressions().pop();
-//            nextExpression = context.getNamedParseExpressions().peek();
-//        }
-        
         ScalaUDF ipInt = new ScalaUDF(SerializableUdf.ipToInt,
-                DataTypes.BooleanType,
+                DataTypes.createDecimalType(38,0),
                 seq(ipAddressExpression),
                 seq(),
                 Option.empty(),
@@ -605,46 +620,78 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         ScalaUDF isIpv4 = new ScalaUDF(SerializableUdf.isIpv4,
                 DataTypes.BooleanType,
                 seq(ipAddressExpression),
-                seq(),
-                Option.empty(),
+                seq(), Option.empty(),
                 Option.apply("is_ipv4"),
                 false,
                 true);
 
-        LogicalPlan plan = context.apply(left -> {
+        LogicalPlan joinPlan = context.apply(left -> {
             LogicalPlan right = new UnresolvedRelation(seq("geoip"), CaseInsensitiveStringMap.empty(), false);
+            LogicalPlan leftAlias = org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$.MODULE$.apply("t1", left);
+            LogicalPlan rightAlias = org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$.MODULE$.apply("t2", right);
             Optional<Expression> joinCondition = Optional.of(new And(
                 new And(
                     new GreaterThanOrEqual(
                         ipInt,
-                        UnresolvedAttribute$.MODULE$.apply(seq("ip_range_start"))
+                        UnresolvedAttribute$.MODULE$.apply(seq("t2","start"))
                     ),
                     new LessThan(
                         ipInt,
-                        UnresolvedAttribute$.MODULE$.apply(seq("ip_range_end"))
+                        UnresolvedAttribute$.MODULE$.apply(seq("t2","end"))
                     )
                 ),
                 new EqualTo(
                     isIpv4,
-                    UnresolvedAttribute$.MODULE$.apply(seq("ip_type"))
+                    UnresolvedAttribute$.MODULE$.apply(seq("t2","ipv4"))
                 )
             ));
             context.retainAllNamedParseExpressions(p -> p);
             context.retainAllPlans(p -> p);
-            return join(left,
-                    right,
+            return join(leftAlias,
+                    rightAlias,
                     Join.JoinType.INNER,
                     joinCondition,
                     new Join.JoinHint());
         });
 
-        System.out.println("Wow I like Pancakes");
-        System.out.println(plan);
+        org.apache.spark.sql.catalyst.plans.logical.Join lol = (org.apache.spark.sql.catalyst.plans.logical.Join) joinPlan;
+        System.out.println(JavaConverters.seqAsJavaListConverter(lol.right().output()).asJava().size());
 
-        return plan;
+        List<NamedExpression> projectExpressions = JavaConverters.seqAsJavaListConverter(lol.left().output()).asJava()
+                .stream()
+                .map(attr -> (NamedExpression) attr)
+                .collect(Collectors.toList());
+
+        projectExpressions.add(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+
+        NamedExpression geoCol = org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(
+                CreateStruct.apply(seq(createGeoIpStructFields(attributeList))),
+                fieldExpression.toString(),
+                NamedExpression.newExprId(),
+                seq(new java.util.ArrayList<String>()),
+                Option.empty(),
+                seq(new java.util.ArrayList<String>()));
+
+        projectExpressions.add(geoCol);
+
+        for (NamedExpression expression : projectExpressions) {
+            System.out.println(expression);
+        }
+
+        List<Expression> dropList = createGeoIpStructFields(new ArrayList<>());
+        dropList.addAll(List.of(
+
+            UnresolvedAttribute$.MODULE$.apply(seq("t2","cidr")),
+            UnresolvedAttribute$.MODULE$.apply(seq("t2","start")),
+            UnresolvedAttribute$.MODULE$.apply(seq("t2","end")),
+            UnresolvedAttribute$.MODULE$.apply(seq("t2","ipv4"))
+        ));
+
+        context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(seq(projectExpressions), joinPlan));
+        return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns(seq(dropList), p));
     }
 
-    private StructField[] createGeoIpStructFields(List<String> attributeList) {
+    private List<Expression> createGeoIpStructFields(List<String> attributeList) {
         List<String> attributeListToUse;
         if (attributeList == null || attributeList.isEmpty()) {
             attributeListToUse = List.of(
@@ -655,16 +702,15 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     "region_name",
                     "city_name",
                     "time_zone",
-                    "lat",
-                    "lon"
+                    "location"
             );
         } else {
             attributeListToUse = attributeList;
         }
 
         return attributeListToUse.stream()
-                .map(a -> DataTypes.createStructField(a.toLowerCase(Locale.ROOT), DataTypes.StringType, true))
-                .toArray(StructField[]::new);
+                .map(a -> UnresolvedAttribute$.MODULE$.apply(seq("t2",a.toLowerCase(Locale.ROOT))))
+                .collect(Collectors.toList());
     }
 
     @Override

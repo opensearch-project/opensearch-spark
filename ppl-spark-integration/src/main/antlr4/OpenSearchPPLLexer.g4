@@ -435,8 +435,7 @@ CONTINENT_NAME:                     'CONTINENT_NAME';
 REGION_ISO_CODE:                    'REGION_ISO_CODE';
 REGION_NAME:                        'REGION_NAME';
 CITY_NAME:                          'CITY_NAME';
-LAT:                                'LAT';
-LON:                                'LON';
+LOCATION:                           'LOCATION';
 
 // RELEVANCE FUNCTIONS AND PARAMETERS
 MATCH:                              'MATCH';
