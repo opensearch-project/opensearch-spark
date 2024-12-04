@@ -15,9 +15,9 @@ import dev.failsafe.function.CheckedPredicate;
 public class HttpResultPredicate<T> implements CheckedPredicate<T> {
 
   private final HttpStatusCodeResultPredicate<T> statusCodePredicate;
-  private final HttpResponseMessageResultPredicate<T> responseMessagePredicate;
+  private final HttpAOSSResultPredicate<T> responseMessagePredicate;
 
-  public HttpResultPredicate(HttpStatusCodeResultPredicate<T> statusCodePredicate, HttpResponseMessageResultPredicate<T> responseMessagePredicate) {
+  public HttpResultPredicate(HttpStatusCodeResultPredicate<T> statusCodePredicate, HttpAOSSResultPredicate<T> responseMessagePredicate) {
     this.statusCodePredicate = statusCodePredicate;
     this.responseMessagePredicate = responseMessagePredicate;
   }

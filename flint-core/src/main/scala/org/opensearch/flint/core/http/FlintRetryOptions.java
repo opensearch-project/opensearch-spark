@@ -16,7 +16,7 @@ import java.util.Optional;
 import java.util.logging.Logger;
 import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.flint.core.http.handler.ExceptionClassNameFailurePredicate;
-import org.opensearch.flint.core.http.handler.HttpResponseMessageResultPredicate;
+import org.opensearch.flint.core.http.handler.HttpAOSSResultPredicate;
 import org.opensearch.flint.core.http.handler.HttpResultPredicate;
 import org.opensearch.flint.core.http.handler.HttpStatusCodeResultPredicate;
 import java.io.Serializable;
@@ -41,9 +41,6 @@ public class FlintRetryOptions implements Serializable {
 
   public static final String DEFAULT_RETRYABLE_HTTP_STATUS_CODES = "429,502";
   public static final String RETRYABLE_HTTP_STATUS_CODES = "retry.http_status_codes";
-
-  public static final String DEFAULT_RETRYABLE_HTTP_RESPONSE_MESSAGES = "resource_already_exists_exception";
-  public static final String RETRYABLE_HTTP_RESPONSE_MESSAGES = "retry.http_response_messages";
 
   /**
    * Retryable exception class name
@@ -80,7 +77,7 @@ public class FlintRetryOptions implements Serializable {
         .handleResultIf(
             new HttpResultPredicate<>(
                 new HttpStatusCodeResultPredicate<>(getRetryableHttpStatusCodes()),
-                new HttpResponseMessageResultPredicate<>(getRetryableHttpResponseMessages())))
+                new HttpAOSSResultPredicate<>()))
         // Logging listener
         .onFailedAttempt(FlintRetryOptions::onFailure)
         .onRetry(FlintRetryOptions::onRetry)
@@ -122,13 +119,6 @@ public class FlintRetryOptions implements Serializable {
    */
   public String getRetryableHttpStatusCodes() {
     return options.getOrDefault(RETRYABLE_HTTP_STATUS_CODES, DEFAULT_RETRYABLE_HTTP_STATUS_CODES);
-  }
-
-  /**
-   * @return retryable HTTP response message list
-   */
-  public String getRetryableHttpResponseMessages() {
-    return options.getOrDefault(RETRYABLE_HTTP_RESPONSE_MESSAGES, DEFAULT_RETRYABLE_HTTP_RESPONSE_MESSAGES);
   }
 
   /**
