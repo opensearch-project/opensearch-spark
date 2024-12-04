@@ -12,10 +12,9 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, Descending, EqualTo, ExprId, GreaterThanOrEqual, In, LessThan, Literal, NamedExpression, ScalaUDF, SortOrder}
-import org.apache.spark.sql.catalyst.plans.{Inner, PlanTest}
-import org.apache.spark.sql.catalyst.plans.logical.{Join, JoinHint, Project, Sort, SubqueryAlias}
-import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.catalyst.expressions.{Alias, Descending, ExprId, In, Literal, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.plans.PlanTest
+import org.apache.spark.sql.catalyst.plans.logical.{Project, Sort}
 
 class PPLLogicalPlanEvalTranslatorTestSuite
     extends SparkFunSuite

@@ -8,13 +8,11 @@ package org.opensearch.sql.expression.function;
 import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddressString;
 import inet.ipaddr.IPAddressStringParameters;
-
 import scala.Function1;
 import scala.Function2;
 import scala.Serializable;
 import scala.runtime.AbstractFunction1;
 import scala.runtime.AbstractFunction2;
-
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
