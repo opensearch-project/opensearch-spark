@@ -148,12 +148,6 @@ object FlintSparkConf {
       .doc("retryable HTTP response status code list")
       .createWithDefault(FlintRetryOptions.DEFAULT_RETRYABLE_HTTP_STATUS_CODES)
 
-  val RETRYABLE_HTTP_RESPONSE_MESSAGES =
-    FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.RETRYABLE_HTTP_RESPONSE_MESSAGES}")
-      .datasourceOption()
-      .doc("retryable HTTP response message list")
-      .createWithDefault(FlintRetryOptions.DEFAULT_RETRYABLE_HTTP_RESPONSE_MESSAGES)
-
   val RETRYABLE_EXCEPTION_CLASS_NAMES =
     FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.RETRYABLE_EXCEPTION_CLASS_NAMES}")
       .datasourceOption()
@@ -344,7 +338,6 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       AUTH,
       MAX_RETRIES,
       RETRYABLE_HTTP_STATUS_CODES,
-      RETRYABLE_HTTP_RESPONSE_MESSAGES,
       BULK_REQUEST_RATE_LIMIT_PER_NODE,
       REGION,
       CUSTOM_AWS_CREDENTIALS_PROVIDER,

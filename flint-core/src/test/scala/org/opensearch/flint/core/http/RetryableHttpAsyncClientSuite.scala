@@ -85,7 +85,8 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
 
   it should "retry if response message contains retryable message" in {
     retryableClient
-      .whenResponseMessage(
+      .whenResponse(
+        400,
         "OpenSearchStatusException[OpenSearch exception [type=resource_already_exists_exception,")
       .shouldExecute(times(DEFAULT_MAX_RETRIES + 1))
   }
@@ -184,11 +185,12 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
       this
     }
 
-    def whenResponseMessage(responseMessage: String): AssertionHelper = {
+    def whenResponse(statusCode: Int, responseMessage: String): AssertionHelper = {
       val entity = mock[HttpEntity](RETURNS_DEEP_STUBS)
       mockStatic(classOf[EntityUtils])
       when(EntityUtils.toString(any[HttpEntity])).thenReturn(responseMessage)
       val response = mock[HttpResponse](RETURNS_DEEP_STUBS)
+      when(response.getStatusLine.getStatusCode).thenReturn(statusCode)
       when(response.getEntity).thenReturn(entity)
       when(future.get()).thenReturn(response)
       this
