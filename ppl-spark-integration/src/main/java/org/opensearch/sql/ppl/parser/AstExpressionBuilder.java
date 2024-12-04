@@ -462,14 +462,11 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                     propertyName = "CITY_NAME";
                 } else if (property.TIME_ZONE() != null) {
                     propertyName = "TIME_ZONE";
-                } else if (property.LAT() != null) {
-                    propertyName = "LAT";
-                } else if (property.LON() != null) {
-                    propertyName = "LON";
+                } else if (property.LOCATION() != null) {
+                    propertyName = "LOCATION";
                 } else {
                     continue;
                 }
-
                 properties.add(new Literal(propertyName, DataType.STRING));
             }
         }

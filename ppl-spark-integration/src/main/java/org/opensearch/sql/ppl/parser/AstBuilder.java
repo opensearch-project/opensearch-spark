@@ -336,20 +336,16 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   public UnresolvedPlan visitEvalCommand(OpenSearchPPLParser.EvalCommandContext ctx) {
     return new Eval(
         ctx.evalClause().stream()
-            .map(ct -> (Let) internalVisitExpression(ct))
+            .map(ct -> (ct.geoipCommand() != null) ? visit(ct.geoipCommand()) : (Let) internalVisitExpression(ct))
             .collect(Collectors.toList()));
   }
 
   @Override
   public UnresolvedPlan visitGeoipCommand(OpenSearchPPLParser.GeoipCommandContext ctx) {
-    UnresolvedExpression datasource =
-            (ctx.datasource != null) ?
-                    internalVisitExpression(ctx.datasource) :
-                    // TODO Make default value var
-                    new Literal("https://geoip.maps.opensearch.org/v1/geolite2-city/manifest.json", DataType.STRING);
+    Field field = (Field) internalVisitExpression(ctx.fieldExpression());
     UnresolvedExpression ipAddress = internalVisitExpression(ctx.ipAddress);
-    UnresolvedExpression properties = ctx.properties == null ? new AttributeList(Collections.emptyList()) : internalVisitExpression(ctx.properties);
-    return new GeoIp(datasource, ipAddress, properties);
+    AttributeList properties = ctx.properties == null ? new AttributeList(Collections.emptyList()) : (AttributeList) internalVisitExpression(ctx.properties);
+    return new GeoIp(field, ipAddress, properties);
   }
 
   private List<UnresolvedExpression> getGroupByList(OpenSearchPPLParser.ByClauseContext ctx) {
