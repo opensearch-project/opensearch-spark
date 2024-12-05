@@ -6,7 +6,53 @@ extension, the docker image can be used to test PPL commands.
 
 The Spark EMR image will run an Apache Spark app if one was specified and then shutdown.
 
-## Setup
+## Prepare OpenSearch Spark PPL Extension
+
+Create a local build or copy of the OpenSearch Spark PPL extension. Make a note of the
+location of the Jar file as well as the name of the Jar file.
+
+From the root of this repository, build the OpenSearch Spark PPL extension with:
+
+```
+sbt clean
+sbt assembly
+```
+
+Refer to the [Developer Guide](../DEVELOPER_GUIDE.md) for more information.
+
+## Using Docker Compose
+
+There are sample files in this repository at `docker/spark-emr-sample` They can be used to
+run the Spark EMR container:
+
+```
+docker compose up
+```
+
+Remove the docker resources afterwards with:
+
+```
+docker compose down
+```
+
+### Configuration
+
+There is a file `docker/spark-emr-sample/.env` that can be edited to change some settings.
+
+| Variable Name  | Description                                       |
+|----------------|---------------------------------------------------|
+| PPL_JAR        | Path to the PPL Jar file                          |
+
+## Logs
+
+The logs are available in `/var/log/spark` in the docker container.
+
+STDERR for the app run is available in `/var/log/spark/user/stderr`.
+
+STDOUT for the app
+run is available in `/var/log/spark/user/stdout`.
+
+## Manual Setup
 
 Need to create two directories. These directories will be bound to the directories in the
 image.
@@ -99,12 +145,3 @@ docker run \
 * `/app/myapp_2.12-1.0.jar`
    The full path within the docker container where the Jar file of the Spark app is
    located.
-
-## Logs
-
-The logs are available in `/var/log/spark` in the docker container.
-
-STDERR for the app run is available in `/var/log/spark/user/stderr`.
-
-STDOUT for the app
-run is available in `/var/log/spark/user/stdout`.
