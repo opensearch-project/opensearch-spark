@@ -37,17 +37,17 @@ spark.sql.catalog.dev org.apache.spark.opensearch.catalog.OpenSearchCatalog
 An Apache Spark app is needed to provide queries to be run on the Spark EMR instance.
 The image has been tested with an app written in Scala.
 
-An example app is available in this repository in `docker/spark-emr-sample/example-app`.
+An example app is available in this repository in `docker/spark-sample--app`.
 
 ### Bulid the Example App
 
 The example app can be built using [SBT](https://www.scala-sbt.org/).
 ```
-cd docker/spark-emr-sample
+cd docker/spark-sample-app
 sbt clean package
 ```
 
-This will produce a Jar file in `docker/spark-emr-sample/example-app/target/scala-2.12`
+This will produce a Jar file in `docker/spark-sample-app/target/scala-2.12`
 that can be used with the Spark EMR image.
 
 ## Prepare OpenSearch Spark PPL Extension
@@ -57,12 +57,12 @@ location of the Jar file as well as the name of the Jar file.
 
 ## Run the Spark EMR Image
 
-The Spark EMR image can be run with the following command:
+The Spark EMR image can be run with the following command from the root of this repository:
 ```
 docker run \
     --name spark-emr \
     -v ./docker/spark-emr-sample/logging-conf:/var/loggingConfiguration/spark \
-    -v ./docker/spark-emr-sample/example-app/target/scala-2.12:/app \
+    -v ./docker/spark-sample-app/target/scala-2.12:/app \
     -v ./docker/spark-emr-sample/spark-conf:/etc/spark/conf \
     -v <PATH_TO_SPARK_PPL_JAR_FILE>/<SPARK_PPL_JAR_FILE>:/usr/lib/spark/jars/<SPARK_PPL_JAR_FILE> \
     public.ecr.aws/emr-serverless/spark/emr-7.5.0:20241125 \
@@ -77,7 +77,7 @@ docker run \
    
    Bind the directory containing logging shell scripts to the docker image. Needs to bind
    to `/var/loggingConfiguration/spark` in the image.
-* `-v ./docker/spark-emr-sample/example-app/target/scala-2.12:/app`
+* `-v ./docker/spark-sample-app/target/scala-2.12:/app`
    
    Bind the directory containing the Apache Spark app Jar file to a location in the
    docker image. The directory in the docker image must match the path used in the final
@@ -99,3 +99,12 @@ docker run \
 * `/app/myapp_2.12-1.0.jar`
    The full path within the docker container where the Jar file of the Spark app is
    located.
+
+## Logs
+
+The logs are available in `/var/log/spark` in the docker container.
+
+STDERR for the app run is available in `/var/log/spark/user/stderr`.
+
+STDOUT for the app
+run is available in `/var/log/spark/user/stdout`.

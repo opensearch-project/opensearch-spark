@@ -1,0 +1,41 @@
+services:
+  spark:
+    image: bitnami/spark:3.5.3
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+      - "4040:4040"
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_PUBLIC_DNS=localhost
+    volumes:
+      - type: bind
+        source: ./spark-defaults.conf
+        target: /opt/bitnami/spark/conf/spark-defaults.conf
+      - type: bind
+        source: ../../ppl-spark-integration/target/scala-2.12/ppl-spark-integration-assembly-0.7.0-SNAPSHOT.jar
+        target: /opt/bitnami/spark/jars/ppl-spark-integration-assembly-0.7.0-SNAPSHOT.jar
+
+  spark-worker:
+    image: bitnami/spark:3.5.3
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_PUBLIC_DNS=localhost
+    volumes:
+      - type: bind
+        source: ./spark-defaults.conf
+        target: /opt/bitnami/spark/conf/spark-defaults.conf
+      - type: bind
+        source: ../../ppl-spark-integration/target/scala-2.12/ppl-spark-integration-assembly-0.7.0-SNAPSHOT.jar
+        target: /opt/bitnami/spark/jars/ppl-spark-integration-assembly-0.7.0-SNAPSHOT.jar
