@@ -44,12 +44,14 @@ public class HttpAOSSResultPredicate<T> implements CheckedPredicate<T> {
       return false;
     }
 
-    // Buffer the entity to make it repeatable
+    // Buffer the entity to make it repeatable, so that this retry test does not consume the content stream,
+    // resulting in the request caller getting empty response
     BufferedHttpEntity bufferedEntity = new BufferedHttpEntity(entity);
     response.setEntity(bufferedEntity);
 
     try {
       String responseContent = EntityUtils.toString(bufferedEntity);
+      // Effectively restores the content stream of the response
       bufferedEntity.getContent().reset();
 
       boolean isRetryable = responseContent.contains(RESOURCE_ALREADY_EXISTS_EXCEPTION_MESSAGE);
