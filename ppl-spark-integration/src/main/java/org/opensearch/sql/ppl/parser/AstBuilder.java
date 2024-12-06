@@ -581,19 +581,18 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     FillNullWithFieldVariousValuesContext variousValuesContext = ctx.fillNullWithFieldVariousValues();
     if (sameValueContext != null) {
       // todo consider using expression instead of Literal
-      UnresolvedExpression replaceNullWithMe = internalVisitExpression(sameValueContext.nullReplacement().expression());
-      List<Field> fieldsToReplace = sameValueContext.nullableField()
+      UnresolvedExpression replaceNullWithMe = internalVisitExpression(sameValueContext.nullReplacement);
+      List<Field> fieldsToReplace = sameValueContext.nullableFieldList.fieldExpression()
               .stream()
               .map(this::internalVisitExpression)
               .map(Field.class::cast)
               .collect(Collectors.toList());
       return new FillNull(ofSameValue(replaceNullWithMe, fieldsToReplace));
     } else if (variousValuesContext != null) {
-      List<NullableFieldFill> nullableFieldFills = IntStream.range(0, variousValuesContext.nullableField().size())
+      List<NullableFieldFill> nullableFieldFills = IntStream.range(0, variousValuesContext.nullableReplacementExpression().size())
               .mapToObj(index -> {
-                variousValuesContext.nullableField(index);
-                UnresolvedExpression replaceNullWithMe = internalVisitExpression(variousValuesContext.nullReplacement(index).expression());
-                Field nullableFieldReference = (Field) internalVisitExpression(variousValuesContext.nullableField(index));
+                UnresolvedExpression replaceNullWithMe = internalVisitExpression(variousValuesContext.nullableReplacementExpression(index).nullableReplacement);
+                Field nullableFieldReference = (Field) internalVisitExpression(variousValuesContext.nullableReplacementExpression(index).nullableField);
                 return new NullableFieldFill(nullableFieldReference, replaceNullWithMe);
               })
               .collect(Collectors.toList());
