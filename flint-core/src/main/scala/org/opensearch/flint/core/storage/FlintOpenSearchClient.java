@@ -44,6 +44,7 @@ public class FlintOpenSearchClient implements FlintClient {
     LOG.info("Creating Flint index " + indexName + " with metadata " + metadata);
     try {
       createIndex(indexName, FlintOpenSearchIndexMetadataService.serialize(metadata, false), metadata.indexSettings());
+      waitRequestComplete(); // Delay to ensure create is complete before making other requests for the index
       emitIndexCreationSuccessMetric(metadata.kind());
     } catch (IllegalStateException ex) {
       emitIndexCreationFailureMetric(metadata.kind());
@@ -129,6 +130,14 @@ public class FlintOpenSearchClient implements FlintClient {
 
   private String sanitizeIndexName(String indexName) {
     return OpenSearchClientUtils.sanitizeIndexName(indexName);
+  }
+
+  private void waitRequestComplete() {
+    try {
+      Thread.sleep(options.getRequestCompletionDelayMillis());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   private void emitIndexCreationSuccessMetric(String indexKind) {

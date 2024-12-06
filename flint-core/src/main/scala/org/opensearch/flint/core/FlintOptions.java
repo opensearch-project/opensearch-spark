@@ -88,7 +88,11 @@ public class FlintOptions implements Serializable {
   public static final int DEFAULT_SOCKET_TIMEOUT_MILLIS = 60000;
 
   public static final int DEFAULT_INACTIVITY_LIMIT_MILLIS = 3 * 60 * 1000;
-  
+
+  public static final String REQUEST_COMPLETION_DELAY_MILLIS = "request.completionDelayMillis";
+  public static final int DEFAULT_REQUEST_COMPLETION_DELAY_MILLIS = 0;
+  public static final int DEFAULT_AOSS_REQUEST_COMPLETION_DELAY_MILLIS = 2000;
+
   public static final String DATA_SOURCE_NAME = "spark.flint.datasource.name";
 
   public static final String BATCH_BYTES = "write.batch_bytes";
@@ -176,6 +180,13 @@ public class FlintOptions implements Serializable {
 
   public int getSocketTimeoutMillis() {
     return Integer.parseInt(options.getOrDefault(SOCKET_TIMEOUT_MILLIS, String.valueOf(DEFAULT_SOCKET_TIMEOUT_MILLIS)));
+  }
+
+  public int getRequestCompletionDelayMillis() {
+    int defaultValue = SERVICE_NAME_AOSS.equals(getServiceName())
+        ? DEFAULT_AOSS_REQUEST_COMPLETION_DELAY_MILLIS
+        : DEFAULT_REQUEST_COMPLETION_DELAY_MILLIS;
+    return Integer.parseInt(options.getOrDefault(REQUEST_COMPLETION_DELAY_MILLIS, String.valueOf(defaultValue)));
   }
 
   public String getDataSourceName() {
