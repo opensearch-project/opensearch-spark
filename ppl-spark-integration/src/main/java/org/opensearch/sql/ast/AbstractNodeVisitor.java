@@ -121,6 +121,10 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitChildren(node, context);
   }
 
+  public T visitAppendCol(Trendline node, C context) {
+    return visitChildren(node, context);
+  }
+
   public T visitCorrelation(Correlation node, C context) {
     return visitChildren(node, context);
   }
