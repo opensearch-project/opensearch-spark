@@ -47,30 +47,7 @@ import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
-import org.opensearch.sql.ast.tree.Aggregation;
-import org.opensearch.sql.ast.tree.Correlation;
-import org.opensearch.sql.ast.tree.CountedAggregation;
-import org.opensearch.sql.ast.tree.Dedupe;
-import org.opensearch.sql.ast.tree.DescribeRelation;
-import org.opensearch.sql.ast.tree.Eval;
-import org.opensearch.sql.ast.tree.FieldSummary;
-import org.opensearch.sql.ast.tree.FillNull;
-import org.opensearch.sql.ast.tree.Filter;
-import org.opensearch.sql.ast.tree.Flatten;
-import org.opensearch.sql.ast.tree.Head;
-import org.opensearch.sql.ast.tree.Join;
-import org.opensearch.sql.ast.tree.Kmeans;
-import org.opensearch.sql.ast.tree.Lookup;
-import org.opensearch.sql.ast.tree.Parse;
-import org.opensearch.sql.ast.tree.Project;
-import org.opensearch.sql.ast.tree.RareAggregation;
-import org.opensearch.sql.ast.tree.RareTopN;
-import org.opensearch.sql.ast.tree.Relation;
-import org.opensearch.sql.ast.tree.Rename;
-import org.opensearch.sql.ast.tree.Sort;
-import org.opensearch.sql.ast.tree.SubqueryAlias;
-import org.opensearch.sql.ast.tree.Trendline;
-import org.opensearch.sql.ast.tree.Window;
+import org.opensearch.sql.ast.tree.*;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
 import org.opensearch.sql.ppl.utils.ParseTransformer;
@@ -255,7 +232,18 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     @Override
-    public LogicalPlan visitAppendCol(Trendline node, CatalystPlanContext context) {
+    public LogicalPlan visitAppendCol(AppendCol node, CatalystPlanContext context) {
+
+
+        // To-do:
+        // 1. Fetch the table name from ctx
+        // 2. Add to child
+        //
+        // Append it to the sub query
+        // Add the rowNumber( )
+
+        // With the aim to produce a select t1, t2 * query with row_number( ) as join.
+
         System.out.println("Printing node detail:" + node.toString());
         return super.visitAppendCol(node, context);
     }
