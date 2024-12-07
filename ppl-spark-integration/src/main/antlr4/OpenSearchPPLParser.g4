@@ -237,21 +237,16 @@ fillnullCommand
    | fillNullWithFieldVariousValues)
    ;
 
- fillNullWithTheSameValue
- : WITH nullReplacement IN nullableField (COMMA nullableField)*
- ;
-
- fillNullWithFieldVariousValues
- : USING nullableField EQUAL nullReplacement (COMMA nullableField EQUAL nullReplacement)*
- ;
-
-
-   nullableField
-   : fieldExpression
+fillNullWithTheSameValue
+   : WITH nullReplacement = valueExpression IN nullableFieldList = fieldList
    ;
 
-   nullReplacement
-   : expression
+fillNullWithFieldVariousValues
+   : USING nullableReplacementExpression (COMMA nullableReplacementExpression)*
+   ;
+
+nullableReplacementExpression
+   : nullableField = fieldExpression EQUAL nullableReplacement = valueExpression
    ;
 
 expandCommand
