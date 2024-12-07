@@ -552,15 +552,20 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 throw new SyntaxCheckException("Unexpected node type when visiting EVAL");
             }
         }
-        if (context.getNamedParseExpressions().isEmpty()) {
-            // Create an UnresolvedStar for all-fields projection
-            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
-        }
 
-        List<Expression> expressionList = visitExpressionList(aliases, context);
-        Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
-        // build the plan with the projection step
-        return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+        if (!aliases.isEmpty()) {
+            if (context.getNamedParseExpressions().isEmpty()) {
+                // Create an UnresolvedStar for all-fields projection
+                context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+            }
+
+            visitExpressionList(aliases, context);
+            Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+            // build the plan with the projection step
+            return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+        } else {
+            return context.apply(p -> p);
+        }
     }
 
     @Override
@@ -579,7 +584,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             attributeList.add(0, attributeName);
         }
 
-        Expression fieldExpression = visitExpression(node.getField(), context);
+        String fieldExpression = node.getField().getField().toString();
         Expression ipAddressExpression = visitExpression(node.getIpAddress(), context);
 
         return GeoipCatalystUtils.getGeoipLogicalPlan(

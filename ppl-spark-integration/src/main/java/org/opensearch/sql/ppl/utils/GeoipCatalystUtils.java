@@ -7,6 +7,7 @@ package org.opensearch.sql.ppl.utils;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.apache.spark.SparkEnv;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
@@ -34,25 +35,36 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.JoinSpecTransformer.join;
 
 public interface GeoipCatalystUtils {
-
+    String SPARK_CONF_KEY = "spark.geoip.tablename";
     String DEFAULT_GEOIP_TABLE_NAME = "geoip";
     String SOURCE_TABLE_ALIAS = "t1";
-    String GEOIP_TABLE_ALIAS= "t2";
+    String GEOIP_TABLE_ALIAS = "t2";
+    List<String> GEOIP_TABLE_COLUMNS = List.of(
+            "country_iso_code",
+            "country_name",
+            "continent_name",
+            "region_iso_code",
+            "region_name",
+            "city_name",
+            "time_zone",
+            "location"
+    );
 
     static LogicalPlan getGeoipLogicalPlan(GeoIpParameters parameters, CatalystPlanContext context) {
         applyJoin(parameters.getIpAddress(), context);
         return applyProjection(parameters.getField(), parameters.getProperties(), context);
     }
 
-    static LogicalPlan applyJoin(Expression ipAddress, CatalystPlanContext context) {
+    static private LogicalPlan applyJoin(Expression ipAddress, CatalystPlanContext context) {
         return context.apply(left -> {
-            LogicalPlan right = new UnresolvedRelation(seq(DEFAULT_GEOIP_TABLE_NAME), CaseInsensitiveStringMap.empty(), false);
+            LogicalPlan right = new UnresolvedRelation(seq(getGeoipTableName()), CaseInsensitiveStringMap.empty(), false);
             LogicalPlan leftAlias = SubqueryAlias$.MODULE$.apply(SOURCE_TABLE_ALIAS, left);
             LogicalPlan rightAlias = SubqueryAlias$.MODULE$.apply(GEOIP_TABLE_ALIAS, right);
             Optional<Expression> joinCondition = Optional.of(new And(
@@ -75,13 +87,13 @@ public interface GeoipCatalystUtils {
             context.retainAllPlans(p -> p);
             return join(leftAlias,
                     rightAlias,
-                    Join.JoinType.INNER,
+                    Join.JoinType.LEFT,
                     joinCondition,
                     new Join.JoinHint());
         });
     }
 
-    static private LogicalPlan applyProjection(Expression field, List<String> properties, CatalystPlanContext context) {
+    static private LogicalPlan applyProjection(String field, List<String> properties, CatalystPlanContext context) {
         List<NamedExpression> projectExpressions = new ArrayList<>();
         projectExpressions.add(UnresolvedStar$.MODULE$.apply(Option.empty()));
 
@@ -91,11 +103,11 @@ public interface GeoipCatalystUtils {
 
         NamedExpression geoCol = Alias$.MODULE$.apply(
                 columnValue,
-                field.toString(),
+                field,
                 NamedExpression.newExprId(),
-                seq(new java.util.ArrayList<>()),
+                seq(new ArrayList<>()),
                 Option.empty(),
-                seq(new java.util.ArrayList<>()));
+                seq(new ArrayList<>()));
 
         projectExpressions.add(geoCol);
 
@@ -114,16 +126,7 @@ public interface GeoipCatalystUtils {
     static private List<Expression> createGeoIpStructFields(List<String> attributeList) {
         List<String> attributeListToUse;
         if (attributeList == null || attributeList.isEmpty()) {
-            attributeListToUse = List.of(
-                    "country_iso_code",
-                    "country_name",
-                    "continent_name",
-                    "region_iso_code",
-                    "region_name",
-                    "city_name",
-                    "time_zone",
-                    "location"
-            );
+            attributeListToUse = GEOIP_TABLE_COLUMNS;
         } else {
             attributeListToUse = attributeList;
         }
@@ -159,10 +162,20 @@ public interface GeoipCatalystUtils {
         );
     }
 
+    static private String getGeoipTableName() {
+        String tableName = DEFAULT_GEOIP_TABLE_NAME;
+
+        if (SparkEnv.get() != null && SparkEnv.get().conf() != null) {
+            tableName = SparkEnv.get().conf().get(SPARK_CONF_KEY, DEFAULT_GEOIP_TABLE_NAME);
+        }
+
+        return tableName;
+    }
+
     @Getter
     @AllArgsConstructor
     class GeoIpParameters {
-        private final Expression field;
+        private final String field;
         private final Expression ipAddress;
         private final List<String> properties;
     }
