@@ -65,7 +65,6 @@ public interface SerializableUdf {
 
         @Override
         public Boolean apply(String ipAddress) {
-
             IPAddressString parsedIpAddress = new IPAddressString(ipAddress, valOptions);
 
             try {
@@ -78,21 +77,11 @@ public interface SerializableUdf {
         }};
 
     Function1<String,BigInteger> ipToInt = new SerializableAbstractFunction1<>() {
-
-        IPAddressStringParameters valOptions = new IPAddressStringParameters.Builder()
-                .allowEmpty(false)
-                .setEmptyAsLoopback(false)
-                .allow_inet_aton(false)
-                .allowSingleSegment(false)
-                .toParams();
-
         @Override
         public BigInteger apply(String ipAddress) {
             try {
                 InetAddress inetAddress = InetAddress.getByName(ipAddress);
                 byte[] addressBytes = inetAddress.getAddress();
-
-                // Convert the byte array to a BigInteger
                 return new BigInteger(1, addressBytes);
             } catch (UnknownHostException e) {
                 System.err.println("Invalid IP address: " + e.getMessage());

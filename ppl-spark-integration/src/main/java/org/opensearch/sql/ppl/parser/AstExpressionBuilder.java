@@ -458,6 +458,8 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                     propertyName = "CONTINENT_NAME";
                 } else if (property.REGION_ISO_CODE() != null) {
                     propertyName = "REGION_ISO_CODE";
+                } else if (property.REGION_NAME() != null) {
+                    propertyName = "REGION_NAME";
                 } else if (property.CITY_NAME() != null) {
                     propertyName = "CITY_NAME";
                 } else if (property.TIME_ZONE() != null) {
