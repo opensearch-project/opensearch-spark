@@ -541,6 +541,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         List<UnresolvedExpression> aliases = new ArrayList<>();
         List<Node> expressions = node.getExpressionList();
 
+
+        // Geoip function modifies logical plan and is treated as QueryPlanVisitor instead of ExpressionVisitor
         for (Node expr : expressions) {
             if (expr instanceof Let) {
                 Let let = (Let) expr;
