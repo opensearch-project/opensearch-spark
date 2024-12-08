@@ -73,7 +73,7 @@ import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
-import org.opensearch.sql.ppl.utils.GeoipCatalystUtils;
+import org.opensearch.sql.ppl.utils.GeoIpCatalystLogicalPlanTranslator;
 import org.opensearch.sql.ppl.utils.ParseTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import org.opensearch.sql.ppl.utils.TrendlineCatalystUtils;
@@ -587,8 +587,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         String fieldExpression = node.getField().getField().toString();
         Expression ipAddressExpression = visitExpression(node.getIpAddress(), context);
 
-        return GeoipCatalystUtils.getGeoipLogicalPlan(
-            new GeoipCatalystUtils.GeoIpParameters(
+        return GeoIpCatalystLogicalPlanTranslator.getGeoipLogicalPlan(
+            new GeoIpCatalystLogicalPlanTranslator.GeoIpParameters(
                     fieldExpression,
                     ipAddressExpression,
                     attributeList
