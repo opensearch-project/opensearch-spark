@@ -81,7 +81,7 @@ public class FlintRetryOptions implements Serializable {
         // Logging listener
         .onFailedAttempt(FlintRetryOptions::onFailure)
         .onRetry(FlintRetryOptions::onRetry);
-    if (getServiceName() == SERVICE_NAME_AOSS) {
+    if (SERVICE_NAME_AOSS.equals(getServiceName())) {
       builder.handleResultIf(new HttpAOSSResultPredicate<>());
     }
     return builder.build();
