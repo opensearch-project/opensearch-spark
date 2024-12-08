@@ -44,7 +44,7 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
                            right : LogicalPlan
                          ) : LogicalPlan = {
     val is_ipv4 = ScalaUDF(
-      SerializableUdf.isIpv4,
+      SerializableUdf.geoIpUtils.isIpv4,
       DataTypes.BooleanType,
       seq(ipAddress),
       seq(),
@@ -54,7 +54,7 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
       true
     )
     val ip_to_int = ScalaUDF(
-      SerializableUdf.ipToInt,
+      SerializableUdf.geoIpUtils.ipToInt,
       DataTypes.createDecimalType(38, 0),
       seq(ipAddress),
       seq(),
@@ -69,8 +69,8 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
 
     val joinCondition = And(
       And(
-        GreaterThanOrEqual(ip_to_int, UnresolvedAttribute("t2.start")),
-        LessThan(ip_to_int, UnresolvedAttribute("t2.end"))
+        GreaterThanOrEqual(ip_to_int, UnresolvedAttribute("t2.ip_range_start")),
+        LessThan(ip_to_int, UnresolvedAttribute("t2.ip_range_end"))
       ),
       EqualTo(is_ipv4, UnresolvedAttribute("t2.ipv4"))
     )
@@ -82,7 +82,7 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
     val dropList = Seq(
       "t2.country_iso_code", "t2.country_name", "t2.continent_name",
       "t2.region_iso_code", "t2.region_name", "t2.city_name",
-      "t2.time_zone", "t2.location", "t2.cidr", "t2.start", "t2.end", "t2.ipv4"
+      "t2.time_zone", "t2.location", "t2.cidr", "t2.ip_range_start", "t2.ip_range_end", "t2.ipv4"
     ).map(UnresolvedAttribute(_))
     DataFrameDropColumns(dropList, projection)
   }

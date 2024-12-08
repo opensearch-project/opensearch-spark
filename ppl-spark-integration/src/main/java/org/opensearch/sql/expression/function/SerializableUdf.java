@@ -54,41 +54,43 @@ public interface SerializableUdf {
             return parsedCidrBlock.contains(parsedIpAddress);
         }};
 
-    Function1<String,Boolean> isIpv4 = new SerializableAbstractFunction1<>() {
+    class geoIpUtils {
+        public static Function1<String,Boolean> isIpv4 = new SerializableAbstractFunction1<>() {
 
-        IPAddressStringParameters valOptions = new IPAddressStringParameters.Builder()
-                .allowEmpty(false)
-                .setEmptyAsLoopback(false)
-                .allow_inet_aton(false)
-                .allowSingleSegment(false)
-                .toParams();
+            IPAddressStringParameters valOptions = new IPAddressStringParameters.Builder()
+                    .allowEmpty(false)
+                    .setEmptyAsLoopback(false)
+                    .allow_inet_aton(false)
+                    .allowSingleSegment(false)
+                    .toParams();
 
-        @Override
-        public Boolean apply(String ipAddress) {
-            IPAddressString parsedIpAddress = new IPAddressString(ipAddress, valOptions);
+            @Override
+            public Boolean apply(String ipAddress) {
+                IPAddressString parsedIpAddress = new IPAddressString(ipAddress, valOptions);
 
-            try {
-                parsedIpAddress.validate();
-            } catch (AddressStringException e) {
-                throw new RuntimeException("The given ipAddress '"+ipAddress+"' is invalid. It must be a valid IPv4 or IPv6 address. Error details: "+e.getMessage());
+                try {
+                    parsedIpAddress.validate();
+                } catch (AddressStringException e) {
+                    throw new RuntimeException("The given ipAddress '"+ipAddress+"' is invalid. It must be a valid IPv4 or IPv6 address. Error details: "+e.getMessage());
+                }
+
+                return parsedIpAddress.isIPv4();
+            }};
+
+        public static Function1<String,BigInteger> ipToInt = new SerializableAbstractFunction1<>() {
+            @Override
+            public BigInteger apply(String ipAddress) {
+                try {
+                    InetAddress inetAddress = InetAddress.getByName(ipAddress);
+                    byte[] addressBytes = inetAddress.getAddress();
+                    return new BigInteger(1, addressBytes);
+                } catch (UnknownHostException e) {
+                    System.err.println("Invalid IP address: " + e.getMessage());
+                }
+                return null;
             }
-
-            return parsedIpAddress.isIPv4();
-        }};
-
-    Function1<String,BigInteger> ipToInt = new SerializableAbstractFunction1<>() {
-        @Override
-        public BigInteger apply(String ipAddress) {
-            try {
-                InetAddress inetAddress = InetAddress.getByName(ipAddress);
-                byte[] addressBytes = inetAddress.getAddress();
-                return new BigInteger(1, addressBytes);
-            } catch (UnknownHostException e) {
-                System.err.println("Invalid IP address: " + e.getMessage());
-            }
-            return null;
-        }
-    };
+        };
+    }
 
     abstract class SerializableAbstractFunction1<T1,R> extends AbstractFunction1<T1,R>
             implements Serializable {
