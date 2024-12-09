@@ -5,6 +5,7 @@
 package org.opensearch.sql.expression.function;
 
 import org.junit.Test;
+import scala.collection.mutable.WrappedArray;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,7 +13,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import static java.util.Collections.singletonList;
 import static org.apache.derby.vti.XmlVTI.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -26,7 +26,7 @@ public class SerializableJsonUdfTest {
     public void testJsonDeleteFunctionRemoveSingleKey() {
         String jsonStr = "{\"key1\":\"value1\",\"key2\":\"value2\",\"key3\":\"value3\"}";
         String expectedJson = "{\"key1\":\"value1\",\"key3\":\"value3\"}";
-        String result = jsonDeleteFunction.apply(jsonStr, singletonList("key2"));
+        String result = jsonDeleteFunction.apply(jsonStr,  WrappedArray.make(new String[]{"key2"}));
         assertEquals(expectedJson, result);
     }
 
@@ -35,7 +35,7 @@ public class SerializableJsonUdfTest {
         // Correctly escape double quotes within the JSON string
         String jsonStr = "{\"key1\":\"value1\",\"key2\":{ \"key3\":\"value3\",\"key4\":\"value4\" }}";
         String expectedJson = "{\"key1\":\"value1\",\"key2\":{\"key4\":\"value4\"}}";
-        String result = jsonDeleteFunction.apply(jsonStr, singletonList("key2.key3"));
+        String result = jsonDeleteFunction.apply(jsonStr, WrappedArray.make(new String[]{"key2.key3"}));
         assertEquals(expectedJson, result);
     }
 
@@ -43,7 +43,7 @@ public class SerializableJsonUdfTest {
     public void testJsonDeleteFunctionRemoveSingleArrayedKey() {
         String jsonStr = "{\"key1\":\"value1\",\"key2\":\"value2\",\"keyArray\":[\"value1\",\"value2\"]}";
         String expectedJson = "{\"key1\":\"value1\",\"key2\":\"value2\"}";
-        String result = jsonDeleteFunction.apply(jsonStr, singletonList("keyArray"));
+        String result = jsonDeleteFunction.apply(jsonStr, WrappedArray.make(new String[]{"keyArray"}));
         assertEquals(expectedJson, result);
     }
 
@@ -51,7 +51,7 @@ public class SerializableJsonUdfTest {
     public void testJsonDeleteFunctionRemoveMultipleKeys() {
         String jsonStr = "{\"key1\":\"value1\",\"key2\":\"value2\",\"key3\":\"value3\"}";
         String expectedJson = "{\"key3\":\"value3\"}";
-        String result = jsonDeleteFunction.apply(jsonStr, Arrays.asList("key1", "key2"));
+        String result = jsonDeleteFunction.apply(jsonStr, WrappedArray.make(new String[]{"key1", "key2"}));
         assertEquals(expectedJson, result);
     }
 
@@ -59,27 +59,27 @@ public class SerializableJsonUdfTest {
     public void testJsonDeleteFunctionRemoveMultipleSomeAreNestedKeys() {
         String jsonStr = "{\"key1\":\"value1\",\"key2\":{ \"key3\":\"value3\",\"key4\":\"value4\" }}";
         String expectedJson = "{\"key2\":{\"key3\":\"value3\"}}";
-        String result = jsonDeleteFunction.apply(jsonStr, Arrays.asList("key1", "key2.key4"));
+        String result = jsonDeleteFunction.apply(jsonStr,  WrappedArray.make(new String[]{"key1", "key2.key4"}));
         assertEquals(expectedJson, result);
     }
 
     @Test
     public void testJsonDeleteFunctionNoKeysRemoved() {
         String jsonStr = "{\"key1\":\"value1\",\"key2\":\"value2\"}";
-        String result = jsonDeleteFunction.apply(jsonStr, Collections.emptyList());
+        String result = jsonDeleteFunction.apply(jsonStr, WrappedArray.make(new String[0]));
         assertEquals(jsonStr, result);
     }
 
     @Test
     public void testJsonDeleteFunctionNullJson() {
-        String result = jsonDeleteFunction.apply(null, Collections.singletonList("key1"));
+        String result = jsonDeleteFunction.apply(null,  WrappedArray.make(new String[]{"key1"}));
         assertNull(result);
     }
 
     @Test
     public void testJsonDeleteFunctionInvalidJson() {
         String invalidJson = "invalid_json";
-        String result = jsonDeleteFunction.apply(invalidJson, Collections.singletonList("key1"));
+        String result = jsonDeleteFunction.apply(invalidJson,  WrappedArray.make(new String[]{"key1"}));
         assertNull(result);
     }
 
@@ -186,67 +186,43 @@ public class SerializableJsonUdfTest {
 
     @Test
     public void testJsonExtendFunctionAddValuesToExistingArray() {
-        // Initial JSON string
         String jsonStr = "{\"key1\":\"value1\",\"key2\":[\"value2\"]}";
-
-        // Path-value pairs to extend
         List<Map.Entry<String, List<String>>> pathValuePairs = new ArrayList<>();
         pathValuePairs.add( Map.entry("key2", Arrays.asList("value3", "value4")));
 
-        // Expected JSON after extension
         String expectedJson = "{\"key1\":\"value1\",\"key2\":[\"value2\",\"value3\",\"value4\"]}";
-
-        // Apply the function
         String result = jsonExtendFunction.apply(jsonStr, pathValuePairs);
 
-        // Assert that the result matches the expected JSON
         assertEquals(expectedJson, result);
     }
 
     @Test
     public void testJsonExtendFunctionAddNewArray() {
-        // Initial JSON string
         String jsonStr = "{\"key1\":\"value1\"}";
-
-        // Path-value pairs to add
         List<Map.Entry<String, List<String>>> pathValuePairs = new ArrayList<>();
         pathValuePairs.add( Map.entry("key2", Arrays.asList("value2", "value3")));
 
-        // Expected JSON after adding new array
         String expectedJson = "{\"key1\":\"value1\",\"key2\":[\"value2\",\"value3\"]}";
-
-        // Apply the function
         String result = jsonExtendFunction.apply(jsonStr, pathValuePairs);
 
-        // Assert that the result matches the expected JSON
         assertEquals(expectedJson, result);
     }
 
     @Test
     public void testJsonExtendFunctionHandleEmptyValues() {
-        // Initial JSON string
         String jsonStr = "{\"key1\":\"value1\",\"key2\":[\"value2\"]}";
-
-        // Path-value pairs with an empty list of values to add
         List<Map.Entry<String, List<String>>> pathValuePairs = new ArrayList<>();
         pathValuePairs.add( Map.entry("key2", Collections.emptyList()));
 
-        // Expected JSON should remain unchanged
         String expectedJson = "{\"key1\":\"value1\",\"key2\":[\"value2\"]}";
-
-        // Apply the function
         String result = jsonExtendFunction.apply(jsonStr, pathValuePairs);
 
-        // Assert that the result matches the expected JSON
         assertEquals(expectedJson, result);
     }
 
     @Test
     public void testJsonExtendFunctionHandleNullInput() {
-        // Apply the function with null input
         String result = jsonExtendFunction.apply(null, Collections.singletonList( Map.entry("key2", List.of("value2"))));
-
-        // Assert that the result is null
         assertEquals(null, result);
     }
 }

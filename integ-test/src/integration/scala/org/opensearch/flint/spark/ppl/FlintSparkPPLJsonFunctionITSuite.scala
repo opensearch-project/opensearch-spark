@@ -5,11 +5,16 @@
 
 package org.opensearch.flint.spark.ppl
 
+import java.util
+
+import org.opensearch.sql.expression.function.SerializableUdf.visit
+
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, Literal, Not}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
+import org.apache.spark.sql.types.StringType
 
 class FlintSparkPPLJsonFunctionITSuite
     extends QueryTest
@@ -385,4 +390,46 @@ class FlintSparkPPLJsonFunctionITSuite
         null))
     assertSameRows(expectedSeq, frame)
   }
+
+  test("test json_delete() function: one key") {
+    val frame = sql(s"""
+                       | source = $testTable
+                       | | eval result = json_delete('$validJson1',json_array('age')) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(Seq(Row("{\"account_number\":1,\"balance\":39225,\"gender\":\"M\"}")), frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val keysExpression = UnresolvedFunction("array", Seq(Literal("age")), isDistinct = false)
+    val jsonObjExp =
+      Literal("{\"account_number\":1,\"balance\":39225,\"age\":32,\"gender\":\"M\"}")
+    val jsonFunc =
+      Alias(visit("json_delete", util.List.of(jsonObjExp, keysExpression)), "result")()
+    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
+    val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
+    val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test json_delete() function: multiple keys") {
+    val frame = sql(s"""
+                       | source = $testTable
+                       | | eval result = json_delete('$validJson1',json_array('age','gender')) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(Seq(Row("{\"account_number\":1,\"balance\":39225}")), frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val keysExpression =
+      UnresolvedFunction("array", Seq(Literal("age"), Literal("gender")), isDistinct = false)
+    val jsonObjExp =
+      Literal("{\"account_number\":1,\"balance\":39225,\"age\":32,\"gender\":\"M\"}")
+    val jsonFunc =
+      Alias(visit("json_delete", util.List.of(jsonObjExp, keysExpression)), "result")()
+    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
+    val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
+    val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
 }

@@ -6,7 +6,6 @@
 package org.opensearch.sql.expression.function;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.scala.DefaultScalaModule;
 import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddressString;
 import inet.ipaddr.IPAddressStringParameters;
@@ -16,11 +15,13 @@ import org.apache.spark.sql.types.DataTypes;
 import scala.Function2;
 import scala.Option;
 import scala.Serializable;
+import scala.collection.JavaConverters;
+import scala.collection.mutable.WrappedArray;
 import scala.runtime.AbstractFunction2;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 
@@ -40,9 +41,9 @@ public interface SerializableUdf {
      * @param keysToRemove The list of keys to remove.
      * @return A new JSON string without the specified keys.
      */
-    Function2<String, List<String>, String> jsonDeleteFunction = new SerializableAbstractFunction2<>() {
+    Function2<String, WrappedArray<String>, String> jsonDeleteFunction = new SerializableAbstractFunction2<>() {
         @Override
-        public String apply(String jsonStr, List<String> keysToRemove) {
+        public String apply(String jsonStr, WrappedArray<String> keysToRemove) {
             if (jsonStr == null) {
                 return null;
             }
@@ -55,8 +56,9 @@ public interface SerializableUdf {
             }
         }
 
-        private void removeKeys(Map<String, Object> map, List<String> keysToRemove) {
-            for (String key : keysToRemove) {
+        private void removeKeys(Map<String, Object> map, WrappedArray<String> keysToRemove) {
+            Collection<String> keys = JavaConverters.asJavaCollection(keysToRemove);
+            for (String key : keys) {
                 String[] keyParts = key.split("\\.");
                 Map<String, Object> currentMap = map;
                 for (int i = 0; i < keyParts.length - 1; i++) {
@@ -64,10 +66,9 @@ public interface SerializableUdf {
                     if (currentMap.containsKey(currentKey) && currentMap.get(currentKey) instanceof Map) {
                         currentMap = (Map<String, Object>) currentMap.get(currentKey);
                     } else {
-                        return; // Path not found, exit
+                        return; 
                     }
                 }
-                // Remove the final key if it exists
                 currentMap.remove(keyParts[keyParts.length - 1]);
             }
         }
@@ -107,7 +108,7 @@ public interface SerializableUdf {
 
                 return objectMapper.writeValueAsString(jsonMap);
             } catch (Exception e) {
-                return null; // Return null if parsing fails
+                return null;
             }
         }
     };
@@ -143,22 +144,11 @@ public interface SerializableUdf {
 
                 return objectMapper.writeValueAsString(jsonMap);
             } catch (Exception e) {
-                return null; // Return null if parsing fails
+                return null;
             }
         }
     };
-
-    /**
-     * Check if a key matches the given path expression.
-     *
-     * @param key  The key to check.
-     * @param path The path expression (e.g., "a.b").
-     * @return True if the key matches, false otherwise.
-     */
-    private static boolean matchesKey(String key, String path) {
-        return key.equals(path) || key.startsWith(path + ".");
-    }
-
+    
     Function2<String, String, Boolean> cidrFunction = new SerializableAbstractFunction2<>() {
 
         IPAddressStringParameters valOptions = new IPAddressStringParameters.Builder()
