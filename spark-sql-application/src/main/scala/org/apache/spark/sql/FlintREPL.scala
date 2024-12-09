@@ -610,7 +610,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     }
   }
 
-  private def handleCommandTimeout(
+  def handleCommandTimeout(
       applicationId: String,
       jobId: String,
       spark: SparkSession,
@@ -618,7 +618,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       error: String,
       flintStatement: FlintStatement,
       sessionId: String,
-      startTime: Long) = {
+      startTime: Long): DataFrame = {
     /*
      * https://tinyurl.com/2ezs5xj9
      *
@@ -1021,7 +1021,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
     }
   }
 
-  private def instantiateSessionManager(
+  def instantiateSessionManager(
       spark: SparkSession,
       resultIndexOption: Option[String]): SessionManager = {
     instantiate(
@@ -1030,7 +1030,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       resultIndexOption.getOrElse(""))
   }
 
-  private def instantiateStatementExecutionManager(
+  def instantiateStatementExecutionManager(
       commandContext: CommandContext): StatementExecutionManager = {
     import commandContext._
     instantiate(
@@ -1040,7 +1040,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       sessionId)
   }
 
-  private def instantiateQueryResultWriter(
+  def instantiateQueryResultWriter(
       spark: SparkSession,
       commandContext: CommandContext): QueryResultWriter = {
     instantiate(
