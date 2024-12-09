@@ -64,6 +64,14 @@ public class SerializableJsonUdfTest {
     }
 
     @Test
+    public void testJsonDeleteFunctionRemoveMultipleKeysNestedArrayKeys() {
+        String jsonStr = "{\"key1\":\"value1\",\"key2\":[{ \"a\":\"valueA\",\"key3\":\"value3\"}, {\"a\":\"valueA\",\"key4\":\"value4\"}]}";
+        String expectedJson = "{\"key2\":[{\"key3\":\"value3\"},{\"key4\":\"value4\"}]}";
+        String result = jsonDeleteFunction.apply(jsonStr,  WrappedArray.make(new String[]{"key1", "key2.a"}));
+        assertEquals(expectedJson, result);
+    }
+
+    @Test
     public void testJsonDeleteFunctionNoKeysRemoved() {
         String jsonStr = "{\"key1\":\"value1\",\"key2\":\"value2\"}";
         String result = jsonDeleteFunction.apply(jsonStr, WrappedArray.make(new String[0]));

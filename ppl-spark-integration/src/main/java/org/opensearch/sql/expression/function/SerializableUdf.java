@@ -60,16 +60,39 @@ public interface SerializableUdf {
             Collection<String> keys = JavaConverters.asJavaCollection(keysToRemove);
             for (String key : keys) {
                 String[] keyParts = key.split("\\.");
-                Map<String, Object> currentMap = map;
-                for (int i = 0; i < keyParts.length - 1; i++) {
-                    String currentKey = keyParts[i];
-                    if (currentMap.containsKey(currentKey) && currentMap.get(currentKey) instanceof Map) {
-                        currentMap = (Map<String, Object>) currentMap.get(currentKey);
-                    } else {
-                        return; 
+                removeNestedKey(map, keyParts, 0);
+            }
+        }
+
+        private void removeNestedKey(Object currentObj, String[] keyParts, int depth) {
+            if (currentObj == null || depth >= keyParts.length) {
+                return;
+            }
+
+            if (currentObj instanceof Map) {
+                Map<String, Object> currentMap = (Map<String, Object>) currentObj;
+                String currentKey = keyParts[depth];
+
+                if (depth == keyParts.length - 1) {
+                    // If it's the last key, remove it from the map
+                    currentMap.remove(currentKey);
+                } else {
+                    // If not the last key, continue traversing
+                    if (currentMap.containsKey(currentKey)) {
+                        Object nextObj = currentMap.get(currentKey);
+
+                        if (nextObj instanceof List) {
+                            // If the value is a list, process each item in the list
+                            List<Object> list = (List<Object>) nextObj;
+                            for (int i = 0; i < list.size(); i++) {
+                                removeNestedKey(list.get(i), keyParts, depth + 1);
+                            }
+                        } else {
+                            // Continue traversing if it's a map
+                            removeNestedKey(nextObj, keyParts, depth + 1);
+                        }
                     }
                 }
-                currentMap.remove(keyParts[keyParts.length - 1]);
             }
         }
     };
