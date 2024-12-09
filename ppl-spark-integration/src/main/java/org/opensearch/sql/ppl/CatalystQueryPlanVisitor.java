@@ -47,6 +47,7 @@ import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.Aggregation;
+import org.opensearch.sql.ast.tree.AppendCol;
 import org.opensearch.sql.ast.tree.Correlation;
 import org.opensearch.sql.ast.tree.CountedAggregation;
 import org.opensearch.sql.ast.tree.Dedupe;
