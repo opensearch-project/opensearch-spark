@@ -91,7 +91,6 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   @Override
   public UnresolvedPlan visitQueryStatement(OpenSearchPPLParser.QueryStatementContext ctx) {
     UnresolvedPlan pplCommand = visit(ctx.pplCommands());
-    visit(ctx.commands().get(0));
     return ctx.commands().stream().map(this::visit).reduce(pplCommand, (r, e) -> e.attach(r));
   }
 
