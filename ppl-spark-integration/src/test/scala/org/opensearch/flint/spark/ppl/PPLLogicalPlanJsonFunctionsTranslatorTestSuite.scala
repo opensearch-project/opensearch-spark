@@ -8,12 +8,17 @@ package org.opensearch.flint.spark.ppl
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
-
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Literal}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, Project}
+import org.apache.spark.sql.types.DataTypes
+import org.opensearch.sql.expression.function.SerializableUdf
+import org.opensearch.sql.expression.function.SerializableUdf.visit
+import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
+
+import java.util
 
 class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     extends SparkFunSuite
@@ -178,6 +183,43 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
         "get_json_object",
         Seq(Literal("""{"a":[{"b":1},{"b":2}]}"""), Literal("""$.a[1].b""")),
         isDistinct = false)
+    val filterExpr = EqualTo(UnresolvedAttribute("a"), jsonFunc)
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, filterPlan)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test json_delete()") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, """source=t a = json_delete('{"a":[{"b":1},{"c":2}]}', ["a.b"])"""),
+        context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val keysExpression = Literal("[a.b]")
+    val jsonObjExp = Literal("""{"a":[{"b":1},{"c":2}]}""")
+    val jsonFunc = visit("json_delete", util.List.of(jsonObjExp, keysExpression))
+    val filterExpr = EqualTo(UnresolvedAttribute("a"), jsonFunc)
+    val filterPlan = Filter(filterExpr, table)
+    val projectList = Seq(UnresolvedStar(None))
+    val expectedPlan = Project(projectList, filterPlan)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+
+  test("test json_append()") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, """source=t a = json_append('{"a":[{"b":1},{"c":2}]}', 'a.b')"""),
+        context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val keysExpression = Literal("a.b")
+    val jsonObjExp = Literal("""{"a":[{"b":1},{"c":2}]}""")
+    val jsonFunc = visit("json_delete", util.List.of(jsonObjExp, keysExpression))
     val filterExpr = EqualTo(UnresolvedAttribute("a"), jsonFunc)
     val filterPlan = Filter(filterExpr, table)
     val projectList = Seq(UnresolvedStar(None))

@@ -1,9 +1,20 @@
+/*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.opensearch.sql.expression.function;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-public class SerializableUdfTest {
+import java.util.Arrays;
+import java.util.Collections;
+
+import static java.util.Collections.singletonList;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
+public class SerializableIPUdfTest {
 
     @Test(expected = RuntimeException.class)
     public void cidrNullIpTest() {
