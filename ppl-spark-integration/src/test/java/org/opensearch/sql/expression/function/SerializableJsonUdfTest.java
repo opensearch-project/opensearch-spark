@@ -183,4 +183,70 @@ public class SerializableJsonUdfTest {
 
         assertEquals(expectedJson, result);
     }
+
+    @Test
+    public void testJsonExtendFunctionAddValuesToExistingArray() {
+        // Initial JSON string
+        String jsonStr = "{\"key1\":\"value1\",\"key2\":[\"value2\"]}";
+
+        // Path-value pairs to extend
+        List<Map.Entry<String, List<String>>> pathValuePairs = new ArrayList<>();
+        pathValuePairs.add( Map.entry("key2", Arrays.asList("value3", "value4")));
+
+        // Expected JSON after extension
+        String expectedJson = "{\"key1\":\"value1\",\"key2\":[\"value2\",\"value3\",\"value4\"]}";
+
+        // Apply the function
+        String result = jsonExtendFunction.apply(jsonStr, pathValuePairs);
+
+        // Assert that the result matches the expected JSON
+        assertEquals(expectedJson, result);
+    }
+
+    @Test
+    public void testJsonExtendFunctionAddNewArray() {
+        // Initial JSON string
+        String jsonStr = "{\"key1\":\"value1\"}";
+
+        // Path-value pairs to add
+        List<Map.Entry<String, List<String>>> pathValuePairs = new ArrayList<>();
+        pathValuePairs.add( Map.entry("key2", Arrays.asList("value2", "value3")));
+
+        // Expected JSON after adding new array
+        String expectedJson = "{\"key1\":\"value1\",\"key2\":[\"value2\",\"value3\"]}";
+
+        // Apply the function
+        String result = jsonExtendFunction.apply(jsonStr, pathValuePairs);
+
+        // Assert that the result matches the expected JSON
+        assertEquals(expectedJson, result);
+    }
+
+    @Test
+    public void testJsonExtendFunctionHandleEmptyValues() {
+        // Initial JSON string
+        String jsonStr = "{\"key1\":\"value1\",\"key2\":[\"value2\"]}";
+
+        // Path-value pairs with an empty list of values to add
+        List<Map.Entry<String, List<String>>> pathValuePairs = new ArrayList<>();
+        pathValuePairs.add( Map.entry("key2", Collections.emptyList()));
+
+        // Expected JSON should remain unchanged
+        String expectedJson = "{\"key1\":\"value1\",\"key2\":[\"value2\"]}";
+
+        // Apply the function
+        String result = jsonExtendFunction.apply(jsonStr, pathValuePairs);
+
+        // Assert that the result matches the expected JSON
+        assertEquals(expectedJson, result);
+    }
+
+    @Test
+    public void testJsonExtendFunctionHandleNullInput() {
+        // Apply the function with null input
+        String result = jsonExtendFunction.apply(null, Collections.singletonList( Map.entry("key2", List.of("value2"))));
+
+        // Assert that the result is null
+        assertEquals(null, result);
+    }
 }

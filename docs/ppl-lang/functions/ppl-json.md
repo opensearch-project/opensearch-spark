@@ -269,7 +269,7 @@ Example:
     | {"a":["valueA", "valueB", "valueC"]}            |
     +-------------------------------------------------+
 
-    os> source=people | eval append = json_append(`{"a":["valueA", "valueB"]}`, {"a":["valueC"]}) 
+    os> source=people | eval append = json_append(`{"a":["valueA", "valueB"]}`, ['a', {"a":["valueC"]}]) 
     fetched rows / total rows = 1/1
     +-----------------------------------------------+
     | append                                        |
@@ -304,7 +304,7 @@ Extend arrays as individual values separates the `json_extend` functionality fro
 
 Example:
 
-    os> source=people | eval extend = json_extend(`{"a":["valueA", "valueB"]}`, ["valueC","valueD"]) 
+    os> source=people | eval extend = json_extend(`{"a":["valueA", "valueB"]}`,['a', ["valueC","valueD"]]) 
     fetched rows / total rows = 1/1
     +-------------------------------------------------+
     | extend                                          |
@@ -312,7 +312,7 @@ Example:
     | {"a":["valueA", "valueB", "valueC", "valueD"]}  |
     +-------------------------------------------------+
 
-    os> source=people | eval extend = json_extend(`{"a":["valueA", "valueB"]}`, {"b":["valueC","valueD"]}) 
+    os> source=people | eval extend = json_extend(`{"a":["valueA", "valueB"]}`,['a',[{"b":["valueC","valueD"]}]]) 
     fetched rows / total rows = 1/1
     +-------------------------------------------------------------+
     | extend                                                      |

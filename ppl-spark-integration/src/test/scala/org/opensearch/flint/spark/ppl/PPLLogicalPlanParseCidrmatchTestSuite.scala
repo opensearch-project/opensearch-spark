@@ -7,16 +7,17 @@ package org.opensearch.flint.spark.ppl
 
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.expression.function.SerializableUdf
+import org.opensearch.sql.expression.function.SerializableUdf.visit
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 import org.scalatest.matchers.should.Matchers
+
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, CaseWhen, Descending, EqualTo, GreaterThan, Literal, NullsFirst, NullsLast, RegExpExtract, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.types.DataTypes
-import org.opensearch.sql.expression.function.SerializableUdf.visit
 
 class PPLLogicalPlanParseCidrmatchTestSuite
     extends SparkFunSuite
