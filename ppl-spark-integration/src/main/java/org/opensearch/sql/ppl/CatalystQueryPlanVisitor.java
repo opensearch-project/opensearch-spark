@@ -566,7 +566,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             // build the plan with the projection step
             return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
         } else {
-            return context.apply(p -> p);
+            return context.getPlan();
         }
     }
 
