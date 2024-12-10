@@ -83,11 +83,13 @@ class FlintMetadataCacheSuite extends AnyFlatSpec with Matchers {
   }
 
   it should "construct from materialized view FlintMetadata" in {
+    val testQuery =
+      "SELECT 1 FROM spark_catalog.default.test_table UNION SELECT 1 FROM spark_catalog.default.another_table"
     val content =
       s""" {
         |   "_meta": {
         |     "kind": "$MV_INDEX_TYPE",
-        |     "source": "spark_catalog.default.wrong_table",
+        |     "source": "$testQuery",
         |     "options": {
         |       "auto_refresh": "true",
         |       "refresh_interval": "10 Minutes"
@@ -116,6 +118,7 @@ class FlintMetadataCacheSuite extends AnyFlatSpec with Matchers {
     metadataCache.sourceTables shouldBe Array(
       "spark_catalog.default.test_table",
       "spark_catalog.default.another_table")
+    metadataCache.sourceQuery.get shouldBe testQuery
     metadataCache.lastRefreshTime.get shouldBe 1234567890123L
   }
 
@@ -145,6 +148,7 @@ class FlintMetadataCacheSuite extends AnyFlatSpec with Matchers {
     metadataCache.metadataCacheVersion shouldBe FlintMetadataCache.metadataCacheVersion
     metadataCache.refreshInterval shouldBe empty
     metadataCache.sourceTables shouldBe Array("spark_catalog.default.test_table")
+    metadataCache.sourceQuery shouldBe empty
     metadataCache.lastRefreshTime shouldBe empty
   }
 }

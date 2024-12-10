@@ -38,14 +38,13 @@ class FlintOpenSearchMetadataCacheWriter(options: FlintOptions)
       .isInstanceOf[FlintOpenSearchIndexMetadataService]
 
   override def updateMetadataCache(indexName: String, metadata: FlintMetadata): Unit = {
-    logInfo(s"Updating metadata cache for $indexName with $metadata");
+    logInfo(s"Updating metadata cache for $indexName");
     val osIndexName = OpenSearchClientUtils.sanitizeIndexName(indexName)
     var client: IRestHighLevelClient = null
     try {
       client = OpenSearchClientUtils.createClient(options)
       val request = new PutMappingRequest(osIndexName)
       val serialized = serialize(metadata)
-      logInfo(s"Serialized: $serialized")
       request.source(serialized, XContentType.JSON)
       client.updateIndexMapping(request, RequestOptions.DEFAULT)
     } catch {

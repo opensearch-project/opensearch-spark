@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark.metadatacache
 
-import java.util.{Base64, List}
+import java.util.Base64
 
 import scala.collection.JavaConverters._
 
@@ -139,7 +139,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
   }
 
   Seq(SKIPPING_INDEX_TYPE, COVERING_INDEX_TYPE).foreach { case kind =>
-    test(s"write metadata cache to $kind index mappings with source tables") {
+    test(s"write metadata cache to $kind index mappings with source tables for non mv index") {
       val content =
         s""" {
            |   "_meta": {
@@ -164,10 +164,11 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
         .get("sourceTables")
         .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(
         testTable)
+      properties should not contain key("sourceQuery")
     }
   }
 
-  test("write metadata cache with source tables from index metadata") {
+  test("write metadata cache with source tables and query from mv index metadata") {
     val mv = FlintSparkMaterializedView(
       "spark_catalog.default.mv",
       s"SELECT 1 FROM $testTable",
@@ -182,9 +183,12 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     properties
       .get("sourceTables")
       .asInstanceOf[java.util.ArrayList[String]] should contain theSameElementsAs Array(testTable)
+    properties
+      .get("sourceQuery")
+      .asInstanceOf[String] shouldBe s"SELECT 1 FROM $testTable"
   }
 
-  test("write metadata cache with source tables from deserialized metadata") {
+  test("write metadata cache with source tables and query from deserialized mv metadata") {
     val testTable2 = "spark_catalog.default.metadatacache_test2"
     val content =
       s""" {
@@ -272,11 +276,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
     val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
-    properties should have size 3
-    properties should contain allOf (Entry(
-      "metadataCacheVersion",
-      FlintMetadataCache.metadataCacheVersion),
-    Entry("lastRefreshTime", testLastRefreshCompleteTime))
+    properties should not contain key("refreshInterval")
   }
 
   test("exclude last refresh time in metadata cache when index has not been refreshed") {
@@ -287,9 +287,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
     val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
-    properties should have size 2
-    properties should contain(
-      Entry("metadataCacheVersion", FlintMetadataCache.metadataCacheVersion))
+    properties should not contain key("lastRefreshTime")
   }
 
   test("write metadata cache to index mappings and preserve other index metadata") {
