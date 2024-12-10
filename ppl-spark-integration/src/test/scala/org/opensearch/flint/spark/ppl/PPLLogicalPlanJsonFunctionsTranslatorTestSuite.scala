@@ -16,7 +16,7 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{EqualTo, Literal}
+import org.apache.spark.sql.catalyst.expressions.{Alias, EqualTo, Literal}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, Project}
 import org.apache.spark.sql.types.DataTypes
@@ -195,17 +195,20 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, """source=t a = json_delete('{"a":[{"b":1},{"c":2}]}', '["a.b"]')"""),
+        plan(
+          pplParser,
+          """source=t | eval result = json_delete('{"a":[{"b":1},{"c":2}]}', array('a.b'))"""),
         context)
 
     val table = UnresolvedRelation(Seq("t"))
-    val keysExpression = Literal("""["a.b"]""")
-    val jsonObjExp = Literal("""{"a":[{"b":1},{"c":2}]}""")
-    val jsonFunc = visit("json_delete", util.List.of(jsonObjExp, keysExpression))
-    val filterExpr = EqualTo(UnresolvedAttribute("a"), jsonFunc)
-    val filterPlan = Filter(filterExpr, table)
-    val projectList = Seq(UnresolvedStar(None))
-    val expectedPlan = Project(projectList, filterPlan)
+    val keysExpression =
+      UnresolvedFunction("array", Seq(Literal("a.b")), isDistinct = false)
+    val jsonObjExp =
+      Literal("""{"a":[{"b":1},{"c":2}]}""")
+    val jsonFunc =
+      Alias(visit("json_delete", util.List.of(jsonObjExp, keysExpression)), "result")()
+    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), eval)
     comparePlans(expectedPlan, logPlan, false)
   }
 
@@ -213,17 +216,20 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val context = new CatalystPlanContext
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, """source=t a = json_append('{"a":[1,2]}', '["a",3]')"""),
+        plan(
+          pplParser,
+          """source=t | eval result = json_append('{"a":[{"b":1},{"c":2}]}', array('a.b'))"""),
         context)
 
     val table = UnresolvedRelation(Seq("t"))
-    val keysExpression = Literal("""["a",3]""")
-    val jsonObjExp = Literal("""{"a":[1,2]}""")
-    val jsonFunc = visit("json_append", util.List.of(jsonObjExp, keysExpression))
-    val filterExpr = EqualTo(UnresolvedAttribute("a"), jsonFunc)
-    val filterPlan = Filter(filterExpr, table)
-    val projectList = Seq(UnresolvedStar(None))
-    val expectedPlan = Project(projectList, filterPlan)
+    val keysExpression =
+      UnresolvedFunction("array", Seq(Literal("a.b")), isDistinct = false)
+    val jsonObjExp =
+      Literal("""{"a":[{"b":1},{"c":2}]}""")
+    val jsonFunc =
+      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
+    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), eval)
     comparePlans(expectedPlan, logPlan, false)
   }
 
@@ -233,17 +239,18 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          """source=t a = json_extend('{"a":[{"b":1},{"c":2}]}', '["a",{"c":2}]')"""),
+          """source=t | eval result = json_extend('{"a":[{"b":1},{"c":2}]}', array('a.b'))"""),
         context)
 
     val table = UnresolvedRelation(Seq("t"))
-    val keysExpression = Literal("""["a",{"c":2}]""")
-    val jsonObjExp = Literal("""{"a":[{"b":1},{"c":2}]}""")
-    val jsonFunc = visit("json_extend", util.List.of(jsonObjExp, keysExpression))
-    val filterExpr = EqualTo(UnresolvedAttribute("a"), jsonFunc)
-    val filterPlan = Filter(filterExpr, table)
-    val projectList = Seq(UnresolvedStar(None))
-    val expectedPlan = Project(projectList, filterPlan)
+    val keysExpression =
+      UnresolvedFunction("array", Seq(Literal("a.b")), isDistinct = false)
+    val jsonObjExp =
+      Literal("""{"a":[{"b":1},{"c":2}]}""")
+    val jsonFunc =
+      Alias(visit("json_extend", util.List.of(jsonObjExp, keysExpression)), "result")()
+    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), eval)
     comparePlans(expectedPlan, logPlan, false)
   }
 

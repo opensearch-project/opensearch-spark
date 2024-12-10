@@ -217,7 +217,7 @@ A JSON object format.
 
 Example:
 
-    os> source=people | eval deleted = json_delete({"a":"valueA", "b":"valueB"}, json_array("a")) 
+    os> source=people | eval deleted = json_delete({"a":"valueA", "b":"valueB"}, array("a")) 
     fetched rows / total rows = 1/1
     +----------------------------------+
     | deleted                          |
@@ -225,7 +225,7 @@ Example:
     | {"a": "valueA" }                 |
     +----------------------------------+
 
-    os> source=people | eval  eval deleted = json_delete({"a":[{"b":1},{"b":2},{"c":3}]}, json_array("a.b"))
+    os> source=people | eval deleted = json_delete({"a":[{"b":1},{"b":2},{"c":3}]}, array("a.b"))
     fetched rows / total rows = 1/1
     +-----------------------------------------------------------+
     | deleted                                                   |
@@ -233,7 +233,7 @@ Example:
     | {"a":[{"c":3}] }                                          |
     +-----------------------------------------------------------+
 
-    os> source=people | eval `no_action` =  json_delete({"a":[{"b":1},{"b":2},{"c":3}]}, json_array("b.b"))
+    os> source=people | eval `no_action` =  json_delete({"a":[{"b":1},{"b":2},{"c":3}]}, array("b.b"))
     fetched rows / total rows = 1/1
     +-----------------------------------+
     | no_action                         |
@@ -262,7 +262,7 @@ Append adds the value to the end of the existing array with the following cases:
 
 Example:
 
-    os> source=people | eval append = json_append(`{"a":["valueA", "valueB"]}`, json_array('a', 'valueC', 'valueD')) 
+    os> source=people | eval append = json_append(`{"a":["valueA", "valueB"]}`, array('a', 'valueC', 'valueD')) 
     fetched rows / total rows = 1/1
     +-------------------------------------------------+
     | append                                          |
@@ -270,7 +270,7 @@ Example:
     | {"a":["valueA", "valueB", "valueC", "valueD"]}  |
     +-------------------------------------------------+
 
-    os> source=people | eval append = json_append(`{"a":[]}`, json_array('a', 'valueC')) 
+    os> source=people | eval append = json_append(`{"a":[]}`, array('a', 'valueC')) 
     fetched rows / total rows = 1/1
     +-----------------------------------------------+
     | append                                        |
@@ -278,7 +278,7 @@ Example:
     | {"a":["valueC"]}                              |
     +-----------------------------------------------+
 
-    os> source=people | eval append = json_append(`{"root":{ "a":["valueA", "valueB"]}}`, json_array('root', 'valueC') 
+    os> source=people | eval append = json_append(`{"root":{ "a":["valueA", "valueB"]}}`, array('root', 'valueC') 
     fetched rows / total rows = 1/1
     +-----------------------------------------------+
     | append                                        |

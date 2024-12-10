@@ -397,7 +397,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_delete() function: one key") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_delete('$validJson1',json_array('age')) | head 1 | fields result
+                       | | eval result = json_delete('$validJson1',array('age')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(Seq(Row("{\"account_number\":1,\"balance\":39225,\"gender\":\"M\"}")), frame)
 
@@ -417,7 +417,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_delete() function: multiple keys") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_delete('$validJson1',json_array('age','gender')) | head 1 | fields result
+                       | | eval result = json_delete('$validJson1',array('age','gender')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(Seq(Row("{\"account_number\":1,\"balance\":39225}")), frame)
 
@@ -438,7 +438,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_delete() function: nested key") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_delete('$validJson2',json_array('f2.f3')) | head 1 | fields result
+                       | | eval result = json_delete('$validJson2',array('f2.f3')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(Seq(Row("{\"f1\":\"abc\",\"f2\":{\"f4\":\"b\"}}")), frame)
 
@@ -459,7 +459,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_delete() function: multi depth keys ") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_delete('$validJson5',json_array('teacher', 'student.rank')) | head 1 | fields result
+                       | | eval result = json_delete('$validJson5',array('teacher', 'student.rank')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(Seq(Row("{\"student\":[{\"name\":\"Bob\"},{\"name\":\"Charlie\"}]}")), frame)
 
@@ -484,7 +484,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_delete() function: key not found") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_delete('$validJson5',json_array('none')) | head 1 | fields result
+                       | | eval result = json_delete('$validJson5',array('none')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -509,7 +509,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_append() function: add single value") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_append('$validJson7',json_array('teacher', 'Tom')) | head 1 | fields result
+                       | | eval result = json_append('$validJson7',array('teacher', 'Tom')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -534,7 +534,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_append() function: add single value key not found") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_append('$validJson7',json_array('headmaster', 'Tom')) | head 1 | fields result
+                       | | eval result = json_append('$validJson7',array('headmaster', 'Tom')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -559,7 +559,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_append() function: add single Object key not found") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_append('$validJson7',json_array('headmaster', '{"name":"Tomy","rank":1}')) | head 1 | fields result
+                       | | eval result = json_append('$validJson7',array('headmaster', '{"name":"Tomy","rank":1}')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -587,7 +587,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_append() function: add single Object value") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_append('$validJson7',json_array('student', '{"name":"Tomy","rank":5}')) | head 1 | fields result
+                       | | eval result = json_append('$validJson7',array('student', '{"name":"Tomy","rank":5}')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -615,7 +615,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_append() function: add multi value") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_append('$validJson7',json_array('teacher', 'Tom', 'Walt')) | head 1 | fields result
+                       | | eval result = json_append('$validJson7',array('teacher', 'Tom', 'Walt')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -643,7 +643,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_append() function: add nested value") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_append('$validJson8',json_array('school.teacher', 'Tom', 'Walt')) | head 1 | fields result
+                       | | eval result = json_append('$validJson8',array('school.teacher', 'Tom', 'Walt')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
