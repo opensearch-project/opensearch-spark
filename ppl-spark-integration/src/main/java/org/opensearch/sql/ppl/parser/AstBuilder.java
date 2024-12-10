@@ -426,8 +426,10 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     // TD: Pass on AppendColSpecific option also
     final Optional<UnresolvedPlan> pplCmd = ctx.commands().stream().map(this::visit).reduce((r, e) -> e.attach(r));
 
-    // Throw some exception.
-    return pplCmd.map(AppendCol::new).orElse(null);
+    // Composite the AppendCol object and pass on itstead.
+
+      // Throw some exception.
+    return new AppendCol(pplCmd.get());
   }
 
   private Trendline.TrendlineComputation toTrendlineComputation(OpenSearchPPLParser.TrendlineClauseContext ctx) {

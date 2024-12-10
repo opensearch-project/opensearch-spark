@@ -333,6 +333,7 @@ public enum BuiltinFunctionName {
           .put("percentile", BuiltinFunctionName.PERCENTILE)
           .put("percentile_approx", BuiltinFunctionName.PERCENTILE_APPROX)
           .put("approx_count_distinct", BuiltinFunctionName.APPROX_COUNT_DISTINCT)
+          .put("row_number", BuiltinFunctionName.ROW_NUMBER)
           .build();
 
   public static Optional<BuiltinFunctionName> of(String str) {
