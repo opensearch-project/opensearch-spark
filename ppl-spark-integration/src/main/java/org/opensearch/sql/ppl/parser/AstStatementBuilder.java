@@ -13,6 +13,7 @@ import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParserBaseVisitor;
 import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.statement.Explain;
+import org.opensearch.sql.ast.statement.ProjectStatement;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.DescribeRelation;
@@ -32,6 +33,7 @@ public class AstStatementBuilder extends OpenSearchPPLParserBaseVisitor<Statemen
     this.context = context;
   }
 
+
   @Override
   public Statement visitDmlStatement(OpenSearchPPLParser.DmlStatementContext ctx) {
     Query query = new Query(addSelectAll(astBuilder.visit(ctx)), context.getFetchSize());
@@ -39,6 +41,11 @@ public class AstStatementBuilder extends OpenSearchPPLParserBaseVisitor<Statemen
     if (explainContext != null) {
       return new Explain(query, explainContext.explainMode().getText());
     }
+    OpenSearchPPLParser.ProjectCommandContext projectContext = ctx.projectCommand();
+    if (projectContext != null) {
+      return astBuilder.buildProjectStatement(query, projectContext);
+    }
+
     return query;
   }
 
