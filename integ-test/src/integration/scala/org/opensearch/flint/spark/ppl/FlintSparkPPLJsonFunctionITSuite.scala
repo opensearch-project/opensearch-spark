@@ -31,6 +31,10 @@ class FlintSparkPPLJsonFunctionITSuite
   private val validJson5 =
     "{\"teacher\":\"Alice\",\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}"
   private val validJson6 = "[1,2,3]"
+  private val validJson7 =
+    "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}"
+  private val validJson8 =
+    "{\"school\":{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}}"
   private val invalidJson1 = "[1,2"
   private val invalidJson2 = "[invalid json]"
   private val invalidJson3 = "{\"invalid\": \"json\""
@@ -496,6 +500,168 @@ class FlintSparkPPLJsonFunctionITSuite
         "{\"teacher\":\"Alice\",\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
       Alias(visit("json_delete", util.List.of(jsonObjExp, keysExpression)), "result")()
+    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
+    val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
+    val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test json_append() function: add single value") {
+    val frame = sql(s"""
+                       | source = $testTable
+                       | | eval result = json_append('$validJson7',json_array('teacher', 'Tom')) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(
+      Seq(Row(
+        "{\"teacher\":[\"Alice\",\"Tom\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")),
+      frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val keysExpression =
+      UnresolvedFunction("array", Seq(Literal("teacher"), Literal("Tom")), isDistinct = false)
+    val jsonObjExp =
+      Literal(
+        "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
+    val jsonFunc =
+      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
+    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
+    val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
+    val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test json_append() function: add single value key not found") {
+    val frame = sql(s"""
+                       | source = $testTable
+                       | | eval result = json_append('$validJson7',json_array('headmaster', 'Tom')) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(
+      Seq(Row(
+        "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}],\"headmaster\":[\"Tom\"]}")),
+      frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val keysExpression =
+      UnresolvedFunction("array", Seq(Literal("headmaster"), Literal("Tom")), isDistinct = false)
+    val jsonObjExp =
+      Literal(
+        "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
+    val jsonFunc =
+      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
+    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
+    val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
+    val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test json_append() function: add single Object key not found") {
+    val frame = sql(s"""
+                       | source = $testTable
+                       | | eval result = json_append('$validJson7',json_array('headmaster', '{"name":"Tomy","rank":1}')) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(
+      Seq(Row(
+        "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}],\"headmaster\":[{\"name\":\"Tomy\",\"rank\":1}]}")),
+      frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val keysExpression =
+      UnresolvedFunction(
+        "array",
+        Seq(Literal("headmaster"), Literal("""{"name":"Tomy","rank":1}""")),
+        isDistinct = false)
+    val jsonObjExp =
+      Literal(
+        "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
+    val jsonFunc =
+      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
+    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
+    val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
+    val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test json_append() function: add single Object value") {
+    val frame = sql(s"""
+                       | source = $testTable
+                       | | eval result = json_append('$validJson7',json_array('student', '{"name":"Tomy","rank":5}')) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(
+      Seq(Row(
+        "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2},{\"name\":\"Tomy\",\"rank\":5}]}")),
+      frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val keysExpression =
+      UnresolvedFunction(
+        "array",
+        Seq(Literal("student"), Literal("""{"name":"Tomy","rank":5}""")),
+        isDistinct = false)
+    val jsonObjExp =
+      Literal(
+        "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
+    val jsonFunc =
+      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
+    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
+    val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
+    val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test json_append() function: add multi value") {
+    val frame = sql(s"""
+                       | source = $testTable
+                       | | eval result = json_append('$validJson7',json_array('teacher', 'Tom', 'Walt')) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(
+      Seq(Row(
+        "{\"teacher\":[\"Alice\",\"Tom\",\"Walt\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")),
+      frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val keysExpression =
+      UnresolvedFunction(
+        "array",
+        Seq(Literal("teacher"), Literal("Tom"), Literal("Walt")),
+        isDistinct = false)
+    val jsonObjExp =
+      Literal(
+        "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
+    val jsonFunc =
+      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
+    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
+    val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
+    val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test json_append() function: add nested value") {
+    val frame = sql(s"""
+                       | source = $testTable
+                       | | eval result = json_append('$validJson8',json_array('school.teacher', 'Tom', 'Walt')) | head 1 | fields result
+                       | """.stripMargin)
+    assertSameRows(
+      Seq(Row(
+        "{\"school\":{\"teacher\":[\"Alice\",\"Tom\",\"Walt\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}}")),
+      frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val keysExpression =
+      UnresolvedFunction(
+        "array",
+        Seq(Literal("school.teacher"), Literal("Tom"), Literal("Walt")),
+        isDistinct = false)
+    val jsonObjExp =
+      Literal(
+        "{\"school\":{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}}")
+    val jsonFunc =
+      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)

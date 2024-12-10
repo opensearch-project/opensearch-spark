@@ -217,7 +217,7 @@ A JSON object format.
 
 Example:
 
-    os> source=people | eval deleted = json_delete({"a":"valueA", "b":"valueB"}, ["a"]) 
+    os> source=people | eval deleted = json_delete({"a":"valueA", "b":"valueB"}, json_array("a")) 
     fetched rows / total rows = 1/1
     +----------------------------------+
     | deleted                          |
@@ -225,7 +225,7 @@ Example:
     | {"a": "valueA" }                 |
     +----------------------------------+
 
-    os> source=people | eval  eval deleted = json_delete({"a":[{"b":1},{"b":2},{"c":3}]}, ["a.b"])
+    os> source=people | eval  eval deleted = json_delete({"a":[{"b":1},{"b":2},{"c":3}]}, json_array("a.b"))
     fetched rows / total rows = 1/1
     +-----------------------------------------------------------+
     | deleted                                                   |
@@ -233,7 +233,7 @@ Example:
     | {"a":[{"c":3}] }                                          |
     +-----------------------------------------------------------+
 
-    os> source=people | eval `no_action` =  json_delete({"a":[{"b":1},{"b":2},{"c":3}]}, ["b.b"])
+    os> source=people | eval `no_action` =  json_delete({"a":[{"b":1},{"b":2},{"c":3}]}, json_array("b.b"))
     fetched rows / total rows = 1/1
     +-----------------------------------+
     | no_action                         |
@@ -245,9 +245,9 @@ Example:
 
 **Description**
 
-`json_append(json, [path_value list])`  appends values to end of an array within the json elements. Return the updated json object after appending .
+`json_append(json, [path_key, list of values to add ])`  appends values to end of an array within the json elements. Return the updated json object after appending .
 
-**Argument type:** JSON, List<[(STRING, STRING>)]>
+**Argument type:** JSON, List<STRING>
 
 **Return type:** JSON
 
@@ -257,32 +257,33 @@ A JSON object format.
 Append adds the value to the end of the existing array with the following cases:
   - path is an object value - append is ignored and the value is returned
   - path is an existing array not empty - the value are added to the array's tail
+  - path not found - the value are added to the root of the json tree
   - path is an existing array is empty - create a new array with the given value
 
 Example:
 
-    os> source=people | eval append = json_append(`{"a":["valueA", "valueB"]}`, ["a","valueC"]) 
+    os> source=people | eval append = json_append(`{"a":["valueA", "valueB"]}`, json_array('a', 'valueC', 'valueD')) 
     fetched rows / total rows = 1/1
     +-------------------------------------------------+
     | append                                          |
     +-------------------------------------------------+
-    | {"a":["valueA", "valueB", "valueC"]}            |
+    | {"a":["valueA", "valueB", "valueC", "valueD"]}  |
     +-------------------------------------------------+
 
-    os> source=people | eval append = json_append(`{"a":["valueA", "valueB"]}`, ['a', {"a":["valueC"]}]) 
+    os> source=people | eval append = json_append(`{"a":[]}`, json_array('a', 'valueC')) 
     fetched rows / total rows = 1/1
     +-----------------------------------------------+
     | append                                        |
     +-----------------------------------------------+
-    | {"a":["valueA", "valueB", ["valueC"]]}        |
+    | {"a":["valueC"]}                              |
     +-----------------------------------------------+
 
-    os> source=people | eval append = json_append(`{"root":{ "a":["valueA", "valueB"]}}`, {"root.a":"valueC"}) 
+    os> source=people | eval append = json_append(`{"root":{ "a":["valueA", "valueB"]}}`, json_array('root', 'valueC') 
     fetched rows / total rows = 1/1
     +-----------------------------------------------+
     | append                                        |
     +-----------------------------------------------+
-    |{"root": {"a":["valueA", "valueB", "valueC"]}} |
+    |{"root": {"a":["valueA", "valueB"]}}           |
     +-----------------------------------------------+
 
 

@@ -95,17 +95,30 @@ public class SerializableJsonUdfTest {
     public void testJsonAppendFunctionAppendToExistingArray() {
         String jsonStr = "{\"arrayKey\":[\"value1\",\"value2\"]}";
         String expectedJson = "{\"arrayKey\":[\"value1\",\"value2\",\"value3\"]}";
-        Map.Entry<String, String> pair = Map.entry("arrayKey", "value3");
-        String result = jsonAppendFunction.apply(jsonStr, Collections.singletonList(pair));
+        String result = jsonAppendFunction.apply(jsonStr, WrappedArray.make(new String[]{"arrayKey", "value3"}));
+        assertEquals(expectedJson, result);
+    }
+    
+    @Test
+    public void testJsonAppendFunctionAppendObjectToExistingArray() {
+        String jsonStr = "{\"key1\":\"value1\",\"key2\":[{\"a\":\"valueA\",\"key3\":\"value3\"}]}";
+        String expectedJson = "{\"key1\":\"value1\",\"key2\":[{\"a\":\"valueA\",\"key3\":\"value3\"},{\"a\":\"valueA\",\"key4\":\"value4\"}]}";
+        String result = jsonAppendFunction.apply(jsonStr, WrappedArray.make(new String[]{"key2", "{\"a\":\"valueA\",\"key4\":\"value4\"}"}));
         assertEquals(expectedJson, result);
     }
 
     @Test
     public void testJsonAppendFunctionAddNewArray() {
-        String jsonStr = "{\"key1\":\"value1\"}";
+        String jsonStr = "{\"key1\":\"value1\",\"newArray\":[]}";
         String expectedJson = "{\"key1\":\"value1\",\"newArray\":[\"newValue\"]}";
-        Map.Entry<String, String> pair = Map.entry("newArray", "newValue");
-        String result = jsonAppendFunction.apply(jsonStr, Collections.singletonList(pair));
+        String result = jsonAppendFunction.apply(jsonStr,  WrappedArray.make(new String[]{"newArray", "newValue"}));
+        assertEquals(expectedJson, result);
+    }
+    @Test
+    public void testJsonAppendFunctionNoSuchKey() {
+        String jsonStr = "{\"key1\":\"value1\"}";
+        String expectedJson = "{\"key1\":\"value1\",\"newKey\":[\"newValue\"]}";
+        String result = jsonAppendFunction.apply(jsonStr,  WrappedArray.make(new String[]{"newKey", "newValue"}));
         assertEquals(expectedJson, result);
     }
 
@@ -113,34 +126,36 @@ public class SerializableJsonUdfTest {
     public void testJsonAppendFunctionIgnoreNonArrayKey() {
         String jsonStr = "{\"key1\":\"value1\"}";
         String expectedJson = jsonStr;
-        Map.Entry<String, String> pair = Map.entry("key1", "newValue");
-        String result = jsonAppendFunction.apply(jsonStr, Collections.singletonList(pair));
+        String result = jsonAppendFunction.apply(jsonStr,  WrappedArray.make(new String[]{"key1", "newValue"}));
         assertEquals(expectedJson, result);
     }
 
     @Test
-    public void testJsonAppendFunctionMultipleAppends() {
-        String jsonStr = "{\"arrayKey\":[\"value1\"]}";
-        String expectedJson = "{\"arrayKey\":[\"value1\",\"value2\",\"value3\"],\"newKey\":[\"newValue\"]}";
-        List<Map.Entry<String, String>> pairs = Arrays.asList(
-                Map.entry("arrayKey", "value2"),
-                Map.entry("arrayKey", "value3"),
-                Map.entry("newKey", "newValue")
-        );
-        String result = jsonAppendFunction.apply(jsonStr, pairs);
+    public void testJsonAppendFunctionWithNestedArrayKeys() {
+        String jsonStr = "{\"key2\":[{\"a\":[\"Value1\"],\"key3\":\"Value3\"},{\"a\":[\"Value1\"],\"key4\":\"Value4\"}]}";
+        String expectedJson = "{\"key2\":[{\"a\":[\"Value1\",\"Value2\"],\"key3\":\"Value3\"},{\"a\":[\"Value1\",\"Value2\"],\"key4\":\"Value4\"}]}";
+        String result = jsonAppendFunction.apply(jsonStr,  WrappedArray.make(new String[]{"key2.a","Value2"}));
+        assertEquals(expectedJson, result);
+    }
+    
+    @Test
+    public void testJsonAppendFunctionWithObjectKey() {
+        String jsonStr = "{\"key2\":[{\"a\":[\"Value1\"],\"key3\":\"Value3\"},{\"a\":[\"Value1\"],\"key4\":\"Value4\"}]}";
+        String expectedJson = "{\"key2\":[{\"a\":[\"Value1\"],\"key3\":\"Value3\"},{\"a\":[\"Value1\"],\"key4\":\"Value4\"},\"Value2\"]}";
+        String result = jsonAppendFunction.apply(jsonStr,  WrappedArray.make(new String[]{"key2","Value2"}));
         assertEquals(expectedJson, result);
     }
 
     @Test
     public void testJsonAppendFunctionNullJson() {
-        String result = jsonAppendFunction.apply(null, Collections.singletonList(Map.entry("key", "value")));
+        String result = jsonAppendFunction.apply(null, WrappedArray.make(new String[]{"key1", "newValue"}));
         assertNull(result);
     }
 
     @Test
     public void testJsonAppendFunctionInvalidJson() {
         String invalidJson = "invalid_json";
-        String result = jsonAppendFunction.apply(invalidJson, Collections.singletonList(Map.entry("key", "value")));
+        String result = jsonAppendFunction.apply(invalidJson, WrappedArray.make(new String[]{"key1", "newValue"}));
         assertNull(result);
     }
 

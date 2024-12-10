@@ -19,7 +19,9 @@ import scala.collection.JavaConverters;
 import scala.collection.mutable.WrappedArray;
 import scala.runtime.AbstractFunction2;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -97,41 +99,85 @@ public interface SerializableUdf {
         }
     };
 
-    Function2<String, List<Map.Entry<String, String>>, String> jsonAppendFunction = new SerializableAbstractFunction2<>() {
-
+    Function2<String, WrappedArray<String>, String> jsonAppendFunction = new SerializableAbstractFunction2<>() {
         /**
-         * Append values to JSON arrays based on specified path-value pairs.
+         * Append values to JSON arrays based on specified path-values.
          *
-         * @param jsonStr         The input JSON string.
-         * @param pathValuePairs  A list of path-value pairs to append.
+         * @param jsonStr    The input JSON string.
+         * @param elements   A list of path-values where the first item is the path and subsequent items are values to append.
          * @return The updated JSON string.
          */
-        public String apply(String jsonStr, List<Map.Entry<String, String>> pathValuePairs) {
+        public String apply(String jsonStr, WrappedArray<String> elements) {
             if (jsonStr == null) {
                 return null;
             }
             try {
-                Map<String, Object> jsonMap = objectMapper.readValue(jsonStr, Map.class);
-
-                for (Map.Entry<String, String> pathValuePair : pathValuePairs) {
-                    String path = pathValuePair.getKey();
-                    String value = pathValuePair.getValue();
-
-                    if (jsonMap.containsKey(path) && jsonMap.get(path) instanceof List) {
-                        List<Object> existingList = (List<Object>) jsonMap.get(path);
-                        // Append value to the end of the existing Scala List
-                        existingList.add(value);
-                        jsonMap.put(path, existingList);
-                    } else if (jsonMap.containsKey(path)) {
-                        // Ignore appending if the path is not an array
-                    } else {
-                        jsonMap.put(path, List.of(value));
-                    }
+                List<String> pathValues = JavaConverters.mutableSeqAsJavaList(elements);
+                if (pathValues.isEmpty()) {
+                    return jsonStr;
                 }
 
+                String path = pathValues.get(0);
+                String[] pathParts = path.split("\\.");
+                List<String> values = pathValues.subList(1, pathValues.size());
+
+                // Parse the JSON string into a Map
+                Map<String, Object> jsonMap = objectMapper.readValue(jsonStr, Map.class);
+
+                // Append each value at the specified path
+                for (String value : values) {
+                    Object parsedValue = parseValue(value); // Parse the value
+                    appendNestedValue(jsonMap, pathParts, 0, parsedValue);
+                }
+
+                // Convert the updated map back to JSON
                 return objectMapper.writeValueAsString(jsonMap);
             } catch (Exception e) {
                 return null;
+            }
+        }
+
+        private Object parseValue(String value) {
+            // Try parsing the value as JSON, fallback to primitive if parsing fails
+            try {
+                return objectMapper.readValue(value, Object.class);
+            } catch (Exception e) {
+                // Primitive value, return as is
+                return value;
+            }
+        }
+
+        private void appendNestedValue(Object currentObj, String[] pathParts, int depth, Object valueToAppend) {
+            if (currentObj == null || depth >= pathParts.length) {
+                return;
+            }
+
+            if (currentObj instanceof Map) {
+                Map<String, Object> currentMap = (Map<String, Object>) currentObj;
+                String currentKey = pathParts[depth];
+
+                if (depth == pathParts.length - 1) {
+                    // If it's the last key, append to the array
+                    currentMap.computeIfAbsent(currentKey, k -> new ArrayList<>()); // Create list if not present
+                    Object existingValue = currentMap.get(currentKey);
+
+                    if (existingValue instanceof List) {
+                        List<Object> existingList = (List<Object>) existingValue;
+                        existingList.add(valueToAppend);
+                    }
+                } else {
+                    // Continue traversing
+                    currentMap.computeIfAbsent(currentKey, k -> new LinkedHashMap<>()); // Create map if not present
+                    appendNestedValue(currentMap.get(currentKey), pathParts, depth + 1, valueToAppend);
+                }
+            } else if (currentObj instanceof List) {
+                // If the current object is a list, process each map in the list
+                List<Object> list = (List<Object>) currentObj;
+                for (Object item : list) {
+                    if (item instanceof Map) {
+                        appendNestedValue(item, pathParts, depth, valueToAppend);
+                    }
+                }
             }
         }
     };
@@ -171,7 +217,7 @@ public interface SerializableUdf {
             }
         }
     };
-    
+
     Function2<String, String, Boolean> cidrFunction = new SerializableAbstractFunction2<>() {
 
         IPAddressStringParameters valOptions = new IPAddressStringParameters.Builder()
