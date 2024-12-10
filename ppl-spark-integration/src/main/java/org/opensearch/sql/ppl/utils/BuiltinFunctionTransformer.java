@@ -13,12 +13,15 @@ import org.apache.spark.sql.catalyst.expressions.CurrentTimestamp$;
 import org.apache.spark.sql.catalyst.expressions.DateAddInterval$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.Literal$;
+import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.catalyst.expressions.TimestampAdd$;
 import org.apache.spark.sql.catalyst.expressions.TimestampDiff$;
 import org.apache.spark.sql.catalyst.expressions.ToUTCTimestamp$;
 import org.apache.spark.sql.catalyst.expressions.UnaryMinus$;
 import org.opensearch.sql.ast.expression.IntervalUnit;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
+import org.opensearch.sql.expression.function.SerializableUdf;
+import org.opensearch.sql.ppl.CatalystPlanContext;
 import scala.Option;
 
 import java.util.Arrays;
@@ -26,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import static org.opensearch.flint.spark.ppl.OpenSearchPPLLexer.DISTINCT_COUNT_APPROX;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADD;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADDDATE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.APPROX_COUNT_DISTINCT;
@@ -76,7 +78,7 @@ public interface BuiltinFunctionTransformer {
      * This is only used for the built-in functions between PPL and Spark with different names.
      * If the built-in function names are the same in PPL and Spark, add it to {@link BuiltinFunctionName} only.
      */
-    static final Map<BuiltinFunctionName, String> SPARK_BUILTIN_FUNCTION_NAME_MAPPING
+    Map<BuiltinFunctionName, String> SPARK_BUILTIN_FUNCTION_NAME_MAPPING
         = ImmutableMap.<BuiltinFunctionName, String>builder()
             // arithmetic operators
             .put(ADD, "+")
@@ -117,7 +119,7 @@ public interface BuiltinFunctionTransformer {
     /**
      * The name mapping between PPL builtin functions to Spark builtin functions.
      */
-    static final Map<BuiltinFunctionName, Function<List<Expression>, Expression>> PPL_TO_SPARK_FUNC_MAPPING
+    Map<BuiltinFunctionName, Function<List<Expression>, Expression>> PPL_TO_SPARK_FUNC_MAPPING
         = ImmutableMap.<BuiltinFunctionName, Function<List<Expression>, Expression>>builder()
         // json functions
         .put(
@@ -176,9 +178,11 @@ public interface BuiltinFunctionTransformer {
 
     static Expression builtinFunction(org.opensearch.sql.ast.expression.Function function, List<Expression> args) {
         if (BuiltinFunctionName.of(function.getFuncName()).isEmpty()) {
-            // TODO change it when UDF is supported
-            // TODO should we support more functions which are not PPL builtin functions. E.g Spark builtin functions
-            throw new UnsupportedOperationException(function.getFuncName() + " is not a builtin function of PPL");
+            ScalaUDF udf = SerializableUdf.visit(function.getFuncName(), args);
+            if(udf == null) {
+                throw new UnsupportedOperationException(function.getFuncName() + " is not a builtin function of PPL");
+            }
+            return udf;                        
         } else {
             BuiltinFunctionName builtin = BuiltinFunctionName.of(function.getFuncName()).get();
             String name = SPARK_BUILTIN_FUNCTION_NAME_MAPPING.get(builtin);
