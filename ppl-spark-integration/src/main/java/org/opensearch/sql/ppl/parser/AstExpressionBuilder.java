@@ -19,6 +19,7 @@ import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.AttributeList;
 import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.Case;
+import org.opensearch.sql.ast.expression.Cast;
 import org.opensearch.sql.ast.expression.Cidr;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.DataType;
@@ -278,9 +279,9 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         return buildFunction(ctx.evalFunctionName().getText(), ctx.functionArgs().functionArg());
     }
 
-    @Override
-    public UnresolvedExpression visitConvertedDataType(OpenSearchPPLParser.ConvertedDataTypeContext ctx) {
-        return new Literal(ctx.getText(), DataType.STRING);
+    @Override public UnresolvedExpression visitDataTypeFunctionCall(OpenSearchPPLParser.DataTypeFunctionCallContext ctx) {
+        // TODO: for long term consideration, needs to implement DataTypeBuilder/Visitor to parse all data types
+        return new Cast(this.visit(ctx.expression()), DataType.fromString(ctx.convertedDataType().getText()));
     }
 
     @Override
@@ -326,6 +327,11 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitIdentsAsQualifiedName(OpenSearchPPLParser.IdentsAsQualifiedNameContext ctx) {
         return visitIdentifiers(ctx.ident());
+    }
+
+    @Override
+    public UnresolvedExpression visitIdentsAsQualifiedNameSeq(OpenSearchPPLParser.IdentsAsQualifiedNameSeqContext ctx) {
+        return new AttributeList(ctx.qualifiedName().stream().map(this::visit).collect(Collectors.toList()));
     }
 
     @Override
@@ -376,8 +382,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     public UnresolvedExpression visitBySpanClause(OpenSearchPPLParser.BySpanClauseContext ctx) {
         String name = ctx.spanClause().getText();
         return ctx.alias != null
-                ? new Alias(
-                name, visit(ctx.spanClause()), StringUtils.unquoteIdentifier(ctx.alias.getText()))
+                ? new Alias(StringUtils.unquoteIdentifier(ctx.alias.getText()), visit(ctx.spanClause()))
                 : new Alias(name, visit(ctx.spanClause()));
     }
 

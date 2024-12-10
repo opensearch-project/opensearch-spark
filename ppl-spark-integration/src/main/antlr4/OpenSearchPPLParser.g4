@@ -237,21 +237,16 @@ fillnullCommand
    | fillNullWithFieldVariousValues)
    ;
 
- fillNullWithTheSameValue
- : WITH nullReplacement IN nullableField (COMMA nullableField)*
- ;
-
- fillNullWithFieldVariousValues
- : USING nullableField EQUAL nullReplacement (COMMA nullableField EQUAL nullReplacement)*
- ;
-
-
-   nullableField
-   : fieldExpression
+fillNullWithTheSameValue
+   : WITH nullReplacement = valueExpression IN nullableFieldList = fieldList
    ;
 
-   nullReplacement
-   : expression
+fillNullWithFieldVariousValues
+   : USING nullableReplacementExpression (COMMA nullableReplacementExpression)*
+   ;
+
+nullableReplacementExpression
+   : nullableField = fieldExpression EQUAL nullableReplacement = valueExpression
    ;
 
 expandCommand
@@ -259,7 +254,7 @@ expandCommand
     ;
     
 flattenCommand
-    : FLATTEN fieldExpression
+    : FLATTEN fieldExpression (AS alias = identifierSeq)?
     ;
 
 trendlineCommand
@@ -466,6 +461,7 @@ primaryExpression
    : evalFunctionCall
    | fieldExpression
    | literalValue
+   | dataTypeFunctionCall
    ;
 
 positionFunction
@@ -1050,6 +1046,11 @@ valueList
 
 qualifiedName
    : ident (DOT ident)* # identsAsQualifiedName
+   ;
+
+identifierSeq
+   : qualifiedName (COMMA qualifiedName)* # identsAsQualifiedNameSeq
+   | LT_PRTHS qualifiedName (COMMA qualifiedName)* RT_PRTHS # identsAsQualifiedNameSeq
    ;
 
 tableQualifiedName

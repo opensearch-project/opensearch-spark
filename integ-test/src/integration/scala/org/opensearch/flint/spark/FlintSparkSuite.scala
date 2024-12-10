@@ -445,6 +445,34 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
     sql(s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 03:00:00', 'E', 15, 'Vancouver')")
   }
 
+  protected def createMapAndDecimalTimeSeriesTable(testTable: String): Unit = {
+    // CSV tables do not support MAP types so we use JSON instead
+    val finalTableType = if (tableType == "CSV") "JSON" else tableType
+
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   time TIMESTAMP,
+           |   name STRING,
+           |   age INT,
+           |   base_score DECIMAL(8, 7),
+           |   mymap MAP<STRING, STRING>
+           | )
+           | USING $finalTableType $tableOptions
+           |""".stripMargin)
+
+    sql(
+      s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:01:00', 'A', 30, 3.1415926, Map('mapkey1', 'mapvalue1'))")
+    sql(
+      s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:10:00', 'B', 20, 4.1415926, Map('mapkey2', 'mapvalue2'))")
+    sql(
+      s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 00:15:00', 'C', 35, 5.1415926, Map('mapkey3', 'mapvalue3'))")
+    sql(
+      s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 01:00:00', 'D', 40, 6.1415926, Map('mapkey4', 'mapvalue4'))")
+    sql(
+      s"INSERT INTO $testTable VALUES (TIMESTAMP '2023-10-01 03:00:00', 'E', 15, 7.1415926, Map('mapkey5', 'mapvalue5'))")
+  }
+
   protected def createTimeSeriesTransactionTable(testTable: String): Unit = {
     sql(s"""
       | CREATE TABLE $testTable

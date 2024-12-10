@@ -23,6 +23,7 @@ import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Generate;
 import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan$;
 import org.apache.spark.sql.catalyst.plans.logical.Project$;
 import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
@@ -454,8 +455,28 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
         // build the plan with the projection step
         context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
-        LogicalPlan resultWithoutDuplicatedColumns = context.apply(logicalPlan -> DataFrameDropColumns$.MODULE$.apply(seq(toDrop), logicalPlan));
+        LogicalPlan resultWithoutDuplicatedColumns = context.apply(dropOriginalColumns(p -> p.children().head(), toDrop));
         return Objects.requireNonNull(resultWithoutDuplicatedColumns, "FillNull operation failed");
+    }
+
+    /**
+     * This method is used to generate DataFrameDropColumns operator for dropping duplicated columns
+     * in the original plan. Then achieving similar effect like updating columns.
+     *
+     * PLAN_ID_TAG is a mechanism inner Spark that explicitly specify a plan to resolve the
+     * UnresolvedAttributes. Set toDrop expressions' PLAN_ID_TAG to the same value as that of the
+     * original plan, so Spark will resolve them correctly by that plan instead of the child.
+    */
+    private java.util.function.Function<LogicalPlan, LogicalPlan> dropOriginalColumns(
+        java.util.function.Function<LogicalPlan, LogicalPlan> findOriginalPlan,
+        List<Expression> toDrop) {
+        return logicalPlan -> {
+            LogicalPlan originalPlan = findOriginalPlan.apply(logicalPlan);
+            long planId = logicalPlan.hashCode();
+            originalPlan.setTagValue(LogicalPlan$.MODULE$.PLAN_ID_TAG(), planId);
+            toDrop.forEach(e -> e.setTagValue(LogicalPlan$.MODULE$.PLAN_ID_TAG(), planId));
+            return DataFrameDropColumns$.MODULE$.apply(seq(toDrop), logicalPlan);
+        };
     }
 
     @Override
@@ -466,9 +487,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
         }
         Expression field = visitExpression(flatten.getField(), context);
+        List<Expression> alias = flatten.getAliasSequence().stream()
+            .map(aliasNode -> visitExpression(aliasNode, context))
+            .collect(Collectors.toList());
         context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
         FlattenGenerator flattenGenerator = new FlattenGenerator(field);
-        context.apply(p -> new Generate(new GeneratorOuter(flattenGenerator), seq(), true, (Option) None$.MODULE$, seq(), p));
+        scala.collection.mutable.Seq outputs = alias.isEmpty() ? seq() : seq(alias);
+        context.apply(p -> new Generate(new GeneratorOuter(flattenGenerator), seq(), true, (Option) None$.MODULE$, outputs, p));
         return context.apply(logicalPlan -> DataFrameDropColumns$.MODULE$.apply(seq(field), logicalPlan));
     }
 

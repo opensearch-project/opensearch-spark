@@ -277,6 +277,26 @@ class FlintSparkPPLFillnullITSuite
     assert(ex.getMessage().contains("Syntax error "))
   }
 
+  test("test fillnull with null_replacement type mismatch") {
+    val frame = sql(s"""
+                       | source = $testTable | fillnull with cast(0 as long) in status_code
+                       | """.stripMargin)
+
+    assert(frame.columns.sameElements(Array("id", "request_path", "timestamp", "status_code")))
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(
+        Row(1, "/home", null, 200),
+        Row(2, "/about", "2023-10-01 10:05:00", 0),
+        Row(3, "/contact", "2023-10-01 10:10:00", 0),
+        Row(4, null, "2023-10-01 10:15:00", 301),
+        Row(5, null, "2023-10-01 10:20:00", 200),
+        Row(6, "/home", null, 403))
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Int](_.getAs[Int](0))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+  }
+
   private def fillNullExpectedPlan(
       nullReplacements: Seq[(String, Expression)],
       addDefaultProject: Boolean = true): LogicalPlan = {

@@ -142,6 +142,7 @@ object FlintDataType {
       case ByteType => JObject("type" -> JString("byte"))
       case DoubleType => JObject("type" -> JString("double"))
       case FloatType => JObject("type" -> JString("float"))
+      case DecimalType() => JObject("type" -> JString("double"))
 
       // Date
       case TimestampType | _: TimestampNTZType =>
@@ -152,6 +153,9 @@ object FlintDataType {
 
       // objects
       case st: StructType => serializeJValue(st)
+
+      // Serialize maps as empty objects and let the map entries automap
+      case mt: MapType => serializeJValue(new StructType())
 
       // array
       case ArrayType(elementType, _) => serializeField(elementType, Metadata.empty)

@@ -13,6 +13,7 @@ import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.AttributeList;
 import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.Case;
+import org.opensearch.sql.ast.expression.Cast;
 import org.opensearch.sql.ast.expression.Cidr;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.EqualTo;
@@ -190,6 +191,10 @@ public abstract class AbstractNodeVisitor<T, C> {
   }
 
   public T visitFunction(Function node, C context) {
+    return visitChildren(node, context);
+  }
+
+  public T visitCast(Cast node, C context) {
     return visitChildren(node, context);
   }
 
