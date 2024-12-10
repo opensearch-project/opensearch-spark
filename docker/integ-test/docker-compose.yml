@@ -1,0 +1,138 @@
+services:
+  spark:
+    image: bitnami/spark:${SPARK_VERSION:-3.5.3}
+    container_name: spark
+    ports:
+      - "${MASTER_UI_PORT:-8080}:8080"
+      - "${MASTER_PORT:-7077}:7077"
+      - "${UI_PORT:-4040}:4040"
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_PUBLIC_DNS=localhost
+    volumes:
+      - type: bind
+        source: ./spark-defaults.conf
+        target: /opt/bitnami/spark/conf/spark-defaults.conf
+      - type: bind
+        source: ./log4j2.properties
+        target: /opt/bitnami/spark/conf/log4j2.properties
+      - type: bind
+        source: $PPL_JAR
+        target: /opt/bitnami/spark/jars/ppl-spark-integration.jar
+      - type: bind
+        source: $FLINT_JAR
+        target: /opt/bitnami/spark/jars/flint-spark-integration.jar
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 1m
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 5s
+    networks:
+      - opensearch-net
+
+  spark-worker:
+    image: bitnami/spark:${SPARK_VERSION:-3.5.3}
+    container_name: spark-worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark:7077
+      - SPARK_WORKER_MEMORY=${WORKER_MEMORY:-1G}
+      - SPARK_WORKER_CORES=${WORKER_CORES:-1}
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_PUBLIC_DNS=localhost
+    volumes:
+      - type: bind
+        source: ./spark-defaults.conf
+        target: /opt/bitnami/spark/conf/spark-defaults.conf
+      - type: bind
+        source: ./log4j2.properties
+        target: /opt/bitnami/spark/conf/log4j2.properties
+      - type: bind
+        source: $PPL_JAR
+        target: /opt/bitnami/spark/jars/ppl-spark-integration.jar
+      - type: bind
+        source: $FLINT_JAR
+        target: /opt/bitnami/spark/jars/flint-spark-integration.jar
+    networks:
+      - opensearch-net
+    depends_on:
+      - spark
+
+  opensearch:
+    image: opensearchproject/opensearch:${OPENSEARCH_VERSION:-latest}
+    container_name: opensearch
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch
+      - discovery.seed_hosts=opensearch
+      - cluster.initial_cluster_manager_nodes=opensearch
+      - bootstrap.memory_lock=true
+      - plugins.security.ssl.http.enabled=false
+      - OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_NODE_MEMORY:-512m} -Xmx${OPENSEARCH_NODE_MEMORY:-512m}
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    ports:
+      - ${OPENSEARCH_PORT:-9200}:9200
+      - 9600:9600
+    expose:
+      - "${OPENSEARCH_PORT:-9200}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-u", "admin:${OPENSEARCH_ADMIN_PASSWORD}", "http://localhost:9200/_cluster/health"]
+      interval: 1m
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 5s
+    networks:
+      - opensearch-net
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:${DASHBOARDS_VERSION}
+    container_name: opensearch-dashboards
+    ports:
+      - ${OPENSEARCH_DASHBOARDS_PORT:-5601}:5601
+    expose:
+      - "${OPENSEARCH_DASHBOARDS_PORT:-5601}"
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+    networks:
+      - opensearch-net
+    depends_on:
+      - opensearch
+
+  minio:
+    image: minio/minio
+    container_name: minio-S3
+    # See original entrypoint/command under https://github.com/minio/minio/blob/master/Dockerfile
+    entrypoint: sh -c 'mkdir -p /data/test && minio server /data --console-address ":9001"'
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - opensearch-net
+
+volumes:
+  opensearch-data:
+  minio-data:
+
+networks:
+  opensearch-net:
