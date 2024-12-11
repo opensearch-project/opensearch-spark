@@ -6,17 +6,27 @@
 package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.TableIdentifier;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
+import org.apache.spark.sql.catalyst.expressions.CurrentRow$;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.Explode;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GeneratorOuter;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
+import org.apache.spark.sql.catalyst.expressions.RowFrame$;
+import org.apache.spark.sql.catalyst.expressions.RowNumber;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
+import org.apache.spark.sql.catalyst.expressions.SpecifiedWindowFrame;
+import org.apache.spark.sql.catalyst.expressions.UnspecifiedFrame;
+import org.apache.spark.sql.catalyst.expressions.UnspecifiedFrame$;
+import org.apache.spark.sql.catalyst.expressions.WindowExpression;
+import org.apache.spark.sql.catalyst.expressions.WindowSpecDefinition;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
 import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns$;
 import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
@@ -25,6 +35,7 @@ import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan$;
 import org.apache.spark.sql.catalyst.plans.logical.Project$;
+import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$;
 import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
@@ -33,20 +44,25 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.flint.spark.FlattenGenerator;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
+import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.Argument;
+import org.opensearch.sql.ast.expression.Compare;
+import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.ParseMethod;
+import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.expression.WindowFunction;
 import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.Aggregation;
+import org.opensearch.sql.ast.tree.AppendCol;
 import org.opensearch.sql.ast.tree.Correlation;
 import org.opensearch.sql.ast.tree.CountedAggregation;
 import org.opensearch.sql.ast.tree.Dedupe;
@@ -69,8 +85,10 @@ import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.Trendline;
+import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
+import org.opensearch.sql.ppl.utils.DataTypeTransformer;
 import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
 import org.opensearch.sql.ppl.utils.ParseTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
@@ -82,6 +100,7 @@ import scala.collection.IterableLike;
 import scala.collection.Seq;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -254,6 +273,136 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     @Override
+    public LogicalPlan visitAppendCol(AppendCol node, CatalystPlanContext context) {
+        visitFirstChild(node, context);
+
+
+
+        System.out.println(context.getPlan());
+
+
+        expressionAnalyzer.visitLiteral(new Literal("1", DataType.STRING), context);
+        Expression strExp = context.popNamedParseExpressions().get();
+        SortOrder sortOrder = SortUtils.sortOrder(strExp, false);
+        WindowSpecDefinition windowDefinition = new WindowSpecDefinition(
+                seq(),
+                seq(sortOrder),
+                UnspecifiedFrame$.MODULE$);
+        WindowExpression windowExp = new WindowExpression(new RowNumber(), windowDefinition);
+
+        NamedExpression appendCol = TrendlineCatalystUtils.getAlias("APPENDCOL_ID", windowExp);
+
+        List<NamedExpression> projectList = new ArrayList<>();
+
+        if (context.getNamedParseExpressions().isEmpty()) {
+            // Create an UnresolvedStar for all-fields projection
+            projectList.add(UnresolvedStar$.MODULE$.apply(Option.empty()));
+        }
+
+//
+        projectList.add(appendCol);
+
+        // Left hand side done.
+        LogicalPlan queryWIthAppendCol = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(seq(
+                projectList), p));
+
+
+        System.out.println("After row_number");
+        System.out.println(queryWIthAppendCol);
+
+        // Adding the alias
+
+        LogicalPlan t1 = context.apply(p -> {
+            var alias = SubqueryAlias$.MODULE$.apply("T1", p);
+            context.withSubqueryAlias(alias);
+            return alias;
+        });
+
+        System.out.println("------------ T1 --------------");
+        System.out.println(t1);
+        System.out.println(context.getPlan());
+        System.out.println("------------ End T1 --------------");
+
+
+        // Do the right hand side
+
+
+        Node subSearch = node.getSubSearch();
+
+
+        // Till traverse till the end then append.
+        Relation table = new Relation(of(new QualifiedName("employees")));
+
+
+        while (subSearch != null) {
+            try {
+                System.out.println("Node: " + subSearch.getClass().getSimpleName());
+                Node node1 = subSearch.getChild().get(0);
+                if (node1 != null) {
+                    System.out.println("Non Null: " + node1.getClass().getSimpleName());
+                } else {
+                    System.out.println("Node is null");
+                }
+                subSearch = node1;
+            } catch (NullPointerException ex) {
+                System.out.println("Null when getting the child ");
+                ((UnresolvedPlan) subSearch).attach(table);
+                break;
+            }
+        }
+
+
+        // Add a database expression.
+
+
+        Compare innerJoinCondition = new Compare("=",
+                new Field(QualifiedName.of("T1" ,"APPENDCOL_ID")),
+                new Field(QualifiedName.of("T2", "APPENDCOL_ID")));
+
+
+
+
+        context.apply(left -> {
+
+            LogicalPlan right = node.getSubSearch().accept(this, context);
+
+            // Add the row_number
+            LogicalPlan t2WithRowNumber = new org.apache.spark.sql.catalyst.plans.logical.Project(seq(
+                    projectList), right);
+
+            // To wrap it into T2
+            var alias = SubqueryAlias$.MODULE$.apply("T2", t2WithRowNumber);
+            context.withSubqueryAlias(alias);
+
+
+            Optional<Expression> joinCondition = Optional.of(innerJoinCondition)
+                    .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context));
+            context.retainAllNamedParseExpressions(p -> p);
+            context.retainAllPlans(p -> p);
+            LogicalPlan joinedQuery = join(left, alias, Join.JoinType.LEFT, joinCondition, new Join.JoinHint());
+            // Remove the APPEND_ID
+
+//
+//            List<UnresolvedAttribute> excludeFields = of(
+//                    UnresolvedAttribute$.MODULE$.apply("T1.APPENDCOL_ID"),
+//                    UnresolvedAttribute$.MODULE$.apply("T2.APPENDCOL_ID"));
+            scala.collection.mutable.Seq<Expression> seq = seq(
+                    UnresolvedAttribute$.MODULE$.apply("T1.APPENDCOL_ID"),
+                    UnresolvedAttribute$.MODULE$.apply("T2.APPENDCOL_ID"));
+            return new org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns(seq, joinedQuery);
+
+        });
+
+        System.out.println("------------ Sub query --------------");
+//        System.out.println(right);
+        System.out.println(context.getPlan());
+        System.out.println("------------ End Subquery --------------");
+
+
+        return context.getPlan();
+    }
+
+    @Override
     public LogicalPlan visitCorrelation(Correlation node, CatalystPlanContext context) {
         visitFirstChild(node, context);
         context.reduce((left, right) -> {
@@ -352,7 +501,18 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             visitExpression(span, context);
         }
         Seq<Expression> partitionSpec = context.retainAllNamedParseExpressions(p -> p);
-        Seq<SortOrder> orderSpec = seq(new ArrayList<SortOrder>());
+        // Visit the sort clause, if any.
+
+        Seq<SortOrder> orderSpecTemp = null;
+        if (!Objects.isNull(node.getSortExprList()) && !node.getSortExprList().isEmpty()) {
+            visitExpressionList(node.getSortExprList(), context);
+            orderSpecTemp = context.retainAllNamedParseExpressions(exp ->
+                    SortUtils.sortOrder(exp, true));
+        }
+
+        Seq<SortOrder> orderSpec = (orderSpecTemp != null )
+                ?orderSpecTemp :seq(new ArrayList<>());
+
         Seq<NamedExpression> aggregatorFunctions = seq(
             seqAsJavaList(windowFunctionExpressions).stream()
                 .map(w -> WindowSpecTransformer.buildAggregateWindowFunction(w, partitionSpec, orderSpec))

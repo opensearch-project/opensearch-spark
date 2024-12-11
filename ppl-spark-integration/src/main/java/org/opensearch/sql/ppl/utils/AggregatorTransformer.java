@@ -59,6 +59,8 @@ public interface AggregatorTransformer {
                 return new UnresolvedFunction(seq("PERCENTILE_APPROX"), seq(arg, new Literal(getPercentDoubleValue(aggregateFunction), DataTypes.DoubleType)), distinct, empty(),false);
             case APPROX_COUNT_DISTINCT:
                 return new UnresolvedFunction(seq("APPROX_COUNT_DISTINCT"), seq(arg), distinct, empty(),false);
+            case ROW_NUMBER:
+                return new UnresolvedFunction(seq("ROW_NUMBER"), seq(arg), distinct, empty(),false);
         }
         throw new IllegalStateException("Not Supported value: " + aggregateFunction.getFuncName());
     }
