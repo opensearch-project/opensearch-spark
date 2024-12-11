@@ -6,6 +6,8 @@
 package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.TableIdentifier;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
@@ -33,6 +35,7 @@ import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan$;
 import org.apache.spark.sql.catalyst.plans.logical.Project$;
+import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$;
 import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
@@ -85,6 +88,7 @@ import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
+import org.opensearch.sql.ppl.utils.DataTypeTransformer;
 import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
 import org.opensearch.sql.ppl.utils.ParseTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
@@ -270,56 +274,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitAppendCol(AppendCol node, CatalystPlanContext context) {
+        visitFirstChild(node, context);
 
 
-//
-//        // Composite sort clause
-//        AggregateFunction rowNumber = new AggregateFunction("row_number", new Literal("1", DataType.STRING));
-//        Alias rowNumberAlias = new Alias("window_row", rowNumber);
-//        Field dummySortField = new Field(new QualifiedName("1"));
-//
-//        // Add row Number
-//        Window window = new Window(of(rowNumberAlias), Collections.emptyList(), of(dummySortField));
-////        windowFunction.
-//        window.attach((UnresolvedPlan) node.getChild().get(0));
-//
-//        // Add the alias
-//        SubqueryAlias t1 = new SubqueryAlias("t1", window);
-////        SubqueryAlias t1 = new SubqueryAlias("t1", (UnresolvedPlan) node.getChild().get(0));
-//        visitSubqueryAlias(t1, context);
-
-
-        //----------------------------------------------------------------
-
-        // T2
-
-
-        // Add row Number
-//        visitFirstChild(t1, context);
-
-        /*
-          ------------ Answer -----------------
-          'Project [t1.*, t2.*]
-          +- 'Join LeftOuter, ('t1.row_org = 't2.row_app)
-             :- 'SubqueryAlias t1
-             :  +- 'Project [*, 'row_number() windowspecdefinition(1 ASC NULLS FIRST, unspecifiedframe$()) AS row_org#26]
-             :     +- 'UnresolvedRelation [employees], [], false
-             +- 'SubqueryAlias t2
-                +- 'Project [*, 'row_number() windowspecdefinition(1 ASC NULLS FIRST, unspecifiedframe$()) AS row_app#27]
-                   +- 'UnresolvedRelation [employees], [], false
-         */
 
         System.out.println(context.getPlan());
-        /*
-
-        row_number() windowspecdefinition(1 DESC NULLS LAST, unspecifiedframe$())
-
-        'Project ['name, 'dept]
-        +- 'UnresolvedRelation [employees], [], false
-         */
-
-
-        // To have the row_number( ) on ORG
 
 
         expressionAnalyzer.visitLiteral(new Literal("1", DataType.STRING), context);
@@ -332,7 +291,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         WindowExpression windowExp = new WindowExpression(new RowNumber(), windowDefinition);
 
         NamedExpression appendCol = TrendlineCatalystUtils.getAlias("APPENDCOL_ID", windowExp);
-
 
         List<NamedExpression> projectList = new ArrayList<>();
 
@@ -349,52 +307,98 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 projectList), p));
 
 
+        System.out.println("After row_number");
+        System.out.println(queryWIthAppendCol);
+
+        // Adding the alias
+
+        LogicalPlan t1 = context.apply(p -> {
+            var alias = SubqueryAlias$.MODULE$.apply("T1", p);
+            context.withSubqueryAlias(alias);
+            return alias;
+        });
+
+        System.out.println("------------ T1 --------------");
+        System.out.println(t1);
+        System.out.println(context.getPlan());
+        System.out.println("------------ End T1 --------------");
+
+
         // Do the right hand side
 
 
-        // Then Join with Spark join api call.
+        Node subSearch = node.getSubSearch();
+
+
+        // Till traverse till the end then append.
+        Relation table = new Relation(of(new QualifiedName("employees")));
+
+
+        while (subSearch != null) {
+            try {
+                System.out.println("Node: " + subSearch.getClass().getSimpleName());
+                Node node1 = subSearch.getChild().get(0);
+                if (node1 != null) {
+                    System.out.println("Non Null: " + node1.getClass().getSimpleName());
+                } else {
+                    System.out.println("Node is null");
+                }
+                subSearch = node1;
+            } catch (NullPointerException ex) {
+                System.out.println("Null when getting the child ");
+                ((UnresolvedPlan) subSearch).attach(table);
+                break;
+            }
+        }
+
+
+        // Add a database expression.
+
+
+        Compare innerJoinCondition = new Compare("=",
+                new Field(QualifiedName.of("T1" ,"APPENDCOL_ID")),
+                new Field(QualifiedName.of("T2", "APPENDCOL_ID")));
+
+
+
+
+        context.apply(left -> {
+
+            LogicalPlan right = node.getSubSearch().accept(this, context);
+
+            // Add the row_number
+            LogicalPlan t2WithRowNumber = new org.apache.spark.sql.catalyst.plans.logical.Project(seq(
+                    projectList), right);
+
+            // To wrap it into T2
+            var alias = SubqueryAlias$.MODULE$.apply("T2", t2WithRowNumber);
+            context.withSubqueryAlias(alias);
+
+
+            Optional<Expression> joinCondition = Optional.of(innerJoinCondition)
+                    .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context));
+            context.retainAllNamedParseExpressions(p -> p);
+            context.retainAllPlans(p -> p);
+            LogicalPlan joinedQuery = join(left, alias, Join.JoinType.LEFT, joinCondition, new Join.JoinHint());
+            // Remove the APPEND_ID
 
 //
-//        System.out.println(queryWIthAppendCol);
+//            List<UnresolvedAttribute> excludeFields = of(
+//                    UnresolvedAttribute$.MODULE$.apply("T1.APPENDCOL_ID"),
+//                    UnresolvedAttribute$.MODULE$.apply("T2.APPENDCOL_ID"));
+            scala.collection.mutable.Seq<Expression> seq = seq(
+                    UnresolvedAttribute$.MODULE$.apply("T1.APPENDCOL_ID"),
+                    UnresolvedAttribute$.MODULE$.apply("T2.APPENDCOL_ID"));
+            return new org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns(seq, joinedQuery);
 
-        /*
-        'Project [*, row_number() windowspecdefinition(1 DESC NULLS LAST, unspecifiedframe$()) AS APPENDCOL_ID#8]
-            +- 'Project ['name, 'dept]
-               +- 'UnresolvedRelation [employees], [], false
-         */
+        });
 
-        // Wrap it with T1
-
-        // Composite the join condition
-
-//        Compare innerJoinCondition = new Compare("=",
-//                new Field(new QualifiedName("age")),
-//                new Field(new QualifiedName("age")));
-//
-//        Join joinNode = new Join(node.getSubSearch(),
-//                Optional.of("T1"), Optional.of("T2"),
-//                Join.JoinType.LEFT, Optional.of(innerJoinCondition), null);
-
-//        context.apply(left -> {
-//
-//            LogicalPlan right = joinNode.getRight().accept(this, context);
-//
-//            Optional<Expression> joinCondition = joinNode.getJoinCondition()
-//                    .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context));
-//
-//            context.retainAllNamedParseExpressions(p -> p);
-//            context.retainAllPlans(p -> p);
-
-//            return join(left, right, joinNode.getJoinType(), joinCondition, joinNode.getJoinHint());
-//        });
+        System.out.println("------------ Sub query --------------");
+//        System.out.println(right);
+        System.out.println(context.getPlan());
+        System.out.println("------------ End Subquery --------------");
 
 
-        // Return all.
-
-
-
-//        System.out.println("Printing node detail:" + node.toString());
-//        return super.visitAppendCol(node, context);
         return context.getPlan();
     }
 
