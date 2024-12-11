@@ -54,6 +54,8 @@ commands
    | fillnullCommand
    | fieldsummaryCommand
    | flattenCommand
+   | expandCommand
+   | trendlineCommand
    ;
 
 commandName
@@ -83,9 +85,11 @@ commandName
    | PATTERNS
    | LOOKUP
    | RENAME
+   | EXPAND
    | FILLNULL
    | FIELDSUMMARY
    | FLATTEN
+   | TRENDLINE
    ;
 
 searchCommand
@@ -245,10 +249,26 @@ nullableReplacementExpression
    : nullableField = fieldExpression EQUAL nullableReplacement = valueExpression
    ;
 
+expandCommand
+    : EXPAND fieldExpression (AS alias = qualifiedName)?
+    ;
+    
 flattenCommand
     : FLATTEN fieldExpression (AS alias = identifierSeq)?
     ;
 
+trendlineCommand
+   : TRENDLINE (SORT sortField)? trendlineClause (trendlineClause)*
+   ;
+
+trendlineClause
+   : trendlineType LT_PRTHS numberOfDataPoints = INTEGER_LITERAL COMMA field = fieldExpression RT_PRTHS (AS alias = qualifiedName)?
+   ;
+
+trendlineType
+   : SMA
+   | WMA
+   ;
 
 kmeansCommand
    : KMEANS (kmeansParameter)*
@@ -416,6 +436,7 @@ logicalExpression
 comparisonExpression
    : left = valueExpression comparisonOperator right = valueExpression  # compareExpr
    | valueExpression NOT? IN valueList                                  # inExpr
+   | expr1 = functionArg NOT? BETWEEN expr2 = functionArg AND expr3 = functionArg   # between
    ;
 
 valueExpressionList
@@ -452,6 +473,7 @@ booleanExpression
    | isEmptyExpression                                                  # isEmptyExpr
    | valueExpressionList NOT? IN LT_SQR_PRTHS subSearch RT_SQR_PRTHS    # inSubqueryExpr
    | EXISTS LT_SQR_PRTHS subSearch RT_SQR_PRTHS                         # existsSubqueryExpr
+   | cidrMatchFunctionCall                                              # cidrFunctionCallExpr
    ;
 
  isEmptyExpression
@@ -529,6 +551,10 @@ dataTypeFunctionCall
 // boolean functions
 booleanFunctionCall
    : conditionFunctionBase LT_PRTHS functionArgs RT_PRTHS
+   ;
+
+cidrMatchFunctionCall
+   : CIDRMATCH LT_PRTHS ipAddress = functionArg COMMA cidrBlock = functionArg RT_PRTHS
    ;
 
 convertedDataType
@@ -1162,4 +1188,7 @@ keywordsCanBeId
    | SEMI
    | ANTI
    | GEOIP
+   | BETWEEN
+   | CIDRMATCH
+   | trendlineType
    ;
