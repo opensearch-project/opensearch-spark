@@ -280,7 +280,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         final String APPENDCOL_ID = WindowSpecTransformer.ROW_NUMBER_COLUMN_NAME;
         final String TABLE_LHS = "T1";
         final String TABLE_RHS = "T2";
-        final String DUMMY_SORT_FIELD = "1";
+        final List<NamedExpression> projectList = getRowNumStarProjection(context);
 
         // Add a new projection layer with * and ROW_NUMBER (Main-search)
         // Inject an addition search command into sub-search
@@ -289,7 +289,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         // Add a new projection layer with * and ROW_NUMBER (Main-search)
         LogicalPlan leftTemp = node.getChild().get(0).accept(this, context);
-        List<NamedExpression> projectList = getRowNumStarProjection(context, DUMMY_SORT_FIELD);
+
 
         // Add the row_number
         LogicalPlan t1WithRowNumber = new org.apache.spark.sql.catalyst.plans.logical.Project(seq(
@@ -316,14 +316,14 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     projectList), right);
 
             // To wrap it into T2
-            var alias = SubqueryAlias$.MODULE$.apply(TABLE_RHS, t2WithRowNumber);
-            context.withSubqueryAlias(alias);
+            var t2Alias = SubqueryAlias$.MODULE$.apply(TABLE_RHS, t2WithRowNumber);
+            context.withSubqueryAlias(t2Alias);
 
             Optional<Expression> joinCondition = Optional.of(innerJoinCondition)
                     .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context));
             context.retainAllNamedParseExpressions(p -> p);
             context.retainAllPlans(p -> p);
-            LogicalPlan joinedQuery = join(t1Table, alias, Join.JoinType.LEFT, joinCondition, new Join.JoinHint());
+            LogicalPlan joinedQuery = join(t1Table, t2Alias, Join.JoinType.LEFT, joinCondition, new Join.JoinHint());
             // Remove the APPEND_ID
 
             scala.collection.mutable.Seq<Expression> seq = seq(
@@ -332,6 +332,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             return new org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns(seq, joinedQuery);
 
         });
+
 
 
         System.out.println(context);
@@ -359,7 +360,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         }
     }
 
-    private @NotNull List<NamedExpression> getRowNumStarProjection(CatalystPlanContext context, String DUMMY_SORT_FIELD) {
+    private @NotNull List<NamedExpression> getRowNumStarProjection(CatalystPlanContext context) {
+
+        final String DUMMY_SORT_FIELD = "1";
+
         expressionAnalyzer.visitLiteral(
                 new Literal(DUMMY_SORT_FIELD, DataType.STRING), context);
         Expression strExp = context.popNamedParseExpressions().get();
