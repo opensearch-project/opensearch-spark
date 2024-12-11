@@ -45,6 +45,7 @@ commands
    | headCommand
    | topCommand
    | rareCommand
+   | geoipCommand
    | evalCommand
    | grokCommand
    | parseCommand
@@ -177,6 +178,10 @@ evalCommand
    : EVAL evalClause (COMMA evalClause)*
    ;
 
+geoipCommand
+   : EVAL fieldExpression EQUAL GEOIP LT_PRTHS (datasource = functionArg COMMA)? ipAddress = functionArg (COMMA properties = geoIpPropertyList)? RT_PRTHS
+   ;
+
 headCommand
    : HEAD (number = integerLiteral)? (FROM from = integerLiteral)?
    ;
@@ -237,16 +242,21 @@ fillnullCommand
    | fillNullWithFieldVariousValues)
    ;
 
-fillNullWithTheSameValue
-   : WITH nullReplacement = valueExpression IN nullableFieldList = fieldList
+ fillNullWithTheSameValue
+ : WITH nullReplacement IN nullableField (COMMA nullableField)*
+ ;
+
+ fillNullWithFieldVariousValues
+ : USING nullableField EQUAL nullReplacement (COMMA nullableField EQUAL nullReplacement)*
+ ;
+
+
+   nullableField
+   : fieldExpression
    ;
 
-fillNullWithFieldVariousValues
-   : USING nullableReplacementExpression (COMMA nullableReplacementExpression)*
-   ;
-
-nullableReplacementExpression
-   : nullableField = fieldExpression EQUAL nullableReplacement = valueExpression
+   nullReplacement
+   : expression
    ;
 
 expandCommand
@@ -254,7 +264,7 @@ expandCommand
     ;
     
 flattenCommand
-    : FLATTEN fieldExpression (AS alias = identifierSeq)?
+    : FLATTEN fieldExpression
     ;
 
 trendlineCommand
@@ -446,7 +456,6 @@ valueExpression
    | positionFunction                                                                           # positionFunctionCall
    | caseFunction                                                                               # caseExpr
    | timestampFunction                                                                          # timestampFunctionCall
-   | geoipFunction                                                                              # geoFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
    | ident ARROW expression                                                                     # lambda
@@ -457,7 +466,6 @@ primaryExpression
    : evalFunctionCall
    | fieldExpression
    | literalValue
-   | dataTypeFunctionCall
    ;
 
 positionFunction
@@ -544,11 +552,6 @@ dataTypeFunctionCall
    : CAST LT_PRTHS expression AS convertedDataType RT_PRTHS
    ;
 
-// geoip function
-geoipFunction
-   : GEOIP LT_PRTHS (datasource = functionArg COMMA)? ipAddress = functionArg (COMMA properties = stringLiteral)? RT_PRTHS
-   ;
-
 // boolean functions
 booleanFunctionCall
    : conditionFunctionBase LT_PRTHS functionArgs RT_PRTHS
@@ -582,7 +585,6 @@ evalFunctionName
    | cryptographicFunctionName
    | jsonFunctionName
    | collectionFunctionName
-   | geoipFunctionName
    | lambdaFunctionName
    ;
 
@@ -913,6 +915,22 @@ coalesceFunctionName
    : COALESCE
    ;
 
+geoIpPropertyList
+   : geoIpProperty (COMMA geoIpProperty)*
+   ;
+
+geoIpProperty
+   : COUNTRY_ISO_CODE
+   | COUNTRY_NAME
+   | CONTINENT_NAME
+   | REGION_ISO_CODE
+   | REGION_NAME
+   | CITY_NAME
+   | TIME_ZONE
+   | LAT
+   | LON
+   ;
+
 // operators
  comparisonOperator
    : EQUAL
@@ -1037,11 +1055,6 @@ valueList
 
 qualifiedName
    : ident (DOT ident)* # identsAsQualifiedName
-   ;
-
-identifierSeq
-   : qualifiedName (COMMA qualifiedName)* # identsAsQualifiedNameSeq
-   | LT_PRTHS qualifiedName (COMMA qualifiedName)* RT_PRTHS # identsAsQualifiedNameSeq
    ;
 
 tableQualifiedName
@@ -1178,6 +1191,7 @@ keywordsCanBeId
    | FULL
    | SEMI
    | ANTI
+   | GEOIP
    | BETWEEN
    | CIDRMATCH
    | trendlineType

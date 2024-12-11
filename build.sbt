@@ -2,7 +2,8 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-import Dependencies.*
+import Dependencies._
+import sbtassembly.AssemblyPlugin.autoImport.ShadeRule
 
 lazy val scala212 = "2.12.14"
 lazy val sparkVersion = "3.5.1"
@@ -36,11 +37,6 @@ ThisBuild / scalastyleConfig := baseDirectory.value / "scalastyle-config.xml"
  * Tests cannot be run in parallel since multiple Spark contexts cannot run in the same JVM
  */
 ThisBuild / Test / parallelExecution := false
-
-/**
- * Set the parallelism of forked tests to 4 to accelerate integration test
- */
-concurrentRestrictions in Global := Seq(Tags.limit(Tags.ForkedTestGroup, 4))
 
 // Run as part of compile task.
 lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")
@@ -194,6 +190,9 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
       "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
       "org.projectlombok" % "lombok" % "1.18.30",
       "com.github.seancfoley" % "ipaddress" % "5.5.1",
+      "org.apache.commons" % "commons-lang3" % "3.17.0",
+      "org.apache.commons" % "commons-csv" % "1.12.0",
+      "com.fasterxml.jackson.core" % "jackson-annotations" % "2.14.2",
     ),
     libraryDependencies ++= deps(sparkVersion),
     // ANTLR settings
@@ -278,29 +277,13 @@ lazy val integtest = (project in file("integ-test"))
       IntegrationTest / javaSource := baseDirectory.value / "src/integration/java",
       IntegrationTest / scalaSource := baseDirectory.value / "src/integration/scala",
       IntegrationTest / resourceDirectory := baseDirectory.value / "src/integration/resources",
-      IntegrationTest / parallelExecution := true, // enable parallel execution
-      IntegrationTest / testForkedParallel := false, // disable forked parallel execution to avoid duplicate spark context in the same JVM
+        IntegrationTest / parallelExecution := false,
       IntegrationTest / fork := true,
-      IntegrationTest / testGrouping := {
-        val tests = (IntegrationTest / definedTests).value
-        val forkOptions = ForkOptions()
-        val groups = tests.grouped(tests.size / 4 + 1).zipWithIndex.map { case (group, index) =>
-          val groupName = s"group-${index + 1}"
-          new Tests.Group(
-            name = groupName,
-            tests = group,
-            runPolicy = Tests.SubProcess(
-              forkOptions.withRunJVMOptions(forkOptions.runJVMOptions ++
-                Seq(s"-Djava.io.tmpdir=${baseDirectory.value}/integ-test/target/tmp/$groupName")))
-          )
-        }
-        groups.toSeq
-      }
     )),
     inConfig(AwsIntegrationTest)(Defaults.testSettings ++ Seq(
       AwsIntegrationTest / javaSource := baseDirectory.value / "src/aws-integration/java",
       AwsIntegrationTest / scalaSource := baseDirectory.value / "src/aws-integration/scala",
-      AwsIntegrationTest / parallelExecution := true,
+      AwsIntegrationTest / parallelExecution := false,
       AwsIntegrationTest / fork := true,
     )),
     libraryDependencies ++= Seq(

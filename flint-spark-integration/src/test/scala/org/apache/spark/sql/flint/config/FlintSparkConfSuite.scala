@@ -114,21 +114,6 @@ class FlintSparkConfSuite extends FlintSuite {
     }
   }
 
-  test("test request completionDelayMillis default value") {
-    FlintSparkConf().flintOptions().getRequestCompletionDelayMillis shouldBe 0
-  }
-
-  test("test request completionDelayMillis default value for aoss") {
-    val options = FlintSparkConf(Map("auth.servicename" -> "aoss").asJava).flintOptions()
-    options.getRequestCompletionDelayMillis shouldBe 2000
-  }
-
-  test("test specified request completionDelayMillis") {
-    val options =
-      FlintSparkConf(Map("request.completionDelayMillis" -> "1000").asJava).flintOptions()
-    options.getRequestCompletionDelayMillis shouldBe 1000
-  }
-
   test("externalSchedulerIntervalThreshold should return default value when empty") {
     val options = FlintSparkConf(Map("spark.flint.job.externalScheduler.interval" -> "").asJava)
     assert(options

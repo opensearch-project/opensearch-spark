@@ -12,13 +12,11 @@ import java.util.concurrent.{ExecutionException, Future}
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
-import org.apache.http.HttpEntity
 import org.apache.http.HttpResponse
 import org.apache.http.concurrent.FutureCallback
 import org.apache.http.impl.nio.client.{CloseableHttpAsyncClient, HttpAsyncClientBuilder}
 import org.apache.http.nio.protocol.{HttpAsyncRequestProducer, HttpAsyncResponseConsumer}
 import org.apache.http.protocol.HttpContext
-import org.apache.http.util.EntityUtils
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.mockito.verification.VerificationMode
@@ -155,23 +153,6 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
         expectFutureGetTimes = times(0))
   }
 
-  it should "retry if AOSS response is retryable" in {
-    retryableClient
-      .withOption("auth.servicename", "aoss")
-      .whenResponse(
-        400,
-        "OpenSearchStatusException[OpenSearch exception [type=resource_already_exists_exception,")
-      .shouldExecute(times(DEFAULT_MAX_RETRIES + 1))
-  }
-
-  it should "not apply retry policy for AOSS response if service is not AOSS" in {
-    retryableClient
-      .whenResponse(
-        400,
-        "OpenSearchStatusException[OpenSearch exception [type=resource_already_exists_exception,")
-      .shouldExecute(times(1))
-  }
-
   private def retryableClient: AssertionHelper = new AssertionHelper
 
   class AssertionHelper {
@@ -190,17 +171,6 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
     def whenStatusCode(statusCode: Int): AssertionHelper = {
       val response = mock[HttpResponse](RETURNS_DEEP_STUBS)
       when(response.getStatusLine.getStatusCode).thenReturn(statusCode)
-      when(future.get()).thenReturn(response)
-      this
-    }
-
-    def whenResponse(statusCode: Int, responseMessage: String): AssertionHelper = {
-      val entity = mock[HttpEntity](RETURNS_DEEP_STUBS)
-      mockStatic(classOf[EntityUtils])
-      when(EntityUtils.toString(any[HttpEntity])).thenReturn(responseMessage)
-      val response = mock[HttpResponse](RETURNS_DEEP_STUBS)
-      when(response.getStatusLine.getStatusCode).thenReturn(statusCode)
-      when(response.getEntity).thenReturn(entity)
       when(future.get()).thenReturn(response)
       this
     }

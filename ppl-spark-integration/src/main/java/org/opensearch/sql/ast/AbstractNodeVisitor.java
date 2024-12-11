@@ -13,14 +13,12 @@ import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.AttributeList;
 import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.Case;
-import org.opensearch.sql.ast.expression.Cast;
 import org.opensearch.sql.ast.expression.Cidr;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldList;
 import org.opensearch.sql.ast.expression.LambdaFunction;
-import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
@@ -41,6 +39,7 @@ import org.opensearch.sql.ast.expression.UnresolvedAttribute;
 import org.opensearch.sql.ast.expression.When;
 import org.opensearch.sql.ast.expression.WindowFunction;
 import org.opensearch.sql.ast.expression.Xor;
+import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
@@ -48,7 +47,11 @@ import org.opensearch.sql.ast.tree.Aggregation;
 import org.opensearch.sql.ast.tree.Correlation;
 import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.Eval;
+import org.opensearch.sql.ast.tree.Expand;
+import org.opensearch.sql.ast.tree.FillNull;
 import org.opensearch.sql.ast.tree.Filter;
+import org.opensearch.sql.ast.tree.Flatten;
+import org.opensearch.sql.ast.tree.GeoIp;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.ast.tree.Kmeans;
@@ -62,8 +65,9 @@ import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.TableFunction;
+import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.ast.tree.Values;
-import org.opensearch.sql.ast.tree.*;
+import org.opensearch.sql.ast.tree.Window;
 
 /** AST nodes visitor Defines the traverse path. */
 public abstract class AbstractNodeVisitor<T, C> {
@@ -186,10 +190,6 @@ public abstract class AbstractNodeVisitor<T, C> {
   }
 
   public T visitFunction(Function node, C context) {
-    return visitChildren(node, context);
-  }
-
-  public T visitCast(Cast node, C context) {
     return visitChildren(node, context);
   }
 
@@ -338,9 +338,14 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitChildren(node, context);
   }
 
+  public T visitGeoIp(GeoIp node, C context) {
+    return visitChildren(node, context);
+  }
+
   public T visitWindow(Window node, C context) {
     return visitChildren(node, context);
   }
+
   public T visitCidr(Cidr node, C context) {
     return visitChildren(node, context);
   }

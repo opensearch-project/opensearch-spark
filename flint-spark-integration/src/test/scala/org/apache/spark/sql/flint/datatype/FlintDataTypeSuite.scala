@@ -128,35 +128,6 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
                                                                     |}""".stripMargin)
   }
 
-  test("spark map type serialize") {
-    val sparkStructType = StructType(
-      StructField("mapField", MapType(StringType, StringType), true) ::
-        Nil)
-
-    FlintDataType.serialize(sparkStructType) shouldBe compactJson("""{
-                                                                    |  "properties": {
-                                                                    |    "mapField": {
-                                                                    |      "properties": {
-                                                                    |      }
-                                                                    |    }
-                                                                    |  }
-                                                                    |}""".stripMargin)
-  }
-
-  test("spark decimal type serialize") {
-    val sparkStructType = StructType(
-      StructField("decimalField", DecimalType(1, 1), true) ::
-        Nil)
-
-    FlintDataType.serialize(sparkStructType) shouldBe compactJson("""{
-                                                                    |  "properties": {
-                                                                    |    "decimalField": {
-                                                                    |      "type": "double"
-                                                                    |    }
-                                                                    |  }
-                                                                    |}""".stripMargin)
-  }
-
   test("spark varchar and char type serialize") {
     val flintDataType = """{
                           |  "properties": {

@@ -546,7 +546,6 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.flint.index.checkpointLocation.rootDir`: default is None. Flint will create a default checkpoint location in format of '<rootDir>/<indexName>/<UUID>' to isolate checkpoint data.
 - `spark.flint.index.checkpoint.mandatory`: default is true.
 - `spark.datasource.flint.socket_timeout_millis`: default value is 60000.
-- `spark.datasource.flint.request.completionDelayMillis`: Time to wait in milliseconds after request is complete. Applied after index creation. Default value is 2000 if using aoss service, otherwise 0.
 - `spark.flint.monitor.initialDelaySeconds`: Initial delay in seconds before starting the monitoring task. Default value is 15.
 - `spark.flint.monitor.intervalSeconds`: Interval in seconds for scheduling the monitoring task. Default value is 60.
 - `spark.flint.monitor.maxErrorCount`: Maximum number of consecutive errors allowed before stopping the monitoring task. Default value is 5.
@@ -578,10 +577,6 @@ The following table define the data type mapping between Flint data type and Spa
 * Spark data types VarcharType(length) and CharType(length) are both currently mapped to Flint data
   type *keyword*, dropping their length property. On the other hand, Flint data type *keyword* only
   maps to StringType.
-* Spark data type MapType is mapped to an empty OpenSearch object. The inner fields then rely on 
-  dynamic mapping. On the other hand, Flint data type *object* only maps to StructType.
-* Spark data type DecimalType is mapped to an OpenSearch double. On the other hand, Flint data type 
-  *double* only maps to DoubleType.
 
 Unsupported Spark data types:
 * DecimalType

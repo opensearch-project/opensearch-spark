@@ -340,6 +340,18 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
             .collect(Collectors.toList()));
   }
 
+  @Override
+  public UnresolvedPlan visitGeoipCommand(OpenSearchPPLParser.GeoipCommandContext ctx) {
+    UnresolvedExpression datasource =
+            (ctx.datasource != null) ?
+                    internalVisitExpression(ctx.datasource) :
+                    // TODO Make default value var
+                    new Literal("https://geoip.maps.opensearch.org/v1/geolite2-city/manifest.json", DataType.STRING);
+    UnresolvedExpression ipAddress = internalVisitExpression(ctx.ipAddress);
+    UnresolvedExpression properties = ctx.properties == null ? new AttributeList(Collections.emptyList()) : internalVisitExpression(ctx.properties);
+    return new GeoIp(datasource, ipAddress, properties);
+  }
+
   private List<UnresolvedExpression> getGroupByList(OpenSearchPPLParser.ByClauseContext ctx) {
     return ctx.fieldList().fieldExpression().stream()
         .map(this::internalVisitExpression)
@@ -581,18 +593,19 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     FillNullWithFieldVariousValuesContext variousValuesContext = ctx.fillNullWithFieldVariousValues();
     if (sameValueContext != null) {
       // todo consider using expression instead of Literal
-      UnresolvedExpression replaceNullWithMe = internalVisitExpression(sameValueContext.nullReplacement);
-      List<Field> fieldsToReplace = sameValueContext.nullableFieldList.fieldExpression()
+      UnresolvedExpression replaceNullWithMe = internalVisitExpression(sameValueContext.nullReplacement().expression());
+      List<Field> fieldsToReplace = sameValueContext.nullableField()
               .stream()
               .map(this::internalVisitExpression)
               .map(Field.class::cast)
               .collect(Collectors.toList());
       return new FillNull(ofSameValue(replaceNullWithMe, fieldsToReplace));
     } else if (variousValuesContext != null) {
-      List<NullableFieldFill> nullableFieldFills = IntStream.range(0, variousValuesContext.nullableReplacementExpression().size())
+      List<NullableFieldFill> nullableFieldFills = IntStream.range(0, variousValuesContext.nullableField().size())
               .mapToObj(index -> {
-                UnresolvedExpression replaceNullWithMe = internalVisitExpression(variousValuesContext.nullableReplacementExpression(index).nullableReplacement);
-                Field nullableFieldReference = (Field) internalVisitExpression(variousValuesContext.nullableReplacementExpression(index).nullableField);
+                variousValuesContext.nullableField(index);
+                UnresolvedExpression replaceNullWithMe = internalVisitExpression(variousValuesContext.nullReplacement(index).expression());
+                Field nullableFieldReference = (Field) internalVisitExpression(variousValuesContext.nullableField(index));
                 return new NullableFieldFill(nullableFieldReference, replaceNullWithMe);
               })
               .collect(Collectors.toList());
@@ -605,8 +618,7 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   @Override
   public UnresolvedPlan visitFlattenCommand(OpenSearchPPLParser.FlattenCommandContext ctx) {
     Field unresolvedExpression = (Field) internalVisitExpression(ctx.fieldExpression());
-    List<UnresolvedExpression> alias = ctx.alias == null ? emptyList() : ((AttributeList) internalVisitExpression(ctx.alias)).getAttrList();
-    return new Flatten(unresolvedExpression, alias);
+    return new Flatten(unresolvedExpression);
   }
 
   /** AD command. */

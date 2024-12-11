@@ -30,8 +30,4 @@ public enum DataType {
   INTERVAL(ExprCoreType.INTERVAL);
 
   @Getter private final  ExprCoreType coreType;
-
-  public static DataType fromString(String name) {
-    return valueOf(name.toUpperCase());
-  }
 }

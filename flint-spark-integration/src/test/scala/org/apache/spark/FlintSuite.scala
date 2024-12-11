@@ -12,7 +12,6 @@ import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.flint.config.{FlintConfigEntry, FlintSparkConf}
 import org.apache.spark.sql.flint.config.FlintSparkConf.{EXTERNAL_SCHEDULER_ENABLED, HYBRID_SCAN_ENABLED, METADATA_CACHE_WRITE}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.internal.StaticSQLConf.WAREHOUSE_PATH
 import org.apache.spark.sql.test.SharedSparkSession
 
 trait FlintSuite extends SharedSparkSession {
@@ -31,7 +30,6 @@ trait FlintSuite extends SharedSparkSession {
       .set(
         FlintSparkConf.CUSTOM_FLINT_SCHEDULER_CLASS.key,
         "org.opensearch.flint.core.scheduler.AsyncQuerySchedulerBuilderTest$AsyncQuerySchedulerForLocalTest")
-      .set(WAREHOUSE_PATH.key, s"spark-warehouse/${suiteName}")
     conf
   }
 

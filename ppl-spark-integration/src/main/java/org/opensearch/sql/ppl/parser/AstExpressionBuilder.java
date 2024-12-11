@@ -19,13 +19,13 @@ import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.AttributeList;
 import org.opensearch.sql.ast.expression.Between;
 import org.opensearch.sql.ast.expression.Case;
-import org.opensearch.sql.ast.expression.Cast;
 import org.opensearch.sql.ast.expression.Cidr;
 import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.Function;
+import org.opensearch.sql.ast.tree.GeoIp;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.IntervalUnit;
@@ -45,8 +45,6 @@ import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
 import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
-import org.opensearch.sql.ast.tree.Trendline;
-import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
@@ -280,9 +278,9 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         return buildFunction(ctx.evalFunctionName().getText(), ctx.functionArgs().functionArg());
     }
 
-    @Override public UnresolvedExpression visitDataTypeFunctionCall(OpenSearchPPLParser.DataTypeFunctionCallContext ctx) {
-        // TODO: for long term consideration, needs to implement DataTypeBuilder/Visitor to parse all data types
-        return new Cast(this.visit(ctx.expression()), DataType.fromString(ctx.convertedDataType().getText()));
+    @Override
+    public UnresolvedExpression visitConvertedDataType(OpenSearchPPLParser.ConvertedDataTypeContext ctx) {
+        return new Literal(ctx.getText(), DataType.STRING);
     }
 
     @Override
@@ -328,11 +326,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     @Override
     public UnresolvedExpression visitIdentsAsQualifiedName(OpenSearchPPLParser.IdentsAsQualifiedNameContext ctx) {
         return visitIdentifiers(ctx.ident());
-    }
-
-    @Override
-    public UnresolvedExpression visitIdentsAsQualifiedNameSeq(OpenSearchPPLParser.IdentsAsQualifiedNameSeqContext ctx) {
-        return new AttributeList(ctx.qualifiedName().stream().map(this::visit).collect(Collectors.toList()));
     }
 
     @Override
@@ -383,7 +376,8 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     public UnresolvedExpression visitBySpanClause(OpenSearchPPLParser.BySpanClauseContext ctx) {
         String name = ctx.spanClause().getText();
         return ctx.alias != null
-                ? new Alias(StringUtils.unquoteIdentifier(ctx.alias.getText()), visit(ctx.spanClause()))
+                ? new Alias(
+                name, visit(ctx.spanClause()), StringUtils.unquoteIdentifier(ctx.alias.getText()))
                 : new Alias(name, visit(ctx.spanClause()));
     }
 
@@ -448,6 +442,39 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
             Collectors.toList());
         UnresolvedExpression function = visitExpression(ctx.expression());
         return new LambdaFunction(function, arguments);
+    }
+
+    @Override
+    public UnresolvedExpression visitGeoIpPropertyList(OpenSearchPPLParser.GeoIpPropertyListContext ctx) {
+        ImmutableList.Builder<UnresolvedExpression> properties = ImmutableList.builder();
+        if (ctx != null) {
+            for (OpenSearchPPLParser.GeoIpPropertyContext property : ctx.geoIpProperty()) {
+                String propertyName;
+                if (property.COUNTRY_ISO_CODE() != null) {
+                    propertyName = "COUNTRY_ISO_CODE";
+                } else if (property.COUNTRY_NAME() != null) {
+                    propertyName = "COUNTRY_NAME";
+                } else if (property.CONTINENT_NAME() != null) {
+                    propertyName = "CONTINENT_NAME";
+                } else if (property.REGION_ISO_CODE() != null) {
+                    propertyName = "REGION_ISO_CODE";
+                } else if (property.CITY_NAME() != null) {
+                    propertyName = "CITY_NAME";
+                } else if (property.TIME_ZONE() != null) {
+                    propertyName = "TIME_ZONE";
+                } else if (property.LAT() != null) {
+                    propertyName = "LAT";
+                } else if (property.LON() != null) {
+                    propertyName = "LON";
+                } else {
+                    continue;
+                }
+
+                properties.add(new Literal(propertyName, DataType.STRING));
+            }
+        }
+
+        return new AttributeList(properties.build());
     }
 
     private List<UnresolvedExpression> timestampFunctionArguments(

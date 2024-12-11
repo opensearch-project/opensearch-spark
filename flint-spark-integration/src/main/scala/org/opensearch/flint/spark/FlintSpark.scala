@@ -510,10 +510,6 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
   private def isSchedulerModeChanged(
       originalOptions: FlintSparkIndexOptions,
       updatedOptions: FlintSparkIndexOptions): Boolean = {
-    // Altering from manual to auto should not be interpreted as a scheduling mode change.
-    if (!originalOptions.options.contains(SCHEDULER_MODE.toString)) {
-      return false
-    }
     updatedOptions.isExternalSchedulerEnabled() != originalOptions.isExternalSchedulerEnabled()
   }
 

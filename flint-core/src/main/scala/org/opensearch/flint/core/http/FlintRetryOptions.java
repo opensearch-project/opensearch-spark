@@ -6,12 +6,8 @@
 package org.opensearch.flint.core.http;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
-import static org.opensearch.flint.core.FlintOptions.SERVICE_NAME;
-import static org.opensearch.flint.core.FlintOptions.SERVICE_NAME_AOSS;
-import static org.opensearch.flint.core.FlintOptions.SERVICE_NAME_ES;
 
 import dev.failsafe.RetryPolicy;
-import dev.failsafe.RetryPolicyBuilder;
 import dev.failsafe.event.ExecutionAttemptedEvent;
 import dev.failsafe.function.CheckedPredicate;
 import java.time.Duration;
@@ -20,7 +16,6 @@ import java.util.Optional;
 import java.util.logging.Logger;
 import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.flint.core.http.handler.ExceptionClassNameFailurePredicate;
-import org.opensearch.flint.core.http.handler.HttpAOSSResultPredicate;
 import org.opensearch.flint.core.http.handler.HttpStatusCodeResultPredicate;
 import java.io.Serializable;
 
@@ -70,7 +65,7 @@ public class FlintRetryOptions implements Serializable {
    * @return Failsafe retry policy
    */
   public <T> RetryPolicy<T> getRetryPolicy() {
-    RetryPolicyBuilder<T> builder = RetryPolicy.<T>builder()
+    return RetryPolicy.<T>builder()
         // Backoff strategy config (can be configurable as needed in future)
         .withBackoff(1, 30, SECONDS)
         .withJitter(Duration.ofMillis(100))
@@ -80,11 +75,8 @@ public class FlintRetryOptions implements Serializable {
         .handleResultIf(new HttpStatusCodeResultPredicate<>(getRetryableHttpStatusCodes()))
         // Logging listener
         .onFailedAttempt(FlintRetryOptions::onFailure)
-        .onRetry(FlintRetryOptions::onRetry);
-    if (SERVICE_NAME_AOSS.equals(getServiceName())) {
-      builder.handleResultIf(new HttpAOSSResultPredicate<>());
-    }
-    return builder.build();
+        .onRetry(FlintRetryOptions::onRetry)
+        .build();
   }
 
   public RetryPolicy<BulkResponse> getBulkRetryPolicy(CheckedPredicate<BulkResponse> resultPredicate) {
@@ -107,10 +99,6 @@ public class FlintRetryOptions implements Serializable {
 
   private static <T> void onRetry(ExecutionAttemptedEvent<T> event) {
     LOG.warning("Retrying failed request at #" + event.getAttemptCount());
-  }
-
-  private String getServiceName() {
-    return options.getOrDefault(SERVICE_NAME, SERVICE_NAME_ES);
   }
 
   /**

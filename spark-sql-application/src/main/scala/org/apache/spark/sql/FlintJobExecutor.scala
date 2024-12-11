@@ -168,12 +168,10 @@ trait FlintJobExecutor {
       IRestHighLevelClient.recordOperationSuccess(
         MetricConstants.RESULT_METADATA_WRITE_METRIC_PREFIX)
     } catch {
-      case t: Throwable =>
+      case e: Exception =>
         IRestHighLevelClient.recordOperationFailure(
           MetricConstants.RESULT_METADATA_WRITE_METRIC_PREFIX,
-          t)
-        // Re-throw the exception
-        throw t
+          e)
     }
   }
 
@@ -452,8 +450,7 @@ trait FlintJobExecutor {
     statusCode.foreach(code => errorDetails.put("StatusCode", code.toString))
 
     val errorJson = mapper.writeValueAsString(errorDetails)
-    // Record the processed error message
-    throwableHandler.setError(errorJson)
+
     // CustomLogging will call log4j logger.error() underneath
     statusCode match {
       case Some(code) =>

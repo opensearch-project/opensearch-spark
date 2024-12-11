@@ -27,9 +27,6 @@ jobs:
           distribution: 'temurin'
           java-version: 11
 
-      - name: Set up SBT
-        uses: sbt/setup-sbt@v1
-
       - name: Publish to Local Maven
         run: |
           sbt standaloneCosmetic/publishM2

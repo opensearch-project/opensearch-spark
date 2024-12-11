@@ -65,27 +65,6 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
 
-  it should "create index with request completion delay config" in {
-    val metadata = FlintOpenSearchIndexMetadataService.deserialize("{}")
-    // Create a dummy index to avoid timing the initial overhead
-    flintClient.createIndex("dummy", metadata)
-
-    val indexName = "flint_test_without_request_completion_delay"
-    val elapsedTimeWithoutDelay = timer {
-      flintClient.createIndex(indexName, metadata)
-    }
-
-    val delayIndexName = "flint_test_with_request_completion_delay"
-    val delayOptions =
-      openSearchOptions + (FlintOptions.REQUEST_COMPLETION_DELAY_MILLIS -> "2000")
-    val delayFlintOptions = new FlintOptions(delayOptions.asJava)
-    val delayFlintClient = new FlintOpenSearchClient(delayFlintOptions)
-    val elapsedTimeWithDelay = timer {
-      delayFlintClient.createIndex(delayIndexName, metadata)
-    }
-    elapsedTimeWithDelay - elapsedTimeWithoutDelay should be >= 1800L // allowing 200ms of wiggle room
-  }
-
   it should "get all index names with the given index name pattern" in {
     val metadata = FlintOpenSearchIndexMetadataService.deserialize(
       """{"properties": {"test": { "type": "integer" } } }""")
@@ -240,12 +219,5 @@ class FlintOpenSearchClientSuite extends AnyFlatSpec with OpenSearchSuite with M
 
   def createTable(indexName: String, options: FlintOptions): Table = {
     OpenSearchCluster.apply(indexName, options).asScala.head
-  }
-
-  def timer(block: => Unit): Long = {
-    val start = System.currentTimeMillis()
-    block
-    val end = System.currentTimeMillis()
-    end - start
   }
 }
