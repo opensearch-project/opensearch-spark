@@ -35,6 +35,7 @@ class FlintSparkPPLJsonFunctionITSuite
     "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}"
   private val validJson8 =
     "{\"school\":{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}}"
+  private val validJson9 = "{\"a\":[\"valueA\", \"valueB\"]}"
   private val invalidJson1 = "[1,2"
   private val invalidJson2 = "[invalid json]"
   private val invalidJson3 = "{\"invalid\": \"json\""
@@ -667,5 +668,4 @@ class FlintSparkPPLJsonFunctionITSuite
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
-
 }

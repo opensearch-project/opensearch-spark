@@ -218,12 +218,15 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          """source=t | eval result = json_append('{"a":[{"b":1},{"c":2}]}', array('a.b'))"""),
+          """source=t | eval result = json_append('{"a":[{"b":1},{"c":2}]}', array('a.b','c','d'))"""),
         context)
 
     val table = UnresolvedRelation(Seq("t"))
     val keysExpression =
-      UnresolvedFunction("array", Seq(Literal("a.b")), isDistinct = false)
+      UnresolvedFunction(
+        "array",
+        Seq(Literal("a.b"), Literal("c"), Literal("d")),
+        isDistinct = false)
     val jsonObjExp =
       Literal("""{"a":[{"b":1},{"c":2}]}""")
     val jsonFunc =
@@ -239,12 +242,15 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          """source=t | eval result = json_extend('{"a":[{"b":1},{"c":2}]}', array('a.b'))"""),
+          """source=t | eval result = json_extend('{"a":[{"b":1},{"c":2}]}', array('a.b', 'c','d'))"""),
         context)
 
     val table = UnresolvedRelation(Seq("t"))
     val keysExpression =
-      UnresolvedFunction("array", Seq(Literal("a.b")), isDistinct = false)
+      UnresolvedFunction(
+        "array",
+        Seq(Literal("a.b"), Literal("c"), Literal("d")),
+        isDistinct = false)
     val jsonObjExp =
       Literal("""{"a":[{"b":1},{"c":2}]}""")
     val jsonFunc =

@@ -286,41 +286,6 @@ Example:
     |{"root": {"a":["valueA", "valueB"]}}           |
     +-----------------------------------------------+
 
-
-
-### `JSON_EXTEND`
-
-**Description**
-
-`json_extend(json, [path_value_pairs list])` extend appends multiple (array) values to an existing array json elements. Return the updated object after extending.
-
-**Argument type:** JSON, List<[(STRING, List<STRING>)]>
-
-**Return type:** JSON
-
-A JSON object format.
-
-**Note**
-Extend arrays as individual values separates the `json_extend` functionality from the `json_append` - which is a similar function that appends the `<value>` as a single element.
-
-Example:
-
-    os> source=people | eval extend = json_extend(`{"a":["valueA", "valueB"]}`,['a', ["valueC","valueD"]]) 
-    fetched rows / total rows = 1/1
-    +-------------------------------------------------+
-    | extend                                          |
-    +-------------------------------------------------+
-    | {"a":["valueA", "valueB", "valueC", "valueD"]}  |
-    +-------------------------------------------------+
-
-    os> source=people | eval extend = json_extend(`{"a":["valueA", "valueB"]}`,['a',[{"b":["valueC","valueD"]}]]) 
-    fetched rows / total rows = 1/1
-    +-------------------------------------------------------------+
-    | extend                                                      |
-    +-------------------------------------------------------------+
-    | {"a":["valueA", "valueB", {"b":"valueC"}, {"b":"valueD"}]}  |
-    +-------------------------------------------------------------+
-
 ### `JSON_KEYS`
 
 **Description**
