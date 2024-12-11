@@ -235,7 +235,7 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val expectedPlan = Project(Seq(UnresolvedStar(None)), eval)
     comparePlans(expectedPlan, logPlan, false)
   }
-  
+
   test("test json_keys()") {
     val context = new CatalystPlanContext
     val logPlan =
