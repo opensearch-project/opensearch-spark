@@ -41,6 +41,7 @@ import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.jetbrains.annotations.NotNull;
 import org.opensearch.flint.spark.FlattenGenerator;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
@@ -274,45 +275,32 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitAppendCol(AppendCol node, CatalystPlanContext context) {
-        visitFirstChild(node, context);
+
 
         final String APPENDCOL_ID = WindowSpecTransformer.ROW_NUMBER_COLUMN_NAME;
         final String TABLE_LHS = "T1";
         final String TABLE_RHS = "T2";
         final String DUMMY_SORT_FIELD = "1";
 
-
         // Add a new projection layer with * and ROW_NUMBER (Main-search)
         // Inject an addition search command into sub-search
         // Add a new projection layer with * and ROW_NUMBER (Sub-search)
 
+        LogicalPlan leftTemp = node.getChild().get(0).accept(this, context);
 
         // Add a new projection layer with * and ROW_NUMBER (Main-search)
+        List<NamedExpression> projectList = getRowNumStarProjection(context, DUMMY_SORT_FIELD);
 
-        expressionAnalyzer.visitLiteral(
-                new Literal(DUMMY_SORT_FIELD, DataType.STRING), context);
-        Expression strExp = context.popNamedParseExpressions().get();
-        SortOrder sortOrder = SortUtils.sortOrder(strExp, false);
+        // Add the row_number
+        LogicalPlan t1WithRowNumber = new org.apache.spark.sql.catalyst.plans.logical.Project(seq(
+                projectList), leftTemp);
 
-        NamedExpression appendCol = WindowSpecTransformer.buildRowNumber(seq(), seq(sortOrder));
-
-        List<NamedExpression> projectList = (context.getNamedParseExpressions().isEmpty())
-                ? List.of(appendCol, UnresolvedStar$.MODULE$.apply(Option.empty()))
-                : List.of(appendCol);
-
-        // Left hand side done.
-        LogicalPlan queryWIthAppendCol = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(seq(
-                projectList), p));
-
-        // Compile the Left hand side separately.
+        // To wrap it into T2
+        var t1Table = SubqueryAlias$.MODULE$.apply(TABLE_LHS, t1WithRowNumber);
+        context.withSubqueryAlias(t1Table);
 
 
-        // Adding the alias
-        LogicalPlan t1 = context.apply(p -> {
-            var alias = SubqueryAlias$.MODULE$.apply(TABLE_LHS, p);
-            context.withSubqueryAlias(alias);
-            return alias;
-        });
+
 
         Node subSearch = node.getSubSearch();
 
@@ -355,7 +343,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context));
             context.retainAllNamedParseExpressions(p -> p);
             context.retainAllPlans(p -> p);
-            LogicalPlan joinedQuery = join(left, alias, Join.JoinType.LEFT, joinCondition, new Join.JoinHint());
+            LogicalPlan joinedQuery = join(t1Table, alias, Join.JoinType.LEFT, joinCondition, new Join.JoinHint());
             // Remove the APPEND_ID
 
             scala.collection.mutable.Seq<Expression> seq = seq(
@@ -369,6 +357,20 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         System.out.println(context);
 
         return context.getPlan();
+    }
+
+    private @NotNull List<NamedExpression> getRowNumStarProjection(CatalystPlanContext context, String DUMMY_SORT_FIELD) {
+        expressionAnalyzer.visitLiteral(
+                new Literal(DUMMY_SORT_FIELD, DataType.STRING), context);
+        Expression strExp = context.popNamedParseExpressions().get();
+        SortOrder sortOrder = SortUtils.sortOrder(strExp, false);
+
+        NamedExpression appendCol = WindowSpecTransformer.buildRowNumber(seq(), seq(sortOrder));
+
+        List<NamedExpression> projectList = (context.getNamedParseExpressions().isEmpty())
+                ? List.of(appendCol, UnresolvedStar$.MODULE$.apply(Option.empty()))
+                : List.of(appendCol);
+        return projectList;
     }
 
     @Override
