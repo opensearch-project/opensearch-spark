@@ -281,6 +281,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         final String TABLE_LHS = "T1";
         final String TABLE_RHS = "T2";
         final List<NamedExpression> projectList = getRowNumStarProjection(context);
+        scala.collection.mutable.Seq<Expression> fieldsToRemove = seq(
+                UnresolvedAttribute$.MODULE$.apply(TABLE_LHS + "." + APPENDCOL_ID),
+                UnresolvedAttribute$.MODULE$.apply(TABLE_RHS + "." + APPENDCOL_ID));
+        final Compare innerJoinCondition = new Compare("=",
+                new Field(QualifiedName.of(TABLE_LHS ,APPENDCOL_ID)),
+                new Field(QualifiedName.of(TABLE_RHS, APPENDCOL_ID)));
+
 
         // Add a new projection layer with * and ROW_NUMBER (Main-search)
         // Inject an addition search command into sub-search
@@ -302,10 +309,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         context.apply(left -> {
 
-            Compare innerJoinCondition = new Compare("=",
-                    new Field(QualifiedName.of(TABLE_LHS ,APPENDCOL_ID)),
-                    new Field(QualifiedName.of(TABLE_RHS, APPENDCOL_ID)));
-
             // Inject an addition search command into sub-search (T2)
             addSearchCmd(node.getSubSearch(), "employees");
 
@@ -321,15 +324,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
             Optional<Expression> joinCondition = Optional.of(innerJoinCondition)
                     .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context));
+
             context.retainAllNamedParseExpressions(p -> p);
             context.retainAllPlans(p -> p);
             LogicalPlan joinedQuery = join(t1Table, t2Alias, Join.JoinType.LEFT, joinCondition, new Join.JoinHint());
-            // Remove the APPEND_ID
 
-            scala.collection.mutable.Seq<Expression> seq = seq(
-                    UnresolvedAttribute$.MODULE$.apply(TABLE_LHS + "." + APPENDCOL_ID),
-                    UnresolvedAttribute$.MODULE$.apply(TABLE_RHS + "." + APPENDCOL_ID));
-            return new org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns(seq, joinedQuery);
+            // Remove the APPEND_ID
+            return new org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns(fieldsToRemove, joinedQuery);
 
         });
 
