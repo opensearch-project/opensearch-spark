@@ -419,16 +419,10 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
 
   @Override
   public UnresolvedPlan visitAppendcolCommand(OpenSearchPPLParser.AppendcolCommandContext ctx) {
-
-    // All args validation should happen here.
-    System.out.println("No. of cmd: " + ctx.commands().size());
-
-    // TD: Pass on AppendColSpecific option also
-    final Optional<UnresolvedPlan> pplCmd = ctx.commands().stream().map(this::visit).reduce((r, e) -> e.attach(r));
-
-    // Composite the AppendCol object and pass on itstead.
-
-      // Throw some exception.
+    final Optional<UnresolvedPlan> pplCmd = ctx.commands().stream()
+            .map(this::visit)
+            .reduce((r, e) -> e.attach(r));
+    // ANTLR parser check guarantee pplCmd won't be null.
     return new AppendCol(pplCmd.get());
   }
 

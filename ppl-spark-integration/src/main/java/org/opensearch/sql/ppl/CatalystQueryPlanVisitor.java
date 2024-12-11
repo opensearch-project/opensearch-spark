@@ -276,21 +276,23 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     public LogicalPlan visitAppendCol(AppendCol node, CatalystPlanContext context) {
         visitFirstChild(node, context);
 
+        final String APPENDCOL_ID = "APPENDCOL_ID";
+        final String TABLE_LHS = "T1";
+        final String TABLE_RHS = "T2";
+        final String DUMMY_SORT_FIELD = "1";
 
-
-        System.out.println(context.getPlan());
-
-
-        expressionAnalyzer.visitLiteral(new Literal("1", DataType.STRING), context);
+        expressionAnalyzer.visitLiteral(
+                new Literal(DUMMY_SORT_FIELD, DataType.STRING), context);
         Expression strExp = context.popNamedParseExpressions().get();
         SortOrder sortOrder = SortUtils.sortOrder(strExp, false);
+
         WindowSpecDefinition windowDefinition = new WindowSpecDefinition(
                 seq(),
                 seq(sortOrder),
                 UnspecifiedFrame$.MODULE$);
         WindowExpression windowExp = new WindowExpression(new RowNumber(), windowDefinition);
 
-        NamedExpression appendCol = TrendlineCatalystUtils.getAlias("APPENDCOL_ID", windowExp);
+        NamedExpression appendCol = TrendlineCatalystUtils.getAlias(APPENDCOL_ID, windowExp);
 
         List<NamedExpression> projectList = new ArrayList<>();
 
@@ -299,7 +301,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             projectList.add(UnresolvedStar$.MODULE$.apply(Option.empty()));
         }
 
-//
         projectList.add(appendCol);
 
         // Left hand side done.
@@ -307,42 +308,26 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 projectList), p));
 
 
-        System.out.println("After row_number");
-        System.out.println(queryWIthAppendCol);
-
         // Adding the alias
 
         LogicalPlan t1 = context.apply(p -> {
-            var alias = SubqueryAlias$.MODULE$.apply("T1", p);
+            var alias = SubqueryAlias$.MODULE$.apply(TABLE_LHS, p);
             context.withSubqueryAlias(alias);
             return alias;
         });
 
-        System.out.println("------------ T1 --------------");
-        System.out.println(t1);
-        System.out.println(context.getPlan());
-        System.out.println("------------ End T1 --------------");
-
-
-        // Do the right hand side
-
-
         Node subSearch = node.getSubSearch();
-
 
         // Till traverse till the end then append.
         Relation table = new Relation(of(new QualifiedName("employees")));
+        // Replace it with a function to look up the search command and extract the index name.
+
 
 
         while (subSearch != null) {
             try {
                 System.out.println("Node: " + subSearch.getClass().getSimpleName());
                 Node node1 = subSearch.getChild().get(0);
-                if (node1 != null) {
-                    System.out.println("Non Null: " + node1.getClass().getSimpleName());
-                } else {
-                    System.out.println("Node is null");
-                }
                 subSearch = node1;
             } catch (NullPointerException ex) {
                 System.out.println("Null when getting the child ");
@@ -351,15 +336,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             }
         }
 
-
-        // Add a database expression.
-
-
         Compare innerJoinCondition = new Compare("=",
-                new Field(QualifiedName.of("T1" ,"APPENDCOL_ID")),
-                new Field(QualifiedName.of("T2", "APPENDCOL_ID")));
-
-
+                new Field(QualifiedName.of(TABLE_LHS ,APPENDCOL_ID)),
+                new Field(QualifiedName.of(TABLE_RHS, APPENDCOL_ID)));
 
 
         context.apply(left -> {
@@ -371,9 +350,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     projectList), right);
 
             // To wrap it into T2
-            var alias = SubqueryAlias$.MODULE$.apply("T2", t2WithRowNumber);
+            var alias = SubqueryAlias$.MODULE$.apply(TABLE_RHS, t2WithRowNumber);
             context.withSubqueryAlias(alias);
-
 
             Optional<Expression> joinCondition = Optional.of(innerJoinCondition)
                     .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context));
@@ -382,22 +360,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             LogicalPlan joinedQuery = join(left, alias, Join.JoinType.LEFT, joinCondition, new Join.JoinHint());
             // Remove the APPEND_ID
 
-//
-//            List<UnresolvedAttribute> excludeFields = of(
-//                    UnresolvedAttribute$.MODULE$.apply("T1.APPENDCOL_ID"),
-//                    UnresolvedAttribute$.MODULE$.apply("T2.APPENDCOL_ID"));
             scala.collection.mutable.Seq<Expression> seq = seq(
-                    UnresolvedAttribute$.MODULE$.apply("T1.APPENDCOL_ID"),
-                    UnresolvedAttribute$.MODULE$.apply("T2.APPENDCOL_ID"));
+                    UnresolvedAttribute$.MODULE$.apply(TABLE_LHS + "." + APPENDCOL_ID),
+                    UnresolvedAttribute$.MODULE$.apply(TABLE_RHS + "." + APPENDCOL_ID));
             return new org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns(seq, joinedQuery);
 
         });
-
-        System.out.println("------------ Sub query --------------");
-//        System.out.println(right);
-        System.out.println(context.getPlan());
-        System.out.println("------------ End Subquery --------------");
-
 
         return context.getPlan();
     }
@@ -501,18 +469,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             visitExpression(span, context);
         }
         Seq<Expression> partitionSpec = context.retainAllNamedParseExpressions(p -> p);
-        // Visit the sort clause, if any.
-
-        Seq<SortOrder> orderSpecTemp = null;
-        if (!Objects.isNull(node.getSortExprList()) && !node.getSortExprList().isEmpty()) {
-            visitExpressionList(node.getSortExprList(), context);
-            orderSpecTemp = context.retainAllNamedParseExpressions(exp ->
-                    SortUtils.sortOrder(exp, true));
-        }
-
-        Seq<SortOrder> orderSpec = (orderSpecTemp != null )
-                ?orderSpecTemp :seq(new ArrayList<>());
-
+        Seq<SortOrder> orderSpec = seq(new ArrayList<SortOrder>());
         Seq<NamedExpression> aggregatorFunctions = seq(
             seqAsJavaList(windowFunctionExpressions).stream()
                 .map(w -> WindowSpecTransformer.buildAggregateWindowFunction(w, partitionSpec, orderSpec))
