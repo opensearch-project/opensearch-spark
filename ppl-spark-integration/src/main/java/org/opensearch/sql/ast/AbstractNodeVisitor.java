@@ -341,7 +341,12 @@ public abstract class AbstractNodeVisitor<T, C> {
   public T visitWindow(Window node, C context) {
     return visitChildren(node, context);
   }
+
   public T visitCidr(Cidr node, C context) {
+    return visitChildren(node, context);
+  }
+
+  public T visitGeoIp(GeoIp node, C context) {
     return visitChildren(node, context);
   }
 
