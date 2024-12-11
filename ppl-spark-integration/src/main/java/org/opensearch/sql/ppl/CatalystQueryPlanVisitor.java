@@ -278,11 +278,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         var mainSearch = getRowNumStarProjection(context, leftTemp, TABLE_LHS);
         context.withSubqueryAlias(mainSearch);
 
-        // Inject an addition search command into sub-search (T2)
-        appendRelationClause(node.getSubSearch(), "employees");
+        // Traverse to look for relation clause then append it into the sub-search.
+        Relation relation = retrieveRelationClause(node.getChild().get(0));
+        appendRelationClause(node.getSubSearch(), relation);
 
         context.apply(left -> {
-
             // Add a new projection layer with * and ROW_NUMBER (Sub-search)
             LogicalPlan right = node.getSubSearch().accept(this, context);
             var subSearch = getRowNumStarProjection(context, right, TABLE_RHS);
@@ -298,29 +298,38 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             // Remove the APPEND_ID
             return new org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns(fieldsToRemove, joinedQuery);
         });
-
-//        System.out.println(context);
         return context.getPlan();
     }
 
-    private static void appendRelationClause(Node subSearch, String relationName) {
+    private static void appendRelationClause(Node subSearch, Relation relation) {
 
-        // Till traverse till the end then append.
-        Relation table = new Relation(of(new QualifiedName(relationName)));
+        Relation table = new Relation(relation.getTableNames());
         // Replace it with a function to look up the search command and extract the index name.
-
-
         while (subSearch != null) {
             try {
-                System.out.println("Node: " + subSearch.getClass().getSimpleName());
                 subSearch = subSearch.getChild().get(0);
-//                subSearch = node1;
             } catch (NullPointerException ex) {
                 System.out.println("Null when getting the child ");
                 ((UnresolvedPlan) subSearch).attach(table);
                 break;
             }
         }
+    }
+
+    private static Relation retrieveRelationClause(Node node) {
+        while (node != null) {
+            if (node instanceof Relation) {
+                return (Relation) node;
+            } else {
+                try {
+                    node = node.getChild().get(0);
+                } catch (NullPointerException ex) {
+                    // NPE will be thrown by some node.getChild() call.
+                    break;
+                }
+            }
+        }
+        return null;
     }
 
     private org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias getRowNumStarProjection(CatalystPlanContext context, LogicalPlan lp, String alias) {
