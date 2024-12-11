@@ -6,6 +6,8 @@ services:
       - "${MASTER_UI_PORT:-8080}:8080"
       - "${MASTER_PORT:-7077}:7077"
       - "${UI_PORT:-4040}:4040"
+      - "${SPARK_CONNECT_PORT}:15002"
+    entrypoint: /opt/bitnami/scripts/spark/master-entrypoint.sh
     environment:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
@@ -14,6 +16,9 @@ services:
       - SPARK_SSL_ENABLED=no
       - SPARK_PUBLIC_DNS=localhost
     volumes:
+      - type: bind
+        source: ./spark-master-entrypoint.sh
+        target: /opt/bitnami/scripts/spark/master-entrypoint.sh
       - type: bind
         source: ./spark-defaults.conf
         target: /opt/bitnami/spark/conf/spark-defaults.conf
