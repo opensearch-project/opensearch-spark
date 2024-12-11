@@ -276,40 +276,38 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     public LogicalPlan visitAppendCol(AppendCol node, CatalystPlanContext context) {
         visitFirstChild(node, context);
 
-        final String APPENDCOL_ID = "APPENDCOL_ID";
+        final String APPENDCOL_ID = WindowSpecTransformer.ROW_NUMBER_COLUMN_NAME;
         final String TABLE_LHS = "T1";
         final String TABLE_RHS = "T2";
         final String DUMMY_SORT_FIELD = "1";
+
+
+        // Add a new projection layer with * and ROW_NUMBER (Main-search)
+        // Inject an addition search command into sub-search
+        // Add a new projection layer with * and ROW_NUMBER (Sub-search)
+
+
+        // Add a new projection layer with * and ROW_NUMBER (Main-search)
 
         expressionAnalyzer.visitLiteral(
                 new Literal(DUMMY_SORT_FIELD, DataType.STRING), context);
         Expression strExp = context.popNamedParseExpressions().get();
         SortOrder sortOrder = SortUtils.sortOrder(strExp, false);
 
-        WindowSpecDefinition windowDefinition = new WindowSpecDefinition(
-                seq(),
-                seq(sortOrder),
-                UnspecifiedFrame$.MODULE$);
-        WindowExpression windowExp = new WindowExpression(new RowNumber(), windowDefinition);
+        NamedExpression appendCol = WindowSpecTransformer.buildRowNumber(seq(), seq(sortOrder));
 
-        NamedExpression appendCol = TrendlineCatalystUtils.getAlias(APPENDCOL_ID, windowExp);
-
-        List<NamedExpression> projectList = new ArrayList<>();
-
-        if (context.getNamedParseExpressions().isEmpty()) {
-            // Create an UnresolvedStar for all-fields projection
-            projectList.add(UnresolvedStar$.MODULE$.apply(Option.empty()));
-        }
-
-        projectList.add(appendCol);
+        List<NamedExpression> projectList = (context.getNamedParseExpressions().isEmpty())
+                ? List.of(appendCol, UnresolvedStar$.MODULE$.apply(Option.empty()))
+                : List.of(appendCol);
 
         // Left hand side done.
         LogicalPlan queryWIthAppendCol = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(seq(
                 projectList), p));
 
+        // Compile the Left hand side separately.
+
 
         // Adding the alias
-
         LogicalPlan t1 = context.apply(p -> {
             var alias = SubqueryAlias$.MODULE$.apply(TABLE_LHS, p);
             context.withSubqueryAlias(alias);
@@ -323,7 +321,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         // Replace it with a function to look up the search command and extract the index name.
 
 
-
         while (subSearch != null) {
             try {
                 System.out.println("Node: " + subSearch.getClass().getSimpleName());
@@ -335,6 +332,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 break;
             }
         }
+
 
         Compare innerJoinCondition = new Compare("=",
                 new Field(QualifiedName.of(TABLE_LHS ,APPENDCOL_ID)),
@@ -366,6 +364,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             return new org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns(seq, joinedQuery);
 
         });
+
+
+        System.out.println(context);
 
         return context.getPlan();
     }
