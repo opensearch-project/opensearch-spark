@@ -548,7 +548,8 @@ trait FlintJobExecutor {
   }
 
   def getSegmentName(sparkSession: SparkSession): String = {
-    val maxExecutorsCount = sparkSession.conf.get(FlintSparkConf.MAX_EXECUTORS_COUNT.key, "unknown")
+    val maxExecutorsCount =
+      sparkSession.conf.get(FlintSparkConf.MAX_EXECUTORS_COUNT.key, "unknown")
     String.format("%se", maxExecutorsCount)
   }
 
