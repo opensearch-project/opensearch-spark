@@ -286,48 +286,28 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         // Inject an addition search command into sub-search
         // Add a new projection layer with * and ROW_NUMBER (Sub-search)
 
-        LogicalPlan leftTemp = node.getChild().get(0).accept(this, context);
 
         // Add a new projection layer with * and ROW_NUMBER (Main-search)
+        LogicalPlan leftTemp = node.getChild().get(0).accept(this, context);
         List<NamedExpression> projectList = getRowNumStarProjection(context, DUMMY_SORT_FIELD);
 
         // Add the row_number
         LogicalPlan t1WithRowNumber = new org.apache.spark.sql.catalyst.plans.logical.Project(seq(
                 projectList), leftTemp);
 
-        // To wrap it into T2
+        // To wrap it into T1
         var t1Table = SubqueryAlias$.MODULE$.apply(TABLE_LHS, t1WithRowNumber);
         context.withSubqueryAlias(t1Table);
 
 
-
-
-        Node subSearch = node.getSubSearch();
-
-        // Till traverse till the end then append.
-        Relation table = new Relation(of(new QualifiedName("employees")));
-        // Replace it with a function to look up the search command and extract the index name.
-
-
-        while (subSearch != null) {
-            try {
-                System.out.println("Node: " + subSearch.getClass().getSimpleName());
-                Node node1 = subSearch.getChild().get(0);
-                subSearch = node1;
-            } catch (NullPointerException ex) {
-                System.out.println("Null when getting the child ");
-                ((UnresolvedPlan) subSearch).attach(table);
-                break;
-            }
-        }
-
-
-        Compare innerJoinCondition = new Compare("=",
-                new Field(QualifiedName.of(TABLE_LHS ,APPENDCOL_ID)),
-                new Field(QualifiedName.of(TABLE_RHS, APPENDCOL_ID)));
-
-
         context.apply(left -> {
+
+            Compare innerJoinCondition = new Compare("=",
+                    new Field(QualifiedName.of(TABLE_LHS ,APPENDCOL_ID)),
+                    new Field(QualifiedName.of(TABLE_RHS, APPENDCOL_ID)));
+
+            // Inject an addition search command into sub-search (T2)
+            addSearchCmd(node.getSubSearch(), "employees");
 
             LogicalPlan right = node.getSubSearch().accept(this, context);
 
@@ -357,6 +337,26 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         System.out.println(context);
 
         return context.getPlan();
+    }
+
+    private static void addSearchCmd(Node subSearch, String relationName) {
+
+        // Till traverse till the end then append.
+        Relation table = new Relation(of(new QualifiedName(relationName)));
+        // Replace it with a function to look up the search command and extract the index name.
+
+
+        while (subSearch != null) {
+            try {
+                System.out.println("Node: " + subSearch.getClass().getSimpleName());
+                subSearch = subSearch.getChild().get(0);
+//                subSearch = node1;
+            } catch (NullPointerException ex) {
+                System.out.println("Null when getting the child ");
+                ((UnresolvedPlan) subSearch).attach(table);
+                break;
+            }
+        }
     }
 
     private @NotNull List<NamedExpression> getRowNumStarProjection(CatalystPlanContext context, String DUMMY_SORT_FIELD) {
