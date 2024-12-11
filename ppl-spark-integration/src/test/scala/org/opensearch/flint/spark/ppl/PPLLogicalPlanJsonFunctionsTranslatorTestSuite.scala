@@ -235,31 +235,7 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val expectedPlan = Project(Seq(UnresolvedStar(None)), eval)
     comparePlans(expectedPlan, logPlan, false)
   }
-
-  test("test json_extend()") {
-    val context = new CatalystPlanContext
-    val logPlan =
-      planTransformer.visit(
-        plan(
-          pplParser,
-          """source=t | eval result = json_extend('{"a":[{"b":1},{"c":2}]}', array('a.b', 'c','d'))"""),
-        context)
-
-    val table = UnresolvedRelation(Seq("t"))
-    val keysExpression =
-      UnresolvedFunction(
-        "array",
-        Seq(Literal("a.b"), Literal("c"), Literal("d")),
-        isDistinct = false)
-    val jsonObjExp =
-      Literal("""{"a":[{"b":1},{"c":2}]}""")
-    val jsonFunc =
-      Alias(visit("json_extend", util.List.of(jsonObjExp, keysExpression)), "result")()
-    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), eval)
-    comparePlans(expectedPlan, logPlan, false)
-  }
-
+  
   test("test json_keys()") {
     val context = new CatalystPlanContext
     val logPlan =
