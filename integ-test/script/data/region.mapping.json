@@ -1,0 +1,15 @@
+{
+  "mappings": {
+    "properties": {
+      "r_regionkey": {
+        "type": "integer"
+      },
+      "r_name": {
+        "type": "text"
+      },
+      "r_comment": {
+        "type": "text"
+      }
+    }
+  }
+}
