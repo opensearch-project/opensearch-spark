@@ -60,6 +60,10 @@ class FlintOpenSearchMetadataCacheWriter(options: FlintOptions)
     response.getMappings.get(osIndexName).sourceAsMap()
   }
 
+  /**
+   * Merge existing mapping with metadata cache properties. Metadata cache is written into
+   * _meta.properties field of index mapping.
+   */
   private def mergeMapping(
       existingMapping: JMap[String, AnyRef],
       metadataCacheProperties: JMap[String, AnyRef]): JMap[String, AnyRef] = {

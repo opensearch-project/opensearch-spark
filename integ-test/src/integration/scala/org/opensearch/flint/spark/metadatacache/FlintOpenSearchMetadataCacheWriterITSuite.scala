@@ -284,7 +284,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     flintClient.createIndex(testFlintIndex, metadata)
 
     // Simulates index mapping updated by custom implementation of FlintIndexMetadataService
-    // because our standard FlintOpenSearchIndexMetadataService ignores the "custom" field.
+    // with the extra "custom" field.
     val client = OpenSearchClientUtils.createClient(options)
     flintMetadataCacheWriter.updateIndexMapping(client, testFlintIndex, content)
 
@@ -396,12 +396,12 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
 
         val propertiesJson = compact(render(getPropertiesJValue(testFlintIndex)))
         propertiesJson should matchJson(s"""
-                                           | {
-                                           |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
-                                           |   "refreshInterval": 600,
-                                           |   "sourceTables": ["$testTable"]
-                                           | }
-                                           |""".stripMargin)
+            | {
+            |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
+            |   "refreshInterval": 600,
+            |   "sourceTables": ["$testTable"]
+            | }
+            |""".stripMargin)
 
         flint.refreshIndex(testFlintIndex)
         compact(render(getPropertiesJValue(testFlintIndex))) should not include "lastRefreshTime"
