@@ -339,6 +339,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         expressionAnalyzer.visitLiteral(
                 new Literal(DUMMY_SORT_FIELD, DataType.STRING), context);
         Expression strExp = context.popNamedParseExpressions().get();
+        // Literal("x")
         SortOrder sortOrder = SortUtils.sortOrder(strExp, false);
 
         NamedExpression appendCol = WindowSpecTransformer.buildRowNumber(seq(), seq(sortOrder));
