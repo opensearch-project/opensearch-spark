@@ -247,7 +247,7 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
         Expression arg = context.popNamedParseExpressions().get();
         return context.getNamedParseExpressions().push(
                 org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(arg,
-                        node.getAlias() != null ? node.getAlias() : node.getName(),
+                        node.getName(),
                         NamedExpression.newExprId(),
                         seq(new java.util.ArrayList<String>()),
                         Option.empty(),

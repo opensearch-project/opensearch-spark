@@ -383,8 +383,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     public UnresolvedExpression visitBySpanClause(OpenSearchPPLParser.BySpanClauseContext ctx) {
         String name = ctx.spanClause().getText();
         return ctx.alias != null
-                ? new Alias(
-                name, visit(ctx.spanClause()), StringUtils.unquoteIdentifier(ctx.alias.getText()))
+                ? new Alias(StringUtils.unquoteIdentifier(ctx.alias.getText()), visit(ctx.spanClause()))
                 : new Alias(name, visit(ctx.spanClause()));
     }
 
