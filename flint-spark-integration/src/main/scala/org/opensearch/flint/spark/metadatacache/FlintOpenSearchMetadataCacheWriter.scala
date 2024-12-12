@@ -33,12 +33,12 @@ class FlintOpenSearchMetadataCacheWriter(options: FlintOptions)
     var client: IRestHighLevelClient = null
     try {
       client = OpenSearchClientUtils.createClient(options)
-      val existingMapping = getIndexMapping(client, osIndexName)
+      val indexMapping = getIndexMapping(client, osIndexName)
       val metadataCacheProperties = FlintMetadataCache(metadata).toMap.asJava
-      val mergedMapping = mergeMapping(existingMapping, metadataCacheProperties)
+      mergeMetadataCacheProperties(indexMapping, metadataCacheProperties)
       val serialized = buildJson(builder => {
-        builder.field("_meta", mergedMapping.get("_meta"))
-        builder.field("properties", mergedMapping.get("properties"))
+        builder.field("_meta", indexMapping.get("_meta"))
+        builder.field("properties", indexMapping.get("properties"))
       })
       updateIndexMapping(client, osIndexName, serialized)
     } catch {
@@ -61,23 +61,18 @@ class FlintOpenSearchMetadataCacheWriter(options: FlintOptions)
   }
 
   /**
-   * Merge existing mapping with metadata cache properties. Metadata cache is written into
+   * Merge metadata cache properties into index mapping in place. Metadata cache is written into
    * _meta.properties field of index mapping.
    */
-  private def mergeMapping(
-      existingMapping: JMap[String, AnyRef],
-      metadataCacheProperties: JMap[String, AnyRef]): JMap[String, AnyRef] = {
-    val meta =
-      existingMapping.getOrDefault("_meta", Map.empty.asJava).asInstanceOf[JMap[String, AnyRef]]
-    val properties =
-      meta.getOrDefault("properties", Map.empty.asJava).asInstanceOf[JMap[String, AnyRef]]
-    val updatedProperties = new HashMap[String, AnyRef](properties)
-    updatedProperties.putAll(metadataCacheProperties)
-    val updatedMeta = new HashMap[String, AnyRef](meta)
-    updatedMeta.put("properties", updatedProperties)
-    val result = new HashMap[String, AnyRef](existingMapping)
-    result.put("_meta", updatedMeta)
-    result
+  private def mergeMetadataCacheProperties(
+      indexMapping: JMap[String, AnyRef],
+      metadataCacheProperties: JMap[String, AnyRef]): Unit = {
+    indexMapping
+      .computeIfAbsent("_meta", _ => new HashMap[String, AnyRef]())
+      .asInstanceOf[JMap[String, AnyRef]]
+      .computeIfAbsent("properties", _ => new HashMap[String, AnyRef]())
+      .asInstanceOf[JMap[String, AnyRef]]
+      .putAll(metadataCacheProperties)
   }
 
   private[metadatacache] def updateIndexMapping(
