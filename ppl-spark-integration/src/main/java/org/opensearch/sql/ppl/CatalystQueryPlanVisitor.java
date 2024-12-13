@@ -7,7 +7,6 @@ package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
-import org.apache.spark.sql.catalyst.analysis.UnresolvedIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
@@ -19,7 +18,6 @@ import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
-import org.apache.spark.sql.catalyst.plans.logical.CreateTableAsSelect;
 import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns$;
 import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Generate;
@@ -27,9 +25,6 @@ import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan$;
 import org.apache.spark.sql.catalyst.plans.logical.Project$;
-import org.apache.spark.sql.catalyst.plans.logical.UnresolvedTableSpec;
-import org.apache.spark.sql.connector.expressions.FieldReference;
-import org.apache.spark.sql.connector.expressions.IdentityTransform;
 import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
@@ -49,7 +44,7 @@ import org.opensearch.sql.ast.expression.ParseMethod;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.expression.WindowFunction;
 import org.opensearch.sql.ast.statement.Explain;
-import org.opensearch.sql.ast.statement.ProjectStatement;
+import org.opensearch.sql.ast.statement.ViewStatement;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.Aggregation;
@@ -67,7 +62,7 @@ import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Lookup;
 import org.opensearch.sql.ast.tree.Parse;
-import org.opensearch.sql.ast.tree.Project;
+import org.opensearch.sql.ast.tree.View;
 import org.opensearch.sql.ast.tree.RareAggregation;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
@@ -79,7 +74,7 @@ import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
 import org.opensearch.sql.ppl.utils.ParseTransformer;
-import org.opensearch.sql.ppl.utils.ProjectionUtils;
+import org.opensearch.sql.ppl.utils.ViewUtils;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import org.opensearch.sql.ppl.utils.TrendlineCatalystUtils;
 import org.opensearch.sql.ppl.utils.WindowSpecTransformer;
@@ -138,9 +133,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     @Override
-    public LogicalPlan visitProjectStatement(ProjectStatement node, CatalystPlanContext context) {
+    public LogicalPlan visitProjectStatement(ViewStatement node, CatalystPlanContext context) {
         node.getStatement().accept(this, context);
-        return context.apply(p -> ProjectionUtils.visitProject(p, node, context));
+        return context.apply(p -> ViewUtils.visitView(p, node, context));
     }
 
     @Override
@@ -385,11 +380,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     @Override
-    public LogicalPlan visitProject(Project node, CatalystPlanContext context) {
+    public LogicalPlan visitView(View node, CatalystPlanContext context) {
         //update plan's context prior to visiting node children
         if (node.isExcluded()) {
             List<UnresolvedExpression> intersect = context.getProjectedFields().stream()
-                    .filter(node.getProjectList()::contains)
+                    .filter(node.getViewList()::contains)
                     .collect(Collectors.toList());
             if (!intersect.isEmpty()) {
                 // Fields in parent projection, but they have be excluded in child. For example,
@@ -397,10 +392,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 throw new SyntaxCheckException(intersect + " can't be resolved");
             }
         } else {
-            context.withProjectedFields(node.getProjectList());
+            context.withProjectedFields(node.getViewList());
         }
         LogicalPlan child = visitFirstChild(node, context);
-        visitExpressionList(node.getProjectList(), context);
+        visitExpressionList(node.getViewList(), context);
 
         // Create a projection list from the existing expressions
         Seq<?> projectList = seq(context.getNamedParseExpressions());

@@ -1,14 +1,14 @@
-## PPL `project` command
+## PPL `view` command
 
 ### Description
-Using `project` command to materialize a query into a dedicated view:
-In some cases it is required to construct a projection view (materialized into a view) of the query results.
-This projection can be later used as a source of continued queries for further slicing and dicing the data, in addition such tables can be also saved into a MV table that are pushed into OpenSearch and can be used for visualization and enhanced performant queries.
+Using `view` command to materialize a query into a dedicated view:
+In some cases it is required to construct a view (materialized into a view) of the query results.
+This view can be later used as a source of continued queries for further slicing and dicing the data, in addition such tables can be also saved into a MV table that are pushed into OpenSearch and can be used for visualization and enhanced performant queries.
 
-The command can also function as an ETL process where the original datasource will be transformed and ingested into the output projected view using the ppl transformation and aggregation operators
+The command can also function as an ETL process where the original datasource will be transformed and ingested into the output view using the ppl transformation and aggregation operators
 
 **### Syntax
-`PROJECT (IF NOT EXISTS)? viewName (USING datasource)? (OPTIONS optionsList)? (PARTITIONED BY partitionColumnNames)? location?`
+`VIEW (IF NOT EXISTS)? viewName (USING datasource)? (OPTIONS optionsList)? (PARTITIONED BY partitionColumnNames)? location?`
 
 - **viewName**
 Specifies a view name, which may be optionally qualified with a database name.
@@ -29,30 +29,30 @@ Specifies the physical location where the view or table data is stored. This cou
 The outcome view (viewName) is populated using the data from the select statement.
 
 ### Usage Guidelines
-The project command produces a view based on the resulting rows returned from the query.
+The view command produces a view based on the resulting rows returned from the query.
 Any query can be used in the `AS <query>` statement and attention must be used to the volume and compute that may incur due to such queries. 
 
-As a precautions an `explain cost | source = table | ... ` can be run prior to the `project` statement to have a better estimation.
+As a precautions an `explain cost | source = table | ... ` can be run prior to the `view` statement to have a better estimation.
 
 ### Examples:
 ```sql
-project newTableName using csv | source = table | where fieldA > value | stats count(fieldA) by fieldB
+view newTableName using csv | source = table | where fieldA > value | stats count(fieldA) by fieldB
 
-project ipRanges using parquet | source = table | where isV6 = true | eval inRange = case(cidrmatch(ipAddress, '2003:db8::/32'), 'in' else 'out') | fields ip, inRange
+view ipRanges using parquet | source = table | where isV6 = true | eval inRange = case(cidrmatch(ipAddress, '2003:db8::/32'), 'in' else 'out') | fields ip, inRange
 
-project avgBridgesByCountry using json | source = table | fields country, bridges | flatten bridges | fields country, length | stats avg(length) as avg by country
+view avgBridgesByCountry using json | source = table | fields country, bridges | flatten bridges | fields country, length | stats avg(length) as avg by country
 
-project ageDistribByCountry using parquet partitioned by (age, country)  |
+view ageDistribByCountry using parquet partitioned by (age, country)  |
        source = table | stats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | stats 
             avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | stats avg(avg_state_age) as 
             avg_adult_country_age by country
 
-project ageDistribByCountry using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false') partitioned by (age, country) |
+view ageDistribByCountry using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false') partitioned by (age, country) |
        source = table | stats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | stats 
             avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | stats avg(avg_state_age) as 
             avg_adult_country_age by country
 
-project ageDistribByCountry using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false') partitioned by (age, country)  location 's://demo-app/my-bucket'|
+view ageDistribByCountry using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false') partitioned by (age, country)  location 's://demo-app/my-bucket'|
        source = table | stats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | stats 
             avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | stats avg(avg_state_age) as 
             avg_adult_country_age by country
@@ -60,7 +60,7 @@ project ageDistribByCountry using parquet OPTIONS('parquet.bloom.filter.enabled'
 ```
 
 ### Effective SQL push-down query
-The project command is translated into an equivalent SQL `create table <viewName> [Using <datasuorce>] As <statement>` as shown here:
+The view command is translated into an equivalent SQL `create table <viewName> [Using <datasuorce>] As <statement>` as shown here:
 
 ```sql
 CREATE TABLE [ IF NOT EXISTS ] table_identifier

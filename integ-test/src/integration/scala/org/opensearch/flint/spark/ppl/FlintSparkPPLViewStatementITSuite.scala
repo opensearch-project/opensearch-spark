@@ -18,7 +18,7 @@ import org.apache.spark.sql.execution.ExplainMode
 import org.apache.spark.sql.execution.command.{DescribeTableCommand, ExplainCommand}
 import org.apache.spark.sql.streaming.StreamTest
 
-class FlintSparkPPLProjectStatementITSuite
+class FlintSparkPPLViewStatementITSuite
     extends QueryTest
     with LogicalPlanTestUtils
     with FlintPPLSuite
@@ -78,7 +78,7 @@ class FlintSparkPPLProjectStatementITSuite
     }
   }
 
-  ignore("project sql test using csv") {
+  ignore("view sql test using csv") {
     val viewLocation = viewFolderLocation.toAbsolutePath.toString
     val frame = sql(s"""
                         | CREATE TABLE student_partition_bucket
@@ -107,9 +107,9 @@ class FlintSparkPPLProjectStatementITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-  test("project using csv") {
+  test("view using csv") {
     val frame = sql(s"""
-                       | project $viewName using csv | source = $testTable | where state != 'California' | fields name
+                       | view $viewName using csv | source = $testTable | where state != 'California' | fields name
                        | """.stripMargin)
 
     // Retrieve the logical plan
@@ -168,9 +168,9 @@ class FlintSparkPPLProjectStatementITSuite
       "Partitioning does not contain ay FieldReferences")
   }
 
-  test("project using csv partition by age") {
+  test("view using csv partition by age") {
     val frame = sql(s"""
-                       | project $viewName using csv partitioned by (age) | source = $testTable | where state != 'California' | fields name, age
+                       | view $viewName using csv partitioned by (age) | source = $testTable | where state != 'California' | fields name, age
                        | """.stripMargin)
 
     // Retrieve the logical plan
@@ -237,9 +237,9 @@ class FlintSparkPPLProjectStatementITSuite
       "Partitioning does not contain a FieldReferences: 'age'")
   }
 
-  test("project using csv partition by state and country") {
+  test("view using csv partition by state and country") {
     val frame = sql(s"""
-                       |project $viewName using csv partitioned by (state, country) | source = $testTable | dedup name | fields name, state, country
+                       |view $viewName using csv partitioned by (state, country) | source = $testTable | dedup name | fields name, state, country
                        | """.stripMargin)
 
     frame.collect()
@@ -347,9 +347,9 @@ class FlintSparkPPLProjectStatementITSuite
       "Partitioning does not contain a FieldReferences: 'name'")
   }
 
-  test("project using parquet partition by state & country") {
+  test("view using parquet partition by state & country") {
     val frame = sql(s"""
-                       |project $viewName using parquet partitioned by (state, country) | source = $testTable | dedup name | fields name, state, country
+                       |view $viewName using parquet partitioned by (state, country) | source = $testTable | dedup name | fields name, state, country
                        | """.stripMargin)
 
     frame.collect()
@@ -457,9 +457,9 @@ class FlintSparkPPLProjectStatementITSuite
       "Partitioning does not contain a FieldReferences: 'name'")
   }
 
-  test("project using parquet with options & partition by state & country") {
+  test("view using parquet with options & partition by state & country") {
     val frame = sql(s"""
-                       | project $viewName using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false')
+                       | view $viewName using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false')
                        | partitioned by (state, country) | source = $testTable | dedup name | fields name, state, country
                        | """.stripMargin)
 
@@ -571,10 +571,10 @@ class FlintSparkPPLProjectStatementITSuite
       "Partitioning does not contain a FieldReferences: 'name'")
   }
 
-  test("project using parquet with options & location with partition by state & country") {
+  test("view using parquet with options & location with partition by state & country") {
     val viewLocation = viewFolderLocation.toAbsolutePath.toString
     val frame = sql(s"""
-                       | project $viewName using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false')
+                       | view $viewName using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false')
                        | partitioned by (state, country) location '$viewLocation' | source = $testTable | dedup name | fields name, state, country
                        | """.stripMargin)
 
@@ -688,7 +688,7 @@ class FlintSparkPPLProjectStatementITSuite
   test("test inner join with relation subquery") {
     val viewLocation = viewFolderLocation.toAbsolutePath.toString
     val frame = sql(s"""
-                       | project $viewName using parquet OPTIONS('parquet.bloom.filter.enabled'='true')
+                       | view $viewName using parquet OPTIONS('parquet.bloom.filter.enabled'='true')
                        | partitioned by (age_span) location '$viewLocation'
                        | | source = $testTable1
                        | | where country = 'USA' OR country = 'England'

@@ -28,7 +28,7 @@ TOP:                                'TOP';
 RARE_APPROX:                        'RARE_APPROX';
 RARE:                               'RARE';
 PARSE:                              'PARSE';
-PROJECT:                            'PROJECT';
+VIEW:                               'VIEW';
 METHOD:                             'METHOD';
 REGEX:                              'REGEX';
 PUNCT:                              'PUNCT';

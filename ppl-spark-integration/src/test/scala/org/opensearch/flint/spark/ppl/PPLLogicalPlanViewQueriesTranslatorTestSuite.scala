@@ -20,7 +20,7 @@ import org.apache.spark.sql.catalyst.plans.{Inner, PlanTest}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.connector.expressions.{Expression, FieldReference, IdentityTransform, NamedReference, Transform}
 
-class PPLLogicalPlanProjectQueriesTranslatorTestSuite
+class PPLLogicalPlanViewQueriesTranslatorTestSuite
     extends SparkFunSuite
     with PlanTest
     with LogicalPlanTestUtils
@@ -33,13 +33,13 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
   private val pplParser = new PPLSyntaxParser()
   private val viewFolderLocation = Paths.get(".", "spark-warehouse", "student_partition_bucket")
 
-  test("test project a simple search with only one table using csv ") {
+  test("test view a simple search with only one table using csv ") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
       plan(
         pplParser,
-        "project simpleView using csv | source = table | where state != 'California' | fields name"),
+        "view simpleView using csv | source = table | where state != 'California' | fields name"),
       context)
 
     // Define the expected logical plan
@@ -81,13 +81,13 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
       "Partitioning does not contain ay FieldReferences")
   }
 
-  test("test project a simple search with only one table using csv and partitioned field ") {
+  test("test view a simple search with only one table using csv and partitioned field ") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
       plan(
         pplParser,
-        "project if not exists simpleView using csv partitioned by (age) | source = table | where state != 'California' "),
+        "view if not exists simpleView using csv partitioned by (age) | source = table | where state != 'California' "),
       context)
 
     // Define the expected logical plan
@@ -138,13 +138,13 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
   }
 
   test(
-    "test project a simple search with only one table using csv and multiple partitioned fields ") {
+    "test view a simple search with only one table using csv and multiple partitioned fields ") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
       plan(
         pplParser,
-        "project if not exists simpleView using csv partitioned by (age, country) | source = table | where state != 'California' "),
+        "view if not exists simpleView using csv partitioned by (age, country) | source = table | where state != 'California' "),
       context)
 
     // Define the expected logical plan
@@ -196,13 +196,13 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
   }
 
   test(
-    "test project a simple search with only one table using parquet and Options with multiple partitioned fields ") {
+    "test view a simple search with only one table using parquet and Options with multiple partitioned fields ") {
     // if successful build ppl logical plan and translate to catalyst logical plan
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
       plan(
         pplParser,
-        "project if not exists simpleView using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false') " +
+        "view if not exists simpleView using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false') " +
           " partitioned by (age, country) | source = table | where state != 'California' "),
       context)
 
@@ -258,14 +258,14 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
   }
 
   test(
-    "test project a simple search with only one table using parquet with location and Options with multiple partitioned fields ") {
+    "test view a simple search with only one table using parquet with location and Options with multiple partitioned fields ") {
     val viewLocation = viewFolderLocation.toAbsolutePath.toString
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
       plan(
         pplParser,
         s"""
-         | project if not exists simpleView using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false')
+         | view if not exists simpleView using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false')
          | partitioned by (age, country) location '$viewLocation' | source = table | where state != 'California'
         """.stripMargin),
       context)
@@ -322,14 +322,14 @@ class PPLLogicalPlanProjectQueriesTranslatorTestSuite
   }
 
   test(
-    "test project with inner join: join condition with table names and predicates using parquet with location and Options with single partitioned fields") {
+    "test view with inner join: join condition with table names and predicates using parquet with location and Options with single partitioned fields") {
     val viewLocation = viewFolderLocation.toAbsolutePath.toString
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(
       plan(
         pplParser,
         s"""
-         | project if not exists simpleView using parquet OPTIONS('parquet.bloom.filter.enabled'='true')
+         | view if not exists simpleView using parquet OPTIONS('parquet.bloom.filter.enabled'='true')
          | partitioned by (name) location '$viewLocation' |
          | source = $testTable1| INNER JOIN left = l right = r ON $testTable1.id = $testTable2.id AND $testTable1.count > 10 AND lower($testTable2.name) = 'hello' $testTable2
          | """.stripMargin),

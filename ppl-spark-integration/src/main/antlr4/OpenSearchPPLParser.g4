@@ -17,7 +17,7 @@ pplStatement
    ;
 
 dmlStatement
-   : (explainCommand PIPE | projectCommand PIPE)? queryStatement
+   : (explainCommand PIPE | viewCommand PIPE)? queryStatement
    ;
 
 queryStatement
@@ -194,8 +194,8 @@ grokCommand
    : GROK (source_field = expression) (pattern = stringLiteral)
    ;
 
-projectCommand
-   : PROJECT (IF NOT EXISTS)? tableQualifiedName (USING datasourceValues)? (OPTIONS options=tablePropertyList)? (PARTITIONED BY partitionColumnNames=identifierSeq)? locationSpec?
+viewCommand
+   : VIEW (IF NOT EXISTS)? tableQualifiedName (USING datasourceValues)? (OPTIONS options=tablePropertyList)? (PARTITIONED BY partitionColumnNames=identifierSeq)? locationSpec?
    ;
 
 locationSpec

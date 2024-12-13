@@ -21,18 +21,18 @@ import java.util.List;
 @ToString
 @Getter
 @EqualsAndHashCode(callSuper = false)
-public class Project extends UnresolvedPlan {
-  @Setter private List<UnresolvedExpression> projectList;
+public class View extends UnresolvedPlan {
+  @Setter private List<UnresolvedExpression> viewList;
   private List<Argument> argExprList;
   private UnresolvedPlan child;
 
-  public Project(List<UnresolvedExpression> projectList) {
-    this.projectList = projectList;
+  public View(List<UnresolvedExpression> viewList) {
+    this.viewList = viewList;
     this.argExprList = Collections.emptyList();
   }
 
-  public Project(List<UnresolvedExpression> projectList, List<Argument> argExprList) {
-    this.projectList = projectList;
+  public View(List<UnresolvedExpression> viewList, List<Argument> argExprList) {
+    this.viewList = viewList;
     this.argExprList = argExprList;
   }
 
@@ -50,7 +50,7 @@ public class Project extends UnresolvedPlan {
   }
 
   @Override
-  public Project attach(UnresolvedPlan child) {
+  public View attach(UnresolvedPlan child) {
     this.child = child;
     return this;
   }
@@ -63,6 +63,6 @@ public class Project extends UnresolvedPlan {
   @Override
   public <T, C> T accept(AbstractNodeVisitor<T, C> nodeVisitor, C context) {
 
-    return nodeVisitor.visitProject(this, context);
+    return nodeVisitor.visitView(this, context);
   }
 }

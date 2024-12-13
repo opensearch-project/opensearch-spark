@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class ProjectStatement extends Statement implements TableIdentifier {
+public class ViewStatement extends Statement implements TableIdentifier {
 
     private final Statement statement;
     private final boolean override;
@@ -36,9 +36,9 @@ public class ProjectStatement extends Statement implements TableIdentifier {
     private final Optional<UnresolvedExpression> partitionColumns;
     private final Optional<UnresolvedExpression> location;
 
-    public ProjectStatement(List<UnresolvedExpression> tableNames, Optional<UnresolvedExpression> using,
-                            Optional<UnresolvedExpression> options, Optional<UnresolvedExpression> partitionColumns,
-                            Optional<UnresolvedExpression> location, Query statement, boolean override) {
+    public ViewStatement(List<UnresolvedExpression> tableNames, Optional<UnresolvedExpression> using,
+                         Optional<UnresolvedExpression> options, Optional<UnresolvedExpression> partitionColumns,
+                         Optional<UnresolvedExpression> location, Query statement, boolean override) {
         this.tableNames = tableNames;
         this.using = using.map(p->DataSourceType.valueOf(p.toString()));
         this.options = options;

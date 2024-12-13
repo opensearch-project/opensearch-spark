@@ -21,7 +21,7 @@ import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Argument;
 import org.opensearch.sql.ast.expression.AttributeList;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
-import org.opensearch.sql.ast.statement.ProjectStatement;
+import org.opensearch.sql.ast.statement.ViewStatement;
 import org.opensearch.sql.ppl.CatalystPlanContext;
 import scala.Option;
 import scala.Tuple2;
@@ -36,17 +36,17 @@ import static org.opensearch.sql.ppl.utils.DataTypeTransformer.map;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.option;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 
-public interface ProjectionUtils {
+public interface ViewUtils {
 
     /**
-     * build a CreateTableAsSelect operator base on the ProjectStatement node
+     * build a CreateTableAsSelect operator base on the ViewStatement node
      *         
      *    'CreateTableAsSelect [identity(age)], unresolvedtablespec(Some(parquet), optionlist(), None, None, None, false), false, false
      *           :- 'UnresolvedIdentifier [student_partition_bucket], false
      *                             - 'Project [*]
      *                                 - 'UnresolvedRelation [spark_catalog, default, flint_ppl_test], [], false
      * */
-    static CreateTableAsSelect visitProject(LogicalPlan plan, ProjectStatement node, CatalystPlanContext context) {
+    static CreateTableAsSelect visitView(LogicalPlan plan, ViewStatement node, CatalystPlanContext context) {
         Optional<String> using = node.getUsing().map(Enum::name);
         Optional<UnresolvedExpression> options = node.getOptions();
         Optional<UnresolvedExpression> partitionColumns = node.getPartitionColumns();

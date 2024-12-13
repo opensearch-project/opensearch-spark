@@ -42,7 +42,7 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`parse command`](ppl-parse-command.md)
     - 
-    - [`project command`](ppl-project-command.md)
+    - [`view command`](ppl-view-command.md)
 
     - [`patterns command`](ppl-patterns-command.md)
 
