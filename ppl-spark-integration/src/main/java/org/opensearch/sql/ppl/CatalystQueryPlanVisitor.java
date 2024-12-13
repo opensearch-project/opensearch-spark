@@ -305,13 +305,15 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.retainAllNamedParseExpressions(p -> p);
             context.retainAllPlans(p -> p);
 
-            SparkSession sparkSession = SparkSession.getActiveSession().get();
+            if (node.override) {
+                SparkSession sparkSession = SparkSession.getActiveSession().get();
 
-            QueryExecution queryExecution = sparkSession.sessionState().executePlan(mainSearchWithRowNumber, CommandExecutionMode.ALL());
-            QueryExecution queryExecutionSub = sparkSession.sessionState().executePlan(subSearchWithRowNumber, CommandExecutionMode.ALL());
+                QueryExecution queryExecution = sparkSession.sessionState().executePlan(mainSearchWithRowNumber, CommandExecutionMode.ALL());
+                QueryExecution queryExecutionSub = sparkSession.sessionState().executePlan(subSearchWithRowNumber, CommandExecutionMode.ALL());
 
-            Seq<Attribute> outputMain = queryExecution.analyzed().output();
-            Seq<Attribute> outputSub = queryExecutionSub.analyzed().output();
+                Seq<Attribute> outputMain = queryExecution.analyzed().output();
+                Seq<Attribute> outputSub = queryExecutionSub.analyzed().output();
+            }
 
             // Composite the join clause
             LogicalPlan joinedQuery = join(
