@@ -22,13 +22,14 @@ import java.util.List;
 @AllArgsConstructor
 public class AppendCol extends UnresolvedPlan {
 
-    public boolean override = true;
+    public boolean override;
 
     private UnresolvedPlan subSearch;
 
     private UnresolvedPlan child;
 
-    public AppendCol(UnresolvedPlan subSearch) {
+    public AppendCol(UnresolvedPlan subSearch, boolean override) {
+        this.override = override;
         this.subSearch = subSearch;
     }
 
