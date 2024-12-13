@@ -273,7 +273,7 @@ trendlineType
    ;
 
 appendcolCommand
-   : APPENDCOL LT_SQR_PRTHS commands (PIPE commands)* RT_SQR_PRTHS
+   : APPENDCOL (OVERRIDE EQUAL booleanLiteral)? LT_SQR_PRTHS commands (PIPE commands)* RT_SQR_PRTHS
    ;
 
 kmeansCommand

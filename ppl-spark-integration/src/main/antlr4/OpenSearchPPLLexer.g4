@@ -99,6 +99,9 @@ NULLS:                              'NULLS';
 SMA:                                'SMA';
 WMA:                                'WMA';
 
+// APPENDCOL options
+OVERRIDE:                           'OVERRIDE';
+
 // ARGUMENT KEYWORDS
 KEEPEMPTY:                          'KEEPEMPTY';
 CONSECUTIVE:                        'CONSECUTIVE';

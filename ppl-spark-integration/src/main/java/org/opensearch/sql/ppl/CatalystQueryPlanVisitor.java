@@ -5,6 +5,7 @@
 
 package org.opensearch.sql.ppl;
 
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
@@ -13,6 +14,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
+import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.EqualTo;
 import org.apache.spark.sql.catalyst.expressions.Equality$;
@@ -33,7 +35,9 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan$;
 import org.apache.spark.sql.catalyst.plans.logical.Project$;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$;
+import org.apache.spark.sql.execution.CommandExecutionMode;
 import org.apache.spark.sql.execution.ExplainMode;
+import org.apache.spark.sql.execution.QueryExecution;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
 import org.apache.spark.sql.types.DataTypes;
@@ -100,6 +104,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
 import static java.util.List.of;
@@ -147,7 +152,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitExplain(Explain node, CatalystPlanContext context) {
         node.getStatement().accept(this, context);
-        return context.apply(p -> new ExplainCommand(p, ExplainMode.fromString(node.getExplainMode().name())));
+        context.apply(p -> new ExplainCommand(p, ExplainMode.fromString(node.getExplainMode().name())));
+        System.out.println(context.getPlan());
+        Seq<Attribute> output = context.getPlan().output();
+        System.out.println(output);
+        return context.getPlan();
     }
 
     @Override
@@ -296,6 +305,14 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.retainAllNamedParseExpressions(p -> p);
             context.retainAllPlans(p -> p);
 
+            SparkSession sparkSession = SparkSession.getActiveSession().get();
+
+            QueryExecution queryExecution = sparkSession.sessionState().executePlan(mainSearchWithRowNumber, CommandExecutionMode.ALL());
+            QueryExecution queryExecutionSub = sparkSession.sessionState().executePlan(subSearchWithRowNumber, CommandExecutionMode.ALL());
+
+            Seq<Attribute> outputMain = queryExecution.analyzed().output();
+            Seq<Attribute> outputSub = queryExecutionSub.analyzed().output();
+
             // Composite the join clause
             LogicalPlan joinedQuery = join(
                     mainSearchWithRowNumber, subSearchWithRowNumber,
@@ -306,6 +323,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             // Remove the APPEND_ID
             return new DataFrameDropColumns(fieldsToRemove, joinedQuery);
         });
+
+        System.out.println("Attributes: ");
+        System.out.println(context.getPlan().output());
         return context.getPlan();
     }
 
@@ -335,6 +355,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     // NPE will be thrown by some node.getChild() call.
                     break;
                 }
+                /*
+                if (node == null || node.getChild() == null || node.getChild().isEmpty()) {
+                    break;
+                }
+                node = node.getChild().get(0);
+                 */
             }
         }
         return null;
