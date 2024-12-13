@@ -207,51 +207,51 @@ Example:
 
 **Description**
 
-`json_delete(json, [keys list])` Deletes json elements from a json object based on json specific keys. Return the updated object after keys deletion .
+`json_delete(json_string, [keys list])` Deletes json elements from a json object based on json specific keys. Return the updated object after keys deletion .
 
-**Argument type:** JSON, List<STRING>
+**Arguments type:** JSON_STRING, List<STRING>
 
-**Return type:** JSON
+**Return type:** JSON_STRING
 
 A JSON object format.
 
 Example:
 
-    os> source=people | eval deleted = json_delete({"a":"valueA", "b":"valueB"}, array("a")) 
+    os> source=people | eval deleted = json_delete('{"account_number":1,"balance":39225,"age":32,"gender":"M"}', array('age','gender')) | head 1 | fields deleted 
     fetched rows / total rows = 1/1
-    +----------------------------------+
-    | deleted                          |
-    +----------------------------------+
-    | {"a": "valueA" }                 |
-    +----------------------------------+
+    +------------------------------------------+
+    | deleted                                  |
+    +-----------------------------------------+
+    |{"account_number":1,"balance":39225}     |
+    +-----------------------------------------+
 
-    os> source=people | eval deleted = json_delete({"a":[{"b":1},{"b":2},{"c":3}]}, array("a.b"))
+    os> source=people | eval deleted = json_delete('{"f1":"abc","f2":{"f3":"a","f4":"b"}}', array('f2.f3')) | head 1 | fields deleted
     fetched rows / total rows = 1/1
     +-----------------------------------------------------------+
     | deleted                                                   |
     +-----------------------------------------------------------+
-    | {"a":[{"c":3}] }                                          |
+    | {"f1":"abc","f2":{"f4":"b"}}                              |
     +-----------------------------------------------------------+
 
-    os> source=people | eval `no_action` =  json_delete({"a":[{"b":1},{"b":2},{"c":3}]}, array("b.b"))
+    os> source=people | eval deleted =  json_delete('{"teacher":"Alice","student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}',array('teacher', 'student.rank')) | head 1 | fields deleted
     fetched rows / total rows = 1/1
-    +-----------------------------------+
-    | no_action                         |
-    +-----------------------------------+
-    | {"a":[{"b":1},{"b":2},{"c":3}]}   |
-    +-----------------------------------+
+    +--------------------------------------------------+
+    | deleted                                          |
+    +--------------------------------------------------+
+    |{"student":[{"name":"Bob"},{"name":"Charlie"}]}   |
+    +--------------------------------------------------+
 
 ### `JSON_APPEND`
 
 **Description**
 
-`json_append(json, [path_key, list of values to add ])`  appends values to end of an array within the json elements. Return the updated json object after appending .
+`json_append(json_string, [path_key, list of values to add ])`  appends values to end of an array within the json elements. Return the updated json object after appending .
 
-**Argument type:** JSON, List<STRING>
+**Argument type:** JSON_STRING, List<STRING>
 
-**Return type:** JSON
+**Return type:** JSON_STRING
 
-A JSON object format.
+A string JSON object format.
 
 **Note**
 Append adds the value to the end of the existing array with the following cases:
@@ -262,29 +262,30 @@ Append adds the value to the end of the existing array with the following cases:
 
 Example:
 
-    os> source=people | eval append = json_append(`{"a":["valueA", "valueB"]}`, array('a', 'valueC', 'valueD')) 
+    os> source=people | eval append = json_append(`{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}`,array('student', '{"name":"Tomy","rank":5}')) | head 1 | fields append
     fetched rows / total rows = 1/1
-    +-------------------------------------------------+
-    | append                                          |
-    +-------------------------------------------------+
-    | {"a":["valueA", "valueB", "valueC", "valueD"]}  |
-    +-------------------------------------------------+
+    +-----------------------------------------------------------------------------------------------------------------------------------+
+    | append                                                                                                                            |
+    +-----------------------------------------------------------------------------------------------------------------------------------+
+    |{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2},{"name":"Tomy","rank":5}]}                     |
+    +-----------------------------------------------------------------------------------------------------------------------------------+
 
-    os> source=people | eval append = json_append(`{"a":[]}`, array('a', 'valueC')) 
+    os> source=people | eval append = json_append(`{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}`,array('teacher', 'Tom', 'Walt')) | head 1 | fields append
     fetched rows / total rows = 1/1
-    +-----------------------------------------------+
-    | append                                        |
-    +-----------------------------------------------+
-    | {"a":["valueC"]}                              |
-    +-----------------------------------------------+
+    +-----------------------------------------------------------------------------------------------------------------------------------+
+    | append                                                                                                                            |
+    +-----------------------------------------------------------------------------------------------------------------------------------+
+    |{"teacher":["Alice","Tom","Walt"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}                                 |
+    +-----------------------------------------------------------------------------------------------------------------------------------+
 
-    os> source=people | eval append = json_append(`{"root":{ "a":["valueA", "valueB"]}}`, array('root', 'valueC') 
+
+    os> source=people | eval append = json_append(`{"school":{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}}`,array('school.teacher', 'Tom', 'Walt')) | head 1 | fields append
     fetched rows / total rows = 1/1
-    +-----------------------------------------------+
-    | append                                        |
-    +-----------------------------------------------+
-    |{"root": {"a":["valueA", "valueB"]}}           |
-    +-----------------------------------------------+
+    +-------------------------------------------------------------------------------------------------------------------------+
+    | append                                                                                                                  |
+    +-------------------------------------------------------------------------------------------------------------------------+
+    |{"school":{"teacher":["Alice","Tom","Walt"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}}            |
+    +-------------------------------------------------------------------------------------------------------------------------+
 
 ### `JSON_KEYS`
 
