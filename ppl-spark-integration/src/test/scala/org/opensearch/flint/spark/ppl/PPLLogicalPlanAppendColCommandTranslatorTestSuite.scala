@@ -68,6 +68,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
   private val T12_COLUMNS_SEQ = Seq(
     UnresolvedAttribute("T1._row_number_"), UnresolvedAttribute("T2._row_number_"))
 
+  // @formatter:off
   /**
    * Expected:
    'Project [*]
@@ -81,6 +82,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
    +- 'Aggregate ['age AS age#3], ['COUNT(*) AS count()#2, 'age AS age#3]
    +- 'UnresolvedRelation [employees], [], false
    */
+  // @formatter:on
   test("test AppendCol with NO transformation on main") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
@@ -118,6 +120,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
     comparePlans(logicalPlan, result, checkAnalysis = false)
   }
 
+  // @formatter:off
   /**
    * 'Project [*]
    * +- 'DataFrameDropColumns ['T1._row_number_, 'T2._row_number_]
@@ -131,6 +134,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
    * +- 'Aggregate ['age AS age#13], ['COUNT(*) AS count()#12, 'age AS age#13]
    * +- 'UnresolvedRelation [relation], [], false
    */
+  // @formatter:on
   test("test AppendCol with transformation on main-search") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
@@ -174,6 +178,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
     comparePlans(logicalPlan, result, checkAnalysis = false)
   }
 
+  // @formatter:off
   /**
    * 'Project [*]
    * +- 'DataFrameDropColumns ['T1._row_number_, 'T2._row_number_]
@@ -189,6 +194,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
    *        +- 'Aggregate ['age AS age#429], ['COUNT(*) AS count()#428, 'age AS age#429]
    *          +- 'UnresolvedRelation [employees], [], false
    */
+  // @formatter:on
   test("test AppendCol with chained sub-search") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
@@ -235,6 +241,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
     comparePlans(logicalPlan, result, checkAnalysis = false)
   }
 
+  // @formatter:off
   /**
    * == Parsed Logical Plan ==
    * 'Project [*]
@@ -259,6 +266,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
    *    +- 'Project ['dept]
    *      +- 'UnresolvedRelation [employees], [], false
    */
+  // @formatter:on
   test("test multiple AppendCol clauses") {
     val context = new CatalystPlanContext
     val logicalPlan = planTransformer.visit(
