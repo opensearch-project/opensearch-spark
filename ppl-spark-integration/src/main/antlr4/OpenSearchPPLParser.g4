@@ -82,7 +82,6 @@ commandName
    | EVAL
    | GROK
    | PARSE
-   | PROJECT
    | PATTERNS
    | LOOKUP
    | RENAME

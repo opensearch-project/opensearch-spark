@@ -65,7 +65,7 @@ public class ViewStatement extends Statement implements TableIdentifier {
 
     @Override
     public <R, C> R accept(AbstractNodeVisitor<R, C> visitor, C context) {
-        return visitor.visitProjectStatement(this, context);
+        return visitor.visitViewStatement(this, context);
     }
 
 }

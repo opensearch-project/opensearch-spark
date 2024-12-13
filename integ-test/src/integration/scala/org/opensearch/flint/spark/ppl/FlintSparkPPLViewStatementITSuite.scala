@@ -8,7 +8,6 @@ package org.opensearch.flint.spark.ppl
 import java.nio.file.{Files, Paths}
 
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
-import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedIdentifier, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, Divide, EqualTo, Floor, GreaterThan, IsNotNull, Literal, Multiply, Not, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.Inner

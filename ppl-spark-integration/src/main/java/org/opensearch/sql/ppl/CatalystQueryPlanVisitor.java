@@ -133,7 +133,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     }
 
     @Override
-    public LogicalPlan visitProjectStatement(ViewStatement node, CatalystPlanContext context) {
+    public LogicalPlan visitViewStatement(ViewStatement node, CatalystPlanContext context) {
         node.getStatement().accept(this, context);
         return context.apply(p -> ViewUtils.visitView(p, node, context));
     }
