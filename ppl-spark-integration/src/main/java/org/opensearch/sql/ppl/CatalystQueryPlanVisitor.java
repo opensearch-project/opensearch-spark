@@ -83,6 +83,7 @@ import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
+import org.opensearch.sql.ppl.utils.AppendColCatalystUtils;
 import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
 import org.opensearch.sql.ppl.utils.ParseTransformer;
 import org.opensearch.sql.ppl.utils.SortUtils;
@@ -277,32 +278,27 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         final String TABLE_RHS = "T2";
         final UnresolvedAttribute t1Attr = new UnresolvedAttribute(seq(TABLE_LHS, APPENDCOL_ID));
         final UnresolvedAttribute t2Attr = new UnresolvedAttribute(seq(TABLE_RHS, APPENDCOL_ID));
-//        final Seq<Expression> fieldsToRemove = seq(t1Attr, t2Attr);
         final List<Expression> fieldsToRemove = new ArrayList<>(List.of(t1Attr, t2Attr));
         final Node mainSearchNode = node.getChild().get(0);
         final Node subSearchNode = node.getSubSearch();
 
         // Traverse to look for relation clause then append it into the sub-search.
-        Relation relation = retrieveRelationClause(mainSearchNode);
-        appendRelationClause(node.getSubSearch(), relation);
+        Relation relation = AppendColCatalystUtils.retrieveRelationClause(mainSearchNode);
+        AppendColCatalystUtils.appendRelationClause(node.getSubSearch(), relation);
 
         // Add apply a dropColumns if override present, then add * with ROW_NUMBER
         LogicalPlan leftTemp = mainSearchNode.accept(this, context);
-//            LogicalPlan mainSearch = (node.override)
-//                    ? new DataFrameDropColumns(getoverridedlist(subSearch), leftTemp)
-//                    : leftTemp;
-        var mainSearchWithRowNumber = getRowNumStarProjection(context, leftTemp, TABLE_LHS);
+        var mainSearchWithRowNumber = AppendColCatalystUtils.getRowNumStarProjection(context, leftTemp, TABLE_LHS);
         context.withSubqueryAlias(mainSearchWithRowNumber);
 
         context.apply(left -> {
             // Add a new projection layer with * and ROW_NUMBER (Sub-search)
             LogicalPlan subSearch = subSearchNode.accept(this, context);
-            var subSearchWithRowNumber = getRowNumStarProjection(context, subSearch, TABLE_RHS);
+            var subSearchWithRowNumber = AppendColCatalystUtils.getRowNumStarProjection(context, subSearch, TABLE_RHS);
             context.withSubqueryAlias(subSearchWithRowNumber);
 
             context.retainAllNamedParseExpressions(p -> p);
             context.retainAllPlans(p -> p);
-
             // Composite the join clause
             LogicalPlan joinedQuery = join(
                     mainSearchWithRowNumber, subSearchWithRowNumber,
@@ -310,10 +306,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     Optional.of(new EqualTo(t1Attr, t2Attr)),
                     new Join.JoinHint());
 
-
-            // Remove the APPEND_ID
+            // Remove the APPEND_ID and duplicated field on T1 if override option is true.
             if (node.override) {
-                List<Expression> getoverridedlist = getoverridedlist(subSearchWithRowNumber, TABLE_LHS);
+                List<Expression> getoverridedlist = AppendColCatalystUtils.getoverridedlist(subSearchWithRowNumber, TABLE_LHS);
                 fieldsToRemove.addAll(getoverridedlist);
             }
             return new DataFrameDropColumns(seq(fieldsToRemove), joinedQuery);
@@ -322,72 +317,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         return context.getPlan();
     }
 
-    private static void appendRelationClause(Node subSearch, Relation relation) {
-
-        Relation table = new Relation(relation.getTableNames());
-        // Replace it with a function to look up the search command and extract the index name.
-        while (subSearch != null) {
-            try {
-                subSearch = subSearch.getChild().get(0);
-            } catch (NullPointerException ex) {
-                System.out.println("Null when getting the child ");
-                ((UnresolvedPlan) subSearch).attach(table);
-                break;
-            }
-        }
-    }
-
-    private static Relation retrieveRelationClause(Node node) {
-        while (node != null) {
-            if (node instanceof Relation) {
-                return (Relation) node;
-            } else {
-                try {
-                    node = node.getChild().get(0);
-                } catch (NullPointerException ex) {
-                    // NPE will be thrown by some node.getChild() call.
-                    break;
-                }
-                /*
-                if (node == null || node.getChild() == null || node.getChild().isEmpty()) {
-                    break;
-                }
-                node = node.getChild().get(0);
-                 */
-            }
-        }
-        return null;
-    }
-
-    private static List<Expression> getoverridedlist(LogicalPlan lp, String tableName) {
-        // When override option present, extract fields to project from sub-search,
-        // then apply a dfDropColumns on main-search to avoid duplicate fields.
-        SparkSession sparkSession = SparkSession.getActiveSession().get();
-        QueryExecution queryExecutionSub = sparkSession.sessionState()
-                .executePlan(lp, CommandExecutionMode.SKIP());
-        Seq<Attribute> output = queryExecutionSub.analyzed().output();
-        List<Attribute> attributes = seqAsJavaList(output);
-        return attributes.stream()
-                .map(attr ->
-                        new UnresolvedAttribute(seq(tableName, attr.name())))
-                .collect(Collectors.toList());
-    }
-
-    private org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias getRowNumStarProjection(CatalystPlanContext context, LogicalPlan lp, String alias) {
-
-        SortOrder sortOrder = SortUtils.sortOrder(
-                new org.apache.spark.sql.catalyst.expressions.Literal(
-                        UTF8String.fromString("1"), DataTypes.StringType), false);
-
-        NamedExpression appendCol = WindowSpecTransformer.buildRowNumber(seq(), seq(sortOrder));
-        List<NamedExpression> projectList = (context.getNamedParseExpressions().isEmpty())
-                ? List.of(appendCol, new UnresolvedStar(Option.empty()))
-                : List.of(appendCol);
-
-        LogicalPlan lpWithProjection = new org.apache.spark.sql.catalyst.plans.logical.Project(seq(
-                projectList), lp);
-        return SubqueryAlias$.MODULE$.apply(alias, lpWithProjection);
-    }
 
     @Override
     public LogicalPlan visitCorrelation(Correlation node, CatalystPlanContext context) {
