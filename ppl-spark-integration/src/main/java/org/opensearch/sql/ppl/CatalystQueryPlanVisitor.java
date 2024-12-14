@@ -364,7 +364,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         // then apply a dfDropColumns on main-search to avoid duplicate fields.
         SparkSession sparkSession = SparkSession.getActiveSession().get();
         QueryExecution queryExecutionSub = sparkSession.sessionState()
-                .executePlan(lp, CommandExecutionMode.ALL());
+                .executePlan(lp, CommandExecutionMode.SKIP());
         Seq<Attribute> output = queryExecutionSub.analyzed().output();
         List<Attribute> attributes = seqAsJavaList(output);
         return attributes.stream()
@@ -380,7 +380,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                         UTF8String.fromString("1"), DataTypes.StringType), false);
 
         NamedExpression appendCol = WindowSpecTransformer.buildRowNumber(seq(), seq(sortOrder));
-
         List<NamedExpression> projectList = (context.getNamedParseExpressions().isEmpty())
                 ? List.of(appendCol, new UnresolvedStar(Option.empty()))
                 : List.of(appendCol);
