@@ -91,18 +91,18 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Aggregate(AGE_ALIAS :: Nil, Seq(COUNT_STAR, AGE_ALIAS), RELATION_EMPLOYEES)))
 
-    val result = Project(
+    val expectedPlan = Project(
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
         T12_COLUMNS_SEQ,
         Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
 
-    // scalastyle:off
-    println(logicalPlan)
-    println(result)
-    // scalastyle:on
+//    // scalastyle:off
+//    println(logicalPlan)
+//    println(expectedPlan)
+//    // scalastyle:on
 
-    comparePlans(logicalPlan, result, checkAnalysis = false)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
   // @formatter:off
@@ -159,13 +159,13 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Aggregate(AGE_ALIAS :: Nil, Seq(COUNT_STAR, AGE_ALIAS), RELATION_EMPLOYEES)))
 
-    val result = Project(
+    val expectedPlan = Project(
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
         T12_COLUMNS_SEQ,
         Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
 
-    comparePlans(logicalPlan, result, checkAnalysis = false)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
   // @formatter:off
@@ -229,13 +229,13 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
             Seq(UnresolvedStar(None), Alias(Literal(1), "m")()),
             Aggregate(AGE_ALIAS :: Nil, Seq(COUNT_STAR, AGE_ALIAS), RELATION_EMPLOYEES)))))
 
-    val result = Project(
+    val expectedPlan = Project(
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
         T12_COLUMNS_SEQ,
         Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
 
-    comparePlans(logicalPlan, result, checkAnalysis = false)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
   // @formatter:off
@@ -324,7 +324,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Project(Seq(UnresolvedAttribute("dept")), RELATION_EMPLOYEES)))
 
-    val joinWithSecondAppendCol = Project(
+    val expectedPlan = Project(
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
         T12_COLUMNS_SEQ,
@@ -335,7 +335,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
           Some(T12_JOIN_CONDITION),
           JoinHint.NONE)))
 
-    comparePlans(logicalPlan, joinWithSecondAppendCol, checkAnalysis = false)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
 }
