@@ -32,6 +32,12 @@ import static scala.collection.JavaConverters.seqAsJavaList;
  */
 public interface AppendColCatalystUtils {
 
+    /**
+     * Response to traverse given subSearch Node till the last child, then append the Relation clause,
+     * in order to specify the data source || index.
+     * @param subSearch User provided sub-search from APPENDCOL command.
+     * @param relation Relation clause which represent the dataSource that this sub-search execute upon.
+     */
     static void appendRelationClause(Node subSearch, Relation relation) {
         Relation table = new Relation(relation.getTableNames());
         // Replace it with a function to look up the search command and extract the index name.
@@ -45,6 +51,11 @@ public interface AppendColCatalystUtils {
         }
     }
 
+    /**
+     * Util method to traverse a given Node object and return the first occurrence of a Relation clause.
+     * @param node The Node object that this util method search upon.
+     * @return The first occurrence of Relation object from the given Node.
+     */
     static Relation retrieveRelationClause(Node node) {
         while (node != null) {
             if (node instanceof Relation) {
@@ -53,7 +64,9 @@ public interface AppendColCatalystUtils {
                 try {
                     node = node.getChild().get(0);
                 } catch (NullPointerException ex) {
-                    // NPE will be thrown by some node.getChild() call.
+                    // Base on the current implementation of Flint,
+                    // NPE will be thrown by certain type of Node implementation,
+                    // when node.getChild() being called.
                     break;
                 }
             }
@@ -61,6 +74,14 @@ public interface AppendColCatalystUtils {
         return null;
     }
 
+
+    /**
+     * Util method to perform analyzed() call against the given LogicalPlan to exact all fields
+     * that will be projected upon the execution in the form of Java List with user provided schema prefix.
+     * @param lp LogicalPlan instance to extract the projection fields from.
+     * @param tableName the table || schema name being appended as part of the returned fields.
+     * @return A list of Expression instances with alternated tableName || Schema information.
+     */
     static List<Expression> getoverridedlist(LogicalPlan lp, String tableName) {
         // When override option present, extract fields to project from sub-search,
         // then apply a dfDropColumns on main-search to avoid duplicate fields.
@@ -75,6 +96,13 @@ public interface AppendColCatalystUtils {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Helper method to first add an additional project clause to provide row_number, then wrap it SubqueryAlias and return.
+     * @param context Context object of the current Parser.
+     * @param lp The Logical Plan instance which contains the query.
+     * @param alias The name of the Alias clause.
+     * @return A subqeuryAlias instance which has row_number for natural ordering purpose.
+     */
     static SubqueryAlias getRowNumStarProjection(CatalystPlanContext context, LogicalPlan lp, String alias) {
         final SortOrder sortOrder = SortUtils.sortOrder(
                 new org.apache.spark.sql.catalyst.expressions.Literal(
