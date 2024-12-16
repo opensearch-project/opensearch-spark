@@ -216,7 +216,7 @@ class FlintSparkPPLParseITSuite
 
   test("test parse email & host expressions including cast and sort commands") {
     val frame = sql(s"""
-         | source = $testTable| parse street_address '(?<streetNumber>\\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street
+         | source = $testTable| parse street_address '(?<streetNumber>\\d+) (?<street>.+)' | where cast(streetNumber as int) > 500 | sort streetNumber | fields streetNumber, street
          | """.stripMargin)
     // Retrieve the results
     val results: Array[Row] = frame.collect()
