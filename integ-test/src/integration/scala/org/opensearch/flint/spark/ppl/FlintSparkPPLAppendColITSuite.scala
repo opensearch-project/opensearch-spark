@@ -7,6 +7,7 @@ package org.opensearch.flint.spark.ppl
 
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 import org.opensearch.sql.ppl.utils.SortUtils
+
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Add, Alias, Ascending, CaseWhen, CurrentRow, Descending, Divide, EqualTo, Expression, LessThan, Literal, Multiply, RowFrame, RowNumber, SortOrder, SpecifiedWindowFrame, UnboundedPreceding, WindowExpression, WindowSpecDefinition}
@@ -14,8 +15,6 @@ import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.plans.LeftOuter
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
-
-
 
 class FlintSparkPPLAppendColITSuite
     extends QueryTest
@@ -41,14 +40,14 @@ class FlintSparkPPLAppendColITSuite
 
   private val AGE_ALIAS = Alias(UnresolvedAttribute("age"), "age")()
 
-  private val RELATION_TEST_TABLE = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+  private val RELATION_TEST_TABLE = UnresolvedRelation(
+    Seq("spark_catalog", "default", "flint_ppl_test"))
 
   private val T12_JOIN_CONDITION =
     EqualTo(UnresolvedAttribute("T1._row_number_"), UnresolvedAttribute("T2._row_number_"))
 
   private val T12_COLUMNS_SEQ =
     Seq(UnresolvedAttribute("T1._row_number_"), UnresolvedAttribute("T2._row_number_"))
-
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -67,8 +66,8 @@ class FlintSparkPPLAppendColITSuite
   }
 
   /**
-   * The baseline test-case to make sure APPENDCOL( ) function works,
-   * when no transformation present on the main search, after the search command.
+   * The baseline test-case to make sure APPENDCOL( ) function works, when no transformation
+   * present on the main search, after the search command.
    */
   test("test AppendCol with NO transformation on main") {
     val frame = sql(s"""
@@ -121,17 +120,17 @@ class FlintSparkPPLAppendColITSuite
         T12_COLUMNS_SEQ,
         Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
 
-      // scalastyle:off
-      println(logicalPlan)
-      println(expectedPlan)
-      // scalastyle:on
+    // scalastyle:off
+    println(logicalPlan)
+    println(expectedPlan)
+    // scalastyle:on
 
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-
   /**
-   * To simulate the use-case when user attempt to attach an APPENDCOL command on a well established main search.
+   * To simulate the use-case when user attempt to attach an APPENDCOL command on a well
+   * established main search.
    */
   test("test AppendCol with transformation on main-search") {
     val frame = sql(s"""
@@ -159,7 +158,7 @@ class FlintSparkPPLAppendColITSuite
                specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#11, *]
      :     +- 'Project ['name, 'age, 'state]
      :        +- 'UnresolvedRelation [relation], [], false
-    */
+     */
     val t1 = SubqueryAlias(
       "T1",
       Project(
@@ -200,8 +199,7 @@ class FlintSparkPPLAppendColITSuite
                        | source = $testTable | FIELDS name, age, state | APPENDCOL [ stats count() by age | eval m = 1 | FIELDS -m ]
                        | """.stripMargin)
 
-    assert(frame.columns.sameElements(
-      Array("name", "age", "state", "count()", "age")))
+    assert(frame.columns.sameElements(Array("name", "age", "state", "count()", "age")))
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
@@ -222,7 +220,7 @@ class FlintSparkPPLAppendColITSuite
                specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#11, *]
      :     +- 'Project ['age, 'dept, 'salary]
      :        +- 'UnresolvedRelation [relation], [], false
-    */
+     */
     val t1 = SubqueryAlias(
       "T1",
       Project(
@@ -261,16 +259,15 @@ class FlintSparkPPLAppendColITSuite
   }
 
   /**
-   * The use-case when user attempt to chain multiple APPENCOL command in a PPL, this is a common use case,
-   * when user prefer to show the statistic report alongside with the dataset.
+   * The use-case when user attempt to chain multiple APPENCOL command in a PPL, this is a common
+   * use case, when user prefer to show the statistic report alongside with the dataset.
    */
   test("test multiple AppendCol clauses") {
     val frame = sql(s"""
                        | source = $testTable | FIELDS name, age | APPENDCOL [ stats count() by age | eval m = 1 | FIELDS -m ] | APPENDCOL [FIELDS state]
                        | """.stripMargin)
 
-    assert(frame.columns.sameElements(
-      Array("name", "age", "count()", "age", "state")))
+    assert(frame.columns.sameElements(Array("name", "age", "count()", "age", "state")))
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
@@ -290,7 +287,7 @@ class FlintSparkPPLAppendColITSuite
      :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#544, *]
      :     +- 'Project ['name, 'age]
      :        +- 'UnresolvedRelation [flint_ppl_test], [], false
-    */
+     */
     val mainSearch = SubqueryAlias(
       "T1",
       Project(
