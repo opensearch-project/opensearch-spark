@@ -7,6 +7,8 @@ package org.opensearch.flint.spark
 
 import java.io.File
 import java.sql.Timestamp
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
 import org.scalatest.matchers.should.Matchers
@@ -52,7 +54,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
              |""".stripMargin)
         .assertIndexData(
           Row(
-            Timestamp.valueOf("2021-06-01 05:00:00"),
+            timestampFromUTC("2023-11-01T05:00:00Z"),
             "ACCEPT",
             "10.0.0.1",
             "10.0.0.2",
@@ -61,7 +63,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
             350.0,
             15),
           Row(
-            Timestamp.valueOf("2021-06-01 05:10:00"),
+            timestampFromUTC("2023-11-01T05:10:00Z"),
             "ACCEPT",
             "10.0.0.3",
             "10.0.0.4",
@@ -70,7 +72,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
             300.0,
             15),
           Row(
-            Timestamp.valueOf("2021-06-01 05:10:00"),
+            timestampFromUTC("2023-11-01T05:10:00Z"),
             "REJECT",
             "10.0.0.5",
             "10.0.0.6",
@@ -129,7 +131,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
              |  eventCategory
              |""".stripMargin)
         .assertIndexData(Row(
-          Timestamp.valueOf("2023-10-31 22:00:00"),
+          timestampFromUTC("2023-11-01T05:00:00Z"),
           "IAMUser",
           "123456789012",
           "MyRole",
@@ -210,5 +212,10 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
 
       checkAnswer(actualRows, expectedRows)
     }
+  }
+
+  private def timestampFromUTC(utcString: String): Timestamp = {
+    val instant = ZonedDateTime.parse(utcString, DateTimeFormatter.ISO_DATE_TIME).toInstant
+    Timestamp.from(instant)
   }
 }
