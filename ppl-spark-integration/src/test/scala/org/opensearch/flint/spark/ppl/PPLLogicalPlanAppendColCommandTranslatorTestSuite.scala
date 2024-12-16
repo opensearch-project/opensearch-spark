@@ -97,11 +97,6 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
         T12_COLUMNS_SEQ,
         Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
 
-//    // scalastyle:off
-//    println(logicalPlan)
-//    println(expectedPlan)
-//    // scalastyle:on
-
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
