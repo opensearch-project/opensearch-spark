@@ -194,6 +194,9 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
       "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
       "org.projectlombok" % "lombok" % "1.18.30",
       "com.github.seancfoley" % "ipaddress" % "5.5.1",
+      "org.apache.calcite" % "calcite-core" % "1.38.0",
+      "org.apache.calcite" % "calcite-linq4j" % "1.38.0",
+      "org.apache.calcite" % "calcite-testkit" % "1.38.0" % "test",
     ),
     libraryDependencies ++= deps(sparkVersion),
     // ANTLR settings
