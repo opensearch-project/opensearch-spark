@@ -146,11 +146,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitExplain(Explain node, CatalystPlanContext context) {
         node.getStatement().accept(this, context);
-        context.apply(p -> new ExplainCommand(p, ExplainMode.fromString(node.getExplainMode().name())));
-        System.out.println(context.getPlan());
-        Seq<Attribute> output = context.getPlan().output();
-        System.out.println(output);
-        return context.getPlan();
+        return context.apply(p -> new ExplainCommand(p, ExplainMode.fromString(node.getExplainMode().name())));
     }
 
     @Override
