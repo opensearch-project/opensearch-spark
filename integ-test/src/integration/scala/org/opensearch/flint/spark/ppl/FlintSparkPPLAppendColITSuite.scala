@@ -343,7 +343,8 @@ class FlintSparkPPLAppendColITSuite
   }
 
   /**
-   * To simulate the use-case when column `age` present on both main and sub search, with option OVERRIDE=true.
+   * To simulate the use-case when column `age` present on both main and sub search, with option
+   * OVERRIDE=true.
    */
   test("test AppendCol with OVERRIDE option") {
     val frame = sql(s"""
@@ -392,11 +393,16 @@ class FlintSparkPPLAppendColITSuite
       "T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
-        Aggregate(Nil, Seq(Alias(
-          UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
-          "age")()), RELATION_TEST_TABLE)))
+        Aggregate(
+          Nil,
+          Seq(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
+              "age")()),
+          RELATION_TEST_TABLE)))
 
-    val overrideFields = Seq(UnresolvedAttribute("T1._row_number_"), UnresolvedAttribute("T1.age"))
+    val overrideFields =
+      Seq(UnresolvedAttribute("T1._row_number_"), UnresolvedAttribute("T1.age"))
 
     val expectedPlan = Project(
       Seq(UnresolvedStar(None)),
