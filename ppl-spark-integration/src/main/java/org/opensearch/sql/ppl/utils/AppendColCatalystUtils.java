@@ -5,9 +5,11 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.Literal;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.Project;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$;
 import org.apache.spark.sql.execution.CommandExecutionMode;
@@ -33,14 +35,13 @@ import static scala.collection.JavaConverters.seqAsJavaList;
 public interface AppendColCatalystUtils {
 
     /**
-     * Response to traverse given subSearch Node till the last child, then append the Relation clause,
-     * in order to specify the data source || index.
+     * Responsible to traverse given subSearch Node till the last child, then append the Relation clause,
+     * in order to specify the data source || index for the subSearch.
      * @param subSearch User provided sub-search from APPENDCOL command.
      * @param relation Relation clause which represent the dataSource that this sub-search execute upon.
      */
     static void appendRelationClause(Node subSearch, Relation relation) {
-        Relation table = new Relation(relation.getTableNames());
-        // Replace it with a function to look up the search command and extract the index name.
+        final Relation table = new Relation(relation.getTableNames());
         while (subSearch != null) {
             try {
                 subSearch = subSearch.getChild().get(0);
@@ -76,7 +77,7 @@ public interface AppendColCatalystUtils {
 
 
     /**
-     * Util method to perform analyzed() call against the given LogicalPlan to exact all fields
+     * Util method to perform analyzed() call against the given LogicalPlan to extract all fields
      * that will be projected upon the execution in the form of Java List with user provided schema prefix.
      * @param lp LogicalPlan instance to extract the projection fields from.
      * @param tableName the table || schema name being appended as part of the returned fields.
@@ -97,15 +98,15 @@ public interface AppendColCatalystUtils {
     }
 
     /**
-     * Helper method to first add an additional project clause to provide row_number, then wrap it SubqueryAlias and return.
+     * Helper method to first add an additional projection clause to provide row_number, then wrap it SubqueryAlias and return.
      * @param context Context object of the current Parser.
      * @param lp The Logical Plan instance which contains the query.
      * @param alias The name of the Alias clause.
-     * @return A subqeuryAlias instance which has row_number for natural ordering purpose.
+     * @return A subqueryAlias instance which has row_number for natural ordering purpose.
      */
     static SubqueryAlias getRowNumStarProjection(CatalystPlanContext context, LogicalPlan lp, String alias) {
         final SortOrder sortOrder = SortUtils.sortOrder(
-                new org.apache.spark.sql.catalyst.expressions.Literal(
+                new Literal(
                         UTF8String.fromString("1"), DataTypes.StringType), false);
 
         final NamedExpression appendCol = WindowSpecTransformer.buildRowNumber(seq(), seq(sortOrder));
@@ -113,7 +114,7 @@ public interface AppendColCatalystUtils {
                 ? List.of(appendCol, new UnresolvedStar(Option.empty()))
                 : List.of(appendCol);
 
-        final LogicalPlan lpWithProjection = new org.apache.spark.sql.catalyst.plans.logical.Project(seq(
+        final LogicalPlan lpWithProjection = new Project(seq(
                 projectList), lp);
         return SubqueryAlias$.MODULE$.apply(alias, lpWithProjection);
     }

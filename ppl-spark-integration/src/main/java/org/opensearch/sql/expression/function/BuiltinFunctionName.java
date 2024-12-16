@@ -248,7 +248,6 @@ public enum BuiltinFunctionName {
   ISNULL(FunctionName.of("isnull")),
   ISPRESENT(FunctionName.of("ispresent")),
 
-  ROW_NUMBER(FunctionName.of("row_number")),
   RANK(FunctionName.of("rank")),
   DENSE_RANK(FunctionName.of("dense_rank")),
 
@@ -333,7 +332,6 @@ public enum BuiltinFunctionName {
           .put("percentile", BuiltinFunctionName.PERCENTILE)
           .put("percentile_approx", BuiltinFunctionName.PERCENTILE_APPROX)
           .put("approx_count_distinct", BuiltinFunctionName.APPROX_COUNT_DISTINCT)
-          .put("row_number", BuiltinFunctionName.ROW_NUMBER)
           .build();
 
   public static Optional<BuiltinFunctionName> of(String str) {

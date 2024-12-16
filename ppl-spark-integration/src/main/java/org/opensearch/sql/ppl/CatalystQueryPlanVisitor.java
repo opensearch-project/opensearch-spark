@@ -282,31 +282,32 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         final Node mainSearchNode = node.getChild().get(0);
         final Node subSearchNode = node.getSubSearch();
 
-        // Traverse to look for relation clause then append it into the sub-search.
+        // Traverse to look for relation clause, then append it into the sub-search.
         Relation relation = AppendColCatalystUtils.retrieveRelationClause(mainSearchNode);
         AppendColCatalystUtils.appendRelationClause(node.getSubSearch(), relation);
 
-        // Add apply a dropColumns if override present, then add * with ROW_NUMBER
-        LogicalPlan leftTemp = mainSearchNode.accept(this, context);
-        var mainSearchWithRowNumber = AppendColCatalystUtils.getRowNumStarProjection(context, leftTemp, TABLE_LHS);
+        // Apply an additional projection layer on main-search to provide natural order.
+        LogicalPlan mainSearch = mainSearchNode.accept(this, context);
+        var mainSearchWithRowNumber = AppendColCatalystUtils.getRowNumStarProjection(context, mainSearch, TABLE_LHS);
         context.withSubqueryAlias(mainSearchWithRowNumber);
 
         context.apply(left -> {
-            // Add a new projection layer with * and ROW_NUMBER (Sub-search)
+            // Apply an additional projection layer on sub-search to provide natural order.
             LogicalPlan subSearch = subSearchNode.accept(this, context);
             var subSearchWithRowNumber = AppendColCatalystUtils.getRowNumStarProjection(context, subSearch, TABLE_RHS);
             context.withSubqueryAlias(subSearchWithRowNumber);
 
             context.retainAllNamedParseExpressions(p -> p);
             context.retainAllPlans(p -> p);
-            // Composite the join clause
+
+            // Join both Main and Sub search with _ROW_NUMBER_ column
             LogicalPlan joinedQuery = join(
                     mainSearchWithRowNumber, subSearchWithRowNumber,
                     Join.JoinType.LEFT,
                     Optional.of(new EqualTo(t1Attr, t2Attr)),
                     new Join.JoinHint());
 
-            // Remove the APPEND_ID and duplicated field on T1 if override option is true.
+            // Remove the APPEND_ID and duplicated field on T1 if override option present.
             if (node.override) {
                 List<Expression> getoverridedlist = AppendColCatalystUtils.getoverridedlist(subSearchWithRowNumber, TABLE_LHS);
                 fieldsToRemove.addAll(getoverridedlist);

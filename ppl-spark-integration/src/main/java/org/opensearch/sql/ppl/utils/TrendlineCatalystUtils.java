@@ -153,7 +153,7 @@ public interface TrendlineCatalystUtils {
      * @param expression The expression which will be evaluated.
      * @return An Alias instance with logical plan representation of `expression AS name`.
      */
-    public static NamedExpression getAlias(String name, Expression expression) {
+    private static NamedExpression getAlias(String name, Expression expression) {
         return org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(expression,
                 name,
                 NamedExpression.newExprId(),
