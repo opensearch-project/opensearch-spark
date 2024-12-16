@@ -1,7 +1,7 @@
 ## PPL `appendcol` command
 
 ### Description
-Using `appendcol` command append the result of a sub-search and attach it alongside with the input search results (The main search).
+Using `appendcol` command to append the result of a sub-search and attach it alongside with the input search results (The main search).
 
 ### Syntax - APPENDCOL
 `APPENDCOL <override=?> [sub-search]...`

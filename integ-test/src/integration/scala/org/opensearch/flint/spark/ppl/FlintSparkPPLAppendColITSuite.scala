@@ -120,11 +120,6 @@ class FlintSparkPPLAppendColITSuite
         T12_COLUMNS_SEQ,
         Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
 
-    // scalastyle:off
-    println(logicalPlan)
-    println(expectedPlan)
-    // scalastyle:on
-
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
@@ -344,6 +339,70 @@ class FlintSparkPPLAppendColITSuite
           LeftOuter,
           Some(T12_JOIN_CONDITION),
           JoinHint.NONE)))
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  /**
+   * To simulate the use-case when column `age` present on both main and sub search, with option OVERRIDE=true.
+   */
+  test("test AppendCol with OVERRIDE option") {
+    val frame = sql(s"""
+                       | source = $testTable | FIELDS name, age, state | APPENDCOL OVERRIDE=true [stats count() as age]
+                       | """.stripMargin)
+
+    assert(frame.columns.sameElements(Array("name", "state", "age")))
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+
+    /*
+      The sub-search result `APPENDCOL OVERRIDE=true [stats count() as age]` will be attached alongside with first row of main-search,
+      however given the non-deterministic natural of nature order, we cannot guarantee which specific data row will be returned from the primary search query.
+      Hence, only assert sub-search position but skipping the table content comparison.
+     */
+    assert(results(0).get(2) == 4)
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    /*
+     :- 'SubqueryAlias T1
+     :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST,
+               specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#11, *]
+     :     +- 'Project ['name, 'age, 'state]
+     :        +- 'UnresolvedRelation [relation], [], false
+     */
+    val t1 = SubqueryAlias(
+      "T1",
+      Project(
+        Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
+        Project(
+          Seq(
+            UnresolvedAttribute("name"),
+            UnresolvedAttribute("age"),
+            UnresolvedAttribute("state")),
+          RELATION_TEST_TABLE)))
+
+    /*
+    +- 'SubqueryAlias T2
+     +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST,
+            specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#216, *]
+        +- 'Aggregate ['COUNT(*) AS age#240]
+           +- 'UnresolvedRelation [flint_ppl_test], [], false
+     */
+    val t2 = SubqueryAlias(
+      "T2",
+      Project(
+        Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
+        Aggregate(Nil, Seq(Alias(
+          UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
+          "age")()), RELATION_TEST_TABLE)))
+
+    val overrideFields = Seq(UnresolvedAttribute("T1._row_number_"), UnresolvedAttribute("T1.age"))
+
+    val expectedPlan = Project(
+      Seq(UnresolvedStar(None)),
+      DataFrameDropColumns(
+        T12_COLUMNS_SEQ ++ overrideFields,
+        Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
