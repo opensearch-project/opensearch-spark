@@ -66,11 +66,14 @@ class FlintSparkPPLAppendColITSuite
     }
   }
 
+  /**
+   * The baseline test-case to make sure APPENDCOL( ) function works,
+   * when no transformation present on the main search, after the search command.
+   */
   test("test AppendCol with NO transformation on main") {
     val frame = sql(s"""
                        | source = $testTable | APPENDCOL [stats count() by age]
                        | """.stripMargin)
-
 
     assert(
       frame.columns.sameElements(
@@ -126,6 +129,10 @@ class FlintSparkPPLAppendColITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
+
+  /**
+   * To simulate the use-case when user attempt to attach an APPENDCOL command on a well established main search.
+   */
   test("test AppendCol with transformation on main-search") {
     val frame = sql(s"""
                        | source = $testTable | FIELDS name, age, state | APPENDCOL [stats count() by age]
@@ -185,6 +192,9 @@ class FlintSparkPPLAppendColITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
+  /**
+   * To simulate the situation when multiple PPL commands being applied on the sub-search.
+   */
   test("test AppendCol with chained sub-search") {
     val frame = sql(s"""
                        | source = $testTable | FIELDS name, age, state | APPENDCOL [ stats count() by age | eval m = 1 | FIELDS -m ]
@@ -230,7 +240,7 @@ class FlintSparkPPLAppendColITSuite
         +- 'DataFrameDropColumns ['m]
            +- 'Project [*, 1 AS m#430]
               +- 'Aggregate ['age AS age#429], ['COUNT(*) AS count()#428, 'age AS age#429]
-                 +- 'UnresolvedRelation [employees], [], false
+                 +- 'UnresolvedRelation [flint_ppl_test], [], false
      */
     val t2 = SubqueryAlias(
       "T2",
@@ -250,6 +260,10 @@ class FlintSparkPPLAppendColITSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
+  /**
+   * The use-case when user attempt to chain multiple APPENCOL command in a PPL, this is a common use case,
+   * when user prefer to show the statistic report alongside with the dataset.
+   */
   test("test multiple AppendCol clauses") {
     val frame = sql(s"""
                        | source = $testTable | FIELDS name, age | APPENDCOL [ stats count() by age | eval m = 1 | FIELDS -m ] | APPENDCOL [FIELDS state]
@@ -275,7 +289,7 @@ class FlintSparkPPLAppendColITSuite
      :- 'SubqueryAlias T1
      :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#544, *]
      :     +- 'Project ['name, 'age]
-     :        +- 'UnresolvedRelation [employees], [], false
+     :        +- 'UnresolvedRelation [flint_ppl_test], [], false
     */
     val mainSearch = SubqueryAlias(
       "T1",
@@ -291,7 +305,7 @@ class FlintSparkPPLAppendColITSuite
         +- 'DataFrameDropColumns ['m]
            +- 'Project [*, 1 AS m#430]
               +- 'Aggregate ['age AS age#429], ['COUNT(*) AS count()#428, 'age AS age#429]
-                 +- 'UnresolvedRelation [employees], [], false
+                 +- 'UnresolvedRelation [flint_ppl_test], [], false
      */
     val firstAppenCol = SubqueryAlias(
       "T2",
@@ -315,7 +329,7 @@ class FlintSparkPPLAppendColITSuite
     +- 'SubqueryAlias T2
      +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#553, *]
         +- 'Project ['dept]
-           +- 'UnresolvedRelation [employees], [], false
+           +- 'UnresolvedRelation [flint_ppl_test], [], false
      */
     val secondAppendCol = SubqueryAlias(
       "T2",
