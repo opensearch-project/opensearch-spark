@@ -23,7 +23,7 @@ Environment: python3
 
 Example to use this script:
 
-python SanityTest.py --base-url ${URL_ADDRESS} --username *** --password *** --opensearch_url ${OPENSEARCH_URL} --input-csv test_queries.csv --output-file test_report
+python SanityTest.py --spark-url ${SPARK_URL} --username *** --password *** --opensearch_url ${OPENSEARCH_URL} --input-csv test_queries.csv --output-file test_report
 
 The input file test_queries.csv should contain column: `query`
 

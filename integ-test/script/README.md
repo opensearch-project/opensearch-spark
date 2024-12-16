@@ -20,6 +20,12 @@ To use this script, you need to have Python **3.6** or higher installed. It also
 pip install requests pandas openpyxl pyspark setuptools pyarrow grpcio grpcio-status protobuf
 ```
 
+Build the Flint and PPL extensions for Spark.
+```
+sbt clean
+sbt sparkSqlApplicationCosmetic/assembly sparkPPLCosmetic/assembly
+```
+
 Next start the Docker containers that will be used for the tests. In the directory `docker/integ-test`
 ```shell
 docker compose up -d
@@ -32,15 +38,18 @@ docker compose down
 
 After getting the requisite libraries, you can run the script with the following command line parameters in your shell:
 ```shell
-python SanityTest.py --base-url ${URL_ADDRESS} --username *** --password *** --opensearch-url ${OPENSEARCH_URL} --input-csv test_cases.csv --output-file test_report
+python SanityTest.py --spark-url ${SPARK_URL} --username *** --password *** --opensearch-url ${OPENSEARCH_URL} --input-csv test_cases.csv --output-file test_report
 ```
-You need to replace the placeholders with your actual values of URL_ADDRESS, OPENSEARCH_URL and USERNAME, PASSWORD for authentication to your endpoint.
+You need to replace the placeholders with your actual values of SPARK_URL, OPENSEARCH_URL and USERNAME, PASSWORD for authentication to your endpoint.
+
+Running against the docker cluster, `SPARK_URL` should be set to `sc://localhost:15002` and `OPENSEARCH_URL` should be set
+to `http://localhost:9200`
 
 For more details of the command line parameters, you can see the help manual via command:
 ```shell
 python SanityTest.py --help   
 
-usage: SanityTest.py [-h] --base-url BASE_URL --username USERNAME --password PASSWORD --datasource DATASOURCE --input-csv INPUT_CSV
+usage: SanityTest.py [-h] --spark-url SPARK_URL --username USERNAME --password PASSWORD --datasource DATASOURCE --input-csv INPUT_CSV
                                       --output-file OPENSEARCH_URL [--max-workers MAX_WORKERS] [--check-interval CHECK_INTERVAL] [--timeout TIMEOUT]
                                       [--start-row START_ROW] [--end-row END_ROW]
 
@@ -48,7 +57,7 @@ Run tests from a CSV file and generate a report.
 
 options:
   -h, --help            show this help message and exit
-  --base-url BASE_URL   Base URL of the service
+  --spark-url SPARK_URL Spark Connect URL of the service
   --username USERNAME   Username for authentication
   --password PASSWORD   Password for authentication
   --output-file OPENSEARCH_URL
