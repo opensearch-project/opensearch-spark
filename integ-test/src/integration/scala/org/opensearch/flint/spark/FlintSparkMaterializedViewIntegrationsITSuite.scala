@@ -20,7 +20,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
   test("create materialized view for VPC flow integration") {
     withIntegration("vpc_flow") { integration =>
       integration
-        .createSourceTable(s"$catalogName.default.vpc_low_logs")
+        .createSourceTable(s"$catalogName.default.vpc_low_test")
         .createMaterializedView(s"""
              |SELECT
              |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
@@ -41,7 +41,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
              |    protocol,
              |    CAST(FROM_UNIXTIME(start) AS TIMESTAMP) AS `@timestamp`
              |  FROM
-             |    $catalogName.default.vpc_low_logs
+             |    $catalogName.default.vpc_low_test
              |)
              |GROUP BY
              |  TUMBLE(`@timestamp`, '5 Minute'),
@@ -81,15 +81,75 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     }
   }
 
+  test("create materialized view for CloudTrail integration") {
+    withIntegration("cloud_trail") { integration =>
+      integration
+        .createSourceTable(s"$catalogName.default.cloud_trail_test")
+        .createMaterializedView(s"""
+             |SELECT
+             |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
+             |  `userIdentity.type` AS `aws.cloudtrail.userIdentity.type`,
+             |  `userIdentity.accountId` AS `aws.cloudtrail.userIdentity.accountId`,
+             |  `userIdentity.sessionContext.sessionIssuer.userName` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.userName`,
+             |  `userIdentity.sessionContext.sessionIssuer.arn` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.arn`,
+             |  `userIdentity.sessionContext.sessionIssuer.type` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.type`,
+             |  awsRegion AS `aws.cloudtrail.awsRegion`,
+             |  sourceIPAddress AS `aws.cloudtrail.sourceIPAddress`,
+             |  eventSource AS `aws.cloudtrail.eventSource`,
+             |  eventName AS `aws.cloudtrail.eventName`,
+             |  eventCategory AS `aws.cloudtrail.eventCategory`,
+             |  COUNT(*) AS `aws.cloudtrail.event_count`
+             |FROM (
+             |  SELECT
+             |    CAST(eventTime AS TIMESTAMP) AS `@timestamp`,
+             |    userIdentity.`type` AS `userIdentity.type`,
+             |    userIdentity.`accountId` AS `userIdentity.accountId`,
+             |    userIdentity.sessionContext.sessionIssuer.userName AS `userIdentity.sessionContext.sessionIssuer.userName`,
+             |    userIdentity.sessionContext.sessionIssuer.arn AS `userIdentity.sessionContext.sessionIssuer.arn`,
+             |    userIdentity.sessionContext.sessionIssuer.type AS `userIdentity.sessionContext.sessionIssuer.type`,
+             |    awsRegion,
+             |    sourceIPAddress,
+             |    eventSource,
+             |    eventName,
+             |    eventCategory
+             |  FROM
+             |    $catalogName.default.cloud_trail_test
+             |)
+             |GROUP BY
+             |  TUMBLE(`@timestamp`, '5 Minute'),
+             |  `userIdentity.type`,
+             |  `userIdentity.accountId`,
+             |  `userIdentity.sessionContext.sessionIssuer.userName`,
+             |  `userIdentity.sessionContext.sessionIssuer.arn`,
+             |  `userIdentity.sessionContext.sessionIssuer.type`,
+             |  awsRegion,
+             |  sourceIPAddress,
+             |  eventSource,
+             |  eventName,
+             |  eventCategory
+             |""".stripMargin)
+        .assertIndexData(Row(
+          Timestamp.valueOf("2023-10-31 22:00:00"),
+          "IAMUser",
+          "123456789012",
+          "MyRole",
+          "arn:aws:iam::123456789012:role/MyRole",
+          "Role",
+          "us-east-1",
+          "198.51.100.45",
+          "sts.amazonaws.com",
+          "AssumeRole",
+          "Management",
+          1))
+    }
+  }
+
   private def withIntegration(name: String)(codeBlock: IntegrationHelper => Unit): Unit = {
     withTempDir { checkpointDir =>
       val tableName = s"$catalogName.default.${name}_test"
 
       withTable(tableName) {
-        val integration = new IntegrationHelper(name, tableName, checkpointDir)
-        // integration.createSourceTable()
-
-        codeBlock(integration)
+        codeBlock(new IntegrationHelper(name, tableName, checkpointDir))
       }
     }
   }
@@ -140,7 +200,8 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     }
 
     def assertIndexData(expectedRows: Row*): Unit = {
-      val flintIndexName = spark.streams.active.find(_.name == getFlintIndexName(mvName)).get.name
+      val flintIndexName =
+        spark.streams.active.find(_.name == getFlintIndexName(mvName)).get.name
       val actualRows = spark.read
         .format(FLINT_DATASOURCE)
         .options(openSearchOptions)
