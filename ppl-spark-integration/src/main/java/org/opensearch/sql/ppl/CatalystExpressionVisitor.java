@@ -11,29 +11,21 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.CaseWhen;
 import org.apache.spark.sql.catalyst.expressions.Cast$;
-import org.apache.spark.sql.catalyst.expressions.CurrentRow$;
 import org.apache.spark.sql.catalyst.expressions.Exists$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.In$;
 import org.apache.spark.sql.catalyst.expressions.InSubquery$;
 import org.apache.spark.sql.catalyst.expressions.LambdaFunction$;
-import org.apache.spark.sql.catalyst.expressions.LessThan;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.ListQuery$;
 import org.apache.spark.sql.catalyst.expressions.MakeInterval$;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.Predicate;
-import org.apache.spark.sql.catalyst.expressions.RowFrame$;
-import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.catalyst.expressions.ScalarSubquery$;
 import org.apache.spark.sql.catalyst.expressions.UnresolvedNamedLambdaVariable;
 import org.apache.spark.sql.catalyst.expressions.UnresolvedNamedLambdaVariable$;
-import org.apache.spark.sql.catalyst.expressions.SpecifiedWindowFrame;
-import org.apache.spark.sql.catalyst.expressions.WindowExpression;
-import org.apache.spark.sql.catalyst.expressions.WindowSpecDefinition;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
-import org.apache.spark.sql.types.DataTypes;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.AggregateFunction;
 import org.opensearch.sql.ast.expression.Alias;
@@ -44,7 +36,6 @@ import org.opensearch.sql.ast.expression.BinaryExpression;
 import org.opensearch.sql.ast.expression.Case;
 import org.opensearch.sql.ast.expression.Cast;
 import org.opensearch.sql.ast.expression.Compare;
-import org.opensearch.sql.ast.expression.DataType;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
@@ -68,9 +59,7 @@ import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.FillNull;
 import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.RareTopN;
-import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
-import org.opensearch.sql.expression.function.BuiltinFunctionName;
 import org.opensearch.sql.expression.function.SerializableUdf;
 import org.opensearch.sql.ppl.utils.AggregatorTransformer;
 import org.opensearch.sql.ppl.utils.BuiltinFunctionTransformer;
@@ -89,6 +78,7 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
+import static java.util.List.of;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
 import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
 import static org.opensearch.sql.ppl.utils.BuiltinFunctionTransformer.createIntervalArgs;
@@ -438,17 +428,7 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
         Expression ipAddressExpression = context.getNamedParseExpressions().pop();
         analyze(node.getCidrBlock(), context);
         Expression cidrBlockExpression = context.getNamedParseExpressions().pop();
-
-        ScalaUDF udf = new ScalaUDF(SerializableUdf.cidrFunction,
-                DataTypes.BooleanType,
-                seq(ipAddressExpression,cidrBlockExpression),
-                seq(),
-                Option.empty(),
-                Option.apply("cidr"),
-                false,
-                true);
-
-        return context.getNamedParseExpressions().push(udf);
+        return context.getNamedParseExpressions().push(SerializableUdf.visit("cidr", of(ipAddressExpression,cidrBlockExpression)));
     }
 
     @Override
