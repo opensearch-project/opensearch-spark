@@ -126,20 +126,18 @@ class PPLLogicalPlanParseTranslatorTestSuite
       planTransformer.visit(
         plan(
           pplParser,
-          "source=t | parse address '(?<streetNumber>\\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street"),
+          "source=t | parse address '(?<streetNumber>\\d+) (?<street>.+)' | where streetNumber > 500 | sort streetNumber | fields streetNumber, street"),
         context)
 
     val addressAttribute = UnresolvedAttribute("address")
     val streetNumberAttribute = UnresolvedAttribute("streetNumber")
     val streetAttribute = UnresolvedAttribute("street")
-
     val streetNumberExpression = Alias(
       RegExpExtract(
         addressAttribute,
         Literal("(?<streetNumber>\\d+) (?<street>.+)"),
         Literal("1")),
       "streetNumber")()
-
     val streetExpression = Alias(
       RegExpExtract(
         addressAttribute,
@@ -157,7 +155,6 @@ class PPLLogicalPlanParseTranslatorTestSuite
           Project(
             Seq(addressAttribute, streetNumberExpression, streetExpression, UnresolvedStar(None)),
             UnresolvedRelation(Seq("t"))))))
-
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 

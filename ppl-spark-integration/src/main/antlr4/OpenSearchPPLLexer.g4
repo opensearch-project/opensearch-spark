@@ -82,13 +82,6 @@ DATASOURCES:                        'DATASOURCES';
 USING:                              'USING';
 WITH:                               'WITH';
 
-// FIELD KEYWORDS
-AUTO:                               'AUTO';
-STR:                                'STR';
-IP:                                 'IP';
-NUM:                                'NUM';
-
-
 // FIELDSUMMARY keywords
 FIELDSUMMARY:                       'FIELDSUMMARY';
 INCLUDEFIELDS:                      'INCLUDEFIELDS';
