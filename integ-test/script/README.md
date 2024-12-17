@@ -17,41 +17,55 @@ Apart from the basic feature, it also has some advanced functionality includes:
 ### Usage
 To use this script, you need to have Python **3.6** or higher installed. It also requires the following Python libraries:
 ```shell
-pip install requests pandas openpyxl
+pip install requests pandas openpyxl pyspark setuptools pyarrow grpcio grpcio-status protobuf
+```
+
+Build the Flint and PPL extensions for Spark.
+```
+sbt clean
+sbt sparkSqlApplicationCosmetic/assembly sparkPPLCosmetic/assembly
+```
+
+Next start the Docker containers that will be used for the tests. In the directory `docker/integ-test`
+```shell
+docker compose up -d
+```
+
+After the tests are finished, the Docker containers can be stopped from the directory `docker/integ-test` with:
+```shell
+docker compose down
 ```
 
 After getting the requisite libraries, you can run the script with the following command line parameters in your shell:
 ```shell
-python SanityTest.py --base-url ${URL_ADDRESS} --username *** --password *** --datasource ${DATASOURCE_NAME} --input-csv test_cases.csv --output-file test_report --max-workers 2 --check-interval 10 --timeout 600
+python SanityTest.py --spark-url ${SPARK_URL} --username *** --password *** --opensearch-url ${OPENSEARCH_URL} --input-csv test_cases.csv --output-file test_report
 ```
-You need to replace the placeholders with your actual values of URL_ADDRESS, DATASOURCE_NAME and USERNAME, PASSWORD for authentication to your endpoint.
+You need to replace the placeholders with your actual values of SPARK_URL, OPENSEARCH_URL and USERNAME, PASSWORD for authentication to your endpoint.
+
+Running against the docker cluster, `SPARK_URL` should be set to `sc://localhost:15002` and `OPENSEARCH_URL` should be set
+to `http://localhost:9200`
 
 For more details of the command line parameters, you can see the help manual via command:
 ```shell
 python SanityTest.py --help   
 
-usage: SanityTest.py [-h] --base-url BASE_URL --username USERNAME --password PASSWORD --datasource DATASOURCE --input-csv INPUT_CSV
-                                      --output-file OUTPUT_FILE [--max-workers MAX_WORKERS] [--check-interval CHECK_INTERVAL] [--timeout TIMEOUT]
+usage: SanityTest.py [-h] --spark-url SPARK_URL --username USERNAME --password PASSWORD --datasource DATASOURCE --input-csv INPUT_CSV
+                                      --output-file OPENSEARCH_URL [--max-workers MAX_WORKERS] [--check-interval CHECK_INTERVAL] [--timeout TIMEOUT]
                                       [--start-row START_ROW] [--end-row END_ROW]
 
 Run tests from a CSV file and generate a report.
 
 options:
   -h, --help            show this help message and exit
-  --base-url BASE_URL   Base URL of the service
+  --spark-url SPARK_URL Spark Connect URL of the service
   --username USERNAME   Username for authentication
   --password PASSWORD   Password for authentication
-  --datasource DATASOURCE
-                        Datasource name
+  --output-file OPENSEARCH_URL
+                        URL of the OpenSearch service
   --input-csv INPUT_CSV
                         Path to the CSV file containing test queries
   --output-file OUTPUT_FILE
                         Path to the output report file
-  --max-workers MAX_WORKERS
-                        optional, Maximum number of worker threads (default: 2)
-  --check-interval CHECK_INTERVAL
-                        optional, Check interval in seconds (default: 10)
-  --timeout TIMEOUT     optional, Timeout in seconds (default: 600)
   --start-row START_ROW
                         optional, The start row of the query to run, start from 1
   --end-row END_ROW     optional, The end row of the query to run, not included
@@ -64,7 +78,20 @@ As claimed in the description, the input CSV file should at least have the colum
 
 We also provide a sample input CSV file `test_cases.csv` for reference. It includes all sanity test cases we have currently in the Flint.
 
-**TODO**: the prerequisite data of the test cases and ingesting process
+### Indices and Data for Testing
+After the docker containers have started, the test script will try to create indices that are needed for testing. It will look in the directory `data`. It will start by
+looking for all files with names ending with `.mapping.json`. The start of the filename is the name of the index to create. The contents of the file is the field mappings.
+
+[Supported field types](https://opensearch.org/docs/latest/field-types/supported-field-types/index/)
+
+[Example mapping](https://opensearch.org/docs/latest/field-types/supported-field-types/index/#example)
+
+After the indices have been created, the script will look for all other files ending with `.json`. These are the files for bulk inserting data into the indices. The start
+of the filename is the index to insert data into. The contents of the file are used as the body of the bulk insert request.
+
+[Bulk Insert](https://opensearch.org/docs/latest/api-reference/document-apis/bulk/)
+
+[Example Body](https://opensearch.org/docs/latest/api-reference/document-apis/bulk/)
 
 ### Report Explanation
 The generated report contains two files:
@@ -78,12 +105,12 @@ It also provides the query_id, session_id and start/end time for each query, whi
 
 An example of Excel report:
 
-| query_name | query                                                                                                                                                      | expected_status | status  | check_status | error                                                                              | result                                                                                                                                                      | Duration (s) | query_id                      | session_id                   | Start Time           | End Time            |
-|------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------|---------|--------------|------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|-------------------------------|------------------------------|----------------------|---------------------|
-| 1          | describe myglue_test.default.http_logs                                                                                                                     | SUCCESS         | SUCCESS | TRUE         |                                                                                    | {'status': 'SUCCESS', 'schema': [{...}, ...], 'datarows': [[...], ...], 'total': 31, 'size': 31}                                                            | 37.51        | SHFEVWxDNnZjem15Z2x1ZV90ZXN0  | RkgzZm0xNlA5MG15Z2x1ZV90ZXN0 | 2024-11-07 13:34:10  | 2024-11-07 13:34:47 |
-| 2          | source = myglue_test.default.http_logs \| dedup status CONSECUTIVE=true                                                                                    | SUCCESS         | FAILED  | FALSE        | {"Message":"Fail to run query. Cause: Consecutive deduplication is not supported"} |                                                                                                                                                             | 39.53        | dVNlaVVxOFZrZW15Z2x1ZV90ZXN0  | ZGU2MllVYmI4dG15Z2x1ZV90ZXN0 | 2024-11-07 13:34:10  | 2024-11-07 13:34:49 |
-| 3          | source = myglue_test.default.http_logs \| eval res = json_keys(json('{"account_number":1,"balance":39225,"age":32,"gender":"M"}')) \| head 1 \| fields res | SUCCESS         | SUCCESS | TRUE         |                                                                                    | {'status': 'SUCCESS', 'schema': [{'name': 'res', 'type': 'array'}], 'datarows': [[['account_number', 'balance', 'age', 'gender']]], 'total': 1, 'size': 1}  | 12.77        | WHQxaXlVSGtGUm15Z2x1ZV90ZXN0  | RkgzZm0xNlA5MG15Z2x1ZV90ZXN0 | 2024-11-07 13:34:47  | 2024-11-07 13:38:45 |
-| ...        | ...                                                                                                                                                        | ...             | ...     | ...          |                                                                                    |                                                                                                                                                             | ...          | ...                           | ...                          | ...                  | ...                 |
+| query_name | query                                                                                                                                                      | expected_status | status  | check_status | error                                                                              | result                                                                                                                                                      | duration (s) | Start Time           | End Time            |
+|------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------|---------|--------------|------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|----------------------|---------------------|
+| 1          | describe myglue_test.default.http_logs                                                                                                                     | SUCCESS         | SUCCESS | TRUE         |                                                                                    | {'status': 'SUCCESS', 'schema': [{...}, ...], 'datarows': [[...], ...], 'total': 31, 'size': 31}                                                            | 37.51        | 2024-11-07 13:34:10  | 2024-11-07 13:34:47 |
+| 2          | source = myglue_test.default.http_logs \| dedup status CONSECUTIVE=true                                                                                    | SUCCESS         | FAILED  | FALSE        | {"Message":"Fail to run query. Cause: Consecutive deduplication is not supported"} |                                                                                                                                                             | 39.53        | 2024-11-07 13:34:10  | 2024-11-07 13:34:49 |
+| 3          | source = myglue_test.default.http_logs \| eval res = json_keys(json('{"account_number":1,"balance":39225,"age":32,"gender":"M"}')) \| head 1 \| fields res | SUCCESS         | SUCCESS | TRUE         |                                                                                    | {'status': 'SUCCESS', 'schema': [{'name': 'res', 'type': 'array'}], 'datarows': [[['account_number', 'balance', 'age', 'gender']]], 'total': 1, 'size': 1}  | 12.77        | 2024-11-07 13:34:47  | 2024-11-07 13:38:45 |
+| ...        | ...                                                                                                                                                        | ...             | ...     | ...          |                                                                                    |                                                                                                                                                             | ...          | ...                  | ...                 |
 
 
 #### JSON Report
@@ -103,7 +130,7 @@ An example of JSON report:
   "detailed_results": [
     {
       "query_name": 1,
-      "query": "source = myglue_test.default.http_logs | stats avg(size)",
+      "query": "source = dev.default.http_logs | stats avg(size)",
       "query_id": "eFZmTlpTa3EyTW15Z2x1ZV90ZXN0",
       "session_id": "bFJDMWxzb2NVUm15Z2x1ZV90ZXN0",
       "status": "SUCCESS",
@@ -130,7 +157,7 @@ An example of JSON report:
     },
     {
       "query_name": 2,
-      "query": "source = myglue_test.default.http_logs | eval res = json_keys(json(\u2018{\"teacher\":\"Alice\",\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}')) | head 1 | fields res",
+      "query": "source = def.default.http_logs | eval res = json_keys(json(\u2018{\"teacher\":\"Alice\",\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}')) | head 1 | fields res",
       "query_id": "bjF4Y1VnbXdFYm15Z2x1ZV90ZXN0",
       "session_id": "c3pvU1V6OW8xM215Z2x1ZV90ZXN0",
       "status": "FAILED",
@@ -142,7 +169,7 @@ An example of JSON report:
     },
     {
       "query_name": 2,
-      "query": "source = myglue_test.default.http_logs |  eval col1 = size, col2 = clientip | stats avg(col1) by col2",
+      "query": "source = dev.default.http_logs |  eval col1 = size, col2 = clientip | stats avg(col1) by col2",
       "query_id": "azVyMFFORnBFRW15Z2x1ZV90ZXN0",
       "session_id": "VWF0SEtrNWM3bm15Z2x1ZV90ZXN0",
       "status": "TIMEOUT",

@@ -90,6 +90,8 @@ bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.7.0-SNAPS
 ### PPL Run queries on a local spark cluster
 See ppl usage sample on local spark cluster [PPL on local spark ](docs/ppl-lang/local-spark-ppl-test-instruction.md)
 
+### Running integration tests on a local spark cluster
+See integration test documentation [Docker Integration Tests](integ-test/script/README.md)
 
 ## Code of Conduct
 
