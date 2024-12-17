@@ -7,7 +7,7 @@ Using `appendcol` command to append the result of a sub-search and attach it alo
 `APPENDCOL <override=?> [sub-search]...`
 
 * <override=?>: optional boolean field to specify should result from main-result be overwritten in the case of column name conflict.
-* sub-search: The PPL commands to execute for the secondary search.  
+* sub-search: Executes PPL commands as a secondary search. The sub-search uses the same data specified in the source clause of the main search results as its input.
 
 
 #### Example 1: To append the result of `stats ave(age) as AVG_AGE` into existing search result   

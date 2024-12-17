@@ -1,3 +1,7 @@
+/*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.opensearch.sql.ppl.utils;
 
 import org.apache.spark.sql.SparkSession;
@@ -83,7 +87,7 @@ public interface AppendColCatalystUtils {
      * @param tableName the table || schema name being appended as part of the returned fields.
      * @return A list of Expression instances with alternated tableName || Schema information.
      */
-    static List<Expression> getoverridedlist(LogicalPlan lp, String tableName) {
+    static List<Expression> getOverridedList(LogicalPlan lp, String tableName) {
         // When override option present, extract fields to project from sub-search,
         // then apply a dfDropColumns on main-search to avoid duplicate fields.
         final SparkSession sparkSession = SparkSession.getActiveSession().get();
