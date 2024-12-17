@@ -274,7 +274,7 @@ source = table |  where ispresent(a) |
 - `source=accounts | parse email '.+@(?<host>.+)' | stats count() by host`
 - `source=accounts | parse email '.+@(?<host>.+)' | eval eval_result=1 | fields host, eval_result`
 - `source=accounts | parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host`
-- `source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | where cast(streetNumber as int) > 500 | sort streetNumber | fields streetNumber, street`
+- `source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | where streetNumber > 500 | sort streetNumber | fields streetNumber, street`
 - Limitation: [see limitations](ppl-parse-command.md#limitations)
 
 #### **Grok**
