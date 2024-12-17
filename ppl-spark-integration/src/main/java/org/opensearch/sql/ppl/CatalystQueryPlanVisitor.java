@@ -5,15 +5,12 @@
 
 package org.opensearch.sql.ppl;
 
-import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
-import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
-import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
 import org.apache.spark.sql.catalyst.expressions.EqualTo;
 import org.apache.spark.sql.catalyst.expressions.Explode;
@@ -31,15 +28,11 @@ import org.apache.spark.sql.catalyst.plans.logical.Limit;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan$;
 import org.apache.spark.sql.catalyst.plans.logical.Project$;
-import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$;
-import org.apache.spark.sql.execution.CommandExecutionMode;
 import org.apache.spark.sql.execution.ExplainMode;
-import org.apache.spark.sql.execution.QueryExecution;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
-import org.apache.spark.unsafe.types.UTF8String;
 import org.opensearch.flint.spark.FlattenGenerator;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.Node;
@@ -80,7 +73,6 @@ import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.Trendline;
-import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.ppl.utils.AppendColCatalystUtils;
@@ -276,6 +268,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         final UnresolvedAttribute t2Attr = new UnresolvedAttribute(seq(TABLE_RHS, APPENDCOL_ID));
         final List<Expression> fieldsToRemove = new ArrayList<>(List.of(t1Attr, t2Attr));
         final Node mainSearchNode = node.getChild().get(0);
+//        final Node mainSearchNode = visitFirstChild(node, context);
         final Node subSearchNode = node.getSubSearch();
 
         // Traverse to look for relation clause, then append it into the sub-search.
@@ -283,6 +276,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         AppendColCatalystUtils.appendRelationClause(node.getSubSearch(), relation);
 
         // Apply an additional projection layer on main-search to provide natural order.
+//        LogicalPlan mainSearch = mainSearchNode.accept(this, context);
         LogicalPlan mainSearch = mainSearchNode.accept(this, context);
         var mainSearchWithRowNumber = AppendColCatalystUtils.getRowNumStarProjection(context, mainSearch, TABLE_LHS);
         context.withSubqueryAlias(mainSearchWithRowNumber);
@@ -305,7 +299,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
             // Remove the APPEND_ID and duplicated field on T1 if override option present.
             if (node.override) {
-                List<Expression> getoverridedlist = AppendColCatalystUtils.getoverridedlist(subSearchWithRowNumber, TABLE_LHS);
+                List<Expression> getoverridedlist = AppendColCatalystUtils.getOverridedList(subSearchWithRowNumber, TABLE_LHS);
                 fieldsToRemove.addAll(getoverridedlist);
             }
             return new DataFrameDropColumns(seq(fieldsToRemove), joinedQuery);
