@@ -547,6 +547,12 @@ trait FlintJobExecutor {
     }
   }
 
+  def getSegmentName(sparkSession: SparkSession): String = {
+    val maxExecutorsCount =
+      sparkSession.conf.get(FlintSparkConf.MAX_EXECUTORS_COUNT.key, "unknown")
+    String.format("%se", maxExecutorsCount)
+  }
+
   def instantiate[T](defaultConstructor: => T, className: String, args: Any*): T = {
     if (Strings.isNullOrEmpty(className)) {
       defaultConstructor
