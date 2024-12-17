@@ -267,19 +267,16 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         final UnresolvedAttribute t1Attr = new UnresolvedAttribute(seq(TABLE_LHS, APPENDCOL_ID));
         final UnresolvedAttribute t2Attr = new UnresolvedAttribute(seq(TABLE_RHS, APPENDCOL_ID));
         final List<Expression> fieldsToRemove = new ArrayList<>(List.of(t1Attr, t2Attr));
-        final Node mainSearchNode = node.getChild().get(0);
-//        final Node mainSearchNode = visitFirstChild(node, context);
         final Node subSearchNode = node.getSubSearch();
 
-        // Traverse to look for relation clause, then append it into the sub-search.
-        Relation relation = AppendColCatalystUtils.retrieveRelationClause(mainSearchNode);
-        AppendColCatalystUtils.appendRelationClause(node.getSubSearch(), relation);
-
         // Apply an additional projection layer on main-search to provide natural order.
-//        LogicalPlan mainSearch = mainSearchNode.accept(this, context);
-        LogicalPlan mainSearch = mainSearchNode.accept(this, context);
+        LogicalPlan mainSearch = visitFirstChild(node, context);
         var mainSearchWithRowNumber = AppendColCatalystUtils.getRowNumStarProjection(context, mainSearch, TABLE_LHS);
         context.withSubqueryAlias(mainSearchWithRowNumber);
+
+        // Duplicate the relation clause from main-search to sub-search.
+        AppendColCatalystUtils.appendRelationClause(node.getSubSearch(), context.getRelations());
+
 
         context.apply(left -> {
             // Apply an additional projection layer on sub-search to provide natural order.
@@ -296,6 +293,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     Join.JoinType.LEFT,
                     Optional.of(new EqualTo(t1Attr, t2Attr)),
                     new Join.JoinHint());
+
 
             // Remove the APPEND_ID and duplicated field on T1 if override option present.
             if (node.override) {

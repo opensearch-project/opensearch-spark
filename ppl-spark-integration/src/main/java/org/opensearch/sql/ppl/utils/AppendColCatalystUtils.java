@@ -6,6 +6,7 @@ package org.opensearch.sql.ppl.utils;
 
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Expression;
@@ -21,6 +22,8 @@ import org.apache.spark.sql.execution.QueryExecution;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.opensearch.sql.ast.Node;
+import org.opensearch.sql.ast.expression.QualifiedName;
+import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ppl.CatalystPlanContext;
@@ -44,8 +47,18 @@ public interface AppendColCatalystUtils {
      * @param subSearch User provided sub-search from APPENDCOL command.
      * @param relation Relation clause which represent the dataSource that this sub-search execute upon.
      */
-    static void appendRelationClause(Node subSearch, Relation relation) {
-        final Relation table = new Relation(relation.getTableNames());
+    static void appendRelationClause(Node subSearch, List<LogicalPlan> relation) {
+
+        final List<UnresolvedExpression> unresolvedExpressionList = relation.stream()
+                .map(r -> {
+                    UnresolvedRelation unresolvedRelation = (UnresolvedRelation) r;
+                    List<String> multipartId = seqAsJavaList(unresolvedRelation.multipartIdentifier());
+                    return (UnresolvedExpression) new QualifiedName(multipartId);
+                })
+                // To avoid stack overflow in the case of chained AppendCol.
+                .distinct()
+                .collect(Collectors.toList());
+        final Relation table = new Relation(unresolvedExpressionList);
         while (subSearch != null) {
             try {
                 subSearch = subSearch.getChild().get(0);
@@ -54,29 +67,6 @@ public interface AppendColCatalystUtils {
                 break;
             }
         }
-    }
-
-    /**
-     * Util method to traverse a given Node object and return the first occurrence of a Relation clause.
-     * @param node The Node object that this util method search upon.
-     * @return The first occurrence of Relation object from the given Node.
-     */
-    static Relation retrieveRelationClause(Node node) {
-        while (node != null) {
-            if (node instanceof Relation) {
-                return (Relation) node;
-            } else {
-                try {
-                    node = node.getChild().get(0);
-                } catch (NullPointerException ex) {
-                    // Base on the current implementation of Flint,
-                    // NPE will be thrown by certain type of Node implementation,
-                    // when node.getChild() being called.
-                    break;
-                }
-            }
-        }
-        return null;
     }
 
 
