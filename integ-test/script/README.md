@@ -78,7 +78,20 @@ As claimed in the description, the input CSV file should at least have the colum
 
 We also provide a sample input CSV file `test_cases.csv` for reference. It includes all sanity test cases we have currently in the Flint.
 
-**TODO**: the prerequisite data of the test cases and ingesting process
+### Indices and Data for Testing
+After the docker containers have started, the test script will try to create indices that are needed for testing. It will look in the directory `data`. It will start by
+looking for all files with names ending with `.mapping.json`. The start of the filename is the name of the index to create. The contents of the file is the field mappings.
+
+[Supported field types](https://opensearch.org/docs/latest/field-types/supported-field-types/index/)
+
+[Example mapping](https://opensearch.org/docs/latest/field-types/supported-field-types/index/#example)
+
+After the indices have been created, the script will look for all other files ending with `.json`. These are the files for bulk inserting data into the indices. The start
+of the filename is the index to insert data into. The contents of the file are used as the body of the bulk insert request.
+
+[Bulk Insert](https://opensearch.org/docs/latest/api-reference/document-apis/bulk/)
+
+[Example Body](https://opensearch.org/docs/latest/api-reference/document-apis/bulk/)
 
 ### Report Explanation
 The generated report contains two files:
