@@ -277,8 +277,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         // Duplicate the relation clause from main-search to sub-search.
         AppendColCatalystUtils.appendRelationClause(node.getSubSearch(), context.getRelations());
 
-
         context.apply(left -> {
+
             // Apply an additional projection layer on sub-search to provide natural order.
             LogicalPlan subSearch = subSearchNode.accept(this, context);
             var subSearchWithRowNumber = AppendColCatalystUtils.getRowNumStarProjection(context, subSearch, TABLE_RHS);
@@ -293,7 +293,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     Join.JoinType.LEFT,
                     Optional.of(new EqualTo(t1Attr, t2Attr)),
                     new Join.JoinHint());
-
 
             // Remove the APPEND_ID and duplicated field on T1 if override option present.
             if (node.override) {
