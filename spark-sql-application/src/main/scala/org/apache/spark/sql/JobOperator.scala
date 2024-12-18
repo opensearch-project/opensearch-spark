@@ -32,9 +32,12 @@ case class JobOperator(
     dataSource: String,
     resultIndex: String,
     jobType: String,
-    streamingRunningCount: AtomicInteger)
+    streamingRunningCount: AtomicInteger,
+    statementContext: Map[String, Any] = Map.empty[String, Any])
     extends Logging
     with FlintJobExecutor {
+
+  private val segmentName = getSegmentName(sparkSession)
 
   // JVM shutdown hook
   sys.addShutdownHook(stop())
@@ -80,7 +83,9 @@ case class JobOperator(
         "",
         queryId,
         LangType.SQL,
-        currentTimeProvider.currentEpochMillis())
+        currentTimeProvider.currentEpochMillis(),
+        Option.empty,
+        statementContext)
 
     try {
       val futurePrepareQueryExecution = Future {
@@ -107,6 +112,7 @@ case class JobOperator(
     } catch {
       case e: TimeoutException =>
         throwableHandler.recordThrowable(s"Preparation for query execution timed out", e)
+        incrementCounter(MetricConstants.STREAMING_EXECUTION_FAILED_METRIC)
         dataToWrite = Some(
           constructErrorDF(
             applicationId,
@@ -120,6 +126,7 @@ case class JobOperator(
             "",
             startTime))
       case t: Throwable =>
+        incrementCounter(MetricConstants.STREAMING_EXECUTION_FAILED_METRIC)
         val error = processQueryException(t)
         dataToWrite = Some(
           constructErrorDF(
@@ -134,10 +141,11 @@ case class JobOperator(
             "",
             startTime))
     } finally {
-      emitQueryExecutionTimeMetric(startTime)
+      emitTimeMetric(startTime, MetricConstants.QUERY_EXECUTION_TIME_METRIC)
       readWriteBytesSparkListener.emitMetrics()
       sparkSession.sparkContext.removeSparkListener(readWriteBytesSparkListener)
 
+      val resultWriteStartTime = System.currentTimeMillis()
       try {
         dataToWrite.foreach(df => writeDataFrameToOpensearch(df, resultIndex, osClient))
       } catch {
@@ -145,6 +153,10 @@ case class JobOperator(
           throwableHandler.recordThrowable(
             s"Failed to write to result index. originalError='${throwableHandler.error}'",
             t)
+          incrementCounter(MetricConstants.STREAMING_RESULT_WRITER_FAILED_METRIC)
+      } finally {
+        emitTimeMetric(resultWriteStartTime, MetricConstants.QUERY_RESULT_WRITER_TIME_METRIC)
+        emitTimeMetric(startTime, MetricConstants.QUERY_TOTAL_TIME_METRIC)
       }
       if (throwableHandler.hasException) statement.fail() else statement.complete()
       statement.error = Some(throwableHandler.error)
@@ -205,13 +217,6 @@ case class JobOperator(
     }
   }
 
-  private def emitQueryExecutionTimeMetric(startTime: Long): Unit = {
-    MetricsUtil
-      .addHistoricGauge(
-        MetricConstants.QUERY_EXECUTION_TIME_METRIC,
-        System.currentTimeMillis() - startTime)
-  }
-
   def stop(): Unit = {
     Try {
       logInfo("Stopping Spark session")
@@ -243,8 +248,10 @@ case class JobOperator(
     }
 
     exceptionThrown match {
-      case true => incrementCounter(MetricConstants.STREAMING_FAILED_METRIC)
-      case false => incrementCounter(MetricConstants.STREAMING_SUCCESS_METRIC)
+      case true =>
+        incrementCounter(MetricConstants.STREAMING_FAILED_METRIC)
+      case false =>
+        incrementCounter(MetricConstants.STREAMING_SUCCESS_METRIC)
     }
   }
 
@@ -259,4 +266,15 @@ case class JobOperator(
       spark,
       sessionId)
   }
+
+  private def emitTimeMetric(startTime: Long, metricType: String): Unit = {
+    val metricName = String.format("%s.%s", segmentName, metricType)
+    MetricsUtil.addHistoricGauge(metricName, System.currentTimeMillis() - startTime)
+  }
+
+  private def incrementCounter(metricName: String) {
+    val metricWithSegmentName = String.format("%s.%s", segmentName, metricName)
+    MetricsUtil.incrementCounter(metricWithSegmentName)
+  }
+
 }
