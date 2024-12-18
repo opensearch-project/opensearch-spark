@@ -9,7 +9,7 @@ import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLGeoipITSuite
-  extends QueryTest
+    extends QueryTest
     with LogicalPlanTestUtils
     with FlintPPLSuite
     with StreamTest {
@@ -34,8 +34,7 @@ class FlintSparkPPLGeoipITSuite
   }
 
   test("test geoip with no parameters") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| where isValid = true | eval a = geoip(ip) | fields ip, a
          | """.stripMargin)
 
@@ -44,9 +43,28 @@ class FlintSparkPPLGeoipITSuite
 
     // Define the expected results
     val expectedResults: Array[Row] = Array(
-      Row("66.249.157.90", Row("JM", "Jamaica", "North America", "14", "Saint Catherine Parish", "Portmore", "America/Jamaica", "17.9686,-76.8827")),
-      Row("2a09:bac2:19f8:2ac3::", Row("CA", "Canada", "North America", "PE", "Prince Edward Island", "Charlottetown", "America/Halifax", "46.2396,-63.1355"))
-    )
+      Row(
+        "66.249.157.90",
+        Row(
+          "JM",
+          "Jamaica",
+          "North America",
+          "14",
+          "Saint Catherine Parish",
+          "Portmore",
+          "America/Jamaica",
+          "17.9686,-76.8827")),
+      Row(
+        "2a09:bac2:19f8:2ac3::",
+        Row(
+          "CA",
+          "Canada",
+          "North America",
+          "PE",
+          "Prince Edward Island",
+          "Charlottetown",
+          "America/Halifax",
+          "46.2396,-63.1355")))
 
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
@@ -54,18 +72,15 @@ class FlintSparkPPLGeoipITSuite
   }
 
   test("test geoip with one parameters") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| where isValid = true | eval a = geoip(ip, country_name) | fields ip, a
          | """.stripMargin)
 
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     // Define the expected results
-    val expectedResults: Array[Row] = Array(
-      Row("66.249.157.90", "Jamaica"),
-      Row("2a09:bac2:19f8:2ac3::", "Canada")
-    )
+    val expectedResults: Array[Row] =
+      Array(Row("66.249.157.90", "Jamaica"), Row("2a09:bac2:19f8:2ac3::", "Canada"))
 
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
@@ -73,8 +88,7 @@ class FlintSparkPPLGeoipITSuite
   }
 
   test("test geoip with multiple parameters") {
-    val frame = sql(
-      s"""
+    val frame = sql(s"""
          | source = $testTable| where isValid = true | eval a = geoip(ip, country_name, city_name) | fields ip, a
          | """.stripMargin)
 
@@ -83,8 +97,7 @@ class FlintSparkPPLGeoipITSuite
     // Define the expected results
     val expectedResults: Array[Row] = Array(
       Row("66.249.157.90", Row("Jamaica", "Portmore")),
-      Row("2a09:bac2:19f8:2ac3::", Row("Canada", "Charlottetown"))
-    )
+      Row("2a09:bac2:19f8:2ac3::", Row("Canada", "Charlottetown")))
 
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))

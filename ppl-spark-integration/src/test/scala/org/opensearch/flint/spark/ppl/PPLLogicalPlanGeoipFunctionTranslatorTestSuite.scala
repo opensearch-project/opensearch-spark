@@ -19,7 +19,7 @@ import org.apache.spark.sql.catalyst.plans.logical.{DataFrameDropColumns, Join, 
 import org.apache.spark.sql.types.DataTypes
 
 class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
-  extends SparkFunSuite
+    extends SparkFunSuite
     with PlanTest
     with LogicalPlanTestUtils
     with Matchers {
@@ -28,20 +28,18 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
   private val pplParser = new PPLSyntaxParser()
 
   private def getGeoIpQueryPlan(
-                                 ipAddress: UnresolvedAttribute,
-                                 left : LogicalPlan,
-                                 right : LogicalPlan,
-                                 projectionProperties : Alias
-                               ) : LogicalPlan = {
+      ipAddress: UnresolvedAttribute,
+      left: LogicalPlan,
+      right: LogicalPlan,
+      projectionProperties: Alias): LogicalPlan = {
     val joinPlan = getJoinPlan(ipAddress, left, right)
     getProjection(joinPlan, projectionProperties)
   }
 
   private def getJoinPlan(
-                           ipAddress: UnresolvedAttribute,
-                           left : LogicalPlan,
-                           right : LogicalPlan
-                         ) : LogicalPlan = {
+      ipAddress: UnresolvedAttribute,
+      left: LogicalPlan,
+      right: LogicalPlan): LogicalPlan = {
     val is_ipv4 = ScalaUDF(
       SerializableUdf.geoIpUtils.isIpv4,
       DataTypes.BooleanType,
@@ -50,8 +48,7 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
       Option.empty,
       Option.apply("is_ipv4"),
       false,
-      true
-    )
+      true)
     val ip_to_int = ScalaUDF(
       SerializableUdf.geoIpUtils.ipToInt,
       DataTypes.createDecimalType(38, 0),
@@ -60,8 +57,7 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
       Option.empty,
       Option.apply("ip_to_int"),
       false,
-      true
-    )
+      true)
 
     val t1 = SubqueryAlias("t1", left)
     val t2 = SubqueryAlias("t2", right)
@@ -69,20 +65,26 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
     val joinCondition = And(
       And(
         GreaterThanOrEqual(ip_to_int, UnresolvedAttribute("t2.ip_range_start")),
-        LessThan(ip_to_int, UnresolvedAttribute("t2.ip_range_end"))
-      ),
-      EqualTo(is_ipv4, UnresolvedAttribute("t2.ipv4"))
-    )
+        LessThan(ip_to_int, UnresolvedAttribute("t2.ip_range_end"))),
+      EqualTo(is_ipv4, UnresolvedAttribute("t2.ipv4")))
     Join(t1, t2, LeftOuter, Some(joinCondition), JoinHint.NONE)
   }
 
-  private def getProjection(joinPlan : LogicalPlan, projectionProperties : Alias) : LogicalPlan = {
+  private def getProjection(joinPlan: LogicalPlan, projectionProperties: Alias): LogicalPlan = {
     val projection = Project(Seq(UnresolvedStar(None), projectionProperties), joinPlan)
     val dropList = Seq(
-      "t2.country_iso_code", "t2.country_name", "t2.continent_name",
-      "t2.region_iso_code", "t2.region_name", "t2.city_name",
-      "t2.time_zone", "t2.location", "t2.cidr", "t2.ip_range_start", "t2.ip_range_end", "t2.ipv4"
-    ).map(UnresolvedAttribute(_))
+      "t2.country_iso_code",
+      "t2.country_name",
+      "t2.continent_name",
+      "t2.region_iso_code",
+      "t2.region_name",
+      "t2.city_name",
+      "t2.time_zone",
+      "t2.location",
+      "t2.cidr",
+      "t2.ip_range_start",
+      "t2.ip_range_end",
+      "t2.ipv4").map(UnresolvedAttribute(_))
     DataFrameDropColumns(dropList, projection)
   }
 
@@ -98,16 +100,24 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
     val sourceTable = UnresolvedRelation(seq("users"))
     val geoTable = UnresolvedRelation(seq("geoip"))
 
-    val projectionStruct = CreateNamedStruct(Seq(
-      Literal("country_iso_code"), UnresolvedAttribute("t2.country_iso_code"),
-      Literal("country_name"), UnresolvedAttribute("t2.country_name"),
-      Literal("continent_name"), UnresolvedAttribute("t2.continent_name"),
-      Literal("region_iso_code"), UnresolvedAttribute("t2.region_iso_code"),
-      Literal("region_name"), UnresolvedAttribute("t2.region_name"),
-      Literal("city_name"), UnresolvedAttribute("t2.city_name"),
-      Literal("time_zone"), UnresolvedAttribute("t2.time_zone"),
-      Literal("location"), UnresolvedAttribute("t2.location")
-    ))
+    val projectionStruct = CreateNamedStruct(
+      Seq(
+        Literal("country_iso_code"),
+        UnresolvedAttribute("t2.country_iso_code"),
+        Literal("country_name"),
+        UnresolvedAttribute("t2.country_name"),
+        Literal("continent_name"),
+        UnresolvedAttribute("t2.continent_name"),
+        Literal("region_iso_code"),
+        UnresolvedAttribute("t2.region_iso_code"),
+        Literal("region_name"),
+        UnresolvedAttribute("t2.region_name"),
+        Literal("city_name"),
+        UnresolvedAttribute("t2.city_name"),
+        Literal("time_zone"),
+        UnresolvedAttribute("t2.time_zone"),
+        Literal("location"),
+        UnresolvedAttribute("t2.location")))
     val structProjection = Alias(projectionStruct, "a")()
 
     val geoIpPlan = getGeoIpQueryPlan(ipAddress, sourceTable, geoTable, structProjection)
@@ -135,7 +145,6 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
-
   test("test geoip function - ipAddress col exist in geoip table") {
     val context = new CatalystPlanContext
 
@@ -158,7 +167,7 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
   test("test geoip function - duplicate parameters") {
     val context = new CatalystPlanContext
 
-    val exception = intercept[IllegalStateException]{
+    val exception = intercept[IllegalStateException] {
       planTransformer.visit(
         plan(pplParser, "source=t1 | eval a = geoip(cidr, country_name, country_name)"),
         context)
@@ -197,10 +206,12 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
     val ipAddress = UnresolvedAttribute("ip_address")
     val sourceTable = UnresolvedRelation(seq("users"))
     val geoTable = UnresolvedRelation(seq("geoip"))
-    val projectionStruct = CreateNamedStruct(Seq(
-      Literal("country_name"), UnresolvedAttribute("t2.country_name"),
-      Literal("location"), UnresolvedAttribute("t2.location")
-    ))
+    val projectionStruct = CreateNamedStruct(
+      Seq(
+        Literal("country_name"),
+        UnresolvedAttribute("t2.country_name"),
+        Literal("location"),
+        UnresolvedAttribute("t2.location")))
     val structProjection = Alias(projectionStruct, "a")()
 
     val geoIpPlan = getGeoIpQueryPlan(ipAddress, sourceTable, geoTable, structProjection)
@@ -214,7 +225,9 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
 
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = geoip(ip_address, country_iso_code), b = geoip(ip_address, region_iso_code)"),
+        plan(
+          pplParser,
+          "source=t | eval a = geoip(ip_address, country_iso_code), b = geoip(ip_address, region_iso_code)"),
         context)
 
     val ipAddress = UnresolvedAttribute("ip_address")
@@ -237,7 +250,9 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
 
     val logPlan =
       planTransformer.visit(
-        plan(pplParser, "source=t | eval a = geoip(ip_address, time_zone), b = rand(), c = geoip(ip_address, region_name)"),
+        plan(
+          pplParser,
+          "source=t | eval a = geoip(ip_address, time_zone), b = rand(), c = geoip(ip_address, region_name)"),
         context)
 
     val ipAddress = UnresolvedAttribute("ip_address")

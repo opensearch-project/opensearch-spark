@@ -772,8 +772,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
   }
 
   protected def createGeoIpTestTable(testTable: String): Unit = {
-    sql(
-      s"""
+    sql(s"""
          | CREATE TABLE $testTable
          | (
          |   ip STRING,
@@ -782,8 +781,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          | USING $tableType $tableOptions
          |""".stripMargin)
 
-    sql(
-      s"""
+    sql(s"""
          | INSERT INTO $testTable
          | VALUES ('66.249.157.90', true),
          |        ('2a09:bac2:19f8:2ac3::', true),
@@ -793,8 +791,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
   }
 
   protected def createGeoIpTable(): Unit = {
-    sql(
-      s"""
+    sql(s"""
          | CREATE TABLE geoip
          | (
          |   cidr STRING,
@@ -813,8 +810,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          | USING $tableType $tableOptions
          |""".stripMargin)
 
-    sql(
-      s"""
+    sql(s"""
          | INSERT INTO geoip
          | VALUES (
          |  '66.249.157.0/24',
