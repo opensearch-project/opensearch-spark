@@ -41,10 +41,11 @@ class FlintSparkPPLGeoipITSuite
 
     // Retrieve the results
     val results: Array[Row] = frame.collect()
+
     // Define the expected results
     val expectedResults: Array[Row] = Array(
-      Row("66.249.157.90", Row("JM", "Jamaica", "North America", 14, "Saint Catherine Parish", "Portmore", "America/Jamaica", "17.9686, -76.8827")),
-      Row("2a09:bac2:19f8:2ac3::", Row("CA", "Canada", "North America", "PE", "Prince Edward Island", "Charlottetown", "America/Halifax", "46.2396, -63.1355"))
+      Row("66.249.157.90", Row("JM", "Jamaica", "North America", "14", "Saint Catherine Parish", "Portmore", "America/Jamaica", "17.9686,-76.8827")),
+      Row("2a09:bac2:19f8:2ac3::", Row("CA", "Canada", "North America", "PE", "Prince Edward Island", "Charlottetown", "America/Halifax", "46.2396,-63.1355"))
     )
 
     // Compare the results

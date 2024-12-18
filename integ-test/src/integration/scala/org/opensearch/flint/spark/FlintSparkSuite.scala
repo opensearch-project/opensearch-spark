@@ -806,8 +806,8 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          |   city_name STRING,
          |   time_zone STRING,
          |   location STRING,
-         |   ip_range_start BIGINT,
-         |   ip_range_end BIGINT,
+         |   ip_range_start DECIMAL(38,0),
+         |   ip_range_end DECIMAL(38,0),
          |   ipv4 BOOLEAN
          | )
          | USING $tableType $tableOptions
@@ -830,9 +830,9 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          |  1123655167,
          |  true
          | ),
-         | VALUES (
+         | (
          |  '2a09:bac2:19f8::/45',
-         |  `'CA',
+         |  'CA',
          |  'Canada',
          |  'North America',
          |  'PE',
