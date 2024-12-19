@@ -455,10 +455,10 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     private List<UnresolvedExpression> timestampFunctionArguments(
             OpenSearchPPLParser.TimestampFunctionCallContext ctx) {
         List<UnresolvedExpression> args =
-                Arrays.asList(
-                        new Literal(ctx.timestampFunction().simpleDateTimePart().getText(), DataType.STRING),
-                        visitFunctionArg(ctx.timestampFunction().firstArg),
-                        visitFunctionArg(ctx.timestampFunction().secondArg));
+            Arrays.asList(
+                new Literal(ctx.timestampFunction().simpleDateTimePart().getText(), DataType.STRING),
+                visitFunctionArg(ctx.timestampFunction().firstArg),
+                visitFunctionArg(ctx.timestampFunction().secondArg));
         return args;
     }
 
