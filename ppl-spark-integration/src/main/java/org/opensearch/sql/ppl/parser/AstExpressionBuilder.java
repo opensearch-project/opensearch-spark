@@ -45,6 +45,8 @@ import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
 import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
+import org.opensearch.sql.ast.tree.Trendline;
+import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 
@@ -56,6 +58,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NOT_NULL;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NULL;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.LENGTH;
@@ -77,7 +80,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
                     .put("isnotnull", IS_NOT_NULL.getName().getFunctionName())
                     .put("ispresent", IS_NOT_NULL.getName().getFunctionName())
                     .build();
-    private final AstBuilder astBuilder;
+    private AstBuilder astBuilder;
 
     public AstExpressionBuilder(AstBuilder astBuilder) {
         this.astBuilder = astBuilder;
@@ -262,6 +265,7 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
     public UnresolvedExpression visitIsEmptyExpression(OpenSearchPPLParser.IsEmptyExpressionContext ctx) {
         Function trimFunction = new Function(TRIM.getName().getFunctionName(), Collections.singletonList(this.visitFunctionArg(ctx.functionArg())));
         Function lengthFunction = new Function(LENGTH.getName().getFunctionName(), Collections.singletonList(trimFunction));
+        Compare lengthEqualsZero = new Compare(EQUAL.getName().getFunctionName(), lengthFunction, new Literal(0, DataType.INTEGER));
         Literal whenCompareValue = new Literal(0, DataType.INTEGER);
         Literal isEmptyFalse = new Literal(false, DataType.BOOLEAN);
         Literal isEmptyTrue = new Literal(true, DataType.BOOLEAN);
@@ -450,10 +454,12 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
 
     private List<UnresolvedExpression> timestampFunctionArguments(
             OpenSearchPPLParser.TimestampFunctionCallContext ctx) {
-        return Arrays.asList(
-                new Literal(ctx.timestampFunction().simpleDateTimePart().getText(), DataType.STRING),
-                visitFunctionArg(ctx.timestampFunction().firstArg),
-                visitFunctionArg(ctx.timestampFunction().secondArg));
+        List<UnresolvedExpression> args =
+                Arrays.asList(
+                        new Literal(ctx.timestampFunction().simpleDateTimePart().getText(), DataType.STRING),
+                        visitFunctionArg(ctx.timestampFunction().firstArg),
+                        visitFunctionArg(ctx.timestampFunction().secondArg));
+        return args;
     }
 
     private QualifiedName visitIdentifiers(List<? extends ParserRuleContext> ctx) {

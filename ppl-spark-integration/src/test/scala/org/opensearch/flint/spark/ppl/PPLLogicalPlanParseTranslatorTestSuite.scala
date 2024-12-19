@@ -125,7 +125,7 @@ class PPLLogicalPlanParseTranslatorTestSuite
 
     // TODO #963: Remove unimplemented sort syntax
     val query =
-      "source=t | parse address '(?<streetNumber>\\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street"
+      "source=t | parse address '(?<streetNumber>\\d+) (?<street>.+)' | where streetNumber > 500 | sort cast(streetNumber as integer) | fields streetNumber, street"
 
     val logPlan = planTransformer.visit(plan(pplParser, query), context)
 
