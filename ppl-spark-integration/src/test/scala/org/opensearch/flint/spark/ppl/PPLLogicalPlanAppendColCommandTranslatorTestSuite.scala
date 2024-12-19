@@ -333,4 +333,68 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
+
+  test("test invalid override sub-search") {
+    val context = new CatalystPlanContext
+    val exception = intercept[IllegalStateException](
+      planTransformer
+        .visit(plan(pplParser, "source=relation | FIELDS name, age | APPENDCOL override=true [ where age > 10]"), context))
+    assert(exception.getMessage startsWith "Not Supported operation")
+  }
+
+
+  // @formatter:off
+  /**
+   * 'Project [*]
+   * +- 'DataFrameDropColumns ['T1._row_number_, 'T2._row_number_, 'T1.age]
+   * +- 'Join LeftOuter, ('T1._row_number_ = 'T2._row_number_)
+   * :- 'SubqueryAlias T1
+   * :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#383, *]
+   * :     +- 'UnresolvedRelation [employees], [], false
+   * +- 'SubqueryAlias T2
+   * +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#386, *]
+   * +- 'Aggregate ['COUNT(*) AS age#384]
+   * +- 'UnresolvedRelation [employees], [], false
+   */
+  // @formatter:on
+  test("test override with Supported sub-search") {
+    val context = new CatalystPlanContext
+    val logicalPlan = planTransformer.visit(
+      plan(pplParser, "source=employees | APPENDCOL OVERRIDE=true [stats count() as age];"),
+      context)
+
+    /*
+      :- 'SubqueryAlias T1
+      :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#7, *]
+      :     +- 'UnresolvedRelation [relation], [], false
+     */
+    val t1 = SubqueryAlias(
+      "T1",
+      Project(Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)), RELATION_EMPLOYEES))
+
+    /*
+    +- 'SubqueryAlias T2
+      +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST,
+          specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#11, *]
+        +- 'Aggregate ['COUNT(*) AS age#8]
+           +- 'UnresolvedRelation [relation], [], false
+     */
+    val t2 = SubqueryAlias(
+      "T2",
+      Project(
+        Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
+        Aggregate(Nil, Seq(
+            Alias(
+              UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false), "age")()),
+        RELATION_EMPLOYEES)))
+
+    val expectedPlan = Project(
+      Seq(UnresolvedStar(None)),
+      DataFrameDropColumns(
+        T12_COLUMNS_SEQ :+ UnresolvedAttribute("T1.age"),
+        Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
 }
