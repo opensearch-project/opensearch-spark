@@ -13,6 +13,7 @@ import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.Literal;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
+import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Project;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias;
@@ -30,6 +31,7 @@ import org.opensearch.sql.ppl.CatalystPlanContext;
 import scala.Option;
 import scala.collection.Seq;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -71,24 +73,20 @@ public interface AppendColCatalystUtils {
 
 
     /**
-     * Util method to perform analyzed() call against the given LogicalPlan to extract all fields
-     * that will be projected upon the execution in the form of Java List with user provided schema prefix.
+     * Util method extract output fields from given LogicalPlan instance in non-recursive manner,
+     * and return null in the case of non-supported LogicalPlan.
      * @param lp LogicalPlan instance to extract the projection fields from.
      * @param tableName the table || schema name being appended as part of the returned fields.
      * @return A list of Expression instances with alternated tableName || Schema information.
      */
     static List<Expression> getOverridedList(LogicalPlan lp, String tableName) {
-        // When override option present, extract fields to project from sub-search,
-        // then apply a dfDropColumns on main-search to avoid duplicate fields.
-        final SparkSession sparkSession = SparkSession.getActiveSession().get();
-        final QueryExecution queryExecutionSub = sparkSession.sessionState()
-                .executePlan(lp, CommandExecutionMode.SKIP());
-        final Seq<Attribute> output = queryExecutionSub.analyzed().output();
-        final List<Attribute> attributes = seqAsJavaList(output);
-        return attributes.stream()
-                .map(attr ->
-                        new UnresolvedAttribute(seq(tableName, attr.name())))
-                .collect(Collectors.toList());
+        // Extract the output from supported LogicalPlan type.
+        if (lp instanceof Project || lp instanceof Aggregate) {
+            return seqAsJavaList(lp.output()).stream()
+                    .map(attr -> new UnresolvedAttribute(seq(tableName, attr.name())))
+                    .collect(Collectors.toList());
+        }
+        return null;
     }
 
     /**

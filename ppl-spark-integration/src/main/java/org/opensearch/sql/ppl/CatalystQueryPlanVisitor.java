@@ -9,6 +9,7 @@ import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
@@ -262,6 +263,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     public LogicalPlan visitAppendCol(AppendCol node, CatalystPlanContext context) {
 
         final String APPENDCOL_ID = WindowSpecTransformer.ROW_NUMBER_COLUMN_NAME;
+        // todo: Add table prefix
         final String TABLE_LHS = "T1";
         final String TABLE_RHS = "T2";
         final UnresolvedAttribute t1Attr = new UnresolvedAttribute(seq(TABLE_LHS, APPENDCOL_ID));
@@ -296,8 +298,15 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
             // Remove the APPEND_ID and duplicated field on T1 if override option present.
             if (node.override) {
-                List<Expression> getoverridedlist = AppendColCatalystUtils.getOverridedList(subSearchWithRowNumber, TABLE_LHS);
-                fieldsToRemove.addAll(getoverridedlist);
+                List<Expression> attrToOverride = AppendColCatalystUtils.getOverridedList(subSearch, TABLE_LHS);
+                if (attrToOverride != null &&
+                    !attrToOverride.isEmpty() &&
+                    attrToOverride.stream().noneMatch(UnresolvedStar.class::isInstance)) {
+                    fieldsToRemove.addAll(attrToOverride);
+                } else {
+                    throw new IllegalStateException("Not Supported operation: " +
+                            "APPENDCOL should specify the output fields");
+                }
             }
             return new DataFrameDropColumns(seq(fieldsToRemove), joinedQuery);
         });
