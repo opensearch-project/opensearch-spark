@@ -275,7 +275,7 @@ source = table |  where ispresent(a) |
 - `source=accounts | parse email '.+@(?<host>.+)' | eval eval_result=1 | fields host, eval_result`
 - `source=accounts | parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host`
 - `source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street`
-  - **Note**: The `sort num` syntax above is deprecated. To sort numerically, cast to a numerical data type - e.g. `sort cast(streetNumber as integer)`. See [#963](https://github.com/opensearch-project/opensearch-spark/issues/963) for more details.
+  - **Note**: The `sort num` syntax is deprecated. To sort numerically, cast to a numerical data type - e.g. `sort cast(streetNumber as integer)`. See [#963](https://github.com/opensearch-project/opensearch-spark/issues/963) for more details.
 - Limitation: [see limitations](ppl-parse-command.md#limitations)
 
 #### **Grok**
