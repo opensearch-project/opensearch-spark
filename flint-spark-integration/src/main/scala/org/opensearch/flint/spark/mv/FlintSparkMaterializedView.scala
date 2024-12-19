@@ -13,7 +13,7 @@ import scala.collection.convert.ImplicitConversions.`map AsScala`
 import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
-import org.opensearch.flint.spark.FlintSparkIndex.{flintIndexNamePrefix, generateSchema, metadataBuilder, StreamingRefresh}
+import org.opensearch.flint.spark.FlintSparkIndex.{addIdColumn, flintIndexNamePrefix, generateSchema, metadataBuilder, ID_COLUMN, StreamingRefresh}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getFlintIndexName, MV_INDEX_TYPE}
@@ -81,7 +81,8 @@ case class FlintSparkMaterializedView(
   override def build(spark: SparkSession, df: Option[DataFrame]): DataFrame = {
     require(df.isEmpty, "materialized view doesn't support reading from other data frame")
 
-    spark.sql(query)
+    val batchDf = spark.sql(query)
+    addIdColumn(batchDf, options)
   }
 
   override def buildStream(spark: SparkSession): DataFrame = {
@@ -99,7 +100,9 @@ case class FlintSparkMaterializedView(
       case relation: UnresolvedRelation if !relation.isStreaming =>
         relation.copy(isStreaming = true, options = optionsWithExtra(spark, relation))
     }
-    logicalPlanToDataFrame(spark, streamingPlan)
+
+    val streamingDf = logicalPlanToDataFrame(spark, streamingPlan)
+    addIdColumn(streamingDf, options)
   }
 
   private def watermark(timeCol: Attribute, child: LogicalPlan) = {
