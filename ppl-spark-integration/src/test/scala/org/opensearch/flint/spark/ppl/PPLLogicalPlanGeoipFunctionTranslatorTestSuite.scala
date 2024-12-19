@@ -5,15 +5,17 @@
 
 package org.opensearch.flint.spark.ppl
 
+import java.util
+
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
-import org.opensearch.sql.expression.function.SerializableUdf
+import org.opensearch.sql.expression.function.SerializableUdf.visit
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, CreateNamedStruct, Descending, EqualTo, ExprId, GreaterThanOrEqual, In, LessThan, Literal, NamedExpression, ScalaUDF, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, CreateNamedStruct, Descending, EqualTo, Expression, ExprId, GreaterThanOrEqual, In, LessThan, Literal, NamedExpression, ScalaUDF, SortOrder}
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, PlanTest}
 import org.apache.spark.sql.catalyst.plans.logical.{DataFrameDropColumns, Join, JoinHint, LogicalPlan, Project, Sort, SubqueryAlias}
 import org.apache.spark.sql.types.DataTypes
@@ -40,24 +42,8 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
       ipAddress: UnresolvedAttribute,
       left: LogicalPlan,
       right: LogicalPlan): LogicalPlan = {
-    val is_ipv4 = ScalaUDF(
-      SerializableUdf.geoIpUtils.isIpv4,
-      DataTypes.BooleanType,
-      seq(ipAddress),
-      seq(),
-      Option.empty,
-      Option.apply("is_ipv4"),
-      false,
-      true)
-    val ip_to_int = ScalaUDF(
-      SerializableUdf.geoIpUtils.ipToInt,
-      DataTypes.createDecimalType(38, 0),
-      seq(ipAddress),
-      seq(),
-      Option.empty,
-      Option.apply("ip_to_int"),
-      false,
-      true)
+    val is_ipv4 = visit("is_ipv4", util.List.of[Expression](ipAddress))
+    val ip_to_int = visit("ip_to_int", util.List.of[Expression](ipAddress))
 
     val t1 = SubqueryAlias("t1", left)
     val t2 = SubqueryAlias("t2", right)
@@ -296,6 +282,50 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
     val colAPlan = Project(randProjectList, colBPlan)
 
     val expectedPlan = Project(Seq(UnresolvedStar(None)), colAPlan)
+
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test geoip function - projection on evaluated field") {
+    val context = new CatalystPlanContext
+
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=users | eval a = geoip(ip_address, country_name) | fields a"),
+        context)
+
+    val ipAddress = UnresolvedAttribute("ip_address")
+    val sourceTable = UnresolvedRelation(seq("users"))
+    val geoTable = UnresolvedRelation(seq("geoip"))
+    val structProjection = Alias(UnresolvedAttribute("t2.country_name"), "a")()
+
+    val geoIpPlan = getGeoIpQueryPlan(ipAddress, sourceTable, geoTable, structProjection)
+    val expectedPlan = Project(Seq(UnresolvedAttribute("a")), geoIpPlan)
+
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
+
+  test("test geoip with partial projection on evaluated fields") {
+    val context = new CatalystPlanContext
+
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source=t | eval a = geoip(ip_address, country_iso_code), b = geoip(ip_address, region_iso_code) | fields b"),
+        context)
+
+    val ipAddress = UnresolvedAttribute("ip_address")
+    val sourceTable = UnresolvedRelation(seq("t"))
+    val geoTable = UnresolvedRelation(seq("geoip"))
+
+    val structProjectionA = Alias(UnresolvedAttribute("t2.country_iso_code"), "a")()
+    val colAPlan = getGeoIpQueryPlan(ipAddress, sourceTable, geoTable, structProjectionA)
+
+    val structProjectionB = Alias(UnresolvedAttribute("t2.region_iso_code"), "b")()
+    val colBPlan = getGeoIpQueryPlan(ipAddress, colAPlan, geoTable, structProjectionB)
+
+    val expectedPlan = Project(Seq(UnresolvedAttribute("b")), colBPlan)
 
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }

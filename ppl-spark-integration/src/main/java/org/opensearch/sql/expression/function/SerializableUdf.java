@@ -143,10 +143,17 @@ public interface SerializableUdf {
             }
 
             return parsedCidrBlock.contains(parsedIpAddress);
-
-        }};
+        }
+    };
 
     class geoIpUtils {
+        /**
+         * Append values to JSON arrays based on specified path-values.
+         *
+         * @param jsonStr    The input JSON string.
+         * @param elements   A list of path-values where the first item is the path and subsequent items are values to append.
+         * @return The updated JSON string.
+         */
         public static Function1<String,Boolean> isIpv4 = new SerializableAbstractFunction1<>() {
 
             IPAddressStringParameters valOptions = new IPAddressStringParameters.Builder()
@@ -170,6 +177,13 @@ public interface SerializableUdf {
             }
         };
 
+        /**
+         * Append values to JSON arrays based on specified path-values.
+         *
+         * @param jsonStr    The input JSON string.
+         * @param elements   A list of path-values where the first item is the path and subsequent items are values to append.
+         * @return The updated JSON string.
+         */
         public static Function1<String,BigInteger> ipToInt = new SerializableAbstractFunction1<>() {
             @Override
             public BigInteger apply(String ipAddress) {
@@ -222,6 +236,24 @@ public interface SerializableUdf {
                         seq(),
                         Option.empty(),
                         Option.apply("json_append"),
+                        false,
+                        true);
+            case "is_ipv4":
+                return new ScalaUDF(geoIpUtils.isIpv4,
+                        DataTypes.BooleanType,
+                        seq(expressions),
+                        seq(),
+                        Option.empty(),
+                        Option.apply("is_ipv4"),
+                        false,
+                        true);
+            case "ip_to_int":
+                return new ScalaUDF(geoIpUtils.ipToInt,
+                        DataTypes.createDecimalType(38,0),
+                        seq(expressions),
+                        seq(),
+                        Option.empty(),
+                        Option.apply("ip_to_int"),
                         false,
                         true);
             default:

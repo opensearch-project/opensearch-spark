@@ -41,7 +41,7 @@ Note:
 `GEOIP(ip[, property]...)` retrieves geospatial data corresponding to the provided `ip`.
 
 **Argument type:**
-- `ip` is string be **STRING**.
+- `ip` is string be **STRING** representing an IPv4 or an IPv6 address.
 - `property` is **STRING** and must be one of the following:
     - `COUNTRY_ISO_CODE`
     - `COUNTRY_NAME`

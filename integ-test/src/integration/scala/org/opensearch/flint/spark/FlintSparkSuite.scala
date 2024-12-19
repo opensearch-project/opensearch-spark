@@ -776,6 +776,7 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
          | CREATE TABLE $testTable
          | (
          |   ip STRING,
+         |   ipv4 STRING,
          |   isValid BOOLEAN
          | )
          | USING $tableType $tableOptions
@@ -783,10 +784,10 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
 
     sql(s"""
          | INSERT INTO $testTable
-         | VALUES ('66.249.157.90', true),
-         |        ('2a09:bac2:19f8:2ac3::', true),
-         |        ('192.168.2.', false),
-         |        ('2001:db8::ff00:12:', false)
+         | VALUES ('66.249.157.90', '66.249.157.90', true),
+         |        ('2a09:bac2:19f8:2ac3::', 'Given IPv6 is not mapped to IPv4', true),
+         |        ('192.168.2.', '192.168.2.', false),
+         |        ('2001:db8::ff00:12:', 'Given IPv6 is not mapped to IPv4', false)
          | """.stripMargin)
   }
 

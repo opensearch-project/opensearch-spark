@@ -19,12 +19,10 @@ import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
 import org.apache.spark.sql.catalyst.expressions.LessThan;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
-import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Project;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$;
-import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.expression.function.SerializableUdf;
@@ -32,10 +30,13 @@ import org.opensearch.sql.ppl.CatalystPlanContext;
 import scala.Option;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static java.util.List.of;
 
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.JoinSpecTransformer.join;
@@ -43,18 +44,15 @@ import static org.opensearch.sql.ppl.utils.JoinSpecTransformer.join;
 public interface GeoIpCatalystLogicalPlanTranslator {
     String SPARK_CONF_KEY = "spark.geoip.tablename";
     String DEFAULT_GEOIP_TABLE_NAME = "geoip";
+    String GEOIP_CIDR_COLUMN_NAME = "cidr";
+    String GEOIP_IP_RANGE_START_COLUMN_NAME = "ip_range_start";
+    String GEOIP_IP_RANGE_END_COLUMN_NAME = "ip_range_end";
+    String GEOIP_IPV4_COLUMN_NAME = "ipv4";
     String SOURCE_TABLE_ALIAS = "t1";
     String GEOIP_TABLE_ALIAS = "t2";
-    List<String> GEOIP_TABLE_COLUMNS = List.of(
-            "country_iso_code",
-            "country_name",
-            "continent_name",
-            "region_iso_code",
-            "region_name",
-            "city_name",
-            "time_zone",
-            "location"
-    );
+    List<String> GEOIP_TABLE_COLUMNS = Arrays.stream(GeoIpProperty.values())
+            .map(Enum::name)
+            .collect(Collectors.toList());
 
     /**
      * Responsible to produce a Spark Logical Plan with given GeoIp command arguments, below is the sample logical plan
@@ -105,16 +103,16 @@ public interface GeoIpCatalystLogicalPlanTranslator {
             Optional<Expression> joinCondition = Optional.of(new And(
                     new And(
                             new GreaterThanOrEqual(
-                                    getIpInt(ipAddress),
+                                    SerializableUdf.visit("ip_to_int", of(ipAddress)),
                                     UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,"ip_range_start"))
                             ),
                             new LessThan(
-                                    getIpInt(ipAddress),
+                                    SerializableUdf.visit("ip_to_int", of(ipAddress)),
                                     UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,"ip_range_end"))
                             )
                     ),
                     new EqualTo(
-                            getIsIpv4(ipAddress),
+                            SerializableUdf.visit("is_ipv4", of(ipAddress)),
                             UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,"ipv4"))
                     )
             ));
@@ -159,10 +157,10 @@ public interface GeoIpCatalystLogicalPlanTranslator {
 
         List<Expression> dropList = createGeoIpStructFields(new ArrayList<>());
         dropList.addAll(List.of(
-                UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,"cidr")),
-                UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,"ip_range_start")),
-                UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,"ip_range_end")),
-                UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,"ipv4"))
+                UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS, GEOIP_CIDR_COLUMN_NAME)),
+                UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS, GEOIP_IP_RANGE_START_COLUMN_NAME)),
+                UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS, GEOIP_IP_RANGE_END_COLUMN_NAME)),
+                UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS, GEOIP_IPV4_COLUMN_NAME))
         ));
 
         context.apply(p -> new Project(seq(projectExpressions), p));
@@ -183,29 +181,6 @@ public interface GeoIpCatalystLogicalPlanTranslator {
                         a.toLowerCase(Locale.ROOT)
                 )))
                 .collect(Collectors.toList());
-    }
-
-    static private Expression getIpInt(Expression ipAddress) {
-        return new ScalaUDF(SerializableUdf.geoIpUtils.ipToInt,
-                DataTypes.createDecimalType(38,0),
-                seq(ipAddress),
-                seq(),
-                Option.empty(),
-                Option.apply("ip_to_int"),
-                false,
-                true
-        );
-    }
-
-    static private Expression getIsIpv4(Expression ipAddress) {
-        return new ScalaUDF(SerializableUdf.geoIpUtils.isIpv4,
-                DataTypes.BooleanType,
-                seq(ipAddress),
-                seq(), Option.empty(),
-                Option.apply("is_ipv4"),
-                false,
-                true
-        );
     }
 
     static private String getGeoipTableName() {

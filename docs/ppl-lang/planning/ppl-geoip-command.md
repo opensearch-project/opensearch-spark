@@ -3,16 +3,12 @@
 geoip function to add information about the geographical location of an IPv4 or IPv6 address
 
 **Implementation syntax**
-- `... | eval geoinfo = geoip([datasource,] ipAddress *[,properties])`
+- `... | eval geoinfo = geoip(ipAddress *[,properties])`
 - generic syntax     
 - `... | eval geoinfo = geoip(ipAddress)`
-- use the default geoip datasource
-- `... | eval geoinfo = geoip("abc", ipAddress)`
-- use the "abc" geoip datasource
+- retrieves all geo data
 - `... | eval geoinfo = geoip(ipAddress, city, location)`
--  use the default geoip datasource, retrieve only city, and location
-- `... | eval geoinfo = geoip("abc", ipAddress, city, location")`
-- use the "abc" geoip datasource, retrieve only city, and location
+-  retrieve only city, and location
 
 **Implementation details**
 - Current implementation requires user to have created a geoip table. Geoip table has the following schema:
@@ -44,13 +40,23 @@ geoip function to add information about the geographical location of an IPv4 or 
           AND geoip.ip_range_end > ip_to_int(source.ip)
           AND geoip.ip_type = is_ipv4(source.ip);
    ```
+- in the case that only one property is provided in function call, `geoip` returns string of specified property instead: 
+  
+  ```SQL
+        SELECT source.*, geoip.country_name AS a
+        FROM source, geoip
+        WHERE geoip.ip_range_start <= ip_to_int(source.ip)
+          AND geoip.ip_range_end > ip_to_int(source.ip)
+          AND geoip.ip_type = is_ipv4(source.ip);
+  ```
 
 **Future plan for additional data-sources**
 
 - Currently only using pre-existing geoip table defined within spark is possible.
 - There is future plans to allow users to specify data sources:
     - API data sources - if users have their own geoip provided will create ability for users to configure and call said endpoints
-    - OpenSearch geospatial client - once geospatial client is published we can leverage client to utilize opensearch geo2ip functionality.
+    - OpenSearch geospatial client - once geospatial client is published we can leverage client to utilize OpenSearch geo2ip functionality.
+- Additional datasource connection params will be provided through spark config options.
 
 ### New syntax definition in ANTLR
 
