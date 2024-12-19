@@ -122,12 +122,12 @@ class PPLLogicalPlanParseTranslatorTestSuite
 
   test("test parse email & host expressions including cast and sort commands") {
     val context = new CatalystPlanContext
-    val logPlan =
-      planTransformer.visit(
-        plan(
-          pplParser,
-          "source=t | parse address '(?<streetNumber>\\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street"),
-        context)
+
+    // TODO #963: Remove unimplemented sort syntax
+    val query =
+      "source=t | parse address '(?<streetNumber>\\d+) (?<street>.+)' | where streetNumber > 500 | sort cast(streetNumber as integer) | fields streetNumber, street"
+
+    val logPlan = planTransformer.visit(plan(pplParser, query), context)
 
     val addressAttribute = UnresolvedAttribute("address")
     val streetNumberAttribute = UnresolvedAttribute("streetNumber")
