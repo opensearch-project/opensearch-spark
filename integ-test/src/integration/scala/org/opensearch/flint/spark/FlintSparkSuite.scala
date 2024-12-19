@@ -771,6 +771,79 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            | """.stripMargin)
   }
 
+  protected def createGeoIpTestTable(testTable: String): Unit = {
+    sql(s"""
+         | CREATE TABLE $testTable
+         | (
+         |   ip STRING,
+         |   ipv4 STRING,
+         |   isValid BOOLEAN
+         | )
+         | USING $tableType $tableOptions
+         |""".stripMargin)
+
+    sql(s"""
+         | INSERT INTO $testTable
+         | VALUES ('66.249.157.90', '66.249.157.90', true),
+         |        ('2a09:bac2:19f8:2ac3::', 'Given IPv6 is not mapped to IPv4', true),
+         |        ('192.168.2.', '192.168.2.', false),
+         |        ('2001:db8::ff00:12:', 'Given IPv6 is not mapped to IPv4', false)
+         | """.stripMargin)
+  }
+
+  protected def createGeoIpTable(): Unit = {
+    sql(s"""
+         | CREATE TABLE geoip
+         | (
+         |   cidr STRING,
+         |   country_iso_code STRING,
+         |   country_name STRING,
+         |   continent_name STRING,
+         |   region_iso_code STRING,
+         |   region_name STRING,
+         |   city_name STRING,
+         |   time_zone STRING,
+         |   location STRING,
+         |   ip_range_start DECIMAL(38,0),
+         |   ip_range_end DECIMAL(38,0),
+         |   ipv4 BOOLEAN
+         | )
+         | USING $tableType $tableOptions
+         |""".stripMargin)
+
+    sql(s"""
+         | INSERT INTO geoip
+         | VALUES (
+         |  '66.249.157.0/24',
+         |  'JM',
+         |  'Jamaica',
+         |  'North America',
+         |  '14',
+         |  'Saint Catherine Parish',
+         |  'Portmore',
+         |  'America/Jamaica',
+         |  '17.9686,-76.8827',
+         |  1123654912,
+         |  1123655167,
+         |  true
+         | ),
+         | (
+         |  '2a09:bac2:19f8::/45',
+         |  'CA',
+         |  'Canada',
+         |  'North America',
+         |  'PE',
+         |  'Prince Edward Island',
+         |  'Charlottetown',
+         |  'America/Halifax',
+         |  '46.2396,-63.1355',
+         |  55878094401180025937395073088449675264,
+         |  55878094401189697343951990121847324671,
+         |  false
+         | )
+         | """.stripMargin)
+  }
+
   protected def createNestedJsonContentTable(tempFile: Path, testTable: String): Unit = {
     val json =
       """
