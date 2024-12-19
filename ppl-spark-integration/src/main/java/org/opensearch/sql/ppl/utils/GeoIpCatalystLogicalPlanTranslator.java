@@ -104,16 +104,16 @@ public interface GeoIpCatalystLogicalPlanTranslator {
                     new And(
                             new GreaterThanOrEqual(
                                     SerializableUdf.visit("ip_to_int", of(ipAddress)),
-                                    UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,"ip_range_start"))
+                                    UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,GEOIP_IP_RANGE_START_COLUMN_NAME))
                             ),
                             new LessThan(
                                     SerializableUdf.visit("ip_to_int", of(ipAddress)),
-                                    UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,"ip_range_end"))
+                                    UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,GEOIP_IP_RANGE_END_COLUMN_NAME))
                             )
                     ),
                     new EqualTo(
                             SerializableUdf.visit("is_ipv4", of(ipAddress)),
-                            UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,"ipv4"))
+                            UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,GEOIP_IPV4_COLUMN_NAME))
                     )
             ));
             context.retainAllNamedParseExpressions(p -> p);
