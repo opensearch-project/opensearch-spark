@@ -14,6 +14,7 @@ import org.apache.spark.SparkException
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, CreateNamedStruct, EqualTo, Expression, GreaterThanOrEqual, LessThan, Literal}
+import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.plans.LeftOuter
 import org.apache.spark.sql.catalyst.plans.logical.{DataFrameDropColumns, Filter, Join, JoinHint, LogicalPlan, Project, SubqueryAlias}
 import org.apache.spark.sql.streaming.StreamTest
@@ -130,7 +131,7 @@ class FlintSparkPPLGeoipITSuite
 
     val sourceTable: LogicalPlan = Filter(
       EqualTo(UnresolvedAttribute("isValid"), Literal(true)),
-      UnresolvedRelation(seq(testTable)))
+      UnresolvedRelation(testTable.split("\\.").toSeq))
     val geoTable: LogicalPlan = UnresolvedRelation(seq("geoip"))
     val projectionStruct = CreateNamedStruct(
       Seq(
@@ -179,7 +180,7 @@ class FlintSparkPPLGeoipITSuite
 
     val sourceTable: LogicalPlan = Filter(
       EqualTo(UnresolvedAttribute("isValid"), Literal(true)),
-      UnresolvedRelation(seq(testTable)))
+      UnresolvedRelation(testTable.split("\\.").toSeq))
     val geoTable: LogicalPlan = UnresolvedRelation(seq("geoip"))
     val structProjection = Alias(UnresolvedAttribute("t2.country_name"), "a")()
     val geoIpPlan =
@@ -211,7 +212,7 @@ class FlintSparkPPLGeoipITSuite
 
     val sourceTable: LogicalPlan = Filter(
       EqualTo(UnresolvedAttribute("isValid"), Literal(true)),
-      UnresolvedRelation(seq(testTable)))
+      UnresolvedRelation(testTable.split("\\.").toSeq))
     val geoTable: LogicalPlan = UnresolvedRelation(seq("geoip"))
     val projectionStruct = CreateNamedStruct(
       Seq(
@@ -237,7 +238,7 @@ class FlintSparkPPLGeoipITSuite
     val results: Array[Row] = frame.collect()
     // Define the expected results
     val expectedResults: Array[Row] =
-      Array(Row("66.249.157.90", "Portmore"), Row("2a09:bac2:19f8:2ac3::", "Charlottetown"))
+      Array(Row("66.249.157.90", "Jamaica"), Row("2a09:bac2:19f8:2ac3::", "Canada"))
 
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
@@ -248,7 +249,7 @@ class FlintSparkPPLGeoipITSuite
 
     val sourceTable: LogicalPlan = Filter(
       EqualTo(UnresolvedAttribute("isValid"), Literal(true)),
-      UnresolvedRelation(seq(testTable)))
+      UnresolvedRelation(testTable.split("\\.").toSeq))
     val geoTable: LogicalPlan = UnresolvedRelation(seq("geoip"))
 
     val structProjectionA = Alias(UnresolvedAttribute("t2.city_name"), "a")()
@@ -267,16 +268,14 @@ class FlintSparkPPLGeoipITSuite
 
   test("test geoip with projection on field that exists in both source and geoip table") {
     val frame = sql(s"""
-         | source = $testTable| where isValid = true | eval a = geoip(ip, country_name) | fields ipv4, a
+         | source = $testTable | where isValid = true | eval a = geoip(ip, country_name) | fields ipv4, a
          | """.stripMargin)
 
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     // Define the expected results
     val expectedResults: Array[Row] =
-      Array(
-        Row("66.249.157.90", "Portmore"),
-        Row("Given IPv6 is not mapped to IPv4", "Charlottetown"))
+      Array(Row("66.249.157.90", "Jamaica"), Row("Given IPv6 is not mapped to IPv4", "Canada"))
 
     // Compare the results
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
@@ -287,7 +286,7 @@ class FlintSparkPPLGeoipITSuite
 
     val sourceTable: LogicalPlan = Filter(
       EqualTo(UnresolvedAttribute("isValid"), Literal(true)),
-      UnresolvedRelation(seq(testTable)))
+      UnresolvedRelation(testTable.split("\\.").toSeq))
     val geoTable: LogicalPlan = UnresolvedRelation(seq("geoip"))
     val structProjection = Alias(UnresolvedAttribute("t2.country_name"), "a")()
     val geoIpPlan =
@@ -299,12 +298,9 @@ class FlintSparkPPLGeoipITSuite
   }
 
   test("test geoip with invalid parameter") {
-    val frame = sql(s"""
+    assertThrows[ParseException](sql(s"""
          | source = $testTable | where isValid = true | eval a = geoip(ip, invalid_param) | fields ip, a
-         | """.stripMargin)
-
-    // Retrieve the results
-    assertThrows[SparkException](frame.collect())
+         | """.stripMargin))
   }
 
   test("test geoip with invalid ip address provided") {
