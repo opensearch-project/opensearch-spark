@@ -82,6 +82,13 @@ DATASOURCES:                        'DATASOURCES';
 USING:                              'USING';
 WITH:                               'WITH';
 
+// SORT FIELD KEYWORDS
+// TODO #963: Remove unimplemented sort syntax
+AUTO:                               'AUTO';
+STR:                                'STR';
+IP:                                 'IP';
+NUM:                                'NUM';
+
 // FIELDSUMMARY keywords
 FIELDSUMMARY:                       'FIELDSUMMARY';
 INCLUDEFIELDS:                      'INCLUDEFIELDS';
@@ -378,11 +385,11 @@ JSON_ARRAY:                         'JSON_ARRAY';
 JSON_ARRAY_LENGTH:                  'JSON_ARRAY_LENGTH';
 TO_JSON_STRING:                     'TO_JSON_STRING';
 JSON_EXTRACT:                       'JSON_EXTRACT';
-JSON_DELETE :                       'JSON_DELETE';
 JSON_KEYS:                          'JSON_KEYS';
 JSON_VALID:                         'JSON_VALID';
-JSON_APPEND:                        'JSON_APPEND';
-//JSON_EXTEND :                       'JSON_EXTEND';
+//JSON_APPEND:                        'JSON_APPEND';
+//JSON_DELETE:                        'JSON_DELETE';
+//JSON_EXTEND:                        'JSON_EXTEND';
 //JSON_SET:                           'JSON_SET';
 //JSON_ARRAY_ALL_MATCH:               'JSON_ARRAY_ALL_MATCH';
 //JSON_ARRAY_ANY_MATCH:               'JSON_ARRAY_ANY_MATCH';

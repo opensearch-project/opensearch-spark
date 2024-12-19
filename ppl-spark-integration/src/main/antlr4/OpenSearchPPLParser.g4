@@ -515,7 +515,17 @@ wcFieldList
    ;
 
 sortField
-   : (PLUS | MINUS)? fieldExpression
+   : (PLUS | MINUS)? sortFieldExpression
+   ;
+
+sortFieldExpression
+   : fieldExpression
+
+   // TODO #963: Remove unimplemented sort syntax
+   | AUTO LT_PRTHS fieldExpression RT_PRTHS
+   | STR LT_PRTHS fieldExpression RT_PRTHS
+   | IP LT_PRTHS fieldExpression RT_PRTHS
+   | NUM LT_PRTHS fieldExpression RT_PRTHS
    ;
 
 fieldExpression
@@ -867,10 +877,10 @@ jsonFunctionName
    | JSON_ARRAY_LENGTH
    | TO_JSON_STRING
    | JSON_EXTRACT
-   | JSON_DELETE
-   | JSON_APPEND
    | JSON_KEYS
    | JSON_VALID
+//   | JSON_APPEND
+//   | JSON_DELETE
 //   | JSON_EXTEND
 //   | JSON_SET
 //   | JSON_ARRAY_ALL_MATCH
@@ -1169,4 +1179,10 @@ keywordsCanBeId
    | BETWEEN
    | CIDRMATCH
    | trendlineType
+   // SORT FIELD KEYWORDS
+   // TODO #963: Remove unimplemented sort syntax
+   | AUTO
+   | STR
+   | IP
+   | NUM
    ;

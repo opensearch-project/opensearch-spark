@@ -82,7 +82,16 @@ public class ArgumentFactory {
     return Arrays.asList(
         ctx.MINUS() != null
             ? new Argument("asc", new Literal(false, DataType.BOOLEAN))
-            : new Argument("asc", new Literal(true, DataType.BOOLEAN)));
+            : new Argument("asc", new Literal(true, DataType.BOOLEAN)),
+        ctx.sortFieldExpression().AUTO() != null
+            ? new Argument("type", new Literal("auto", DataType.STRING))
+            : ctx.sortFieldExpression().IP() != null
+                ? new Argument("type", new Literal("ip", DataType.STRING))
+                : ctx.sortFieldExpression().NUM() != null
+                    ? new Argument("type", new Literal("num", DataType.STRING))
+                    : ctx.sortFieldExpression().STR() != null
+                        ? new Argument("type", new Literal("str", DataType.STRING))
+                        : new Argument("type", new Literal(null, DataType.NULL)));
   }
 
   /**

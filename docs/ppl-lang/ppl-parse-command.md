@@ -58,7 +58,7 @@ The example shows how to sort street numbers that are higher than 500 in ``addre
 
 PPL query:
 
-    os> source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | where cast(streetNumber as int) > 500 | sort streetNumber | fields streetNumber, street ;
+    os> source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | where cast(streetNumber as int) > 500 | sort num(streetNumber) | fields streetNumber, street ;
     fetched rows / total rows = 3/3
     +----------------+----------------+
     | streetNumber   | street         |
@@ -67,6 +67,8 @@ PPL query:
     | 789            | Madison Street |
     | 880            | Holmes Lane    |
     +----------------+----------------+
+
+**Note**: The `sort num` syntax is deprecated. To sort numerically, cast to a numerical data type - e.g. `sort cast(streetNumber as integer)`. See [#963](https://github.com/opensearch-project/opensearch-spark/issues/963) for more details.
 
 ### Limitations
 
