@@ -457,20 +457,12 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
         if (ctx != null) {
             for (OpenSearchPPLParser.GeoIpPropertyContext property : ctx.geoIpProperty()) {
                 String propertyName = property.getText().toUpperCase();
-                validateGeoIpProperty(propertyName);
+                GeoIpCatalystLogicalPlanTranslator.validateGeoIpProperty(propertyName);
                 properties.add(new Literal(propertyName, DataType.STRING));
             }
         }
 
         return new AttributeList(properties.build());
-    }
-
-    private static void validateGeoIpProperty(String propertyName) {
-        try {
-            GeoIpCatalystLogicalPlanTranslator.GeoIpProperty.valueOf(propertyName);
-        } catch (NullPointerException | IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid properties used.");
-        }
     }
 
     private List<UnresolvedExpression> timestampFunctionArguments(

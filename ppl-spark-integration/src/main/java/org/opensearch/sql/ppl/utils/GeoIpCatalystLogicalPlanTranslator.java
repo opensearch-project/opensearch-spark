@@ -211,4 +211,12 @@ public interface GeoIpCatalystLogicalPlanTranslator {
         TIME_ZONE,
         LOCATION
     }
+
+    public static void validateGeoIpProperty(String propertyName) {
+        try {
+            GeoIpProperty.valueOf(propertyName);
+        } catch (NullPointerException | IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid properties used.");
+        }
+    }
 }
