@@ -148,11 +148,10 @@ public interface SerializableUdf {
 
     class geoIpUtils {
         /**
-         * Append values to JSON arrays based on specified path-values.
+         * Checks if provided ip string is ipv4 or ipv6.
          *
-         * @param jsonStr    The input JSON string.
-         * @param elements   A list of path-values where the first item is the path and subsequent items are values to append.
-         * @return The updated JSON string.
+         * @param ipAddress     To input ip string.
+         * @return true if ipAddress is ipv4, false if ipaddress is ipv6, AddressString Exception if invalid ip.
          */
         public static Function1<String,Boolean> isIpv4 = new SerializableAbstractFunction1<>() {
 
@@ -178,11 +177,10 @@ public interface SerializableUdf {
         };
 
         /**
-         * Append values to JSON arrays based on specified path-values.
+         * Convert ipAddress string to interger representation
          *
-         * @param jsonStr    The input JSON string.
-         * @param elements   A list of path-values where the first item is the path and subsequent items are values to append.
-         * @return The updated JSON string.
+         * @param ipAddress    The input ip string.
+         * @return converted BigInteger from ipAddress string.
          */
         public static Function1<String,BigInteger> ipToInt = new SerializableAbstractFunction1<>() {
             @Override
@@ -204,10 +202,10 @@ public interface SerializableUdf {
     }
 
     /**
-     * get the function reference according to its name
+     * Get the function reference according to its name
      *
-     * @param funcName
-     * @return
+     * @param funcName      string representing function to retrieve.
+     * @return relevant ScalaUDF for given function name.
      */
     static ScalaUDF visit(String funcName, List<Expression> expressions) {
         switch (funcName) {
