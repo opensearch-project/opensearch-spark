@@ -401,13 +401,10 @@ class FlintSparkPPLAppendColITSuite
               "age")()),
           RELATION_TEST_TABLE)))
 
-    val overrideFields =
-      Seq(UnresolvedAttribute("T1._row_number_"), UnresolvedAttribute("T1.age"))
-
     val expectedPlan = Project(
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
-        T12_COLUMNS_SEQ ++ overrideFields,
+        T12_COLUMNS_SEQ :+ UnresolvedAttribute("T1.age"),
         Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
