@@ -74,7 +74,7 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
   
     - [`expand commands`](ppl-expand-command.md)
 
-    - [`appendcol commands`](ppl-appendcol-command.md)
+    - [`appendcol command`](ppl-appendcol-command.md)
 
 * **Functions**
 
