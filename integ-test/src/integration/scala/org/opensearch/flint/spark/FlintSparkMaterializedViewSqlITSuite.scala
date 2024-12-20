@@ -163,7 +163,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
              |   auto_refresh = true,
              |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
              |   watermark_delay = '1 Second',
-             |   id_expression = 'count'
+             |   id_expression = "sha1(concat_ws('\0',startTime))"
              | )
              |""".stripMargin)
 
@@ -174,8 +174,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
         job.get.processAllAvailable()
       }
 
-      // 1 row missing due to ID conflict intentionally
-      flint.queryIndex(testFlintIndex).count() shouldBe 2
+      flint.queryIndex(testFlintIndex).count() shouldBe 3
     }
   }
 

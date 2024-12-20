@@ -13,11 +13,9 @@ import org.opensearch.flint.core.metadata.FlintJsonHelper._
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.catalyst.plans.logical.Aggregate
-import org.apache.spark.sql.catalyst.util.quoteIfNeeded
 import org.apache.spark.sql.flint.datatype.FlintDataType
-import org.apache.spark.sql.functions.{col, concat_ws, expr, sha1, to_json}
-import org.apache.spark.sql.types.{MapType, StructType}
+import org.apache.spark.sql.functions.expr
+import org.apache.spark.sql.types.StructType
 
 /**
  * Flint index interface in Spark.
@@ -137,31 +135,10 @@ object FlintSparkIndex extends Logging {
    *   DataFrame with/without ID column
    */
   def addIdColumn(df: DataFrame, options: FlintSparkIndexOptions): DataFrame = {
-    def isAggregated: Boolean =
-      df.queryExecution.logical.exists(_.isInstanceOf[Aggregate])
-
     options.idExpression() match {
       case Some(idExpr) if idExpr.nonEmpty =>
         logInfo(s"Using user-provided ID expression: $idExpr")
         df.withColumn(ID_COLUMN, expr(idExpr))
-
-      case None if isAggregated =>
-        // Since concat doesn't support struct or map type, convert these to json which is more
-        // deterministic than casting to string, as its format may vary across Spark versions.
-        val allOutputCols = df.schema.fields.map { field =>
-          field.dataType match {
-            case _: StructType | _: MapType =>
-              to_json(col(quoteIfNeeded(field.name)))
-            case _ =>
-              col(quoteIfNeeded(field.name))
-          }
-        }
-
-        // TODO: 1) use only grouping columns; 2) ensure aggregation is on top level
-        val idCol = sha1(concat_ws("\0", allOutputCols: _*))
-        logInfo(s"Generated ID column for aggregated query: $idCol")
-        df.withColumn(ID_COLUMN, idCol)
-
       case _ => df
     }
   }

@@ -18,10 +18,9 @@ import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation}
 import org.apache.spark.sql.catalyst.dsl.expressions.{intToLiteral, stringToLiteral, DslAttr, DslExpression, StringToAttributeConversionHelper}
 import org.apache.spark.sql.catalyst.dsl.plans.DslLogicalPlan
-import org.apache.spark.sql.catalyst.expressions.{Attribute, ConcatWs, Literal, Sha1}
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{EventTimeWatermark, LogicalPlan}
 import org.apache.spark.sql.catalyst.util.IntervalUtils
-import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -118,7 +117,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
           | FROM $testTable
           | GROUP BY TUMBLE(time, '1 Minute')
           |""".stripMargin
-    val options = Map("watermark_delay" -> "30 Seconds", "id_expression" -> "")
+    val options = Map("watermark_delay" -> "30 Seconds")
 
     withAggregateMaterializedView(testQuery, Array(testTable), options) { actualPlan =>
       comparePlans(
@@ -143,7 +142,7 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
            | WHERE age > 30
            | GROUP BY TUMBLE(time, '1 Minute')
            |""".stripMargin
-    val options = Map("watermark_delay" -> "30 Seconds", "id_expression" -> "")
+    val options = Map("watermark_delay" -> "30 Seconds")
 
     withAggregateMaterializedView(testQuery, Array(testTable), options) { actualPlan =>
       comparePlans(
@@ -208,68 +207,12 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     batchDf.idColumn() shouldBe Some(UnresolvedAttribute(Seq("time")))
   }
 
-  test("build batch should not have ID column if non-aggregated") {
+  test("build batch should not have ID column if not provided") {
     val testMvQuery = s"SELECT time, name FROM $testTable"
     val mv = FlintSparkMaterializedView(testMvName, testMvQuery, Array.empty, Map.empty)
 
     val batchDf = mv.build(spark, None)
     batchDf.idColumn() shouldBe None
-  }
-
-  test("build batch should have ID column if aggregated") {
-    val mv = FlintSparkMaterializedView(
-      testMvName,
-      s""" SELECT time, name, AVG(age) AS avg
-           | FROM $testTable
-           | GROUP BY time, name""".stripMargin,
-      Array.empty,
-      Map.empty)
-
-    val batchDf = mv.build(spark, None)
-    batchDf.idColumn() shouldBe Some(
-      Sha1(
-        ConcatWs(
-          Seq(
-            Literal(UTF8String.fromString("\0"), StringType),
-            UnresolvedAttribute(Seq("time")),
-            UnresolvedAttribute(Seq("name")),
-            UnresolvedAttribute(Seq("avg"))))))
-  }
-
-  test("build batch should not have ID column if aggregated with ID expression empty") {
-    val mv = FlintSparkMaterializedView(
-      testMvName,
-      s""" SELECT time, name, AVG(age) AS avg
-         | FROM $testTable
-         | GROUP BY time, name""".stripMargin,
-      Array.empty,
-      Map.empty,
-      FlintSparkIndexOptions(Map("id_expression" -> "")))
-
-    val batchDf = mv.build(spark, None)
-    batchDf.idColumn() shouldBe None
-  }
-
-  test("build batch should have ID column if aggregated join") {
-    val mv = FlintSparkMaterializedView(
-      testMvName,
-      s""" SELECT t1.time, t1.name, AVG(t1.age) AS avg
-         | FROM $testTable AS t1
-         | JOIN $testTable AS t2
-         | ON t1.time = t2.time
-         | GROUP BY t1.time, t1.name""".stripMargin,
-      Array.empty,
-      Map.empty)
-
-    val batchDf = mv.build(spark, None)
-    batchDf.idColumn() shouldBe Some(
-      Sha1(
-        ConcatWs(
-          Seq(
-            Literal(UTF8String.fromString("\0"), StringType),
-            UnresolvedAttribute(Seq("time")),
-            UnresolvedAttribute(Seq("name")),
-            UnresolvedAttribute(Seq("avg"))))))
   }
 
   test("build stream with ID expression option") {
@@ -284,60 +227,13 @@ class FlintSparkMaterializedViewSuite extends FlintSuite {
     streamDf.idColumn() shouldBe Some(UnresolvedAttribute(Seq("time")))
   }
 
-  test("build stream should not have ID column if non-aggregated") {
+  test("build stream should not have ID column if not provided") {
     val mv = FlintSparkMaterializedView(
       testMvName,
       s"SELECT time, name FROM $testTable",
       Array.empty,
       Map.empty,
       FlintSparkIndexOptions(Map("auto_refresh" -> "true")))
-
-    val streamDf = mv.buildStream(spark)
-    streamDf.idColumn() shouldBe None
-  }
-
-  test("build stream should have ID column if aggregated") {
-    val testMvQuery =
-      s"""
-           | SELECT
-           |   window.start AS startTime,
-           |   COUNT(*) AS count
-           | FROM $testTable
-           | GROUP BY TUMBLE(time, '1 Minute')
-           |""".stripMargin
-    val mv = FlintSparkMaterializedView(
-      testMvName,
-      testMvQuery,
-      Array.empty,
-      Map.empty,
-      FlintSparkIndexOptions(Map("auto_refresh" -> "true", "watermark_delay" -> "10 Seconds")))
-
-    val streamDf = mv.buildStream(spark)
-    streamDf.idColumn() shouldBe Some(
-      Sha1(
-        ConcatWs(
-          Seq(
-            Literal(UTF8String.fromString("\0"), StringType),
-            UnresolvedAttribute(Seq("startTime")),
-            UnresolvedAttribute(Seq("count"))))))
-  }
-
-  test("build stream should not have ID column if aggregated with ID expression empty") {
-    val testMvQuery =
-      s"""
-         | SELECT
-         |   window.start AS startTime,
-         |   COUNT(*) AS count
-         | FROM $testTable
-         | GROUP BY TUMBLE(time, '1 Minute')
-         |""".stripMargin
-    val mv = FlintSparkMaterializedView(
-      testMvName,
-      testMvQuery,
-      Array.empty,
-      Map.empty,
-      FlintSparkIndexOptions(
-        Map("auto_refresh" -> "true", "watermark_delay" -> "10 Seconds", "id_expression" -> "")))
 
     val streamDf = mv.buildStream(spark)
     streamDf.idColumn() shouldBe None
