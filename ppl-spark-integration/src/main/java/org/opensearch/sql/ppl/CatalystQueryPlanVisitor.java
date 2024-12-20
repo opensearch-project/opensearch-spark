@@ -263,9 +263,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     public LogicalPlan visitAppendCol(AppendCol node, CatalystPlanContext context) {
 
         final String APPENDCOL_ID = WindowSpecTransformer.ROW_NUMBER_COLUMN_NAME;
-        // todo: Add table prefix
-        final String TABLE_LHS = "T1";
-        final String TABLE_RHS = "T2";
+        final String TABLE_LHS = "APPENDCOL_T1";
+        final String TABLE_RHS = "APPENDCOL_T2";
         final UnresolvedAttribute t1Attr = new UnresolvedAttribute(seq(TABLE_LHS, APPENDCOL_ID));
         final UnresolvedAttribute t2Attr = new UnresolvedAttribute(seq(TABLE_RHS, APPENDCOL_ID));
         final List<Expression> fieldsToRemove = new ArrayList<>(List.of(t1Attr, t2Attr));
