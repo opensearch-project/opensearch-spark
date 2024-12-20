@@ -12,7 +12,7 @@ Using `appendcol` command to append the result of a sub-search and attach it alo
 
 #### Example 1: To append the result of `stats ave(age) as AVG_AGE` into existing search result   
 
-The example append the result of sub-search `stats ave(age) as AVG_AGE` alongside with the main-search.
+The example append the result of sub-search `stats avg(age) as AVG_AGE` alongside with the main-search.
 
 PPL query:
 
