@@ -26,9 +26,9 @@ import java.util.List;
 @AllArgsConstructor
 public class AppendCol extends UnresolvedPlan {
 
-    public boolean override;
+    private final boolean override;
 
-    private UnresolvedPlan subSearch;
+    private final UnresolvedPlan subSearch;
 
     private UnresolvedPlan child;
 

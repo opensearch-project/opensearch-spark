@@ -296,7 +296,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                     new Join.JoinHint());
 
             // Remove the APPEND_ID and duplicated field on T1 if override option present.
-            if (node.override) {
+            if (node.isOverride()) {
                 List<Expression> attrToOverride = AppendColCatalystUtils.getOverridedList(subSearch, TABLE_LHS);
                 if (attrToOverride != null &&
                     !attrToOverride.isEmpty() &&
