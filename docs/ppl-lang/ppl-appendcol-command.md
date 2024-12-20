@@ -21,15 +21,15 @@ PPL query:
     +------+-------------+-----+------------------+  
     | name | dept        | age | AVG_AGE          |  
     +------+-------------+-----+------------------+  
-    | Lisa | Sales------ |  35 | 31.2222222222222|  
-    | Fred | Engineering |  28 | NULL            |  
-    | Paul | Engineering |  23 | NULL            |  
-    | Evan | Sales------ |  38 | NULL            |   
-    | Chloe| Engineering |  25 | NULL            |   
-    | Tom  | Engineering |  33 | NULL            |   
-    | Alex | Sales       |  33 | NULL            |  
-    | Jane | Marketing   |  28 | NULL            |  
-    | Jeff | Marketing   |  38 | NULL            |  
+    | Lisa | Sales       |  35 | 31.2222222222222 |  
+    | Fred | Engineering |  28 | NULL             |  
+    | Paul | Engineering |  23 | NULL             |  
+    | Evan | Sales       |  38 | NULL             |   
+    | Chloe| Engineering |  25 | NULL             |   
+    | Tom  | Engineering |  33 | NULL             |   
+    | Alex | Sales       |  33 | NULL             |  
+    | Jane | Marketing   |  28 | NULL             |  
+    | Jeff | Marketing   |  38 | NULL             |  
     +------+-------------+-----+------------------+  
     
 
