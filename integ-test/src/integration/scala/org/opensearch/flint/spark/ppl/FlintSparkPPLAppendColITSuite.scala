@@ -44,10 +44,10 @@ class FlintSparkPPLAppendColITSuite
     Seq("spark_catalog", "default", "flint_ppl_test"))
 
   private val T12_JOIN_CONDITION =
-    EqualTo(UnresolvedAttribute("T1._row_number_"), UnresolvedAttribute("T2._row_number_"))
+    EqualTo(UnresolvedAttribute("APPENDCOL_T1._row_number_"), UnresolvedAttribute("APPENDCOL_T2._row_number_"))
 
   private val T12_COLUMNS_SEQ =
-    Seq(UnresolvedAttribute("T1._row_number_"), UnresolvedAttribute("T2._row_number_"))
+    Seq(UnresolvedAttribute("APPENDCOL_T1._row_number_"), UnresolvedAttribute("APPENDCOL_T2._row_number_"))
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -98,7 +98,7 @@ class FlintSparkPPLAppendColITSuite
       :     +- 'UnresolvedRelation [relation], [], false
      */
     val t1 = SubqueryAlias(
-      "T1",
+      "APPENDCOL_T1",
       Project(Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)), RELATION_TEST_TABLE))
 
     /*
@@ -109,7 +109,7 @@ class FlintSparkPPLAppendColITSuite
            +- 'UnresolvedRelation [relation], [], false
      */
     val t2 = SubqueryAlias(
-      "T2",
+      "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Aggregate(AGE_ALIAS :: Nil, Seq(COUNT_STAR, AGE_ALIAS), RELATION_TEST_TABLE)))
@@ -155,7 +155,7 @@ class FlintSparkPPLAppendColITSuite
      :        +- 'UnresolvedRelation [relation], [], false
      */
     val t1 = SubqueryAlias(
-      "T1",
+      "APPENDCOL_T1",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Project(
@@ -173,7 +173,7 @@ class FlintSparkPPLAppendColITSuite
            +- 'UnresolvedRelation [relation], [], false
      */
     val t2 = SubqueryAlias(
-      "T2",
+      "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Aggregate(AGE_ALIAS :: Nil, Seq(COUNT_STAR, AGE_ALIAS), RELATION_TEST_TABLE)))
@@ -217,7 +217,7 @@ class FlintSparkPPLAppendColITSuite
      :        +- 'UnresolvedRelation [relation], [], false
      */
     val t1 = SubqueryAlias(
-      "T1",
+      "APPENDCOL_T1",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Project(
@@ -236,7 +236,7 @@ class FlintSparkPPLAppendColITSuite
                  +- 'UnresolvedRelation [flint_ppl_test], [], false
      */
     val t2 = SubqueryAlias(
-      "T2",
+      "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         DataFrameDropColumns(
@@ -284,7 +284,7 @@ class FlintSparkPPLAppendColITSuite
      :        +- 'UnresolvedRelation [flint_ppl_test], [], false
      */
     val mainSearch = SubqueryAlias(
-      "T1",
+      "APPENDCOL_T1",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Project(
@@ -300,7 +300,7 @@ class FlintSparkPPLAppendColITSuite
                  +- 'UnresolvedRelation [flint_ppl_test], [], false
      */
     val firstAppenCol = SubqueryAlias(
-      "T2",
+      "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         DataFrameDropColumns(
@@ -310,7 +310,7 @@ class FlintSparkPPLAppendColITSuite
             Aggregate(AGE_ALIAS :: Nil, Seq(COUNT_STAR, AGE_ALIAS), RELATION_TEST_TABLE)))))
 
     val joinWithFirstAppendCol = SubqueryAlias(
-      "T1",
+      "APPENDCOL_T1",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         DataFrameDropColumns(
@@ -324,7 +324,7 @@ class FlintSparkPPLAppendColITSuite
            +- 'UnresolvedRelation [flint_ppl_test], [], false
      */
     val secondAppendCol = SubqueryAlias(
-      "T2",
+      "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Project(Seq(UnresolvedAttribute("state")), RELATION_TEST_TABLE)))
@@ -372,7 +372,7 @@ class FlintSparkPPLAppendColITSuite
      :        +- 'UnresolvedRelation [relation], [], false
      */
     val t1 = SubqueryAlias(
-      "T1",
+      "APPENDCOL_T1",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Project(
@@ -390,7 +390,7 @@ class FlintSparkPPLAppendColITSuite
            +- 'UnresolvedRelation [flint_ppl_test], [], false
      */
     val t2 = SubqueryAlias(
-      "T2",
+      "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Aggregate(
@@ -404,7 +404,7 @@ class FlintSparkPPLAppendColITSuite
     val expectedPlan = Project(
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
-        T12_COLUMNS_SEQ :+ UnresolvedAttribute("T1.age"),
+        T12_COLUMNS_SEQ :+ UnresolvedAttribute("APPENDCOL_T1.age"),
         Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
