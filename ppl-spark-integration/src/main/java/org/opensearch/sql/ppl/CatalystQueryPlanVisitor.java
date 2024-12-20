@@ -6,11 +6,14 @@
 package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.TableIdentifier;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
+import org.apache.spark.sql.catalyst.expressions.EqualTo;
 import org.apache.spark.sql.catalyst.expressions.Explode;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GeneratorOuter;
@@ -18,6 +21,7 @@ import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
+import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns;
 import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns$;
 import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
 import org.apache.spark.sql.catalyst.plans.logical.Generate;
@@ -47,6 +51,7 @@ import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.Aggregation;
+import org.opensearch.sql.ast.tree.AppendCol;
 import org.opensearch.sql.ast.tree.Correlation;
 import org.opensearch.sql.ast.tree.CountedAggregation;
 import org.opensearch.sql.ast.tree.Dedupe;
@@ -73,6 +78,7 @@ import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
+import org.opensearch.sql.ppl.utils.AppendColCatalystUtils;
 import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
 import org.opensearch.sql.ppl.utils.GeoIpCatalystLogicalPlanTranslator;
 import org.opensearch.sql.ppl.utils.ParseTransformer;
@@ -255,6 +261,61 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
         return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(seq(trendlineProjectExpressions), p));
     }
+
+    @Override
+    public LogicalPlan visitAppendCol(AppendCol node, CatalystPlanContext context) {
+
+        final String APPENDCOL_ID = WindowSpecTransformer.ROW_NUMBER_COLUMN_NAME;
+        final String TABLE_LHS = "APPENDCOL_T1";
+        final String TABLE_RHS = "APPENDCOL_T2";
+        final UnresolvedAttribute t1Attr = new UnresolvedAttribute(seq(TABLE_LHS, APPENDCOL_ID));
+        final UnresolvedAttribute t2Attr = new UnresolvedAttribute(seq(TABLE_RHS, APPENDCOL_ID));
+        final List<Expression> fieldsToRemove = new ArrayList<>(List.of(t1Attr, t2Attr));
+        final Node subSearchNode = node.getSubSearch();
+
+        // Apply an additional projection layer on main-search to provide natural order.
+        LogicalPlan mainSearch = visitFirstChild(node, context);
+        var mainSearchWithRowNumber = AppendColCatalystUtils.getRowNumStarProjection(context, mainSearch, TABLE_LHS);
+        context.withSubqueryAlias(mainSearchWithRowNumber);
+
+        // Duplicate the relation clause from main-search to sub-search.
+        AppendColCatalystUtils.appendRelationClause(node.getSubSearch(), context.getRelations());
+
+        context.apply(left -> {
+
+            // Apply an additional projection layer on sub-search to provide natural order.
+            LogicalPlan subSearch = subSearchNode.accept(this, context);
+            var subSearchWithRowNumber = AppendColCatalystUtils.getRowNumStarProjection(context, subSearch, TABLE_RHS);
+            context.withSubqueryAlias(subSearchWithRowNumber);
+
+            context.retainAllNamedParseExpressions(p -> p);
+            context.retainAllPlans(p -> p);
+
+            // Join both Main and Sub search with _ROW_NUMBER_ column
+            LogicalPlan joinedQuery = join(
+                    mainSearchWithRowNumber, subSearchWithRowNumber,
+                    Join.JoinType.LEFT,
+                    Optional.of(new EqualTo(t1Attr, t2Attr)),
+                    new Join.JoinHint());
+
+            // Remove the APPEND_ID and duplicated field on T1 if override option present.
+            if (node.override) {
+                List<Expression> attrToOverride = AppendColCatalystUtils.getOverridedList(subSearch, TABLE_LHS);
+                if (attrToOverride != null &&
+                    !attrToOverride.isEmpty() &&
+                    attrToOverride.stream().noneMatch(UnresolvedStar.class::isInstance)) {
+                    fieldsToRemove.addAll(attrToOverride);
+                } else {
+                    throw new IllegalStateException("Not Supported operation: " +
+                            "APPENDCOL should specify the output fields");
+                }
+            }
+            return new DataFrameDropColumns(seq(fieldsToRemove), joinedQuery);
+        });
+
+        return context.getPlan();
+    }
+
 
     @Override
     public LogicalPlan visitCorrelation(Correlation node, CatalystPlanContext context) {
