@@ -43,10 +43,14 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
   private val RELATION_EMPLOYEES = UnresolvedRelation(Seq("employees"))
 
   private val T12_JOIN_CONDITION =
-    EqualTo(UnresolvedAttribute("APPENDCOL_T1._row_number_"), UnresolvedAttribute("APPENDCOL_T2._row_number_"))
+    EqualTo(
+      UnresolvedAttribute("APPENDCOL_T1._row_number_"),
+      UnresolvedAttribute("APPENDCOL_T2._row_number_"))
 
   private val T12_COLUMNS_SEQ =
-    Seq(UnresolvedAttribute("APPENDCOL_T1._row_number_"), UnresolvedAttribute("APPENDCOL_T2._row_number_"))
+    Seq(
+      UnresolvedAttribute("APPENDCOL_T1._row_number_"),
+      UnresolvedAttribute("APPENDCOL_T2._row_number_"))
 
   // @formatter:off
   /**
@@ -333,12 +337,15 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
-
   test("test invalid override sub-search") {
     val context = new CatalystPlanContext
     val exception = intercept[IllegalStateException](
       planTransformer
-        .visit(plan(pplParser, "source=relation | FIELDS name, age | APPENDCOL override=true [ where age > 10]"), context))
+        .visit(
+          plan(
+            pplParser,
+            "source=relation | FIELDS name, age | APPENDCOL override=true [ where age > 10]"),
+          context))
     assert(exception.getMessage startsWith "Not Supported operation")
   }
 
@@ -383,10 +390,13 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
       "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
-        Aggregate(Nil, Seq(
+        Aggregate(
+          Nil,
+          Seq(
             Alias(
-              UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false), "age")()),
-        RELATION_EMPLOYEES)))
+              UnresolvedFunction(Seq("COUNT"), Seq(UnresolvedStar(None)), isDistinct = false),
+              "age")()),
+          RELATION_EMPLOYEES)))
 
     val expectedPlan = Project(
       Seq(UnresolvedStar(None)),
