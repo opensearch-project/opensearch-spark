@@ -82,6 +82,14 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
            *   Row(timestamp("2023-10-01 02:00:00"), 1)
            */
         ))
+
+      sql(s"""
+             | INSERT INTO $testTable VALUES
+             | (TIMESTAMP '2023-10-01 04:00:00', 'F', 25, 'Vancouver')
+             | """.stripMargin)
+      failAfter(streamingTimeout) {
+        job.get.processAllAvailable()
+      }
     }
   }
 
