@@ -77,3 +77,7 @@ PPL query:
     | Jane | Marketing   | NULL             |  
     | Jeff | Marketing   | NULL             |
     +------+-------------+------------------+
+
+### Limitation: 
+When override is set to true, only `FIELDS` and `STATS` commands are allowed as the final clause in a sub-search. 
+Otherwise, an IllegalStateException with the message `Not Supported operation: APPENDCOL should specify the output fields` will be thrown.
