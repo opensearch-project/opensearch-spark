@@ -15,6 +15,7 @@ lazy val jacksonVersion = "2.15.2"
 lazy val opensearchVersion = "2.6.0"
 lazy val opensearchMavenVersion = "2.6.0.0"
 lazy val icebergVersion = "1.5.0"
+lazy val calciteVersion = "1.37.0"
 
 val scalaMinorVersion = scala212.split("\\.").take(2).mkString(".")
 val sparkMinorVersion = sparkVersion.split("\\.").take(2).mkString(".")
@@ -120,6 +121,7 @@ lazy val flintCore = (project in file("flint-core"))
         exclude ("com.fasterxml.jackson.core", "jackson-core")
         exclude ("org.apache.httpcomponents.client5", "httpclient5"),
       "org.opensearch" % "opensearch-job-scheduler-spi" % opensearchMavenVersion,
+      "org.apache.calcite" % "calcite-core" % calciteVersion,
       "dev.failsafe" % "failsafe" % "3.3.2",
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
@@ -193,6 +195,7 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
       "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
       "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
       "org.projectlombok" % "lombok" % "1.18.30",
+      "org.apache.calcite" % "calcite-core" % calciteVersion,
       "com.github.seancfoley" % "ipaddress" % "5.5.1",
     ),
     libraryDependencies ++= deps(sparkVersion),
@@ -228,6 +231,7 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
     libraryDependencies ++= Seq(
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
+      "org.apache.calcite" % "calcite-core" % calciteVersion,
       "org.scalactic" %% "scalactic" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest-flatspec" % "3.2.15" % "test",
