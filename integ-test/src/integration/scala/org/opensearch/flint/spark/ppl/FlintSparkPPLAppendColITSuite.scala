@@ -44,10 +44,14 @@ class FlintSparkPPLAppendColITSuite
     Seq("spark_catalog", "default", "flint_ppl_test"))
 
   private val T12_JOIN_CONDITION =
-    EqualTo(UnresolvedAttribute("APPENDCOL_T1._row_number_"), UnresolvedAttribute("APPENDCOL_T2._row_number_"))
+    EqualTo(
+      UnresolvedAttribute("APPENDCOL_T1._row_number_"),
+      UnresolvedAttribute("APPENDCOL_T2._row_number_"))
 
   private val T12_COLUMNS_SEQ =
-    Seq(UnresolvedAttribute("APPENDCOL_T1._row_number_"), UnresolvedAttribute("APPENDCOL_T2._row_number_"))
+    Seq(
+      UnresolvedAttribute("APPENDCOL_T1._row_number_"),
+      UnresolvedAttribute("APPENDCOL_T2._row_number_"))
 
   override def beforeAll(): Unit = {
     super.beforeAll()
