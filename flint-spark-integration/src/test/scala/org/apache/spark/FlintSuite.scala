@@ -72,8 +72,20 @@ trait FlintSuite extends SharedSparkSession {
     }
   }
 
+  /**
+   * Implicit class to extend DataFrame functionality with additional utilities.
+   *
+   * @param df
+   *   the DataFrame to which the additional methods are added
+   */
   protected implicit class DataFrameExtensions(val df: DataFrame) {
 
+    /**
+     * Retrieves the ID column expression from the logical plan of the DataFrame, if it exists.
+     *
+     * @return
+     *   an `Option` containing the `Expression` for the ID column if present, or `None` otherwise
+     */
     def idColumn(): Option[Expression] = {
       df.queryExecution.logical.collectFirst { case Project(projectList, _) =>
         projectList.collectFirst { case Alias(child, ID_COLUMN) =>

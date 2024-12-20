@@ -120,12 +120,7 @@ object FlintSparkIndex extends Logging {
   }
 
   /**
-   * Generate an ID column in the precedence below:
-   * ```
-   * 1. Use ID expression provided in the index option;
-   * 2. SHA-1 based on all output columns if aggregated;
-   * 3. Otherwise, no ID column generated.
-   * ```
+   * Generate an ID column using ID expression provided in the index option.
    *
    * @param df
    *   which DataFrame to generate ID column
