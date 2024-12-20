@@ -458,57 +458,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
     recordSessionFailed(sessionTimerContext)
   }
 
-  /**
-   * handling the case where a command's execution fails, updates the flintStatement with the
-   * error and failure status, and then write the result to result index. Thus, an error is
-   * written to both result index or statement model in request index
-   *
-   * @param spark
-   *   spark session
-   * @param dataSource
-   *   data source
-   * @param error
-   *   error message
-   * @param flintStatement
-   *   flint command
-   * @param sessionId
-   *   session id
-   * @param startTime
-   *   start time
-   * @return
-   *   failed data frame
-   */
-  def handleCommandFailureAndGetFailedData(
-      applicationId: String,
-      jobId: String,
-      spark: SparkSession,
-      dataSource: String,
-      error: String,
-      flintStatement: FlintStatement,
-      sessionId: String,
-      startTime: Long): DataFrame = {
-    flintStatement.fail()
-    flintStatement.error = Some(error)
-    super.constructErrorDF(
-      applicationId,
-      jobId,
-      spark,
-      dataSource,
-      flintStatement.state,
-      error,
-      flintStatement.queryId,
-      flintStatement.query,
-      sessionId,
-      startTime)
-  }
-
-  def processQueryException(t: Throwable, flintStatement: FlintStatement): String = {
-    val error = super.processQueryException(t)
-    flintStatement.fail()
-    flintStatement.error = Some(error)
-    error
-  }
-
   private def processCommands(
       statementExecutionManager: StatementExecutionManager,
       queryResultWriter: QueryResultWriter,
@@ -608,43 +557,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
       statementExecutionManager.updateStatement(flintStatement)
       recordStatementStateChange(flintStatement, statementTimerContext)
     }
-  }
-
-  private def handleCommandTimeout(
-      applicationId: String,
-      jobId: String,
-      spark: SparkSession,
-      dataSource: String,
-      error: String,
-      flintStatement: FlintStatement,
-      sessionId: String,
-      startTime: Long) = {
-    /*
-     * https://tinyurl.com/2ezs5xj9
-     *
-     * This only interrupts active Spark jobs that are actively running.
-     * This would then throw the error from ExecutePlan and terminate it.
-     * But if the query is not running a Spark job, but executing code on Spark driver, this
-     * would be a noop and the execution will keep running.
-     *
-     * In Apache Spark, actions that trigger a distributed computation can lead to the creation
-     * of Spark jobs. In the context of Spark SQL, this typically happens when we perform
-     * actions that require the computation of results that need to be collected or stored.
-     */
-    spark.sparkContext.cancelJobGroup(flintStatement.queryId)
-    flintStatement.timeout()
-    flintStatement.error = Some(error)
-    super.constructErrorDF(
-      applicationId,
-      jobId,
-      spark,
-      dataSource,
-      flintStatement.state,
-      error,
-      flintStatement.queryId,
-      flintStatement.query,
-      sessionId,
-      startTime)
   }
 
   // scalastyle:off
@@ -1019,33 +931,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
       case _ =>
         logAndThrow(s"${FlintSparkConf.SESSION_ID.key} is not set or is empty")
     }
-  }
-
-  private def instantiateSessionManager(
-      spark: SparkSession,
-      resultIndexOption: Option[String]): SessionManager = {
-    instantiate(
-      new SessionManagerImpl(spark, resultIndexOption),
-      spark.conf.get(FlintSparkConf.CUSTOM_SESSION_MANAGER.key, ""),
-      resultIndexOption.getOrElse(""))
-  }
-
-  private def instantiateStatementExecutionManager(
-      commandContext: CommandContext): StatementExecutionManager = {
-    import commandContext._
-    instantiate(
-      new StatementExecutionManagerImpl(commandContext),
-      spark.conf.get(FlintSparkConf.CUSTOM_STATEMENT_MANAGER.key, ""),
-      spark,
-      sessionId)
-  }
-
-  private def instantiateQueryResultWriter(
-      spark: SparkSession,
-      commandContext: CommandContext): QueryResultWriter = {
-    instantiate(
-      new QueryResultWriterImpl(commandContext),
-      spark.conf.get(FlintSparkConf.CUSTOM_QUERY_RESULT_WRITER.key, ""))
   }
 
   private def recordSessionSuccess(sessionTimerContext: Timer.Context): Unit = {
