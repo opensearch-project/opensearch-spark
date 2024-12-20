@@ -10,7 +10,7 @@ Using `appendcol` command to append the result of a sub-search and attach it alo
 * sub-search: Executes PPL commands as a secondary search. The sub-search uses the same data specified in the source clause of the main search results as its input.
 
 
-#### Example 1: To append the result of `stats ave(age) as AVG_AGE` into existing search result   
+#### Example 1: To append the result of `stats avg(age) as AVG_AGE` into existing search result   
 
 The example append the result of sub-search `stats avg(age) as AVG_AGE` alongside with the main-search.
 
