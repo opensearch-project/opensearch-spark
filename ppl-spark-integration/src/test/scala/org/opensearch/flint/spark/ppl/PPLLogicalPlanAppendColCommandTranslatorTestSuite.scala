@@ -43,10 +43,10 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
   private val RELATION_EMPLOYEES = UnresolvedRelation(Seq("employees"))
 
   private val T12_JOIN_CONDITION =
-    EqualTo(UnresolvedAttribute("T1._row_number_"), UnresolvedAttribute("T2._row_number_"))
+    EqualTo(UnresolvedAttribute("APPENDCOL_T1._row_number_"), UnresolvedAttribute("APPENDCOL_T2._row_number_"))
 
   private val T12_COLUMNS_SEQ =
-    Seq(UnresolvedAttribute("T1._row_number_"), UnresolvedAttribute("T2._row_number_"))
+    Seq(UnresolvedAttribute("APPENDCOL_T1._row_number_"), UnresolvedAttribute("APPENDCOL_T2._row_number_"))
 
   // @formatter:off
   /**
@@ -75,7 +75,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
       :     +- 'UnresolvedRelation [relation], [], false
      */
     val t1 = SubqueryAlias(
-      "T1",
+      "APPENDCOL_T1",
       Project(Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)), RELATION_EMPLOYEES))
 
     /*
@@ -86,7 +86,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
            +- 'UnresolvedRelation [relation], [], false
      */
     val t2 = SubqueryAlias(
-      "T2",
+      "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Aggregate(AGE_ALIAS :: Nil, Seq(COUNT_STAR, AGE_ALIAS), RELATION_EMPLOYEES)))
@@ -131,7 +131,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
       :        +- 'UnresolvedRelation [relation], [], false
      */
     val t1 = SubqueryAlias(
-      "T1",
+      "APPENDCOL_T1",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Project(
@@ -149,7 +149,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
            +- 'UnresolvedRelation [relation], [], false
      */
     val t2 = SubqueryAlias(
-      "T2",
+      "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Aggregate(AGE_ALIAS :: Nil, Seq(COUNT_STAR, AGE_ALIAS), RELATION_EMPLOYEES)))
@@ -196,7 +196,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
       :        +- 'UnresolvedRelation [relation], [], false
      */
     val t1 = SubqueryAlias(
-      "T1",
+      "APPENDCOL_T1",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Project(
@@ -215,7 +215,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
                  +- 'UnresolvedRelation [employees], [], false
      */
     val t2 = SubqueryAlias(
-      "T2",
+      "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         DataFrameDropColumns(
@@ -274,7 +274,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
       :        +- 'UnresolvedRelation [employees], [], false
      */
     val mainSearch = SubqueryAlias(
-      "T1",
+      "APPENDCOL_T1",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Project(
@@ -290,7 +290,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
                  +- 'UnresolvedRelation [employees], [], false
      */
     val firstAppenCol = SubqueryAlias(
-      "T2",
+      "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         DataFrameDropColumns(
@@ -300,7 +300,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
             Aggregate(AGE_ALIAS :: Nil, Seq(COUNT_STAR, AGE_ALIAS), RELATION_EMPLOYEES)))))
 
     val joinWithFirstAppendCol = SubqueryAlias(
-      "T1",
+      "APPENDCOL_T1",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         DataFrameDropColumns(
@@ -314,7 +314,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
            +- 'UnresolvedRelation [employees], [], false
      */
     val secondAppendCol = SubqueryAlias(
-      "T2",
+      "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Project(Seq(UnresolvedAttribute("dept")), RELATION_EMPLOYEES)))
@@ -369,7 +369,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
       :     +- 'UnresolvedRelation [relation], [], false
      */
     val t1 = SubqueryAlias(
-      "T1",
+      "APPENDCOL_T1",
       Project(Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)), RELATION_EMPLOYEES))
 
     /*
@@ -380,7 +380,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
            +- 'UnresolvedRelation [relation], [], false
      */
     val t2 = SubqueryAlias(
-      "T2",
+      "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Aggregate(Nil, Seq(
@@ -391,7 +391,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
     val expectedPlan = Project(
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
-        T12_COLUMNS_SEQ :+ UnresolvedAttribute("T1.age"),
+        T12_COLUMNS_SEQ :+ UnresolvedAttribute("APPENDCOL_T1.age"),
         Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
 
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
