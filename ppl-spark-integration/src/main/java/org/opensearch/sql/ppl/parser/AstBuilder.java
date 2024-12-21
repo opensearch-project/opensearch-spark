@@ -339,8 +339,16 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
   public UnresolvedPlan visitEvalCommand(OpenSearchPPLParser.EvalCommandContext ctx) {
     return new Eval(
         ctx.evalClause().stream()
-            .map(ct -> (Let) internalVisitExpression(ct))
+            .map(ct -> (ct.geoipCommand() != null) ? visit(ct.geoipCommand()) : (Let) internalVisitExpression(ct))
             .collect(Collectors.toList()));
+  }
+
+  @Override
+  public UnresolvedPlan visitGeoipCommand(OpenSearchPPLParser.GeoipCommandContext ctx) {
+    Field field = (Field) internalVisitExpression(ctx.fieldExpression());
+    UnresolvedExpression ipAddress = internalVisitExpression(ctx.ipAddress);
+    AttributeList properties = ctx.properties == null ? new AttributeList(Collections.emptyList()) : (AttributeList) internalVisitExpression(ctx.properties);
+    return new GeoIp(field, ipAddress, properties);
   }
 
   private List<UnresolvedExpression> getGroupByList(OpenSearchPPLParser.ByClauseContext ctx) {

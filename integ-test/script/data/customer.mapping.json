@@ -1,0 +1,30 @@
+{
+  "mappings": {
+    "properties": {
+      "c_custkey": {
+        "type": "integer"
+      },
+      "c_name": {
+        "type": "text"
+      },
+      "c_address": {
+        "type": "text"
+      },
+      "c_nationkey": {
+        "type": "integer"
+      },
+      "c_phone": {
+        "type": "text"
+      },
+      "c_acctbal": {
+        "type": "double"
+      },
+      "c_mktsegment": {
+        "type": "text"
+      },
+      "c_comment": {
+        "type": "text"
+      }
+    }
+  }
+}

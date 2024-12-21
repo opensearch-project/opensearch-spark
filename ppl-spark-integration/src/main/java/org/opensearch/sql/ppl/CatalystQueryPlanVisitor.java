@@ -57,6 +57,7 @@ import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.tree.FillNull;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Flatten;
+import org.opensearch.sql.ast.tree.GeoIp;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.ast.tree.Kmeans;
@@ -70,9 +71,11 @@ import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.Trendline;
+import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
+import org.opensearch.sql.ppl.utils.GeoIpCatalystLogicalPlanTranslator;
 import org.opensearch.sql.ppl.utils.ParseTransformer;
 import org.opensearch.sql.ppl.utils.ViewUtils;
 import org.opensearch.sql.ppl.utils.SortUtils;
@@ -570,19 +573,63 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     public LogicalPlan visitEval(Eval node, CatalystPlanContext context) {
         visitFirstChild(node, context);
         List<UnresolvedExpression> aliases = new ArrayList<>();
-        List<Let> letExpressions = node.getExpressionList();
-        for (Let let : letExpressions) {
-            Alias alias = new Alias(let.getVar().getField().toString(), let.getExpression());
-            aliases.add(alias);
+        List<Node> expressions = node.getExpressionList();
+
+        // Geoip function modifies logical plan and is treated as QueryPlanVisitor instead of ExpressionVisitor
+        for (Node expr : expressions) {
+            if (expr instanceof Let) {
+                Let let = (Let) expr;
+                Alias alias = new Alias(let.getVar().getField().toString(), let.getExpression());
+                aliases.add(alias);
+            } else if (expr instanceof UnresolvedPlan) {
+                expr.accept(this, context);
+            } else {
+                throw new SyntaxCheckException("Unexpected node type when visiting EVAL");
+            }
         }
-        if (context.getNamedParseExpressions().isEmpty()) {
-            // Create an UnresolvedStar for all-fields projection
-            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+
+        if (!aliases.isEmpty()) {
+            if (context.getNamedParseExpressions().isEmpty()) {
+                // Create an UnresolvedStar for all-fields projection
+                context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+            }
+
+            visitExpressionList(aliases, context);
+            Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+            // build the plan with the projection step
+            return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+        } else {
+            return context.getPlan();
         }
-        List<Expression> expressionList = visitExpressionList(aliases, context);
-        Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
-        // build the plan with the projection step
-        return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+    }
+
+    @Override
+    public LogicalPlan visitGeoIp(GeoIp node, CatalystPlanContext context) {
+        visitExpression(node.getProperties(), context);
+        List<String> attributeList = new ArrayList<>();
+
+        while (!context.getNamedParseExpressions().isEmpty()) {
+            Expression nextExpression = context.getNamedParseExpressions().pop();
+            String attributeName = nextExpression.toString();
+
+            if (attributeList.contains(attributeName)) {
+                throw new IllegalStateException("Duplicate attribute in GEOIP attribute list");
+            }
+
+            attributeList.add(0, attributeName);
+        }
+
+        String fieldExpression = node.getField().getField().toString();
+        Expression ipAddressExpression = visitExpression(node.getIpAddress(), context);
+
+        return GeoIpCatalystLogicalPlanTranslator.getGeoipLogicalPlan(
+                new GeoIpCatalystLogicalPlanTranslator.GeoIpParameters(
+                        fieldExpression,
+                        ipAddressExpression,
+                        attributeList
+                ),
+                context
+        );
     }
 
     @Override

@@ -1,0 +1,24 @@
+{
+  "mappings": {
+    "properties": {
+      "@timestamp": {
+        "type": "date"
+      },
+      "id": {
+        "type": "integer"
+      },
+      "name": {
+        "type": "text"
+      },
+      "occupation": {
+        "type": "text"
+      },
+      "country": {
+        "type": "text"
+      },
+      "salary": {
+        "type": "integer"
+      }
+    }
+  }
+}

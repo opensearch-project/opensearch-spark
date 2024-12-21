@@ -1,0 +1,27 @@
+{
+  "mappings": {
+    "properties": {
+      "s_suppkey": {
+        "type": "integer"
+      },
+      "s_name": {
+        "type": "text"
+      },
+      "s_address": {
+        "type": "text"
+      },
+      "s_nationkey": {
+        "type": "integer"
+      },
+      "s_phone": {
+        "type": "text"
+      },
+      "s_acctbal": {
+        "type": "double"
+      },
+      "s_comment": {
+        "type": "text"
+      }
+    }
+  }
+}

@@ -11,13 +11,18 @@ import inet.ipaddr.IPAddressStringParameters;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.types.DataTypes;
+import scala.Function1;
 import scala.Function2;
 import scala.Option;
 import scala.Serializable;
+import scala.runtime.AbstractFunction1;
+import scala.runtime.AbstractFunction2;
 import scala.collection.JavaConverters;
 import scala.collection.mutable.WrappedArray;
-import scala.runtime.AbstractFunction2;
 
+import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +32,6 @@ import static org.opensearch.sql.expression.function.JsonUtils.objectMapper;
 import static org.opensearch.sql.expression.function.JsonUtils.parseValue;
 import static org.opensearch.sql.expression.function.JsonUtils.removeNestedKey;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
-
 
 public interface SerializableUdf {
 
@@ -142,11 +146,66 @@ public interface SerializableUdf {
         }
     };
 
+    class geoIpUtils {
+        /**
+         * Checks if provided ip string is ipv4 or ipv6.
+         *
+         * @param ipAddress     To input ip string.
+         * @return true if ipAddress is ipv4, false if ipaddress is ipv6, AddressString Exception if invalid ip.
+         */
+        public static Function1<String,Boolean> isIpv4 = new SerializableAbstractFunction1<>() {
+
+            IPAddressStringParameters valOptions = new IPAddressStringParameters.Builder()
+                    .allowEmpty(false)
+                    .setEmptyAsLoopback(false)
+                    .allow_inet_aton(false)
+                    .allowSingleSegment(false)
+                    .toParams();
+
+            @Override
+            public Boolean apply(String ipAddress) {
+                IPAddressString parsedIpAddress = new IPAddressString(ipAddress, valOptions);
+
+                try {
+                    parsedIpAddress.validate();
+                } catch (AddressStringException e) {
+                    throw new RuntimeException("The given ipAddress '"+ipAddress+"' is invalid. It must be a valid IPv4 or IPv6 address. Error details: "+e.getMessage());
+                }
+
+                return parsedIpAddress.isIPv4();
+            }
+        };
+
+        /**
+         * Convert ipAddress string to interger representation
+         *
+         * @param ipAddress    The input ip string.
+         * @return converted BigInteger from ipAddress string.
+         */
+        public static Function1<String,BigInteger> ipToInt = new SerializableAbstractFunction1<>() {
+            @Override
+            public BigInteger apply(String ipAddress) {
+                try {
+                    InetAddress inetAddress = InetAddress.getByName(ipAddress);
+                    byte[] addressBytes = inetAddress.getAddress();
+                    return new BigInteger(1, addressBytes);
+                } catch (UnknownHostException e) {
+                    System.err.println("Invalid IP address: " + e.getMessage());
+                }
+                return null;
+            }
+        };
+    }
+
+    abstract class SerializableAbstractFunction1<T1,R> extends AbstractFunction1<T1,R>
+            implements Serializable {
+    }
+
     /**
-     * get the function reference according to its name
+     * Get the function reference according to its name
      *
-     * @param funcName
-     * @return
+     * @param funcName      string representing function to retrieve.
+     * @return relevant ScalaUDF for given function name.
      */
     static ScalaUDF visit(String funcName, List<Expression> expressions) {
         switch (funcName) {
@@ -175,6 +234,24 @@ public interface SerializableUdf {
                         seq(),
                         Option.empty(),
                         Option.apply("json_append"),
+                        false,
+                        true);
+            case "is_ipv4":
+                return new ScalaUDF(geoIpUtils.isIpv4,
+                        DataTypes.BooleanType,
+                        seq(expressions),
+                        seq(),
+                        Option.empty(),
+                        Option.apply("is_ipv4"),
+                        false,
+                        true);
+            case "ip_to_int":
+                return new ScalaUDF(geoIpUtils.ipToInt,
+                        DataTypes.createDecimalType(38,0),
+                        seq(expressions),
+                        seq(),
+                        Option.empty(),
+                        Option.apply("ip_to_int"),
                         false,
                         true);
             default:

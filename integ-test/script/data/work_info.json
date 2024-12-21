@@ -1,0 +1,10 @@
+{"index": {"_index": "work_info"}}
+{"uid": 1000, "name": "Jake", "department": "IT", "occupation": "Engineer"}
+{"index": {"_index": "work_info"}}
+{"uid": 1002, "name": "John", "department": "DATA", "occupation": "Scientist"}
+{"index": {"_index": "work_info"}}
+{"uid": 1003, "name": "David", "department": "HR", "occupation": "Doctor"}
+{"index": {"_index": "work_info"}}
+{"uid": 1005, "name": "Jane", "department": "DATA", "occupation": "Engineer"}
+{"index": {"_index": "work_info"}}
+{"uid": 1006, "name": "Tom", "department": "SALES", "occupation": "Artist"}
