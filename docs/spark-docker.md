@@ -1,7 +1,7 @@
 # Running Queries with Apache Spark in Docker
 
-There are [Bitnami Apache Spark docker images](https://hub.docker.com/r/bitnami/spark). These
-can be modified to be able to include the OpenSearch Spark PPL extension. With the OpenSearch
+There are [Bitnami Apache Spark docker images](https://hub.docker.com/r/bitnami/spark).
+These can be modified to be able to include the OpenSearch Spark PPL extension. With the OpenSearch
 Spark PPL extension, the docker image can be used to test PPL commands.
 
 The Bitnami Apache Spark image can be used to run a Spark cluster and also to run
