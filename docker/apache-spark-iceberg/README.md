@@ -1,16 +1,27 @@
 # Sanity Test OpenSearch Spark PPL
-This document shows how to locally test OpenSearch PPL commands on top of Spark using docker-compose. 
+This document shows how to locally test OpenSearch PPL commands on top of Spark IceBerg using docker-compose based of [docker-spark-Iceberg](https://github.com/databricks/docker-spark-iceberg) opensource repository. 
 
-See instructions for running docker-compose [here](../../docs/spark-docker.md)
+Additional instructions for running the original test harness [here](https://iceberg.apache.org/spark-quickstart/)
 
-Once the docker services are running,[connect to the spark-sql](../../docs/local-spark-ppl-test-instruction.md#running-spark-shell)
+## Running Docker Compose
+For running docker-compose run: `docker compose up -d`
+
+See additional instructions [here](../../docs/spark-docker.md)
+
+## Running Spark Shell
+
+Can run `spark-sql` on the master node using `docker exec`:
+
+```
+docker exec -it spark-iceberg /opt/spark/bin/spark-sql
+```
 
 In the spark-sql shell - [run the next create table statements](../../docs/local-spark-ppl-test-instruction.md#testing-ppl-commands)
 
 Now PPL commands can [run](../../docs/local-spark-ppl-test-instruction.md#test-grok--top-commands-combination) on top of the table just created
 
 ### Using Iceberg Tables
-The following example utilize https://iceberg.apache.org/ table as an example
+The following example utilize [Icberg](https://iceberg.apache.org/) table as an example
 ```sql
 CREATE TABLE iceberg_table (
   id INT,
