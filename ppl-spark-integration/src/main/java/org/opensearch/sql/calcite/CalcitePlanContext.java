@@ -6,7 +6,6 @@
 package org.opensearch.sql.calcite;
 
 import lombok.Getter;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.RelBuilder;
@@ -14,17 +13,16 @@ import org.opensearch.sql.ast.expression.UnresolvedExpression;
 
 import java.util.function.BiFunction;
 
-@Getter
 public class CalcitePlanContext {
 
-    private RelBuilder relBuilder;
-    private RexBuilder rexBuilder;
+    public final RelBuilder relBuilder;
+    public final ExtendedRexBuilder rexBuilder;
 
-    private boolean isResolvingJoinCondition = false;
+    @Getter private boolean isResolvingJoinCondition = false;
 
     public CalcitePlanContext(RelBuilder relBuilder) {
         this.relBuilder = relBuilder;
-        this.rexBuilder = relBuilder.getRexBuilder();
+        this.rexBuilder = new ExtendedRexBuilder(relBuilder.getRexBuilder());
     }
 
     public RexNode resolveJoinCondition(

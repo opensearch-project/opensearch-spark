@@ -5,6 +5,7 @@
 
 package org.opensearch.sql.calcite;
 
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -12,6 +13,7 @@ import org.apache.calcite.tools.RelBuilder.AggCall;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.AllFields;
 import org.opensearch.sql.ast.expression.Argument;
+import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
 import org.opensearch.sql.ast.tree.Aggregation;
@@ -19,12 +21,15 @@ import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.Filter;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Join;
+import org.opensearch.sql.ast.tree.Lookup;
 import org.opensearch.sql.ast.tree.Project;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.SubqueryAlias;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
+import org.opensearch.sql.calcite.utils.JoinAndLookupUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -36,7 +41,6 @@ import static org.opensearch.sql.ast.tree.Sort.NullOrder.NULL_LAST;
 import static org.opensearch.sql.ast.tree.Sort.SortOption.DEFAULT_DESC;
 import static org.opensearch.sql.ast.tree.Sort.SortOrder.ASC;
 import static org.opensearch.sql.ast.tree.Sort.SortOrder.DESC;
-import static org.opensearch.sql.calcite.CalciteHelper.translateJoinType;
 
 public class CalciteRelNodeVisitor extends AbstractNodeVisitor<Void, CalcitePlanContext> {
 
@@ -55,10 +59,10 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<Void, CalcitePlan
     @Override
     public Void visitRelation(Relation node, CalcitePlanContext context) {
         for (QualifiedName qualifiedName : node.getQualifiedNames()) {
-            context.getRelBuilder().scan(qualifiedName.getParts());
+            context.relBuilder.scan(qualifiedName.getParts());
         }
         if (node.getQualifiedNames().size() > 1) {
-            context.getRelBuilder().union(true, node.getQualifiedNames().size());
+            context.relBuilder.union(true, node.getQualifiedNames().size());
         }
         return null;
     }
@@ -67,7 +71,7 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<Void, CalcitePlan
     public Void visitFilter(Filter node, CalcitePlanContext context) {
         visitChildren(node, context);
         RexNode condition = rexVisitor.analyze(node.getCondition(), context);
-        context.getRelBuilder().filter(condition);
+        context.relBuilder.filter(condition);
         return null;
     }
 
@@ -82,9 +86,9 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<Void, CalcitePlan
             return null;
         }
         if (node.isExcluded()) {
-            context.getRelBuilder().projectExcept(projectList);
+            context.relBuilder.projectExcept(projectList);
         } else {
-            context.getRelBuilder().project(projectList);
+            context.relBuilder.project(projectList);
         }
         return null;
     }
@@ -97,12 +101,12 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<Void, CalcitePlan
                 RexNode sortField = rexVisitor.analyze(expr, context);
                 Sort.SortOption sortOption = analyzeSortOption(expr.getFieldArgs());
                 if (sortOption == DEFAULT_DESC) {
-                    return context.getRelBuilder().desc(sortField);
+                    return context.relBuilder.desc(sortField);
                 } else {
                     return sortField;
                 }
             }).collect(Collectors.toList());
-        context.getRelBuilder().sort(sortList);
+        context.relBuilder.sort(sortList);
         return null;
     }
 
@@ -121,18 +125,18 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<Void, CalcitePlan
     @Override
     public Void visitHead(Head node, CalcitePlanContext context) {
         visitChildren(node, context);
-        context.getRelBuilder().limit(node.getFrom(), node.getSize());
+        context.relBuilder.limit(node.getFrom(), node.getSize());
         return null;
     }
 
     @Override
     public Void visitEval(Eval node, CalcitePlanContext context) {
         visitChildren(node, context);
-        List<String> originalFieldNames = context.getRelBuilder().peek().getRowType().getFieldNames();
+        List<String> originalFieldNames = context.relBuilder.peek().getRowType().getFieldNames();
         List<RexNode> evalList = node.getExpressionList().stream()
             .map(expr -> {
                 RexNode eval = rexVisitor.analyze(expr, context);
-                context.getRelBuilder().projectPlus(eval);
+                context.relBuilder.projectPlus(eval);
                 return eval;
             }).collect(Collectors.toList());
         // Overriding the existing field if the alias has the same name with original field name. For example, eval field = 1
@@ -141,8 +145,8 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<Void, CalcitePlan
             .collect(Collectors.toList());
         overriding.retainAll(originalFieldNames);
         if (!overriding.isEmpty()) {
-            List<RexNode> toDrop = context.getRelBuilder().fields(overriding);
-            context.getRelBuilder().projectExcept(toDrop);
+            List<RexNode> toDrop = context.relBuilder.fields(overriding);
+            context.relBuilder.projectExcept(toDrop);
         }
         return null;
     }
@@ -169,7 +173,7 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<Void, CalcitePlan
 //        relBuilder.aggregate(relBuilder.groupKey(groupByList),
 //            aggList.stream().map(rex -> (MyAggregateCall) rex)
 //                .map(MyAggregateCall::getCall).collect(Collectors.toList()));
-        context.getRelBuilder().aggregate(context.getRelBuilder().groupKey(groupByList), aggList);
+        context.relBuilder.aggregate(context.relBuilder.groupKey(groupByList), aggList);
         return null;
     }
 
@@ -178,15 +182,80 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<Void, CalcitePlan
         List<UnresolvedPlan> children = node.getChildren();
         children.forEach(c -> analyze(c, context));
         RexNode joinCondition = node.getJoinCondition().map(c -> rexVisitor.analyzeJoinCondition(c, context))
-            .orElse(context.getRelBuilder().literal(true));
-        context.getRelBuilder().join(translateJoinType(node.getJoinType()), joinCondition);
+            .orElse(context.relBuilder.literal(true));
+        context.relBuilder.join(JoinAndLookupUtils.translateJoinType(node.getJoinType()), joinCondition);
         return null;
     }
 
     @Override
     public Void visitSubqueryAlias(SubqueryAlias node, CalcitePlanContext context) {
         visitChildren(node, context);
-        context.getRelBuilder().as(node.getAlias());
+        context.relBuilder.as(node.getAlias());
+        return null;
+    }
+
+    @Override
+    public Void visitLookup(Lookup node, CalcitePlanContext context) {
+        // 1. resolve source side
+        visitChildren(node, context);
+        // get sourceOutputFields from top of stack which is used to build final output
+        List<RexNode> sourceOutputFields = context.relBuilder.fields();
+
+        // 2. resolve lookup table
+        analyze(node.getLookupRelation(), context);
+        // If the output fields are specified, build a project list for lookup table.
+        // The mapping fields of lookup table should be added in this project list, otherwise join will fail.
+        // So the mapping fields of lookup table should be dropped after join.
+        List<RexNode> projectList = JoinAndLookupUtils.buildLookupRelationProjectList(node, rexVisitor, context);
+        if (!projectList.isEmpty()) {
+            context.relBuilder.project(projectList);
+        }
+
+        // 3. resolve join condition
+        RexNode joinCondition = JoinAndLookupUtils.buildLookupMappingCondition(node)
+            .map(c -> rexVisitor.analyzeJoinCondition(c, context))
+            .orElse(context.relBuilder.literal(true));
+
+        // 4. If no output field is specified, all fields from lookup table are applied to the output.
+        if (node.allFieldsShouldAppliedToOutputList()) {
+            context.relBuilder.join(JoinRelType.LEFT, joinCondition);
+            return null;
+        }
+
+        // 5. push join to stack
+        context.relBuilder.join(JoinRelType.LEFT, joinCondition);
+
+        // 6. Drop the mapping fields of lookup table in result:
+        // For example, in command "LOOKUP lookTbl Field1 AS Field2, Field3",
+        // the Field1 and Field3 are projection fields and join keys which will be dropped in result.
+        List<Field> mappingFieldsOfLookup = node.getLookupMappingMap().entrySet().stream()
+            .map(kv -> kv.getKey().getField() == kv.getValue().getField() ? JoinAndLookupUtils.buildFieldWithLookupSubqueryAlias(node, kv.getKey()) : kv.getKey())
+            .collect(Collectors.toList());
+        List<RexNode> dropListOfLookupMappingFields =
+            JoinAndLookupUtils.buildProjectListFromFields(mappingFieldsOfLookup, rexVisitor, context);
+        // Drop the $sourceOutputField if existing
+        List<RexNode> dropListOfSourceFields =
+            node.getFieldListWithSourceSubqueryAlias().stream().map( field -> {
+                try {
+                    return rexVisitor.analyze(field, context);
+                } catch (RuntimeException e) {
+                    // If the field is not found in the source, skip it
+                    return null;
+                }
+            }).filter(Objects::nonNull).collect(Collectors.toList());
+        List<RexNode> toDrop = new ArrayList<>(dropListOfLookupMappingFields);
+        toDrop.addAll(dropListOfSourceFields);
+
+        // 7. build final outputs
+        List<RexNode> outputFields = new ArrayList<>(sourceOutputFields);
+        // Add new columns based on different strategies:
+        // Append:  coalesce($outputField, $"inputField").as(outputFieldName)
+        // Replace: $outputField.as(outputFieldName)
+        outputFields.addAll(JoinAndLookupUtils.buildOutputProjectList(node, rexVisitor, context));
+        outputFields.removeAll(toDrop);
+
+        context.relBuilder.project(outputFields);
+
         return null;
     }
 }

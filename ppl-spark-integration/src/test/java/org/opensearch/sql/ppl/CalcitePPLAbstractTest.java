@@ -36,15 +36,13 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.opensearch.flint.spark.ppl.PlaneUtils.plan;
 
 public class CalcitePPLAbstractTest {
-    @Getter private final CalciteAssert.SchemaSpec schemaSpec;
     @Getter private final Frameworks.ConfigBuilder config;
     @Getter private final CalcitePlanContext context;
     private final CalciteRelNodeVisitor planTransformer;
     private final RelToSqlConverter converter;
 
-    public CalcitePPLAbstractTest(CalciteAssert.SchemaSpec schemaSpec) {
-        this.schemaSpec = schemaSpec;
-        this.config = config(schemaSpec);
+    public CalcitePPLAbstractTest(CalciteAssert.SchemaSpec... schemaSpecs) {
+        this.config = config(schemaSpecs);
         this.context = createBuilderContext();
         this.planTransformer = new CalciteRelNodeVisitor();
         this.converter = new RelToSqlConverter(SparkSqlDialect.DEFAULT);
@@ -52,9 +50,9 @@ public class CalcitePPLAbstractTest {
 
     public PPLSyntaxParser pplParser = new PPLSyntaxParser();
 
-    protected Frameworks.ConfigBuilder config(CalciteAssert.SchemaSpec schemaSpec) {
+    protected Frameworks.ConfigBuilder config(CalciteAssert.SchemaSpec... schemaSpecs) {
         final SchemaPlus rootSchema = Frameworks.createRootSchema(true);
-        final SchemaPlus schema = CalciteAssert.addSchema(rootSchema, schemaSpec);
+        final SchemaPlus schema = CalciteAssert.addSchema(rootSchema, schemaSpecs);
         return Frameworks.newConfigBuilder()
             .parserConfig(SqlParser.Config.DEFAULT)
             .defaultSchema(schema)
@@ -79,7 +77,7 @@ public class CalcitePPLAbstractTest {
     public RelNode getRelNode(String ppl) {
         Query query = (Query) plan(pplParser, ppl);
         planTransformer.analyze(query.getPlan(), context);
-        RelNode root = context.getRelBuilder().build();
+        RelNode root = context.relBuilder.build();
         System.out.println(root.explain());
         return root;
     }
