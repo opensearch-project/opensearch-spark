@@ -25,6 +25,7 @@ import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.SqlDialect.DatabaseProduct
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.parser.SqlParser
+import org.apache.calcite.sql.util.SqlOperatorTables
 import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks, Programs}
 import org.apache.spark.SparkFunSuite
@@ -46,9 +47,6 @@ class PPLSqlNodeTestSuite
       builder.add("a", SqlTypeName.INTEGER)
       builder.add("b", SqlTypeName.INTEGER)
       builder.add("c", SqlTypeName.INTEGER)
-      for (i <- 0 until 3) {
-        builder.add(s"c$i", SqlTypeName.INTEGER)
-      }
       builder.build
     }
   }
@@ -61,6 +59,7 @@ class PPLSqlNodeTestSuite
 
   val schema: SchemaPlus = Frameworks.createRootSchema(true)
   schema.add("table", t)
+  schema.add("table2", t)
   val config: FrameworkConfig = Frameworks.newConfigBuilder
     .parserConfig(SqlParser.config.withLex(Lex.MYSQL))
     .defaultSchema(schema)
@@ -70,26 +69,65 @@ class PPLSqlNodeTestSuite
   val pplParser = new PPLParser()
   val planner = Frameworks.getPlanner(config)
   val cluster: RelOptCluster = RelOptCluster.create(requireNonNull(new VolcanoPlanner(config.getCostFactory, config.getContext), "planner"), new RexBuilder(typeFactory))
-  val sqlToRelConverter = new SqlToRelConverter(planner.asInstanceOf[PlannerImpl], null, createCatalogReader, cluster, config.getConvertletTable, config.getSqlToRelConverterConfig)
+  val catalogReader = createCatalogReader
+  val opTab = SqlOperatorTables.chain(config.getOperatorTable, catalogReader)
+  val validator = new MyValidator(opTab, catalogReader, typeFactory, config.getSqlValidatorConfig)
+  val sqlToRelConverter = new SqlToRelConverter(planner.asInstanceOf[PlannerImpl], validator, catalogReader, cluster, config.getConvertletTable, config.getSqlToRelConverterConfig)
   val relToSqlConverter = new RelToSqlConverter(DatabaseProduct.CALCITE.getDialect)
   val pplParserOld = new PPLSyntaxParser()
 
-  test("test") {
-    val sqlNode = pplParser.parseQuery("source=table | where a = 1| stats avg(b) as avg_b by c |  sort c | fields c, avg_b")
+  test("test basic command") {
+    val sqlNode = pplParser.parseQuery("source=table | where a = 1| stats avg(b) as avg_b by c |  sort c |  fields c, avg_b")
+    val validatedSqlNode = validator.validate(sqlNode)
     val relNode = sqlToRelConverter.convertQuery(sqlNode, false, true)
+    val convertedSqlNode = relToSqlConverter.visitRoot(relNode.rel).asStatement()
+    //scalastyle:off
+    println(sqlNode)
+    println(validatedSqlNode)
+    println(relNode)
+    println(convertedSqlNode)
+    // println(osPlan)
+    //scalastyle:on
+
 
     val sqlNode2 = planner.parse(sqlNode.toString())
-    planner.validate(sqlNode2)
-    val relNode2 = planner.rel(sqlNode2)
-    val sqlNode3 = relToSqlConverter.visitRoot(relNode.rel).asStatement()
+    val validatedSqlNode2 = planner.validate(sqlNode2)
+    val relNode2 = planner.rel(validatedSqlNode2)
+    val convertedSqlNode2 = relToSqlConverter.visitRoot(relNode2.rel).asStatement()
 
     // val relNode = planner.rel(sqlNode)
     // val osPlan = plan(pplParserOld, "source=t")
     //scalastyle:off
-    println(sqlNode)
+    println(sqlNode2)
+    println(validatedSqlNode2)
     println(relNode2)
-    println(sqlNode3)
-    // println(osPlan)
+    println(convertedSqlNode2)
+    //scalastyle:on
+  }
+
+  test("test eval") {
+    val sqlNode = pplParser.parseQuery("source=table | where a = 1| stats avg(b) as avg_b by c |  sort c | eval avg_b = avg_b + 1 | fields c, avg_b")
+    val validatedSqlNode = validator.validate(sqlNode)
+    val relNode = sqlToRelConverter.convertQuery(sqlNode, false, true)
+    val convertedSqlNode = relToSqlConverter.visitRoot(relNode.rel).asStatement()
+    //scalastyle:off
+    println(sqlNode)
+    println(validatedSqlNode)
+    println(relNode)
+    println(convertedSqlNode)
+    //scalastyle:on
+  }
+
+  test("test eval") {
+    val sqlNode = pplParser.parseQuery("source=table | where a = 1| stats avg(b) as avg_b by c |  sort c | eval avg_b = avg_b + 1 | fields c, avg_b")
+    val validatedSqlNode = validator.validate(sqlNode)
+    val relNode = sqlToRelConverter.convertQuery(sqlNode, false, true)
+    val convertedSqlNode = relToSqlConverter.visitRoot(relNode.rel).asStatement()
+    //scalastyle:off
+    println(sqlNode)
+    println(validatedSqlNode)
+    println(relNode)
+    println(convertedSqlNode)
     //scalastyle:on
   }
 

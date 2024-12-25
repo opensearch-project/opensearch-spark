@@ -188,4 +188,25 @@ class PPLAstBuilder extends OpenSearchPPLParserBaseVisitor[SqlNode] {
   override def visitStatsByClause(ctx: OpenSearchPPLParser.StatsByClauseContext): SqlNodeList = {
     SqlNodeList.of(ZERO, ctx.fieldList().fieldExpression().asScala.map(visit).asJava)
   }
+
+  override def visitEvalCommand(ctx: OpenSearchPPLParser.EvalCommandContext): SqlNode = {
+    val evalClause = ctx.evalClause().asScala
+    val (identList, fieldExprList) = evalClause.map(clause => {
+      val fieldExpr = visit(clause.fieldExpression().qualifiedName())
+      val expr = visit(clause.expression())
+      (new SqlBasicCall(SqlStdOperatorTable.AS, Seq(expr, fieldExpr).asJava, ZERO).asInstanceOf[SqlNode], fieldExpr)
+    }).unzip
+    identList.append(StarExcept(SqlNodeList.of(ZERO, fieldExprList.asJava))(ZERO))
+    new SqlSelect(ZERO, null, SqlNodeList.of(ZERO, identList.asJava), null, null, null, null, null, null, null, null, null)
+  }
+
+  override def visitBinaryArithmetic(ctx: OpenSearchPPLParser.BinaryArithmeticContext): SqlNode = {
+    functionResolver.resolve(ctx.binaryOperator.getText).createCall(null, ZERO, visit(ctx.left), visit(ctx.right))
+  }
+
+
+  override def visitLookupCommand(ctx: OpenSearchPPLParser.LookupCommandContext): SqlNode = {
+    super.visitLookupCommand(ctx)
+  }
+
 }

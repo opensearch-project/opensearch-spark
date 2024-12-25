@@ -11,6 +11,8 @@ case class PPLFunctionResolver() {
   def resolve(name: String): SqlOperator = {
     name match {
       case "=" => SqlStdOperatorTable.EQUALS
+      case "+" => SqlStdOperatorTable.PLUS
+      case "-" => SqlStdOperatorTable.MINUS
       case "avg" => SqlStdOperatorTable.AVG
     }
   }
