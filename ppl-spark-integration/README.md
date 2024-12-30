@@ -6,7 +6,7 @@ translation between PPL's logical plan to Spark's Catalyst logical plan.
 ### Context
 The next concepts are the main purpose of introduction this functionality:
 - Transforming PPL to become OpenSearch default query language (specifically for logs/traces/metrics signals)
-- Promoting PPL as a viable candidate for the proposed  CNCF Observability universal query language.
+- Promoting PPL as a viable candidate for the proposed CNCF Observability universal query language.
 - Seamlessly Interact with different datasources such as S3 / Prometheus / data-lake leveraging spark execution.
 - Using spark's federative capabilities as a general purpose query engine to facilitate complex queries including joins
 - Improve and promote PPL to become extensible and general purpose query language to be adopted by the community
@@ -37,7 +37,7 @@ In Apache Spark, the DataFrame API serves as a programmatic interface for data m
 
 For instance, if you have a PPL query and a translator, you can convert it into DataFrame operations to generate an optimized execution plan. Spark's underlying Catalyst optimizer will convert these DataFrame transformations and actions into an optimized physical plan executed over RDDs or Datasets.
 
-The following section describes the two main options for translating the PPL query (using the logical plan) into the spark corespondent component (either dataframe API or spark logical plan)
+The following section describes the two main options for translating the PPL query (using the logical plan) into the spark correspondent component (either dataframe API or spark logical plan)
 
 
 ### Translation Process
