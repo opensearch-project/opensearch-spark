@@ -8,6 +8,7 @@ services:
       - "${UI_PORT:-4040}:4040"
       - "${SPARK_CONNECT_PORT}:15002"
     entrypoint: /opt/bitnami/scripts/spark/master-entrypoint.sh
+    user: root
     environment:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
@@ -15,6 +16,8 @@ services:
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
       - SPARK_PUBLIC_DNS=localhost
+      - AWS_ENDPOINT_URL_S3=http://minio-S3
+      - OPENSEARCH_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD}
     volumes:
       - type: bind
         source: ./spark-master-entrypoint.sh
@@ -31,6 +34,9 @@ services:
       - type: bind
         source: $FLINT_JAR
         target: /opt/bitnami/spark/jars/flint-spark-integration.jar
+      - type: bind
+        source: ./s3.credentials
+        target: /opt/bitnami/spark/s3.credentials
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 1m
@@ -40,6 +46,11 @@ services:
       start_interval: 5s
     networks:
       - opensearch-net
+    depends_on:
+      opensearch:
+        condition: service_healthy
+      opensearch-dashboards:
+        condition: service_healthy
 
   spark-worker:
     image: bitnami/spark:${SPARK_VERSION:-3.5.3}
@@ -70,7 +81,8 @@ services:
     networks:
       - opensearch-net
     depends_on:
-      - spark
+      spark:
+        condition: service_healthy
 
   opensearch:
     image: opensearchproject/opensearch:${OPENSEARCH_VERSION:-latest}
@@ -82,7 +94,8 @@ services:
       - cluster.initial_cluster_manager_nodes=opensearch
       - bootstrap.memory_lock=true
       - plugins.security.ssl.http.enabled=false
-      - OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_NODE_MEMORY:-512m} -Xmx${OPENSEARCH_NODE_MEMORY:-512m}
+      - plugins.query.datasources.encryption.masterkey=9a515c99d4313f140a6607053502f4d6
+      - OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_NODE_MEMORY:-512m} -Xmx${OPENSEARCH_NODE_MEMORY:-512m} -DEMR_SERVERLESS_CLIENT_FACTORY_CLASS=org.opensearch.sql.spark.client.DockerEMRServerlessClientFactory -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD}
     ulimits:
       memlock:
@@ -93,11 +106,19 @@ services:
         hard: 65536
     volumes:
       - opensearch-data:/usr/share/opensearch/data
+      - type: bind
+        source: ./aws-java-sdk-emrserverless-1.12.651.jar
+        target: /usr/share/opensearch/plugins/opensearch-sql/aws-java-sdk-emrserverless-1.12.651.jar
+      - type: bind
+        source: ../../spark-sql-application/target/scala-2.12/sql-job-assembly-0.7.0-SNAPSHOT.jar
+        target: /spark-sql-application.jar
     ports:
       - ${OPENSEARCH_PORT:-9200}:9200
       - 9600:9600
+      - 5005:5005
     expose:
       - "${OPENSEARCH_PORT:-9200}"
+      - "5005"
     healthcheck:
       test: ["CMD", "curl", "-f", "-u", "admin:${OPENSEARCH_ADMIN_PASSWORD}", "http://localhost:9200/_cluster/health"]
       interval: 1m
@@ -107,6 +128,9 @@ services:
       start_interval: 5s
     networks:
       - opensearch-net
+    depends_on:
+      minio:
+        condition: service_healthy
 
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:${DASHBOARDS_VERSION}
@@ -119,8 +143,16 @@ services:
       OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
     networks:
       - opensearch-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5601/"]
+      interval: 1m
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 5s
     depends_on:
-      - opensearch
+      opensearch:
+        condition: service_healthy
 
   minio:
     image: minio/minio
@@ -132,6 +164,13 @@ services:
       - "9001:9001"
     volumes:
       - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-q", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 1m
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 5s
     networks:
       - opensearch-net
 
