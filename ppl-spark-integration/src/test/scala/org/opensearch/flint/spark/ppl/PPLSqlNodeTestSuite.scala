@@ -37,7 +37,7 @@ class PPLSqlNodeTestSuite
     with LogicalPlanTestUtils
     with Matchers {
 
-  val t: AbstractTable = new AbstractQueryableTable(classOf[Integer]) {
+  val t1: AbstractTable = new AbstractQueryableTable(classOf[Integer]) {
     val enumerable: Enumerable[Integer] = Linq4j.asEnumerable(new util.ArrayList[Integer]())
 
     override def asQueryable[E](queryProvider: QueryProvider, schema: SchemaPlus, tableName: String): Queryable[E] = enumerable.asQueryable.asInstanceOf[Queryable[E]]
@@ -46,7 +46,21 @@ class PPLSqlNodeTestSuite
       val builder: RelDataTypeFactory.Builder = typeFactory.builder
       builder.add("a", SqlTypeName.INTEGER)
       builder.add("b", SqlTypeName.INTEGER)
-      builder.add("c", SqlTypeName.INTEGER)
+      builder.add("c", SqlTypeName.INTEGER).nullable(true)
+      builder.build
+    }
+  }
+
+  val t2: AbstractTable = new AbstractQueryableTable(classOf[Integer]) {
+    val enumerable: Enumerable[Integer] = Linq4j.asEnumerable(new util.ArrayList[Integer]())
+
+    override def asQueryable[E](queryProvider: QueryProvider, schema: SchemaPlus, tableName: String): Queryable[E] = enumerable.asQueryable.asInstanceOf[Queryable[E]]
+
+    override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+      val builder: RelDataTypeFactory.Builder = typeFactory.builder
+      builder.add("a", SqlTypeName.INTEGER)
+      builder.add("a1", SqlTypeName.INTEGER)
+      builder.add("a2", SqlTypeName.INTEGER).nullable(true)
       builder.build
     }
   }
@@ -58,8 +72,8 @@ class PPLSqlNodeTestSuite
   }
 
   val schema: SchemaPlus = Frameworks.createRootSchema(true)
-  schema.add("table", t)
-  schema.add("table2", t)
+  schema.add("table", t1)
+  schema.add("table2", t2)
   val config: FrameworkConfig = Frameworks.newConfigBuilder
     .parserConfig(SqlParser.config.withLex(Lex.MYSQL))
     .defaultSchema(schema)
@@ -71,18 +85,21 @@ class PPLSqlNodeTestSuite
   val cluster: RelOptCluster = RelOptCluster.create(requireNonNull(new VolcanoPlanner(config.getCostFactory, config.getContext), "planner"), new RexBuilder(typeFactory))
   val catalogReader = createCatalogReader
   val opTab = SqlOperatorTables.chain(config.getOperatorTable, catalogReader)
-  val validator = new MyValidator(opTab, catalogReader, typeFactory, config.getSqlValidatorConfig)
+  val validator = new MyValidator(opTab, catalogReader, typeFactory, config.getSqlValidatorConfig.withIdentifierExpansion(true))
   val sqlToRelConverter = new SqlToRelConverter(planner.asInstanceOf[PlannerImpl], validator, catalogReader, cluster, config.getConvertletTable, config.getSqlToRelConverterConfig)
   val relToSqlConverter = new RelToSqlConverter(DatabaseProduct.CALCITE.getDialect)
   val pplParserOld = new PPLSyntaxParser()
 
   test("test basic command") {
     val sqlNode = pplParser.parseQuery("source=table | where a = 1| stats avg(b) as avg_b by c |  sort c |  fields c, avg_b")
+    //scalastyle:off
+    println(sqlNode)
+    //scalastyle:on
+
     val validatedSqlNode = validator.validate(sqlNode)
     val relNode = sqlToRelConverter.convertQuery(sqlNode, false, true)
     val convertedSqlNode = relToSqlConverter.visitRoot(relNode.rel).asStatement()
     //scalastyle:off
-    println(sqlNode)
     println(validatedSqlNode)
     println(relNode)
     println(convertedSqlNode)
@@ -91,6 +108,10 @@ class PPLSqlNodeTestSuite
 
 
     val sqlNode2 = planner.parse(sqlNode.toString())
+    //scalastyle:off
+    println(sqlNode2)
+    //scalastyle:on
+
     val validatedSqlNode2 = planner.validate(sqlNode2)
     val relNode2 = planner.rel(validatedSqlNode2)
     val convertedSqlNode2 = relToSqlConverter.visitRoot(relNode2.rel).asStatement()
@@ -98,7 +119,6 @@ class PPLSqlNodeTestSuite
     // val relNode = planner.rel(sqlNode)
     // val osPlan = plan(pplParserOld, "source=t")
     //scalastyle:off
-    println(sqlNode2)
     println(validatedSqlNode2)
     println(relNode2)
     println(convertedSqlNode2)
@@ -107,24 +127,46 @@ class PPLSqlNodeTestSuite
 
   test("test eval") {
     val sqlNode = pplParser.parseQuery("source=table | where a = 1| stats avg(b) as avg_b by c |  sort c | eval avg_b = avg_b + 1 | fields c, avg_b")
+    //scalastyle:off
+    println(sqlNode)
+    //scalastyle:on
+
     val validatedSqlNode = validator.validate(sqlNode)
     val relNode = sqlToRelConverter.convertQuery(sqlNode, false, true)
     val convertedSqlNode = relToSqlConverter.visitRoot(relNode.rel).asStatement()
     //scalastyle:off
-    println(sqlNode)
     println(validatedSqlNode)
     println(relNode)
     println(convertedSqlNode)
     //scalastyle:on
   }
 
-  test("test eval") {
-    val sqlNode = pplParser.parseQuery("source=table | where a = 1| stats avg(b) as avg_b by c |  sort c | eval avg_b = avg_b + 1 | fields c, avg_b")
+  test("test lookup") {
+    val sqlNode = pplParser.parseQuery("source = table | LOOKUP table2 a, a1 as b replace a2 as c")
+    //scalastyle:off
+    println(sqlNode)
+    //scalastyle:on
+
     val validatedSqlNode = validator.validate(sqlNode)
     val relNode = sqlToRelConverter.convertQuery(sqlNode, false, true)
     val convertedSqlNode = relToSqlConverter.visitRoot(relNode.rel).asStatement()
     //scalastyle:off
+    println(validatedSqlNode)
+    println(relNode)
+    println(convertedSqlNode)
+    //scalastyle:on
+  }
+
+  test("test window") {
+    val sqlNode = pplParser.parseQuery("source = table | eventstats min(a) as min_a, max(a) as max_a, count(1) by b")
+    //scalastyle:off
     println(sqlNode)
+    //scalastyle:on
+
+    val validatedSqlNode = validator.validate(sqlNode)
+    val relNode = sqlToRelConverter.convertQuery(sqlNode, false, true)
+    val convertedSqlNode = relToSqlConverter.visitRoot(relNode.rel).asStatement()
+    //scalastyle:off
     println(validatedSqlNode)
     println(relNode)
     println(convertedSqlNode)

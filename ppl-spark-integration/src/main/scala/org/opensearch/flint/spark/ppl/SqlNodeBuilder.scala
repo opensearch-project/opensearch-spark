@@ -4,6 +4,7 @@
  */
 package org.opensearch.flint.spark.ppl
 
+import scala.+:
 import scala.collection.JavaConverters._
 
 import org.antlr.v4.runtime.CommonTokenStream
@@ -13,7 +14,7 @@ import org.opensearch.sql.common.antlr.{CaseInsensitiveCharStream, SyntaxAnalysi
 
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.parser.SqlParserPos.ZERO
-import org.apache.calcite.sql.{SqlBasicCall, SqlIdentifier, SqlLiteral, SqlNode, SqlNodeList, SqlSelect}
+import org.apache.calcite.sql._
 
 
 class PPLParser {
@@ -72,6 +73,7 @@ class PPLParser {
 
 class PPLAstBuilder extends OpenSearchPPLParserBaseVisitor[SqlNode] {
   val functionResolver = PPLFunctionResolver();
+  var subquery_count = 0;
 
   override def visitDmlStatement(ctx: OpenSearchPPLParser.DmlStatementContext): SqlNode = {
     visit(ctx.queryStatement())
@@ -81,7 +83,13 @@ class PPLAstBuilder extends OpenSearchPPLParserBaseVisitor[SqlNode] {
     val source = visit(ctx.pplCommands()).asInstanceOf[SqlSelect]
     val commands = ctx.commands().asScala.map(visit).map(_.asInstanceOf[SqlSelect])
     val result: SqlSelect = commands.foldLeft(source) {(pre: SqlNode, cur: SqlSelect) =>
-      cur.setFrom(pre)
+      cur.getFrom match {
+        case null =>
+          cur.setFrom(pre)
+        case join: SqlJoin if join.getLeft.isInstanceOf[SqlBasicCall] =>
+          join.getLeft.asInstanceOf[SqlBasicCall].setOperand(0, pre)
+        case _ =>
+      }
       cur
     }
     result
@@ -168,8 +176,18 @@ class PPLAstBuilder extends OpenSearchPPLParserBaseVisitor[SqlNode] {
 
   override def visitStatsCommand(ctx: OpenSearchPPLParser.StatsCommandContext): SqlNode = {
     val aggList = ctx.statsAggTerm.asScala.map(visit)
-    val groupByList = visitStatsByClause(ctx.statsByClause())
-    new SqlSelect(ZERO, null, SqlNodeList.of(ZERO, (groupByList.getList.asScala ++ aggList).asJava), null, null, groupByList, null, null, null, null, null, null)
+    val statsByList = visitStatsByClause(ctx.statsByClause())
+    if (ctx.EVENTSTATS != null) {
+      val windowDecl = SqlWindow.create(null, null, statsByList, SqlNodeList.EMPTY, SqlLiteral.createBoolean(false, ZERO), null, null, null, ZERO)
+      val newAggList = aggList.map { case agg: SqlBasicCall =>
+        if (agg.getKind == SqlKind.AS) {
+          val aggExpr = agg.getOperandList.get(0)
+          agg.setOperand(0, new SqlBasicCall(SqlStdOperatorTable.OVER, Seq(aggExpr, windowDecl).asJava.toArray(new Array[SqlNode](0)), ZERO))
+          agg
+        } else new SqlBasicCall(SqlStdOperatorTable.OVER, Seq(agg, windowDecl).asJava.toArray(new Array[SqlNode](0)), ZERO)
+      }
+      new SqlSelect(ZERO, null, SqlNodeList.of(ZERO, ((SqlIdentifier.STAR +: newAggList).asJava)), null, null, null, null, null, null, null, null, null)
+    } else new SqlSelect(ZERO, null, SqlNodeList.of(ZERO, (statsByList.getList.asScala ++ aggList).asJava), null, null, statsByList, null, null, null, null, null, null)
   }
 
   override def visitStatsAggTerm(ctx: OpenSearchPPLParser.StatsAggTermContext): SqlNode = {
@@ -196,7 +214,7 @@ class PPLAstBuilder extends OpenSearchPPLParserBaseVisitor[SqlNode] {
       val expr = visit(clause.expression())
       (new SqlBasicCall(SqlStdOperatorTable.AS, Seq(expr, fieldExpr).asJava, ZERO).asInstanceOf[SqlNode], fieldExpr)
     }).unzip
-    identList.append(StarExcept(SqlNodeList.of(ZERO, fieldExprList.asJava))(ZERO))
+    identList.append(StarExcept(SqlNodeList.of(ZERO, fieldExprList.asJava))())
     new SqlSelect(ZERO, null, SqlNodeList.of(ZERO, identList.asJava), null, null, null, null, null, null, null, null, null)
   }
 
@@ -206,7 +224,59 @@ class PPLAstBuilder extends OpenSearchPPLParserBaseVisitor[SqlNode] {
 
 
   override def visitLookupCommand(ctx: OpenSearchPPLParser.LookupCommandContext): SqlNode = {
-    super.visitLookupCommand(ctx)
-  }
+    val right = visit(ctx.tableSource)
+    require(right.isInstanceOf[SqlIdentifier], "LOOKUP table is not an ident")
+    val rightTableIdent = right.asInstanceOf[SqlIdentifier]
+    val leftSubqueryName = s"TEMP_SUBQUERY_$subquery_count"
+    subquery_count += 1
+    val leftTableIdent = new SqlIdentifier(leftSubqueryName, ZERO)
+    val left = new SqlBasicCall(SqlStdOperatorTable.AS, Seq(null, leftTableIdent).asJava, ZERO)
+    val conditionList = ctx.lookupMappingList.lookupPair.asScala.map { pair => {
+      val rightKey = visit(pair.inputField)
+      val leftKey = if (pair.outputField != null) {
+        visit(pair.outputField)
+      } else rightKey.clone(ZERO)
+      require(leftKey.isInstanceOf[SqlIdentifier], "left join key is not an ident")
+      require(rightKey.isInstanceOf[SqlIdentifier], "right join key is not an ident")
+      val leftKeyIdent = leftKey.asInstanceOf[SqlIdentifier]
+      val rightKeyIdent = rightKey.asInstanceOf[SqlIdentifier]
+      val newLeftKey = new SqlIdentifier((leftSubqueryName +: leftKeyIdent.names.asScala).asJava, ZERO)
+      val newRightKey = new SqlIdentifier((rightTableIdent.names.asScala ++ rightKeyIdent.names.asScala).asJava, ZERO)
+      SqlStdOperatorTable.EQUALS.createCall(null, ZERO, newLeftKey, newRightKey)
+    }}
+    val conditionCombine = conditionList.reduce((a, b) => SqlStdOperatorTable.AND.createCall(null, ZERO, a, b))
+    val sqlJoin = new SqlJoin(ZERO,
+      left,
+      SqlLiteral.createBoolean(false, ZERO),
+      JoinType.LEFT.symbol(ZERO),
+      right,
+      JoinConditionType.ON.symbol(ZERO),
+      conditionCombine)
 
+    val fieldsPair = ctx.outputCandidateList().lookupPair.asScala.map { pair => {
+      val rightField = visit(pair.inputField)
+      val leftField = if (pair.outputField != null) {
+        visit(pair.outputField)
+      } else rightField.clone(ZERO)
+      require(leftField.isInstanceOf[SqlIdentifier], "left join key is not an ident")
+      require(rightField.isInstanceOf[SqlIdentifier], "right join key is not an ident")
+      val leftKeyIdent = leftField.asInstanceOf[SqlIdentifier]
+      val rightKeyIdent = rightField.asInstanceOf[SqlIdentifier]
+      val newLeftField = new SqlIdentifier((leftSubqueryName +: leftKeyIdent.names.asScala).asJava, ZERO)
+      val newRightField = new SqlIdentifier((rightTableIdent.names.asScala ++ rightKeyIdent.names.asScala).asJava, ZERO)
+      (newLeftField.asInstanceOf[SqlNode], newRightField.asInstanceOf[SqlNode])
+    }}
+    val leftFields = fieldsPair.map(_._1)
+
+    val selectItems = if (ctx.APPEND != null) {
+      val newFields = fieldsPair.map { case (leftField, rightField) => new SqlBasicCall(SqlStdOperatorTable.AS, Seq(rightField, leftField).asJava, ZERO) }
+      SqlNodeList.of(ZERO, (newFields :+ StarExcept(SqlNodeList.of(ZERO, leftFields.asJava))(leftTableIdent.names.asScala :+ "")).asJava)
+    } else if (ctx.REPLACE != null) {
+      val newFields = fieldsPair.map { case (leftField, rightField) => new SqlBasicCall(SqlStdOperatorTable.COALESCE, Seq(leftField, rightField).asJava, ZERO) }
+      SqlNodeList.of(ZERO, (newFields :+ StarExcept(SqlNodeList.of(ZERO, leftFields.asJava))(leftTableIdent.names.asScala :+ "")).asJava)
+    } else {
+      SqlNodeList.SINGLETON_STAR
+    }
+    new SqlSelect(ZERO, null, selectItems, sqlJoin, null, null, null, null, null, null, null, null)
+  }
 }

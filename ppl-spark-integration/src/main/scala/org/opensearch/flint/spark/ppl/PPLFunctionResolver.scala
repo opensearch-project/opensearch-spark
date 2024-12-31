@@ -14,6 +14,9 @@ case class PPLFunctionResolver() {
       case "+" => SqlStdOperatorTable.PLUS
       case "-" => SqlStdOperatorTable.MINUS
       case "avg" => SqlStdOperatorTable.AVG
+      case "min" => SqlStdOperatorTable.MIN
+      case "max" => SqlStdOperatorTable.MAX
+      case "count" => SqlStdOperatorTable.COUNT
     }
   }
 }
