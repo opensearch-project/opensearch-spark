@@ -291,13 +291,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             // Join both Main and Sub search with _ROW_NUMBER_ column
             LogicalPlan joinedQuery = join(
                     mainSearchWithRowNumber, subSearchWithRowNumber,
-                    Join.JoinType.LEFT,
+                    Join.JoinType.FULL,
                     Optional.of(new EqualTo(t1Attr, t2Attr)),
                     new Join.JoinHint());
 
             // Remove the APPEND_ID and duplicated field on T1 if override option present.
             if (node.isOverride()) {
-                List<Expression> attrToOverride = AppendColCatalystUtils.getOverridedList(subSearch, TABLE_LHS);
+                final List<Expression> attrToOverride = AppendColCatalystUtils.getOverridedList(subSearch, TABLE_LHS);
                 if (attrToOverride != null &&
                     !attrToOverride.isEmpty() &&
                     attrToOverride.stream().noneMatch(UnresolvedStar.class::isInstance)) {

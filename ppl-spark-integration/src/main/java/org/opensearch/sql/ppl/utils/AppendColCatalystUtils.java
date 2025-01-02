@@ -4,11 +4,9 @@
  */
 package org.opensearch.sql.ppl.utils;
 
-import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
-import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.Literal;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
@@ -18,8 +16,6 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.Project;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$;
-import org.apache.spark.sql.execution.CommandExecutionMode;
-import org.apache.spark.sql.execution.QueryExecution;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.opensearch.sql.ast.Node;
@@ -29,9 +25,7 @@ import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ppl.CatalystPlanContext;
 import scala.Option;
-import scala.collection.Seq;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
