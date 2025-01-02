@@ -12,8 +12,8 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, CurrentRow, EqualTo, Literal, RowFrame, RowNumber, SpecifiedWindowFrame, UnboundedPreceding, WindowExpression, WindowSpecDefinition}
-import org.apache.spark.sql.catalyst.plans.{LeftOuter, PlanTest}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CurrentRow, EqualTo, Literal, RowFrame, RowNumber, SpecifiedWindowFrame, UnboundedPreceding, WindowExpression, WindowSpecDefinition}
+import org.apache.spark.sql.catalyst.plans.{FullOuter, PlanTest}
 import org.apache.spark.sql.catalyst.plans.logical._
 
 class PPLLogicalPlanAppendColCommandTranslatorTestSuite
@@ -57,7 +57,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
    * Expected:
    'Project [*]
    +- 'DataFrameDropColumns ['T1._row_number_, 'T2._row_number_]
-   +- 'Join LeftOuter, ('T1._row_number_ = 'T2._row_number_)
+   +- 'Join FullOuter, ('T1._row_number_ = 'T2._row_number_)
    :- 'SubqueryAlias T1
    :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#1, *]
    :     +- 'UnresolvedRelation [employees], [], false
@@ -99,7 +99,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
         T12_COLUMNS_SEQ,
-        Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
+        Join(t1, t2, FullOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
 
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
@@ -108,7 +108,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
   /**
    * 'Project [*]
    * +- 'DataFrameDropColumns ['T1._row_number_, 'T2._row_number_]
-   * +- 'Join LeftOuter, ('T1._row_number_ = 'T2._row_number_)
+   * +- 'Join FullOuter, ('T1._row_number_ = 'T2._row_number_)
    * :- 'SubqueryAlias T1
    * :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#11, *]
    * :     +- 'Project ['age, 'dept, 'salary]
@@ -162,7 +162,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
         T12_COLUMNS_SEQ,
-        Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
+        Join(t1, t2, FullOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
 
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
@@ -171,7 +171,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
   /**
    * 'Project [*]
    * +- 'DataFrameDropColumns ['T1._row_number_, 'T2._row_number_]
-   * +- 'Join LeftOuter, ('T1._row_number_ = 'T2._row_number_)
+   * +- 'Join FullOuter, ('T1._row_number_ = 'T2._row_number_)
    * :- 'SubqueryAlias T1
    * :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#427, *]
    * :     +- 'Project ['age, 'dept, 'salary]
@@ -232,7 +232,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
         T12_COLUMNS_SEQ,
-        Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
+        Join(t1, t2, FullOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
 
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
@@ -242,11 +242,11 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
    * == Parsed Logical Plan ==
    * 'Project [*]
    * +- 'DataFrameDropColumns ['T1._row_number_, 'T2._row_number_]
-   * +- 'Join LeftOuter, ('T1._row_number_ = 'T2._row_number_)
+   * +- 'Join FullOuter, ('T1._row_number_ = 'T2._row_number_)
    * :- 'SubqueryAlias T1
    * :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#551, *]
    * :     +- 'DataFrameDropColumns ['T1._row_number_, 'T2._row_number_]
-   * :        +- 'Join LeftOuter, ('T1._row_number_ = 'T2._row_number_)
+   * :        +- 'Join FullOuter, ('T1._row_number_ = 'T2._row_number_)
    * :           :- 'SubqueryAlias T1
    * :           :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#544, *]
    * :           :     +- 'Project ['name, 'age]
@@ -309,7 +309,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         DataFrameDropColumns(
           T12_COLUMNS_SEQ,
-          Join(mainSearch, firstAppenCol, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE))))
+          Join(mainSearch, firstAppenCol, FullOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE))))
 
     /*
     +- 'SubqueryAlias T2
@@ -330,7 +330,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
         Join(
           joinWithFirstAppendCol,
           secondAppendCol,
-          LeftOuter,
+          FullOuter,
           Some(T12_JOIN_CONDITION),
           JoinHint.NONE)))
 
@@ -354,7 +354,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
   /**
    * 'Project [*]
    * +- 'DataFrameDropColumns ['T1._row_number_, 'T2._row_number_, 'T1.age]
-   * +- 'Join LeftOuter, ('T1._row_number_ = 'T2._row_number_)
+   * +- 'Join FullOuter, ('T1._row_number_ = 'T2._row_number_)
    * :- 'SubqueryAlias T1
    * :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#383, *]
    * :     +- 'UnresolvedRelation [employees], [], false
@@ -402,7 +402,7 @@ class PPLLogicalPlanAppendColCommandTranslatorTestSuite
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
         T12_COLUMNS_SEQ :+ UnresolvedAttribute("APPENDCOL_T1.age"),
-        Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
+        Join(t1, t2, FullOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
 
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
