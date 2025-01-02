@@ -23,6 +23,8 @@ case class FlintMetadataCache(
     refreshInterval: Option[Int],
     /** Source table names for building the Flint index. */
     sourceTables: Array[String],
+    /** Source query for MV */
+    sourceQuery: Option[String],
     /** Timestamp when Flint index is last refreshed. Unit: milliseconds */
     lastRefreshTime: Option[Long]) {
 
@@ -64,6 +66,10 @@ object FlintMetadataCache {
       case MV_INDEX_TYPE => getSourceTablesFromMetadata(metadata)
       case _ => Array(metadata.source)
     }
+    val sourceQuery = metadata.kind match {
+      case MV_INDEX_TYPE => Some(metadata.source)
+      case _ => None
+    }
     val lastRefreshTime: Option[Long] = metadata.latestLogEntry.flatMap { entry =>
       entry.lastRefreshCompleteTime match {
         case FlintMetadataLogEntry.EMPTY_TIMESTAMP => None
@@ -71,6 +77,11 @@ object FlintMetadataCache {
       }
     }
 
-    FlintMetadataCache(metadataCacheVersion, refreshInterval, sourceTables, lastRefreshTime)
+    FlintMetadataCache(
+      metadataCacheVersion,
+      refreshInterval,
+      sourceTables,
+      sourceQuery,
+      lastRefreshTime)
   }
 }
