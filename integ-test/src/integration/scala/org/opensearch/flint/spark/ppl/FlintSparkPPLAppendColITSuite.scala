@@ -10,9 +10,8 @@ import org.opensearch.sql.ppl.utils.SortUtils
 
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Add, Alias, Ascending, CaseWhen, CurrentRow, Descending, Divide, EqualTo, Expression, LessThan, Literal, Multiply, RowFrame, RowNumber, SortOrder, SpecifiedWindowFrame, UnboundedPreceding, WindowExpression, WindowSpecDefinition}
-import org.apache.spark.sql.catalyst.parser.ParseException
-import org.apache.spark.sql.catalyst.plans.LeftOuter
+import org.apache.spark.sql.catalyst.expressions.{Alias, CurrentRow, EqualTo, Literal, RowFrame, RowNumber, SpecifiedWindowFrame, UnboundedPreceding, WindowExpression, WindowSpecDefinition}
+import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.streaming.StreamTest
 
@@ -122,7 +121,7 @@ class FlintSparkPPLAppendColITSuite
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
         T12_COLUMNS_SEQ,
-        Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
+        Join(t1, t2, FullOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
 
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
@@ -186,7 +185,7 @@ class FlintSparkPPLAppendColITSuite
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
         T12_COLUMNS_SEQ,
-        Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
+        Join(t1, t2, FullOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
@@ -253,7 +252,7 @@ class FlintSparkPPLAppendColITSuite
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
         T12_COLUMNS_SEQ,
-        Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
+        Join(t1, t2, FullOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
@@ -319,7 +318,7 @@ class FlintSparkPPLAppendColITSuite
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         DataFrameDropColumns(
           T12_COLUMNS_SEQ,
-          Join(mainSearch, firstAppenCol, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE))))
+          Join(mainSearch, firstAppenCol, FullOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE))))
 
     /*
     +- 'SubqueryAlias T2
@@ -340,7 +339,7 @@ class FlintSparkPPLAppendColITSuite
         Join(
           joinWithFirstAppendCol,
           secondAppendCol,
-          LeftOuter,
+          FullOuter,
           Some(T12_JOIN_CONDITION),
           JoinHint.NONE)))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
@@ -409,7 +408,7 @@ class FlintSparkPPLAppendColITSuite
       Seq(UnresolvedStar(None)),
       DataFrameDropColumns(
         T12_COLUMNS_SEQ :+ UnresolvedAttribute("APPENDCOL_T1.age"),
-        Join(t1, t2, LeftOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
+        Join(t1, t2, FullOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
 
