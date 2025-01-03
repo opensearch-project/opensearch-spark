@@ -26,6 +26,18 @@ public class TimeUtilsTest {
         testValid("-1h@h", "2000-01-03T00:00");
         testValid("@d", "2000-01-03T00:00");
 
+        testInvalid("invalid", "The relative date time 'invalid' is not supported.");
+    }
+
+    @Test
+    public void testRelativeCaseInsensitive() {
+        testValid("NOW", "2000-01-03T01:01:01.100");
+        testValid("-60M", "2000-01-03T00:01:01.100");
+        testValid("-H", "2000-01-03T00:01:01.100");
+        testValid("+2WK", "2000-01-17T01:01:01.100");
+        testValid("-1H@H", "2000-01-03T00:00");
+        testValid("@D", "2000-01-03T00:00");
+
         testInvalid("INVALID", "The relative date time 'INVALID' is not supported.");
     }
 

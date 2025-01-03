@@ -28,7 +28,8 @@ public class TimeUtils {
     private static final Pattern RELATIVE_DATE_TIME_PATTERN = Pattern.compile(String.format(
             "(?<offset>%s)?(?<snap>%s)?",
             "(?<offsetSign>[+-])(?<offsetValue>\\d+)?(?<offsetUnit>\\w+)",
-            "[@](?<snapUnit>\\w+)"));
+            "[@](?<snapUnit>\\w+)"),
+            Pattern.CASE_INSENSITIVE);
 
     // Supported time units.
     private static final Set<String> SECOND_UNITS_SET = Set.of("s", "sec", "secs", "second", "seconds");
@@ -118,7 +119,7 @@ public class TimeUtils {
      */
     public static LocalDateTime getRelativeDateTime(String relativeDateTimeString, LocalDateTime dateTime) {
 
-        if (relativeDateTimeString.equals(NOW)) {
+        if (relativeDateTimeString.equalsIgnoreCase(NOW)) {
             return dateTime;
         }
 
@@ -151,27 +152,31 @@ public class TimeUtils {
      * Applies the offset specified by the offset sign, value,
      * and unit to the given date time, and returns the result.
      */
-    private LocalDateTime applyOffset(LocalDateTime dateTime, String offsetSignString, String offsetValueString, String offsetUnitString) {
-        int offsetValue = Optional.ofNullable(offsetValueString).map(Integer::parseInt).orElse(1);
-        if (offsetSignString.equals(NEGATIVE_SIGN)) {
-            offsetValue *= -1;
+    private LocalDateTime applyOffset(LocalDateTime dateTime, String offsetSign, String offsetValue, String offsetUnit) {
+
+        int offsetValueInt = Optional.ofNullable(offsetValue).map(Integer::parseInt).orElse(1);
+        if (offsetSign.equals(NEGATIVE_SIGN)) {
+            offsetValueInt *= -1;
         }
 
         /* {@link Duration} and {@link Period} must be handled separately because, even
           though they both inherit from {@link java.time.temporal.TemporalAmount}, they
            define separate 'multipliedBy' methods. */
 
-        if (DURATION_FOR_TIME_UNIT_MAP.containsKey(offsetUnitString)) {
-            final Duration offsetDuration = DURATION_FOR_TIME_UNIT_MAP.get(offsetUnitString).multipliedBy(offsetValue);
+        // Convert to lower case to make case-insensitive.
+        String offsetUnitLowerCase = offsetUnit.toLowerCase();
+
+        if (DURATION_FOR_TIME_UNIT_MAP.containsKey(offsetUnitLowerCase)) {
+            Duration offsetDuration = DURATION_FOR_TIME_UNIT_MAP.get(offsetUnitLowerCase).multipliedBy(offsetValueInt);
             return dateTime.plus(offsetDuration);
         }
 
-        if (PERIOD_FOR_TIME_UNIT_MAP.containsKey(offsetUnitString)) {
-            final Period offsetPeriod = PERIOD_FOR_TIME_UNIT_MAP.get(offsetUnitString).multipliedBy(offsetValue);
+        if (PERIOD_FOR_TIME_UNIT_MAP.containsKey(offsetUnitLowerCase)) {
+            Period offsetPeriod = PERIOD_FOR_TIME_UNIT_MAP.get(offsetUnitLowerCase).multipliedBy(offsetValueInt);
             return dateTime.plus(offsetPeriod);
         }
 
-        String message = String.format("The relative date time unit '%s' is not supported.", offsetUnitString);
+        String message = String.format("The relative date time unit '%s' is not supported.", offsetUnit);
         throw new RuntimeException(message);
     }
 
@@ -181,24 +186,27 @@ public class TimeUtils {
      */
     private LocalDateTime applySnap(LocalDateTime dateTime, String snapUnit) {
 
-        if (SECOND_UNITS_SET.contains(snapUnit)) {
+        // Convert to lower case to make case-insensitive.
+        String snapUnitLowerCase = snapUnit.toLowerCase();
+
+        if (SECOND_UNITS_SET.contains(snapUnitLowerCase)) {
             return dateTime.truncatedTo(ChronoUnit.SECONDS);
-        } else if (MINUTE_UNITS_SET.contains(snapUnit)) {
+        } else if (MINUTE_UNITS_SET.contains(snapUnitLowerCase)) {
             return dateTime.truncatedTo(ChronoUnit.MINUTES);
-        } else if (HOUR_UNITS_SET.contains(snapUnit)) {
+        } else if (HOUR_UNITS_SET.contains(snapUnitLowerCase)) {
             return dateTime.truncatedTo(ChronoUnit.HOURS);
-        } else if (DAY_UNITS_SET.contains(snapUnit)) {
+        } else if (DAY_UNITS_SET.contains(snapUnitLowerCase)) {
             return dateTime.truncatedTo(ChronoUnit.DAYS);
-        } else if (WEEK_UNITS_SET.contains(snapUnit)) {
+        } else if (WEEK_UNITS_SET.contains(snapUnitLowerCase)) {
             return applySnapToDayOfWeek(dateTime, DayOfWeek.SUNDAY);
-        } else if (MONTH_UNITS_SET.contains(snapUnit)) {
+        } else if (MONTH_UNITS_SET.contains(snapUnitLowerCase)) {
             return dateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1);
-        } else if (QUARTER_UNITS_SET.contains(snapUnit)) {
+        } else if (QUARTER_UNITS_SET.contains(snapUnitLowerCase)) {
             int monthsToSnap = (dateTime.getMonthValue() - 1) % MONTHS_PER_QUARTER;
             return dateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1).minusMonths(monthsToSnap);
-        } else if (YEAR_UNITS_SET.contains(snapUnit)) {
+        } else if (YEAR_UNITS_SET.contains(snapUnitLowerCase)) {
             return dateTime.truncatedTo(ChronoUnit.DAYS).withDayOfYear(1);
-        } else if (DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.containsKey(snapUnit)) {
+        } else if (DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.containsKey(snapUnitLowerCase)) {
             return applySnapToDayOfWeek(dateTime, DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.get(snapUnit));
         }
 
