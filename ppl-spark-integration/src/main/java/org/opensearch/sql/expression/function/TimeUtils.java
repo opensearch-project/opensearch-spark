@@ -21,86 +21,85 @@ import java.util.regex.Pattern;
 @UtilityClass
 public class TimeUtils {
 
-    private static final String now = "now";
-    private static final String negativeSign = "-";
+    private static final String NOW = "now";
+    private static final String NEGATIVE_SIGN = "-";
 
-    // Pattern for relative date time string
-    private static final String patternStringOffset = "(?<offsetSign>[+-])(?<offsetValue>\\d+)?(?<offsetUnit>\\w+)";
-    private static final String patternStringSnap = "[@](?<snapUnit>\\w+)";
-    private static final String patternStringRelative = String.format("(?<offset>%s)?(?<snap>%s)?", patternStringOffset, patternStringSnap);
+    // Pattern for relative date time string.
+    private static final Pattern RELATIVE_DATE_TIME_PATTERN = Pattern.compile(String.format(
+            "(?<offset>%s)?(?<snap>%s)?",
+            "(?<offsetSign>[+-])(?<offsetValue>\\d+)?(?<offsetUnit>\\w+)",
+            "[@](?<snapUnit>\\w+)"));
 
-    private static final Pattern pattern = Pattern.compile(patternStringRelative);
+    // Supported time units.
+    private static final Set<String> SECOND_UNITS_SET = Set.of("s", "sec", "secs", "second", "seconds");
+    private static final Set<String> MINUTE_UNITS_SET = Set.of("m", "min", "mins", "minute", "minutes");
+    private static final Set<String> HOUR_UNITS_SET = Set.of("h", "hr", "hrs", "hour", "hours");
+    private static final Set<String> DAY_UNITS_SET = Set.of("d", "day", "days");
+    private static final Set<String> WEEK_UNITS_SET = Set.of("w", "wk", "wks", "week", "weeks");
+    private static final Set<String> MONTH_UNITS_SET = Set.of("mon", "month", "months");
+    private static final Set<String> QUARTER_UNITS_SET = Set.of("q", "qtr", "qtrs", "quarter", "quarters");
+    private static final Set<String> YEAR_UNITS_SET = Set.of("y", "yr", "yrs", "year", "years");
 
-    // Time unit constants
-    private static final Set<String> secondUnits = Set.of("s", "sec", "secs", "second", "seconds");
-    private static final Set<String> minuteUnits = Set.of("m", "min", "mins", "minute", "minutes");
-    private static final Set<String> hourUnits = Set.of("h", "hr", "hrs", "hour", "hours");
-    private static final Set<String> dayUnits = Set.of("d", "day", "days");
-    private static final Set<String> weekUnits = Set.of("w", "wk", "wks", "week", "weeks");
-    private static final Set<String> monthUnits = Set.of("mon", "month", "months");
-    private static final Set<String> quarterUnits = Set.of("q", "qtr", "qtrs", "quarter", "quarters");
-    private static final Set<String> yearUnits = Set.of("y", "yr", "yrs", "year", "years");
+    // Map from time unit to the corresponding duration.
+    private static final Duration DURATION_SECOND = Duration.ofSeconds(1);
+    private static final Duration DURATION_MINUTE = Duration.ofMinutes(1);
+    private static final Duration DURATION_HOUR = Duration.ofHours(1);
 
-    // Map from time unit constants to the corresponding duration.
-    private static final Duration secondDuration = Duration.ofSeconds(1);
-    private static final Duration minuteDuration = Duration.ofMinutes(1);
-    private static final Duration hourDuration = Duration.ofHours(1);
+    private static final Map<String, Duration> DURATION_FOR_TIME_UNIT_MAP = Map.ofEntries(
+            Map.entry("s", DURATION_SECOND),
+            Map.entry("sec", DURATION_SECOND),
+            Map.entry("secs", DURATION_SECOND),
+            Map.entry("second", DURATION_SECOND),
+            Map.entry("seconds", DURATION_SECOND),
 
-    private static final Map<String, Duration> durationForTimeUnit = Map.ofEntries(
-            Map.entry("s", secondDuration),
-            Map.entry("sec", secondDuration),
-            Map.entry("secs", secondDuration),
-            Map.entry("second", secondDuration),
-            Map.entry("seconds", secondDuration),
+            Map.entry("m", DURATION_MINUTE),
+            Map.entry("min", DURATION_MINUTE),
+            Map.entry("mins", DURATION_MINUTE),
+            Map.entry("minute", DURATION_MINUTE),
+            Map.entry("minutes", DURATION_MINUTE),
 
-            Map.entry("m", minuteDuration),
-            Map.entry("min", minuteDuration),
-            Map.entry("mins", minuteDuration),
-            Map.entry("minute", minuteDuration),
-            Map.entry("minutes", minuteDuration),
+            Map.entry("h", DURATION_HOUR),
+            Map.entry("hr", DURATION_HOUR),
+            Map.entry("hrs", DURATION_HOUR),
+            Map.entry("hour", DURATION_HOUR),
+            Map.entry("hours", DURATION_HOUR));
 
-            Map.entry("h", hourDuration),
-            Map.entry("hr", hourDuration),
-            Map.entry("hrs", hourDuration),
-            Map.entry("hour", hourDuration),
-            Map.entry("hours", hourDuration));
+    // Map from time unit to the corresponding period.
+    private static final Period PERIOD_DAY = Period.ofDays(1);
+    private static final Period PERIOD_WEEK = Period.ofWeeks(1);
+    private static final Period PERIOD_MONTH = Period.ofMonths(1);
+    private static final Period PERIOD_QUARTER = Period.ofMonths(3);
+    private static final Period PERIOD_YEAR = Period.ofYears(1);
 
-    // Map from time unit constants to the corresponding period.
-    private static final Period periodDay = Period.ofDays(1);
-    private static final Period periodWeek = Period.ofWeeks(1);
-    private static final Period periodMonth = Period.ofMonths(1);
-    private static final Period periodQuarter = Period.ofMonths(3);
-    private static final Period periodYear = Period.ofYears(1);
+    private static final Map<String, Period> PERIOD_FOR_TIME_UNIT_MAP = Map.ofEntries(
+            Map.entry("d", PERIOD_DAY),
+            Map.entry("day", PERIOD_DAY),
+            Map.entry("days", PERIOD_DAY),
 
-    private static final Map<String, Period> periodForTimeUnit = Map.ofEntries(
-            Map.entry("d", periodDay),
-            Map.entry("day", periodDay),
-            Map.entry("days", periodDay),
+            Map.entry("w", PERIOD_WEEK),
+            Map.entry("wk", PERIOD_WEEK),
+            Map.entry("wks", PERIOD_WEEK),
+            Map.entry("week", PERIOD_WEEK),
+            Map.entry("weeks", PERIOD_WEEK),
 
-            Map.entry("w", periodWeek),
-            Map.entry("wk", periodWeek),
-            Map.entry("wks", periodWeek),
-            Map.entry("week", periodWeek),
-            Map.entry("weeks", periodWeek),
+            Map.entry("mon", PERIOD_MONTH),
+            Map.entry("month", PERIOD_MONTH),
+            Map.entry("months", PERIOD_MONTH),
 
-            Map.entry("mon", periodMonth),
-            Map.entry("month", periodMonth),
-            Map.entry("months", periodMonth),
+            Map.entry("q", PERIOD_QUARTER),
+            Map.entry("qtr", PERIOD_QUARTER),
+            Map.entry("qtrs", PERIOD_QUARTER),
+            Map.entry("quarter", PERIOD_QUARTER),
+            Map.entry("quarters", PERIOD_QUARTER),
 
-            Map.entry("q", periodQuarter),
-            Map.entry("qtr", periodQuarter),
-            Map.entry("qtrs", periodQuarter),
-            Map.entry("quarter", periodQuarter),
-            Map.entry("quarters", periodQuarter),
+            Map.entry("y", PERIOD_YEAR),
+            Map.entry("yr", PERIOD_YEAR),
+            Map.entry("yrs", PERIOD_YEAR),
+            Map.entry("year", PERIOD_YEAR),
+            Map.entry("years", PERIOD_YEAR));
 
-            Map.entry("y", periodYear),
-            Map.entry("yr", periodYear),
-            Map.entry("yrs", periodYear),
-            Map.entry("year", periodYear),
-            Map.entry("years", periodYear));
-
-    // Maps from day of the week unit constants to the corresponding day of the week.
-    private static final Map<String, DayOfWeek> daysOfWeekForUnit = Map.ofEntries(
+    // Map from snap unit to the corresponding day of the week.
+    private static final Map<String, DayOfWeek> DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP = Map.ofEntries(
             Map.entry("w0", DayOfWeek.SUNDAY),
             Map.entry("w7", DayOfWeek.SUNDAY),
             Map.entry("w1", DayOfWeek.MONDAY),
@@ -119,11 +118,11 @@ public class TimeUtils {
      */
     public static LocalDateTime getRelativeDateTime(String relativeDateTimeString, LocalDateTime dateTime) {
 
-        if (relativeDateTimeString.equals(now)) {
+        if (relativeDateTimeString.equals(NOW)) {
             return dateTime;
         }
 
-        Matcher matcher = pattern.matcher(relativeDateTimeString);
+        Matcher matcher = RELATIVE_DATE_TIME_PATTERN.matcher(relativeDateTimeString);
         if (!matcher.matches()) {
             String message = String.format("The relative date time '%s' is not supported.", relativeDateTimeString);
             throw new RuntimeException(message);
@@ -136,26 +135,25 @@ public class TimeUtils {
                     relativeDateTime,
                     matcher.group("offsetSign"),
                     matcher.group("offsetValue"),
-                    matcher.group("offsetUnit")
-            );
+                    matcher.group("offsetUnit"));
         }
 
         if (matcher.group("snap") != null) {
             relativeDateTime = applySnap(
                     relativeDateTime,
-                    matcher.group("snapUnit")
-            );
+                    matcher.group("snapUnit"));
         }
 
         return relativeDateTime;
     }
 
     /**
-     * Applies the offset specified by the offset sign, value, and unit to the given date time, and returns the result.
+     * Applies the offset specified by the offset sign, value,
+     * and unit to the given date time, and returns the result.
      */
     private LocalDateTime applyOffset(LocalDateTime dateTime, String offsetSignString, String offsetValueString, String offsetUnitString) {
         int offsetValue = Optional.ofNullable(offsetValueString).map(Integer::parseInt).orElse(1);
-        if (offsetSignString.equals(negativeSign)) {
+        if (offsetSignString.equals(NEGATIVE_SIGN)) {
             offsetValue *= -1;
         }
 
@@ -163,62 +161,64 @@ public class TimeUtils {
           though they both inherit from {@link java.time.temporal.TemporalAmount}, they
            define separate 'multipliedBy' methods. */
 
-        if (durationForTimeUnit.containsKey(offsetUnitString)) {
-            final Duration offsetDuration = durationForTimeUnit.get(offsetUnitString).multipliedBy(offsetValue);
+        if (DURATION_FOR_TIME_UNIT_MAP.containsKey(offsetUnitString)) {
+            final Duration offsetDuration = DURATION_FOR_TIME_UNIT_MAP.get(offsetUnitString).multipliedBy(offsetValue);
             return dateTime.plus(offsetDuration);
         }
 
-        if (periodForTimeUnit.containsKey(offsetUnitString)) {
-            final Period offsetPeriod = periodForTimeUnit.get(offsetUnitString).multipliedBy(offsetValue);
+        if (PERIOD_FOR_TIME_UNIT_MAP.containsKey(offsetUnitString)) {
+            final Period offsetPeriod = PERIOD_FOR_TIME_UNIT_MAP.get(offsetUnitString).multipliedBy(offsetValue);
             return dateTime.plus(offsetPeriod);
         }
 
-        final String message = String.format("The relative date time unit '%s' is not supported.", offsetUnitString);
+        String message = String.format("The relative date time unit '%s' is not supported.", offsetUnitString);
         throw new RuntimeException(message);
     }
 
     /**
-     * Snaps the given date time to the start of the previous time period specified by the given snap unit, and returns the result.
+     * Snaps the given date time to the start of the previous time
+     * period specified by the given snap unit, and returns the result.
      */
     private LocalDateTime applySnap(LocalDateTime dateTime, String snapUnit) {
 
-        if (secondUnits.contains(snapUnit)) {
+        if (SECOND_UNITS_SET.contains(snapUnit)) {
             return dateTime.truncatedTo(ChronoUnit.SECONDS);
-        } else if (minuteUnits.contains(snapUnit)) {
+        } else if (MINUTE_UNITS_SET.contains(snapUnit)) {
             return dateTime.truncatedTo(ChronoUnit.MINUTES);
-        } else if (hourUnits.contains(snapUnit)) {
+        } else if (HOUR_UNITS_SET.contains(snapUnit)) {
             return dateTime.truncatedTo(ChronoUnit.HOURS);
-        } else if (dayUnits.contains(snapUnit)) {
+        } else if (DAY_UNITS_SET.contains(snapUnit)) {
             return dateTime.truncatedTo(ChronoUnit.DAYS);
-        } else if (weekUnits.contains(snapUnit)) {
-            return applySnapToDay(dateTime, DayOfWeek.SUNDAY);
-        } else if (monthUnits.contains(snapUnit)) {
+        } else if (WEEK_UNITS_SET.contains(snapUnit)) {
+            return applySnapToDayOfWeek(dateTime, DayOfWeek.SUNDAY);
+        } else if (MONTH_UNITS_SET.contains(snapUnit)) {
             return dateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1);
-        } else if (quarterUnits.contains(snapUnit)) {
+        } else if (QUARTER_UNITS_SET.contains(snapUnit)) {
             int monthsToSnap = (dateTime.getMonthValue() - 1) % MONTHS_PER_QUARTER;
             return dateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1).minusMonths(monthsToSnap);
-        } else if (yearUnits.contains(snapUnit)) {
+        } else if (YEAR_UNITS_SET.contains(snapUnit)) {
             return dateTime.truncatedTo(ChronoUnit.DAYS).withDayOfYear(1);
-        } else if (daysOfWeekForUnit.containsKey(snapUnit)) {
-            return applySnapToDay(dateTime, daysOfWeekForUnit.get(snapUnit));
+        } else if (DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.containsKey(snapUnit)) {
+            return applySnapToDayOfWeek(dateTime, DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.get(snapUnit));
         }
 
-        final String message = String.format("The relative date time unit '%s' is not supported.", snapUnit);
+        String message = String.format("The relative date time unit '%s' is not supported.", snapUnit);
         throw new RuntimeException(message);
     }
 
     /**
-     * Snaps the given date time to the start of the previous specified day of the week, and returns the result.
+     * Snaps the given date time to the start of the previous
+     * specified day of the week, and returns the result.
      */
-    private LocalDateTime applySnapToDay(LocalDateTime dateTime, DayOfWeek snapDay) {
-        LocalDateTime snapped = dateTime.truncatedTo(ChronoUnit.DAYS);
+    private LocalDateTime applySnapToDayOfWeek(LocalDateTime dateTime, DayOfWeek snapDayOfWeek) {
+        LocalDateTime snappedDateTime = dateTime.truncatedTo(ChronoUnit.DAYS);
 
-        DayOfWeek day = dateTime.getDayOfWeek();
-        if (day.equals(snapDay)) {
-            return snapped;
+        DayOfWeek dayOfWeek = dateTime.getDayOfWeek();
+        if (dayOfWeek.equals(snapDayOfWeek)) {
+            return snappedDateTime;
         }
 
-        int daysToSnap = DAYS_PER_WEEK - snapDay.getValue() + day.getValue();
-        return snapped.minusDays(daysToSnap);
+        int daysToSnap = DAYS_PER_WEEK - snapDayOfWeek.getValue() + dayOfWeek.getValue();
+        return snappedDateTime.minusDays(daysToSnap);
     }
 }
