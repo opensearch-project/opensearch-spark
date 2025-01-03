@@ -628,7 +628,6 @@ class FlintSparkPPLAppendColITSuite
     val expectedResults: Array[Row] =
       Array(Row("USA", 50.0, 50.0), Row("Canada", 22.5, 22.5))
     // Compare the results
-    results.foreach(row => println(row))
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
 
