@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark.ppl
 
 import org.opensearch.sql.ppl.utils.SortUtils
+
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Ascending$, CurrentRow, EqualTo, Literal, RowFrame, RowNumber, SortOrder, SpecifiedWindowFrame, UnboundedPreceding, WindowExpression, WindowSpecDefinition}
@@ -439,9 +440,7 @@ class FlintSparkPPLAppendColITSuite
                        | source = $testTable | sort age | FIELDS name, age | head 1 | APPENDCOL [sort age | FIELDS state ];
                        | """.stripMargin)
 
-    assert(
-      frame.columns.sameElements(
-        Array("name", "age", "state")))
+    assert(frame.columns.sameElements(Array("name", "age", "state")))
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
@@ -449,8 +448,7 @@ class FlintSparkPPLAppendColITSuite
         Row("Jane", 20, "Quebec"),
         Row(null, null, "Ontario"),
         Row(null, null, "New York"),
-        Row(null, null, "California"),
-        )
+        Row(null, null, "California"))
     // Compare the results
     assert(results.sameElements(expectedResults))
 
@@ -468,12 +466,16 @@ class FlintSparkPPLAppendColITSuite
      */
     val t1 = SubqueryAlias(
       "APPENDCOL_T1",
-      Project(Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
-        Limit(Literal(1, DataTypes.IntegerType),
-        Project(Seq(
-            UnresolvedAttribute("name"),
-            UnresolvedAttribute("age")), Sort(SortUtils.sortOrder(UnresolvedAttribute("age"), true) :: Nil, true, RELATION_TEST_TABLE)))))
-
+      Project(
+        Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
+        Limit(
+          Literal(1, DataTypes.IntegerType),
+          Project(
+            Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
+            Sort(
+              SortUtils.sortOrder(UnresolvedAttribute("age"), true) :: Nil,
+              true,
+              RELATION_TEST_TABLE)))))
 
     /*
     +- 'SubqueryAlias APPENDCOL_T2
@@ -488,7 +490,9 @@ class FlintSparkPPLAppendColITSuite
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Project(
           Seq(UnresolvedAttribute("state")),
-          Sort(SortUtils.sortOrder(UnresolvedAttribute("age"), true) :: Nil, true,
+          Sort(
+            SortUtils.sortOrder(UnresolvedAttribute("age"), true) :: Nil,
+            true,
             RELATION_TEST_TABLE))))
 
     val expectedPlan = Project(
@@ -527,9 +531,7 @@ class FlintSparkPPLAppendColITSuite
                        | source = $testTable | sort age | FIELDS name, age | APPENDCOL [sort age | FIELDS state | head 1 ];
                        | """.stripMargin)
 
-    assert(
-      frame.columns.sameElements(
-        Array("name", "age", "state")))
+    assert(frame.columns.sameElements(Array("name", "age", "state")))
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
@@ -537,8 +539,7 @@ class FlintSparkPPLAppendColITSuite
         Row("Jane", 20, "Quebec"),
         Row("John", 25, null),
         Row("Hello", 30, null),
-        Row("Jake", 70, null),
-      )
+        Row("Jake", 70, null))
     // Compare the results
     assert(results.sameElements(expectedResults))
 
@@ -546,22 +547,25 @@ class FlintSparkPPLAppendColITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
 
     /*
-       * 'Project [*]
-       * +- 'DataFrameDropColumns ['APPENDCOL_T1._row_number_, 'APPENDCOL_T2._row_number_]
-       *    +- 'Join FullOuter, ('APPENDCOL_T1._row_number_ = 'APPENDCOL_T2._row_number_)
-       *       :- 'SubqueryAlias APPENDCOL_T1
-       *       :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#289, *]
-       *       :     +- 'Project ['name, 'age]
-       *       :        +- 'Sort ['age ASC NULLS FIRST], true
-       *       :           +- 'UnresolvedRelation [flint_ppl_test], [], false
+     * 'Project [*]
+     * +- 'DataFrameDropColumns ['APPENDCOL_T1._row_number_, 'APPENDCOL_T2._row_number_]
+     *    +- 'Join FullOuter, ('APPENDCOL_T1._row_number_ = 'APPENDCOL_T2._row_number_)
+     *       :- 'SubqueryAlias APPENDCOL_T1
+     *       :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#289, *]
+     *       :     +- 'Project ['name, 'age]
+     *       :        +- 'Sort ['age ASC NULLS FIRST], true
+     *       :           +- 'UnresolvedRelation [flint_ppl_test], [], false
      */
     val t1 = SubqueryAlias(
       "APPENDCOL_T1",
-      Project(Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
-        Project(Seq(
-          UnresolvedAttribute("name"),
-          UnresolvedAttribute("age")), Sort(SortUtils.sortOrder(UnresolvedAttribute("age"), true) :: Nil, true, RELATION_TEST_TABLE))))
-
+      Project(
+        Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
+        Project(
+          Seq(UnresolvedAttribute("name"), UnresolvedAttribute("age")),
+          Sort(
+            SortUtils.sortOrder(UnresolvedAttribute("age"), true) :: Nil,
+            true,
+            RELATION_TEST_TABLE))))
 
     /*
      *       +- 'SubqueryAlias APPENDCOL_T2
@@ -576,11 +580,14 @@ class FlintSparkPPLAppendColITSuite
       "APPENDCOL_T2",
       Project(
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
-        Limit(Literal(1, DataTypes.IntegerType),
-        Project(
-          Seq(UnresolvedAttribute("state")),
-          Sort(SortUtils.sortOrder(UnresolvedAttribute("age"), true) :: Nil, true,
-            RELATION_TEST_TABLE)))))
+        Limit(
+          Literal(1, DataTypes.IntegerType),
+          Project(
+            Seq(UnresolvedAttribute("state")),
+            Sort(
+              SortUtils.sortOrder(UnresolvedAttribute("age"), true) :: Nil,
+              true,
+              RELATION_TEST_TABLE)))))
 
     val expectedPlan = Project(
       Seq(UnresolvedStar(None)),
@@ -590,6 +597,5 @@ class FlintSparkPPLAppendColITSuite
 
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
-
 
 }
