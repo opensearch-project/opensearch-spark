@@ -31,9 +31,26 @@ PPL query:
     | Jane | Marketing   |  28 | NULL             |  
     | Jeff | Marketing   |  38 | NULL             |  
     +------+-------------+-----+------------------+  
-    
 
-#### Example 2: Append multiple sub-search result
+
+#### Example 2: To compare multiple stats commands with side by side with appendCol.
+
+This example demonstrates a common use case: performing multiple statistical calculations and displaying the results side by side in a horizontal layout.
+
+PPL query:
+
+    os> source=employees | stats avg(age) as avg_age1 by dept | fields dept, avg_age1 | APPENDCOL  [ stats avg(age) as avg_age2 by dept | fields avg_age2 ];
+    fetched rows / total rows = 3/3
+    +-------------+-----------+----------+
+    | dept        | avg_age1  | avg_age2 |
+    +-------------+-----------+----------+
+    | Engineering | 27.25     |  27.25   |
+    | Sales       | 35.33     |  35.33   |
+    | Marketing   | 33.00     |  33.00   |
+    +-------------+-----------+----------+
+
+
+#### Example 3: Append multiple sub-search result
 
 The example demonstrate multiple APPENCOL commands can be chained to provide one comprehensive view for user. 
 
@@ -55,7 +72,7 @@ PPL query:
     | Jeff | Marketing   |  38 | NULL             |    NULL |  
     +------+-------------+-----+------------------+---------+  
 
-#### Example 3: Over main-search in the case of column name conflict
+#### Example 4: Over main-search in the case of column name conflict
 
 The example demonstrate the usage of `OVERRIDE` option to overwrite the `age` column from the main-search, 
 when the option is set to true and column with same name `age` present on sub-search.
