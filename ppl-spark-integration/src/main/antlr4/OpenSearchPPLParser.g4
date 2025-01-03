@@ -521,7 +521,7 @@ sortField
 sortFieldExpression
    : fieldExpression
 
-   // TODO #963: Remove unimplemented sort syntax
+   // TODO #963: Implement sort syntax
    | AUTO LT_PRTHS fieldExpression RT_PRTHS
    | STR LT_PRTHS fieldExpression RT_PRTHS
    | IP LT_PRTHS fieldExpression RT_PRTHS
@@ -1180,7 +1180,6 @@ keywordsCanBeId
    | CIDRMATCH
    | trendlineType
    // SORT FIELD KEYWORDS
-   // TODO #963: Remove unimplemented sort syntax
    | AUTO
    | STR
    | IP

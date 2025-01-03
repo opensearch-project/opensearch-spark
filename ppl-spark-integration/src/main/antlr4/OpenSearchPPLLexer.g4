@@ -83,7 +83,7 @@ USING:                              'USING';
 WITH:                               'WITH';
 
 // SORT FIELD KEYWORDS
-// TODO #963: Remove unimplemented sort syntax
+// TODO #963: Implement sort syntax
 AUTO:                               'AUTO';
 STR:                                'STR';
 IP:                                 'IP';
