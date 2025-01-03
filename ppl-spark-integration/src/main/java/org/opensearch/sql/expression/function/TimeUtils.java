@@ -25,10 +25,11 @@ public class TimeUtils {
     private static final String NEGATIVE_SIGN = "-";
 
     // Pattern for relative date time string.
+    private static final String OFFSET_PATTERN_STRING = "(?<offsetSign>[+-])(?<offsetValue>\\d+)?(?<offsetUnit>\\w+)";
+    private static final String SNAP_PATTERN_STRING = "[@](?<snapUnit>\\w+)";
+
     private static final Pattern RELATIVE_DATE_TIME_PATTERN = Pattern.compile(String.format(
-            "(?<offset>%s)?(?<snap>%s)?",
-            "(?<offsetSign>[+-])(?<offsetValue>\\d+)?(?<offsetUnit>\\w+)",
-            "[@](?<snapUnit>\\w+)"),
+            "(?<offset>%s)?(?<snap>%s)?", OFFSET_PATTERN_STRING, SNAP_PATTERN_STRING),
             Pattern.CASE_INSENSITIVE);
 
     // Supported time units.
@@ -119,6 +120,8 @@ public class TimeUtils {
      */
     public static LocalDateTime getRelativeDateTime(String relativeDateTimeString, LocalDateTime dateTime) {
 
+        LocalDateTime relativeDateTime = dateTime;
+
         if (relativeDateTimeString.equalsIgnoreCase(NOW)) {
             return dateTime;
         }
@@ -129,7 +132,6 @@ public class TimeUtils {
             throw new RuntimeException(message);
         }
 
-        LocalDateTime relativeDateTime = dateTime;
 
         if (matcher.group("offset") != null) {
             relativeDateTime = applyOffset(
