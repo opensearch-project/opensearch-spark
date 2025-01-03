@@ -626,9 +626,7 @@ class FlintSparkPPLAppendColITSuite
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] =
-      Array(
-        Row("USA", 50.0, 50.0),
-        Row("Canada", 22.5, 22.5))
+      Array(Row("USA", 50.0, 50.0), Row("Canada", 22.5, 22.5))
     // Compare the results
     results.foreach(row => println(row))
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, String](_.getAs[String](0))
@@ -636,7 +634,6 @@ class FlintSparkPPLAppendColITSuite
 
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
-
 
     /*
      *       :- 'SubqueryAlias APPENDCOL_T1
@@ -651,19 +648,24 @@ class FlintSparkPPLAppendColITSuite
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Project(
           Seq(UnresolvedAttribute("country"), UnresolvedAttribute("avg_age1")),
-          Aggregate(COUNTRY_ALIAS :: Nil,
-            Seq(Alias(
-              UnresolvedFunction(Seq("AVG"), Seq(UnresolvedAttribute("age")), isDistinct = false),
-              "avg_age1")(), COUNTRY_ALIAS),
+          Aggregate(
+            COUNTRY_ALIAS :: Nil,
+            Seq(
+              Alias(
+                UnresolvedFunction(
+                  Seq("AVG"),
+                  Seq(UnresolvedAttribute("age")),
+                  isDistinct = false),
+                "avg_age1")(),
+              COUNTRY_ALIAS),
             RELATION_TEST_TABLE))))
 
-
     /*
-   *       +- 'SubqueryAlias APPENDCOL_T2
-   *          +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#981, *]
-   *             +- 'Project ['avg_age2]
-   *                +- 'Aggregate ['country AS country#979], ['AVG('age) AS avg_age2#978, 'country AS country#979]
-   *                   +- 'UnresolvedRelation [testTable], [], false
+     *       +- 'SubqueryAlias APPENDCOL_T2
+     *          +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#981, *]
+     *             +- 'Project ['avg_age2]
+     *                +- 'Aggregate ['country AS country#979], ['AVG('age) AS avg_age2#978, 'country AS country#979]
+     *                   +- 'UnresolvedRelation [testTable], [], false
      */
     val t2 = SubqueryAlias(
       "APPENDCOL_T2",
@@ -671,12 +673,17 @@ class FlintSparkPPLAppendColITSuite
         Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
         Project(
           Seq(UnresolvedAttribute("avg_age2")),
-          Aggregate(COUNTRY_ALIAS :: Nil,
-            Seq(Alias(
-              UnresolvedFunction(Seq("AVG"), Seq(UnresolvedAttribute("age")), isDistinct = false),
-              "avg_age2")(), COUNTRY_ALIAS),
+          Aggregate(
+            COUNTRY_ALIAS :: Nil,
+            Seq(
+              Alias(
+                UnresolvedFunction(
+                  Seq("AVG"),
+                  Seq(UnresolvedAttribute("age")),
+                  isDistinct = false),
+                "avg_age2")(),
+              COUNTRY_ALIAS),
             RELATION_TEST_TABLE))))
-
 
     val expectedPlan = Project(
       Seq(UnresolvedStar(None)),
