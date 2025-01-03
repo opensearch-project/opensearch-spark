@@ -163,7 +163,8 @@ public class TimeUtilsTest {
 
     private void testInvalid(String relativeDateTimeString, String expectedExceptionMessage) {
         String testMessage = String.format("\"%s\"", relativeDateTimeString);
-        String actualExceptionMessage = assertThrows(testMessage, RuntimeException.class, () -> TimeUtils.getRelativeDateTime(relativeDateTimeString, dateTime)).getMessage();
+        String actualExceptionMessage = assertThrows(testMessage, RuntimeException.class,
+                () -> TimeUtils.getRelativeDateTime(relativeDateTimeString, dateTime)).getMessage();
         assertEquals(expectedExceptionMessage, actualExceptionMessage);
     }
 }
