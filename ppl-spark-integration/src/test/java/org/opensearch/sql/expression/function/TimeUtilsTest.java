@@ -9,13 +9,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 import org.junit.Test;
 
 public class TimeUtilsTest {
 
     // Monday, Jan 03, 2000 @ 01:01:01.100
-    private final LocalDateTime dateTime = LocalDateTime.parse("2000-01-03T01:01:01.100");
+    private final LocalDateTime MOCK_DATETIME = LocalDateTime.parse("2000-01-03T01:01:01.100");
 
     @Test
     public void testRelative() {
@@ -105,6 +106,7 @@ public class TimeUtilsTest {
         testValid("+year", "2001-01-03T01:01:01.100");
         testValid("+years", "2001-01-03T01:01:01.100");
 
+        testInvalid("+ms", "The relative date time unit 'ms' is not supported.");
         testInvalid("+1INVALID", "The relative date time unit 'INVALID' is not supported.");
     }
 
@@ -164,19 +166,21 @@ public class TimeUtilsTest {
         testValid("@w7", "2000-01-02T00:00");
 
         testInvalid("@INVALID", "The relative date time unit 'INVALID' is not supported.");
+        testInvalid("@ms", "The relative date time unit 'ms' is not supported.");
+        testInvalid("@w8", "The relative date time unit 'w8' is not supported.");
     }
 
     private void testValid(String relativeDateTimeString, String expectedDateTimeString) {
         String testMessage = String.format("\"%s\"", relativeDateTimeString);
         LocalDateTime expectedDateTime = LocalDateTime.parse(expectedDateTimeString);
-        LocalDateTime actualDateTime = TimeUtils.getRelativeDateTime(relativeDateTimeString, dateTime);
+        LocalDateTime actualDateTime = TimeUtils.getRelativeDateTime(relativeDateTimeString, MOCK_DATETIME);
         assertEquals(testMessage, expectedDateTime, actualDateTime);
     }
 
     private void testInvalid(String relativeDateTimeString, String expectedExceptionMessage) {
         String testMessage = String.format("\"%s\"", relativeDateTimeString);
         String actualExceptionMessage = assertThrows(testMessage, RuntimeException.class,
-                () -> TimeUtils.getRelativeDateTime(relativeDateTimeString, dateTime)).getMessage();
+                () -> TimeUtils.getRelativeDateTime(relativeDateTimeString, MOCK_DATETIME)).getMessage();
         assertEquals(expectedExceptionMessage, actualExceptionMessage);
     }
 }
