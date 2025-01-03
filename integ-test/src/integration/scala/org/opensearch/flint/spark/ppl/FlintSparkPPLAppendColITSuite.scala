@@ -5,15 +5,14 @@
 
 package org.opensearch.flint.spark.ppl
 
-import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 import org.opensearch.sql.ppl.utils.SortUtils
-
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, CurrentRow, EqualTo, Literal, RowFrame, RowNumber, SpecifiedWindowFrame, UnboundedPreceding, WindowExpression, WindowSpecDefinition}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Ascending$, CurrentRow, EqualTo, Literal, RowFrame, RowNumber, SortOrder, SpecifiedWindowFrame, UnboundedPreceding, WindowExpression, WindowSpecDefinition}
 import org.apache.spark.sql.catalyst.plans.FullOuter
-import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.catalyst.plans.logical.{Project, _}
 import org.apache.spark.sql.streaming.StreamTest
+import org.apache.spark.sql.types.DataTypes
 
 class FlintSparkPPLAppendColITSuite
     extends QueryTest
@@ -411,5 +410,186 @@ class FlintSparkPPLAppendColITSuite
         Join(t1, t2, FullOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
+
+
+  // @formatter:off
+  /**
+   * In the case that sub-query return more result rows than main-query, null will be used for padding,
+   * expected logical plan:
+   * 'Project [*]
+   * +- 'DataFrameDropColumns ['APPENDCOL_T1._row_number_, 'APPENDCOL_T2._row_number_]
+   * +- 'Join FullOuter, ('APPENDCOL_T1._row_number_ = 'APPENDCOL_T2._row_number_)
+   * :- 'SubqueryAlias APPENDCOL_T1
+   * :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#225, *]
+   * :     +- 'GlobalLimit 1
+   * :        +- 'LocalLimit 1
+   * :           +- 'Project ['name, 'age]
+   * :              +- 'Sort ['age ASC NULLS FIRST], true
+   * :                 +- 'UnresolvedRelation [flint_ppl_test], [], false
+   * +- 'SubqueryAlias APPENDCOL_T2
+   * +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#227, *]
+   * +- 'Project ['state]
+   * +- 'Sort ['age ASC NULLS FIRST], true
+   * +- 'UnresolvedRelation [flint_ppl_test], [], false
+   *
+   */
+  // @formatter:on
+  test("test AppendCol with Null on main-query") {
+    val frame = sql(s"""
+                       | source = $testTable | sort age | FIELDS name, age | head 1 | APPENDCOL [sort age | FIELDS state ];
+                       | """.stripMargin)
+
+    assert(
+      frame.columns.sameElements(
+        Array("name", "age", "state")))
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(
+        Row("Jane", 20, "Quebec"),
+        Row(null, null, "Ontario"),
+        Row(null, null, "New York"),
+        Row(null, null, "California"),
+        )
+    // Compare the results
+    assert(results.sameElements(expectedResults))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    /*
+      :- 'SubqueryAlias APPENDCOL_T1
+      :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#225, *]
+      :     +- 'GlobalLimit 1
+      :        +- 'LocalLimit 1
+      :           +- 'Project ['name, 'age]
+      :              +- 'Sort ['age ASC NULLS FIRST], true
+      :                 +- 'UnresolvedRelation [flint_ppl_test], [], false
+     */
+    val t1 = SubqueryAlias(
+      "APPENDCOL_T1",
+      Project(Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
+        Limit(Literal(1, DataTypes.IntegerType),
+        Project(Seq(
+            UnresolvedAttribute("name"),
+            UnresolvedAttribute("age")), Sort(SortUtils.sortOrder(UnresolvedAttribute("age"), true) :: Nil, true, RELATION_TEST_TABLE)))))
+
+
+    /*
+    +- 'SubqueryAlias APPENDCOL_T2
+     +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#244, *]
+        +- 'Project ['state]
+           +- 'Sort ['age ASC NULLS FIRST], true
+              +- 'UnresolvedRelation [flint_ppl_test], [], false
+     */
+    val t2 = SubqueryAlias(
+      "APPENDCOL_T2",
+      Project(
+        Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
+        Project(
+          Seq(UnresolvedAttribute("state")),
+          Sort(SortUtils.sortOrder(UnresolvedAttribute("age"), true) :: Nil, true,
+            RELATION_TEST_TABLE))))
+
+    val expectedPlan = Project(
+      Seq(UnresolvedStar(None)),
+      DataFrameDropColumns(
+        T12_COLUMNS_SEQ,
+        Join(t1, t2, FullOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  // @formatter:off
+  /**
+   * In the case that sub-query return more result rows than main-query, null will be used for padding,
+   * expected logical plan:
+   * 'Project [*]
+   * +- 'DataFrameDropColumns ['APPENDCOL_T1._row_number_, 'APPENDCOL_T2._row_number_]
+   *    +- 'Join FullOuter, ('APPENDCOL_T1._row_number_ = 'APPENDCOL_T2._row_number_)
+   *       :- 'SubqueryAlias APPENDCOL_T1
+   *       :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#289, *]
+   *       :     +- 'Project ['name, 'age]
+   *       :        +- 'Sort ['age ASC NULLS FIRST], true
+   *       :           +- 'UnresolvedRelation [flint_ppl_test], [], false
+   *       +- 'SubqueryAlias APPENDCOL_T2
+   *          +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#291, *]
+   *             +- 'GlobalLimit 1
+   *                +- 'LocalLimit 1
+   *                   +- 'Project ['state]
+   *                      +- 'Sort ['age ASC NULLS FIRST], true
+   *                         +- 'UnresolvedRelation [flint_ppl_test], [], false
+   *
+   */
+  // @formatter:on
+  test("test AppendCol with Null on sub-query") {
+    val frame = sql(s"""
+                       | source = $testTable | sort age | FIELDS name, age | APPENDCOL [sort age | FIELDS state | head 1 ];
+                       | """.stripMargin)
+
+    assert(
+      frame.columns.sameElements(
+        Array("name", "age", "state")))
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    val expectedResults: Array[Row] =
+      Array(
+        Row("Jane", 20, "Quebec"),
+        Row("John", 25, null),
+        Row("Hello", 30, null),
+        Row("Jake", 70, null),
+      )
+    // Compare the results
+    assert(results.sameElements(expectedResults))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    /*
+       * 'Project [*]
+       * +- 'DataFrameDropColumns ['APPENDCOL_T1._row_number_, 'APPENDCOL_T2._row_number_]
+       *    +- 'Join FullOuter, ('APPENDCOL_T1._row_number_ = 'APPENDCOL_T2._row_number_)
+       *       :- 'SubqueryAlias APPENDCOL_T1
+       *       :  +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#289, *]
+       *       :     +- 'Project ['name, 'age]
+       *       :        +- 'Sort ['age ASC NULLS FIRST], true
+       *       :           +- 'UnresolvedRelation [flint_ppl_test], [], false
+     */
+    val t1 = SubqueryAlias(
+      "APPENDCOL_T1",
+      Project(Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
+        Project(Seq(
+          UnresolvedAttribute("name"),
+          UnresolvedAttribute("age")), Sort(SortUtils.sortOrder(UnresolvedAttribute("age"), true) :: Nil, true, RELATION_TEST_TABLE))))
+
+
+    /*
+     *       +- 'SubqueryAlias APPENDCOL_T2
+     *          +- 'Project [row_number() windowspecdefinition(1 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS _row_number_#291, *]
+     *             +- 'GlobalLimit 1
+     *                +- 'LocalLimit 1
+     *                   +- 'Project ['state]
+     *                      +- 'Sort ['age ASC NULLS FIRST], true
+     *                         +- 'UnresolvedRelation [flint_ppl_test], [], false
+     */
+    val t2 = SubqueryAlias(
+      "APPENDCOL_T2",
+      Project(
+        Seq(ROW_NUMBER_AGGREGATION, UnresolvedStar(None)),
+        Limit(Literal(1, DataTypes.IntegerType),
+        Project(
+          Seq(UnresolvedAttribute("state")),
+          Sort(SortUtils.sortOrder(UnresolvedAttribute("age"), true) :: Nil, true,
+            RELATION_TEST_TABLE)))))
+
+    val expectedPlan = Project(
+      Seq(UnresolvedStar(None)),
+      DataFrameDropColumns(
+        T12_COLUMNS_SEQ,
+        Join(t1, t2, FullOuter, Some(T12_JOIN_CONDITION), JoinHint.NONE)))
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
 
 }
