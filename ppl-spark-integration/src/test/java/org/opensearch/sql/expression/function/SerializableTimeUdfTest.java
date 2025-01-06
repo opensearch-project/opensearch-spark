@@ -37,9 +37,10 @@ public class SerializableTimeUdfTest {
     @Test
     public void relativeDateTimeTest() {
 
-        /** These are only basic tests of the relative date time functionality.
-         * For more comprehensive tests, see {@link TimeUtilsTest}.
+        /* These are only basic tests of the relative date time functionality.
+          For more comprehensive tests, see {@link TimeUtilsTest}.
          */
+
         testValid("now", "2000-01-03T01:01:01.100");
         testValid("-60m", "2000-01-03T00:01:01.100");
         testValid("-h", "2000-01-03T00:01:01.100");
