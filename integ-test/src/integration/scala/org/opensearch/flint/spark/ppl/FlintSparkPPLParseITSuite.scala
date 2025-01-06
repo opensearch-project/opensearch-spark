@@ -211,11 +211,16 @@ class FlintSparkPPLParseITSuite
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 
-  test("test parse email & host expressions including cast and sort commands") {
+  test("test parse street number & street expressions including cast and sort commands") {
 
     // TODO #963: Implement 'num', 'str', and 'ip' sort syntax
     val frame = sql(s"""
-         | source=$testTable | parse address '(?<streetNumber>\\d+) (?<street>.+)' | eval streetNumberInt = cast(streetNumber as integer) | where streetNumberInt > 500 | sort streetNumberInt | fields streetNumber, street
+         | source = $testTable |
+         | parse address '(?<streetNumber>\\d+) (?<street>.+)' |
+         | eval streetNumberInt = cast(streetNumber as integer) |
+         | where streetNumberInt > 500 |
+         | sort streetNumberInt |
+         | fields streetNumber, street
          | """.stripMargin)
     // Retrieve the results
     val results: Array[Row] = frame.collect()
@@ -264,5 +269,4 @@ class FlintSparkPPLParseITSuite
 
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
-
 }

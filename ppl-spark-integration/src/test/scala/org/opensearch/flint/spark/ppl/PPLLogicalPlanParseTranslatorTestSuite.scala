@@ -121,7 +121,7 @@ class PPLLogicalPlanParseTranslatorTestSuite
     assert(compareByString(expectedPlan) === compareByString(logPlan))
   }
 
-  test("test parse email & host expressions including cast and sort commands") {
+  test("test parse street number & street expressions including cast and sort commands") {
     val context = new CatalystPlanContext
 
     // TODO #963: Implement 'num', 'str', and 'ip' sort syntax
