@@ -83,7 +83,7 @@ USING:                              'USING';
 WITH:                               'WITH';
 
 // SORT FIELD KEYWORDS
-// TODO #963: Implement sort syntax
+// TODO #963: Implement 'num', 'str', and 'ip' sort syntax
 AUTO:                               'AUTO';
 STR:                                'STR';
 IP:                                 'IP';

@@ -521,7 +521,7 @@ sortField
 sortFieldExpression
    : fieldExpression
 
-   // TODO #963: Implement sort syntax
+   // TODO #963: Implement 'num', 'str', and 'ip' sort syntax
    | AUTO LT_PRTHS fieldExpression RT_PRTHS
    | STR LT_PRTHS fieldExpression RT_PRTHS
    | IP LT_PRTHS fieldExpression RT_PRTHS

@@ -124,7 +124,7 @@ class PPLLogicalPlanParseTranslatorTestSuite
   test("test parse email & host expressions including cast and sort commands") {
     val context = new CatalystPlanContext
 
-    // TODO #963: Implement sort syntax
+    // TODO #963: Implement 'num', 'str', and 'ip' sort syntax
     val query =
       "source=t" +
         " | parse address '(?<streetNumber>\\d+) (?<street>.+)'" +
