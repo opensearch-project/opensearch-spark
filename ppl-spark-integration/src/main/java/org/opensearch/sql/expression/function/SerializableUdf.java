@@ -23,6 +23,7 @@ import scala.collection.mutable.WrappedArray;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,9 @@ import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 
 public interface SerializableUdf {
 
+    abstract class SerializableAbstractFunction1<T1,R> extends AbstractFunction1<T1,R>
+            implements Serializable {
+    }
 
     abstract class SerializableAbstractFunction2<T1, T2, R> extends AbstractFunction2<T1, T2, R>
             implements Serializable {
@@ -197,9 +201,15 @@ public interface SerializableUdf {
         };
     }
 
-    abstract class SerializableAbstractFunction1<T1,R> extends AbstractFunction1<T1,R>
-            implements Serializable {
-    }
+    Function1<String, String> relativeDateTimeFunction = new SerializableAbstractFunction1<String, String>() {
+        @Override
+        public String apply(String relativeDateTimeString) {
+
+            // TODO #991 - Get current datetime from Spark
+            LocalDateTime currentDateTime = LocalDateTime.now();
+            return TimeUtils.getRelativeDateTime(relativeDateTimeString, currentDateTime).toString();
+        }
+    };
 
     /**
      * Get the function reference according to its name
@@ -252,6 +262,15 @@ public interface SerializableUdf {
                         seq(),
                         Option.empty(),
                         Option.apply("ip_to_int"),
+                        false,
+                        true);
+            case "relative_datetime":
+                return new ScalaUDF(relativeDateTimeFunction,
+                        DataTypes.StringType,
+                        seq(expressions),
+                        seq(),
+                        Option.empty(),
+                        Option.apply("relative_datetime"),
                         false,
                         true);
             default:

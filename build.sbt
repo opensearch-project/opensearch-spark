@@ -195,6 +195,7 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
       "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
       "org.projectlombok" % "lombok" % "1.18.30",
       "com.github.seancfoley" % "ipaddress" % "5.5.1",
+      "org.mockito" % "mockito-inline" % "4.6.0" % "test",
     ),
     libraryDependencies ++= deps(sparkVersion),
     // ANTLR settings
