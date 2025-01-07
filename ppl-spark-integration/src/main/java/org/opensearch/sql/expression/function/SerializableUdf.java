@@ -13,17 +13,23 @@ import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.types.DataTypes;
 import scala.Function1;
 import scala.Function2;
+import scala.Function3;
 import scala.Option;
 import scala.Serializable;
 import scala.runtime.AbstractFunction1;
 import scala.runtime.AbstractFunction2;
+import scala.runtime.AbstractFunction3;
 import scala.collection.JavaConverters;
 import scala.collection.mutable.WrappedArray;
 
+import java.lang.Boolean;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +47,10 @@ public interface SerializableUdf {
     }
 
     abstract class SerializableAbstractFunction2<T1, T2, R> extends AbstractFunction2<T1, T2, R>
+            implements Serializable {
+    }
+
+    abstract class SerializableAbstractFunction3<T1, T2, T3, R> extends AbstractFunction3<T1, T2, T3, R>
             implements Serializable {
     }
 
@@ -113,7 +123,7 @@ public interface SerializableUdf {
             }
         }
     };
-    
+
     Function2<String, String, Boolean> cidrFunction = new SerializableAbstractFunction2<>() {
 
         IPAddressStringParameters valOptions = new IPAddressStringParameters.Builder()
@@ -201,13 +211,18 @@ public interface SerializableUdf {
         };
     }
 
-    Function1<String, String> relativeDateTimeFunction = new SerializableAbstractFunction1<String, String>() {
+    /**
+     * Returns the {@link Instant} corresponding to the given relative string, current instant, and time zone identifier.
+     * Throws {@link RuntimeException} if the relative timestamp string is not supported.
+     */
+    Function3<String, Instant, String, Instant> relativeTimestampFunction = new SerializableAbstractFunction3<String, Instant, String, Instant>() {
         @Override
-        public String apply(String relativeDateTimeString) {
+        public Instant apply(String relativeDateTimeString, Instant currentInstant, String zoneIdString) {
+            ZoneId zoneId = ZoneId.of(zoneIdString);
+            LocalDateTime currentLocalDateTime = LocalDateTime.ofInstant(currentInstant, zoneId);
+            LocalDateTime relativeLocalDateTime = TimeUtils.getRelativeLocalDateTime(relativeDateTimeString, currentLocalDateTime);
 
-            // TODO #991 - Get current datetime from Spark
-            LocalDateTime currentDateTime = LocalDateTime.now();
-            return TimeUtils.getRelativeDateTime(relativeDateTimeString, currentDateTime).toString();
+            return relativeLocalDateTime.atZone(zoneId).toInstant();
         }
     };
 
@@ -264,13 +279,13 @@ public interface SerializableUdf {
                         Option.apply("ip_to_int"),
                         false,
                         true);
-            case "relative_datetime":
-                return new ScalaUDF(relativeDateTimeFunction,
-                        DataTypes.StringType,
+            case "relative_timestamp":
+                return new ScalaUDF(relativeTimestampFunction,
+                        DataTypes.TimestampType,
                         seq(expressions),
                         seq(),
                         Option.empty(),
-                        Option.apply("relative_datetime"),
+                        Option.apply("relative_timestamp"),
                         false,
                         true);
             default:

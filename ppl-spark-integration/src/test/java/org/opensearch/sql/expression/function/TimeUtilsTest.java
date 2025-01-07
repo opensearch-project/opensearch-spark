@@ -9,7 +9,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 
 import org.junit.Test;
 
@@ -173,14 +172,14 @@ public class TimeUtilsTest {
     private void testValid(String relativeDateTimeString, String expectedDateTimeString) {
         String testMessage = String.format("\"%s\"", relativeDateTimeString);
         LocalDateTime expectedDateTime = LocalDateTime.parse(expectedDateTimeString);
-        LocalDateTime actualDateTime = TimeUtils.getRelativeDateTime(relativeDateTimeString, MOCK_DATETIME);
+        LocalDateTime actualDateTime = TimeUtils.getRelativeLocalDateTime(relativeDateTimeString, MOCK_DATETIME);
         assertEquals(testMessage, expectedDateTime, actualDateTime);
     }
 
     private void testInvalid(String relativeDateTimeString, String expectedExceptionMessage) {
         String testMessage = String.format("\"%s\"", relativeDateTimeString);
         String actualExceptionMessage = assertThrows(testMessage, RuntimeException.class,
-                () -> TimeUtils.getRelativeDateTime(relativeDateTimeString, MOCK_DATETIME)).getMessage();
+                () -> TimeUtils.getRelativeLocalDateTime(relativeDateTimeString, MOCK_DATETIME)).getMessage();
         assertEquals(expectedExceptionMessage, actualExceptionMessage);
     }
 }
