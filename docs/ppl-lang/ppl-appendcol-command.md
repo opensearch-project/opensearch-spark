@@ -95,6 +95,26 @@ PPL query:
     | Jeff | Marketing   | NULL             |
     +------+-------------+------------------+
 
+#### Example 5: AppendCol command with duplicated columns
+
+The example demonstrate what could happen when conflicted columns exist, with `override` set to false or absent.
+In this particular case, average aggregation is being performed over column `age` with group-by `dept`, on main and sub query respectively.
+As the result, `dept` and `avg_age1` will be returned by the main query, with `avg_age2` and `dept` for the sub-query,
+and take into consideration `override` is absent, duplicated columns won't be dropped, hence all four columns will be displayed as the final result.
+
+PPL query:
+
+    os> source=employees | stats avg(age) as avg_age1 by dept | APPENDCOL  [ stats avg(age) as avg_age2 by dept ];
+    fetched rows / total rows = 3/3
+    +------------+--------------+------------+--------------+
+    | Avg Age 1  | Dept         | Avg Age 2  | Dept         |
+    +------------+--------------+------------+--------------+
+    |   35.33    | Sales        |   35.33    | Sales        |
+    |   27.25    | Engineering  |   27.25    | Engineering  |
+    |   33.00    | Marketing    |   33.00    | Marketing    |
+    +------------+--------------+------------+--------------+
+
+
 ### Limitation: 
 When override is set to true, only `FIELDS` and `STATS` commands are allowed as the final clause in a sub-search. 
 Otherwise, an IllegalStateException with the message `Not Supported operation: APPENDCOL should specify the output fields` will be thrown.
