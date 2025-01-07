@@ -6,8 +6,6 @@
 package org.opensearch.flint.core.storage;
 
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
@@ -15,8 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.opensearch.flint.core.FlintOptions;
 
 class BulkRequestRateLimiterTest {
-  FlintOptions flintOptionsWithRateLimit = new FlintOptions(ImmutableMap.of(FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE, "1"));
-  FlintOptions flintOptionsWithoutRateLimit = new FlintOptions(ImmutableMap.of(FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE, "0"));
+  FlintOptions flintOptionsWithRateLimit = new FlintOptions(ImmutableMap.of(FlintOptions.BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE, "1"));
+  FlintOptions flintOptionsWithoutRateLimit = new FlintOptions(ImmutableMap.of(FlintOptions.BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE, "0"));
 
   @Test
   void acquirePermitWithRateConfig() throws Exception {

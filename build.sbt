@@ -121,6 +121,7 @@ lazy val flintCore = (project in file("flint-core"))
         exclude ("org.apache.httpcomponents.client5", "httpclient5"),
       "org.opensearch" % "opensearch-job-scheduler-spi" % opensearchMavenVersion,
       "dev.failsafe" % "failsafe" % "3.3.2",
+      "com.google.guava" % "guava" % "33.3.1-jre",
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
       "com.amazonaws" % "aws-java-sdk-cloudwatch" % "1.12.593"
