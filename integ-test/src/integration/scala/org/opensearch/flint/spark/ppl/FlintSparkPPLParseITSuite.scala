@@ -214,14 +214,13 @@ class FlintSparkPPLParseITSuite
   test("test parse street number & street expressions including cast and sort commands") {
 
     // TODO #963: Implement 'num', 'str', and 'ip' sort syntax
-    val frame = sql(s"""
-         | source = $testTable |
-         | parse address '(?<streetNumber>\\d+) (?<street>.+)' |
-         | eval streetNumberInt = cast(streetNumber as integer) |
-         | where streetNumberInt > 500 |
-         | sort streetNumberInt |
-         | fields streetNumber, street
-         | """.stripMargin)
+    val query = s"source = $testTable | " +
+      "parse street_address '(?<streetNumber>\\d+) (?<street>.+)' | " +
+      "eval streetNumberInt = cast(streetNumber as integer) | " +
+      "where streetNumberInt > 500 | " +
+      "sort streetNumberInt | " +
+      "fields streetNumber, street"
+    val frame = sql(query)
     // Retrieve the results
     val results: Array[Row] = frame.collect()
     // Define the expected results
@@ -237,16 +236,16 @@ class FlintSparkPPLParseITSuite
     // Retrieve the logical plan
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
 
-    val addressAttribute = UnresolvedAttribute("address")
+    val streetAddressAttribute = UnresolvedAttribute("street_address")
     val streetNumberAttribute = UnresolvedAttribute("streetNumber")
     val streetAttribute = UnresolvedAttribute("street")
     val streetNumberIntAttribute = UnresolvedAttribute("streetNumberInt")
 
     val regexLiteral = Literal("(?<streetNumber>\\d+) (?<street>.+)")
     val streetNumberExpression =
-      Alias(RegExpExtract(addressAttribute, regexLiteral, Literal("1")), "streetNumber")()
+      Alias(RegExpExtract(streetAddressAttribute, regexLiteral, Literal("1")), "streetNumber")()
     val streetExpression =
-      Alias(RegExpExtract(addressAttribute, regexLiteral, Literal("2")), "street")()
+      Alias(RegExpExtract(streetAddressAttribute, regexLiteral, Literal("2")), "street")()
 
     val castExpression = Cast(streetNumberAttribute, IntegerType)
 
@@ -261,11 +260,11 @@ class FlintSparkPPLParseITSuite
             Seq(UnresolvedStar(None), Alias(castExpression, "streetNumberInt")()),
             Project(
               Seq(
-                addressAttribute,
+                streetAddressAttribute,
                 streetNumberExpression,
                 streetExpression,
                 UnresolvedStar(None)),
-              UnresolvedRelation(Seq("t")))))))
+              UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))))))
 
     assert(compareByString(expectedPlan) === compareByString(logicalPlan))
   }
