@@ -24,11 +24,11 @@ public class TimeUtils {
     private static final String NOW = "now";
     private static final String NEGATIVE_SIGN = "-";
 
-    // Pattern for relative date time string.
+    // Pattern for relative string.
     private static final String OFFSET_PATTERN_STRING = "(?<offsetSign>[+-])(?<offsetValue>\\d+)?(?<offsetUnit>\\w+)";
     private static final String SNAP_PATTERN_STRING = "[@](?<snapUnit>\\w+)";
 
-    private static final Pattern RELATIVE_DATE_TIME_PATTERN = Pattern.compile(String.format(
+    private static final Pattern RELATIVE_PATTERN = Pattern.compile(String.format(
             "(?<offset>%s)?(?<snap>%s)?", OFFSET_PATTERN_STRING, SNAP_PATTERN_STRING),
             Pattern.CASE_INSENSITIVE);
 
@@ -115,46 +115,46 @@ public class TimeUtils {
     static final int MONTHS_PER_QUARTER = 3;
 
     /**
-     * Returns the {@link LocalDateTime} corresponding to the given relative date time string and date time.
-     * Throws {@link RuntimeException} if the relative date time string is not supported.
+     * Returns the {@link LocalDateTime} corresponding to the given relative string and local date time.
+     * Throws {@link RuntimeException} if the relative string is not supported.
      */
-    public static LocalDateTime getRelativeDateTime(String relativeDateTimeString, LocalDateTime dateTime) {
+    public static LocalDateTime getRelativeLocalDateTime(String relativeString, LocalDateTime localDateTime) {
 
-        LocalDateTime relativeDateTime = dateTime;
+        LocalDateTime relativeLocalDateTime = localDateTime;
 
-        if (relativeDateTimeString.equalsIgnoreCase(NOW)) {
-            return dateTime;
+        if (relativeString.equalsIgnoreCase(NOW)) {
+            return localDateTime;
         }
 
-        Matcher matcher = RELATIVE_DATE_TIME_PATTERN.matcher(relativeDateTimeString);
+        Matcher matcher = RELATIVE_PATTERN.matcher(relativeString);
         if (!matcher.matches()) {
-            String message = String.format("The relative date time '%s' is not supported.", relativeDateTimeString);
+            String message = String.format("The relative date time '%s' is not supported.", relativeString);
             throw new RuntimeException(message);
         }
 
 
         if (matcher.group("offset") != null) {
-            relativeDateTime = applyOffset(
-                    relativeDateTime,
+            relativeLocalDateTime = applyOffset(
+                    relativeLocalDateTime,
                     matcher.group("offsetSign"),
                     matcher.group("offsetValue"),
                     matcher.group("offsetUnit"));
         }
 
         if (matcher.group("snap") != null) {
-            relativeDateTime = applySnap(
-                    relativeDateTime,
+            relativeLocalDateTime = applySnap(
+                    relativeLocalDateTime,
                     matcher.group("snapUnit"));
         }
 
-        return relativeDateTime;
+        return relativeLocalDateTime;
     }
 
     /**
      * Applies the offset specified by the offset sign, value,
-     * and unit to the given date time, and returns the result.
+     * and unit to the given local date time, and returns the result.
      */
-    private LocalDateTime applyOffset(LocalDateTime dateTime, String offsetSign, String offsetValue, String offsetUnit) {
+    private LocalDateTime applyOffset(LocalDateTime localDateTime, String offsetSign, String offsetValue, String offsetUnit) {
 
         int offsetValueInt = Optional.ofNullable(offsetValue).map(Integer::parseInt).orElse(1);
         if (offsetSign.equals(NEGATIVE_SIGN)) {
@@ -170,12 +170,12 @@ public class TimeUtils {
 
         if (DURATION_FOR_TIME_UNIT_MAP.containsKey(offsetUnitLowerCase)) {
             Duration offsetDuration = DURATION_FOR_TIME_UNIT_MAP.get(offsetUnitLowerCase).multipliedBy(offsetValueInt);
-            return dateTime.plus(offsetDuration);
+            return localDateTime.plus(offsetDuration);
         }
 
         if (PERIOD_FOR_TIME_UNIT_MAP.containsKey(offsetUnitLowerCase)) {
             Period offsetPeriod = PERIOD_FOR_TIME_UNIT_MAP.get(offsetUnitLowerCase).multipliedBy(offsetValueInt);
-            return dateTime.plus(offsetPeriod);
+            return localDateTime.plus(offsetPeriod);
         }
 
         String message = String.format("The relative date time unit '%s' is not supported.", offsetUnit);
@@ -183,33 +183,33 @@ public class TimeUtils {
     }
 
     /**
-     * Snaps the given date time to the start of the previous time
+     * Snaps the given local date time to the start of the previous time
      * period specified by the given snap unit, and returns the result.
      */
-    private LocalDateTime applySnap(LocalDateTime dateTime, String snapUnit) {
+    private LocalDateTime applySnap(LocalDateTime localDateTime, String snapUnit) {
 
         // Convert to lower case to make case-insensitive.
         String snapUnitLowerCase = snapUnit.toLowerCase();
 
         if (SECOND_UNITS_SET.contains(snapUnitLowerCase)) {
-            return dateTime.truncatedTo(ChronoUnit.SECONDS);
+            return localDateTime.truncatedTo(ChronoUnit.SECONDS);
         } else if (MINUTE_UNITS_SET.contains(snapUnitLowerCase)) {
-            return dateTime.truncatedTo(ChronoUnit.MINUTES);
+            return localDateTime.truncatedTo(ChronoUnit.MINUTES);
         } else if (HOUR_UNITS_SET.contains(snapUnitLowerCase)) {
-            return dateTime.truncatedTo(ChronoUnit.HOURS);
+            return localDateTime.truncatedTo(ChronoUnit.HOURS);
         } else if (DAY_UNITS_SET.contains(snapUnitLowerCase)) {
-            return dateTime.truncatedTo(ChronoUnit.DAYS);
+            return localDateTime.truncatedTo(ChronoUnit.DAYS);
         } else if (WEEK_UNITS_SET.contains(snapUnitLowerCase)) {
-            return applySnapToDayOfWeek(dateTime, DayOfWeek.SUNDAY);
+            return applySnapToDayOfWeek(localDateTime, DayOfWeek.SUNDAY);
         } else if (MONTH_UNITS_SET.contains(snapUnitLowerCase)) {
-            return dateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1);
+            return localDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1);
         } else if (QUARTER_UNITS_SET.contains(snapUnitLowerCase)) {
-            int monthsToSnap = (dateTime.getMonthValue() - 1) % MONTHS_PER_QUARTER;
-            return dateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1).minusMonths(monthsToSnap);
+            int monthsToSnap = (localDateTime.getMonthValue() - 1) % MONTHS_PER_QUARTER;
+            return localDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1).minusMonths(monthsToSnap);
         } else if (YEAR_UNITS_SET.contains(snapUnitLowerCase)) {
-            return dateTime.truncatedTo(ChronoUnit.DAYS).withDayOfYear(1);
+            return localDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfYear(1);
         } else if (DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.containsKey(snapUnitLowerCase)) {
-            return applySnapToDayOfWeek(dateTime, DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.get(snapUnit));
+            return applySnapToDayOfWeek(localDateTime, DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.get(snapUnit));
         }
 
         String message = String.format("The relative date time unit '%s' is not supported.", snapUnit);

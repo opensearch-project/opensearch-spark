@@ -8,20 +8,10 @@ package org.opensearch.sql.ppl.utils;
 import com.google.common.collect.ImmutableMap;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction$;
-import org.apache.spark.sql.catalyst.expressions.CurrentTimeZone$;
-import org.apache.spark.sql.catalyst.expressions.CurrentTimestamp$;
-import org.apache.spark.sql.catalyst.expressions.DateAddInterval$;
-import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.catalyst.expressions.Literal$;
-import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
-import org.apache.spark.sql.catalyst.expressions.TimestampAdd$;
-import org.apache.spark.sql.catalyst.expressions.TimestampDiff$;
-import org.apache.spark.sql.catalyst.expressions.ToUTCTimestamp$;
-import org.apache.spark.sql.catalyst.expressions.UnaryMinus$;
+import org.apache.spark.sql.catalyst.expressions.*;
 import org.opensearch.sql.ast.expression.IntervalUnit;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
 import org.opensearch.sql.expression.function.SerializableUdf;
-import org.opensearch.sql.ppl.CatalystPlanContext;
 import scala.Option;
 
 import java.util.Arrays;
@@ -58,6 +48,7 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.LENGTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.LOCALTIME;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MINUTE_OF_HOUR;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MONTH_OF_YEAR;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.RELATIVE_TIMESTAMP;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SECOND_OF_MINUTE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SUBDATE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SYSDATE;
@@ -174,6 +165,11 @@ public interface BuiltinFunctionTransformer {
             args -> {
                 return ToUTCTimestamp$.MODULE$.apply(CurrentTimestamp$.MODULE$.apply(), CurrentTimeZone$.MODULE$.apply());
             })
+        .put(
+            RELATIVE_TIMESTAMP,
+            args -> {
+                return SerializableUdf.visit("relative_timestamp", List.of(args.get(0), CurrentTimestamp$.MODULE$.apply(), CurrentTimeZone$.MODULE$.apply()));
+            })
         .build();
 
     static Expression builtinFunction(org.opensearch.sql.ast.expression.Function function, List<Expression> args) {
@@ -182,7 +178,7 @@ public interface BuiltinFunctionTransformer {
             if(udf == null) {
                 throw new UnsupportedOperationException(function.getFuncName() + " is not a builtin function of PPL");
             }
-            return udf;                        
+            return udf;
         } else {
             BuiltinFunctionName builtin = BuiltinFunctionName.of(function.getFuncName()).get();
             String name = SPARK_BUILTIN_FUNCTION_NAME_MAPPING.get(builtin);
