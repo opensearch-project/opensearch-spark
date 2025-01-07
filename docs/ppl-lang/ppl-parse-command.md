@@ -68,8 +68,6 @@ PPL query:
     | 880            | Holmes Lane    |
     +----------------+----------------+
 
-**Note**: The `sort num` syntax is not implemented. To sort numerically, cast to a numerical data type - e.g. `sort cast(streetNumber as integer)`. See [#963](https://github.com/opensearch-project/opensearch-spark/issues/963) for more details.
-
 ### Limitations
 
 There are a few limitations with parse command:
