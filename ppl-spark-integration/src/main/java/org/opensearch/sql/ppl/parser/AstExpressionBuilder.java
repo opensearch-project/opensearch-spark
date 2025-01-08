@@ -49,6 +49,7 @@ import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
+import org.opensearch.sql.ppl.utils.GeoIpCatalystLogicalPlanTranslator;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -448,6 +449,20 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
             Collectors.toList());
         UnresolvedExpression function = visitExpression(ctx.expression());
         return new LambdaFunction(function, arguments);
+    }
+
+    @Override
+    public UnresolvedExpression visitGeoIpPropertyList(OpenSearchPPLParser.GeoIpPropertyListContext ctx) {
+        ImmutableList.Builder<UnresolvedExpression> properties = ImmutableList.builder();
+        if (ctx != null) {
+            for (OpenSearchPPLParser.GeoIpPropertyContext property : ctx.geoIpProperty()) {
+                String propertyName = property.getText().toUpperCase();
+                GeoIpCatalystLogicalPlanTranslator.validateGeoIpProperty(propertyName);
+                properties.add(new Literal(propertyName, DataType.STRING));
+            }
+        }
+
+        return new AttributeList(properties.build());
     }
 
     private List<UnresolvedExpression> timestampFunctionArguments(
