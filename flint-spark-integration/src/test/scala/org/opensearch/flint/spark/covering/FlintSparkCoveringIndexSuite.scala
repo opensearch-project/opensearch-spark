@@ -73,11 +73,7 @@ class FlintSparkCoveringIndexSuite extends FlintSuite {
           options = FlintSparkIndexOptions(Map("id_expression" -> "name")))
 
       val batchDf = index.build(spark, None)
-      batchDf.queryExecution.logical.collectFirst { case Project(projectList, _) =>
-        projectList.collectFirst { case Alias(child, ID_COLUMN) =>
-          child
-        }
-      }.flatten shouldBe Some(UnresolvedAttribute(Seq("name")))
+      batchDf.idColumn() shouldBe Some(UnresolvedAttribute(Seq("name")))
     }
   }
 
@@ -92,11 +88,7 @@ class FlintSparkCoveringIndexSuite extends FlintSuite {
           FlintSparkIndexOptions(Map("auto_refresh" -> "true", "id_expression" -> "name")))
 
       val streamDf = index.build(spark, Some(spark.table(testTable)))
-      streamDf.queryExecution.logical.collectFirst { case Project(projectList, _) =>
-        projectList.collectFirst { case Alias(child, ID_COLUMN) =>
-          child
-        }
-      }.flatten shouldBe Some(UnresolvedAttribute(Seq("name")))
+      streamDf.idColumn() shouldBe Some(UnresolvedAttribute(Seq("name")))
     }
   }
 }
