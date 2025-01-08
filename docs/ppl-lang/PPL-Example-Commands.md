@@ -1,5 +1,10 @@
 ## Example PPL Queries
 
+#### **AppendCol**
+[See additional command details](ppl-appendcol-command.md)
+- `source=employees | stats avg(age) as avg_age1 by dept | fields dept, avg_age1 | APPENDCOL  [ stats avg(age) as avg_age2 by dept | fields avg_age2 ];` (To display multiple table statistics side by side)
+- `source=employees | FIELDS name, dept, age | APPENDCOL OVERRIDE=true [ stats avg(age) as age ];` (When the override option is enabled, fields from the sub-query take precedence over fields in the main query in cases of field name conflicts)
+
 #### **Comment**
 [See additional command details](ppl-comment.md)
 - `source=accounts | top gender // finds most common gender of all the accounts` (line comment)
