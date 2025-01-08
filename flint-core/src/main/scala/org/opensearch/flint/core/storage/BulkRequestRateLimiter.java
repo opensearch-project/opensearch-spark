@@ -30,8 +30,9 @@ public class BulkRequestRateLimiter {
     decreaseRatio = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatio();
 
     if (flintOptions.getBulkRequestRateLimitPerNodeEnabled()) {
-      LOG.info("Setting rate limit for bulk request to " + minRate + "documents/sec");
+      LOG.info("Setting rate limit for bulk request to " + minRate + " documents/sec");
       this.rateLimiter = RateLimiter.create(minRate);
+      MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RATE_LIMIT_METRIC, (long) minRate);
     } else {
       LOG.info("Rate limit for bulk request was not set.");
     }
@@ -60,7 +61,7 @@ public class BulkRequestRateLimiter {
   public void setRate(double permitsPerSecond) {
     if (rateLimiter != null) {
       permitsPerSecond = Math.max(minRate, Math.min(maxRate, permitsPerSecond));
-      LOG.info("Setting rate limit for bulk request to " + permitsPerSecond + "documents/sec");
+      LOG.info("Setting rate limit for bulk request to " + permitsPerSecond + " documents/sec");
       this.rateLimiter.setRate(permitsPerSecond);
       // TODO: now it's using long metric
       MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RATE_LIMIT_METRIC, (long) permitsPerSecond);

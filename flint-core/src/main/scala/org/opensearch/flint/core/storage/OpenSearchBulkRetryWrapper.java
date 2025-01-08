@@ -87,7 +87,7 @@ public class OpenSearchBulkRetryWrapper {
               MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RETRYABLE_RESULT_PERCENTAGE_METRIC, (long) (retryablePercentage * 100));
 
               // TODO: magic number
-              if (retryablePercentage > 0.2) {
+              if (retryablePercentage > 0.4) {
                 rateLimiter.decreaseRate();
               } else {
                 rateLimiter.increaseRate();
