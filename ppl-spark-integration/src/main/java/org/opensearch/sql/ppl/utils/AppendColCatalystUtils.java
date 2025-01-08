@@ -7,6 +7,7 @@ package org.opensearch.sql.ppl.utils;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar;
+import org.apache.spark.sql.catalyst.expressions.EqualTo;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.Literal;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
@@ -21,15 +22,20 @@ import org.apache.spark.unsafe.types.UTF8String;
 import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
+import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ppl.CatalystPlanContext;
 import scala.Option;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
+import static org.opensearch.sql.ppl.utils.JoinSpecTransformer.join;
 import static scala.collection.JavaConverters.seqAsJavaList;
 
 /**
@@ -37,14 +43,19 @@ import static scala.collection.JavaConverters.seqAsJavaList;
  */
 public interface AppendColCatalystUtils {
 
+    String TABLE_LHS = "APPENDCOL_T1";
+    String TABLE_RHS = "APPENDCOL_T2";
+    UnresolvedAttribute t1Attr = new UnresolvedAttribute(seq(TABLE_LHS, WindowSpecTransformer.ROW_NUMBER_COLUMN_NAME));
+    UnresolvedAttribute t2Attr = new UnresolvedAttribute(seq(TABLE_RHS, WindowSpecTransformer.ROW_NUMBER_COLUMN_NAME));
+
+
     /**
      * Responsible to traverse given subSearch Node till the last child, then append the Relation clause,
      * in order to specify the data source || index for the subSearch.
      * @param subSearch User provided sub-search from APPENDCOL command.
      * @param relation Relation clause which represent the dataSource that this sub-search execute upon.
      */
-    static void appendRelationClause(Node subSearch, List<LogicalPlan> relation) {
-
+    static Node appendRelationClause(Node subSearch, List<LogicalPlan> relation) {
         final List<UnresolvedExpression> unresolvedExpressionList = relation.stream()
                 .map(r -> {
                     UnresolvedRelation unresolvedRelation = (UnresolvedRelation) r;
@@ -55,6 +66,7 @@ public interface AppendColCatalystUtils {
                 .distinct()
                 .collect(Collectors.toList());
         final Relation table = new Relation(unresolvedExpressionList);
+        final Node head = subSearch;
         while (subSearch != null) {
             try {
                 subSearch = subSearch.getChild().get(0);
@@ -63,6 +75,7 @@ public interface AppendColCatalystUtils {
                 break;
             }
         }
+        return head;
     }
 
 
@@ -81,6 +94,17 @@ public interface AppendColCatalystUtils {
                     .collect(Collectors.toList());
         }
         return null;
+    }
+
+    /**
+     * To perform check against the given list of expression to override.
+     * @param attrToOverride List of Expression instances to be checked.
+     * @return boolean value to indicate does the incoming list is good for DFDropColumns action.
+     */
+    static boolean isValidOverrideList (List<Expression> attrToOverride) {
+        return attrToOverride != null &&
+                !attrToOverride.isEmpty() &&
+                attrToOverride.stream().noneMatch(UnresolvedStar.class::isInstance);
     }
 
     /**
@@ -103,5 +127,19 @@ public interface AppendColCatalystUtils {
         final LogicalPlan lpWithProjection = new Project(seq(
                 projectList), lp);
         return SubqueryAlias$.MODULE$.apply(alias, lpWithProjection);
+    }
+
+    /**
+     * Util method to return a joint Logical plan with given SubqueryAlias(es).
+     * @param lhs Left hand side query (main-query) for the AppendCol logical plan.
+     * @param rhs Right hand side query (sub-query) for the AppendCol logical plan.
+     * @return A joint logical plan which combine the given SubqueryAlias(es).
+     */
+    static LogicalPlan combineQueriesWithJoin(SubqueryAlias lhs, SubqueryAlias rhs) {
+        return join(
+                lhs, rhs,
+                Join.JoinType.FULL,
+                Optional.of(new EqualTo(t1Attr, t2Attr)),
+                new Join.JoinHint());
     }
 }
