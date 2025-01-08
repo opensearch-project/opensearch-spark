@@ -11,8 +11,10 @@ import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.FlintJsonHelper._
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.flint.datatype.FlintDataType
+import org.apache.spark.sql.functions.expr
 import org.apache.spark.sql.types.StructType
 
 /**
@@ -62,7 +64,7 @@ trait FlintSparkIndex {
   def build(spark: SparkSession, df: Option[DataFrame]): DataFrame
 }
 
-object FlintSparkIndex {
+object FlintSparkIndex extends Logging {
 
   /**
    * Interface indicates a Flint index has custom streaming refresh capability other than foreach
@@ -115,6 +117,25 @@ object FlintSparkIndex {
 
     val parts = fullTableName.split('.')
     s"${parts(0)}.${parts(1)}.`${parts.drop(2).mkString(".")}`"
+  }
+
+  /**
+   * Generate an ID column using ID expression provided in the index option.
+   *
+   * @param df
+   *   which DataFrame to generate ID column
+   * @param options
+   *   Flint index options
+   * @return
+   *   DataFrame with/without ID column
+   */
+  def addIdColumn(df: DataFrame, options: FlintSparkIndexOptions): DataFrame = {
+    options.idExpression() match {
+      case Some(idExpr) if idExpr.nonEmpty =>
+        logInfo(s"Using user-provided ID expression: $idExpr")
+        df.withColumn(ID_COLUMN, expr(idExpr))
+      case _ => df
+    }
   }
 
   /**

@@ -28,19 +28,23 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
   private val testTable = "spark_catalog.default.covering_sql_test"
   private val testIndex = "name_and_age"
   private val testFlintIndex = getFlintIndexName(testIndex, testTable)
+  private val testTimeSeriesTable = "spark_catalog.default.covering_sql_ts_test"
+  private val testFlintTimeSeriesIndex = getFlintIndexName(testIndex, testTimeSeriesTable)
 
   override def beforeEach(): Unit = {
     super.beforeEach()
 
     createPartitionedAddressTable(testTable)
+    createTimeSeriesTable(testTimeSeriesTable)
   }
 
   override def afterEach(): Unit = {
     super.afterEach()
 
     // Delete all test indices
-    deleteTestIndex(testFlintIndex)
+    deleteTestIndex(testFlintIndex, testFlintTimeSeriesIndex)
     sql(s"DROP TABLE $testTable")
+    sql(s"DROP TABLE $testTimeSeriesTable")
   }
 
   test("create covering index with auto refresh") {
@@ -84,6 +88,41 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
       index.get.options.refreshInterval() shouldBe Some("5 Seconds")
       index.get.options.checkpointLocation() shouldBe Some(checkpointDir.getAbsolutePath)
     }
+  }
+
+  test("create covering index with auto refresh and ID expression") {
+    sql(s"""
+           | CREATE INDEX $testIndex ON $testTimeSeriesTable
+           | (time, age, address)
+           | WITH (
+           |   auto_refresh = true,
+           |   id_expression = 'address'
+           | )
+           |""".stripMargin)
+
+    val job = spark.streams.active.find(_.name == testFlintTimeSeriesIndex)
+    awaitStreamingComplete(job.get.id.toString)
+
+    val indexData = flint.queryIndex(testFlintTimeSeriesIndex)
+    indexData.count() shouldBe 3 // only 3 rows left due to same ID
+  }
+
+  test("create covering index with full refresh and ID expression") {
+    sql(s"""
+           | CREATE INDEX $testIndex ON $testTimeSeriesTable
+           | (time, age, address)
+           | WITH (
+           |   id_expression = 'address'
+           | )
+           |""".stripMargin)
+    sql(s"REFRESH INDEX $testIndex ON $testTimeSeriesTable")
+
+    val indexData = flint.queryIndex(testFlintTimeSeriesIndex)
+    indexData.count() shouldBe 3 // only 3 rows left due to same ID
+
+    // Rerun should not generate duplicate data
+    sql(s"REFRESH INDEX $testIndex ON $testTimeSeriesTable")
+    indexData.count() shouldBe 3
   }
 
   test("create covering index with index settings") {

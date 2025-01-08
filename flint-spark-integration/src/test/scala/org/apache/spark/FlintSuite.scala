@@ -6,9 +6,12 @@
 package org.apache.spark
 
 import org.opensearch.flint.spark.FlintSparkExtensions
+import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
 
-import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.catalyst.expressions.{Alias, CodegenObjectFactoryMode, Expression}
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
+import org.apache.spark.sql.catalyst.plans.logical.Project
 import org.apache.spark.sql.flint.config.{FlintConfigEntry, FlintSparkConf}
 import org.apache.spark.sql.flint.config.FlintSparkConf.{EXTERNAL_SCHEDULER_ENABLED, HYBRID_SCAN_ENABLED, METADATA_CACHE_WRITE}
 import org.apache.spark.sql.internal.SQLConf
@@ -66,6 +69,29 @@ trait FlintSuite extends SharedSparkSession {
       block
     } finally {
       setFlintSparkConf(METADATA_CACHE_WRITE, "false")
+    }
+  }
+
+  /**
+   * Implicit class to extend DataFrame functionality with additional utilities.
+   *
+   * @param df
+   *   the DataFrame to which the additional methods are added
+   */
+  protected implicit class DataFrameExtensions(val df: DataFrame) {
+
+    /**
+     * Retrieves the ID column expression from the logical plan of the DataFrame, if it exists.
+     *
+     * @return
+     *   an `Option` containing the `Expression` for the ID column if present, or `None` otherwise
+     */
+    def idColumn(): Option[Expression] = {
+      df.queryExecution.logical.collectFirst { case Project(projectList, _) =>
+        projectList.collectFirst { case Alias(child, ID_COLUMN) =>
+          child
+        }
+      }.flatten
     }
   }
 }
