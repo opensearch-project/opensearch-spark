@@ -19,15 +19,16 @@ public class BulkRequestRateLimiter {
   private final double maxRate;
   private final double increaseStep;
   private final double decreaseRatio;
+  private final double partialFailureThreshold;
 
   public BulkRequestRateLimiter(FlintOptions flintOptions) {
-    // TODO: instead of leaving rateLimiter as null, use a default no-op impl for BulkRequestRateLimiter
+    // TODO: instead of leaving rateLimiter as null, use a default no-op impl for BulkRequestRateLimiter?
 
-    // TODO: validate values?
     minRate = flintOptions.getBulkRequestMinRateLimitPerNode();
     maxRate = flintOptions.getBulkRequestMaxRateLimitPerNode();
     increaseStep = flintOptions.getBulkRequestRateLimitPerNodeIncreaseStep();
     decreaseRatio = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatio();
+    partialFailureThreshold = flintOptions.getBulkRequestRateLimitPerNodePartialFailureThreshold();
 
     if (flintOptions.getBulkRequestRateLimitPerNodeEnabled()) {
       LOG.info("Setting rate limit for bulk request to " + minRate + " documents/sec");
@@ -42,15 +43,35 @@ public class BulkRequestRateLimiter {
   public void acquirePermit() {
     if (rateLimiter != null) {
       this.rateLimiter.acquire();
+      LOG.info("Acquired 1 permit");
     }
   }
 
   public void acquirePermit(int permits) {
     if (rateLimiter != null) {
       this.rateLimiter.acquire(permits);
+      LOG.info("Acquired " + permits + " permits");
     }
   }
 
+  /**
+   * Notify rate limiter of the failure rate of a bulk request. Additive-increase or multiplicative-decrease
+   * rate limit based on the failure rate. Does nothing if rate limit is not set.
+   * @param failureRate failure rate of the bulk request between 0 and 1
+   */
+  public void reportFailure(double failureRate) {
+    if (rateLimiter != null) {
+      if (failureRate > partialFailureThreshold) {
+        decreaseRate();
+      } else {
+        increaseRate();
+      }
+    }
+  }
+
+  /**
+   * Rate getter and setter are public for test purpose only
+   */
   public double getRate() {
     if (rateLimiter != null) {
       return this.rateLimiter.getRate();
@@ -68,13 +89,13 @@ public class BulkRequestRateLimiter {
     }
   }
 
-  public void increaseRate() {
+  private void increaseRate() {
     if (rateLimiter != null) {
       setRate(getRate() + increaseStep);
     }
   }
 
-  public void decreaseRate() {
+  private void decreaseRate() {
     if (rateLimiter != null) {
       setRate(getRate() * decreaseRatio);
     }

@@ -79,19 +79,14 @@ public class OpenSearchBulkRetryWrapper {
             // decrease rate if retryable result exceeds threshold; otherwise increase rate
             if (!bulkItemRetryableResultPredicate.test(response)) {
               MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RETRYABLE_RESULT_PERCENTAGE_METRIC, 0);
-              rateLimiter.increaseRate();
+              rateLimiter.reportFailure(0);
             } else {
               BulkRequest retryableRequest = getRetryableRequest(nextRequest.get(), response);
               double retryablePercentage = (double) retryableRequest.requests().size() / response.getItems().length;
               // TODO: long type metric
               MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RETRYABLE_RESULT_PERCENTAGE_METRIC, (long) (retryablePercentage * 100));
 
-              // TODO: magic number
-              if (retryablePercentage > 0.4) {
-                rateLimiter.decreaseRate();
-              } else {
-                rateLimiter.increaseRate();
-              }
+              rateLimiter.reportFailure(retryablePercentage);
 
               if (retryPolicy.getConfig().allowsRetries()) {
                 nextRequest.set(retryableRequest);

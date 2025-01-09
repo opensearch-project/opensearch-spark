@@ -58,6 +58,7 @@ val packagesToShade = Seq(
   "com.fasterxml.jackson.core.**",
   "com.fasterxml.jackson.dataformat.**",
   "com.fasterxml.jackson.databind.**",
+  "com.google.**",
   "com.sun.jna.**",
   "com.thoughtworks.paranamer.**",
   "javax.annotation.**",
