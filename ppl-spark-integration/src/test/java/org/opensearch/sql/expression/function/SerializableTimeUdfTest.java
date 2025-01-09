@@ -25,12 +25,12 @@ public class SerializableTimeUdfTest {
           For more comprehensive tests, see {@link TimeUtilsTest}.
          */
 
-        testValid("now", "2000-01-03 01:01:01.100");
         testValid("-60m", "2000-01-03 00:01:01.100");
         testValid("-h", "2000-01-03 00:01:01.100");
         testValid("+2wk", "2000-01-17 01:01:01.100");
-        testValid("-1h@h", "2000-01-03 00:00:00");
+        testValid("-1h@w3", "1999-12-29 00:00:00");
         testValid("@d", "2000-01-03 00:00:00");
+        testValid("now", "2000-01-03 01:01:01.100");
 
         testInvalid("invalid", "The relative date time 'invalid' is not supported.");
         testInvalid("INVALID", "The relative date time 'INVALID' is not supported.");
