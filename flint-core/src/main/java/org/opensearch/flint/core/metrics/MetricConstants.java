@@ -43,7 +43,7 @@ public final class MetricConstants {
     /**
      * Metric name for opensearch bulk request rate limit
      */
-    public static final String OS_BULK_RATE_LIMIT_METRIC = "opensearch.bulk.rateLimit.count";
+    public static final String OS_BULK_RATE_LIMIT_METRIC = "opensearch.bulk.rateLimit.documentsPerSecond.count";
 
     /**
      * Metric name for counting the errors encountered with Amazon S3 operations.

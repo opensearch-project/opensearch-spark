@@ -146,13 +146,17 @@ object FlintSparkConf {
   val BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE =
     FlintConfig(s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE}")
       .datasourceOption()
-      .doc("[Experimental] Minimum rate limit (documents/sec) for bulk request per worker node, if rate limit enabled. Must be greater than 0.")
+      .doc(
+        "[Experimental] Lower limit (documents/sec) for adaptive rate limiting for bulk request per worker node, if rate limit enabled. " +
+          "The adaptive rate will not drop below this value. Must be greater than 0.")
       .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE)
 
   val BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE =
     FlintConfig(s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE}")
       .datasourceOption()
-      .doc("[Experimental] Maximum rate limit (documents/sec) for bulk request per worker node, if rate limit enabled. Must be greater than minimum rate.")
+      .doc(
+        "[Experimental] Upper limit (documents/sec) for adaptive rate limiting for bulk request per worker node, if rate limit enabled. " +
+          "The adaptive rate will not exceed this value. Set to -1 for no upper bound.")
       .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE)
 
   val BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP =
