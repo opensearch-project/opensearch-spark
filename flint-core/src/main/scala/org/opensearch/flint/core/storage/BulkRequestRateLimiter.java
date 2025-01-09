@@ -22,8 +22,6 @@ public class BulkRequestRateLimiter {
   private final double partialFailureThreshold;
 
   public BulkRequestRateLimiter(FlintOptions flintOptions) {
-    // TODO: instead of leaving rateLimiter as null, use a default no-op impl for BulkRequestRateLimiter?
-
     minRate = flintOptions.getBulkRequestMinRateLimitPerNode();
     maxRate = flintOptions.getBulkRequestMaxRateLimitPerNode();
     increaseStep = flintOptions.getBulkRequestRateLimitPerNodeIncreaseStep();
@@ -61,6 +59,7 @@ public class BulkRequestRateLimiter {
    */
   public void reportFailure(double failureRate) {
     if (rateLimiter != null) {
+      LOG.info("Bulk request failure rate " + failureRate + " reported");
       if (failureRate > partialFailureThreshold) {
         decreaseRate();
       } else {

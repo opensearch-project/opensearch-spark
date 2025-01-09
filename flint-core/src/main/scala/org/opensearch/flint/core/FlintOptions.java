@@ -114,15 +114,15 @@ public class FlintOptions implements Serializable {
   public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED = "bulk.rate_limit_per_node.enabled";
   public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED = "false";
   public static final String BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE = "bulk.rate_limit_per_node.min";
-  public static final String DEFAULT_BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE = "10";
+  public static final String DEFAULT_BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE = "5000";
   public static final String BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE = "bulk.rate_limit_per_node.max";
-  public static final String DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE = "100";
+  public static final String DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE = "50000";
   public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP = "bulk.rate_limit_per_node.increase_step";
-  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP = "10";
+  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP = "1000";
   public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO = "bulk.rate_limit_per_node.decrease_ratio";
   public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO = "0.8";
   public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_PARTIAL_FAILURE_THRESHOLD = "bulk.rate_limit_per_node.partial_failure_threshold";
-  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_PARTIAL_FAILURE_THRESHOLD = "0.2";
+  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_PARTIAL_FAILURE_THRESHOLD = "0";
 
   public static final String DEFAULT_EXTERNAL_SCHEDULER_INTERVAL = "5 minutes";
 

@@ -533,7 +533,12 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.datasource.flint.write.batch_size`: "The number of documents written to Flint in a single batch request. Default value is Integer.MAX_VALUE.
 - `spark.datasource.flint.write.batch_bytes`: The approximately amount of data in bytes written to Flint in a single batch request. The actual data write to OpenSearch may more than it. Default value is 1mb. The writing process checks after each document whether the total number of documents (docCount) has reached batch_size or the buffer size has surpassed batch_bytes. If either condition is met, the current batch is flushed and the document count resets to zero.
 - `spark.datasource.flint.write.refresh_policy`: default value is false. valid values [NONE(false), IMMEDIATE(true), WAIT_UNTIL(wait_for)]
-- `spark.datasource.flint.write.bulkRequestRateLimitPerNode`: [Experimental] Rate limit(request/sec) for bulk request per worker node. Only accept integer value. To reduce the traffic less than 1 req/sec, batch_bytes or batch_size should be reduced. Default value is 0, which disables rate limit.
+- `spark.datasource.flint.write.bulk.rate_limit_per_node.enabled`: [Experimental] Enable rate limit for bulk request per worker node. Default is false.
+- `spark.datasource.flint.write.bulk.rate_limit_per_node.min`: [Experimental] Minimum rate limit (documents/sec) for bulk request per worker node, if rate limit enabled. Must be greater than 0. Default is 5000.
+- `spark.datasource.flint.write.bulk.rate_limit_per_node.max`: [Experimental] Maximum rate limit (documents/sec) for bulk request per worker node, if rate limit enabled. Must be greater than minimum rate. Default is 50000.
+- `spark.datasource.flint.write.bulk.rate_limit_per_node.increase_step`: [Experimental] Adaptive rate limit increase step for bulk request per worker node, if rate limit enabled. Must be greater than 0. Default is 1000.
+- `spark.datasource.flint.write.bulk.rate_limit_per_node.decrease_ratio`: [Experimental] Adaptive rate limit decrease ratio for bulk request per worker node, if rate limit enabled. Must be between 0 and 1. Default is 0.8.
+- `spark.datasource.flint.write.bulk.rate_limit_per_node.partial_failure_threshold`: [Experimental] Partial failure threshold for updating bulk request rate limit per worker node, if rate limit enabled. Must be between 0 and 1. Default is 0.
 - `spark.datasource.flint.read.scroll_size`: default value is 100.
 - `spark.datasource.flint.read.scroll_duration`: default value is 5 minutes. scroll context keep alive duration.
 - `spark.datasource.flint.retry.max_retries`: max retries on failed HTTP request. default value is 3. Use 0 to disable retry.

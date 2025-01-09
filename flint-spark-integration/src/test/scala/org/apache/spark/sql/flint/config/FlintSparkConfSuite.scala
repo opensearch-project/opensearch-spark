@@ -67,11 +67,11 @@ class FlintSparkConfSuite extends FlintSuite {
   test("test bulk request rate limit options default value") {
     val options = FlintSparkConf().flintOptions()
     options.getBulkRequestRateLimitPerNodeEnabled shouldBe false
-    options.getBulkRequestMinRateLimitPerNode shouldBe 10
-    options.getBulkRequestMaxRateLimitPerNode shouldBe 100
-    options.getBulkRequestRateLimitPerNodeIncreaseStep shouldBe 10
+    options.getBulkRequestMinRateLimitPerNode shouldBe 5000
+    options.getBulkRequestMaxRateLimitPerNode shouldBe 50000
+    options.getBulkRequestRateLimitPerNodeIncreaseStep shouldBe 1000
     options.getBulkRequestRateLimitPerNodeDecreaseRatio shouldBe 0.8
-    options.getBulkRequestRateLimitPerNodePartialFailureThreshold shouldBe 0.2
+    options.getBulkRequestRateLimitPerNodePartialFailureThreshold shouldBe 0
   }
 
   test("test specified bulk request rate limit options") {

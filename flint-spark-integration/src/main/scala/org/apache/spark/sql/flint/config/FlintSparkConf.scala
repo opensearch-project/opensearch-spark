@@ -136,12 +136,11 @@ object FlintSparkConf {
     .doc("max retries on failed HTTP request, 0 means retry is disabled, default is 3")
     .createWithDefault(String.valueOf(FlintRetryOptions.DEFAULT_MAX_RETRIES))
 
-  // TODO: update index.md
   val BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED =
     FlintConfig(
       s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED}")
       .datasourceOption()
-      .doc("[Experimental] Enable rate limit for bulk request per worker node")
+      .doc("[Experimental] Enable adaptive rate limit for bulk request per worker node")
       .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED)
 
   val BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE =
