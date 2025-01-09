@@ -204,14 +204,14 @@ public interface SerializableUdf {
     }
 
     /**
-     * Returns the {@link Timestamp} corresponding to the given relative string, current timestamp, and time zone identifier.
-     * Throws {@link RuntimeException} if the relative timestamp string is not supported.
+     * Returns the {@link Timestamp} corresponding to the given relative string and current timestamp.
+     * Throws {@link RuntimeException} if the relative string is not supported.
      */
     Function2<String, Timestamp, Timestamp> relativeTimestampFunction = new SerializableAbstractFunction2<String, Timestamp, Timestamp>() {
         @Override
-        public Timestamp apply(String relativeDateTimeString, Timestamp currentTimestamp) {
+        public Timestamp apply(String relativeString, Timestamp currentTimestamp) {
             LocalDateTime currentLocalDateTime = currentTimestamp.toLocalDateTime();
-            LocalDateTime relativeLocalDateTime = TimeUtils.getRelativeLocalDateTime(relativeDateTimeString, currentLocalDateTime);
+            LocalDateTime relativeLocalDateTime = TimeUtils.getRelativeLocalDateTime(relativeString, currentLocalDateTime);
             return Timestamp.valueOf(relativeLocalDateTime);
         }
     };

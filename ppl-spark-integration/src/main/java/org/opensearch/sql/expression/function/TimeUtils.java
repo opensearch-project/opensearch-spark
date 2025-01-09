@@ -5,13 +5,12 @@
 
 package org.opensearch.sql.expression.function;
 
+import com.google.common.collect.ImmutableMap;
 import lombok.experimental.UtilityClass;
 
-import java.time.DayOfWeek;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.Period;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -43,62 +42,26 @@ public class TimeUtils {
     private static final Set<String> YEAR_UNITS_SET = Set.of("y", "yr", "yrs", "year", "years");
 
     // Map from time unit to the corresponding duration.
-    private static final Duration DURATION_SECOND = Duration.ofSeconds(1);
-    private static final Duration DURATION_MINUTE = Duration.ofMinutes(1);
-    private static final Duration DURATION_HOUR = Duration.ofHours(1);
-
-    private static final Map<String, Duration> DURATION_FOR_TIME_UNIT_MAP = Map.ofEntries(
-            Map.entry("s", DURATION_SECOND),
-            Map.entry("sec", DURATION_SECOND),
-            Map.entry("secs", DURATION_SECOND),
-            Map.entry("second", DURATION_SECOND),
-            Map.entry("seconds", DURATION_SECOND),
-
-            Map.entry("m", DURATION_MINUTE),
-            Map.entry("min", DURATION_MINUTE),
-            Map.entry("mins", DURATION_MINUTE),
-            Map.entry("minute", DURATION_MINUTE),
-            Map.entry("minutes", DURATION_MINUTE),
-
-            Map.entry("h", DURATION_HOUR),
-            Map.entry("hr", DURATION_HOUR),
-            Map.entry("hrs", DURATION_HOUR),
-            Map.entry("hour", DURATION_HOUR),
-            Map.entry("hours", DURATION_HOUR));
+    private static final Map<String, Duration> DURATION_FOR_TIME_UNIT_MAP;
+    static {
+        Map<String, Duration> durationMap = new HashMap<>();
+        SECOND_UNITS_SET.forEach(u -> durationMap.put(u, Duration.ofSeconds(1)));
+        MINUTE_UNITS_SET.forEach(u -> durationMap.put(u, Duration.ofMinutes(1)));
+        HOUR_UNITS_SET.forEach(u -> durationMap.put(u, Duration.ofHours(1)));
+        DURATION_FOR_TIME_UNIT_MAP = ImmutableMap.copyOf(durationMap);
+    }
 
     // Map from time unit to the corresponding period.
-    private static final Period PERIOD_DAY = Period.ofDays(1);
-    private static final Period PERIOD_WEEK = Period.ofWeeks(1);
-    private static final Period PERIOD_MONTH = Period.ofMonths(1);
-    private static final Period PERIOD_QUARTER = Period.ofMonths(3);
-    private static final Period PERIOD_YEAR = Period.ofYears(1);
-
-    private static final Map<String, Period> PERIOD_FOR_TIME_UNIT_MAP = Map.ofEntries(
-            Map.entry("d", PERIOD_DAY),
-            Map.entry("day", PERIOD_DAY),
-            Map.entry("days", PERIOD_DAY),
-
-            Map.entry("w", PERIOD_WEEK),
-            Map.entry("wk", PERIOD_WEEK),
-            Map.entry("wks", PERIOD_WEEK),
-            Map.entry("week", PERIOD_WEEK),
-            Map.entry("weeks", PERIOD_WEEK),
-
-            Map.entry("mon", PERIOD_MONTH),
-            Map.entry("month", PERIOD_MONTH),
-            Map.entry("months", PERIOD_MONTH),
-
-            Map.entry("q", PERIOD_QUARTER),
-            Map.entry("qtr", PERIOD_QUARTER),
-            Map.entry("qtrs", PERIOD_QUARTER),
-            Map.entry("quarter", PERIOD_QUARTER),
-            Map.entry("quarters", PERIOD_QUARTER),
-
-            Map.entry("y", PERIOD_YEAR),
-            Map.entry("yr", PERIOD_YEAR),
-            Map.entry("yrs", PERIOD_YEAR),
-            Map.entry("year", PERIOD_YEAR),
-            Map.entry("years", PERIOD_YEAR));
+    private static final Map<String, Period> PERIOD_FOR_TIME_UNIT_MAP;
+    static {
+        Map<String, Period> periodMap = new HashMap<>();
+        DAY_UNITS_SET.forEach(u -> periodMap.put(u, Period.ofDays(1)));
+        WEEK_UNITS_SET.forEach(u -> periodMap.put(u, Period.ofWeeks(1)));
+        MONTH_UNITS_SET.forEach(u -> periodMap.put(u, Period.ofMonths(1)));
+        QUARTER_UNITS_SET.forEach(u -> periodMap.put(u, Period.ofMonths(3)));
+        YEAR_UNITS_SET.forEach(u -> periodMap.put(u, Period.ofYears(1)));
+        PERIOD_FOR_TIME_UNIT_MAP = ImmutableMap.copyOf(periodMap);
+    }
 
     // Map from snap unit to the corresponding day of the week.
     private static final Map<String, DayOfWeek> DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP = Map.ofEntries(
@@ -111,11 +74,8 @@ public class TimeUtils {
             Map.entry("w5", DayOfWeek.FRIDAY),
             Map.entry("w6", DayOfWeek.SATURDAY));
 
-    static final int DAYS_PER_WEEK = 7;
-    static final int MONTHS_PER_QUARTER = 3;
-
     /**
-     * Returns the {@link LocalDateTime} corresponding to the given relative string and local date time.
+     * Returns the relative {@link LocalDateTime} corresponding to the given relative string and local date time.
      * <p>
      * The relative time string has syntax {@code [+|-]<offset_time_integer><offset_time_unit>@<snap_time_unit>}, and
      * is made up of two optional components:
@@ -339,8 +299,8 @@ public class TimeUtils {
         } else if (MONTH_UNITS_SET.contains(snapUnitLowerCase)) {
             return localDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1);
         } else if (QUARTER_UNITS_SET.contains(snapUnitLowerCase)) {
-            int monthsToSnap = (localDateTime.getMonthValue() - 1) % MONTHS_PER_QUARTER;
-            return localDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1).minusMonths(monthsToSnap);
+            Month snapMonth = localDateTime.getMonth().firstMonthOfQuarter();
+            return localDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1).withMonth(snapMonth.getValue());
         } else if (YEAR_UNITS_SET.contains(snapUnitLowerCase)) {
             return localDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfYear(1);
         } else if (DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.containsKey(snapUnitLowerCase)) {
@@ -363,7 +323,7 @@ public class TimeUtils {
             return snappedDateTime;
         }
 
-        int daysToSnap = DAYS_PER_WEEK - snapDayOfWeek.getValue() + dayOfWeek.getValue();
+        int daysToSnap = DayOfWeek.values().length - snapDayOfWeek.getValue() + dayOfWeek.getValue();
         return snappedDateTime.minusDays(daysToSnap);
     }
 }
