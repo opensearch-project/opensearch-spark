@@ -83,12 +83,12 @@ DATASOURCES:                        'DATASOURCES';
 USING:                              'USING';
 WITH:                               'WITH';
 
-// FIELD KEYWORDS
+// SORT FIELD KEYWORDS
+// TODO #963: Implement 'num', 'str', and 'ip' sort syntax
 AUTO:                               'AUTO';
 STR:                                'STR';
 IP:                                 'IP';
 NUM:                                'NUM';
-
 
 // FIELDSUMMARY keywords
 FIELDSUMMARY:                       'FIELDSUMMARY';
