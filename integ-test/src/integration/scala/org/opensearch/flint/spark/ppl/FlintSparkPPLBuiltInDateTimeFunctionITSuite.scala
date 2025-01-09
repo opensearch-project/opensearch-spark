@@ -368,6 +368,32 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
     assertSameRows(Seq(Row(3)), frame)
   }
 
+  test("test RELATIVE_TIMESTAMP") {
+    var frame = sql(s"""
+                       | source = $testTable
+                       | | eval seconds_diff = timestampdiff(SECOND, now(), relative_timestamp("now"))
+                       | | fields seconds_diff
+                       | | head 1
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(0)), frame)
+
+    frame = sql(s"""
+                       | source = $testTable
+                       | | eval hours_diff = timestampdiff(HOUR, now(), relative_timestamp("+1h"))
+                       | | fields hours_diff
+                       | | head 1
+                       | """.stripMargin)
+    assertSameRows(Seq(Row(1)), frame)
+
+    frame = sql(s"""
+                   | source = $testTable
+                   | | eval day = day_of_week(relative_timestamp("@w0"))
+                   | | fields day
+                   | | head 1
+                   | """.stripMargin)
+    assertSameRows(Seq(Row(1)), frame)
+  }
+
   test("test CURRENT_TIME is not supported") {
     val ex = intercept[UnsupportedOperationException](sql(s"""
                        | source = $testTable

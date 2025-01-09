@@ -13,12 +13,10 @@ import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.types.DataTypes;
 import scala.Function1;
 import scala.Function2;
-import scala.Function3;
 import scala.Option;
 import scala.Serializable;
 import scala.runtime.AbstractFunction1;
 import scala.runtime.AbstractFunction2;
-import scala.runtime.AbstractFunction3;
 import scala.collection.JavaConverters;
 import scala.collection.mutable.WrappedArray;
 
@@ -26,10 +24,8 @@ import java.lang.Boolean;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.time.Instant;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -47,10 +43,6 @@ public interface SerializableUdf {
     }
 
     abstract class SerializableAbstractFunction2<T1, T2, R> extends AbstractFunction2<T1, T2, R>
-            implements Serializable {
-    }
-
-    abstract class SerializableAbstractFunction3<T1, T2, T3, R> extends AbstractFunction3<T1, T2, T3, R>
             implements Serializable {
     }
 
@@ -212,17 +204,15 @@ public interface SerializableUdf {
     }
 
     /**
-     * Returns the {@link Instant} corresponding to the given relative string, current instant, and time zone identifier.
+     * Returns the {@link Timestamp} corresponding to the given relative string, current timestamp, and time zone identifier.
      * Throws {@link RuntimeException} if the relative timestamp string is not supported.
      */
-    Function3<String, Instant, String, Instant> relativeTimestampFunction = new SerializableAbstractFunction3<String, Instant, String, Instant>() {
+    Function2<String, Timestamp, Timestamp> relativeTimestampFunction = new SerializableAbstractFunction2<String, Timestamp, Timestamp>() {
         @Override
-        public Instant apply(String relativeDateTimeString, Instant currentInstant, String zoneIdString) {
-            ZoneId zoneId = ZoneId.of(zoneIdString);
-            LocalDateTime currentLocalDateTime = LocalDateTime.ofInstant(currentInstant, zoneId);
+        public Timestamp apply(String relativeDateTimeString, Timestamp currentTimestamp) {
+            LocalDateTime currentLocalDateTime = currentTimestamp.toLocalDateTime();
             LocalDateTime relativeLocalDateTime = TimeUtils.getRelativeLocalDateTime(relativeDateTimeString, currentLocalDateTime);
-
-            return relativeLocalDateTime.atZone(zoneId).toInstant();
+            return Timestamp.valueOf(relativeLocalDateTime);
         }
     };
 
