@@ -19,14 +19,12 @@ public class BulkRequestRateLimiter {
   private final double maxRate;
   private final double increaseStep;
   private final double decreaseRatio;
-  private final double partialFailureThreshold;
 
   public BulkRequestRateLimiter(FlintOptions flintOptions) {
     minRate = flintOptions.getBulkRequestMinRateLimitPerNode();
     maxRate = flintOptions.getBulkRequestMaxRateLimitPerNode();
     increaseStep = flintOptions.getBulkRequestRateLimitPerNodeIncreaseStep();
     decreaseRatio = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatio();
-    partialFailureThreshold = flintOptions.getBulkRequestRateLimitPerNodePartialFailureThreshold();
 
     if (flintOptions.getBulkRequestRateLimitPerNodeEnabled()) {
       LOG.info("Setting rate limit for bulk request to " + minRate + " documents/sec");
@@ -53,18 +51,20 @@ public class BulkRequestRateLimiter {
   }
 
   /**
-   * Notify rate limiter of the failure rate of a bulk request. Additive-increase or multiplicative-decrease
-   * rate limit based on the failure rate. Does nothing if rate limit is not set.
-   * @param failureRate failure rate of the bulk request between 0 and 1
+   * Increase rate limit additively.
    */
-  public void reportFailure(double failureRate) {
+  public void increaseRate() {
     if (rateLimiter != null) {
-      LOG.info("Bulk request failure rate " + failureRate + " reported");
-      if (failureRate > partialFailureThreshold) {
-        decreaseRate();
-      } else {
-        increaseRate();
-      }
+      setRate(getRate() + increaseStep);
+    }
+  }
+
+  /**
+   * Decrease rate limit multiplicatively.
+   */
+  public void decreaseRate() {
+    if (rateLimiter != null) {
+      setRate(getRate() * decreaseRatio);
     }
   }
 
@@ -85,18 +85,6 @@ public class BulkRequestRateLimiter {
       this.rateLimiter.setRate(permitsPerSecond);
       // TODO: now it's using long metric
       MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RATE_LIMIT_METRIC, (long) permitsPerSecond);
-    }
-  }
-
-  private void increaseRate() {
-    if (rateLimiter != null) {
-      setRate(getRate() + increaseStep);
-    }
-  }
-
-  private void decreaseRate() {
-    if (rateLimiter != null) {
-      setRate(getRate() * decreaseRatio);
     }
   }
 }

@@ -169,14 +169,6 @@ object FlintSparkConf {
       .doc("[Experimental] Adaptive rate limit decrease ratio for bulk request per worker node, if rate limit enabled. Must be between 0 and 1.")
       .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO)
 
-  val BULK_REQUEST_RATE_LIMIT_PER_NODE_PARTIAL_FAILURE_THRESHOLD =
-    FlintConfig(
-      s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_PARTIAL_FAILURE_THRESHOLD}")
-      .datasourceOption()
-      .doc("[Experimental] Partial failure threshold for updating bulk request rate limit per worker node, if rate limit enabled. Must be between 0 and 1.")
-      .createWithDefault(
-        FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_PARTIAL_FAILURE_THRESHOLD)
-
   val RETRYABLE_HTTP_STATUS_CODES =
     FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.RETRYABLE_HTTP_STATUS_CODES}")
       .datasourceOption()
@@ -378,7 +370,6 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE,
       BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP,
       BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO,
-      BULK_REQUEST_RATE_LIMIT_PER_NODE_PARTIAL_FAILURE_THRESHOLD,
       REGION,
       CUSTOM_AWS_CREDENTIALS_PROVIDER,
       SERVICE_NAME,

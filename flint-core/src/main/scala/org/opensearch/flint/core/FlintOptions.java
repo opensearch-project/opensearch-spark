@@ -121,8 +121,6 @@ public class FlintOptions implements Serializable {
   public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP = "1000";
   public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO = "bulk.rate_limit_per_node.decrease_ratio";
   public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO = "0.8";
-  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_PARTIAL_FAILURE_THRESHOLD = "bulk.rate_limit_per_node.partial_failure_threshold";
-  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_PARTIAL_FAILURE_THRESHOLD = "0";
 
   public static final String DEFAULT_EXTERNAL_SCHEDULER_INTERVAL = "5 minutes";
 
@@ -263,10 +261,6 @@ public class FlintOptions implements Serializable {
 
   public double getBulkRequestRateLimitPerNodeDecreaseRatio() {
     return Double.parseDouble(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO));
-  }
-
-  public double getBulkRequestRateLimitPerNodePartialFailureThreshold() {
-    return Double.parseDouble(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_PARTIAL_FAILURE_THRESHOLD, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_PARTIAL_FAILURE_THRESHOLD));
   }
 
   public String getCustomAsyncQuerySchedulerClass() {

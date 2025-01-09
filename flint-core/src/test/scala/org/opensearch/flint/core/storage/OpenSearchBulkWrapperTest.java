@@ -74,8 +74,7 @@ class OpenSearchBulkWrapperTest {
       FlintOptions.BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE, "2",
       FlintOptions.BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE, "20",
       FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP, "1",
-      FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO, "0.5",
-      FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_PARTIAL_FAILURE_THRESHOLD, "0.2"));
+      FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO, "0.5"));
   FlintOptions optionsWithoutRateLimit = new FlintOptions(Map.of(
       FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED, "false"));
 
@@ -282,38 +281,6 @@ class OpenSearchBulkWrapperTest {
 
       // Should decrease three times
       assertEquals(rateLimiter.getRate(), 2.5);
-    });
-  }
-
-  @Test
-  public void testRateLimitFailureThreshold() throws Exception {
-    FlintOptions optionsHighFailureThreshold = new FlintOptions(Map.of(
-        FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED, "true",
-        FlintOptions.BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE, "2",
-        FlintOptions.BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE, "20",
-        FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP, "1",
-        FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO, "0.5",
-        FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_PARTIAL_FAILURE_THRESHOLD, "0.8"));
-
-    MetricsTestUtil.withMetricEnv(verifier -> {
-      BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiter(optionsHighFailureThreshold);
-      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
-          retryOptionsWithRetry, rateLimiter);
-      when(client.bulk(any(), eq(options)))
-          .thenReturn(failureResponse)
-          .thenReturn(retriedResponse);
-      when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
-      when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
-      mockFailureResponse();
-      mockRetriedResponse();
-
-      rateLimiter.setRate(19);
-
-      bulkWrapper.bulk(client, bulkRequest, options);
-
-      // First request has 50% failure, not exceeding threshold, increasing rate
-      // Second and third requests has 100% failure, decreasing rate
-      assertEquals(rateLimiter.getRate(), 5);
     });
   }
 
