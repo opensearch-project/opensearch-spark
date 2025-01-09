@@ -56,6 +56,7 @@ commands
    | flattenCommand
    | expandCommand
    | trendlineCommand
+   | appendcolCommand
    ;
 
 commandName
@@ -90,6 +91,7 @@ commandName
    | FIELDSUMMARY
    | FLATTEN
    | TRENDLINE
+   | APPENDCOL
    ;
 
 searchCommand
@@ -268,6 +270,10 @@ trendlineClause
 trendlineType
    : SMA
    | WMA
+   ;
+
+appendcolCommand
+   : APPENDCOL (OVERRIDE EQUAL override = booleanLiteral)? LT_SQR_PRTHS commands (PIPE commands)* RT_SQR_PRTHS
    ;
 
 kmeansCommand

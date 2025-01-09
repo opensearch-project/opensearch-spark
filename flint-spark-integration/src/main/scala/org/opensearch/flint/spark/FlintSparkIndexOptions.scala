@@ -10,7 +10,7 @@ import java.util.{Collections, UUID}
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
-import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, INCREMENTAL_REFRESH, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, SCHEDULER_MODE, WATERMARK_DELAY}
+import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName.{AUTO_REFRESH, CHECKPOINT_LOCATION, EXTRA_OPTIONS, ID_EXPRESSION, INCREMENTAL_REFRESH, INDEX_SETTINGS, OptionName, OUTPUT_MODE, REFRESH_INTERVAL, SCHEDULER_MODE, WATERMARK_DELAY}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.validateOptionNames
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 import org.opensearch.flint.spark.scheduler.util.IntervalSchedulerParser
@@ -95,6 +95,14 @@ case class FlintSparkIndexOptions(options: Map[String, String]) {
    *   index setting JSON
    */
   def indexSettings(): Option[String] = getOptionValue(INDEX_SETTINGS)
+
+  /**
+   * An expression that generates unique value as index data row ID.
+   *
+   * @return
+   *   ID expression
+   */
+  def idExpression(): Option[String] = getOptionValue(ID_EXPRESSION)
 
   /**
    * Extra streaming source options that can be simply passed to DataStreamReader or
@@ -187,6 +195,7 @@ object FlintSparkIndexOptions {
     val WATERMARK_DELAY: OptionName.Value = Value("watermark_delay")
     val OUTPUT_MODE: OptionName.Value = Value("output_mode")
     val INDEX_SETTINGS: OptionName.Value = Value("index_settings")
+    val ID_EXPRESSION: OptionName.Value = Value("id_expression")
     val EXTRA_OPTIONS: OptionName.Value = Value("extra_options")
   }
 

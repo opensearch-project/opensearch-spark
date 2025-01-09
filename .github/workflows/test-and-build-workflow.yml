@@ -37,7 +37,7 @@ jobs:
 
       - name: Upload test report
         if: always() # Ensures the artifact is saved even if tests fail
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-reports
           path: target/test-reports # Adjust this path if necessary
