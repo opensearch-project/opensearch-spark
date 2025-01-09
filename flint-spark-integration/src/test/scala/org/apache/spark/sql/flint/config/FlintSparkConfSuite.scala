@@ -68,8 +68,8 @@ class FlintSparkConfSuite extends FlintSuite {
     val options = FlintSparkConf().flintOptions()
     options.getBulkRequestRateLimitPerNodeEnabled shouldBe false
     options.getBulkRequestMinRateLimitPerNode shouldBe 5000
-    options.getBulkRequestMaxRateLimitPerNode shouldBe 500000
-    options.getBulkRequestRateLimitPerNodeIncreaseStep shouldBe 1000
+    options.getBulkRequestMaxRateLimitPerNode shouldBe 50000
+    options.getBulkRequestRateLimitPerNodeIncreaseStep shouldBe 500
     options.getBulkRequestRateLimitPerNodeDecreaseRatio shouldBe 0.8
   }
 
