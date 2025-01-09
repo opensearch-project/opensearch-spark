@@ -72,18 +72,11 @@ public class OpenSearchBulkWrapper {
             BulkResponse response = client.bulk(nextRequest.get(), options);
 
             if (!bulkItemRetryableResultPredicate.test(response)) {
-              MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RETRYABLE_RESULT_RATE_METRIC, 0);
               rateLimiter.increaseRate();
             } else {
               rateLimiter.decreaseRate();
-
-              BulkRequest retryableRequest = getRetryableRequest(nextRequest.get(), response);
-              double retryablePercentage = (double) retryableRequest.requests().size() / response.getItems().length;
-              // TODO: long type metric
-              MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RETRYABLE_RESULT_RATE_METRIC, (long) (retryablePercentage * 100));
-
               if (retryPolicy.getConfig().allowsRetries()) {
-                nextRequest.set(retryableRequest);
+                nextRequest.set(getRetryableRequest(nextRequest.get(), response));
               }
             }
             return response;
