@@ -738,17 +738,17 @@ Example:
 **Description:**
 
 
-**Usage:** relative_timestamp(str) returns a timestamp corresponding to the give relative string and the current
+**Usage:** relative_timestamp(str) returns a relative timestamp from given relative string and the current
 timestamp at the time of query execution.
 
-The relative time string has syntax `[+|-]<offset_time_integer><offset_time_unit>@<snap_time_unit>`, and is made up of
-two optional components:
-* An offset from the current timestamp at the start of query execution, which is composed of a sign (`+` or `-`), an 
-  optional time integer, and a time unit. If the time integer is not specified, it defaults to one. For example, `+2hr`
-  corresponds to two hours after the current timestamp, while `-mon` corresponds to one month ago. 
+The relative timestamp string has syntax `[+|-]<offset_time_integer><offset_time_unit>@<snap_time_unit>`, and is made up
+of two optional components:
+* An offset from the current timestamp, which is composed of a sign (`+` or `-`), an optional time integer, and a time
+  unit. If the time integer is not specified, it defaults to one. For example, `+2hr` is two hours after the current
+  timestamp, while `-mon` is one month ago. 
 * A snap-to time using the `@` symbol followed by a time unit. The snap-to time is applied after the offset (if 
   specified), and rounds the time <i>down</i> to the start of the specified time unit (i.e. backwards in time). For 
-  example, `@wk` corresponds to the start of the current week (Sunday is considered to be the first day of the week).
+  example, `@wk` is the start of the current week (Sunday is considered to be the first day of the week).
 
 The following offset time units are supported:
 
@@ -774,7 +774,7 @@ The snap-to time supports all the time units above, as well as the following day
 | Friday    | `w5`               |
 | Saturday  | `w6`               |
 
-The special relative time string `now` for the current timestamp is also supported.
+The special relative timestamp string `now`, corresponding to the current timestamp, is also supported.
 
 For example, if the current timestamp is Monday, January 03, 2000 at 01:01:01 am:
 
