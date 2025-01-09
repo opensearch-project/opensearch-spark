@@ -27,21 +27,18 @@ import org.opensearch.rest.RestStatus;
 
 /**
  * Wrapper class for OpenSearch bulk API with retry and rate limiting capability.
- * TODO: remove Retry from name (also rename variables)
  */
-public class OpenSearchBulkRetryWrapper {
+public class OpenSearchBulkWrapper {
 
-  private static final Logger LOG = Logger.getLogger(OpenSearchBulkRetryWrapper.class.getName());
+  private static final Logger LOG = Logger.getLogger(OpenSearchBulkWrapper.class.getName());
 
   private final RetryPolicy<BulkResponse> retryPolicy;
   private final BulkRequestRateLimiter rateLimiter;
 
-  public OpenSearchBulkRetryWrapper(FlintRetryOptions retryOptions, BulkRequestRateLimiter rateLimiter) {
+  public OpenSearchBulkWrapper(FlintRetryOptions retryOptions, BulkRequestRateLimiter rateLimiter) {
     this.retryPolicy = retryOptions.getBulkRetryPolicy(bulkItemRetryableResultPredicate);
     this.rateLimiter = rateLimiter;
   }
-
-  // TODO: need test case using bulk with rate limiter
 
   /**
    * Bulk request with retry and rate limiting. Delegate bulk request to the client, and retry the
@@ -60,8 +57,6 @@ public class OpenSearchBulkRetryWrapper {
   private BulkResponse bulkWithPartialRetry(RestHighLevelClient client, BulkRequest bulkRequest,
       RequestOptions options) {
     final AtomicInteger requestCount = new AtomicInteger(0);
-    // TODO: notice for metric each retry attempt counts, but rate limit doesn't restrict retries
-    // could appear weird in dashboards
     try {
       final AtomicReference<BulkRequest> nextRequest = new AtomicReference<>(bulkRequest);
       BulkResponse res = Failsafe
@@ -76,7 +71,6 @@ public class OpenSearchBulkRetryWrapper {
             requestCount.incrementAndGet();
             BulkResponse response = client.bulk(nextRequest.get(), options);
 
-            // decrease rate if retryable result exceeds threshold; otherwise increase rate
             if (!bulkItemRetryableResultPredicate.test(response)) {
               MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RETRYABLE_RESULT_PERCENTAGE_METRIC, 0);
               rateLimiter.reportFailure(0);

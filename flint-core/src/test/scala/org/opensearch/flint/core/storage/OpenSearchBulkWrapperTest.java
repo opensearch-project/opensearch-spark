@@ -35,7 +35,7 @@ import org.opensearch.flint.core.metrics.MetricsTestUtil;
 import org.opensearch.rest.RestStatus;
 
 @ExtendWith(MockitoExtension.class)
-class OpenSearchBulkRetryWrapperTest {
+class OpenSearchBulkWrapperTest {
 
   private static final long ESTIMATED_SIZE_IN_BYTES = 1000L;
   @Mock
@@ -83,14 +83,14 @@ class OpenSearchBulkRetryWrapperTest {
   public void withRetryWhenCallSucceed() throws Exception {
     MetricsTestUtil.withMetricEnv(verifier -> {
       BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiter(optionsWithoutRateLimit);
-      OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
+      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
           retryOptionsWithRetry, rateLimiter);
       when(client.bulk(bulkRequest, options)).thenReturn(successResponse);
       when(successResponse.hasFailures()).thenReturn(false);
       when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
       when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
 
-      BulkResponse response = bulkRetryWrapper.bulk(client, bulkRequest, options);
+      BulkResponse response = bulkWrapper.bulk(client, bulkRequest, options);
 
       assertEquals(response, successResponse);
       verify(client).bulk(bulkRequest, options);
@@ -105,7 +105,7 @@ class OpenSearchBulkRetryWrapperTest {
   public void withRetryWhenCallConflict() throws Exception {
     MetricsTestUtil.withMetricEnv(verifier -> {
       BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiter(optionsWithoutRateLimit);
-      OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
+      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
           retryOptionsWithRetry, rateLimiter);
       when(client.bulk(any(), eq(options)))
           .thenReturn(conflictResponse);
@@ -114,7 +114,7 @@ class OpenSearchBulkRetryWrapperTest {
       when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
       when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
 
-      BulkResponse response = bulkRetryWrapper.bulk(client, bulkRequest, options);
+      BulkResponse response = bulkWrapper.bulk(client, bulkRequest, options);
 
       assertEquals(response, conflictResponse);
       verify(client).bulk(bulkRequest, options);
@@ -129,7 +129,7 @@ class OpenSearchBulkRetryWrapperTest {
   public void withRetryWhenCallFailOnce() throws Exception {
     MetricsTestUtil.withMetricEnv(verifier -> {
       BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiter(optionsWithoutRateLimit);
-      OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
+      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
           retryOptionsWithRetry, rateLimiter);
       when(client.bulk(any(), eq(options)))
           .thenReturn(failureResponse)
@@ -139,7 +139,7 @@ class OpenSearchBulkRetryWrapperTest {
       when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
       when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
 
-      BulkResponse response = bulkRetryWrapper.bulk(client, bulkRequest, options);
+      BulkResponse response = bulkWrapper.bulk(client, bulkRequest, options);
 
       assertEquals(response, successResponse);
       verify(client, times(2)).bulk(any(), eq(options));
@@ -153,7 +153,7 @@ class OpenSearchBulkRetryWrapperTest {
   public void withRetryWhenAllCallFail() throws Exception {
     MetricsTestUtil.withMetricEnv(verifier -> {
       BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiter(optionsWithoutRateLimit);
-      OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
+      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
           retryOptionsWithRetry, rateLimiter);
       when(client.bulk(any(), eq(options)))
           .thenReturn(failureResponse);
@@ -161,7 +161,7 @@ class OpenSearchBulkRetryWrapperTest {
       when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
       mockFailureResponse();
 
-      BulkResponse response = bulkRetryWrapper.bulk(client, bulkRequest, options);
+      BulkResponse response = bulkWrapper.bulk(client, bulkRequest, options);
 
       assertEquals(response, failureResponse);
       verify(client, times(3)).bulk(any(), eq(options));
@@ -175,14 +175,14 @@ class OpenSearchBulkRetryWrapperTest {
   public void withRetryWhenCallThrowsShouldNotRetry() throws Exception {
     MetricsTestUtil.withMetricEnv(verifier -> {
       BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiter(optionsWithoutRateLimit);
-      OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
+      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
           retryOptionsWithRetry, rateLimiter);
       when(client.bulk(bulkRequest, options)).thenThrow(new RuntimeException("test"));
       when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
       when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
 
       assertThrows(RuntimeException.class,
-          () -> bulkRetryWrapper.bulk(client, bulkRequest, options));
+          () -> bulkWrapper.bulk(client, bulkRequest, options));
 
       verify(client).bulk(bulkRequest, options);
       verifier.assertHistoricGauge(MetricConstants.OPENSEARCH_BULK_SIZE_METRIC, ESTIMATED_SIZE_IN_BYTES);
@@ -195,7 +195,7 @@ class OpenSearchBulkRetryWrapperTest {
   public void withoutRetryWhenCallFail() throws Exception {
     MetricsTestUtil.withMetricEnv(verifier -> {
       BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiter(optionsWithoutRateLimit);
-      OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
+      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
           retryOptionsWithoutRetry, rateLimiter);
       when(client.bulk(bulkRequest, options))
           .thenReturn(failureResponse);
@@ -203,7 +203,7 @@ class OpenSearchBulkRetryWrapperTest {
       when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
       mockFailureResponse();
 
-      BulkResponse response = bulkRetryWrapper.bulk(client, bulkRequest, options);
+      BulkResponse response = bulkWrapper.bulk(client, bulkRequest, options);
 
       assertEquals(response, failureResponse);
       verify(client).bulk(bulkRequest, options);
@@ -217,7 +217,7 @@ class OpenSearchBulkRetryWrapperTest {
   public void increaseRateLimitWhenCallSucceed() throws Exception {
     MetricsTestUtil.withMetricEnv(verifier -> {
       BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiter(optionsWithRateLimit);
-      OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
+      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
           retryOptionsWithRetry, rateLimiter);
       when(client.bulk(bulkRequest, options)).thenReturn(successResponse);
       when(successResponse.hasFailures()).thenReturn(false);
@@ -226,15 +226,15 @@ class OpenSearchBulkRetryWrapperTest {
 
       assertEquals(rateLimiter.getRate(), 2);
 
-      bulkRetryWrapper.bulk(client, bulkRequest, options);
+      bulkWrapper.bulk(client, bulkRequest, options);
       assertEquals(rateLimiter.getRate(), 3);
 
-      bulkRetryWrapper.bulk(client, bulkRequest, options);
+      bulkWrapper.bulk(client, bulkRequest, options);
       assertEquals(rateLimiter.getRate(), 4);
 
       // Should not exceed max rate limit
       rateLimiter.setRate(20);
-      bulkRetryWrapper.bulk(client, bulkRequest, options);
+      bulkWrapper.bulk(client, bulkRequest, options);
       assertEquals(rateLimiter.getRate(), 20);
     });
   }
@@ -243,7 +243,7 @@ class OpenSearchBulkRetryWrapperTest {
   public void adjustRateLimitWithRetryWhenCallFailOnce() throws Exception {
     MetricsTestUtil.withMetricEnv(verifier -> {
       BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiter(optionsWithRateLimit);
-      OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
+      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
           retryOptionsWithRetry, rateLimiter);
       when(client.bulk(any(), eq(options)))
           .thenReturn(failureResponse)
@@ -255,7 +255,7 @@ class OpenSearchBulkRetryWrapperTest {
 
       rateLimiter.setRate(10);
 
-      bulkRetryWrapper.bulk(client, bulkRequest, options);
+      bulkWrapper.bulk(client, bulkRequest, options);
 
       // Should decrease once then increase once
       assertEquals(rateLimiter.getRate(), 6);
@@ -266,7 +266,7 @@ class OpenSearchBulkRetryWrapperTest {
   public void decreaseRateLimitWhenAllCallFail() throws Exception {
     MetricsTestUtil.withMetricEnv(verifier -> {
       BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiter(optionsWithRateLimit);
-      OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
+      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
           retryOptionsWithRetry, rateLimiter);
       when(client.bulk(any(), eq(options)))
           .thenReturn(failureResponse)
@@ -278,7 +278,7 @@ class OpenSearchBulkRetryWrapperTest {
 
       rateLimiter.setRate(20);
 
-      bulkRetryWrapper.bulk(client, bulkRequest, options);
+      bulkWrapper.bulk(client, bulkRequest, options);
 
       // Should decrease three times
       assertEquals(rateLimiter.getRate(), 2.5);
@@ -297,7 +297,7 @@ class OpenSearchBulkRetryWrapperTest {
 
     MetricsTestUtil.withMetricEnv(verifier -> {
       BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiter(optionsHighFailureThreshold);
-      OpenSearchBulkRetryWrapper bulkRetryWrapper = new OpenSearchBulkRetryWrapper(
+      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
           retryOptionsWithRetry, rateLimiter);
       when(client.bulk(any(), eq(options)))
           .thenReturn(failureResponse)
@@ -309,7 +309,7 @@ class OpenSearchBulkRetryWrapperTest {
 
       rateLimiter.setRate(19);
 
-      bulkRetryWrapper.bulk(client, bulkRequest, options);
+      bulkWrapper.bulk(client, bulkRequest, options);
 
       // First request has 50% failure, not exceeding threshold, increasing rate
       // Second and third requests has 100% failure, decreasing rate

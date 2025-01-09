@@ -39,7 +39,7 @@ import org.opensearch.client.opensearch.indices.IndicesStatsResponse;
 import org.opensearch.client.transport.rest_client.RestClientTransport;
 
 import java.io.IOException;
-import org.opensearch.flint.core.storage.OpenSearchBulkRetryWrapper;
+import org.opensearch.flint.core.storage.OpenSearchBulkWrapper;
 
 import static org.opensearch.flint.core.metrics.MetricConstants.OS_BULK_OP_METRIC_PREFIX;
 import static org.opensearch.flint.core.metrics.MetricConstants.OS_CREATE_OP_METRIC_PREFIX;
@@ -53,7 +53,7 @@ import static org.opensearch.flint.core.metrics.MetricConstants.OS_WRITE_OP_METR
  */
 public class RestHighLevelClientWrapper implements IRestHighLevelClient {
     private final RestHighLevelClient client;
-    private final OpenSearchBulkRetryWrapper bulkRetryWrapper;
+    private final OpenSearchBulkWrapper bulkRetryWrapper;
 
     private final static JacksonJsonpMapper JACKSON_MAPPER = new JacksonJsonpMapper();
 
@@ -62,7 +62,7 @@ public class RestHighLevelClientWrapper implements IRestHighLevelClient {
      *
      * @param client the RestHighLevelClient instance to wrap
      */
-    public RestHighLevelClientWrapper(RestHighLevelClient client, OpenSearchBulkRetryWrapper bulkRetryWrapper) {
+    public RestHighLevelClientWrapper(RestHighLevelClient client, OpenSearchBulkWrapper bulkRetryWrapper) {
         this.client = client;
         this.bulkRetryWrapper = bulkRetryWrapper;
     }
