@@ -1,9 +1,9 @@
 version: "3"
 
 services:
-  spark-iceberg:
+  spark-tutorial:
     image: tabulario/spark-iceberg
-    container_name: spark-iceberg
+    container_name: spark-tutorial
     networks:
       iceberg_net:
     depends_on:
@@ -11,7 +11,7 @@ services:
       - minio
     volumes:
       - ./warehouse:/home/iceberg/warehouse
-      - ./notebooks:/home/iceberg/notebooks/notebooks
+      - ./notebooks:/home/iceberg/notebooks/PPL
       - type: bind
         source: ./spark-defaults.conf
         target: /opt/spark/conf/spark-defaults.conf
@@ -51,6 +51,8 @@ services:
       - MINIO_ROOT_USER=admin
       - MINIO_ROOT_PASSWORD=password
       - MINIO_DOMAIN=minio
+    volumes:
+      - minio-data:/data
     networks:
       iceberg_net:
         aliases:
@@ -78,5 +80,57 @@ services:
       /usr/bin/mc policy set public minio/warehouse;
       tail -f /dev/null
       "
+  opensearch:
+    image: opensearchproject/opensearch:${OPENSEARCH_VERSION:-latest}
+    container_name: opensearch
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch
+      - discovery.seed_hosts=opensearch
+      - cluster.initial_cluster_manager_nodes=opensearch
+      - bootstrap.memory_lock=true
+      - plugins.security.ssl.http.enabled=false
+      - OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_NODE_MEMORY:-512m} -Xmx${OPENSEARCH_NODE_MEMORY:-512m}
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+      - ./opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
+      - ./opensearch/security/config:/usr/share/opensearch/plugins/opensearch-security/securityconfig
+    ports:
+      - ${OPENSEARCH_PORT:-9200}:9200
+      - 9600:9600
+    expose:
+      - "${OPENSEARCH_PORT:-9200}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-u", "admin:${OPENSEARCH_ADMIN_PASSWORD}", "http://localhost:9200/_cluster/health"]
+      interval: 1m
+      timeout: 5s
+      retries: 3
+    networks:
+      iceberg_net:
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:${DASHBOARDS_VERSION}
+    container_name: opensearch-dashboards
+    ports:
+      - ${OPENSEARCH_DASHBOARDS_PORT:-5601}:5601
+    expose:
+      - "${OPENSEARCH_DASHBOARDS_PORT:-5601}"
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+    depends_on:
+      - opensearch
+    networks:
+      iceberg_net:
 networks:
   iceberg_net:
+
+volumes:
+  opensearch-data:
+  minio-data:
