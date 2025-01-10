@@ -9,7 +9,6 @@ import org.junit.Test;
 
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 import static org.junit.Assert.assertEquals;
