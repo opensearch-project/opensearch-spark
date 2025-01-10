@@ -8,6 +8,9 @@ package org.opensearch.sql.expression.function;
 import org.junit.Test;
 
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -16,7 +19,8 @@ import static org.opensearch.sql.expression.function.SerializableUdf.relativeTim
 public class SerializableTimeUdfTest {
 
     // Monday, Jan 03, 2000 @ 01:01:01.100
-    private final Timestamp MOCK_TIMESTAMP = Timestamp.valueOf("2000-01-03 01:01:01.100");
+    private final Instant MOCK_INSTANT = Instant.parse("2000-01-03T01:01:01.100Z");
+    private final ZoneId MOCK_ZONE_ID = ZoneId.of("UTC");
 
     @Test
     public void relativeTimestampTest() {
@@ -46,13 +50,13 @@ public class SerializableTimeUdfTest {
     private void testValid(String relativeString, String expectedTimestampString) {
         String testMessage = String.format("\"%s\"", relativeString);
         Timestamp expectedTimestamp = Timestamp.valueOf(expectedTimestampString);
-        Timestamp actualTimestamp = relativeTimestampFunction.apply(relativeString, MOCK_TIMESTAMP);
+        Timestamp actualTimestamp = relativeTimestampFunction.apply(relativeString, MOCK_INSTANT, MOCK_ZONE_ID.toString());
         assertEquals(testMessage, expectedTimestamp, actualTimestamp);
     }
 
     private void testInvalid(String relativeString, String expectedExceptionMessage) {
         String testMessage = String.format("\"%s\"", relativeString);
-        String actualExceptionMessage = assertThrows(testMessage, RuntimeException.class, () -> relativeTimestampFunction.apply(relativeString, MOCK_TIMESTAMP)).getMessage();
+        String actualExceptionMessage = assertThrows(testMessage, RuntimeException.class, () -> relativeTimestampFunction.apply(relativeString, MOCK_INSTANT, MOCK_ZONE_ID.toString())).getMessage();
         assertEquals(expectedExceptionMessage, actualExceptionMessage);
     }
 }
