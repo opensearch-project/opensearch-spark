@@ -1,4 +1,19 @@
 services:
+  metastore:
+    build: ./metastore
+    container_name: metastore
+    ports:
+      - "${THRIFT_PORT:-9083}:9083"
+    volumes:
+      - type: bind
+        source: ./metastore/hive-site.xml
+        target: /opt/apache-hive-2.3.9-bin/conf/hive-site.xml
+      - type: bind
+        source: ./metastore/hive-log4j2.properties
+        target: /opt/apache-hive-2.3.9-bin/conf/hive-log4j2.properties
+    networks:
+      - opensearch-net
+
   spark:
     image: bitnami/spark:${SPARK_VERSION:-3.5.3}
     container_name: spark
@@ -20,22 +35,22 @@ services:
       - OPENSEARCH_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD}
     volumes:
       - type: bind
-        source: ./spark-master-entrypoint.sh
+        source: ./spark/spark-master-entrypoint.sh
         target: /opt/bitnami/scripts/spark/master-entrypoint.sh
       - type: bind
-        source: ./spark-defaults.conf
+        source: ./spark/spark-defaults.conf
         target: /opt/bitnami/spark/conf/spark-defaults.conf
       - type: bind
-        source: ./log4j2.properties
+        source: ./spark/log4j2.properties
         target: /opt/bitnami/spark/conf/log4j2.properties
       - type: bind
-        source: $PPL_JAR
+        source: ../../$PPL_JAR
         target: /opt/bitnami/spark/jars/ppl-spark-integration.jar
       - type: bind
-        source: $FLINT_JAR
+        source: ../../$FLINT_JAR
         target: /opt/bitnami/spark/jars/flint-spark-integration.jar
       - type: bind
-        source: ./s3.credentials
+        source: ./spark/s3.credentials
         target: /opt/bitnami/spark/s3.credentials
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
@@ -47,6 +62,8 @@ services:
     networks:
       - opensearch-net
     depends_on:
+      metastore:
+        condition: service_started
       opensearch:
         condition: service_healthy
       opensearch-dashboards:
@@ -67,35 +84,50 @@ services:
       - SPARK_PUBLIC_DNS=localhost
     volumes:
       - type: bind
-        source: ./spark-defaults.conf
+        source: ./spark/spark-defaults.conf
         target: /opt/bitnami/spark/conf/spark-defaults.conf
       - type: bind
-        source: ./log4j2.properties
+        source: ./spark/log4j2.properties
         target: /opt/bitnami/spark/conf/log4j2.properties
       - type: bind
-        source: $PPL_JAR
+        source: ../../$PPL_JAR
         target: /opt/bitnami/spark/jars/ppl-spark-integration.jar
       - type: bind
-        source: $FLINT_JAR
+        source: ../../$FLINT_JAR
         target: /opt/bitnami/spark/jars/flint-spark-integration.jar
     networks:
       - opensearch-net
     depends_on:
+      metastore:
+        condition: service_started
       spark:
         condition: service_healthy
 
+  spark-submit:
+    build:
+      context: ../../
+      dockerfile: docker/integ-test/spark-submit/Dockerfile
+      args:
+        FLINT_JAR: ${FLINT_JAR}
+        PPL_JAR: ${PPL_JAR}
+        SQL_APP_JAR: ${SQL_APP_JAR}
+    depends_on:
+      metastore:
+        condition: service_completed_successfully
+
   opensearch:
-    image: opensearchproject/opensearch:${OPENSEARCH_VERSION:-latest}
+    build: ./opensearch
     container_name: opensearch
     environment:
       - cluster.name=opensearch-cluster
       - node.name=opensearch
-      - discovery.seed_hosts=opensearch
-      - cluster.initial_cluster_manager_nodes=opensearch
+      - discovery.type=single-node
       - bootstrap.memory_lock=true
+      - plugins.security.system_indices.enabled=false
+      - plugins.security.system_indices.permission.enabled=false
       - plugins.security.ssl.http.enabled=false
       - plugins.query.datasources.encryption.masterkey=9a515c99d4313f140a6607053502f4d6
-      - OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_NODE_MEMORY:-512m} -Xmx${OPENSEARCH_NODE_MEMORY:-512m} -DEMR_SERVERLESS_CLIENT_FACTORY_CLASS=org.opensearch.sql.spark.client.DockerEMRServerlessClientFactory -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+      - OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_NODE_MEMORY:-512m} -Xmx${OPENSEARCH_NODE_MEMORY:-512m} -DEMR_SERVERLESS_CLIENT_FACTORY_CLASS=org.opensearch.sql.spark.client.DockerEMRServerlessClientFactory
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD}
     ulimits:
       memlock:
@@ -105,20 +137,18 @@ services:
         soft: 65536
         hard: 65536
     volumes:
-      - opensearch-data:/usr/share/opensearch/data
+      - type: volume
+        source: opensearch-data
+        target: /usr/share/opensearch/data
       - type: bind
-        source: ./aws-java-sdk-emrserverless-1.12.651.jar
-        target: /usr/share/opensearch/plugins/opensearch-sql/aws-java-sdk-emrserverless-1.12.651.jar
-      - type: bind
-        source: ../../spark-sql-application/target/scala-2.12/sql-job-assembly-0.7.0-SNAPSHOT.jar
-        target: /spark-sql-application.jar
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
     ports:
       - ${OPENSEARCH_PORT:-9200}:9200
       - 9600:9600
-      - 5005:5005
     expose:
       - "${OPENSEARCH_PORT:-9200}"
-      - "5005"
+      - "9300"
     healthcheck:
       test: ["CMD", "curl", "-f", "-u", "admin:${OPENSEARCH_ADMIN_PASSWORD}", "http://localhost:9200/_cluster/health"]
       interval: 1m
@@ -177,6 +207,5 @@ services:
 volumes:
   opensearch-data:
   minio-data:
-
 networks:
   opensearch-net:
