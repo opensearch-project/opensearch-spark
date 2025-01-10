@@ -25,7 +25,7 @@ class BulkRequestRateLimiterTest {
     FlintOptions options = new FlintOptions(ImmutableMap.of(
         FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED, "true",
         FlintOptions.BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE, "1"));
-    BulkRequestRateLimiter limiter = new BulkRequestRateLimiter(options);
+    BulkRequestRateLimiter limiter = new BulkRequestRateLimiterImpl(options);
 
     assertTrue(timer(() -> {
       limiter.acquirePermit();
@@ -43,9 +43,7 @@ class BulkRequestRateLimiterTest {
 
   @Test
   void acquirePermitWithoutRateConfig() throws Exception {
-    FlintOptions options = new FlintOptions(ImmutableMap.of(
-        FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED, "false"));
-    BulkRequestRateLimiter limiter = new BulkRequestRateLimiter(options);
+    BulkRequestRateLimiter limiter = new BulkRequestRateLimiterNoop();
 
     assertTrue(timer(() -> {
       limiter.acquirePermit();
