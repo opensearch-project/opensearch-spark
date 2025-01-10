@@ -42,6 +42,10 @@ public class Join extends UnresolvedPlan {
         return ImmutableList.of(left);
     }
 
+    public List<UnresolvedPlan> getChildren() {
+        return ImmutableList.of(left, right);
+    }
+
     @Override
     public <T, C> T accept(AbstractNodeVisitor<T, C> nodeVisitor, C context) {
         return nodeVisitor.visitJoin(this, context);
