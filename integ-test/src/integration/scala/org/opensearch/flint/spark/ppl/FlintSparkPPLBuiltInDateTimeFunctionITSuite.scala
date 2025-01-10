@@ -370,7 +370,7 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
 
   test("test RELATIVE_TIMESTAMP") {
     var frame = sql(s"""
-                       | source = $testTable
+                       | source=$testTable
                        | | eval seconds_diff = timestampdiff(SECOND, now(), relative_timestamp("now"))
                        | | fields seconds_diff
                        | | head 1
@@ -378,17 +378,29 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
     assertSameRows(Seq(Row(0)), frame)
 
     frame = sql(s"""
-                       | source = $testTable
-                       | | eval hours_diff = timestampdiff(HOUR, now(), relative_timestamp("+1h"))
+                       | source=$testTable
+                       | | eval hours_diff = timestampdiff(HOUR, relative_timestamp("+1h"), relative_timestamp("+1d"))
                        | | fields hours_diff
                        | | head 1
                        | """.stripMargin)
+    assertSameRows(Seq(Row(23)), frame)
+
+    frame = sql(s"""
+                   | source =$testTable
+                   | | eval day = day_of_week(relative_timestamp("@w0"))
+                   | | fields day
+                   | | head 1
+                   | """.stripMargin)
     assertSameRows(Seq(Row(1)), frame)
 
     frame = sql(s"""
-                   | source = $testTable
-                   | | eval day = day_of_week(relative_timestamp("@w0"))
-                   | | fields day
+                   | source=$testTable
+                   | | eval last_wednesday = relative_timestamp("-1d@w3")
+                   | | eval actual_days_ago = timestampdiff(DAY, last_wednesday, now() )
+                   | | eval day_of_week = day_of_week(now())
+                   | | eval expected_days_ago = case(day_of_week >= 4, day_of_week - 4 else day_of_week + 3)
+                   | | eval test_result = (expected_weeks_ago = actual_weeks_ago)
+                   | | fields test_result
                    | | head 1
                    | """.stripMargin)
     assertSameRows(Seq(Row(1)), frame)
@@ -397,7 +409,7 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
   // TODO #957: Support earliest
   ignore("test EARLIEST") {
     var frame = sql(s"""
-                       | source = $testTable
+                       | source=$testTable
                        | | eval earliest_hour_before = earliest(now(), "-1h")
                        | | eval earliest_now = earliest(now(), "now")
                        | | eval earliest_hour_after = earliest(now(), "+1h")
@@ -410,7 +422,7 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
   // TODO #957: Support latest
   ignore("test LATEST") {
     var frame = sql(s"""
-                       | source = $testTable
+                       | source=$testTable
                        | | eval latest_hour_before = latest(now(), "-1h")
                        | | eval latest_now = latest(now(), "now")
                        | | eval latest_hour_after = latest(now(), "+1h")
