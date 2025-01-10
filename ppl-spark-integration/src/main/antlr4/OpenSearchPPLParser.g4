@@ -755,6 +755,7 @@ dateTimeFunctionName
    | NOW
    | PERIOD_ADD
    | PERIOD_DIFF
+   | RELATIVE_TIMESTAMP
    | QUARTER
    | SECOND
    | SECOND_OF_MINUTE

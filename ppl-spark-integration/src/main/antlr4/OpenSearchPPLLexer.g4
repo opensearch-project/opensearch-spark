@@ -338,6 +338,7 @@ MONTHNAME:                          'MONTHNAME';
 NOW:                                'NOW';
 PERIOD_ADD:                         'PERIOD_ADD';
 PERIOD_DIFF:                        'PERIOD_DIFF';
+RELATIVE_TIMESTAMP:                 'RELATIVE_TIMESTAMP';
 SEC_TO_TIME:                        'SEC_TO_TIME';
 STR_TO_DATE:                        'STR_TO_DATE';
 SUBDATE:                            'SUBDATE';
