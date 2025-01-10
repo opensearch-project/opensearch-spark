@@ -738,19 +738,25 @@ Example:
 **Description:**
 
 
-**Usage:** relative_timestamp(str) returns a relative timestamp from given relative string and the current
-timestamp at the time of query execution.
+**Usage:** relative_timestamp(str) returns a relative timestamp corresponding to the given relative string and the
+current timestamp at the time of query execution.
 
-The relative timestamp string has syntax `[+|-]<offset_time_integer><offset_time_unit>@<snap_time_unit>`, and is made up
-of two optional components:
-* An offset from the current timestamp, which is composed of a sign (`+` or `-`), an optional time integer, and a time
-  unit. If the time integer is not specified, it defaults to one. For example, `+2hr` is two hours after the current
-  timestamp, while `-mon` is one month ago. 
-* A snap-to time using the `@` symbol followed by a time unit. The snap-to time is applied after the offset (if 
-  specified), and rounds the time <i>down</i> to the start of the specified time unit (i.e. backwards in time). For 
-  example, `@wk` is the start of the current week (Sunday is considered to be the first day of the week).
+The relative timestamp string has syntax `[+|-]<offset_time_integer><offset_time_unit>@<snap_time_unit>`, and is
+made up of two optional components.
+* An offset from the current timestamp, which is composed of a sign (`+` or `-`), optional `offset_time_integer`, and 
+  `offset_time_unit`. If the offset time integer is not specified, it defaults to `1`. For example, `+2hr` is two
+  hours after the current timestamp, while `-mon` is one month ago. 
+* A snap-to time using the `@` symbol followed by `snap_time_unit`. The snap-to time is applied after the offset (if 
+  specified), and rounds the time <i>down</i> to the start of the specified time unit. For example, `@wk` is the start
+  of the current week (Sunday is considered to be the first day of the week).
 
-The following offset time units are supported:
+The special relative timestamp string `now`, corresponding to the current timestamp, is also supported. The current
+timestamp is determined once at the start of query execution, and is used for all relative timestamp calculations for
+that query.
+
+The relative timestamp string is case-insensitive.
+
+The following values are supported for `offset_time_unit`:
 
 | Time Unit | Supported Keywords                        |
 |-----------|-------------------------------------------|
@@ -762,7 +768,7 @@ The following offset time units are supported:
 | Quarters  | `q`, `qtr`, `qtrs`, `quarter`, `quarters` |
 | Years     | `y`, `yr`, `yrs`, `year`, `years`         |
 
-The snap-to time supports all the time units above, as well as the following day of the week time units:
+All the time units above are supported for `snap_time_unit`, as well as the following day-of-the-week time units:
 
 | Time Unit | Supported Keywords |
 |-----------|--------------------|
@@ -774,16 +780,14 @@ The snap-to time supports all the time units above, as well as the following day
 | Friday    | `w5`               |
 | Saturday  | `w6`               |
 
-The special relative timestamp string `now`, corresponding to the current timestamp, is also supported.
-
 For example, if the current timestamp is Monday, January 03, 2000 at 01:01:01 am:
 
 | Relative String | Description                                                  | Resulting Relative Time                     |
 |-----------------|--------------------------------------------------------------|---------------------------------------------|
 | `-60m`          | Sixty minutes ago                                            | Monday, January 03, 2000 at 00:01:01 am     |
-| `-1h`           | One hour ago                                                 | Monday, January 03, 2000 at 00:01:01 am     |
+| `-1H`           | One hour ago                                                 | Monday, January 03, 2000 at 00:01:01 am     |
 | `+2wk`          | Two weeks from now                                           | Monday, January 17, 2000 at 00:01:01 am     |
-| `-1h@w3`        | One hour ago, rounded to the start of the previous Wednesday | Wednesday, December 29, 1999 at 00:00:00 am |
+| `-1h@W3`        | One hour ago, rounded to the start of the previous Wednesday | Wednesday, December 29, 1999 at 00:00:00 am |
 | `@d`            | Start of the current day                                     | Monday, January 03, 2000 at 00:00:00 am     |
 | `now`           | Now                                                          | Monday, January 03, 2000 at 01:01:01 am     | 
 

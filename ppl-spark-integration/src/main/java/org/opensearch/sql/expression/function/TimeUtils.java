@@ -8,7 +8,11 @@ package org.opensearch.sql.expression.function;
 import com.google.common.collect.ImmutableMap;
 import lombok.experimental.UtilityClass;
 
-import java.time.*;
+import java.time.DayOfWeek;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.Month;
+import java.time.Period;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
@@ -43,6 +47,7 @@ public class TimeUtils {
 
     // Map from time unit to the corresponding duration.
     private static final Map<String, Duration> DURATION_FOR_TIME_UNIT_MAP;
+
     static {
         Map<String, Duration> durationMap = new HashMap<>();
         SECOND_UNITS_SET.forEach(u -> durationMap.put(u, Duration.ofSeconds(1)));
@@ -53,6 +58,7 @@ public class TimeUtils {
 
     // Map from time unit to the corresponding period.
     private static final Map<String, Period> PERIOD_FOR_TIME_UNIT_MAP;
+
     static {
         Map<String, Period> periodMap = new HashMap<>();
         DAY_UNITS_SET.forEach(u -> periodMap.put(u, Period.ofDays(1)));
@@ -224,7 +230,7 @@ public class TimeUtils {
         Matcher matcher = RELATIVE_PATTERN.matcher(relativeString);
         if (!matcher.matches()) {
             String message = String.format("The relative date time '%s' is not supported.", relativeString);
-            throw new RuntimeException(message);
+            throw new IllegalArgumentException(message);
         }
 
 
@@ -274,7 +280,7 @@ public class TimeUtils {
         }
 
         String message = String.format("The relative date time unit '%s' is not supported.", offsetUnit);
-        throw new RuntimeException(message);
+        throw new IllegalArgumentException(message);
     }
 
     /**
@@ -304,11 +310,11 @@ public class TimeUtils {
         } else if (YEAR_UNITS_SET.contains(snapUnitLowerCase)) {
             return localDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfYear(1);
         } else if (DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.containsKey(snapUnitLowerCase)) {
-            return applySnapToDayOfWeek(localDateTime, DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.get(snapUnit));
+            return applySnapToDayOfWeek(localDateTime, DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.get(snapUnitLowerCase));
         }
 
         String message = String.format("The relative date time unit '%s' is not supported.", snapUnit);
-        throw new RuntimeException(message);
+        throw new IllegalArgumentException(message);
     }
 
     /**
@@ -318,12 +324,9 @@ public class TimeUtils {
     private LocalDateTime applySnapToDayOfWeek(LocalDateTime dateTime, DayOfWeek snapDayOfWeek) {
         LocalDateTime snappedDateTime = dateTime.truncatedTo(ChronoUnit.DAYS);
 
-        DayOfWeek dayOfWeek = dateTime.getDayOfWeek();
-        if (dayOfWeek.equals(snapDayOfWeek)) {
-            return snappedDateTime;
-        }
+        int daysToSnap = dateTime.getDayOfWeek().getValue() - snapDayOfWeek.getValue();
+        if (daysToSnap < 0) daysToSnap += DayOfWeek.values().length;
 
-        int daysToSnap = DayOfWeek.values().length - snapDayOfWeek.getValue() + dayOfWeek.getValue();
         return snappedDateTime.minusDays(daysToSnap);
     }
 }
