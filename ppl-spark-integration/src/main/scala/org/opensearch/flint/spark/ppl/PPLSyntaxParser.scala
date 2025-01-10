@@ -4,11 +4,11 @@
  */
 package org.opensearch.flint.spark.ppl
 
-import org.antlr.v4.runtime.{CommonTokenStream, Lexer}
 import org.antlr.v4.runtime.tree.ParseTree
+import org.antlr.v4.runtime.{CommonTokenStream, Lexer}
 import org.opensearch.sql.ast.statement.Statement
 import org.opensearch.sql.common.antlr.{CaseInsensitiveCharStream, Parser, SyntaxAnalysisErrorListener}
-import org.opensearch.sql.ppl.parser.{AstBuilder, AstExpressionBuilder, AstStatementBuilder}
+import org.opensearch.sql.ppl.parser.{AstBuilder, AstStatementBuilder}
 
 class PPLSyntaxParser extends Parser {
   // Analyze the query syntax
