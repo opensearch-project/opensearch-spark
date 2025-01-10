@@ -64,8 +64,7 @@ val packagesToShade = Seq(
   "org.glassfish.json.**",
   "org.joda.time.**",
   "org.reactivestreams.**",
-  "org.yaml.**",
-  "software.amazon.**"
+  "org.yaml.**"
 )
 
 ThisBuild / assemblyShadeRules := Seq(
