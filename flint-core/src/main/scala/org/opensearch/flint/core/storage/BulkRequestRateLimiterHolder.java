@@ -20,7 +20,11 @@ public class BulkRequestRateLimiterHolder {
   public synchronized static BulkRequestRateLimiter getBulkRequestRateLimiter(
       FlintOptions flintOptions) {
     if (instance == null) {
-      instance = new BulkRequestRateLimiter(flintOptions);
+      if (flintOptions.getBulkRequestRateLimitPerNodeEnabled()) {
+        instance = new BulkRequestRateLimiterImpl(flintOptions);
+      } else {
+        instance = new BulkRequestRateLimiterNoop();
+      }
     }
     return instance;
   }

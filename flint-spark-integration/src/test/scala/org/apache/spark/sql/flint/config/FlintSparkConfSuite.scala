@@ -64,14 +64,29 @@ class FlintSparkConfSuite extends FlintSuite {
     retryOptions.getRetryableExceptionClassNames.get() shouldBe "java.net.ConnectException"
   }
 
-  test("test bulkRequestRateLimitPerNode default value") {
+  test("test bulk request rate limit options default value") {
     val options = FlintSparkConf().flintOptions()
-    options.getBulkRequestRateLimitPerNode shouldBe 0
+    options.getBulkRequestRateLimitPerNodeEnabled shouldBe false
+    options.getBulkRequestMinRateLimitPerNode shouldBe 5000
+    options.getBulkRequestMaxRateLimitPerNode shouldBe 50000
+    options.getBulkRequestRateLimitPerNodeIncreaseStep shouldBe 500
+    options.getBulkRequestRateLimitPerNodeDecreaseRatio shouldBe 0.8
   }
 
-  test("test specified bulkRequestRateLimitPerNode") {
-    val options = FlintSparkConf(Map("bulkRequestRateLimitPerNode" -> "5").asJava).flintOptions()
-    options.getBulkRequestRateLimitPerNode shouldBe 5
+  test("test specified bulk request rate limit options") {
+    val options = FlintSparkConf(
+      Map(
+        "write.bulk.rate_limit_per_node.enabled" -> "true",
+        "write.bulk.rate_limit_per_node.min" -> "20",
+        "write.bulk.rate_limit_per_node.max" -> "200",
+        "write.bulk.rate_limit_per_node.increase_step" -> "20",
+        "write.bulk.rate_limit_per_node.decrease_ratio" -> "0.5").asJava)
+      .flintOptions()
+    options.getBulkRequestRateLimitPerNodeEnabled shouldBe true
+    options.getBulkRequestMinRateLimitPerNode shouldBe 20
+    options.getBulkRequestMaxRateLimitPerNode shouldBe 200
+    options.getBulkRequestRateLimitPerNodeIncreaseStep shouldBe 20
+    options.getBulkRequestRateLimitPerNodeDecreaseRatio shouldBe 0.5
   }
 
   test("test metadata access AWS credentials provider option") {
