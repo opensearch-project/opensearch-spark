@@ -42,20 +42,47 @@ curl -q \
      http://minio-S3:9001/api/v1/service-account-credentials
 
 # Login to OpenSearch Dashboards
-curl -c /tmp/opensearch-cookies.txt \
+echo ">>> Login to OpenSearch dashboards"
+curl -q \
+     -c /tmp/opensearch-cookies.txt \
      -X POST \
      -H 'Content-Type: application/json' \
      -H 'Osd-Version: 2.18.0' \
      -H 'Osd-Xsrf: fetch' \
      -d "{\"username\": \"admin\", \"password\": \"${OPENSEARCH_ADMIN_PASSWORD}\"}" \
      'http://opensearch-dashboards:5601/auth/login?dataSourceId='
+if [ "$?" -eq "0" ]; then
+  echo "    >>> Login successful"
+else
+  echo "    >>> Login failed"
+fi
 # Create the S3/Glue datasource
-curl -b /tmp/opensearch-cookies.txt \
+echo ">>> Creating datasource"
+curl -q \
+     -b /tmp/opensearch-cookies.txt \
      -X POST \
      -H 'Content-Type: application/json' \
      -H 'Osd-Version: 2.18.0' \
      -H 'Osd-Xsrf: fetch' \
-     -d '{"name": "mys3", "allowedRoles": [], "connector": "s3glue", "properties": {"glue.auth.type": "iam_role", "glue.auth.role_arn": "arn:aws:iam::123456789012:role/S3Access", "glue.indexstore.opensearch.uri": "http://opensearch:9200", "glue.indexstore.opensearch.auth": "basicauth", "glue.indexstore.opensearch.auth.username": "admin", "glue.indexstore.opensearch.auth.password": "arn:aws:iam::123456789012:role/S3Access"}}' \
+     -d '{"name": "mys3", "allowedRoles": [], "connector": "s3glue", "properties": {"glue.auth.type": "iam_role", "glue.auth.role_arn": "arn:aws:iam::123456789012:role/S3Access", "glue.indexstore.opensearch.uri": "http://opensearch:9200", "glue.indexstore.opensearch.auth": "basicauth", "glue.indexstore.opensearch.auth.username": "admin", "glue.indexstore.opensearch.auth.password": "C0rrecthorsebatterystaple."}}' \
      http://opensearch-dashboards:5601/api/directquery/dataconnections
+if [ "$?" -eq "0" ]; then
+  echo "    >>> S3 datasource created"
+else
+  echo "    >>> Failed to create S3 datasource"
+fi
+
+echo ">>> Setting cluster settings"
+curl -v \
+     -u "admin:${OPENSEARCH_ADMIN_PASSWORD}" \
+     -X PUT \
+     -H 'Content-Type: application/json' \
+     -d '{"persistent": {"plugins.query.executionengine.spark.config": "{\"applicationId\":\"integ-test\",\"executionRoleARN\":\"arn:aws:iam::xxxxx:role/emr-job-execution-role\",\"region\":\"us-west-2\", \"sparkSubmitParameters\": \"--conf spark.dynamicAllocation.enabled=false\"}"}}' \
+     http://opensearch:9200/_cluster/settings
+if [ "$?" -eq "0" ]; then
+  echo "    >>> Successfully set cluster settings"
+else
+  echo "    >>> Failed to set cluster settings"
+fi
 
 su spark -c '/opt/bitnami/scripts/spark/entrypoint.sh /opt/bitnami/scripts/spark/run.sh'
