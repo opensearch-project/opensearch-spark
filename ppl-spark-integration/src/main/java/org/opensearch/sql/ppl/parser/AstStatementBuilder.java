@@ -16,7 +16,7 @@ import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.DescribeRelation;
-import org.opensearch.sql.ast.tree.Project;
+import org.opensearch.sql.ast.tree.View;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 
 /** Build {@link Statement} from PPL Query. */
@@ -32,6 +32,7 @@ public class AstStatementBuilder extends OpenSearchPPLParserBaseVisitor<Statemen
     this.context = context;
   }
 
+
   @Override
   public Statement visitDmlStatement(OpenSearchPPLParser.DmlStatementContext ctx) {
     Query query = new Query(addSelectAll(astBuilder.visit(ctx)), context.getFetchSize());
@@ -39,6 +40,11 @@ public class AstStatementBuilder extends OpenSearchPPLParserBaseVisitor<Statemen
     if (explainContext != null) {
       return new Explain(query, explainContext.explainMode().getText());
     }
+    OpenSearchPPLParser.ViewCommandContext projectContext = ctx.viewCommand();
+    if (projectContext != null) {
+      return astBuilder.buildProjectStatement(query, projectContext);
+    }
+
     return query;
   }
 
@@ -77,12 +83,12 @@ public class AstStatementBuilder extends OpenSearchPPLParserBaseVisitor<Statemen
   }
 
     private UnresolvedPlan addSelectAll(UnresolvedPlan plan) {
-        if ((plan instanceof Project) && !((Project) plan).isExcluded()) {
+        if ((plan instanceof View) && !((View) plan).isExcluded()) {
             return plan;
         } else if (plan instanceof DescribeRelation) {
             return plan;
         } else {
-            return new Project(ImmutableList.of(AllFields.of())).attach(plan);
+            return new View(ImmutableList.of(AllFields.of())).attach(plan);
         }
     }
 }
