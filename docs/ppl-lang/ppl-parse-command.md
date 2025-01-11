@@ -58,7 +58,7 @@ The example shows how to sort street numbers that are higher than 500 in ``addre
 
 PPL query:
 
-    os> source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | where cast(streetNumber as int) > 500 | sort num(streetNumber) | fields streetNumber, street ;
+    os> source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | eval streetNumberInt = cast(streetNumber as integer) | where streetNumberInt > 500 | sort streetNumberInt | fields streetNumber, street ;
     fetched rows / total rows = 3/3
     +----------------+----------------+
     | streetNumber   | street         |
