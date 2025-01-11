@@ -1,11 +1,14 @@
 ## Flint - Getting Started
 This tutorial introduces the usage of Flint as a caching and acceleration platform on top of spark.
+The content of the tutorial is based on [Iceberg spark Github Example](https://github.com/databricks/docker-spark-iceberg) and tutorial and expands it with Flint's capabilities and functionality.
+
 
 
 ### Catalog
-Spark catalog is ...
+In Spark, a catalog is a repository for organizing and accessing datasets, such as tables and indexes, within Spark applications. Catalogs allow users to logically separate and manage datasets from various sources.
 
-We created 2 catalogs :
+
+In this initial setup we created 2 catalogs :
  - Iceberg - for Iceberg table format demonstration
  - Demo - for OpenSearch index acceleration demonstration
 
