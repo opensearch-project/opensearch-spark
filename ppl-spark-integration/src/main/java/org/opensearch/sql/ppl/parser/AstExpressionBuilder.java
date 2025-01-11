@@ -45,8 +45,6 @@ import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
 import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
-import org.opensearch.sql.ast.tree.Trendline;
-import org.opensearch.sql.common.antlr.SyntaxCheckException;
 import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.ppl.utils.ArgumentFactory;
 import org.opensearch.sql.ppl.utils.GeoIpCatalystLogicalPlanTranslator;
@@ -184,6 +182,8 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
 
     @Override
     public UnresolvedExpression visitSortField(OpenSearchPPLParser.SortFieldContext ctx) {
+
+        // TODO #963: Implement 'num', 'str', and 'ip' sort syntax
         return new Field((QualifiedName)
                 visit(ctx.sortFieldExpression().fieldExpression().qualifiedName()),
                 ArgumentFactory.getArgumentList(ctx));

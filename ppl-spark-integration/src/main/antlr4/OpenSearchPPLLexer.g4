@@ -42,6 +42,7 @@ FILLNULL:                           'FILLNULL';
 EXPAND:                             'EXPAND';
 FLATTEN:                            'FLATTEN';
 TRENDLINE:                          'TRENDLINE';
+APPENDCOL:                          'APPENDCOL';
 
 //Native JOIN KEYWORDS
 JOIN:                               'JOIN';
@@ -82,12 +83,12 @@ DATASOURCES:                        'DATASOURCES';
 USING:                              'USING';
 WITH:                               'WITH';
 
-// FIELD KEYWORDS
+// SORT FIELD KEYWORDS
+// TODO #963: Implement 'num', 'str', and 'ip' sort syntax
 AUTO:                               'AUTO';
 STR:                                'STR';
 IP:                                 'IP';
 NUM:                                'NUM';
-
 
 // FIELDSUMMARY keywords
 FIELDSUMMARY:                       'FIELDSUMMARY';
@@ -97,6 +98,9 @@ NULLS:                              'NULLS';
 //TRENDLINE KEYWORDS
 SMA:                                'SMA';
 WMA:                                'WMA';
+
+// APPENDCOL options
+OVERRIDE:                           'OVERRIDE';
 
 // ARGUMENT KEYWORDS
 KEEPEMPTY:                          'KEEPEMPTY';

@@ -1,5 +1,10 @@
 ## Example PPL Queries
 
+#### **AppendCol**
+[See additional command details](ppl-appendcol-command.md)
+- `source=employees | stats avg(age) as avg_age1 by dept | fields dept, avg_age1 | APPENDCOL  [ stats avg(age) as avg_age2 by dept | fields avg_age2 ];` (To display multiple table statistics side by side)
+- `source=employees | FIELDS name, dept, age | APPENDCOL OVERRIDE=true [ stats avg(age) as age ];` (When the override option is enabled, fields from the sub-query take precedence over fields in the main query in cases of field name conflicts)
+
 #### **Comment**
 [See additional command details](ppl-comment.md)
 - `source=accounts | top gender // finds most common gender of all the accounts` (line comment)
@@ -274,7 +279,7 @@ source = table |  where ispresent(a) |
 - `source=accounts | parse email '.+@(?<host>.+)' | stats count() by host`
 - `source=accounts | parse email '.+@(?<host>.+)' | eval eval_result=1 | fields host, eval_result`
 - `source=accounts | parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host`
-- `source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street`
+- `source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | eval streetNumberInt = cast(streetNumber as integer) | where streetNumberInt > 500 | sort streetNumberInt | fields streetNumber, street`
 - Limitation: [see limitations](ppl-parse-command.md#limitations)
 
 #### **Grok**

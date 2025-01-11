@@ -6,7 +6,6 @@
 package org.opensearch.flint.spark
 
 import org.opensearch.flint.spark.FlintSparkIndexOptions.OptionName._
-import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.SchedulerMode
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.FlintSuite
@@ -22,6 +21,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     WATERMARK_DELAY.toString shouldBe "watermark_delay"
     OUTPUT_MODE.toString shouldBe "output_mode"
     INDEX_SETTINGS.toString shouldBe "index_settings"
+    ID_EXPRESSION.toString shouldBe "id_expression"
     EXTRA_OPTIONS.toString shouldBe "extra_options"
   }
 
@@ -36,6 +36,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
         "watermark_delay" -> "30 Seconds",
         "output_mode" -> "complete",
         "index_settings" -> """{"number_of_shards": 3}""",
+        "id_expression" -> """sha1(col("timestamp"))""",
         "extra_options" ->
           """ {
             |   "alb_logs": {
@@ -55,6 +56,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     options.watermarkDelay() shouldBe Some("30 Seconds")
     options.outputMode() shouldBe Some("complete")
     options.indexSettings() shouldBe Some("""{"number_of_shards": 3}""")
+    options.idExpression() shouldBe Some("""sha1(col("timestamp"))""")
     options.extraSourceOptions("alb_logs") shouldBe Map("opt1" -> "val1")
     options.extraSinkOptions() shouldBe Map("opt2" -> "val2", "opt3" -> "val3")
   }
@@ -83,6 +85,7 @@ class FlintSparkIndexOptionsSuite extends FlintSuite with Matchers {
     options.watermarkDelay() shouldBe empty
     options.outputMode() shouldBe empty
     options.indexSettings() shouldBe empty
+    options.idExpression() shouldBe empty
     options.extraSourceOptions("alb_logs") shouldBe empty
     options.extraSinkOptions() shouldBe empty
     options.optionsWithDefault should contain("auto_refresh" -> "false")
