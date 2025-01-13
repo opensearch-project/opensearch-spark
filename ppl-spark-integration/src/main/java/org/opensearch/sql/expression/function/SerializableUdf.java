@@ -28,8 +28,8 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +42,7 @@ import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 
 public interface SerializableUdf {
 
-    abstract class SerializableAbstractFunction1<T1,R> extends AbstractFunction1<T1,R>
+    abstract class SerializableAbstractFunction1<T1, R> extends AbstractFunction1<T1, R>
             implements Serializable {
     }
 
@@ -212,22 +212,39 @@ public interface SerializableUdf {
     }
 
     /**
-     * Returns the {@link Timestamp} corresponding to the given relative string and current timestamp.
+     * Returns the {@link Instant} corresponding to the given relative string, current timestamp, and current time zone ID.
      * Throws {@link RuntimeException} if the relative string is not supported.
      */
-    Function3<String, Instant, String, Timestamp> relativeTimestampFunction = new SerializableAbstractFunction3<String, Instant, String, Timestamp>() {
+    Function3<String, Object, String, Instant> relativeTimestampFunction = new SerializableAbstractFunction3<String, Object, String, Instant>() {
+
         @Override
-        public Timestamp apply(String relativeString, Instant currentInstant, String zoneId) {
-            LocalDateTime currentLocalDateTime = LocalDateTime.ofInstant(currentInstant, ZoneId.of(zoneId));
-            LocalDateTime relativeLocalDateTime = TimeUtils.getRelativeLocalDateTime(relativeString, currentLocalDateTime);
-            return Timestamp.valueOf(relativeLocalDateTime);
+        public Instant apply(String relativeString, Object currentTimestamp, String zoneIdString) {
+
+            /// If `spark.sql.datetime.java8API.enabled` is set to `true`, [org.apache.spark.sql.types.TimestampType]
+            /// is converted to [Instant] by Catalyst; otherwise, [Timestamp] is used instead.
+            Instant currentInstant =
+                    currentTimestamp instanceof Timestamp
+                            ? ((Timestamp) currentTimestamp).toInstant()
+                            : (Instant) currentTimestamp;
+
+            /// The Spark session time zone (`spark.sql.session.timeZone`)
+            /// is used, which may be different from the system time zone.
+            ZoneId zoneId = ZoneId.of(zoneIdString);
+
+            /// Relative time calculations are performed using [ZonedDateTime] because offsets (e.g. one hour ago)
+            /// need to account for changes in the time zone offset (e.g. daylight savings time), while snaps (e.g.
+            /// start of previous Wednesday) need to account for the local date time.
+            ZonedDateTime currentDateTime = ZonedDateTime.ofInstant(currentInstant, zoneId);
+            ZonedDateTime relativeDateTime = TimeUtils.getRelativeZonedDateTime(relativeString, currentDateTime);
+
+            return relativeDateTime.toInstant();
         }
     };
 
     /**
      * Get the function reference according to its name
      *
-     * @param funcName      string representing function to retrieve.
+     * @param funcName string representing function to retrieve.
      * @return relevant ScalaUDF for given function name.
      */
     static ScalaUDF visit(String funcName, List<Expression> expressions) {
@@ -270,7 +287,7 @@ public interface SerializableUdf {
                         true);
             case "ip_to_int":
                 return new ScalaUDF(geoIpUtils.ipToInt,
-                        DataTypes.createDecimalType(38,0),
+                        DataTypes.createDecimalType(38, 0),
                         seq(expressions),
                         seq(),
                         Option.empty(),

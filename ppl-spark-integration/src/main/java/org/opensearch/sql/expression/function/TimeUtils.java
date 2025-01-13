@@ -10,9 +10,9 @@ import lombok.experimental.UtilityClass;
 
 import java.time.DayOfWeek;
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.time.Month;
 import java.time.Period;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
@@ -81,7 +81,7 @@ public class TimeUtils {
             Map.entry("w6", DayOfWeek.SATURDAY));
 
     /**
-     * Returns the relative {@link LocalDateTime} corresponding to the given relative string and local date time.
+     * Returns the relative {@link ZonedDateTime} corresponding to the given relative string and zoned date time.
      * <p>
      * The relative time string has syntax {@code [+|-]<offset_time_integer><offset_time_unit>@<snap_time_unit>}, and
      * is made up of two optional components:
@@ -219,12 +219,12 @@ public class TimeUtils {
      *      </body>
      * </table>
      */
-    public static LocalDateTime getRelativeLocalDateTime(String relativeString, LocalDateTime localDateTime) {
+    public static ZonedDateTime getRelativeZonedDateTime(String relativeString, ZonedDateTime zonedDateTime) {
 
-        LocalDateTime relativeLocalDateTime = localDateTime;
+        ZonedDateTime relativeZonedDateTime = zonedDateTime;
 
         if (relativeString.equalsIgnoreCase(NOW)) {
-            return localDateTime;
+            return zonedDateTime;
         }
 
         Matcher matcher = RELATIVE_PATTERN.matcher(relativeString);
@@ -235,27 +235,27 @@ public class TimeUtils {
 
 
         if (matcher.group("offset") != null) {
-            relativeLocalDateTime = applyOffset(
-                    relativeLocalDateTime,
+            relativeZonedDateTime = applyOffset(
+                    relativeZonedDateTime,
                     matcher.group("offsetSign"),
                     matcher.group("offsetValue"),
                     matcher.group("offsetUnit"));
         }
 
         if (matcher.group("snap") != null) {
-            relativeLocalDateTime = applySnap(
-                    relativeLocalDateTime,
+            relativeZonedDateTime = applySnap(
+                    relativeZonedDateTime,
                     matcher.group("snapUnit"));
         }
 
-        return relativeLocalDateTime;
+        return relativeZonedDateTime;
     }
 
     /**
      * Applies the offset specified by the offset sign, value,
-     * and unit to the given local date time, and returns the result.
+     * and unit to the given zoned date time, and returns the result.
      */
-    private LocalDateTime applyOffset(LocalDateTime localDateTime, String offsetSign, String offsetValue, String offsetUnit) {
+    private ZonedDateTime applyOffset(ZonedDateTime zonedDateTime, String offsetSign, String offsetValue, String offsetUnit) {
 
         int offsetValueInt = Optional.ofNullable(offsetValue).map(Integer::parseInt).orElse(1);
         if (offsetSign.equals(NEGATIVE_SIGN)) {
@@ -271,12 +271,12 @@ public class TimeUtils {
 
         if (DURATION_FOR_TIME_UNIT_MAP.containsKey(offsetUnitLowerCase)) {
             Duration offsetDuration = DURATION_FOR_TIME_UNIT_MAP.get(offsetUnitLowerCase).multipliedBy(offsetValueInt);
-            return localDateTime.plus(offsetDuration);
+            return zonedDateTime.plus(offsetDuration);
         }
 
         if (PERIOD_FOR_TIME_UNIT_MAP.containsKey(offsetUnitLowerCase)) {
             Period offsetPeriod = PERIOD_FOR_TIME_UNIT_MAP.get(offsetUnitLowerCase).multipliedBy(offsetValueInt);
-            return localDateTime.plus(offsetPeriod);
+            return zonedDateTime.plus(offsetPeriod);
         }
 
         String message = String.format("The relative date time unit '%s' is not supported.", offsetUnit);
@@ -284,33 +284,33 @@ public class TimeUtils {
     }
 
     /**
-     * Snaps the given local date time to the start of the previous time
+     * Snaps the given zoned date time to the start of the previous time
      * period specified by the given snap unit, and returns the result.
      */
-    private LocalDateTime applySnap(LocalDateTime localDateTime, String snapUnit) {
+    private ZonedDateTime applySnap(ZonedDateTime zonedDateTime, String snapUnit) {
 
         // Convert to lower case to make case-insensitive.
         String snapUnitLowerCase = snapUnit.toLowerCase();
 
         if (SECOND_UNITS_SET.contains(snapUnitLowerCase)) {
-            return localDateTime.truncatedTo(ChronoUnit.SECONDS);
+            return zonedDateTime.truncatedTo(ChronoUnit.SECONDS);
         } else if (MINUTE_UNITS_SET.contains(snapUnitLowerCase)) {
-            return localDateTime.truncatedTo(ChronoUnit.MINUTES);
+            return zonedDateTime.truncatedTo(ChronoUnit.MINUTES);
         } else if (HOUR_UNITS_SET.contains(snapUnitLowerCase)) {
-            return localDateTime.truncatedTo(ChronoUnit.HOURS);
+            return zonedDateTime.truncatedTo(ChronoUnit.HOURS);
         } else if (DAY_UNITS_SET.contains(snapUnitLowerCase)) {
-            return localDateTime.truncatedTo(ChronoUnit.DAYS);
+            return zonedDateTime.truncatedTo(ChronoUnit.DAYS);
         } else if (WEEK_UNITS_SET.contains(snapUnitLowerCase)) {
-            return applySnapToDayOfWeek(localDateTime, DayOfWeek.SUNDAY);
+            return applySnapToDayOfWeek(zonedDateTime, DayOfWeek.SUNDAY);
         } else if (MONTH_UNITS_SET.contains(snapUnitLowerCase)) {
-            return localDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1);
+            return zonedDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1);
         } else if (QUARTER_UNITS_SET.contains(snapUnitLowerCase)) {
-            Month snapMonth = localDateTime.getMonth().firstMonthOfQuarter();
-            return localDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1).withMonth(snapMonth.getValue());
+            Month snapMonth = zonedDateTime.getMonth().firstMonthOfQuarter();
+            return zonedDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1).withMonth(snapMonth.getValue());
         } else if (YEAR_UNITS_SET.contains(snapUnitLowerCase)) {
-            return localDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfYear(1);
+            return zonedDateTime.truncatedTo(ChronoUnit.DAYS).withDayOfYear(1);
         } else if (DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.containsKey(snapUnitLowerCase)) {
-            return applySnapToDayOfWeek(localDateTime, DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.get(snapUnitLowerCase));
+            return applySnapToDayOfWeek(zonedDateTime, DAY_OF_THE_WEEK_FOR_SNAP_UNIT_MAP.get(snapUnitLowerCase));
         }
 
         String message = String.format("The relative date time unit '%s' is not supported.", snapUnit);
@@ -321,10 +321,10 @@ public class TimeUtils {
      * Snaps the given date time to the start of the previous
      * specified day of the week, and returns the result.
      */
-    private LocalDateTime applySnapToDayOfWeek(LocalDateTime dateTime, DayOfWeek snapDayOfWeek) {
-        LocalDateTime snappedDateTime = dateTime.truncatedTo(ChronoUnit.DAYS);
+    private ZonedDateTime applySnapToDayOfWeek(ZonedDateTime zonedDateTime, DayOfWeek snapDayOfWeek) {
+        ZonedDateTime snappedDateTime = zonedDateTime.truncatedTo(ChronoUnit.DAYS);
 
-        int daysToSnap = dateTime.getDayOfWeek().getValue() - snapDayOfWeek.getValue();
+        int daysToSnap = zonedDateTime.getDayOfWeek().getValue() - snapDayOfWeek.getValue();
         if (daysToSnap < 0) daysToSnap += DayOfWeek.values().length;
 
         return snappedDateTime.minusDays(daysToSnap);
