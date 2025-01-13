@@ -43,7 +43,7 @@ public class TimeUtilsTest {
 
     @Test
     public void testRelativeOffsetSign() {
-        testValid("+h", "2000-01-03T02:01:01.100Z");
+        testValid("+1h", "2000-01-03T02:01:01.100Z");
         testValid("-h", "2000-01-03T00:01:01.100Z");
 
         testInvalid("~h", "The relative date time '~h' is not supported.");
@@ -53,8 +53,8 @@ public class TimeUtilsTest {
     public void testRelativeOffsetValue() {
         testValid("+h", "2000-01-03T02:01:01.100Z");
         testValid("+0h", "2000-01-03T01:01:01.100Z");
-        testValid("+1h", "2000-01-03T02:01:01.100Z");
         testValid("+12h", "2000-01-03T13:01:01.100Z");
+        testValid("-3d", "1999-12-31T01:01:01.100Z");
 
         testInvalid("+1.1h", "The relative date time '+1.1h' is not supported.");
     }
@@ -107,6 +107,7 @@ public class TimeUtilsTest {
 
         testInvalid("+ms", "The relative date time unit 'ms' is not supported.");
         testInvalid("+1INVALID", "The relative date time unit 'INVALID' is not supported.");
+        testInvalid("+now", "The relative date time unit 'now' is not supported.");
     }
 
     @Test
@@ -167,6 +168,7 @@ public class TimeUtilsTest {
         testInvalid("@INVALID", "The relative date time unit 'INVALID' is not supported.");
         testInvalid("@ms", "The relative date time unit 'ms' is not supported.");
         testInvalid("@w8", "The relative date time unit 'w8' is not supported.");
+        testInvalid("@now", "The relative date time unit 'now' is not supported.");
     }
 
     private void testValid(String relativeDateTimeString, String expectedDateTimeString) {
