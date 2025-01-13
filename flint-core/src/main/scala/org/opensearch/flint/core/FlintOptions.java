@@ -111,8 +111,17 @@ public class FlintOptions implements Serializable {
 
   private static final String UNKNOWN = "UNKNOWN";
 
-  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE = "bulkRequestRateLimitPerNode";
-  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE = "0";
+  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED = "write.bulk.rate_limit_per_node.enabled";
+  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED = "false";
+  public static final String BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE = "write.bulk.rate_limit_per_node.min";
+  public static final String DEFAULT_BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE = "5000";
+  public static final String BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE = "write.bulk.rate_limit_per_node.max";
+  public static final String DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE = "50000";
+  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP = "write.bulk.rate_limit_per_node.increase_step";
+  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP = "500";
+  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO = "write.bulk.rate_limit_per_node.decrease_ratio";
+  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO = "0.8";
+
   public static final String DEFAULT_EXTERNAL_SCHEDULER_INTERVAL = "5 minutes";
 
   public FlintOptions(Map<String, String> options) {
@@ -234,8 +243,24 @@ public class FlintOptions implements Serializable {
         DEFAULT_SUPPORT_SHARD);
   }
 
-  public long getBulkRequestRateLimitPerNode() {
-    return Long.parseLong(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE));
+  public boolean getBulkRequestRateLimitPerNodeEnabled() {
+    return Boolean.parseBoolean(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED));
+  }
+
+  public long getBulkRequestMinRateLimitPerNode() {
+    return Long.parseLong(options.getOrDefault(BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE));
+  }
+
+  public long getBulkRequestMaxRateLimitPerNode() {
+    return Long.parseLong(options.getOrDefault(BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE));
+  }
+
+  public long getBulkRequestRateLimitPerNodeIncreaseStep() {
+    return Long.parseLong(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP));
+  }
+
+  public double getBulkRequestRateLimitPerNodeDecreaseRatio() {
+    return Double.parseDouble(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO));
   }
 
   public String getCustomAsyncQuerySchedulerClass() {
