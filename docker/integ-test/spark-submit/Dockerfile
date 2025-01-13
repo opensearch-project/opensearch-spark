@@ -1,3 +1,6 @@
+# Copyright OpenSearch Contributors
+# SPDX-License-Identifier: Apache-2.0
+
 FROM bitnami/spark:3.5.3
 ARG FLINT_JAR
 ARG PPL_JAR

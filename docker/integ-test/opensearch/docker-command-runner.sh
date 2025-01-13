@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Copyright OpenSearch Contributors
+# SPDX-License-Identifier: Apache-2.0
+
 function process_files {
   for cmd_file in `ls -1`; do
     echo "$cmd_file" | grep -q 'cmd$'

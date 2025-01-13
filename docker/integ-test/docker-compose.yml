@@ -68,6 +68,8 @@ services:
         condition: service_healthy
       opensearch-dashboards:
         condition: service_healthy
+      configuration-updater:
+        condition: service_completed_successfully
 
   spark-worker:
     image: bitnami/spark:${SPARK_VERSION:-3.5.3}
@@ -201,6 +203,24 @@ services:
       retries: 3
       start_period: 30s
       start_interval: 5s
+    networks:
+      - opensearch-net
+
+  configuration-updater:
+    image: alpine/curl:latest
+    entrypoint: /bin/sh
+    command: /apply-configuration.sh
+    environment:
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - OPENSEARCH_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD}
+    volumes:
+      - type: bind
+        source: configuration-updater/apply-configuration.sh
+        target: /apply-configuration.sh
+    depends_on:
+      opensearch-dashboards:
+        condition: service_healthy
     networks:
       - opensearch-net
 
