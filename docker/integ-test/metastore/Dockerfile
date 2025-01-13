@@ -20,6 +20,9 @@ RUN groupadd -f -r hive --gid=1000
 RUN useradd -r -g hive --uid=1000 -d ${HIVE_HOME} hive
 RUN chown hive:hive -R ${HIVE_HOME}
 
+RUN mkdir /data
+RUN chown hive:hive /data
+
 WORKDIR $HIVE_HOME
 EXPOSE 9083
 ENTRYPOINT ["/opt/apache-hive-2.3.9-bin/bin/hive", "--service", "metastore"]

@@ -11,19 +11,24 @@ services:
       - type: bind
         source: ./metastore/hive-log4j2.properties
         target: /opt/apache-hive-2.3.9-bin/conf/hive-log4j2.properties
+      - type: volume
+        source: metastore-data
+        target: /data
     networks:
       - opensearch-net
 
   spark:
-    image: bitnami/spark:${SPARK_VERSION:-3.5.3}
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
+      args:
+        SPARK_VERSION: ${SPARK_VERSION:-3.5.3}
     container_name: spark
     ports:
       - "${MASTER_UI_PORT:-8080}:8080"
       - "${MASTER_PORT:-7077}:7077"
       - "${UI_PORT:-4040}:4040"
       - "${SPARK_CONNECT_PORT}:15002"
-    entrypoint: /opt/bitnami/scripts/spark/master-entrypoint.sh
-    user: root
     environment:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
@@ -31,27 +36,13 @@ services:
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
       - SPARK_PUBLIC_DNS=localhost
-      - AWS_ENDPOINT_URL_S3=http://minio-S3
-      - OPENSEARCH_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD}
     volumes:
-      - type: bind
-        source: ./spark/spark-master-entrypoint.sh
-        target: /opt/bitnami/scripts/spark/master-entrypoint.sh
-      - type: bind
-        source: ./spark/spark-defaults.conf
-        target: /opt/bitnami/spark/conf/spark-defaults.conf
-      - type: bind
-        source: ./spark/log4j2.properties
-        target: /opt/bitnami/spark/conf/log4j2.properties
       - type: bind
         source: ../../$PPL_JAR
         target: /opt/bitnami/spark/jars/ppl-spark-integration.jar
       - type: bind
         source: ../../$FLINT_JAR
         target: /opt/bitnami/spark/jars/flint-spark-integration.jar
-      - type: bind
-        source: ./spark/s3.credentials
-        target: /opt/bitnami/spark/s3.credentials
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 1m
@@ -72,7 +63,11 @@ services:
         condition: service_completed_successfully
 
   spark-worker:
-    image: bitnami/spark:${SPARK_VERSION:-3.5.3}
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
+      args:
+        SPARK_VERSION: ${SPARK_VERSION:-3.5.3}
     container_name: spark-worker
     environment:
       - SPARK_MODE=worker
@@ -85,12 +80,6 @@ services:
       - SPARK_SSL_ENABLED=no
       - SPARK_PUBLIC_DNS=localhost
     volumes:
-      - type: bind
-        source: ./spark/spark-defaults.conf
-        target: /opt/bitnami/spark/conf/spark-defaults.conf
-      - type: bind
-        source: ./spark/log4j2.properties
-        target: /opt/bitnami/spark/conf/log4j2.properties
       - type: bind
         source: ../../$PPL_JAR
         target: /opt/bitnami/spark/jars/ppl-spark-integration.jar
@@ -225,6 +214,7 @@ services:
       - opensearch-net
 
 volumes:
+  metastore-data:
   opensearch-data:
   minio-data:
 networks:
