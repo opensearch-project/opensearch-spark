@@ -68,9 +68,11 @@ case class WarmpoolJob(
       queryWaitTimeoutMillis, // Used only for interactive queries
       queryLoopExecutionFrequency)
     registerGauge(MetricConstants.STREAMING_RUNNING_METRIC, streamingRunningCount)
+    val statementExecutionManager = instantiateStatementExecutionManager(commandContext)
+
     try {
       FlintREPL.exponentialBackoffRetry(maxRetries = 5, initialDelay = 2.seconds) {
-        queryLoop(commandContext)
+        queryLoop(commandContext, statementExecutionManager)
       }
     } finally {
       sparkSession.stop()
@@ -93,10 +95,10 @@ case class WarmpoolJob(
     }
   }
 
-  def queryLoop(commandContext: CommandContext): Unit = {
+  def queryLoop(
+      commandContext: CommandContext,
+      statementExecutionManager: StatementExecutionManager): Unit = {
     import commandContext._
-
-    val statementExecutionManager = instantiateStatementExecutionManager(commandContext)
     var canProceed = true
 
     try {
@@ -158,7 +160,7 @@ case class WarmpoolJob(
     Thread.sleep(commandContext.queryLoopExecutionFrequency)
   }
 
-  private def processStreamingJob(
+  def processStreamingJob(
       applicationId: String,
       jobId: String,
       query: String,
@@ -196,7 +198,7 @@ case class WarmpoolJob(
     jobOperator.start()
   }
 
-  private def processInteractiveJob(
+  def processInteractiveJob(
       sparkSession: SparkSession,
       commandContext: CommandContext,
       flintStatement: FlintStatement,
