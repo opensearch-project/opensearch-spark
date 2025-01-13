@@ -48,9 +48,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class DockerEMRServerlessClient extends AmazonWebServiceClient implements AWSEMRServerless {
+  private static final AtomicInteger JOB_ID = new AtomicInteger(1);
+
   public DockerEMRServerlessClient(ClientConfiguration clientConfiguration) {
     super(clientConfiguration);
     setEndpointPrefix("emr");
@@ -114,12 +117,14 @@ public class DockerEMRServerlessClient extends AmazonWebServiceClient implements
     List<String> entryPointArguments = startJobRunRequest.getJobDriver().getSparkSubmit().getEntryPointArguments();
     String sparkSubmitParameters = startJobRunRequest.getJobDriver().getSparkSubmit().getSparkSubmitParameters();
 
+    final int jobId = JOB_ID.getAndIncrement();
+
     List<String> runContainerCmd = new ArrayList<>();
     runContainerCmd.add("run");
     runContainerCmd.add("-d");
     runContainerCmd.add("--rm");
     runContainerCmd.add("--env");
-    runContainerCmd.add("SERVERLESS_EMR_JOB_ID=1");
+    runContainerCmd.add("SERVERLESS_EMR_JOB_ID=" + jobId);
     runContainerCmd.add("--network");
     runContainerCmd.add("integ-test_opensearch-net");
     runContainerCmd.add("integ-test-spark-submit:latest");
@@ -171,8 +176,8 @@ public class DockerEMRServerlessClient extends AmazonWebServiceClient implements
       if (exitCodeFile.exists()) {
         StartJobRunResult startJobResult = new StartJobRunResult();
         startJobResult.setApplicationId(startJobRunRequest.getApplicationId());
-        startJobResult.setArn("arn:aws:emr-containers:foo:123456789012:/virtualclusters/0/jobruns/1");
-        startJobResult.setJobRunId("1");
+        startJobResult.setArn("arn:aws:emr-containers:foo:123456789012:/virtualclusters/0/jobruns/" + jobId);
+        startJobResult.setJobRunId(Integer.toString(jobId));
         return startJobResult;
       }
     } catch (IOException | InterruptedException e) {

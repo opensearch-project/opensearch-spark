@@ -118,7 +118,7 @@ services:
       - plugins.security.system_indices.permission.enabled=false
       - plugins.security.ssl.http.enabled=false
       - plugins.query.datasources.encryption.masterkey=9a515c99d4313f140a6607053502f4d6
-      - OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_NODE_MEMORY:-512m} -Xmx${OPENSEARCH_NODE_MEMORY:-512m} -DEMR_SERVERLESS_CLIENT_FACTORY_CLASS=org.opensearch.sql.spark.client.DockerEMRServerlessClientFactory
+      - OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_NODE_MEMORY:-512m} -Xmx${OPENSEARCH_NODE_MEMORY:-512m}
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD}
     ulimits:
       memlock:
