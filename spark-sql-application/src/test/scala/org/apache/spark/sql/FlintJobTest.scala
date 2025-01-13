@@ -5,12 +5,20 @@
 
 package org.apache.spark.sql
 
+import org.mockito.ArgumentMatchersSugar
+import org.scalatestplus.mockito.MockitoSugar
+
 import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.{CleanerFactory, MockTimeProvider}
 
-class FlintJobTest extends SparkFunSuite with JobMatchers {
+class FlintJobTest
+    extends SparkFunSuite
+    with MockitoSugar
+    with ArgumentMatchersSugar
+    with JobMatchers {
   private val jobId = "testJobId"
   private val applicationId = "testApplicationId"
 
@@ -122,4 +130,28 @@ class FlintJobTest extends SparkFunSuite with JobMatchers {
     spark.sparkContext.conf.get("spark.dynamicAllocation.maxExecutors") shouldBe "30"
   }
 
+  test("createSparkConf should set the app name and default SQL extensions") {
+    val conf = FlintJob.createSparkConf()
+
+    // Assert that the app name is set correctly
+    assert(conf.get("spark.app.name") === "FlintJob$")
+
+    // Assert that the default SQL extensions are set correctly
+    assert(conf.get(SQL_EXTENSIONS_KEY) === DEFAULT_SQL_EXTENSIONS)
+  }
+
+  test(
+    "createSparkConf should not use defaultExtensions if spark.sql.extensions is already set") {
+    val customExtension = "my.custom.extension"
+    // Set the spark.sql.extensions property before calling createSparkConf
+    System.setProperty(SQL_EXTENSIONS_KEY, customExtension)
+
+    try {
+      val conf = FlintJob.createSparkConf()
+      assert(conf.get(SQL_EXTENSIONS_KEY) === customExtension)
+    } finally {
+      // Clean up the system property after the test
+      System.clearProperty(SQL_EXTENSIONS_KEY)
+    }
+  }
 }

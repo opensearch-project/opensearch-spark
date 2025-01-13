@@ -136,9 +136,55 @@ public final class MetricConstants {
     public static final String STREAMING_HEARTBEAT_FAILED_METRIC = "streaming.heartbeat.failed.count";
 
     /**
+     * Metric for tracking the count of streaming jobs failed during query execution
+     */
+    public static final String STREAMING_EXECUTION_FAILED_METRIC = "streaming.execution.failed.count";
+
+    /**
+     * Metric for tracking the count of streaming jobs failed during query result write
+     */
+    public static final String STREAMING_RESULT_WRITER_FAILED_METRIC = "streaming.writer.failed.count";
+
+    /**
      * Metric for tracking the latency of query execution (start to complete query execution) excluding result write.
      */
-    public static final String QUERY_EXECUTION_TIME_METRIC = "query.execution.processingTime";
+    public static final String QUERY_EXECUTION_TIME_METRIC = "streaming.query.execution.processingTime";
+
+    /**
+     * Metric for tracking the latency of query result write only (excluding query execution)
+     */
+    public static final String QUERY_RESULT_WRITER_TIME_METRIC = "streaming.result.writer.processingTime";
+
+    /**
+     * Metric for tracking the latency of query total execution including result write.
+     */
+    public static final String QUERY_TOTAL_TIME_METRIC = "streaming.query.total.processingTime";
+
+    /**
+     * Metric for tracking the latency of query execution (start to complete query execution) excluding result write.
+     */
+    public static final String STATEMENT_QUERY_EXECUTION_TIME_METRIC = "statement.query.execution.processingTime";
+
+    /**
+     * Metric for tracking the latency of query result write only (excluding query execution)
+     */
+    public static final String STATEMENT_RESULT_WRITER_TIME_METRIC = "statement.result.writer.processingTime";
+
+    /**
+     * Metric for tracking the latency of query total execution including result write.
+     */
+    public static final String STATEMENT_QUERY_TOTAL_TIME_METRIC = "statement.query.total.processingTime";
+
+    /**
+     * Metric for tracking the count of interactive jobs failed during query execution
+     */
+    public static final String STATEMENT_EXECUTION_FAILED_METRIC = "statement.execution.failed.count";
+
+    /**
+     * Metric for tracking the count of interactive jobs failed during query result write
+     */
+    public static final String STATEMENT_RESULT_WRITER_FAILED_METRIC = "statement.writer.failed.count";
+
 
     /**
      * Metric for query count of each query type (DROP/VACUUM/ALTER/REFRESH/CREATE INDEX)
