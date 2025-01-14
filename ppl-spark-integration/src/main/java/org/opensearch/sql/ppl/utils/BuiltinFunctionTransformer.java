@@ -12,6 +12,8 @@ import org.apache.spark.sql.catalyst.expressions.CurrentTimeZone$;
 import org.apache.spark.sql.catalyst.expressions.CurrentTimestamp$;
 import org.apache.spark.sql.catalyst.expressions.DateAddInterval$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual$;
+import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual$;
 import org.apache.spark.sql.catalyst.expressions.Literal$;
 import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.catalyst.expressions.TimestampAdd$;
@@ -37,6 +39,7 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATE_AD
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATE_SUB;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DAY_OF_MONTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.COALESCE;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.EARLIEST;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_ARRAY;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_ARRAY_LENGTH;
@@ -44,6 +47,7 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_EX
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_KEYS;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_OBJECT;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_VALID;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.LATEST;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SUBTRACT;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MULTIPLY;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DIVIDE;
@@ -174,9 +178,23 @@ public interface BuiltinFunctionTransformer {
             args -> {
                 return ToUTCTimestamp$.MODULE$.apply(CurrentTimestamp$.MODULE$.apply(), CurrentTimeZone$.MODULE$.apply());
             })
+
+        // Relative time functions
         .put(
-            RELATIVE_TIMESTAMP,
-            args -> SerializableUdf.visit("relative_timestamp", List.of(args.get(0), CurrentTimestamp$.MODULE$.apply(), CurrentTimeZone$.MODULE$.apply())))
+                RELATIVE_TIMESTAMP,
+                BuiltinFunctionTransformer::buildRelativeTimestampExpression)
+        .put(
+                EARLIEST,
+                args ->
+                        LessThanOrEqual$.MODULE$.apply(
+                                buildRelativeTimestampExpression(List.of(args.get(0))),
+                                args.get(1)))
+        .put(
+                LATEST,
+                args ->
+                        GreaterThanOrEqual$.MODULE$.apply(
+                                buildRelativeTimestampExpression(List.of(args.get(0))),
+                                args.get(1)))
         .build();
 
     static Expression builtinFunction(org.opensearch.sql.ast.expression.Function function, List<Expression> args) {
@@ -217,5 +235,11 @@ public interface BuiltinFunctionTransformer {
                 throw new IllegalArgumentException("Unsupported Interval unit: " + unit);
         }
         return args;
+    }
+
+    private static Expression buildRelativeTimestampExpression(List<Expression> args) {
+        return SerializableUdf.visit(
+                RELATIVE_TIMESTAMP.getName().getFunctionName(),
+                List.of(args.get(0), CurrentTimestamp$.MODULE$.apply(), CurrentTimeZone$.MODULE$.apply()));
     }
 }

@@ -755,7 +755,6 @@ dateTimeFunctionName
    | NOW
    | PERIOD_ADD
    | PERIOD_DIFF
-   | RELATIVE_TIMESTAMP
    | QUARTER
    | SECOND
    | SECOND_OF_MINUTE
@@ -780,6 +779,13 @@ dateTimeFunctionName
    | WEEK_OF_YEAR
    | YEAR
    | YEARWEEK
+   | relativeTimeFunctionName
+   ;
+
+relativeTimeFunctionName
+   : RELATIVE_TIMESTAMP
+   | EARLIEST
+   | LATEST
    ;
 
 getFormatFunction
@@ -1171,10 +1177,6 @@ keywordsCanBeId
    | LAST
    | LIST
    | VALUES
-   | EARLIEST
-   | EARLIEST_TIME
-   | LATEST
-   | LATEST_TIME
    | PER_DAY
    | PER_HOUR
    | PER_MINUTE
