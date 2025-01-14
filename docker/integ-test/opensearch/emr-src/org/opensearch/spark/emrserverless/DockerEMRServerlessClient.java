@@ -131,8 +131,10 @@ public class DockerEMRServerlessClient extends AmazonWebServiceClient implements
     runContainerCmd.add("/opt/bitnami/spark/bin/spark-submit");
     runContainerCmd.add("--deploy-mode");
     runContainerCmd.add("client");
+    runContainerCmd.add("--exclude-packages");
+    runContainerCmd.add("org.opensearch:opensearch-spark-standalone_2.12,org.opensearch:opensearch-spark-sql-application_2.12,org.opensearch:opensearch-spark-ppl_2.12");
     runContainerCmd.add("--master");
-    runContainerCmd.add("spark://spark:7077");
+    runContainerCmd.add("local[2]");
 
     runContainerCmd.addAll(Arrays.asList(sparkSubmitParameters.split(" ")));
     runContainerCmd.addAll(entryPointArguments);
