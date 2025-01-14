@@ -137,7 +137,7 @@ services:
         target: /var/run/docker.sock
     ports:
       - ${OPENSEARCH_PORT:-9200}:9200
-      - 9600:9600
+      - ${OPENSEARCH_PA_PORT:-9600}:9600
     expose:
       - "${OPENSEARCH_PORT:-9200}"
       - "9300"
