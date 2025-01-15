@@ -499,4 +499,9 @@ _- **Limitation: another command usage of (relation) subquery is in `appendcols`
 -  `source = table | eval cdate = CAST('2012-08-07' as date), ctime = cast('2012-08-07T08:07:06' as timestamp) | fields cdate, ctime`
 -  `source = table | eval chained_cast = cast(cast("true" as boolean) as integer) | fields chained_cast`
 
+#### **relative_timestamp**
+[See additional function details](functions/ppl-datetime#RELATIVE_TIMESTAMP)
+- `source = table | eval one_hour_ago = relative_timestamp("-1h") | where timestamp < one_hour_ago`
+- `source = table | eval start_of_today = relative_timestamp("@d") | where timestamp > start_of_today`
+- `source = table | eval last_saturday = relative_timestamp("-1d@w6") | where timestamp >= last_saturday`
 ---
