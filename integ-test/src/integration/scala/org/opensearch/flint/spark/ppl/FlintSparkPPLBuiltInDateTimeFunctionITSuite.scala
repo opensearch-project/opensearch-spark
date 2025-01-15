@@ -398,7 +398,7 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
                    | | eval last_wednesday = relative_timestamp("-1d@w3")
                    | | eval actual_days_ago = timestampdiff(DAY, last_wednesday, now())
                    | | eval day_of_week = day_of_week(now())
-                   | | eval expected_days_ago = case(day_of_week >= 4, day_of_week - 4 else day_of_week + 3)
+                   | | eval expected_days_ago = case(day_of_week > 4, day_of_week - 4 else day_of_week + 3)
                    | | eval test_result = (expected_days_ago = actual_days_ago)
                    | | fields test_result
                    | | head 1
