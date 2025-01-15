@@ -25,25 +25,36 @@ import org.opensearch.flint.core.metrics.MetricConstants;
 import org.opensearch.flint.core.metrics.MetricsUtil;
 import org.opensearch.rest.RestStatus;
 
-public class OpenSearchBulkRetryWrapper {
+/**
+ * Wrapper class for OpenSearch bulk API with retry and rate limiting capability.
+ */
+public class OpenSearchBulkWrapper {
 
-  private static final Logger LOG = Logger.getLogger(OpenSearchBulkRetryWrapper.class.getName());
+  private static final Logger LOG = Logger.getLogger(OpenSearchBulkWrapper.class.getName());
 
   private final RetryPolicy<BulkResponse> retryPolicy;
+  private final BulkRequestRateLimiter rateLimiter;
 
-  public OpenSearchBulkRetryWrapper(FlintRetryOptions retryOptions) {
+  public OpenSearchBulkWrapper(FlintRetryOptions retryOptions, BulkRequestRateLimiter rateLimiter) {
     this.retryPolicy = retryOptions.getBulkRetryPolicy(bulkItemRetryableResultPredicate);
+    this.rateLimiter = rateLimiter;
   }
 
   /**
-   * Delegate bulk request to the client, and retry the request if the response contains retryable
-   * failure. It won't retry when bulk call thrown exception.
+   * Bulk request with retry and rate limiting. Delegate bulk request to the client, and retry the
+   * request if the response contains retryable failure. It won't retry when bulk call thrown
+   * exception. In addition, adjust rate limit based on the responses.
    * @param client used to call bulk API
    * @param bulkRequest requests passed to bulk method
    * @param options options passed to bulk method
    * @return Last result
    */
-  public BulkResponse bulkWithPartialRetry(RestHighLevelClient client, BulkRequest bulkRequest,
+  public BulkResponse bulk(RestHighLevelClient client, BulkRequest bulkRequest, RequestOptions options) {
+    rateLimiter.acquirePermit(bulkRequest.requests().size());
+    return bulkWithPartialRetry(client, bulkRequest, options);
+  }
+
+  private BulkResponse bulkWithPartialRetry(RestHighLevelClient client, BulkRequest bulkRequest,
       RequestOptions options) {
     final AtomicInteger requestCount = new AtomicInteger(0);
     try {
@@ -59,9 +70,14 @@ public class OpenSearchBulkRetryWrapper {
           .get(() -> {
             requestCount.incrementAndGet();
             BulkResponse response = client.bulk(nextRequest.get(), options);
-            if (retryPolicy.getConfig().allowsRetries() && bulkItemRetryableResultPredicate.test(
-                response)) {
-              nextRequest.set(getRetryableRequest(nextRequest.get(), response));
+
+            if (!bulkItemRetryableResultPredicate.test(response)) {
+              rateLimiter.increaseRate();
+            } else {
+              rateLimiter.decreaseRate();
+              if (retryPolicy.getConfig().allowsRetries()) {
+                nextRequest.set(getRetryableRequest(nextRequest.get(), response));
+              }
             }
             return response;
           });
