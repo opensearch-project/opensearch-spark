@@ -227,13 +227,7 @@ public interface SerializableUdf {
                             ? ((Timestamp) currentTimestamp).toInstant()
                             : (Instant) currentTimestamp;
 
-            /// The Spark session time zone (`spark.sql.session.timeZone`)
-            /// is used, which may be different from the system time zone.
             ZoneId zoneId = ZoneId.of(zoneIdString);
-
-            /// Relative time calculations are performed using [ZonedDateTime] because offsets (e.g. one hour ago)
-            /// need to account for changes in the time zone offset (e.g. daylight savings time), while snaps (e.g.
-            /// start of previous Wednesday) need to account for the local date time.
             ZonedDateTime currentDateTime = ZonedDateTime.ofInstant(currentInstant, zoneId);
             ZonedDateTime relativeDateTime = TimeUtils.getRelativeZonedDateTime(relativeString, currentDateTime);
 

@@ -397,6 +397,44 @@ Example:
     +-------------------------------+
 
 
+### `EARLIEST`
+
+**Description:**
+
+**Usage:** earliest(string, timestamp) returns whether the timestamp defined by the given relative string is earlier
+than or at the same time as the specified timestamp.
+
+Argument type: STRING, TIMESTAMP
+
+Return type: BOOLEAN
+
+Example:
+
+    os> source=people | eval earliest = earliest("-1s", now()) | fields earliest | head 1
+    fetched rows / total rows = 1/1
+    +----------+
+    | earliest |
+    |----------|
+    | True     |
+    +----------+
+
+    os> source=people | eval earliest = earliest("now", now()) | fields earliest | head 1
+    fetched rows / total rows = 1/1
+    +----------+
+    | earliest |
+    |----------|
+    | True     |
+    +----------+
+
+    os> source=people | eval earliest = earliest("+1s", now()) | fields earliest | head 1
+    fetched rows / total rows = 1/1
+    +----------+
+    | earliest |
+    |----------|
+    | False    |
+    +----------+
+
+
 ### `FROM_UNIXTIME`
 
 **Description:**
@@ -505,6 +543,44 @@ Example:
     |--------------------------|
     | 2023-02-28               |
     +--------------------------+
+
+
+### `LATEST`
+
+**Description:**
+
+**Usage:** latest(string, timestamp) returns whether the timestamp defined by the given relative string is later
+than or at the same time as the specified timestamp. See [relative_timestamp](#relative_timestamp) for more details.
+
+Argument type: STRING, TIMESTAMP
+
+Return type: BOOLEAN
+
+Example:
+
+    os> source=people | eval latest = latest("-1s", now()) | fields latest | head 1
+    fetched rows / total rows = 1/1
+    +--------+
+    | latest |
+    |--------|
+    | False  |
+    +--------+
+
+    os> source=people | eval latest = latest("now", now()) | fields latest | head 1
+    fetched rows / total rows = 1/1
+    +--------+
+    | latest |
+    |--------|
+    | True   |
+    +--------+
+
+    os> source=people | eval latest = latest("+1s", now()) | fields latest | head 1
+    fetched rows / total rows = 1/1
+    +--------+
+    | latest |
+    |--------|
+    | True   |
+    +--------+
 
 
 ### `LOCALTIMESTAMP`
@@ -738,7 +814,7 @@ Example:
 **Description:**
 
 
-**Usage:** relative_timestamp(str) returns a relative timestamp corresponding to the given relative string and the
+**Usage:** relative_timestamp(string) returns a relative timestamp corresponding to the given relative string and the
 current timestamp at the time of query execution.
 
 The relative timestamp string has syntax `[+|-]<offset_time_integer><offset_time_unit>@<snap_time_unit>`, and is
@@ -750,9 +826,12 @@ made up of two optional components.
   specified), and rounds the time <i>down</i> to the start of the specified time unit. For example, `@wk` is the start
   of the current week (Sunday is considered to be the first day of the week).
 
-The special relative timestamp string `now`, corresponding to the current timestamp, is also supported. The current
-timestamp is determined once at the start of query execution, and is used for all relative timestamp calculations for
-that query.
+The special relative timestamp string `now`, corresponding to the current timestamp, is also supported.
+
+The current timestamp is determined once at the start of query execution, and is used for all relative timestamp
+calculations for that query. The Spark session time zone (`spark.sql.session.timeZone`) is used for determining
+relative timestamps, and accounts for changes in the time zone offset (e.g. daylight savings time); as a result, adding
+one day (`+1d`) is not the same as adding twenty-four hours (`+24h`).
 
 The relative timestamp string is case-insensitive.
 
