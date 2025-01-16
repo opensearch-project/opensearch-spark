@@ -831,9 +831,12 @@ made up of two optional components.
 The special relative timestamp string `now`, corresponding to the current timestamp, is also supported.
 
 The current timestamp is determined once at the start of query execution, and is used for all relative timestamp
-calculations for that query. The Spark session time zone (`spark.sql.session.timeZone`) is used for determining
-relative timestamps, and accounts for changes in the time zone offset (e.g. daylight savings time); as a result, adding
-one day (`+1d`) is not the same as adding twenty-four hours (`+24h`).
+calculations for that query. The Spark session time zone (`spark.sql.session.timeZone`) is used for determining relative
+timestamps. Offsets using time units (seconds, minutes, or hours) represent a fixed time period; adding twenty-four
+hours (`+24h`) will yield a timestamp that is exactly twenty-four hours later, but which may not have the same local
+time (because of daylight savings, for example). Conversely, offsets using date units (days, weeks, months, quarters, or
+years) do not represent a fixed time period; adding one day (`+1d`) will yield a timestamp with the same local time,
+but which may not be exactly twenty-four hours later.
 
 The relative timestamp string is case-insensitive.
 

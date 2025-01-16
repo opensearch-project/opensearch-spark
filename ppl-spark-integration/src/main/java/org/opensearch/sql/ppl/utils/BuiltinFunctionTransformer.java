@@ -182,19 +182,21 @@ public interface BuiltinFunctionTransformer {
         // Relative time functions
         .put(
                 RELATIVE_TIMESTAMP,
-                BuiltinFunctionTransformer::buildRelativeTimestampExpression)
+                args -> buildRelativeTimestamp(args.get(0)))
         .put(
                 EARLIEST,
-                args ->
-                        LessThanOrEqual$.MODULE$.apply(
-                                buildRelativeTimestampExpression(List.of(args.get(0))),
-                                args.get(1)))
+                args -> {
+                    Expression relativeTimestamp = buildRelativeTimestamp(args.get(0));
+                    Expression timestamp = args.get(1);
+                    return LessThanOrEqual$.MODULE$.apply(relativeTimestamp, timestamp);
+                })
         .put(
                 LATEST,
-                args ->
-                        GreaterThanOrEqual$.MODULE$.apply(
-                                buildRelativeTimestampExpression(List.of(args.get(0))),
-                                args.get(1)))
+                args -> {
+                    Expression relativeTimestamp = buildRelativeTimestamp(args.get(0));
+                    Expression timestamp = args.get(1);
+                    return GreaterThanOrEqual$.MODULE$.apply(relativeTimestamp, timestamp);
+                })
         .build();
 
     static Expression builtinFunction(org.opensearch.sql.ast.expression.Function function, List<Expression> args) {
@@ -237,9 +239,9 @@ public interface BuiltinFunctionTransformer {
         return args;
     }
 
-    private static Expression buildRelativeTimestampExpression(List<Expression> args) {
+    private static Expression buildRelativeTimestamp(Expression relativeStringExpression) {
         return SerializableUdf.visit(
                 RELATIVE_TIMESTAMP.getName().getFunctionName(),
-                List.of(args.get(0), CurrentTimestamp$.MODULE$.apply(), CurrentTimeZone$.MODULE$.apply()));
+                List.of(relativeStringExpression, CurrentTimestamp$.MODULE$.apply(), CurrentTimeZone$.MODULE$.apply()));
     }
 }
