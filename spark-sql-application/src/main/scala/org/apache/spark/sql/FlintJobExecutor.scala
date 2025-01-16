@@ -12,6 +12,7 @@ import com.amazonaws.services.s3.model.AmazonS3Exception
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.commons.text.StringEscapeUtils.unescapeJava
 import org.opensearch.common.Strings
+import org.opensearch.flint.common.model.FlintStatement
 import org.opensearch.flint.core.IRestHighLevelClient
 import org.opensearch.flint.core.logging.{CustomLogging, ExceptionMessages, OperationMessage}
 import org.opensearch.flint.core.metrics.MetricConstants
@@ -20,6 +21,7 @@ import play.api.libs.json._
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.FlintREPL.instantiate
 import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.exception.UnrecoverableException
@@ -470,6 +472,13 @@ trait FlintJobExecutor {
     else getRootCause(t.getCause)
   }
 
+  def processQueryException(t: Throwable, flintStatement: FlintStatement): String = {
+    val error = processQueryException(t)
+    flintStatement.fail()
+    flintStatement.error = Some(error)
+    error
+  }
+
   /**
    * This method converts query exception into error string, which then persist to query result
    * metadata
@@ -515,6 +524,87 @@ trait FlintJobExecutor {
     }
   }
 
+  def handleCommandTimeout(
+      applicationId: String,
+      jobId: String,
+      spark: SparkSession,
+      dataSource: String,
+      error: String,
+      flintStatement: FlintStatement,
+      sessionId: String,
+      startTime: Long): DataFrame = {
+    /*
+     * https://tinyurl.com/2ezs5xj9
+     *
+     * This only interrupts active Spark jobs that are actively running.
+     * This would then throw the error from ExecutePlan and terminate it.
+     * But if the query is not running a Spark job, but executing code on Spark driver, this
+     * would be a noop and the execution will keep running.
+     *
+     * In Apache Spark, actions that trigger a distributed computation can lead to the creation
+     * of Spark jobs. In the context of Spark SQL, this typically happens when we perform
+     * actions that require the computation of results that need to be collected or stored.
+     */
+    spark.sparkContext.cancelJobGroup(flintStatement.queryId)
+    flintStatement.timeout()
+    flintStatement.error = Some(error)
+    constructErrorDF(
+      applicationId,
+      jobId,
+      spark,
+      dataSource,
+      flintStatement.state,
+      error,
+      flintStatement.queryId,
+      flintStatement.query,
+      sessionId,
+      startTime)
+  }
+
+  /**
+   * handling the case where a command's execution fails, updates the flintStatement with the
+   * error and failure status, and then write the result to result index. Thus, an error is
+   * written to both result index or statement model in request index
+   *
+   * @param spark
+   *   spark session
+   * @param dataSource
+   *   data source
+   * @param error
+   *   error message
+   * @param flintStatement
+   *   flint command
+   * @param sessionId
+   *   session id
+   * @param startTime
+   *   start time
+   * @return
+   *   failed data frame
+   */
+  def handleCommandFailureAndGetFailedData(
+      applicationId: String,
+      jobId: String,
+      spark: SparkSession,
+      dataSource: String,
+      error: String,
+      flintStatement: FlintStatement,
+      sessionId: String,
+      startTime: Long): DataFrame = {
+    flintStatement.fail()
+    flintStatement.error = Some(error)
+    constructErrorDF(
+      applicationId,
+      jobId,
+      spark,
+      dataSource,
+      flintStatement.state,
+      error,
+      flintStatement.queryId,
+      flintStatement.query,
+      sessionId,
+      startTime)
+  }
+
   /**
    * Before OS 2.13, there are two arguments from entry point: query and result index Starting
    * from OS 2.13, query is optional for FlintREPL And since Flint 0.5, result index is also
@@ -545,6 +635,39 @@ trait FlintJobExecutor {
         throw e
       case _ => // Do nothing for other types of exceptions
     }
+  }
+
+  def getSegmentName(sparkSession: SparkSession): String = {
+    val maxExecutorsCount =
+      sparkSession.conf.get(FlintSparkConf.MAX_EXECUTORS_COUNT.key, "unknown")
+    String.format("%se", maxExecutorsCount)
+  }
+
+  def instantiateSessionManager(
+      spark: SparkSession,
+      resultIndexOption: Option[String]): SessionManager = {
+    instantiate(
+      new SessionManagerImpl(spark, resultIndexOption),
+      spark.conf.get(FlintSparkConf.CUSTOM_SESSION_MANAGER.key, ""),
+      resultIndexOption.getOrElse(""))
+  }
+
+  def instantiateStatementExecutionManager(
+      commandContext: CommandContext): StatementExecutionManager = {
+    import commandContext._
+    instantiate(
+      new StatementExecutionManagerImpl(commandContext),
+      spark.conf.get(FlintSparkConf.CUSTOM_STATEMENT_MANAGER.key, ""),
+      spark,
+      sessionId)
+  }
+
+  def instantiateQueryResultWriter(
+      spark: SparkSession,
+      commandContext: CommandContext): QueryResultWriter = {
+    instantiate(
+      new QueryResultWriterImpl(commandContext),
+      spark.conf.get(FlintSparkConf.CUSTOM_QUERY_RESULT_WRITER.key, ""))
   }
 
   def instantiate[T](defaultConstructor: => T, className: String, args: Any*): T = {
