@@ -1,6 +1,8 @@
 services:
   spark:
-    image: bitnami/spark:3.5.3
+    build:
+      context: . 
+      dockerfile: Dockerfile
     ports:
       - "${MASTER_UI_PORT:-8080}:8080"
       - "${MASTER_PORT:-7077}:7077"
@@ -21,7 +23,9 @@ services:
         target: /opt/bitnami/spark/jars/ppl-spark-integration.jar
 
   spark-worker:
-    image: bitnami/spark:3.5.3
+    build:
+      context: .
+      dockerfile: Dockerfile
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark:7077

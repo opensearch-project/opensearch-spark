@@ -1,55 +1,38 @@
 # Testing PPL using local Spark
 
 ## Produce the PPL artifact
-The first step would be to produce the spark-ppl artifact: `sbt clean sparkPPLCosmetic/assembly`
-
-The resulting artifact would be located in the project's build directory:
-```sql
-[info] Built: ./opensearch-spark/sparkPPLCosmetic/target/scala-2.12/opensearch-spark-ppl-assembly-x.y.z-SNAPSHOT.jar
+Build the Flint and PPL extensions for Spark:
 ```
-## Downloading spark 3.5.3 version
-Download spark from the [official website](https://spark.apache.org/downloads.html) and install locally.
-
-## Start Spark with the plugin
-Once installed, run spark with the generated PPL artifact: 
-```shell
-bin/spark-sql --jars "/PATH_TO_ARTIFACT/opensearch-spark-ppl-assembly-x.y.z-SNAPSHOT.jar" \
---conf "spark.sql.extensions=org.opensearch.flint.spark.FlintPPLSparkExtensions"  \
---conf "spark.sql.catalog.dev=org.apache.spark.opensearch.catalog.OpenSearchCatalog" \
---conf "spark.hadoop.hive.cli.print.header=true"
-
-WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
-Setting default log level to "WARN".
-To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-WARN HiveConf: HiveConf of name hive.stats.jdbc.timeout does not exist
-WARN HiveConf: HiveConf of name hive.stats.retries.wait does not exist
-WARN ObjectStore: Version information not found in metastore. hive.metastore.schema.verification is not enabled so recording the schema version 2.3.0
-WARN ObjectStore: setMetaStoreSchemaVersion called but recording version is disabled: version = 2.3.0, comment = Set by MetaStore 
-Spark Web UI available at http://*.*.*.*:4040
-Spark master: local[*], Application Id: local-1731523264660
-
-spark-sql (default)>
+sbt clean
+sbt sparkSqlApplicationCosmetic/assembly sparkPPLCosmetic/assembly
 ```
-The resulting would be a spark-sql prompt: `spark-sql (default)> ...`
 
-### Spark UI Html 
-One can also explore spark's UI portal to examine the execution jobs and how they are performing:
+### Using docker compose to run spark local cluster
 
-![Spark-UX](../img/spark-ui.png)
+Next update the [`.env`](../../docker/apache-spark-sample/.env) file to match the `PPL_JAR` location: 
+```
+PPL_JAR=../../sparkPPLCosmetic/target/scala-2.12/opensearch-spark-ppl-assembly-0.7.0-SNAPSHOT.jar
+```
 
-
-### Configuring hive partition mode
-For simpler configuration of partitioned tables, use the following non-strict mode:
+Next start the Docker containers that will be used for the tests. In the directory `docker/integ-test`
 
 ```shell
-spark-sql (default)> SET hive.exec.dynamic.partition.mode = nonstrict;
+docker compose up -d
 ```
 
----
+## Running Spark Shell
 
-# Testing PPL Commands
+Can run `spark-sql` on the master node.
 
-In order to test ppl commands using the spark-sql command line - create and populate the following set of tables:
+```
+docker exec -it apache-spark-sample-spark-1 /opt/bitnami/spark/bin/spark-sql
+```
+
+## Testing PPL Commands
+
+Within the Spark Shell, you can submit queries, including PPL queries.
+
+We will create and populate the following set of tables:
 
 ## emails table
 ```sql

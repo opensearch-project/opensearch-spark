@@ -1,0 +1,4 @@
+admin:
+  hash: "{SHA256}8ea37aedc8c37a3d54383e5abe289b65b74b585357353e4a8a9ac7f13dca3104"
+  roles:
+    - "flint_role"
