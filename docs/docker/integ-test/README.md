@@ -112,7 +112,11 @@ spark.sql("CREATE EXTERNAL TABLE foo (id int, name varchar(100)) location 's3a:/
 spark.sql("INSERT INTO foo (id, name) VALUES(1, 'Foo')")
 ```
 
+## Querying an S3 Table
+
 A REST call to the OpenSearch container can be used to query the table using the Async API.
+
+[Async Query Creation API](https://github.com/opensearch-project/sql/blob/main/docs/user/interfaces/asyncqueryinterface.rst#async-query-creation-api)
 ```shell
 curl \
   -u 'admin:C0rrecthorsebatterystaple.' \
@@ -122,14 +126,22 @@ curl \
   http://localhost:9200/_plugins/_async_query
 ```
 
+Sample response:
+```json
+{
+   "queryId": "HlbM61kX6MDkAktO",
+   "sessionId": "1Giy65ZnzNlmsPAm"
+}
+```
+
 When the query is finished, the results can be retrieved with a REST call to the OpenSearch container.
+
+[Async Query Result API](https://github.com/opensearch-project/sql/blob/main/docs/user/interfaces/asyncqueryinterface.rst#async-query-result-api)
 ```shell
 curl \
   -u 'admin:C0rrecthorsebatterystaple.' \
-  -X POST \
-  -H 'Content-Type: application/json' \
-  -d '{}' \
-  'http://localhost:9200/query_execution_result_mys3/_search?pretty'
+  -X GET \
+  'http://localhost:9200/_plugins/_async_query/HlbM61kX6MDkAktO'
 ```
 
 ## Configuration of the Cluster
