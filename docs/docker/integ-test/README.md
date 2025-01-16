@@ -144,6 +144,31 @@ curl \
   'http://localhost:9200/_plugins/_async_query/HlbM61kX6MDkAktO'
 ```
 
+Sample response:
+```json
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "id",
+      "type": "integer"
+    },
+    {
+      "name": "name",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      1,
+      "Foo"
+    ]
+  ],
+  "total": 1,
+  "size": 1
+}
+```
+
 ## Configuration of the Cluster
 
 There are several settings that can be adjusted for the cluster.
