@@ -386,7 +386,7 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
     assertSameRows(Seq(Row(23)), frame)
 
     frame = sql(s"""
-                   | source =$testTable
+                   | source=$testTable
                    | | eval day = day_of_week(relative_timestamp("@w0"))
                    | | fields day
                    | | head 1
@@ -428,32 +428,6 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
                        | | head 1
                        | """.stripMargin)
     assertSameRows(Seq(Row(false, true, true)), frame)
-  }
-
-  // TODO #957: Support earliest
-  ignore("test EARLIEST") {
-    var frame = sql(s"""
-                       | source = $testTable
-                       | | eval earliest_hour_before = earliest(now(), "-1h")
-                       | | eval earliest_now = earliest(now(), "now")
-                       | | eval earliest_hour_after = earliest(now(), "+1h")
-                       | | fields earliest_hour_before, earliest_now, earliest_hour_after
-                       | | head 1
-                       | """.stripMargin)
-    assertSameRows(Seq(Row(true), Row(true), Row(false)), frame)
-  }
-
-  // TODO #957: Support latest
-  ignore("test LATEST") {
-    var frame = sql(s"""
-                       | source = $testTable
-                       | | eval latest_hour_before = latest(now(), "-1h")
-                       | | eval latest_now = latest(now(), "now")
-                       | | eval latest_hour_after = latest(now(), "+1h")
-                       | | fields latest_hour_before, latest_now, latest_hour_after
-                       | | head 1
-                       | """.stripMargin)
-    assertSameRows(Seq(Row(false), Row(true), Row(true)), frame)
   }
 
   test("test CURRENT_TIME is not supported") {

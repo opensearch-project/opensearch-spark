@@ -402,7 +402,8 @@ Example:
 **Description:**
 
 **Usage:** earliest(string, timestamp) returns whether the timestamp defined by the given relative string is earlier
-than or at the same time as the specified timestamp.
+than or at the same time as the given timestamp. See [RELATIVE_TIMESTAMP](#relative_timestamp)
+for more details on relative timestamp strings.
 
 Argument type: STRING, TIMESTAMP
 
@@ -550,7 +551,8 @@ Example:
 **Description:**
 
 **Usage:** latest(string, timestamp) returns whether the timestamp defined by the given relative string is later
-than or at the same time as the specified timestamp. See [relative_timestamp](#relative_timestamp) for more details.
+than or at the same time as the given timestamp. See [RELATIVE_TIMESTAMP](#relative_timestamp)
+for more details on relative timestamp strings.
 
 Argument type: STRING, TIMESTAMP
 
