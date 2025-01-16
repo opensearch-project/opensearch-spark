@@ -19,7 +19,7 @@ sbt clean
 sbt assembly
 ```
 
-Refer to the [Developer Guide](../DEVELOPER_GUIDE.md) for more information.
+Refer to the [Developer Guide](../../DEVELOPER_GUIDE.md) for more information.
 
 ## Using Docker Compose
 
@@ -65,7 +65,7 @@ spark.sql("INSERT INTO test_table (id, name) VALUES(2, 'Bar')")
 spark.sql("source=test_table | eval x = id + 5 | fields x, name").show()
 ```
 
-For further information, see the [Spark PPL Test Instructions](ppl-lang/local-spark-ppl-test-instruction.md)
+For further information, see the [Spark PPL Test Instructions](../ppl-lang/local-spark-ppl-test-instruction.md)
 
 ## Manual Setup
 

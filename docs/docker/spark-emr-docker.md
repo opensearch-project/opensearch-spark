@@ -18,7 +18,7 @@ sbt clean
 sbt assembly
 ```
 
-Refer to the [Developer Guide](../DEVELOPER_GUIDE.md) for more information.
+Refer to the [Developer Guide](../../DEVELOPER_GUIDE.md) for more information.
 
 ## Using Docker Compose
 
