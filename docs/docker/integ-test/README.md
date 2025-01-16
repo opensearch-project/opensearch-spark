@@ -39,6 +39,9 @@ the docker image.
 Spark Connect is also running in this container and can be used to easily issue queries to run. The port for
 Spark Connect is exposed to the host OS.
 
+Spark is configured to have an OpenSearch datastore with the catalog name `dev`. Indices on the OpenSearch
+server can be queries as `dev.default.<INDEX_NAME>`.
+
 ### Spark Worker
 
 The Spark worker node. It is configured to use an external Hive metastore in the container `metastore`. The
@@ -68,7 +71,7 @@ It will contain the S3 tables data.
 
 This container also has a docker volume used to persist the S3 data.
 
-### Configuration-Updated
+### Configuration-Updater
 
 A temporary container that is used to configure the OpenSearch and Minio containers. It is run after both
 of those have started up. For Minio, it will add the `integ-test` bucket and create an access key. For
@@ -107,6 +110,26 @@ Example for creating a table and adding data:
 ```scala
 spark.sql("CREATE EXTERNAL TABLE foo (id int, name varchar(100)) location 's3a://integ-test/foo'")
 spark.sql("INSERT INTO foo (id, name) VALUES(1, 'Foo')")
+```
+
+A REST call to the OpenSearch container can be used to query the table using the Async API.
+```shell
+curl \
+  -u 'admin:C0rrecthorsebatterystaple.' \
+  -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"datasource": "mys3", "lang": "sql", "query": "SELECT * FROM mys3.default.foo"}' \
+  http://localhost:9200/_plugins/_async_query
+```
+
+When the query is finished, the results can be retrieved with a REST call to the OpenSearch container.
+```shell
+curl \
+  -u 'admin:C0rrecthorsebatterystaple.' \
+  -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{}' \
+  'http://localhost:9200/query_execution_result_mys3/_search?pretty'
 ```
 
 ## Configuration of the Cluster
