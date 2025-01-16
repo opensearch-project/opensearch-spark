@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Copyright OpenSearch Contributors
+# SPDX-License-Identifier: Apache-2.0
+
 function start_spark_connect() {
   sc_version=$(ls -1 /opt/bitnami/spark/jars/spark-core_*.jar | sed -e 's/^.*\/spark-core_//' -e 's/\.jar$//' -e 's/-/:/')
 
