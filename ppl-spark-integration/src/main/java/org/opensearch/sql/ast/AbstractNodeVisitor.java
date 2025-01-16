@@ -20,6 +20,7 @@ import org.opensearch.sql.ast.expression.EqualTo;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.FieldList;
 import org.opensearch.sql.ast.expression.LambdaFunction;
+import org.opensearch.sql.ast.statement.ViewStatement;
 import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
@@ -55,7 +56,7 @@ import org.opensearch.sql.ast.tree.Kmeans;
 import org.opensearch.sql.ast.tree.Limit;
 import org.opensearch.sql.ast.tree.Lookup;
 import org.opensearch.sql.ast.tree.Parse;
-import org.opensearch.sql.ast.tree.Project;
+import org.opensearch.sql.ast.tree.View;
 import org.opensearch.sql.ast.tree.RareTopN;
 import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Rename;
@@ -141,7 +142,11 @@ public abstract class AbstractNodeVisitor<T, C> {
     return visitChildren(node, context);
   }
 
-  public T visitProject(Project node, C context) {
+  public T visitView(View node, C context) {
+    return visitChildren(node, context);
+  }
+
+  public T visitViewStatement(ViewStatement node, C context) {
     return visitChildren(node, context);
   }
 
