@@ -62,3 +62,4 @@ PPL query:
       | where case(factor = 2, 'even', factor = 4, 'even', factor = 6, 'even', factor = 8, 'even' else 'odd') = 'even'
       |  stats count() by factor`
 - `source = table | where timestamp >= relative_timestamp("-1d@w6")`
+- `source = table | where earliest("-1d@w0", timestamp) and latest("now")`
