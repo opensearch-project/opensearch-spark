@@ -853,6 +853,8 @@ conditionFunctionBase
    | NULLIF
    | ISPRESENT
    | JSON_VALID
+   | EARLIEST
+   | LATEST
    ;
 
 systemFunctionName
