@@ -22,7 +22,8 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
     with StreamTest {
 
   /** Test table and index name */
-  private val testPartitionedStateCountryTable = "spark_catalog.default.flint_ppl_partitioned_state_country"
+  private val testPartitionedStateCountryTable =
+    "spark_catalog.default.flint_ppl_partitioned_state_country"
   private val testRelativeDateTimeTable = "spark_catalog.default.flint_ppl_relative_datetime"
 
   override def beforeAll(): Unit = {
@@ -377,12 +378,13 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
                        | | sort relative
                        | | fields description, relative_string
                        | """.stripMargin)
-    assertSameRows(Seq(
-      Row("Two weeks ago", "-2wk"),
-      Row("Yesterday", "-1d@d"),
-      Row("Now", "NOW"),
-      Row("Tomorrow", "+D@D"),
-      Row("In one month", "+month")),
+    assertSameRows(
+      Seq(
+        Row("Two weeks ago", "-2wk"),
+        Row("Yesterday", "-1d@d"),
+        Row("Now", "NOW"),
+        Row("Tomorrow", "+D@D"),
+        Row("In one month", "+month")),
       frame)
   }
 
@@ -394,10 +396,8 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
                        | | where earliest("now",relative)
                        | | fields description, relative_string
                        | """.stripMargin)
-    assertSameRows(Seq(
-      Row("Now", "NOW"),
-      Row("Tomorrow", "+D@D"),
-      Row("In one month", "+month")),
+    assertSameRows(
+      Seq(Row("Now", "NOW"), Row("Tomorrow", "+D@D"), Row("In one month", "+month")),
       frame)
 
     frame = sql(s"""
@@ -407,9 +407,7 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
                        | | where earliest("+2days",relative)
                        | | fields description, relative_string
                        | """.stripMargin)
-    assertSameRows(Seq(
-      Row("In one month", "+month")),
-      frame)
+    assertSameRows(Seq(Row("In one month", "+month")), frame)
   }
 
   test("test LATEST") {
@@ -420,10 +418,8 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
                        | | where latest("now",relative)
                        | | fields description, relative_string
                        | """.stripMargin)
-    assertSameRows(Seq(
-      Row("Two weeks ago", "-2wk"),
-      Row("Yesterday", "-1d@d"),
-      Row("Now", "NOW")),
+    assertSameRows(
+      Seq(Row("Two weeks ago", "-2wk"), Row("Yesterday", "-1d@d"), Row("Now", "NOW")),
       frame)
 
     frame = sql(s"""
@@ -433,9 +429,7 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
                    | | where latest("-2days",relative)
                    | | fields description, relative_string
                    | """.stripMargin)
-    assertSameRows(Seq(
-      Row("Two weeks ago", "-2wk")),
-      frame)
+    assertSameRows(Seq(Row("Two weeks ago", "-2wk")), frame)
   }
 
   test("test CURRENT_TIME is not supported") {
