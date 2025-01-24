@@ -1,0 +1,54 @@
+{
+  "mappings": {
+    "properties": {
+      "l_orderkey": {
+        "type": "integer"
+      },
+      "l_partkey": {
+        "type": "text"
+      },
+      "l_suppkey": {
+        "type": "integer"
+      },
+      "l_linenumber": {
+        "type": "integer"
+      },
+      "l_quantity": {
+        "type": "double"
+      },
+      "l_extendedprice": {
+        "type": "double"
+      },
+      "l_discount": {
+        "type": "double"
+      },
+      "l_tax": {
+        "type": "double"
+      },
+      "l_returnflag": {
+        "type": "text"
+      },
+      "l_linestatus": {
+        "type": "text"
+      },
+      "l_shipdate": {
+        "type": "date"
+      },
+      "l_commitdate": {
+        "type": "date"
+      },
+      "l_receiptdate": {
+        "type": "date"
+      },
+      "l_shipinstruct": {
+        "type": "text"
+      },
+      "l_shipmode": {
+        "type": "text"
+      },
+      "l_comment": {
+        "type": "text"
+      }
+    }
+  }
+}

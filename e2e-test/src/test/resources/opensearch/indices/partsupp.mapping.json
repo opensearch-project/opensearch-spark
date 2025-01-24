@@ -1,0 +1,21 @@
+{
+  "mappings": {
+    "properties": {
+      "ps_partkey": {
+        "type": "integer"
+      },
+      "ps_suppkey": {
+        "type": "integer"
+      },
+      "ps_availqty": {
+        "type": "integer"
+      },
+      "ps_supplycost": {
+        "type": "double"
+      },
+      "ps_comment": {
+        "type": "text"
+      }
+    }
+  }
+}
