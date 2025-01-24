@@ -208,7 +208,7 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
       frame)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
-    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_partitioned_state_country"))
     val filterExpr = GreaterThan(
       UnresolvedFunction(
         "unix_timestamp",
