@@ -411,8 +411,8 @@ Return type: BOOLEAN
 
 Example:
 
-    os> source=relative_timestamp | eval timestamp = relative_timestamp(relative_string) | where earliest("now",timestamp) | sort timestamp | fields description, relative_string
-    fetched rows / total rows = 1/1
+    os> source=relative_datetime | eval timestamp = relative_timestamp(relative_string) | where earliest("now",timestamp) | sort timestamp | fields description, relative_string
+    fetched rows / total rows = 3/3
     +--------------+-----------------+
     | description  | relative_string |
     +--------------+-----------------+
@@ -545,8 +545,8 @@ Return type: BOOLEAN
 
 Example:
 
-    os> source=relative_timestamp | eval timestamp = relative_timestamp(relative_string) | where latest("now",timestamp) | sort timestamp | fields description, relative_string
-    fetched rows / total rows = 1/1
+    os> source=relative_datetime | eval timestamp = relative_timestamp(relative_string) | where latest("now",timestamp) | sort timestamp | fields description, relative_string
+    fetched rows / total rows = 3/3
     +---------------+-----------------+
     | description   | relative_string |
     +---------------+-----------------+
@@ -852,29 +852,17 @@ Return type: TIMESTAMP
 
 Example:
 
-    os> source=people | eval seconds_diff = timestampdiff(SECOND, now(), relative_timestamp("now")) | fields seconds_diff | head 1
+    os> source=relative_datetime | eval relative = relative_timestamp(relative_string) | sort relative | fields description, relative_string
     fetched rows / total rows = 1/1
-    +--------------+
-    | seconds_diff |
-    |--------------+
-    | 0            |
-    +--------------+
-
-    os> source=people | eval hours_diff = timestampdiff(HOUR, now(), relative_timestamp("+1h")) | fields hours_diff | head 1
-    fetched rows / total rows = 1/1
-    +------------+
-    | hours_diff |
-    |------------+
-    | 1          |
-    +------------+
-
-    os> source=people | eval day = day_of_week(relative_timestamp("@w0")) | fields day | head 1
-    fetched rows / total rows = 1/1
-    +-----+
-    | day |
-    |-----|
-    | 1   |
-    +-----+
+    +---------------+-----------------+
+    | description   | relative_string |
+    +---------------+-----------------+
+    | Two weeks ago | -2wk            |
+    | Yesterday     | -1d@d           |
+    | Now           | NOW             |
+    | Tomorrow      | +D@D            |
+    | In one month  | +month          |
+    +---------------+-----------------+
 
 ### `SECOND`
 
@@ -1198,7 +1186,7 @@ Examples::
 **Description:**
 
 Usage: TIMESTAMPDIFF(interval, start, end) returns the difference between the start and end date/times in interval units.
-Arguments will be automatically converted to a ]TIMESTAMP when appropriate.
+Arguments will be automatically converted to a TIMESTAMP when appropriate.
 Any argument that is a STRING must be formatted as a valid TIMESTAMP.
 
 Argument type: INTERVAL, DATE/TIMESTAMP/STRING, DATE/TIMESTAMP/STRING
