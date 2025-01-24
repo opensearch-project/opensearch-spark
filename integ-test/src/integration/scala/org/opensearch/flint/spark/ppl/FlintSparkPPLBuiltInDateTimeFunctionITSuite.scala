@@ -22,7 +22,7 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
     with StreamTest {
 
   /** Test table and index name */
-  private val testPartitionedStateCountryTable = "spark_catalog.default.flint_ppl_test"
+  private val testPartitionedStateCountryTable = "spark_catalog.default.flint_ppl_partitioned_state_country"
   private val testRelativeDateTimeTable = "spark_catalog.default.flint_ppl_relative_datetime"
 
   override def beforeAll(): Unit = {
