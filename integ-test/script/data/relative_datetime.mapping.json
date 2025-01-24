@@ -1,0 +1,12 @@
+{
+  "mappings": {
+    "properties": {
+      "description": {
+        "type": "text"
+      },
+      "relative_string": {
+        "type": "text"
+      }
+    }
+  }
+}

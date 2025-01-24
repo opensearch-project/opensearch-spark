@@ -411,30 +411,15 @@ Return type: BOOLEAN
 
 Example:
 
-    os> source=people | eval earliest = earliest("-1s", now()) | fields earliest | head 1
+    os> source=relative_timestamp | eval timestamp = relative_timestamp(relative_string) | where earliest("now",timestamp) | sort timestamp | fields description, relative_string
     fetched rows / total rows = 1/1
-    +----------+
-    | earliest |
-    |----------|
-    | True     |
-    +----------+
-
-    os> source=people | eval earliest = earliest("now", now()) | fields earliest | head 1
-    fetched rows / total rows = 1/1
-    +----------+
-    | earliest |
-    |----------|
-    | True     |
-    +----------+
-
-    os> source=people | eval earliest = earliest("+1s", now()) | fields earliest | head 1
-    fetched rows / total rows = 1/1
-    +----------+
-    | earliest |
-    |----------|
-    | False    |
-    +----------+
-
+    +--------------+-----------------+
+    | description  | relative_string |
+    +--------------+-----------------+
+    | Now          | NOW             |
+    | Tomorrow     | +D@D            |
+    | In one month | +month          |
+    +--------------+-----------------+
 
 ### `FROM_UNIXTIME`
 
@@ -560,29 +545,15 @@ Return type: BOOLEAN
 
 Example:
 
-    os> source=people | eval latest = latest("-1s", now()) | fields latest | head 1
+    os> source=relative_timestamp | eval timestamp = relative_timestamp(relative_string) | where latest("now",timestamp) | sort timestamp | fields description, relative_string
     fetched rows / total rows = 1/1
-    +--------+
-    | latest |
-    |--------|
-    | False  |
-    +--------+
-
-    os> source=people | eval latest = latest("now", now()) | fields latest | head 1
-    fetched rows / total rows = 1/1
-    +--------+
-    | latest |
-    |--------|
-    | True   |
-    +--------+
-
-    os> source=people | eval latest = latest("+1s", now()) | fields latest | head 1
-    fetched rows / total rows = 1/1
-    +--------+
-    | latest |
-    |--------|
-    | True   |
-    +--------+
+    +---------------+-----------------+
+    | description   | relative_string |
+    +---------------+-----------------+
+    | Two weeks ago | -2wk            |
+    | Yesterday     | -1d@d           |
+    | Now           | NOW             |
+    +---------------+-----------------+
 
 
 ### `LOCALTIMESTAMP`

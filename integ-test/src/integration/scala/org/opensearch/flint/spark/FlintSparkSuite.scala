@@ -229,6 +229,26 @@ trait FlintSparkSuite extends QueryTest with FlintSuite with OpenSearchSuite wit
            | """.stripMargin)
   }
 
+  protected def createRelativeDateTimeTable(testTable: String): Unit = {
+    sql(s"""
+           | CREATE TABLE $testTable
+           | (
+           |   description STRING,
+           |   relative_string STRING
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+
+    sql(s"""
+           | INSERT INTO $testTable
+           | VALUES ('Now', 'NOW'),
+           |        ('Tomorrow', '+D@D'),
+           |        ('In one month', '+month'),
+           |        ('Two weeks ago', '-2wk'),
+           |        ('Yesterday', '-1d@d')
+           | """.stripMargin)
+  }
+
   protected def createNullableStateCountryTable(testTable: String): Unit = {
     sql(s"""
            | CREATE TABLE $testTable
