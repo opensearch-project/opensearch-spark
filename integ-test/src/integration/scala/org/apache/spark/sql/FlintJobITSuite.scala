@@ -39,6 +39,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
   val appId = "00feq82b752mbt0p"
   val dataSourceName = "my_glue1"
   val queryId = "testQueryId"
+  val requestIndex = "testRequestIndex"
   var osClient: OSClient = _
   val threadLocalFuture = new ThreadLocal[Future[Unit]]()
 
@@ -83,6 +84,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
 
   def createJobOperator(query: String, jobRunId: String): JobOperator = {
     val streamingRunningCount = new AtomicInteger(0)
+    val statementRunningCount = new AtomicInteger(0)
 
     /*
      * Because we cannot test from FlintJob.main() for the reason below, we have to configure
@@ -90,6 +92,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
      */
     spark.conf.set(DATA_SOURCE_NAME.key, dataSourceName)
     spark.conf.set(JOB_TYPE.key, FlintJobType.STREAMING)
+    spark.conf.set(REQUEST_INDEX.key, requestIndex)
 
     val job = JobOperator(
       appId,
@@ -100,7 +103,8 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
       dataSourceName,
       resultIndex,
       FlintJobType.STREAMING,
-      streamingRunningCount)
+      streamingRunningCount,
+      statementRunningCount)
     job.terminateJVM = false
     job
   }

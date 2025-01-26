@@ -106,7 +106,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
           dataSource,
           resultIndexOption.get,
           jobType,
-          streamingRunningCount)
+          streamingRunningCount,
+          statementRunningCount)
       registerGauge(MetricConstants.STREAMING_RUNNING_METRIC, streamingRunningCount)
       jobOperator.start()
     } else {
@@ -1019,33 +1020,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
       case _ =>
         logAndThrow(s"${FlintSparkConf.SESSION_ID.key} is not set or is empty")
     }
-  }
-
-  private def instantiateSessionManager(
-      spark: SparkSession,
-      resultIndexOption: Option[String]): SessionManager = {
-    instantiate(
-      new SessionManagerImpl(spark, resultIndexOption),
-      spark.conf.get(FlintSparkConf.CUSTOM_SESSION_MANAGER.key, ""),
-      resultIndexOption.getOrElse(""))
-  }
-
-  private def instantiateStatementExecutionManager(
-      commandContext: CommandContext): StatementExecutionManager = {
-    import commandContext._
-    instantiate(
-      new StatementExecutionManagerImpl(commandContext),
-      spark.conf.get(FlintSparkConf.CUSTOM_STATEMENT_MANAGER.key, ""),
-      spark,
-      sessionId)
-  }
-
-  private def instantiateQueryResultWriter(
-      spark: SparkSession,
-      commandContext: CommandContext): QueryResultWriter = {
-    instantiate(
-      new QueryResultWriterImpl(commandContext),
-      spark.conf.get(FlintSparkConf.CUSTOM_QUERY_RESULT_WRITER.key, ""))
   }
 
   private def recordSessionSuccess(sessionTimerContext: Timer.Context): Unit = {

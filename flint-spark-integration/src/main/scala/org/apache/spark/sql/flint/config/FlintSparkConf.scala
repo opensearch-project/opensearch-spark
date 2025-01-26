@@ -171,6 +171,12 @@ object FlintSparkConf {
     .doc("Enable external scheduler for index refresh")
     .createWithDefault("false")
 
+  val WARMPOOL_ENABLED =
+    FlintConfig("spark.flint.job.warmpoolEnabled")
+      .createWithDefault("false")
+
+  val MAX_EXECUTORS_COUNT = FlintConfig("spark.dynamicAllocation.maxExecutors").createOptional()
+
   val EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD =
     FlintConfig("spark.flint.job.externalScheduler.interval")
       .doc("Interval threshold in minutes for external scheduler to trigger index refresh")
@@ -246,6 +252,10 @@ object FlintSparkConf {
     FlintConfig(s"spark.flint.job.requestIndex")
       .doc("Request index")
       .createOptional()
+  val RESULT_INDEX =
+    FlintConfig(s"spark.flint.job.resultIndex")
+      .doc("Result index")
+      .createOptional()
   val EXCLUDE_JOB_IDS =
     FlintConfig(s"spark.flint.deployment.excludeJobs")
       .doc("Exclude job ids")
@@ -271,6 +281,9 @@ object FlintSparkConf {
   val CUSTOM_QUERY_RESULT_WRITER =
     FlintConfig("spark.flint.job.customQueryResultWriter")
       .createOptional()
+  val TERMINATE_JVM = FlintConfig("spark.flint.terminateJVM")
+    .doc("Indicates whether the JVM should be terminated after query execution")
+    .createWithDefault("true")
 }
 
 /**

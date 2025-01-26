@@ -96,6 +96,11 @@ public final class MetricConstants {
     public static final String RESULT_METADATA_WRITE_METRIC_PREFIX = "result.metadata.write";
 
     /**
+     * Prefix for metrics related to interactive queries
+     */
+     public static final String STATEMENT = "statement";
+
+    /**
      * Metric name for counting the number of statements currently running.
      */
     public static final String STATEMENT_RUNNING_METRIC = "statement.running.count";
@@ -136,9 +141,29 @@ public final class MetricConstants {
     public static final String STREAMING_HEARTBEAT_FAILED_METRIC = "streaming.heartbeat.failed.count";
 
     /**
+     * Metric for tracking the count of jobs failed during query execution
+     */
+    public static final String QUERY_EXECUTION_FAILED_METRIC = "execution.failed.count";
+
+    /**
+     * Metric for tracking the count of jobs failed during query result write
+     */
+    public static final String RESULT_WRITER_FAILED_METRIC = "writer.failed.count";
+
+    /**
      * Metric for tracking the latency of query execution (start to complete query execution) excluding result write.
      */
     public static final String QUERY_EXECUTION_TIME_METRIC = "query.execution.processingTime";
+
+    /**
+     * Metric for tracking the latency of query result write only (excluding query execution)
+     */
+    public static final String QUERY_RESULT_WRITER_TIME_METRIC = "result.writer.processingTime";
+
+    /**
+     * Metric for tracking the latency of query total execution including result write.
+     */
+    public static final String QUERY_TOTAL_TIME_METRIC = "query.total.processingTime";
 
     /**
      * Metric for query count of each query type (DROP/VACUUM/ALTER/REFRESH/CREATE INDEX)

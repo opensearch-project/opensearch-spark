@@ -6,6 +6,7 @@
 package org.apache.spark.sql
 
 import java.util.Locale
+import java.util.concurrent.ThreadPoolExecutor
 
 import com.amazonaws.services.glue.model.{AccessDeniedException, AWSGlueException}
 import com.amazonaws.services.s3.model.AmazonS3Exception
@@ -20,6 +21,7 @@ import play.api.libs.json._
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.FlintREPL.instantiate
 import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.exception.UnrecoverableException
@@ -565,5 +567,32 @@ trait FlintJobExecutor {
           throw new RuntimeException(s"Failed to instantiate provider: $className", e)
       }
     }
+  }
+
+  def instantiateQueryResultWriter(
+      spark: SparkSession,
+      commandContext: CommandContext): QueryResultWriter = {
+    instantiate(
+      new QueryResultWriterImpl(commandContext),
+      spark.conf.get(FlintSparkConf.CUSTOM_QUERY_RESULT_WRITER.key, ""))
+  }
+
+  def instantiateStatementExecutionManager(
+      commandContext: CommandContext): StatementExecutionManager = {
+    import commandContext._
+    instantiate(
+      new StatementExecutionManagerImpl(commandContext),
+      spark.conf.get(FlintSparkConf.CUSTOM_STATEMENT_MANAGER.key, ""),
+      spark,
+      sessionId)
+  }
+
+  def instantiateSessionManager(
+      spark: SparkSession,
+      resultIndexOption: Option[String]): SessionManager = {
+    instantiate(
+      new SessionManagerImpl(spark, resultIndexOption),
+      spark.conf.get(FlintSparkConf.CUSTOM_SESSION_MANAGER.key, ""),
+      resultIndexOption.getOrElse(""))
   }
 }
