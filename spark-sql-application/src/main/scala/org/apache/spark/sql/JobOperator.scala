@@ -169,7 +169,7 @@ case class JobOperator(
         case t: Throwable =>
           incrementCounter(MetricConstants.RESULT_WRITER_FAILED_METRIC)
           throwableHandler.recordThrowable(
-            s"Failed to write to result. originalError='${t.getMessage}'",
+            s"Failed to write to result. originalError='${throwableHandler.error}'",
             t)
       } finally {
         emitTimerMetric(MetricConstants.QUERY_RESULT_WRITER_TIME_METRIC, resultWriterStartTime)
