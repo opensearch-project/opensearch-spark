@@ -1,0 +1,30 @@
+{
+  "mappings": {
+    "properties": {
+      "@timestamp": {
+        "type": "date"
+      },
+      "year": {
+        "type": "integer"
+      },
+      "month": {
+        "type": "integer"
+      },
+      "day": {
+        "type": "integer"
+      },
+      "clientip": {
+        "type": "keyword"
+      },
+      "request": {
+        "type": "text"
+      },
+      "status": {
+        "type": "integer"
+      },
+      "size": {
+        "type": "integer"
+      }
+    }
+  }
+}

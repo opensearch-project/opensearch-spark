@@ -103,9 +103,8 @@ services:
         FLINT_JAR: ${FLINT_JAR}
         PPL_JAR: ${PPL_JAR}
         SQL_APP_JAR: ${SQL_APP_JAR}
-    depends_on:
-      metastore:
-        condition: service_completed_successfully
+    entrypoint: /bin/bash
+    command: exit
 
   opensearch:
     build: ./opensearch

@@ -1,0 +1,1 @@
+SELECT * FROM mys3.default.foo

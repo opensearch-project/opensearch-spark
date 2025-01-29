@@ -1,0 +1,18 @@
+{
+  "mappings": {
+    "properties": {
+      "n_nationkey": {
+        "type": "integer"
+      },
+      "n_name": {
+        "type": "text"
+      },
+      "n_regionkey": {
+        "type": "integer"
+      },
+      "n_comment": {
+        "type": "text"
+      }
+    }
+  }
+}
