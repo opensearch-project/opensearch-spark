@@ -1,0 +1,7 @@
+@timestamp,name,country,salary,id,occupation
+2024-06-15T13:40:23.000Z,Jake,England,100000,1000,Engineer
+2024-06-15T13:40:33.000Z,Hello,USA,70000,1001,Artist
+2024-06-15T13:40:43.000Z,John,Canada,120000,1002,Doctor
+2024-06-15T13:40:53.000Z,David,,120000,1003,Doctor
+2024-06-15T13:41:03.000Z,David,Canada,0,1004,
+2024-06-15T13:41:13.000Z,Jane,Canada,90000,1005,Scientist

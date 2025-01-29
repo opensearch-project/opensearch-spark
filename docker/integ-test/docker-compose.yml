@@ -1,13 +1,35 @@
 services:
+  metastore:
+    build: ./metastore
+    container_name: metastore
+    ports:
+      - "${THRIFT_PORT:-9083}:9083"
+    volumes:
+      - type: bind
+        source: ./metastore/hive-site.xml
+        target: /opt/apache-hive-2.3.9-bin/conf/hive-site.xml
+      - type: bind
+        source: ./metastore/hive-log4j2.properties
+        target: /opt/apache-hive-2.3.9-bin/conf/hive-log4j2.properties
+      - type: volume
+        source: metastore-data
+        target: /data
+    networks:
+      - opensearch-net
+
   spark:
-    image: bitnami/spark:${SPARK_VERSION:-3.5.3}
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
+      args:
+        SPARK_VERSION: ${SPARK_VERSION:-3.5.3}
     container_name: spark
+    entrypoint: /opt/bitnami/scripts/spark/spark-master-entrypoint.sh
     ports:
       - "${MASTER_UI_PORT:-8080}:8080"
       - "${MASTER_PORT:-7077}:7077"
       - "${UI_PORT:-4040}:4040"
       - "${SPARK_CONNECT_PORT}:15002"
-    entrypoint: /opt/bitnami/scripts/spark/master-entrypoint.sh
     environment:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
@@ -17,19 +39,10 @@ services:
       - SPARK_PUBLIC_DNS=localhost
     volumes:
       - type: bind
-        source: ./spark-master-entrypoint.sh
-        target: /opt/bitnami/scripts/spark/master-entrypoint.sh
-      - type: bind
-        source: ./spark-defaults.conf
-        target: /opt/bitnami/spark/conf/spark-defaults.conf
-      - type: bind
-        source: ./log4j2.properties
-        target: /opt/bitnami/spark/conf/log4j2.properties
-      - type: bind
-        source: $PPL_JAR
+        source: ../../$PPL_JAR
         target: /opt/bitnami/spark/jars/ppl-spark-integration.jar
       - type: bind
-        source: $FLINT_JAR
+        source: ../../$FLINT_JAR
         target: /opt/bitnami/spark/jars/flint-spark-integration.jar
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
@@ -40,9 +53,22 @@ services:
       start_interval: 5s
     networks:
       - opensearch-net
+    depends_on:
+      metastore:
+        condition: service_started
+      opensearch:
+        condition: service_healthy
+      opensearch-dashboards:
+        condition: service_healthy
+      configuration-updater:
+        condition: service_completed_successfully
 
   spark-worker:
-    image: bitnami/spark:${SPARK_VERSION:-3.5.3}
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
+      args:
+        SPARK_VERSION: ${SPARK_VERSION:-3.5.3}
     container_name: spark-worker
     environment:
       - SPARK_MODE=worker
@@ -56,32 +82,42 @@ services:
       - SPARK_PUBLIC_DNS=localhost
     volumes:
       - type: bind
-        source: ./spark-defaults.conf
-        target: /opt/bitnami/spark/conf/spark-defaults.conf
-      - type: bind
-        source: ./log4j2.properties
-        target: /opt/bitnami/spark/conf/log4j2.properties
-      - type: bind
-        source: $PPL_JAR
+        source: ../../$PPL_JAR
         target: /opt/bitnami/spark/jars/ppl-spark-integration.jar
       - type: bind
-        source: $FLINT_JAR
+        source: ../../$FLINT_JAR
         target: /opt/bitnami/spark/jars/flint-spark-integration.jar
     networks:
       - opensearch-net
     depends_on:
-      - spark
+      metastore:
+        condition: service_started
+      spark:
+        condition: service_healthy
+
+  spark-submit:
+    build:
+      context: ../../
+      dockerfile: docker/integ-test/spark-submit/Dockerfile
+      args:
+        FLINT_JAR: ${FLINT_JAR}
+        PPL_JAR: ${PPL_JAR}
+        SQL_APP_JAR: ${SQL_APP_JAR}
+    entrypoint: /bin/bash
+    command: exit
 
   opensearch:
-    image: opensearchproject/opensearch:${OPENSEARCH_VERSION:-latest}
+    build: ./opensearch
     container_name: opensearch
     environment:
       - cluster.name=opensearch-cluster
       - node.name=opensearch
-      - discovery.seed_hosts=opensearch
-      - cluster.initial_cluster_manager_nodes=opensearch
+      - discovery.type=single-node
       - bootstrap.memory_lock=true
+      - plugins.security.system_indices.enabled=false
+      - plugins.security.system_indices.permission.enabled=false
       - plugins.security.ssl.http.enabled=false
+      - plugins.query.datasources.encryption.masterkey=9a515c99d4313f140a6607053502f4d6
       - OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_NODE_MEMORY:-512m} -Xmx${OPENSEARCH_NODE_MEMORY:-512m}
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD}
     ulimits:
@@ -92,12 +128,18 @@ services:
         soft: 65536
         hard: 65536
     volumes:
-      - opensearch-data:/usr/share/opensearch/data
+      - type: volume
+        source: opensearch-data
+        target: /usr/share/opensearch/data
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
     ports:
       - ${OPENSEARCH_PORT:-9200}:9200
-      - 9600:9600
+      - ${OPENSEARCH_PA_PORT:-9600}:9600
     expose:
       - "${OPENSEARCH_PORT:-9200}"
+      - "9300"
     healthcheck:
       test: ["CMD", "curl", "-f", "-u", "admin:${OPENSEARCH_ADMIN_PASSWORD}", "http://localhost:9200/_cluster/health"]
       interval: 1m
@@ -107,6 +149,9 @@ services:
       start_interval: 5s
     networks:
       - opensearch-net
+    depends_on:
+      minio:
+        condition: service_healthy
 
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:${DASHBOARDS_VERSION}
@@ -119,8 +164,16 @@ services:
       OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
     networks:
       - opensearch-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5601/"]
+      interval: 1m
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 5s
     depends_on:
-      - opensearch
+      opensearch:
+        condition: service_healthy
 
   minio:
     image: minio/minio
@@ -132,12 +185,37 @@ services:
       - "9001:9001"
     volumes:
       - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-q", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 1m
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 5s
+    networks:
+      - opensearch-net
+
+  configuration-updater:
+    image: alpine/curl:latest
+    entrypoint: /bin/sh
+    command: /apply-configuration.sh
+    environment:
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - OPENSEARCH_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD}
+    volumes:
+      - type: bind
+        source: configuration-updater/apply-configuration.sh
+        target: /apply-configuration.sh
+    depends_on:
+      opensearch-dashboards:
+        condition: service_healthy
     networks:
       - opensearch-net
 
 volumes:
+  metastore-data:
   opensearch-data:
   minio-data:
-
 networks:
   opensearch-net:

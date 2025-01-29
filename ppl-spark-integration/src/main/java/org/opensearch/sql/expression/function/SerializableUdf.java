@@ -13,16 +13,23 @@ import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.types.DataTypes;
 import scala.Function1;
 import scala.Function2;
+import scala.Function3;
 import scala.Option;
 import scala.Serializable;
 import scala.runtime.AbstractFunction1;
 import scala.runtime.AbstractFunction2;
+import scala.runtime.AbstractFunction3;
 import scala.collection.JavaConverters;
 import scala.collection.mutable.WrappedArray;
 
+import java.lang.Boolean;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -35,8 +42,15 @@ import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 
 public interface SerializableUdf {
 
+    abstract class SerializableAbstractFunction1<T1, R> extends AbstractFunction1<T1, R>
+            implements Serializable {
+    }
 
     abstract class SerializableAbstractFunction2<T1, T2, R> extends AbstractFunction2<T1, T2, R>
+            implements Serializable {
+    }
+
+    abstract class SerializableAbstractFunction3<T1, T2, T3, R> extends AbstractFunction3<T1, T2, T3, R>
             implements Serializable {
     }
 
@@ -109,7 +123,7 @@ public interface SerializableUdf {
             }
         }
     };
-    
+
     Function2<String, String, Boolean> cidrFunction = new SerializableAbstractFunction2<>() {
 
         IPAddressStringParameters valOptions = new IPAddressStringParameters.Builder()
@@ -197,14 +211,34 @@ public interface SerializableUdf {
         };
     }
 
-    abstract class SerializableAbstractFunction1<T1,R> extends AbstractFunction1<T1,R>
-            implements Serializable {
-    }
+    /**
+     * Returns the {@link Instant} corresponding to the given relative string, current timestamp, and current time zone ID.
+     * Throws {@link RuntimeException} if the relative string is not supported.
+     */
+    Function3<String, Object, String, Instant> relativeTimestampFunction = new SerializableAbstractFunction3<String, Object, String, Instant>() {
+
+        @Override
+        public Instant apply(String relativeString, Object currentTimestamp, String zoneIdString) {
+
+            /// If `spark.sql.datetime.java8API.enabled` is set to `true`, [org.apache.spark.sql.types.TimestampType]
+            /// is converted to [Instant] by Catalyst; otherwise, [Timestamp] is used instead.
+            Instant currentInstant =
+                    currentTimestamp instanceof Timestamp
+                            ? ((Timestamp) currentTimestamp).toInstant()
+                            : (Instant) currentTimestamp;
+
+            ZoneId zoneId = ZoneId.of(zoneIdString);
+            ZonedDateTime currentDateTime = ZonedDateTime.ofInstant(currentInstant, zoneId);
+            ZonedDateTime relativeDateTime = TimeUtils.getRelativeZonedDateTime(relativeString, currentDateTime);
+
+            return relativeDateTime.toInstant();
+        }
+    };
 
     /**
      * Get the function reference according to its name
      *
-     * @param funcName      string representing function to retrieve.
+     * @param funcName string representing function to retrieve.
      * @return relevant ScalaUDF for given function name.
      */
     static ScalaUDF visit(String funcName, List<Expression> expressions) {
@@ -247,11 +281,20 @@ public interface SerializableUdf {
                         true);
             case "ip_to_int":
                 return new ScalaUDF(geoIpUtils.ipToInt,
-                        DataTypes.createDecimalType(38,0),
+                        DataTypes.createDecimalType(38, 0),
                         seq(expressions),
                         seq(),
                         Option.empty(),
                         Option.apply("ip_to_int"),
+                        false,
+                        true);
+            case "relative_timestamp":
+                return new ScalaUDF(relativeTimestampFunction,
+                        DataTypes.TimestampType,
+                        seq(expressions),
+                        seq(),
+                        Option.empty(),
+                        Option.apply("relative_timestamp"),
                         false,
                         true);
             default:

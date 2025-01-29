@@ -1,0 +1,10 @@
+{"index": {"_index": "relative_datetime"}}
+{"description": "Now", "relative_string": "NOW"}
+{"index": {"_index": "relative_datetime"}}
+{"description": "Tomorrow", "relative_string": "+D@D"}
+{"index": {"_index": "relative_datetime"}}
+{"description": "In one month", "relative_string": "+month"}
+{"index": {"_index": "relative_datetime"}}
+{"description": "Two weeks ago", "relative_string": "-2wk"}
+{"index": {"_index": "relative_datetime"}}
+{"description": "Yesterday", "relative_string": "-1d@d"}

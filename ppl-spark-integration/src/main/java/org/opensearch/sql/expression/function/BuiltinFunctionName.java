@@ -133,6 +133,11 @@ public enum BuiltinFunctionName {
   LOCALTIMESTAMP(FunctionName.of("localtimestamp")),
   SYSDATE(FunctionName.of("sysdate")),
 
+  // Relative time functions
+  RELATIVE_TIMESTAMP(FunctionName.of("relative_timestamp")),
+  EARLIEST(FunctionName.of("earliest")),
+  LATEST(FunctionName.of("latest")),
+
   /** Text Functions. */
   TOSTRING(FunctionName.of("tostring")),
 
