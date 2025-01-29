@@ -55,9 +55,6 @@ lazy val testScalastyle = taskKey[Unit]("testScalastyle")
 // - .inAll applies the rule to all dependencies, not just direct dependencies
 val packagesToShade = Seq(
   "com.amazonaws.cloudwatch.**",
-  "com.fasterxml.jackson.core.**",
-  "com.fasterxml.jackson.dataformat.**",
-  "com.fasterxml.jackson.databind.**",
   "com.google.**",
   "com.sun.jna.**",
   "com.thoughtworks.paranamer.**",
