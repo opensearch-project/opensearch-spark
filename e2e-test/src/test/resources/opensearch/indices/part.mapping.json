@@ -1,0 +1,33 @@
+{
+  "mappings": {
+    "properties": {
+      "p_partkey": {
+        "type": "integer"
+      },
+      "p_name": {
+        "type": "text"
+      },
+      "p_mfgr": {
+        "type": "text"
+      },
+      "p_brand": {
+        "type": "text"
+      },
+      "p_type": {
+        "type": "text"
+      },
+      "p_size": {
+        "type": "integer"
+      },
+      "p_container": {
+        "type": "text"
+      },
+      "p_retailprice": {
+        "type": "double"
+      },
+      "p_comment": {
+        "type": "text"
+      }
+    }
+  }
+}

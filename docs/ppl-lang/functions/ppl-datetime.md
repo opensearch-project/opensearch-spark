@@ -397,6 +397,30 @@ Example:
     +-------------------------------+
 
 
+### `EARLIEST`
+
+**Description:**
+
+**Usage:** earliest(string, timestamp) returns whether the timestamp defined by the given relative string is earlier
+than or at the same time as the given timestamp. See [RELATIVE_TIMESTAMP](#relative_timestamp)
+for more details on relative timestamp strings.
+
+Argument type: STRING, TIMESTAMP
+
+Return type: BOOLEAN
+
+Example:
+
+    os> source=relative_datetime | eval timestamp = relative_timestamp(relative_string) | where earliest("now",timestamp) | sort timestamp | fields description, relative_string
+    fetched rows / total rows = 3/3
+    +--------------+-----------------+
+    | description  | relative_string |
+    +--------------+-----------------+
+    | Now          | NOW             |
+    | Tomorrow     | +D@D            |
+    | In one month | +month          |
+    +--------------+-----------------+
+
 ### `FROM_UNIXTIME`
 
 **Description:**
@@ -505,6 +529,31 @@ Example:
     |--------------------------|
     | 2023-02-28               |
     +--------------------------+
+
+
+### `LATEST`
+
+**Description:**
+
+**Usage:** latest(string, timestamp) returns whether the timestamp defined by the given relative string is later
+than or at the same time as the given timestamp. See [RELATIVE_TIMESTAMP](#relative_timestamp)
+for more details on relative timestamp strings.
+
+Argument type: STRING, TIMESTAMP
+
+Return type: BOOLEAN
+
+Example:
+
+    os> source=relative_datetime | eval timestamp = relative_timestamp(relative_string) | where latest("now",timestamp) | sort timestamp | fields description, relative_string
+    fetched rows / total rows = 3/3
+    +---------------+-----------------+
+    | description   | relative_string |
+    +---------------+-----------------+
+    | Two weeks ago | -2wk            |
+    | Yesterday     | -1d@d           |
+    | Now           | NOW             |
+    +---------------+-----------------+
 
 
 ### `LOCALTIMESTAMP`
@@ -733,6 +782,87 @@ Example:
     | 3                             |
     +-------------------------------+
 
+### `RELATIVE_TIMESTAMP`
+
+**Description:**
+
+
+**Usage:** relative_timestamp(string) returns a relative timestamp corresponding to the given relative string and the
+current timestamp at the time of query execution.
+
+The relative timestamp string has syntax `[+|-]<offset_time_integer><offset_time_unit>@<snap_time_unit>`, and is
+made up of two optional components.
+* An offset from the current timestamp, which is composed of a sign (`+` or `-`), optional `offset_time_integer`, and 
+  `offset_time_unit`. If the offset time integer is not specified, it defaults to `1`. For example, `+2hr` is two
+  hours after the current timestamp, while `-mon` is one month ago. 
+* A snap-to time using the `@` symbol followed by `snap_time_unit`. The snap-to time is applied after the offset (if 
+  specified), and rounds the time <i>down</i> to the start of the specified time unit. For example, `@wk` is the start
+  of the current week (Sunday is considered to be the first day of the week).
+
+The special relative timestamp string `now`, corresponding to the current timestamp, is also supported.
+
+The current timestamp is determined once at the start of query execution, and is used for all relative timestamp
+calculations for that query. The Spark session time zone (`spark.sql.session.timeZone`) is used for determining relative
+timestamps. Offsets using time units (seconds, minutes, or hours) represent a fixed time period; adding twenty-four
+hours (`+24h`) will yield a timestamp that is exactly twenty-four hours later, but which may not have the same local
+time (because of daylight savings, for example). Conversely, offsets using date units (days, weeks, months, quarters, or
+years) do not represent a fixed time period; adding one day (`+1d`) will yield a timestamp with the same local time,
+but which may not be exactly twenty-four hours later.
+
+The relative timestamp string is case-insensitive.
+
+The following values are supported for `offset_time_unit`:
+
+| Time Unit | Supported Keywords                        |
+|-----------|-------------------------------------------|
+| Seconds   | `s`, `sec`, `secs`, `second`, `seconds`   |
+| Minutes   | `m`, `min`, `mins`, `minute`, `minutes`   |
+| Hours     | `h`, `hr`, `hrs`, `hour`, `hours`         |
+| Days      | `d`, `day`, `days`                        |
+| Weeks     | `w`, `wk`, `wks`, `week`, `weeks`         |
+| Quarters  | `q`, `qtr`, `qtrs`, `quarter`, `quarters` |
+| Years     | `y`, `yr`, `yrs`, `year`, `years`         |
+
+All the time units above are supported for `snap_time_unit`, as well as the following day-of-the-week time units:
+
+| Time Unit | Supported Keywords |
+|-----------|--------------------|
+| Sunday    | `w0`, `w7`         |
+| Monday    | `w1`               |
+| Tuesday   | `w2`               |
+| Wednesday | `w3`               |
+| Thursday  | `w4`               |
+| Friday    | `w5`               |
+| Saturday  | `w6`               |
+
+For example, if the current timestamp is Monday, January 03, 2000 at 01:01:01 am:
+
+| Relative String | Description                                                  | Resulting Relative Time                     |
+|-----------------|--------------------------------------------------------------|---------------------------------------------|
+| `-60m`          | Sixty minutes ago                                            | Monday, January 03, 2000 at 00:01:01 am     |
+| `-1H`           | One hour ago                                                 | Monday, January 03, 2000 at 00:01:01 am     |
+| `+2wk`          | Two weeks from now                                           | Monday, January 17, 2000 at 00:01:01 am     |
+| `-1h@W3`        | One hour ago, rounded to the start of the previous Wednesday | Wednesday, December 29, 1999 at 00:00:00 am |
+| `@d`            | Start of the current day                                     | Monday, January 03, 2000 at 00:00:00 am     |
+| `now`           | Now                                                          | Monday, January 03, 2000 at 01:01:01 am     | 
+
+Argument type: STRING
+
+Return type: TIMESTAMP
+
+Example:
+
+    os> source=relative_datetime | eval relative = relative_timestamp(relative_string) | sort relative | fields description, relative_string
+    fetched rows / total rows = 1/1
+    +---------------+-----------------+
+    | description   | relative_string |
+    +---------------+-----------------+
+    | Two weeks ago | -2wk            |
+    | Yesterday     | -1d@d           |
+    | Now           | NOW             |
+    | Tomorrow      | +D@D            |
+    | In one month  | +month          |
+    +---------------+-----------------+
 
 ### `SECOND`
 
@@ -1056,7 +1186,7 @@ Examples::
 **Description:**
 
 Usage: TIMESTAMPDIFF(interval, start, end) returns the difference between the start and end date/times in interval units.
-Arguments will be automatically converted to a ]TIMESTAMP when appropriate.
+Arguments will be automatically converted to a TIMESTAMP when appropriate.
 Any argument that is a STRING must be formatted as a valid TIMESTAMP.
 
 Argument type: INTERVAL, DATE/TIMESTAMP/STRING, DATE/TIMESTAMP/STRING

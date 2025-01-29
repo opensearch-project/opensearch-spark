@@ -1,0 +1,37 @@
+{
+  "mappings": {
+    "properties": {
+      "int_col": {
+        "type": "integer"
+      },
+      "struct_col": {
+        "properties": {
+          "field1": {
+            "properties": {
+              "subfield": {
+                "type": "text"
+              }
+            }
+          },
+          "field2": {
+            "type": "integer"
+          }
+        }
+      },
+      "struct_col2": {
+        "properties": {
+          "field1": {
+            "properties": {
+              "subfield": {
+                "type": "text"
+              }
+            }
+          },
+          "field2": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}

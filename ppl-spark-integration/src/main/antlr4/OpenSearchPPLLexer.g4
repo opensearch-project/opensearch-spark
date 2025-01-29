@@ -255,10 +255,6 @@ FIRST:                              'FIRST';
 LAST:                               'LAST';
 LIST:                               'LIST';
 VALUES:                             'VALUES';
-EARLIEST:                           'EARLIEST';
-EARLIEST_TIME:                      'EARLIEST_TIME';
-LATEST:                             'LATEST';
-LATEST_TIME:                        'LATEST_TIME';
 PER_DAY:                            'PER_DAY';
 PER_HOUR:                           'PER_HOUR';
 PER_MINUTE:                         'PER_MINUTE';
@@ -366,6 +362,11 @@ UTC_TIME:                           'UTC_TIME';
 UTC_TIMESTAMP:                      'UTC_TIMESTAMP';
 WEEKDAY:                            'WEEKDAY';
 YEARWEEK:                           'YEARWEEK';
+
+// RELATIVE TIME FUNCTIONS
+RELATIVE_TIMESTAMP:                 'RELATIVE_TIMESTAMP';
+EARLIEST:                           'EARLIEST';
+LATEST:                             'LATEST';
 
 // TEXT FUNCTIONS
 SUBSTR:                             'SUBSTR';

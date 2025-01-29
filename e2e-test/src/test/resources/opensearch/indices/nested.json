@@ -1,0 +1,10 @@
+{"index": {"_index": "nested"}}
+{"int_col": 30, "struct_col": {"field1": {"subfield": "value1"}, "field2": 123}, "struct_col2": {"field1": {"subfield": "valueA"}, "field2": 23}}
+{"index": {"_index": "nested"}}
+{"int_col": 40, "struct_col": {"field1": {"subfield": "value5"}, "field2": 123}, "struct_col2": {"field1": {"subfield": "valueB"}, "field2": 33}}
+{"index": {"_index": "nested"}}
+{"int_col": 30, "struct_col": {"field1": {"subfield": "value4"}, "field2": 823}, "struct_col2": {"field1": {"subfield": "valueC"}, "field2": 83}}
+{"index": {"_index": "nested"}}
+{"int_col": 40, "struct_col": {"field1": {"subfield": "value2"}, "field2": 456}, "struct_col2": {"field1": {"subfield": "valueD"}, "field2": 46}}
+{"index": {"_index": "nested"}}
+{"int_col": 50, "struct_col": {"field1": {"subfield": "value3"}, "field2": 789}, "struct_col2": {"field1": {"subfield": "valueE"}, "field2": 89}}

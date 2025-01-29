@@ -807,6 +807,13 @@ dateTimeFunctionName
    | WEEK_OF_YEAR
    | YEAR
    | YEARWEEK
+   | relativeTimeFunctionName
+   ;
+
+relativeTimeFunctionName
+   : RELATIVE_TIMESTAMP
+   | EARLIEST
+   | LATEST
    ;
 
 getFormatFunction
@@ -874,6 +881,8 @@ conditionFunctionBase
    | NULLIF
    | ISPRESENT
    | JSON_VALID
+   | EARLIEST
+   | LATEST
    ;
 
 systemFunctionName
@@ -1199,10 +1208,6 @@ keywordsCanBeId
    | LAST
    | LIST
    | VALUES
-   | EARLIEST
-   | EARLIEST_TIME
-   | LATEST
-   | LATEST_TIME
    | PER_DAY
    | PER_HOUR
    | PER_MINUTE
