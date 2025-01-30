@@ -48,6 +48,12 @@ val df = spark.sql("SELECT * FROM dev.default.`my_index*`")
 df.show()
 ```
 
+Join two indices
+```scala
+val df = spark.sql("SELECT * FROM dev.default.my_index as t1 JOIN dev.default.my_index as t2 ON t1.id == t2.id")
+df.show()
+```
+
 ## Limitation
 ### catalog operation
 - List Tables: Not supported.
