@@ -50,7 +50,6 @@ public class OpenSearchBulkWrapper {
    * @return Last result
    */
   public BulkResponse bulk(RestHighLevelClient client, BulkRequest bulkRequest, RequestOptions options) {
-    rateLimiter.acquirePermit(bulkRequest.requests().size());
     return bulkWithPartialRetry(client, bulkRequest, options);
   }
 
@@ -69,11 +68,13 @@ public class OpenSearchBulkWrapper {
           })
           .get(() -> {
             requestCount.incrementAndGet();
+            rateLimiter.acquirePermit(nextRequest.get().requests().size());
             BulkResponse response = client.bulk(nextRequest.get(), options);
 
             if (!bulkItemRetryableResultPredicate.test(response)) {
               rateLimiter.increaseRate();
             } else {
+              LOG.info("Bulk request failed. attempt = " + (requestCount.get() - 1));
               rateLimiter.decreaseRate();
               if (retryPolicy.getConfig().allowsRetries()) {
                 nextRequest.set(getRetryableRequest(nextRequest.get(), response));

@@ -136,6 +136,18 @@ object FlintSparkConf {
     .doc("max retries on failed HTTP request, 0 means retry is disabled, default is 3")
     .createWithDefault(String.valueOf(FlintRetryOptions.DEFAULT_MAX_RETRIES))
 
+  val BULK_MAX_RETRIES =
+    FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.BULK_MAX_RETRIES}")
+      .datasourceOption()
+      .doc("max retries on failed HTTP request, 0 means retry is disabled, default is 10")
+      .createWithDefault(String.valueOf(FlintRetryOptions.DEFAULT_BULK_MAX_RETRIES))
+
+  val BULK_INITIAL_BACKOFF =
+    FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.BULK_INITIAL_BACKOFF}")
+      .datasourceOption()
+      .doc("initial backoff for bulk request retry, default is 4")
+      .createWithDefault(String.valueOf(FlintRetryOptions.DEFAULT_BULK_INITIAL_BACKOFF))
+
   val BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED =
     FlintConfig(
       s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED}")
@@ -368,6 +380,8 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       SCHEME,
       AUTH,
       MAX_RETRIES,
+      BULK_MAX_RETRIES,
+      BULK_INITIAL_BACKOFF,
       RETRYABLE_HTTP_STATUS_CODES,
       BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED,
       BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE,
