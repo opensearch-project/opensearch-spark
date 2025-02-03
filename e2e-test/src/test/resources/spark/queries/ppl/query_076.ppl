@@ -1,0 +1,1 @@
+source = dev.default.http_logs | parse request 'GET /(?<domain>[a-zA-Z]+)/.*' | eval a = 1 | fields a, domain | head 10

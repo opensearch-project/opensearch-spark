@@ -1,0 +1,1 @@
+source = dev.default.http_logs | eval f = size | where f > 1 | sort f | fields size, clientip, status | head 10

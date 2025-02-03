@@ -1,0 +1,6 @@
+order_count,o_orderpriority
+9,1-URGENT
+7,2-HIGH
+9,3-MEDIUM
+8,4-NOT SPECIFIED
+12,5-LOW

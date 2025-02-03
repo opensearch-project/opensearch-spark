@@ -1,0 +1,1 @@
+source = dev.default.http_logs |  eval col1 = size, col2 = clientip | stats avg(col1) by col2

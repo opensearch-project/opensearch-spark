@@ -1,0 +1,5 @@
+source = dev.default.supplier
+| where like(s_comment, '%Customer%Complaints%')
+| join ON s_nationkey > n_nationkey [ source = dev.default.nation | where n_name = 'SAUDI ARABIA' ]
+| sort - s_name
+| head 10

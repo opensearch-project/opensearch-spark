@@ -1,0 +1,1 @@
+source = dev.default.http_logs | where size <= 0 AND like(request, 'GET%')  | head 10

@@ -1,0 +1,2 @@
+count_request,request,status
+1,GET /images/hm_nbg.jpg HTTP/1.0,304
