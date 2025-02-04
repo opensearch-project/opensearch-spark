@@ -6,13 +6,16 @@
 package org.apache.spark.sql.flint.config
 
 import java.util.Optional
+
 import scala.collection.JavaConverters._
+
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.http.FlintRetryOptions._
+import org.scalatest.matchers.must.Matchers.contain
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.flint.config.FlintSparkConf.{MONITOR_INITIAL_DELAY_SECONDS, MONITOR_INTERVAL_SECONDS, MONITOR_MAX_ERROR_COUNT}
-import org.scalatest.matchers.must.Matchers.contain
 
 class FlintSparkConfSuite extends FlintSuite {
   test("test spark conf") {
@@ -58,7 +61,11 @@ class FlintSparkConfSuite extends FlintSuite {
       .getRetryOptions
 
     retryOptions.getMaxRetries shouldBe 5
-    retryOptions.getRetryableHttpStatusCodes should contain theSameElementsAs Set(429, 502, 503, 504)
+    retryOptions.getRetryableHttpStatusCodes should contain theSameElementsAs Set(
+      429,
+      502,
+      503,
+      504)
     retryOptions.getRetryableExceptionClassNames.get() shouldBe "java.net.ConnectException"
   }
 
