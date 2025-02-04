@@ -15,9 +15,12 @@ import dev.failsafe.RetryPolicyBuilder;
 import dev.failsafe.event.ExecutionAttemptedEvent;
 import dev.failsafe.function.CheckedPredicate;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.flint.core.http.handler.ExceptionClassNameFailurePredicate;
 import org.opensearch.flint.core.http.handler.HttpAOSSResultPredicate;
@@ -141,11 +144,12 @@ public class FlintRetryOptions implements Serializable {
         options.getOrDefault(BULK_INITIAL_BACKOFF, String.valueOf(DEFAULT_BULK_INITIAL_BACKOFF)));
   }
 
-  /**
-   * @return retryable HTTP status code list
-   */
-  public String getRetryableHttpStatusCodes() {
-    return options.getOrDefault(RETRYABLE_HTTP_STATUS_CODES, DEFAULT_RETRYABLE_HTTP_STATUS_CODES);
+  public Set<Integer> getRetryableHttpStatusCodes() {
+    String statusCodes = options.getOrDefault(RETRYABLE_HTTP_STATUS_CODES, DEFAULT_RETRYABLE_HTTP_STATUS_CODES);
+    return Arrays.stream(statusCodes.split(","))
+        .map(String::trim)
+        .map(Integer::valueOf)
+        .collect(Collectors.toSet());
   }
 
   /**

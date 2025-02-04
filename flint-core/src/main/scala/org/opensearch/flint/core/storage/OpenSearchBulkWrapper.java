@@ -11,6 +11,7 @@ import dev.failsafe.RetryPolicy;
 import dev.failsafe.function.CheckedPredicate;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
@@ -34,10 +35,12 @@ public class OpenSearchBulkWrapper {
 
   private final RetryPolicy<BulkResponse> retryPolicy;
   private final BulkRequestRateLimiter rateLimiter;
+  private final Set<Integer> retryableStatusCodes;
 
   public OpenSearchBulkWrapper(FlintRetryOptions retryOptions, BulkRequestRateLimiter rateLimiter) {
     this.retryPolicy = retryOptions.getBulkRetryPolicy(bulkItemRetryableResultPredicate);
     this.rateLimiter = rateLimiter;
+    this.retryableStatusCodes = retryOptions.getRetryableHttpStatusCodes();
   }
 
   /**
@@ -119,10 +122,10 @@ public class OpenSearchBulkWrapper {
   /**
    * A predicate to decide if a BulkResponse is retryable or not.
    */
-  private static final CheckedPredicate<BulkResponse> bulkItemRetryableResultPredicate = bulkResponse ->
+  private final CheckedPredicate<BulkResponse> bulkItemRetryableResultPredicate = bulkResponse ->
       bulkResponse.hasFailures() && isRetryable(bulkResponse);
 
-  private static boolean isRetryable(BulkResponse bulkResponse) {
+  private boolean isRetryable(BulkResponse bulkResponse) {
     if (Arrays.stream(bulkResponse.getItems())
         .anyMatch(itemResp -> isItemRetryable(itemResp))) {
       LOG.info("Found retryable failure in the bulk response");
@@ -131,12 +134,17 @@ public class OpenSearchBulkWrapper {
     return false;
   }
 
-  private static boolean isItemRetryable(BulkItemResponse itemResponse) {
-    return itemResponse.isFailed() && !isCreateConflict(itemResponse);
+  private boolean isItemRetryable(BulkItemResponse itemResponse) {
+    return itemResponse.isFailed() && !isCreateConflict(itemResponse)
+        && isFailureStatusRetryable(itemResponse);
   }
 
   private static boolean isCreateConflict(BulkItemResponse itemResp) {
     return itemResp.getOpType() == DocWriteRequest.OpType.CREATE &&
         itemResp.getFailure().getStatus() == RestStatus.CONFLICT;
+  }
+
+  private boolean isFailureStatusRetryable(BulkItemResponse itemResp) {
+    return retryableStatusCodes.contains(itemResp.getFailure().getStatus().getStatus());
   }
 }
