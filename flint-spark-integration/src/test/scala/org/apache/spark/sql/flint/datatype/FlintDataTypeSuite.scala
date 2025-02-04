@@ -297,12 +297,15 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
         |  }
         |}""".stripMargin
 
-    val expectedStructType = StructType(Seq(
-      StructField("distance", LongType, true),
-      StructField("transit_mode", StringType, true),
-      StructField("route_length_miles", LongType, true,
-        new MetadataBuilder().putString("aliasPath", "distance").build())
-    ))
+    val expectedStructType = StructType(
+      Seq(
+        StructField("distance", LongType, true),
+        StructField("transit_mode", StringType, true),
+        StructField(
+          "route_length_miles",
+          LongType,
+          true,
+          new MetadataBuilder().putString("aliasPath", "distance").build())))
 
     val deserialized = FlintDataType.deserialize(flintDataType)
 
