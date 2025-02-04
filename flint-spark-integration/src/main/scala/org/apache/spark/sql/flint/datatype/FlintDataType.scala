@@ -30,6 +30,8 @@ object FlintDataType {
     "dateFormat" -> DateFormatter.defaultPattern,
     "timestampFormat" -> STRICT_DATE_OPTIONAL_TIME_FORMATTER_WITH_NANOS)
 
+  val METADATA_ALIAS_PATH_NAME = "aliasPath"
+
   /**
    * parse Flint metadata and extract properties to StructType.
    */
@@ -39,14 +41,38 @@ object FlintDataType {
 
   def deserializeJValue(json: JValue): StructType = {
     val properties = (json \ "properties").extract[Map[String, JValue]]
-    val fields = properties.map { case (fieldName, fieldProperties) =>
-      deserializeFiled(fieldName, fieldProperties)
+    val (aliasProps, normalProps) = properties.partition { case (_, fieldProperties) =>
+      (fieldProperties \ "type") match {
+        case JString("alias") => true
+        case _ => false
+      }
     }
 
-    StructType(fields.toSeq)
+    val fields: Seq[StructField] = normalProps.map { case (fieldName, fieldProperties) =>
+      deserializeField(fieldName, fieldProperties)
+    }.toSeq
+
+    val normalFieldMap: Map[String, StructField] = fields.map(f => f.name -> f).toMap
+
+    val aliasFields: Seq[StructField] = aliasProps.map { case (fieldName, fieldProperties) =>
+      val aliasPath = (fieldProperties \ "path").extract[String]
+      if (!normalFieldMap.contains(aliasPath)) {
+        throw new IllegalStateException(
+          s"Alias field [$fieldName] references undefined field [$aliasPath]")
+      }
+      val metadataBuilder = new MetadataBuilder()
+      metadataBuilder.putString(METADATA_ALIAS_PATH_NAME, aliasPath)
+      DataTypes.createStructField(
+        fieldName,
+        normalFieldMap(aliasPath).dataType,
+        true,
+        metadataBuilder.build())
+    }.toSeq
+
+    StructType(fields ++ aliasFields)
   }
 
-  def deserializeFiled(fieldName: String, fieldProperties: JValue): StructField = {
+  def deserializeField(fieldName: String, fieldProperties: JValue): StructField = {
     val metadataBuilder = new MetadataBuilder()
     val dataType = fieldProperties \ "type" match {
       // boolean

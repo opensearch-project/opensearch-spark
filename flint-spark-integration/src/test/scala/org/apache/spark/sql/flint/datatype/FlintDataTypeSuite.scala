@@ -279,4 +279,42 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
     val data: JValue = JsonMethods.parse(json)
     JsonMethods.compact(JsonMethods.render(data))
   }
+
+  test("alias field deserialize") {
+    val flintDataType =
+      """{
+        |  "properties": {
+        |    "distance": {
+        |      "type": "long"
+        |    },
+        |    "route_length_miles": {
+        |      "type": "alias",
+        |      "path": "distance"
+        |    },
+        |    "transit_mode": {
+        |      "type": "keyword"
+        |    }
+        |  }
+        |}""".stripMargin
+
+    val expectedStructType = StructType(Seq(
+      StructField("distance", LongType, true),
+      StructField("transit_mode", StringType, true),
+      StructField("route_length_miles", LongType, true,
+        new MetadataBuilder().putString("aliasPath", "distance").build())
+    ))
+
+    val deserialized = FlintDataType.deserialize(flintDataType)
+
+    deserialized.fields should have length (3)
+    deserialized.fields(0) shouldEqual expectedStructType.fields(0)
+    deserialized.fields(1) shouldEqual expectedStructType.fields(1)
+
+    val aliasField = deserialized.fields(2)
+    aliasField.name shouldEqual "route_length_miles"
+    aliasField.dataType shouldEqual LongType
+    aliasField.metadata.contains("aliasPath") shouldBe true
+    aliasField.metadata.getString("aliasPath") shouldEqual "distance"
+  }
+
 }

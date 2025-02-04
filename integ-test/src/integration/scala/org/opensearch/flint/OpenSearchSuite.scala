@@ -123,6 +123,22 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
     index(indexName, oneNodeSetting, mappings, docs)
   }
 
+  def indexWithAlias(indexName: String): Unit = {
+    val mappings = """{
+                     |  "properties": {
+                     |    "id": {
+                     |      "type": "integer"
+                     |    },
+                     |    "alias": {
+                     |      "type": "alias",
+                     |      "path": "id"
+                     |    }
+                     |  }
+                     |}""".stripMargin
+    val docs = Seq("""{"id": 1}""", """{"id": 2}""")
+    index(indexName, oneNodeSetting, mappings, docs)
+  }
+
   def index(index: String, settings: String, mappings: String, docs: Seq[String]): Unit = {
     openSearchClient.indices.create(
       new CreateIndexRequest(index)

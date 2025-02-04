@@ -21,6 +21,7 @@ import org.apache.spark.sql.catalyst.json.{JacksonUtils, JsonFilters, JSONOption
 import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, BadRecordException, DateFormatter, DateTimeUtils, GenericArrayData, IntervalUtils, MapData, PartialResultException, RebaseDateTime, TimestampFormatter}
 import org.apache.spark.sql.catalyst.util.LegacyDateFormats.FAST_DATE_FORMAT
 import org.apache.spark.sql.errors.QueryExecutionErrors
+import org.apache.spark.sql.flint.datatype.FlintDataType
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types._
@@ -448,13 +449,33 @@ class FlintJacksonParser(
     var badRecordException: Option[Throwable] = None
     var skipRow = false
 
+    // Build mapping from JSON key to sequence of schema field indices.
+    val fieldMapping: Map[String, Seq[Int]] = {
+      schema.fields.zipWithIndex.foldLeft(Map.empty[String, Seq[Int]]) {
+        case (acc, (field, idx)) =>
+          val jsonKey = if (field.metadata.contains(FlintDataType.METADATA_ALIAS_PATH_NAME)) {
+            field.metadata.getString(FlintDataType.METADATA_ALIAS_PATH_NAME)
+          } else {
+            field.name
+          }
+          acc.updated(jsonKey, acc.getOrElse(jsonKey, Seq.empty[Int]) :+ idx)
+      }
+    }
+
     structFilters.reset()
     while (!skipRow && nextUntil(parser, JsonToken.END_OBJECT)) {
-      schema.getFieldIndex(parser.getCurrentName) match {
-        case Some(index) =>
+      fieldMapping.get(parser.getCurrentName) match {
+        case Some(indices) =>
           try {
-            row.update(index, fieldConverters(index).apply(parser))
-            skipRow = structFilters.skipRow(row, index)
+            // All fields in indices are same type.
+            val fieldValue = fieldConverters(indices.head).apply(parser)
+            // Assign the parsed value to all schema fields mapped to this JSON key.
+            indices.foreach { idx =>
+              row.update(idx, fieldValue)
+              if (structFilters.skipRow(row, idx)) {
+                skipRow = true
+              }
+            }
           } catch {
             case e: SparkUpgradeException => throw e
             case NonFatal(e) if isRoot =>
