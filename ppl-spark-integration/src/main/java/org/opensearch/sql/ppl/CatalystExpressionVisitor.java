@@ -368,6 +368,7 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
     @Override
     public Expression visitInSubquery(InSubquery node, CatalystPlanContext outerContext) {
         CatalystPlanContext innerContext = new CatalystPlanContext();
+        innerContext.withSparkSession(outerContext.getSparkSession());
         visitExpressionList(node.getChild(), innerContext);
         Seq<Expression> values = innerContext.retainAllNamedParseExpressions(p -> p);
         UnresolvedPlan outerPlan = node.getQuery();
@@ -387,6 +388,7 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
     @Override
     public Expression visitScalarSubquery(ScalarSubquery node, CatalystPlanContext context) {
         CatalystPlanContext innerContext = new CatalystPlanContext();
+        innerContext.withSparkSession(context.getSparkSession());
         UnresolvedPlan outerPlan = node.getQuery();
         LogicalPlan subSearch = outerPlan.accept(planVisitor, innerContext);
         Expression scalarSubQuery = ScalarSubquery$.MODULE$.apply(
@@ -402,6 +404,7 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
     @Override
     public Expression visitExistsSubquery(ExistsSubquery node, CatalystPlanContext context) {
         CatalystPlanContext innerContext = new CatalystPlanContext();
+        innerContext.withSparkSession(context.getSparkSession());
         UnresolvedPlan outerPlan = node.getQuery();
         LogicalPlan subSearch = outerPlan.accept(planVisitor, innerContext);
         Expression existsSubQuery = Exists$.MODULE$.apply(

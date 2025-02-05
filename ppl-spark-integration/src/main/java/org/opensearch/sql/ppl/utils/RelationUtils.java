@@ -5,16 +5,26 @@
 
 package org.opensearch.sql.ppl.utils;
 
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.TableIdentifier;
+import org.apache.spark.sql.catalyst.analysis.NoSuchDatabaseException;
+import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
+import org.apache.spark.sql.catalyst.catalog.CatalogTable;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.opensearch.flint.spark.ppl.PPLSparkUtils;
+import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import scala.Option$;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 public interface RelationUtils {
+    Logger LOG = Logger.getLogger(RelationUtils.class.getName());
+
     /**
      * attempt resolving if the field is relating to the given relation
      * if name doesnt contain table prefix - add the current relation prefix to the fields name - returns true
@@ -64,5 +74,24 @@ public interface RelationUtils {
                 Option$.MODULE$.apply(qualifiedName.getParts().get(0)));
         }
         return identifier;
+    }
+
+    static boolean columnExistsInCatalogTable(SparkSession spark, Field field, LogicalPlan plan) {
+        UnresolvedRelation relation = PPLSparkUtils.findLogicalRelations(plan).head();
+        QualifiedName tableQualifiedName = QualifiedName.of(Arrays.asList(relation.tableName().split("\\.")));
+        TableIdentifier sourceTableIdentifier = getTableIdentifier(tableQualifiedName);
+        boolean sourceTableExists = spark.sessionState().catalog().tableExists(sourceTableIdentifier);
+        if (sourceTableExists) {
+            try {
+                CatalogTable table = spark.sessionState().catalog().getTableMetadata(getTableIdentifier(tableQualifiedName));
+                return Arrays.stream(table.dataSchema().fields()).anyMatch(f -> f.name().equalsIgnoreCase(field.getField().toString()));
+            } catch (NoSuchDatabaseException | NoSuchTableException e) {
+                LOG.warning("Source table or database " + sourceTableIdentifier + " not found");
+                return false;
+            }
+        } else {
+            LOG.warning("Source table " + sourceTableIdentifier + " not found");
+            return false;
+        }
     }
 }

@@ -6,6 +6,7 @@
 package org.opensearch.sql.ppl;
 
 import lombok.Getter;
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.Expression;
@@ -38,6 +39,8 @@ import static scala.collection.JavaConverters.asScalaBuffer;
  * The context used for Catalyst logical plan.
  */
 public class CatalystPlanContext {
+
+    @Getter private SparkSession sparkSession;
     /**
      * Catalyst relations list
      **/
@@ -282,5 +285,9 @@ public class CatalystPlanContext {
         Expression result = transformFunction.apply(expr, this);
         isResolvingJoinCondition = false;
         return result;
+    }
+
+    public void withSparkSession(SparkSession sparkSession) {
+        this.sparkSession = sparkSession;
     }
 }

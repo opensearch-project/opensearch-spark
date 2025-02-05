@@ -51,9 +51,6 @@ class FlintSparkPPLLookupITSuite
 
   test("test LOOKUP lookupTable uid AS id REPLACE department") {
     val frame = sql(s"source = $sourceTable| LOOKUP $lookupTable uid AS id REPLACE department")
-    // frame.show()
-    // frame.explain(true)
-    val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "Engineer", "England", 100000, "IT"),
       Row(1001, "Hello", "Artist", "USA", 70000, null),
@@ -61,15 +58,17 @@ class FlintSparkPPLLookupITSuite
       Row(1003, "David", "Doctor", null, 120000, "HR"),
       Row(1004, "David", null, "Canada", 0, null),
       Row(1005, "Jane", "Scientist", "Canada", 90000, "DATA"))
+    assertSameRows(expectedResults, frame)
 
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
     val lookupProject =
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
     val joinCondition = EqualTo(UnresolvedAttribute("uid"), UnresolvedAttribute("id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val coalesceForSafeExpr =
-      Coalesce(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("department")))
+      Coalesce(
+        Seq(
+          UnresolvedAttribute("__auto_generated_subquery_name_l.department"),
+          UnresolvedAttribute("department")))
     val projectAfterJoin = Project(
       Seq(
         UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
@@ -88,9 +87,6 @@ class FlintSparkPPLLookupITSuite
 
   test("test LOOKUP lookupTable uid AS id APPEND department") {
     val frame = sql(s"source = $sourceTable| LOOKUP $lookupTable uid AS id APPEND department")
-    // frame.show()
-    // frame.explain(true)
-    val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "Engineer", "England", 100000, "IT"),
       Row(1001, "Hello", "Artist", "USA", 70000, null),
@@ -98,16 +94,17 @@ class FlintSparkPPLLookupITSuite
       Row(1003, "David", "Doctor", null, 120000, "HR"),
       Row(1004, "David", null, "Canada", 0, null),
       Row(1005, "Jane", "Scientist", "Canada", 90000, "DATA"))
-
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
+    assertSameRows(expectedResults, frame)
 
     val lookupProject =
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
     val joinCondition = EqualTo(UnresolvedAttribute("uid"), UnresolvedAttribute("id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val coalesceExpr =
-      Coalesce(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("department")))
+      Coalesce(
+        Seq(
+          UnresolvedAttribute("department"),
+          UnresolvedAttribute("__auto_generated_subquery_name_l.department")))
     val coalesceForSafeExpr = Coalesce(Seq(coalesceExpr, UnresolvedAttribute("department")))
     val projectAfterJoin = Project(
       Seq(
@@ -128,9 +125,6 @@ class FlintSparkPPLLookupITSuite
   test("test LOOKUP lookupTable uid AS id REPLACE department AS country") {
     val frame =
       sql(s"source = $sourceTable| LOOKUP $lookupTable uid AS id REPLACE department AS country")
-    // frame.show()
-    // frame.explain(true)
-    val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "Engineer", 100000, "IT"),
       Row(1001, "Hello", "Artist", 70000, "USA"),
@@ -138,16 +132,17 @@ class FlintSparkPPLLookupITSuite
       Row(1003, "David", "Doctor", 120000, "HR"),
       Row(1004, "David", null, 0, "Canada"),
       Row(1005, "Jane", "Scientist", 90000, "DATA"))
-
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
+    assertSameRows(expectedResults, frame)
 
     val lookupProject =
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
     val joinCondition = EqualTo(UnresolvedAttribute("uid"), UnresolvedAttribute("id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val coalesceForSafeExpr =
-      Coalesce(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("country")))
+      Coalesce(
+        Seq(
+          UnresolvedAttribute("__auto_generated_subquery_name_l.department"),
+          UnresolvedAttribute("__auto_generated_subquery_name_s.country")))
     val projectAfterJoin = Project(
       Seq(
         UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
@@ -167,9 +162,6 @@ class FlintSparkPPLLookupITSuite
   test("test LOOKUP lookupTable uid AS id APPEND department AS country") {
     val frame =
       sql(s"source = $sourceTable| LOOKUP $lookupTable uid AS id APPEND department AS country")
-    // frame.show()
-    // frame.explain(true)
-    val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "Engineer", 100000, "England"),
       Row(1001, "Hello", "Artist", 70000, "USA"),
@@ -177,14 +169,19 @@ class FlintSparkPPLLookupITSuite
       Row(1003, "David", "Doctor", 120000, "HR"),
       Row(1004, "David", null, 0, "Canada"),
       Row(1005, "Jane", "Scientist", 90000, "Canada"))
+    assertSameRows(expectedResults, frame)
 
     val lookupProject =
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
     val joinCondition = EqualTo(UnresolvedAttribute("uid"), UnresolvedAttribute("id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val coalesceExpr =
-      Coalesce(Seq(UnresolvedAttribute("country"), UnresolvedAttribute("department")))
-    val coalesceForSafeExpr = Coalesce(Seq(coalesceExpr, UnresolvedAttribute("country")))
+      Coalesce(
+        Seq(
+          UnresolvedAttribute("__auto_generated_subquery_name_s.country"),
+          UnresolvedAttribute("__auto_generated_subquery_name_l.department")))
+    val coalesceForSafeExpr =
+      Coalesce(Seq(coalesceExpr, UnresolvedAttribute("__auto_generated_subquery_name_s.country")))
     val projectAfterJoin = Project(
       Seq(
         UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
@@ -204,9 +201,6 @@ class FlintSparkPPLLookupITSuite
   test("test LOOKUP lookupTable uid AS id, name REPLACE department") {
     val frame =
       sql(s"source = $sourceTable| LOOKUP $lookupTable uID AS id, name REPLACE department")
-    // frame.show()
-    // frame.explain(true)
-    val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "Engineer", "England", 100000, "IT"),
       Row(1001, "Hello", "Artist", "USA", 70000, null),
@@ -214,9 +208,8 @@ class FlintSparkPPLLookupITSuite
       Row(1003, "David", "Doctor", null, 120000, "HR"),
       Row(1004, "David", null, "Canada", 0, null),
       Row(1005, "Jane", "Scientist", "Canada", 90000, "DATA"))
+    assertSameRows(expectedResults, frame)
 
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
     val lookupProject =
       Project(
         Seq(
@@ -232,7 +225,10 @@ class FlintSparkPPLLookupITSuite
           UnresolvedAttribute("__auto_generated_subquery_name_s.name")))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val coalesceForSafeExpr =
-      Coalesce(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("department")))
+      Coalesce(
+        Seq(
+          UnresolvedAttribute("__auto_generated_subquery_name_l.department"),
+          UnresolvedAttribute("department")))
     val projectAfterJoin = Project(
       Seq(
         UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
@@ -253,9 +249,6 @@ class FlintSparkPPLLookupITSuite
   test("test LOOKUP lookupTable uid AS id, name APPEND department") {
     val frame =
       sql(s"source = $sourceTable| LOOKUP $lookupTable uid AS ID, name APPEND department")
-    // frame.show()
-    // frame.explain(true)
-    val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "Engineer", "England", 100000, "IT"),
       Row(1001, "Hello", "Artist", "USA", 70000, null),
@@ -263,9 +256,7 @@ class FlintSparkPPLLookupITSuite
       Row(1003, "David", "Doctor", null, 120000, "HR"),
       Row(1004, "David", null, "Canada", 0, null),
       Row(1005, "Jane", "Scientist", "Canada", 90000, "DATA"))
-
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
+    assertSameRows(expectedResults, frame)
 
     val lookupProject =
       Project(
@@ -282,7 +273,10 @@ class FlintSparkPPLLookupITSuite
           UnresolvedAttribute("__auto_generated_subquery_name_s.name")))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val coalesceExpr =
-      Coalesce(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("department")))
+      Coalesce(
+        Seq(
+          UnresolvedAttribute("department"),
+          UnresolvedAttribute("__auto_generated_subquery_name_l.department")))
     val coalesceForSafeExpr = Coalesce(Seq(coalesceExpr, UnresolvedAttribute("department")))
     val projectAfterJoin = Project(
       Seq(
@@ -303,28 +297,21 @@ class FlintSparkPPLLookupITSuite
 
   test("test LOOKUP lookupTable uid AS id, name") {
     val frame = sql(s"source = $sourceTable| LOOKUP $lookupTable uID AS id, name")
-    // frame.show()
-    // frame.explain(true)
-    val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] = Array(
-      Row(1000, "Jake", "Engineer", "England", 100000, 1000, "Jake", "IT", "Engineer"),
-      Row(1001, "Hello", "Artist", "USA", 70000, null, null, null, null),
-      Row(1002, "John", "Doctor", "Canada", 120000, 1002, "John", "DATA", "Scientist"),
-      Row(1003, "David", "Doctor", null, 120000, 1003, "David", "HR", "Doctor"),
-      Row(1004, "David", null, "Canada", 0, null, null, null, null),
-      Row(1005, "Jane", "Scientist", "Canada", 90000, 1005, "Jane", "DATA", "Engineer"))
+      Row(1000, "Jake", "Engineer", "England", 100000, "IT", "Engineer"),
+      Row(1001, "Hello", "Artist", "USA", 70000, null, null),
+      Row(1002, "John", "Doctor", "Canada", 120000, "DATA", "Scientist"),
+      Row(1003, "David", "Doctor", null, 120000, "HR", "Doctor"),
+      Row(1004, "David", null, "Canada", 0, null, null),
+      Row(1005, "Jane", "Scientist", "Canada", 90000, "DATA", "Engineer"))
 
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
+    assertSameRows(expectedResults, frame)
   }
 
   test("test LOOKUP lookupTable name REPLACE occupation") {
     val frame =
       sql(
         s"source = $sourceTable | eval major = occupation | fields id, name, major, country, salary | LOOKUP $lookupTable name REPLACE occupation AS major")
-    // frame.show()
-    // frame.explain(true)
-    val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "England", 100000, "Engineer"),
       Row(1001, "Hello", "USA", 70000, "Artist"),
@@ -332,9 +319,7 @@ class FlintSparkPPLLookupITSuite
       Row(1003, "David", null, 120000, "Doctor"),
       Row(1004, "David", "Canada", 0, "Doctor"),
       Row(1005, "Jane", "Canada", 90000, "Engineer"))
-
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
+    assertSameRows(expectedResults, frame)
 
     val sourceTbl = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val eval = Project(
@@ -356,7 +341,10 @@ class FlintSparkPPLLookupITSuite
       UnresolvedAttribute("__auto_generated_subquery_name_l.name"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val coalesceForSafeExpr =
-      Coalesce(Seq(UnresolvedAttribute("occupation"), UnresolvedAttribute("major")))
+      Coalesce(
+        Seq(
+          UnresolvedAttribute("__auto_generated_subquery_name_l.occupation"),
+          UnresolvedAttribute("major")))
     val projectAfterJoin = Project(
       Seq(
         UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
@@ -377,9 +365,6 @@ class FlintSparkPPLLookupITSuite
     val frame =
       sql(
         s"source = $sourceTable | eval major = occupation | fields id, name, major, country, salary | LOOKUP $lookupTable name APPEND occupation AS major")
-    // frame.show()
-    // frame.explain(true)
-    val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "England", 100000, "Engineer"),
       Row(1001, "Hello", "USA", 70000, "Artist"),
@@ -387,9 +372,7 @@ class FlintSparkPPLLookupITSuite
       Row(1003, "David", null, 120000, "Doctor"),
       Row(1004, "David", "Canada", 0, "Doctor"),
       Row(1005, "Jane", "Canada", 90000, "Scientist"))
-
-    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
-    assert(results.sorted.sameElements(expectedResults.sorted))
+    assertSameRows(expectedResults, frame)
 
     val sourceTbl = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
     val eval = Project(
@@ -411,7 +394,10 @@ class FlintSparkPPLLookupITSuite
       UnresolvedAttribute("__auto_generated_subquery_name_l.name"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val coalesceExpr =
-      Coalesce(Seq(UnresolvedAttribute("major"), UnresolvedAttribute("occupation")))
+      Coalesce(
+        Seq(
+          UnresolvedAttribute("major"),
+          UnresolvedAttribute("__auto_generated_subquery_name_l.occupation")))
     val coalesceForSafeExpr =
       Coalesce(Seq(coalesceExpr, UnresolvedAttribute("major")))
     val projectAfterJoin = Project(
@@ -428,5 +414,33 @@ class FlintSparkPPLLookupITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
 
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test LOOKUP lookupTable name") {
+    val frame =
+      sql(s"source = $sourceTable | LOOKUP $lookupTable name")
+    val expectedResults: Array[Row] = Array(
+      Row(1000, "Jake", "Engineer", "England", 100000, 1000, "IT", "Engineer"),
+      Row(1001, "Hello", "Artist", "USA", 70000, null, null, null),
+      Row(1002, "John", "Doctor", "Canada", 120000, 1002, "DATA", "Scientist"),
+      Row(1003, "David", "Doctor", null, 120000, 1003, "HR", "Doctor"),
+      Row(1004, "David", null, "Canada", 0, 1003, "HR", "Doctor"),
+      Row(1005, "Jane", "Scientist", "Canada", 90000, 1005, "DATA", "Engineer"))
+    assertSameRows(expectedResults, frame)
+  }
+
+  test("test LOOKUP lookupTable name REPLACE occupation - 2") {
+    val frame =
+      sql(s"source = $sourceTable | LOOKUP $lookupTable name REPLACE occupation")
+    frame.show()
+    frame.explain(true)
+    val expectedResults: Array[Row] = Array(
+      Row(1000, "Jake", "England", 100000, "Engineer"),
+      Row(1001, "Hello", "USA", 70000, "Artist"),
+      Row(1002, "John", "Canada", 120000, "Scientist"),
+      Row(1003, "David", null, 120000, "Doctor"),
+      Row(1004, "David", "Canada", 0, "Doctor"),
+      Row(1005, "Jane", "Canada", 90000, "Engineer"))
+    assertSameRows(expectedResults, frame)
   }
 }

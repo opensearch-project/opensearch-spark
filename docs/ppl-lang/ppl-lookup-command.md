@@ -29,7 +29,7 @@ LOOKUP <lookupIndex> (<lookupMappingField> [AS <sourceMappingField>])...
 **inputField**
 - Optional
 - Default: All fields of \<lookupIndex\> where matched values are applied to result output if no field is specified.
-- Description: A field in \<lookupIndex\> where matched values are applied to result output. You can specify multiple \<inputField\> with comma-delimited. If you don't specify any \<inputField\>, all fields of \<lookupIndex\> where matched values are applied to result output.
+- Description: A field in \<lookupIndex\> where matched values are applied to result output. You can specify multiple \<inputField\> with comma-delimited. If you don't specify any \<inputField\>, all fields expect \<lookupMappingField\> from \<lookupIndex\> where matched values are applied to result output.
 
 **outputField**
 - Optional
