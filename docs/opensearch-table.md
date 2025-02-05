@@ -47,6 +47,37 @@ Using a wildcard index name:
 val df = spark.sql("SELECT * FROM dev.default.`my_index*`")
 df.show()
 ```
+## Data Types
+The following table defines the data type mapping between OpenSearch index field type and Spark data type.
+
+| **OpenSearch FieldType** | **SparkDataType**                 |
+|--------------------------|-----------------------------------|
+| boolean                  | BooleanType                       |
+| long                     | LongType                          |
+| integer                  | IntegerType                       |
+| short                    | ShortType                         |
+| byte                     | ByteType                          |
+| double                   | DoubleType                        |
+| float                    | FloatType                         |
+| date(Timestamp)          | DateType                          |
+| date(Date)               | TimestampType                     |
+| keyword                  | StringType, VarcharType, CharType |
+| text                     | StringType(meta(osType)=text)     |
+| object                   | StructType                        |
+| alias                    | Inherits referenced field type    |
+
+* OpenSearch data type date is mapped to Spark data type based on the format:
+    * Map to DateType if format = strict_date, (we also support format = date, may change in future)
+    * Map to TimestampType if format = strict_date_optional_time_nanos, (we also support format =
+      strict_date_optional_time | epoch_millis, may change in future)
+* Spark data types VarcharType(length) and CharType(length) are both currently mapped to Flint data
+  type *keyword*, dropping their length property. On the other hand, Flint data type *keyword* only
+  maps to StringType.
+* Spark data type MapType is mapped to an empty OpenSearch object. The inner fields then rely on
+  dynamic mapping. On the other hand, Flint data type *object* only maps to StructType.
+* Spark data type DecimalType is mapped to an OpenSearch double. On the other hand, Flint data type
+  *double* only maps to DoubleType.
+* OpenSearch alias fields allow alternative names for existing fields in the schema without duplicating data. They inherit the data type and nullability of the referenced field and resolve dynamically to the primary field in queries.
 
 ## Limitation
 ### catalog operation
