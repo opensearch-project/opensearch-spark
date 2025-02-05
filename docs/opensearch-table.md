@@ -79,6 +79,12 @@ The following table defines the data type mapping between OpenSearch index field
   *double* only maps to DoubleType.
 * OpenSearch alias fields allow alternative names for existing fields in the schema without duplicating data. They inherit the data type and nullability of the referenced field and resolve dynamically to the primary field in queries.
 
+Join two indices
+```scala
+val df = spark.sql("SELECT * FROM dev.default.my_index as t1 JOIN dev.default.my_index as t2 ON t1.id == t2.id")
+df.show()
+```
+
 ## Limitation
 ### catalog operation
 - List Tables: Not supported.
