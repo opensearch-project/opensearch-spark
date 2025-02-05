@@ -145,7 +145,7 @@ object FlintSparkConf {
   val BULK_INITIAL_BACKOFF =
     FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.BULK_INITIAL_BACKOFF}")
       .datasourceOption()
-      .doc("initial backoff for bulk request retry, default is 4")
+      .doc("initial backoff in seconds for bulk request retry, default is 4s")
       .createWithDefault(String.valueOf(FlintRetryOptions.DEFAULT_BULK_INITIAL_BACKOFF))
 
   val BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED =
