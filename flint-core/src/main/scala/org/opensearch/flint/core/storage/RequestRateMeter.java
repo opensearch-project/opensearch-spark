@@ -7,6 +7,7 @@ package org.opensearch.flint.core.storage;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 /**
  * Track the current request rate based on the past requests within ESTIMATE_RANGE_DURATION_MSEC
@@ -24,7 +25,7 @@ public class RequestRateMeter {
     }
   }
 
-  private List<DataPoint> dataPoints = new LinkedList<>();
+  private Queue<DataPoint> dataPoints = new LinkedList<>();
   private long currentSum = 0;
 
   synchronized void addDataPoint(long timestamp, long requestCount) {
@@ -34,9 +35,8 @@ public class RequestRateMeter {
 
   synchronized void removeOldDataPoints() {
     long curr = System.currentTimeMillis();
-    while (!dataPoints.isEmpty() && dataPoints.get(0).timestamp < curr - ESTIMATE_RANGE_DURATION_MSEC) {
-      currentSum -= dataPoints.get(0).requestCount;
-      dataPoints.remove(0);
+    while (!dataPoints.isEmpty() && dataPoints.peek().timestamp < curr - ESTIMATE_RANGE_DURATION_MSEC) {
+      currentSum -= dataPoints.remove().requestCount;
     }
   }
 
