@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.ppl
 
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 
-import org.apache.spark.sql.{QueryTest, Row}
+import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Coalesce, EqualTo}
 import org.apache.spark.sql.catalyst.plans.LeftOuter
@@ -429,11 +429,61 @@ class FlintSparkPPLLookupITSuite
     assertSameRows(expectedResults, frame)
   }
 
+  // rename country to department for verify the case if search side is not a table
+  // and its output has diffed from the original fields of source table
+  test("test LOOKUP lookupTable id with rename") {
+    val frame =
+      sql(
+        s"source = $sourceTable | rename id as uid | rename country as department | LOOKUP $lookupTable uid")
+    val expectedResults: Array[Row] = Array(
+      Row(100000, 1000, "Jake", "IT", "Engineer"),
+      Row(70000, 1001, null, null, null),
+      Row(120000, 1002, "John", "DATA", "Scientist"),
+      Row(120000, 1003, "David", "HR", "Doctor"),
+      Row(0, 1004, null, null, null),
+      Row(90000, 1005, "Jane", "DATA", "Engineer"))
+    assertSameRows(expectedResults, frame)
+  }
+
+  test(
+    "test the unmatched rows in LOOKUP without inputField doesn't apply explicit replacement") {
+    sql(s"""
+           | CREATE TABLE s
+           | (
+           |   id INT,
+           |   col1 STRING,
+           |   col2 STRING
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+    sql(s"""
+           | INSERT INTO s
+           | VALUES (1, 'a', 'b'),
+           |        (2, 'aa', 'bb')
+           | """.stripMargin)
+
+    sql(s"""
+           | CREATE TABLE l
+           | (
+           |   id INT,
+           |   col1 STRING,
+           |   col3 STRING
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+    sql(s"""
+           | INSERT INTO l
+           | VALUES (1, 'x', 'y'),
+           |        (3, 'xx', 'yy')
+           | """.stripMargin)
+    val frame = sql(s"source = s | LOOKUP l id | fields id, col1, col2, col3")
+    val expectedResults: Array[Row] = Array(Row(1, "x", "b", "y"), Row(2, null, "bb", null))
+    assertSameRows(expectedResults, frame)
+  }
+
   test("test LOOKUP lookupTable name REPLACE occupation - 2") {
     val frame =
       sql(s"source = $sourceTable | LOOKUP $lookupTable name REPLACE occupation")
-    frame.show()
-    frame.explain(true)
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "England", 100000, "Engineer"),
       Row(1001, "Hello", "USA", 70000, "Artist"),
@@ -442,5 +492,14 @@ class FlintSparkPPLLookupITSuite
       Row(1004, "David", "Canada", 0, "Doctor"),
       Row(1005, "Jane", "Canada", 90000, "Engineer"))
     assertSameRows(expectedResults, frame)
+  }
+
+  test("test LOOKUP lookupTable name REPLACE occupation - 3") {
+    val ex = intercept[AnalysisException](sql(s"""
+             | source = $sourceTable | LOOKUP $lookupTable name REPLACE occupation as new_col
+             | """.stripMargin))
+    assert(
+      ex.getMessage.contains(
+        "A column or function parameter with name `new_col` cannot be resolved"))
   }
 }

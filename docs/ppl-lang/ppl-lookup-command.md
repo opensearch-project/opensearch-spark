@@ -34,7 +34,7 @@ LOOKUP <lookupIndex> (<lookupMappingField> [AS <sourceMappingField>])...
 **outputField**
 - Optional
 - Default: \<inputField\>
-- Description:  A field of output. You can specify multiple \<outputField\>. If you specify \<outputField\> with an existing field name in source query, its values will be replaced or appended by matched values from \<inputField\>. If the field specified in \<outputField\> is a new field, an extended new field will be applied to the results.
+- Description:  A field of output. You can specify zero or multiple \<outputField\>. The specified \<outputField\> must be an existing field name in source query output.
 
 **REPLACE | APPEND**
 - Optional

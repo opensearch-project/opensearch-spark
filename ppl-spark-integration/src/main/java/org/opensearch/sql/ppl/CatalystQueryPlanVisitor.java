@@ -5,8 +5,6 @@
 
 package org.opensearch.sql.ppl;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
@@ -127,7 +125,6 @@ import static scala.collection.JavaConverters.seqAsJavaList;
  * Utility class to traverse PPL logical plan and translate it into catalyst logical plan
  */
 public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, CatalystPlanContext> {
-    private static final Logger LOG = LogManager.getLogger(CatalystQueryPlanVisitor.class);
 
     private final CatalystExpressionVisitor expressionAnalyzer;
 
@@ -213,15 +210,13 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
                 // the col1 is duplicated field and id is mapping key (and duplicated).
                 // The query outputs 4 fields: [id, col1, col2, col3]. Among them, `col2` is the original field from source,
                 // the matched values of `col1` from lookup table will replace to the values of `col1` from source.
-                Set<Field> intersection = new HashSet<>(RelationUtils.getFieldsFromCatalogTable(context.getSparkSession(), lookupTable));
-                LOG.debug("The fields list in lookup table are {}", intersection);
-                List<Field> sourceOutput = RelationUtils.getFieldsFromCatalogTable(context.getSparkSession(), searchSide);
-                LOG.debug("The fields list in source output are {}", sourceOutput);
+                Set<Field> duplicatedFieldsMaybeDrop =
+                    new HashSet<>(RelationUtils.getFieldsFromCatalogTable(context.getSparkSession(), lookupTable));
                 Set<Field> mappingFieldsOfLookup = node.getLookupMappingMap().keySet();
                 // lookup mapping keys are not concerned to drop here, it will be checked later.
-                intersection.removeAll(mappingFieldsOfLookup);
-                intersection.retainAll(sourceOutput);
-                List<Expression> duplicated = buildProjectListFromFields(new ArrayList<>(intersection), expressionAnalyzer, context)
+                duplicatedFieldsMaybeDrop.removeAll(mappingFieldsOfLookup);
+                List<Expression> duplicated =
+                    buildProjectListFromFields(new ArrayList<>(duplicatedFieldsMaybeDrop), expressionAnalyzer, context)
                     .stream().map(e -> (Expression) e).collect(Collectors.toList());
                 LogicalPlan searchSideWithDropped = DataFrameDropColumns$.MODULE$.apply(seq(duplicated), searchSide);
                 target = join(searchSideWithDropped, lookupTable, Join.JoinType.LEFT, Optional.of(lookupCondition), new Join.JoinHint());
