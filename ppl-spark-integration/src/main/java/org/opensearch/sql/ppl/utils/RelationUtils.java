@@ -5,6 +5,9 @@
 
 package org.opensearch.sql.ppl.utils;
 
+import com.google.common.collect.ImmutableList;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.NoSuchDatabaseException;
@@ -20,10 +23,10 @@ import scala.Option$;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public interface RelationUtils {
-    Logger LOG = Logger.getLogger(RelationUtils.class.getName());
+    Logger LOG = LogManager.getLogger(RelationUtils.class);
 
     /**
      * attempt resolving if the field is relating to the given relation
@@ -76,22 +79,26 @@ public interface RelationUtils {
         return identifier;
     }
 
-    static boolean columnExistsInCatalogTable(SparkSession spark, Field field, LogicalPlan plan) {
+    static boolean columnExistsInCatalogTable(SparkSession spark, LogicalPlan plan, Field field) {
+        return getFieldsFromCatalogTable(spark, plan).stream().anyMatch(f -> f.getField().equals(field.getField()));
+    }
+
+    static List<Field> getFieldsFromCatalogTable(SparkSession spark, LogicalPlan plan) {
         UnresolvedRelation relation = PPLSparkUtils.findLogicalRelations(plan).head();
         QualifiedName tableQualifiedName = QualifiedName.of(Arrays.asList(relation.tableName().split("\\.")));
-        TableIdentifier sourceTableIdentifier = getTableIdentifier(tableQualifiedName);
-        boolean sourceTableExists = spark.sessionState().catalog().tableExists(sourceTableIdentifier);
-        if (sourceTableExists) {
+        TableIdentifier tableIdentifier = getTableIdentifier(tableQualifiedName);
+        boolean tableExists = spark.sessionState().catalog().tableExists(tableIdentifier);
+        if (tableExists) {
             try {
                 CatalogTable table = spark.sessionState().catalog().getTableMetadata(getTableIdentifier(tableQualifiedName));
-                return Arrays.stream(table.dataSchema().fields()).anyMatch(f -> f.name().equalsIgnoreCase(field.getField().toString()));
+                return Arrays.stream(table.dataSchema().fields()).map(f -> new Field(QualifiedName.of(f.name()))).collect(Collectors.toList());
             } catch (NoSuchDatabaseException | NoSuchTableException e) {
-                LOG.warning("Source table or database " + sourceTableIdentifier + " not found");
-                return false;
+                LOG.info("Table or database {} not found", tableIdentifier);
+                return ImmutableList.of();
             }
         } else {
-            LOG.warning("Source table " + sourceTableIdentifier + " not found");
-            return false;
+            LOG.info("Table {} not found", tableIdentifier);
+            return ImmutableList.of();
         }
     }
 }

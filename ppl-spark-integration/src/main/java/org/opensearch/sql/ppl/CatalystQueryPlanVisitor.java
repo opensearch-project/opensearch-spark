@@ -5,6 +5,8 @@
 
 package org.opensearch.sql.ppl;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
@@ -79,6 +81,7 @@ import org.opensearch.sql.ppl.utils.AppendColCatalystUtils;
 import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
 import org.opensearch.sql.ppl.utils.GeoIpCatalystLogicalPlanTranslator;
 import org.opensearch.sql.ppl.utils.ParseTransformer;
+import org.opensearch.sql.ppl.utils.RelationUtils;
 import org.opensearch.sql.ppl.utils.SortUtils;
 import org.opensearch.sql.ppl.utils.TrendlineCatalystUtils;
 import org.opensearch.sql.ppl.utils.WindowSpecTransformer;
@@ -88,9 +91,11 @@ import scala.collection.IterableLike;
 import scala.collection.Seq;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
@@ -122,6 +127,7 @@ import static scala.collection.JavaConverters.seqAsJavaList;
  * Utility class to traverse PPL logical plan and translate it into catalyst logical plan
  */
 public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, CatalystPlanContext> {
+    private static final Logger LOG = LogManager.getLogger(CatalystQueryPlanVisitor.class);
 
     private final CatalystExpressionVisitor expressionAnalyzer;
 
@@ -193,16 +199,34 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     public LogicalPlan visitLookup(Lookup node, CatalystPlanContext context) {
         visitFirstChild(node, context);
         return context.apply( searchSide -> {
+            context.retainAllNamedParseExpressions(p -> p);
+            context.retainAllPlans(p -> p);
             LogicalPlan target;
             LogicalPlan lookupTable = node.getLookupRelation().accept(this, context);
             Expression lookupCondition = buildLookupMappingCondition(node, expressionAnalyzer, context);
-            // If no output field is specified, all fields except mapping fields from lookup table are applied to the output.
             if (node.allFieldsShouldAppliedToOutputList()) {
-                context.retainAllNamedParseExpressions(p -> p);
-                context.retainAllPlans(p -> p);
-                target = join(searchSide, lookupTable, Join.JoinType.LEFT, Optional.of(lookupCondition), new Join.JoinHint());
+                // When no output field is specified, all fields except mapping fields from lookup table are applied to the output.
+                // If some output fields from source side duplicate to fields of lookup table, these fields will
+                // be replaced by fields from lookup table in output.
+                // For example, the lookup table contains fields [id, col1, col3] and source side fields are [id, col1, col2].
+                // For query "index = sourceTable | fields id, col1, col2 | LOOKUP lookupTable id",
+                // the col1 is duplicated field and id is mapping key (and duplicated).
+                // The query outputs 4 fields: [id, col1, col2, col3]. Among them, `col2` is the original field from source,
+                // the matched values of `col1` from lookup table will replace to the values of `col1` from source.
+                Set<Field> intersection = new HashSet<>(RelationUtils.getFieldsFromCatalogTable(context.getSparkSession(), lookupTable));
+                LOG.debug("The fields list in lookup table are {}", intersection);
+                List<Field> sourceOutput = RelationUtils.getFieldsFromCatalogTable(context.getSparkSession(), searchSide);
+                LOG.debug("The fields list in source output are {}", sourceOutput);
+                Set<Field> mappingFieldsOfLookup = node.getLookupMappingMap().keySet();
+                // lookup mapping keys are not concerned to drop here, it will be checked later.
+                intersection.removeAll(mappingFieldsOfLookup);
+                intersection.retainAll(sourceOutput);
+                List<Expression> duplicated = buildProjectListFromFields(new ArrayList<>(intersection), expressionAnalyzer, context)
+                    .stream().map(e -> (Expression) e).collect(Collectors.toList());
+                LogicalPlan searchSideWithDropped = DataFrameDropColumns$.MODULE$.apply(seq(duplicated), searchSide);
+                target = join(searchSideWithDropped, lookupTable, Join.JoinType.LEFT, Optional.of(lookupCondition), new Join.JoinHint());
             } else {
-                // If the output fields are specified, build a project list for lookup table.
+                // When output fields are specified, build a project list for lookup table.
                 // The mapping fields of lookup table should be added in this project list, otherwise join will fail.
                 // So the mapping fields of lookup table should be dropped after join.
                 List<NamedExpression> lookupTableProjectList = buildLookupRelationProjectList(node, expressionAnalyzer, context);

@@ -95,7 +95,7 @@ public interface LookupTransformer {
             // If not, resolve the outputCol expression without alias: <fieldName> to avoid failure of unable to resolved attribute.
             Expression inputCol = expressionAnalyzer.visitField(buildFieldWithLookupSubqueryAlias(node, inputField), context);
             Expression outputCol;
-            if (RelationUtils.columnExistsInCatalogTable(context.getSparkSession(), outputField, searchSide)) {
+            if (RelationUtils.columnExistsInCatalogTable(context.getSparkSession(), searchSide, outputField)) {
                 outputCol = expressionAnalyzer.visitField(buildFieldWithSourceSubqueryAlias(node, outputField), context);
             } else {
                 outputCol = expressionAnalyzer.visitField(outputField, context);

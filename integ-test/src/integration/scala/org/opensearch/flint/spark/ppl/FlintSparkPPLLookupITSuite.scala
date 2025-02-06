@@ -298,12 +298,12 @@ class FlintSparkPPLLookupITSuite
   test("test LOOKUP lookupTable uid AS id, name") {
     val frame = sql(s"source = $sourceTable| LOOKUP $lookupTable uID AS id, name")
     val expectedResults: Array[Row] = Array(
-      Row(1000, "Jake", "Engineer", "England", 100000, "IT", "Engineer"),
-      Row(1001, "Hello", "Artist", "USA", 70000, null, null),
-      Row(1002, "John", "Doctor", "Canada", 120000, "DATA", "Scientist"),
-      Row(1003, "David", "Doctor", null, 120000, "HR", "Doctor"),
-      Row(1004, "David", null, "Canada", 0, null, null),
-      Row(1005, "Jane", "Scientist", "Canada", 90000, "DATA", "Engineer"))
+      Row(1000, "Jake", "England", 100000, "IT", "Engineer"),
+      Row(1001, "Hello", "USA", 70000, null, null),
+      Row(1002, "John", "Canada", 120000, "DATA", "Scientist"),
+      Row(1003, "David", null, 120000, "HR", "Doctor"),
+      Row(1004, "David", "Canada", 0, null, null),
+      Row(1005, "Jane", "Canada", 90000, "DATA", "Engineer"))
 
     assertSameRows(expectedResults, frame)
   }
@@ -420,12 +420,12 @@ class FlintSparkPPLLookupITSuite
     val frame =
       sql(s"source = $sourceTable | LOOKUP $lookupTable name")
     val expectedResults: Array[Row] = Array(
-      Row(1000, "Jake", "Engineer", "England", 100000, 1000, "IT", "Engineer"),
-      Row(1001, "Hello", "Artist", "USA", 70000, null, null, null),
-      Row(1002, "John", "Doctor", "Canada", 120000, 1002, "DATA", "Scientist"),
-      Row(1003, "David", "Doctor", null, 120000, 1003, "HR", "Doctor"),
-      Row(1004, "David", null, "Canada", 0, 1003, "HR", "Doctor"),
-      Row(1005, "Jane", "Scientist", "Canada", 90000, 1005, "DATA", "Engineer"))
+      Row(1000, "Jake", "England", 100000, 1000, "IT", "Engineer"),
+      Row(1001, "Hello", "USA", 70000, null, null, null),
+      Row(1002, "John", "Canada", 120000, 1002, "DATA", "Scientist"),
+      Row(1003, "David", null, 120000, 1003, "HR", "Doctor"),
+      Row(1004, "David", "Canada", 0, 1003, "HR", "Doctor"),
+      Row(1005, "Jane", "Canada", 90000, 1005, "DATA", "Engineer"))
     assertSameRows(expectedResults, frame)
   }
 
