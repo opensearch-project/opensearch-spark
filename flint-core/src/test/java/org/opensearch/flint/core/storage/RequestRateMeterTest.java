@@ -26,6 +26,14 @@ class RequestRateMeterTest {
   }
 
   @Test
+  void testAddDataPointRemoveOldDataPoint() {
+    long timestamp = System.currentTimeMillis();
+    requestRateMeter.addDataPoint(timestamp - 4000, 30);
+    requestRateMeter.addDataPoint(timestamp, 90);
+    assertEquals(90 / 3, requestRateMeter.getCurrentEstimatedRate());
+  }
+
+  @Test
   void testRemoveOldDataPoints() {
     long currentTime = System.currentTimeMillis();
     requestRateMeter.addDataPoint(currentTime - 4000, 30);

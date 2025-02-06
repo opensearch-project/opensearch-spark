@@ -28,20 +28,21 @@ public class RequestRateMeter {
   private Queue<DataPoint> dataPoints = new LinkedList<>();
   private long currentSum = 0;
 
-  synchronized void addDataPoint(long timestamp, long requestCount) {
+  public synchronized void addDataPoint(long timestamp, long requestCount) {
     dataPoints.add(new DataPoint(timestamp, requestCount));
     currentSum += requestCount;
+    removeOldDataPoints();
   }
 
-  synchronized void removeOldDataPoints() {
+  public synchronized long getCurrentEstimatedRate() {
+    removeOldDataPoints();
+    return currentSum * 1000 / ESTIMATE_RANGE_DURATION_MSEC;
+  }
+
+  private synchronized void removeOldDataPoints() {
     long curr = System.currentTimeMillis();
     while (!dataPoints.isEmpty() && dataPoints.peek().timestamp < curr - ESTIMATE_RANGE_DURATION_MSEC) {
       currentSum -= dataPoints.remove().requestCount;
     }
-  }
-
-  synchronized long getCurrentEstimatedRate() {
-    removeOldDataPoints();
-    return currentSum * 1000 / ESTIMATE_RANGE_DURATION_MSEC;
   }
 }
