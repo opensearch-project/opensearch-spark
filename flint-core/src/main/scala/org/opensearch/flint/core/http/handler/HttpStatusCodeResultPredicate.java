@@ -26,12 +26,8 @@ public class HttpStatusCodeResultPredicate<T> implements CheckedPredicate<T> {
    */
   private final Set<Integer> retryableStatusCodes;
 
-  public HttpStatusCodeResultPredicate(String httpStatusCodes) {
-    this.retryableStatusCodes =
-        Arrays.stream(httpStatusCodes.split(","))
-            .map(String::trim)
-            .map(Integer::valueOf)
-            .collect(Collectors.toSet());
+  public HttpStatusCodeResultPredicate(Set<Integer> httpStatusCodes) {
+    this.retryableStatusCodes = httpStatusCodes;
   }
 
   @Override
