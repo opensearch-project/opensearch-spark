@@ -1,0 +1,31 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "high_line_count",
+      "type": "long"
+    },
+    {
+      "name": "low_line_countby",
+      "type": "long"
+    },
+    {
+      "name": "l_shipmode",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      5,
+      5,
+      "MAIL"
+    ],
+    [
+      5,
+      10,
+      "SHIP"
+    ]
+  ],
+  "total": 2,
+  "size": 2
+}

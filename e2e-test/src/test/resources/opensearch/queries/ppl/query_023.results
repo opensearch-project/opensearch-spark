@@ -1,0 +1,40 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "@timestamp",
+      "type": "timestamp_ntz"
+    },
+    {
+      "name": "year",
+      "type": "long"
+    },
+    {
+      "name": "month",
+      "type": "long"
+    },
+    {
+      "name": "day",
+      "type": "long"
+    },
+    {
+      "name": "clientip",
+      "type": "string"
+    },
+    {
+      "name": "request",
+      "type": "string"
+    },
+    {
+      "name": "status",
+      "type": "long"
+    },
+    {
+      "name": "size",
+      "type": "long"
+    }
+  ],
+  "datarows": [],
+  "total": 0,
+  "size": 0
+}

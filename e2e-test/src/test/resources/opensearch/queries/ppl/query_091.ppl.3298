@@ -1,0 +1,1 @@
+source=mys3.default.people  | eval c1 = adddate(@timestamp, 1) | fields c1 | head 10

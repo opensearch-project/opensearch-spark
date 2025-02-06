@@ -1,0 +1,141 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "c_custkey",
+      "type": "long"
+    },
+    {
+      "name": "c_name",
+      "type": "string"
+    },
+    {
+      "name": "c_address",
+      "type": "string"
+    },
+    {
+      "name": "c_nationkey",
+      "type": "long"
+    },
+    {
+      "name": "c_phone",
+      "type": "string"
+    },
+    {
+      "name": "c_acctbal",
+      "type": "double"
+    },
+    {
+      "name": "c_mktsegment",
+      "type": "string"
+    },
+    {
+      "name": "c_comment",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      134,
+      "Customer#000000134",
+      "sUiZ78QCkTQPICKpA9OBzkUp2FM",
+      11,
+      "21-200-159-5932",
+      4608.9,
+      "BUILDING",
+      "yly fluffy foxes boost final ideas. b"
+    ],
+    [
+      121,
+      "Customer#000000121",
+      "tv nCR2YKupGN73mQudO",
+      17,
+      "27-411-990-2959",
+      6428.32,
+      "BUILDING",
+      "uriously stealthy ideas. carefully final courts use carefully"
+    ],
+    [
+      116,
+      "Customer#000000116",
+      "yCuVxIgsZ3,qyK2rloThy3u",
+      16,
+      "26-632-309-5792",
+      8403.99,
+      "BUILDING",
+      "as. quickly final sauternes haggle slyly carefully even packages. brave, ironic pinto beans are above the furious"
+    ],
+    [
+      113,
+      "Customer#000000113",
+      "eaOl5UBXIvdY57rglaIzqvfPD,MYfK",
+      12,
+      "22-302-930-4756",
+      2912.0,
+      "BUILDING",
+      "usly regular theodolites boost furiously doggedly pending instructio"
+    ],
+    [
+      109,
+      "Customer#000000109",
+      "OOOkYBgCMzgMQXUmkocoLb56rfrdWp2NE2c",
+      16,
+      "26-992-422-8153",
+      -716.1,
+      "BUILDING",
+      "es. fluffily final dependencies sleep along the blithely even pinto beans. final deposits haggle furiously furiou"
+    ],
+    [
+      103,
+      "Customer#000000103",
+      "8KIsQX4LJ7QMsj6DrtFtXu0nUEdV,8a",
+      9,
+      "19-216-107-2107",
+      2757.45,
+      "BUILDING",
+      "furiously pending notornis boost slyly around the blithely ironic ideas? final, even instructions cajole fl"
+    ],
+    [
+      98,
+      "Customer#000000098",
+      "7yiheXNSpuEAwbswDW",
+      12,
+      "22-885-845-6889",
+      -551.37,
+      "BUILDING",
+      "ages. furiously pending accounts are quickly carefully final foxes: busily pe"
+    ],
+    [
+      83,
+      "Customer#000000083",
+      "HnhTNB5xpnSF20JBH4Ycs6psVnkC3RDf",
+      22,
+      "32-817-154-4122",
+      6463.51,
+      "BUILDING",
+      "ccording to the quickly bold warhorses. final, regular foxes integrate carefully. bold packages nag blithely ev"
+    ],
+    [
+      77,
+      "Customer#000000077",
+      "4tAE5KdMFGD4byHtXF92vx",
+      17,
+      "27-269-357-4674",
+      1738.87,
+      "BUILDING",
+      "uffily silent requests. carefully ironic asymptotes among the ironic hockey players are carefully bli"
+    ],
+    [
+      73,
+      "Customer#000000073",
+      "8IhIxreu4Ug6tt5mog4",
+      0,
+      "10-473-439-3214",
+      4288.5,
+      "BUILDING",
+      "usual, unusual packages sleep busily along the furiou"
+    ]
+  ],
+  "total": 10,
+  "size": 10
+}

@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | eval new_clientip = lower(clientip) | fields - new_clientip | head 10

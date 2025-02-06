@@ -1,0 +1,41 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "request",
+      "type": "string"
+    },
+    {
+      "name": "no_letter",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      "GET /images/hm_bg.jpg HTTP/1.0",
+      " //_. /1.0"
+    ],
+    [
+      "GET /images/hm_bg.jpg HTTP/1.0",
+      " //_. /1.0"
+    ],
+    [
+      "GET /images/hm_bg.jpg HTTP/1.0",
+      " //_. /1.0"
+    ],
+    [
+      "GET /french/splash_inet.html HTTP/1.0",
+      " //_. /1.0"
+    ],
+    [
+      "GET /images/hm_nbg.jpg HTTP/1.0",
+      " //_. /1.0"
+    ],
+    [
+      "GET /images/hm_bg.jpg HTTP/1.0",
+      " //_. /1.0"
+    ]
+  ],
+  "total": 6,
+  "size": 6
+}

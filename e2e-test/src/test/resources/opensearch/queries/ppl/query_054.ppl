@@ -1,0 +1,1 @@
+source = mys3.default.nested | stats percentile_approx(int_col, 99)

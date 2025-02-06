@@ -1,0 +1,31 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "CURRENT_TIMEZONE()",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      "Etc/UTC"
+    ],
+    [
+      "Etc/UTC"
+    ],
+    [
+      "Etc/UTC"
+    ],
+    [
+      "Etc/UTC"
+    ],
+    [
+      "Etc/UTC"
+    ],
+    [
+      "Etc/UTC"
+    ]
+  ],
+  "total": 6,
+  "size": 6
+}

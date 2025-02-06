@@ -1,0 +1,1 @@
+source = mys3.default.http_logs size > 0 AND status = 200 OR clientip = '236.14.2.0' | head 100

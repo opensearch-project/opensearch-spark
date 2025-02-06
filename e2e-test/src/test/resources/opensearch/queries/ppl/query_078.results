@@ -1,0 +1,16 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "domain",
+      "type": "string"
+    },
+    {
+      "name": "picName",
+      "type": "string"
+    }
+  ],
+  "datarows": [],
+  "total": 0,
+  "size": 0
+}

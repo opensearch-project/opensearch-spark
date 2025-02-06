@@ -1,0 +1,28 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "patterns_field",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      " //_. /."
+    ],
+    [
+      " //_. /."
+    ],
+    [
+      " //_. /."
+    ],
+    [
+      " //_. /."
+    ],
+    [
+      " //_. /."
+    ]
+  ],
+  "total": 5,
+  "size": 5
+}

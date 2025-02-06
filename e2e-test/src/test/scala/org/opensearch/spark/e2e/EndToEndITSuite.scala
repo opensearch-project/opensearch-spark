@@ -339,15 +339,17 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
 
   def executeAsyncQuery(language: String, query: String, sessionId: String, backend: SttpBackend[Identity, Any]) : Identity[Response[Either[ResponseException[String, JsError], JsValue]]] = {
     var queryBody : String = null
+    val escapedQuery = query.replaceAll("\n", "\\\\n")
     if (sessionId == null) {
-      queryBody = "{\"datasource\": \"" + S3_DATASOURCE + "\", \"lang\": \"" + language + "\", \"query\": \"" + query + "\"}"
+      queryBody = "{\"datasource\": \"" + S3_DATASOURCE + "\", \"lang\": \"" + language + "\", \"query\": \"" + escapedQuery + "\"}"
     } else {
-      queryBody = "{\"datasource\": \"" + S3_DATASOURCE + "\", \"lang\": \"" + language + "\", \"query\": \"" + query + "\", \"sessionId\": \"" + sessionId + "\"}"
+      queryBody = "{\"datasource\": \"" + S3_DATASOURCE + "\", \"lang\": \"" + language + "\", \"query\": \"" + escapedQuery + "\", \"sessionId\": \"" + sessionId + "\"}"
     }
+
     basicRequest.post(uri"$OPENSEARCH_URL/_plugins/_async_query")
       .auth.basic(OPENSEARCH_USERNAME, OPENSEARCH_PASSWORD)
       .contentType("application/json")
-      .body(queryBody.getBytes)
+      .body(queryBody, "UTF-8")
       .response(asJson[JsValue])
       .send(backend)
   }
@@ -369,6 +371,8 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
         if (status.isDefined) {
           if (status.get == "SUCCESS") {
             return responseBody
+          } else if (status.get == "FAILED") {
+            throw new IllegalStateException(s"Unable to get async query results [$queryId]")
           }
         }
       }
@@ -376,6 +380,6 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
       Thread.sleep(500)
     }
 
-    throw new IllegalStateException("Unable to get async query results")
+    throw new IllegalStateException(s"Unable to get async query results (timeout) [$queryId]")
   }
 }

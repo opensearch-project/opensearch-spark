@@ -1,0 +1,31 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "DAY(DATE(2020-08-26))",
+      "type": "integer"
+    }
+  ],
+  "datarows": [
+    [
+      26
+    ],
+    [
+      26
+    ],
+    [
+      26
+    ],
+    [
+      26
+    ],
+    [
+      26
+    ],
+    [
+      26
+    ]
+  ],
+  "total": 6,
+  "size": 6
+}

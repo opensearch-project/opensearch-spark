@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | eval res = json_extract('{"teacher":"Alice","student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}', '$.student') | head 1 | fields res

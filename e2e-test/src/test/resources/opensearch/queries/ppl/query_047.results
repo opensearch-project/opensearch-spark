@@ -1,0 +1,41 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "new_request",
+      "type": "string"
+    },
+    {
+      "name": "compound_field",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      "GET /IMAGES/HM_BG.JPG HTTP/1.0",
+      "Hello 40.135.0.0"
+    ],
+    [
+      "GET /IMAGES/HM_BG.JPG HTTP/1.0",
+      "Hello 232.0.0.0"
+    ],
+    [
+      "GET /IMAGES/HM_BG.JPG HTTP/1.0",
+      "Hello 26.1.0.0"
+    ],
+    [
+      "GET /FRENCH/SPLASH_INET.HTML HTTP/1.0",
+      "Hello 247.37.0.0"
+    ],
+    [
+      "GET /IMAGES/HM_NBG.JPG HTTP/1.0",
+      "Hello 247.37.0.0"
+    ],
+    [
+      "GET /IMAGES/HM_BG.JPG HTTP/1.0",
+      "Hello 252.0.0.0"
+    ]
+  ],
+  "total": 6,
+  "size": 6
+}

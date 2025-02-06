@@ -1,0 +1,21 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "count_clientip",
+      "type": "long"
+    },
+    {
+      "name": "clientip",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      1,
+      "247.37.0.0"
+    ]
+  ],
+  "total": 1,
+  "size": 1
+}

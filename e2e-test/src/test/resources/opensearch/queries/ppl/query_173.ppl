@@ -1,0 +1,1 @@
+source=mys3.default.people | eventstats avg(salary) by country | sort id | head 10

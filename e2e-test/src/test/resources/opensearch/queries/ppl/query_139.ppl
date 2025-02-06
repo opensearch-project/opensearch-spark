@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | eval res = array_length(json_array()) | head 1 | fields res

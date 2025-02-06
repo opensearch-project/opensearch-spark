@@ -1,0 +1,1 @@
+source = mys3.default.nested | top 2 int_col by struct_col.field2

@@ -1,0 +1,46 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "count_int_col",
+      "type": "long"
+    },
+    {
+      "name": "int_col",
+      "type": "integer"
+    },
+    {
+      "name": "struct_col.field2",
+      "type": "integer"
+    }
+  ],
+  "datarows": [
+    [
+      1,
+      50,
+      789
+    ],
+    [
+      1,
+      30,
+      123
+    ],
+    [
+      1,
+      30,
+      823
+    ],
+    [
+      1,
+      40,
+      123
+    ],
+    [
+      1,
+      40,
+      456
+    ]
+  ],
+  "total": 5,
+  "size": 5
+}

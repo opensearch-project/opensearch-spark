@@ -1,0 +1,5 @@
+source = mys3.default.customer
+| anti join ON c_custkey = o_custkey mys3.default.orders
+| where c_mktsegment = 'BUILDING'
+ | sort - c_custkey
+| head 10

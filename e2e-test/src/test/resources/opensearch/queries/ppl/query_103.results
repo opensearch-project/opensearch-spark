@@ -1,0 +1,51 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "c1",
+      "type": "double"
+    },
+    {
+      "name": "c2",
+      "type": "long"
+    },
+    {
+      "name": "c3",
+      "type": "long"
+    },
+    {
+      "name": "c4",
+      "type": "long"
+    },
+    {
+      "name": "c5",
+      "type": "double"
+    },
+    {
+      "name": "c6",
+      "type": "double"
+    },
+    {
+      "name": "c7",
+      "type": "double"
+    },
+    {
+      "name": "c8",
+      "type": "long"
+    }
+  ],
+  "datarows": [
+    [
+      17120.833333333332,
+      24736,
+      0,
+      102725,
+      24736.0,
+      10824.641185995753,
+      11857.800308938698,
+      3
+    ]
+  ],
+  "total": 1,
+  "size": 1
+}
