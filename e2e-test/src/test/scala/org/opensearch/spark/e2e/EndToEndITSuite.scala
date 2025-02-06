@@ -24,7 +24,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{Dataset, Row}
 
 /**
- * Tests requiring the  should extend OpenSearchSuite.
+ * Tests queries for expected results on the integration test docker cluster. Queries can be run using
+ * Spark Connect or the OpenSearch Async Query API.
  */
 class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with BeforeAndAfterAll with SparkTrait with S3ClientTrait with Assertions with Logging {
   self: Suite =>
@@ -53,6 +54,9 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     S3_SECRET_KEY
   }
 
+  /**
+   * Starts up the integration test docker cluster.
+   */
   override def beforeAll(): Unit = {
     logInfo("Starting docker cluster")
 
@@ -83,6 +87,9 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     createIndices()
   }
 
+  /**
+   * Shuts down the integration test docker cluster.
+   */
   override def afterAll(): Unit = {
     logInfo("Stopping docker cluster")
     waitForSparkSubmitCompletion()
@@ -99,6 +106,10 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     logInfo("Stopped docker cluster")
   }
 
+  /**
+   * Wait for all Spark submit containers to finish. Spark submit containers are used for processing Async Query
+   * API requests. Each Async Query API session will have at most one Spark submit container.
+   */
   def waitForSparkSubmitCompletion(): Unit = {
     val endTime = System.currentTimeMillis() + 300000
     while (System.currentTimeMillis() < endTime) {
@@ -127,6 +138,11 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     }
   }
 
+  /**
+   * Creates Spark tables. Looks for parquet files in "e2e-test/src/test/resources/spark/tables".
+   *
+   * The tables are created as external tables with the data stored in the MinIO(S3) container.
+   */
   def createTables(): Unit = {
     try {
       val tablesDir = new File("e2e-test/src/test/resources/spark/tables")
@@ -146,6 +162,13 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     }
   }
 
+  /**
+   * Creates OpenSearch indices. Looks for ".mapping.json" files in
+   * "e2e-test/src/test/resources/opensearch/indices".
+   *
+   * An index is created using the mapping data in the ".mapping.json" file. If there is a similarly named
+   * file with only a ".json" extension, then it is used to do a bulk import of data into the index.
+   */
   def createIndices(): Unit = {
     val indicesDir = new File("e2e-test/src/test/resources/opensearch/indices")
     val backend = HttpClientSyncBackend()
@@ -179,6 +202,13 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     })
   }
 
+  /**
+   * Tests SQL queries on the "spark" container. Looks for ".sql" files in
+   * "e2e-test/src/test/resources/spark/queries/sql".
+   *
+   * Uses Spark Connect to run the query on the "spark" container and compares the results to the expected results
+   * in the corresponding ".results" file. The ".results" file is in CSV format with a header.
+   */
   it should "SQL Queries" in {
     val queriesDir = new File("e2e-test/src/test/resources/spark/queries/sql")
     val queriesTableData : ListBuffer[(String, String)] = new ListBuffer()
@@ -209,6 +239,13 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     }
   }
 
+  /**
+   * Tests PPL queries on the "spark" container. Looks for ".ppl" files in
+   * "e2e-test/src/test/resources/spark/queries/ppl".
+   *
+   * Uses Spark Connect to run the query on the "spark" container and compares the results to the expected results
+   * in the corresponding ".results" file. The ".results" file is in CSV format with a header.
+   */
   it should "PPL Queries" in {
     val queriesDir = new File("e2e-test/src/test/resources/spark/queries/ppl")
     val queriesTableData : ListBuffer[(String, String)] = new ListBuffer()
@@ -239,6 +276,16 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     }
   }
 
+  /**
+   * Tests SQL queries using the Async Query API. Looks for ".sql" files in
+   * "e2e-test/src/test/resources/opensearch/queries/sql".
+   *
+   * Submits the query using a REST call to the Async Query API. Will wait until the results are available and
+   * then compare them to the expected results in the corresponding ".results" file. The ".results" file is the
+   * JSON response from fetching the results.
+   *
+   * All queries are tested using the same Async Query API session.
+   */
   it should "Async SQL Queries" in {
     var sessionId : String = null
     val backend = HttpClientSyncBackend()
@@ -274,6 +321,16 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     }
   }
 
+  /**
+   * Tests SQL queries using the Async Query API. Looks for ".ppl" files in
+   * "e2e-test/src/test/resources/opensearch/queries/ppl".
+   *
+   * Submits the query using a REST call to the Async Query API. Will wait until the results are available and
+   * then compare them to the expected results in the corresponding ".results" file. The ".results" file is the
+   * JSON response from fetching the results.
+   *
+   * All queries are tested using the same Async Query API session.
+   */
   it should "Async PPL Queries" in {
     var sessionId : String = null
     val backend = HttpClientSyncBackend()
@@ -309,6 +366,13 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     }
   }
 
+  /**
+   * Retrieves the results from S3 of a query submitted using Spark Connect. The results are saved in S3 in CSV
+   * format.
+   *
+   * @param s3Path S3 "folder" where the results were saved
+   * @return CSV formatted results
+   */
   def getActualResults(s3Path : String): String = {
     val objectSummaries = getS3Client().listObjects("test-resources", s3Path).getObjectSummaries
     var jsonKey : String = null
@@ -337,6 +401,15 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     throw new Exception("Object not found")
   }
 
+  /**
+   * Submits a request to the Async Query API to execute a query.
+   *
+   * @param language query language (either "ppl" or "sql")
+   * @param query query to execute
+   * @param sessionId Async Query API session to use (can be null)
+   * @param backend sttp backend to use for submitting requests
+   * @return sttp Response object of the submitted request
+   */
   def executeAsyncQuery(language: String, query: String, sessionId: String, backend: SttpBackend[Identity, Any]) : Identity[Response[Either[ResponseException[String, JsError], JsValue]]] = {
     var queryBody : String = null
     val escapedQuery = query.replaceAll("\n", "\\\\n")
@@ -354,6 +427,14 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
       .send(backend)
   }
 
+  /**
+   * Retrieves the results of an Async Query API query. Will wait up to 30 seconds for the query to finish and make
+   * the results available.
+   *
+   * @param queryId ID of the previously submitted query
+   * @param backend sttp backend to use
+   * @return results of the previously submitted query in JSON
+   */
   def getAsyncResults(queryId: String, backend: SttpBackend[Identity, Any]): JsValue = {
     val endTime = System.currentTimeMillis() + 30000
 
