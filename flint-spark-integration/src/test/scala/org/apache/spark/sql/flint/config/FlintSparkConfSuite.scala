@@ -47,7 +47,7 @@ class FlintSparkConfSuite extends FlintSuite {
   test("test retry options default values") {
     val retryOptions = FlintSparkConf().flintOptions().getRetryOptions
     retryOptions.getMaxRetries shouldBe DEFAULT_MAX_RETRIES
-    retryOptions.getRetryableHttpStatusCodes should contain theSameElementsAs Set(429, 502)
+    retryOptions.getRetryableHttpStatusCodes should contain theSameElementsAs Set(429, 500, 502)
     retryOptions.getRetryableExceptionClassNames shouldBe Optional.empty
   }
 
