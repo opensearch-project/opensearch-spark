@@ -245,7 +245,7 @@ Example:
 
 **Description**
 
-`json_append(json_string, [path_key, list of values to add ])`  appends values to end of an array within the json elements. Return the updated json object after appending .
+`json_append(json_string, [path_key, list of values to add])` appends values to end of an array within the json elements. Return the updated json object after appending.
 
 **Argument type:** JSON_STRING, List<STRING>
 
@@ -259,6 +259,7 @@ Append adds the value to the end of the existing array with the following cases:
   - path is an existing array not empty - the value are added to the array's tail
   - path not found - the value are added to the root of the json tree
   - path is an existing array is empty - create a new array with the given value
+  - json_append is identical to json_extend function except that it does not flatten given arrays before appending them.
 
 Example:
 
@@ -278,11 +279,56 @@ Example:
     |{"teacher":["Alice","Tom","Walt"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}                                 |
     +-----------------------------------------------------------------------------------------------------------------------------------+
 
-
-    os> source=people | eval append = json_append(`{"school":{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}}`,array('school.teacher', 'Tom', 'Walt')) | head 1 | fields append
+    os> source=people | eval append = json_append(`{"school":{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}}`,array('school.teacher', array('Tom', 'Walt'))) | head 1 | fields append
     fetched rows / total rows = 1/1
     +-------------------------------------------------------------------------------------------------------------------------+
     | append                                                                                                                  |
+    +-------------------------------------------------------------------------------------------------------------------------+
+    |{"school":{"teacher":["Alice",["Tom","Walt"]],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}}            |
+    +-------------------------------------------------------------------------------------------------------------------------+
+
+### `JSON_EXTEND`
+
+**Description**
+
+`json_extend(json_string, [path_key, list of values to flatten])` extends the values to end of an array within the json elements. Return the updated json object after extending. 
+
+**Argument type:** JSON_STRING, List<STRING>
+
+**Return type:** JSON_STRING
+
+A string JSON object format.
+
+**Note**
+Extends adds the value to the end of the existing array with the following cases:
+- path is an object value - append is ignored and the value is returned
+- path is an existing array not empty - the value are added to the array's tail
+- path not found - the value are added to the root of the json tree
+- path is an existing array is empty - create a new array with the given value
+- json_extend is identical to json_append function except that it flattens given arrays before appending.
+
+Example:
+
+    os> source=people | eval extend = json_extend(`{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}`, 'student', '{"name":"Tommy","rank":5}') | head 1 | fields extend
+    fetched rows / total rows = 1/1
+    +-----------------------------------------------------------------------------------------------------------------------------------+
+    | extend                                                                                                                            |
+    +-----------------------------------------------------------------------------------------------------------------------------------+
+    |{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2},{"name":"Tommy","rank":5}]}                    |
+    +-----------------------------------------------------------------------------------------------------------------------------------+
+
+    os> source=people | eval extend = json_extend(`{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}`, 'teacher', array('Tom', 'Walt')) | head 1 | fields extend
+    fetched rows / total rows = 1/1
+    +-----------------------------------------------------------------------------------------------------------------------------------+
+    | extend                                                                                                                            |
+    +-----------------------------------------------------------------------------------------------------------------------------------+
+    |{"teacher":["Alice","Tom","Walt"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}                                 |
+    +-----------------------------------------------------------------------------------------------------------------------------------+
+
+    os> source=people | eval extend = json_extend(`{"school":{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}}`, 'school.teacher', array('Tom', 'Walt')) | head 1 | fields extend
+    fetched rows / total rows = 1/1
+    +-------------------------------------------------------------------------------------------------------------------------+
+    | extend                                                                                                                  |
     +-------------------------------------------------------------------------------------------------------------------------+
     |{"school":{"teacher":["Alice","Tom","Walt"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}}            |
     +-------------------------------------------------------------------------------------------------------------------------+

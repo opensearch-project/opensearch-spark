@@ -32,7 +32,7 @@ public interface JsonUtils {
      * @param depth
      * @param valueToAppend
      */
-    static void appendNestedValue(Object currentObj, String[] pathParts, int depth, Object valueToAppend) {
+    static void appendNestedValue(Object currentObj, String[] pathParts, int depth, Object valueToAppend, boolean flattenValue) {
         if (currentObj == null || depth >= pathParts.length) {
             return;
         }
@@ -48,19 +48,23 @@ public interface JsonUtils {
 
                 if (existingValue instanceof List) {
                     List<Object> existingList = (List<Object>) existingValue;
-                    existingList.add(valueToAppend);
+                    if (flattenValue && valueToAppend instanceof List) {
+                        existingList.addAll((List) valueToAppend);
+                    } else {
+                        existingList.add(valueToAppend);
+                    }
                 }
             } else {
                 // Continue traversing
                 currentMap.computeIfAbsent(currentKey, k -> new LinkedHashMap<>()); // Create map if not present
-                appendNestedValue(currentMap.get(currentKey), pathParts, depth + 1, valueToAppend);
+                appendNestedValue(currentMap.get(currentKey), pathParts, depth + 1, valueToAppend, flattenValue);
             }
         } else if (currentObj instanceof List) {
             // If the current object is a list, process each map in the list
             List<Object> list = (List<Object>) currentObj;
             for (Object item : list) {
                 if (item instanceof Map) {
-                    appendNestedValue(item, pathParts, depth, valueToAppend);
+                    appendNestedValue(item, pathParts, depth, valueToAppend, flattenValue);
                 }
             }
         }

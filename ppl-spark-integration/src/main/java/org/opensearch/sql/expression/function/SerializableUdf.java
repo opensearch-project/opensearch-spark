@@ -113,7 +113,46 @@ public interface SerializableUdf {
                 // Append each value at the specified path
                 for (String value : values) {
                     Object parsedValue = parseValue(value); // Parse the value
-                    appendNestedValue(jsonMap, pathParts, 0, parsedValue);
+                    appendNestedValue(jsonMap, pathParts, 0, parsedValue, false);
+                }
+
+                // Convert the updated map back to JSON
+                return objectMapper.writeValueAsString(jsonMap);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+    };
+
+    Function2<String, WrappedArray<String>, String> jsonExtendFunction = new SerializableAbstractFunction2<>() {
+        /**
+         * Extend values to JSON arrays based on specified path-values - flattening any given array/list first
+         *
+         * @param jsonStr    The input JSON string.
+         * @param elements   A list of path-values where the first item is the path and subsequent items are values to append.
+         * @return The updated JSON string.
+         */
+        public String apply(String jsonStr, WrappedArray<String> elements) {
+            if (jsonStr == null) {
+                return null;
+            }
+            try {
+                List<String> pathValues = JavaConverters.mutableSeqAsJavaList(elements);
+                if (pathValues.isEmpty()) {
+                    return jsonStr;
+                }
+
+                String path = pathValues.get(0);
+                String[] pathParts = path.split("\\.");
+                List<String> values = pathValues.subList(1, pathValues.size());
+
+                // Parse the JSON string into a Map
+                Map<String, Object> jsonMap = objectMapper.readValue(jsonStr, Map.class);
+
+                // Append each value at the specified path
+                for (String value : values) {
+                    Object parsedValue = parseValue(value); // Parse the value
+                    appendNestedValue(jsonMap, pathParts, 0, parsedValue, true);
                 }
 
                 // Convert the updated map back to JSON
@@ -270,6 +309,15 @@ public interface SerializableUdf {
                         Option.apply("json_append"),
                         false,
                         true);
+            case "json_extend":
+                return new ScalaUDF(jsonExtendFunction,
+                    DataTypes.StringType,
+                    seq(expressions),
+                    seq(),
+                    Option.empty(),
+                    Option.apply("json_extend"),
+                    false,
+                    true);
             case "is_ipv4":
                 return new ScalaUDF(geoIpUtils.isIpv4,
                         DataTypes.BooleanType,
