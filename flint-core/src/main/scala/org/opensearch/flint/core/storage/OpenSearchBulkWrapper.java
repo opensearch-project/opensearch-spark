@@ -145,6 +145,12 @@ public class OpenSearchBulkWrapper {
   }
 
   private boolean isFailureStatusRetryable(BulkItemResponse itemResp) {
-    return retryableStatusCodes.contains(itemResp.getFailure().getStatus().getStatus());
+    if (retryableStatusCodes.contains(itemResp.getFailure().getStatus().getStatus())) {
+      return true;
+    } else {
+      LOG.info("Found non-retryable failure in bulk response: " + itemResp.getFailure().getStatus()
+          + ", " + itemResp.getFailure().toString());
+      return false;
+    }
   }
 }

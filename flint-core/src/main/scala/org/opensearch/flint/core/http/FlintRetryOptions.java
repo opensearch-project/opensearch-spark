@@ -49,7 +49,7 @@ public class FlintRetryOptions implements Serializable {
   public static final int DEFAULT_BULK_INITIAL_BACKOFF = 4;
   public static final String BULK_INITIAL_BACKOFF = "retry.bulk.initial_backoff";
 
-  public static final String DEFAULT_RETRYABLE_HTTP_STATUS_CODES = "429,502";
+  public static final String DEFAULT_RETRYABLE_HTTP_STATUS_CODES = "429,500,502";
   public static final String RETRYABLE_HTTP_STATUS_CODES = "retry.http_status_codes";
 
   /**
