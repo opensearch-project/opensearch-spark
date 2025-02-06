@@ -1,0 +1,1 @@
+p_comment,p_name,p_type,p_retailprice,p_mfgr,p_container,p_brand,p_size,p_partkey,ps_availqty,ps_comment,ps_partkey,ps_supplycost,ps_suppkey,s_phone,s_address,s_nationkey,s_suppkey,s_name,s_acctbal,s_comment,n_comment,n_nationkey,n_regionkey,n_name,r_regionkey,r_comment,r_name

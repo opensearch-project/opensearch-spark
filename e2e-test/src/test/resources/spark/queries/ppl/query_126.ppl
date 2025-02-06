@@ -1,0 +1,1 @@
+source = dev.default.people | eval major = occupation | fields id, name, major, country, salary | LOOKUP dev.default.work_info name APPEND occupation AS major | stats distinct_count(major)

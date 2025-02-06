@@ -1,0 +1,1 @@
+source = dev.default.http_logs | eval res = to_json_string(json_array(1,2,0,-1,1.1,-0.11)) | head 1 | fields res

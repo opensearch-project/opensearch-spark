@@ -1,0 +1,1 @@
+source = dev.default.http_logs | eval stat = status | where stat > 300 | sort stat | fields @timestamp,clientip,status | head 5

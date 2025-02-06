@@ -1,0 +1,1 @@
+source = dev.default.http_logs | where json_valid('{"account_number":1,"balance":39225,"age":32,"gender":"M"}') | head 1

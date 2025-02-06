@@ -1,0 +1,1 @@
+source = dev.default.http_logs | stats avg(size) as avg_size by status, year | stats avg(avg_size) as avg_avg_size by year
