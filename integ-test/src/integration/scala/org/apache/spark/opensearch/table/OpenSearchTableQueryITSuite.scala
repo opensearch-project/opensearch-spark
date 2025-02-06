@@ -47,4 +47,22 @@ class OpenSearchTableQueryITSuite extends OpenSearchCatalogSuite with FlintPPLSu
       }
     }
   }
+
+  test("Query index with alias data type") {
+    val index1 = "t0001"
+    withIndexName(index1) {
+      indexWithAlias(index1)
+      // select original field and alias field
+      var df = spark.sql(s"""SELECT id, alias FROM ${catalogName}.default.$index1""")
+      checkAnswer(df, Seq(Row(1, 1), Row(2, 2)))
+
+      // filter on alias field
+      df = spark.sql(s"""SELECT id, alias FROM ${catalogName}.default.$index1 WHERE alias=1""")
+      checkAnswer(df, Row(1, 1))
+
+      // filter on original field
+      df = spark.sql(s"""SELECT id, alias FROM ${catalogName}.default.$index1 WHERE id=1""")
+      checkAnswer(df, Row(1, 1))
+    }
+  }
 }
