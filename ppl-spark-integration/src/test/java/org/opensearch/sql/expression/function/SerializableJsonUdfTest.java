@@ -85,7 +85,6 @@ public class SerializableJsonUdfTest {
         assertNull(result);
     }
 
-    ///////////////////
     @Test
     public void testJsonSetFunctionUpdateSingleKey() {
         String jsonStr = "{\"key1\":\"value1\",\"key2\":\"value2\",\"key3\":\"value3\"}";
@@ -162,7 +161,6 @@ public class SerializableJsonUdfTest {
         String result = jsonSetFunction.apply(invalidJson, WrappedArray.make(new String[]{"key1", "key2"}));
         assertNull(result);
     }
-    ////////////////////////////
 
     @Test
     public void testJsonAppendFunctionAppendToExistingArray() {
