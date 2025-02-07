@@ -204,11 +204,7 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val keysExpression =
       UnresolvedFunction(
         "array",
-        Seq(
-          Literal("a.b"),
-          Literal(3),
-          Literal("a.c"),
-          Literal(4)),
+        Seq(Literal("a.b"), Literal(3), Literal("a.c"), Literal(4)),
         isDistinct = false)
     val jsonObjExp =
       Literal("""{"a":[{"b":1},{"c":2}]}""")
@@ -218,7 +214,6 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val expectedPlan = Project(Seq(UnresolvedStar(None)), eval)
     comparePlans(expectedPlan, logPlan, false)
   }
-
 
   test("test json_delete()") {
     val context = new CatalystPlanContext
@@ -278,11 +273,9 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val keysExpression =
       UnresolvedFunction(
         "array",
-        Seq(Literal("a.b"),
-          UnresolvedFunction(
-            "array",
-            Seq(Literal("c"), Literal("d")),
-            isDistinct = false)),
+        Seq(
+          Literal("a.b"),
+          UnresolvedFunction("array", Seq(Literal("c"), Literal("d")), isDistinct = false)),
         isDistinct = false)
     val jsonObjExp =
       Literal("""{"a":[{"b":1},{"c":2}]}""")
