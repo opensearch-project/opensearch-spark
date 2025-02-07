@@ -282,6 +282,23 @@ source = table |  where ispresent(a) |
 - `source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | eval streetNumberInt = cast(streetNumber as integer) | where streetNumberInt > 500 | sort streetNumberInt | fields streetNumber, street`
 - Limitation: [see limitations](ppl-parse-command.md#limitations)
 
+#### **view**
+[See additional command details](ppl-view-command.md)
+
+```sql
+view newTableName using csv | source = table | where fieldA > value | stats count(fieldA) by fieldB
+
+view ageDistribByCountry using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false') partitioned by (age, country) |
+       source = table | stats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | stats 
+            avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | stats avg(avg_state_age) as 
+            avg_adult_country_age by country
+
+view ageDistribByCountry using parquet OPTIONS('parquet.bloom.filter.enabled'='true', 'parquet.bloom.filter.enabled#age'='false') partitioned by (age, country)  location 's://demo-app/my-bucket'|
+       source = table | stats avg(age) as avg_city_age by country, state, city | eval new_avg_city_age = avg_city_age - 1 | stats 
+            avg(new_avg_city_age) as avg_state_age by country, state | where avg_state_age > 18 | stats avg(avg_state_age) as 
+            avg_adult_country_age by country
+```
+
 #### **Grok**
 [See additional command details](ppl-grok-command.md)
 

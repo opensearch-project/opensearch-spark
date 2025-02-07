@@ -13,17 +13,19 @@ import lombok.ToString;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
+import org.opensearch.sql.ppl.utils.TableIdentifier;
 
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static org.opensearch.sql.ppl.utils.TableIdentifier.COMMA;
 
 /** Logical plan node of Relation, the interface for building the searching sources. */
 @ToString
 @Getter
 @EqualsAndHashCode(callSuper = false)
 @RequiredArgsConstructor
-public class Relation extends UnresolvedPlan {
-  private static final String COMMA = ",";
+public class Relation extends UnresolvedPlan implements TableIdentifier {
 
   // A relation could contain more than one table/index names, such as
   // source=account1, account2
@@ -44,14 +46,7 @@ public class Relation extends UnresolvedPlan {
    * @return TableQualifiedName.
    */
   public QualifiedName getTableQualifiedName() {
-    if (tableNames.size() == 1) {
-      return (QualifiedName) tableNames.get(0);
-    } else {
-      return new QualifiedName(
-          tableNames.stream()
-              .map(UnresolvedExpression::toString)
-              .collect(Collectors.joining(COMMA)));
-    }
+    return getTableQualifiedName(this.tableNames);
   }
 
   @Override
