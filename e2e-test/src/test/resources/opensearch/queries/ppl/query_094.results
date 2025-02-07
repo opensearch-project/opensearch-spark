@@ -1,0 +1,8 @@
+{
+  "status": 500,
+  "error": {
+    "type": "JSONException",
+    "reason": "There was internal problem at backend",
+    "details": "Expected a \u0027,\u0027 or \u0027}\u0027 at 33 [character 34 line 1]"
+  }
+}

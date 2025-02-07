@@ -1,0 +1,52 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "s_suppkey",
+      "type": "long"
+    },
+    {
+      "name": "s_name",
+      "type": "string"
+    },
+    {
+      "name": "s_address",
+      "type": "string"
+    },
+    {
+      "name": "s_nationkey",
+      "type": "long"
+    },
+    {
+      "name": "s_phone",
+      "type": "string"
+    },
+    {
+      "name": "s_acctbal",
+      "type": "double"
+    },
+    {
+      "name": "s_comment",
+      "type": "string"
+    },
+    {
+      "name": "n_nationkey",
+      "type": "long"
+    },
+    {
+      "name": "n_name",
+      "type": "string"
+    },
+    {
+      "name": "n_regionkey",
+      "type": "long"
+    },
+    {
+      "name": "n_comment",
+      "type": "string"
+    }
+  ],
+  "datarows": [],
+  "total": 0,
+  "size": 0
+}

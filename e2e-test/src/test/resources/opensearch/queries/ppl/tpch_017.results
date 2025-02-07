@@ -1,0 +1,16 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "avg_yearly",
+      "type": "double"
+    }
+  ],
+  "datarows": [
+    [
+      null
+    ]
+  ],
+  "total": 1,
+  "size": 1
+}

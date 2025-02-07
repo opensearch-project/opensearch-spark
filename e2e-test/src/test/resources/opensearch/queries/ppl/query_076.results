@@ -1,0 +1,41 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "a",
+      "type": "integer"
+    },
+    {
+      "name": "domain",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      1,
+      "images"
+    ],
+    [
+      1,
+      "images"
+    ],
+    [
+      1,
+      "images"
+    ],
+    [
+      1,
+      "french"
+    ],
+    [
+      1,
+      "images"
+    ],
+    [
+      1,
+      "images"
+    ]
+  ],
+  "total": 6,
+  "size": 6
+}

@@ -1,0 +1,1 @@
+/* left join test in tpch q13 */ source = mys3.default.orders | head 1

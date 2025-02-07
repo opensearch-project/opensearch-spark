@@ -1,0 +1,33 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "count(int_col)",
+      "type": "long"
+    },
+    {
+      "name": "a_span",
+      "type": "long"
+    }
+  ],
+  "datarows": [
+    [
+      1,
+      450
+    ],
+    [
+      1,
+      820
+    ],
+    [
+      2,
+      120
+    ],
+    [
+      1,
+      780
+    ]
+  ],
+  "total": 4,
+  "size": 4
+}

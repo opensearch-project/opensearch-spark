@@ -1,0 +1,32 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "sum(l_quantity)",
+      "type": "double"
+    },
+    {
+      "name": "c_name",
+      "type": "string"
+    },
+    {
+      "name": "c_custkey",
+      "type": "long"
+    },
+    {
+      "name": "o_orderkey",
+      "type": "long"
+    },
+    {
+      "name": "o_orderdate",
+      "type": "timestamp_ntz"
+    },
+    {
+      "name": "o_totalprice",
+      "type": "double"
+    }
+  ],
+  "datarows": [],
+  "total": 0,
+  "size": 0
+}

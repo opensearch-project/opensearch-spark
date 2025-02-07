@@ -1,0 +1,25 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "sum(f)",
+      "type": "long"
+    },
+    {
+      "name": "h",
+      "type": "long"
+    }
+  ],
+  "datarows": [
+    [
+      0,
+      304
+    ],
+    [
+      205450,
+      200
+    ]
+  ],
+  "total": 2,
+  "size": 2
+}

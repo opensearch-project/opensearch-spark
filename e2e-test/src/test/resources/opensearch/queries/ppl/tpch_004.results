@@ -1,0 +1,37 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "order_count",
+      "type": "long"
+    },
+    {
+      "name": "o_orderpriority",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      9,
+      "1-URGENT"
+    ],
+    [
+      7,
+      "2-HIGH"
+    ],
+    [
+      9,
+      "3-MEDIUM"
+    ],
+    [
+      8,
+      "4-NOT SPECIFIED"
+    ],
+    [
+      12,
+      "5-LOW"
+    ]
+  ],
+  "total": 5,
+  "size": 5
+}

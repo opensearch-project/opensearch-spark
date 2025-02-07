@@ -1,0 +1,89 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "@timestamp",
+      "type": "timestamp_ntz"
+    },
+    {
+      "name": "id",
+      "type": "long"
+    },
+    {
+      "name": "name",
+      "type": "string"
+    },
+    {
+      "name": "occupation",
+      "type": "string"
+    },
+    {
+      "name": "country",
+      "type": "string"
+    },
+    {
+      "name": "salary",
+      "type": "long"
+    },
+    {
+      "name": "stddev_samp(salary)",
+      "type": "double"
+    },
+    {
+      "name": "stddev_pop(salary)",
+      "type": "double"
+    },
+    {
+      "name": "percentile_approx(salary, 60)",
+      "type": "long"
+    }
+  ],
+  "datarows": [
+    [
+      "2024-06-15T13:40:23.000",
+      1000,
+      "Jake",
+      "Engineer",
+      "England",
+      100000,
+      null,
+      0.0,
+      100000
+    ],
+    [
+      "2024-06-15T13:40:43.000",
+      1002,
+      "John",
+      "Doctor",
+      "Canada",
+      120000,
+      null,
+      0.0,
+      120000
+    ],
+    [
+      "2024-06-15T13:41:03.000",
+      1004,
+      "David",
+      null,
+      "Canada",
+      0,
+      null,
+      0.0,
+      0
+    ],
+    [
+      "2024-06-15T13:41:13.000",
+      1005,
+      "Jane",
+      "Scientist",
+      "Canada",
+      90000,
+      null,
+      0.0,
+      90000
+    ]
+  ],
+  "total": 4,
+  "size": 4
+}

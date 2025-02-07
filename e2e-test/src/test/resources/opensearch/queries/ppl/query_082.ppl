@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | patterns new_field='no_letter' pattern='[a-zA-Z]' request | stats count() by no_letter

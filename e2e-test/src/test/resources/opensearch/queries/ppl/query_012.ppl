@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | fields + @timestamp, clientip, status | fields - clientip, status | head 10

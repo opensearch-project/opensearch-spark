@@ -1,0 +1,12 @@
+source = mys3.default.customer
+| join ON c_custkey = o_custkey mys3.default.orders
+| join ON o_orderkey = l_orderkey mys3.default.lineitem
+| where o_orderkey in [
+    source = mys3.default.lineitem
+    | stats sum(l_quantity) as sum by l_orderkey
+    | where sum > 300
+    | fields l_orderkey
+  ]
+| stats sum(l_quantity) by c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice
+| sort - o_totalprice, o_orderdate
+| head 100

@@ -1,0 +1,41 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "f",
+      "type": "string"
+    },
+    {
+      "name": "h",
+      "type": "integer"
+    }
+  ],
+  "datarows": [
+    [
+      "GET /IMAGES/HM_BG.JPG HTTP/1.0",
+      40
+    ],
+    [
+      "GET /IMAGES/HM_BG.JPG HTTP/1.0",
+      40
+    ],
+    [
+      "GET /IMAGES/HM_BG.JPG HTTP/1.0",
+      40
+    ],
+    [
+      "GET /FRENCH/SPLASH_INET.HTML HTTP/1.0",
+      40
+    ],
+    [
+      "GET /IMAGES/HM_NBG.JPG HTTP/1.0",
+      40
+    ],
+    [
+      "GET /IMAGES/HM_BG.JPG HTTP/1.0",
+      40
+    ]
+  ],
+  "total": 6,
+  "size": 6
+}

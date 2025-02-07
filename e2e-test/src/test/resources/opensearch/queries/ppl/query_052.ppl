@@ -1,0 +1,1 @@
+source = mys3.default.nested | stats stddev_pop(int_col)

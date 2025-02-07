@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | eval newF = clientip | fields clientip, newF | head 10

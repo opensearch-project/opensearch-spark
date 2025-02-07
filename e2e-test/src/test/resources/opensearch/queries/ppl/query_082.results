@@ -1,0 +1,21 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "count()",
+      "type": "long"
+    },
+    {
+      "name": "no_letter",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      6,
+      " //_. /1.0"
+    ]
+  ],
+  "total": 1,
+  "size": 1
+}

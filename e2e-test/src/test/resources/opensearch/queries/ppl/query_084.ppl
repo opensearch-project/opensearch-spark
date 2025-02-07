@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | sort size | head 10

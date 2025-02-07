@@ -1,0 +1,31 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "@timestamp",
+      "type": "timestamp_ntz"
+    },
+    {
+      "name": "clientip",
+      "type": "string"
+    },
+    {
+      "name": "col2",
+      "type": "integer"
+    }
+  ],
+  "datarows": [
+    [
+      "2023-10-01T10:00:00.000",
+      "40.135.0.0",
+      2
+    ],
+    [
+      "2023-10-01T10:05:00.000",
+      "232.0.0.0",
+      2
+    ]
+  ],
+  "total": 2,
+  "size": 2
+}
