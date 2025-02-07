@@ -64,15 +64,12 @@ class FlintSparkPPLLookupITSuite
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
     val joinCondition = EqualTo(UnresolvedAttribute("uid"), UnresolvedAttribute("id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
-    val coalesceForSafeExpr =
-      Coalesce(
-        Seq(
-          UnresolvedAttribute("__auto_generated_subquery_name_l.department"),
-          UnresolvedAttribute("department")))
     val projectAfterJoin = Project(
       Seq(
         UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
-        Alias(coalesceForSafeExpr, "department")()),
+        Alias(
+          UnresolvedAttribute("__auto_generated_subquery_name_l.department"),
+          "department")()),
       joinPlan)
     val dropColumns = DataFrameDropColumns(
       Seq(
@@ -105,11 +102,10 @@ class FlintSparkPPLLookupITSuite
         Seq(
           UnresolvedAttribute("department"),
           UnresolvedAttribute("__auto_generated_subquery_name_l.department")))
-    val coalesceForSafeExpr = Coalesce(Seq(coalesceExpr, UnresolvedAttribute("department")))
     val projectAfterJoin = Project(
       Seq(
         UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
-        Alias(coalesceForSafeExpr, "department")()),
+        Alias(coalesceExpr, "department")()),
       joinPlan)
     val dropColumns = DataFrameDropColumns(
       Seq(
@@ -127,10 +123,10 @@ class FlintSparkPPLLookupITSuite
       sql(s"source = $sourceTable| LOOKUP $lookupTable uid AS id REPLACE department AS country")
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "Engineer", 100000, "IT"),
-      Row(1001, "Hello", "Artist", 70000, "USA"),
+      Row(1001, "Hello", "Artist", 70000, null),
       Row(1002, "John", "Doctor", 120000, "DATA"),
       Row(1003, "David", "Doctor", 120000, "HR"),
-      Row(1004, "David", null, 0, "Canada"),
+      Row(1004, "David", null, 0, null),
       Row(1005, "Jane", "Scientist", 90000, "DATA"))
     assertSameRows(expectedResults, frame)
 
@@ -138,15 +134,10 @@ class FlintSparkPPLLookupITSuite
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
     val joinCondition = EqualTo(UnresolvedAttribute("uid"), UnresolvedAttribute("id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
-    val coalesceForSafeExpr =
-      Coalesce(
-        Seq(
-          UnresolvedAttribute("__auto_generated_subquery_name_l.department"),
-          UnresolvedAttribute("__auto_generated_subquery_name_s.country")))
     val projectAfterJoin = Project(
       Seq(
         UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
-        Alias(coalesceForSafeExpr, "country")()),
+        Alias(UnresolvedAttribute("__auto_generated_subquery_name_l.department"), "country")()),
       joinPlan)
     val dropColumns = DataFrameDropColumns(
       Seq(
@@ -180,12 +171,10 @@ class FlintSparkPPLLookupITSuite
         Seq(
           UnresolvedAttribute("__auto_generated_subquery_name_s.country"),
           UnresolvedAttribute("__auto_generated_subquery_name_l.department")))
-    val coalesceForSafeExpr =
-      Coalesce(Seq(coalesceExpr, UnresolvedAttribute("__auto_generated_subquery_name_s.country")))
     val projectAfterJoin = Project(
       Seq(
         UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
-        Alias(coalesceForSafeExpr, "country")()),
+        Alias(coalesceExpr, "country")()),
       joinPlan)
     val dropColumns = DataFrameDropColumns(
       Seq(
@@ -224,15 +213,12 @@ class FlintSparkPPLLookupITSuite
           UnresolvedAttribute("__auto_generated_subquery_name_l.name"),
           UnresolvedAttribute("__auto_generated_subquery_name_s.name")))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
-    val coalesceForSafeExpr =
-      Coalesce(
-        Seq(
-          UnresolvedAttribute("__auto_generated_subquery_name_l.department"),
-          UnresolvedAttribute("department")))
     val projectAfterJoin = Project(
       Seq(
         UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
-        Alias(coalesceForSafeExpr, "department")()),
+        Alias(
+          UnresolvedAttribute("__auto_generated_subquery_name_l.department"),
+          "department")()),
       joinPlan)
     val dropColumns = DataFrameDropColumns(
       Seq(
@@ -277,11 +263,10 @@ class FlintSparkPPLLookupITSuite
         Seq(
           UnresolvedAttribute("department"),
           UnresolvedAttribute("__auto_generated_subquery_name_l.department")))
-    val coalesceForSafeExpr = Coalesce(Seq(coalesceExpr, UnresolvedAttribute("department")))
     val projectAfterJoin = Project(
       Seq(
         UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
-        Alias(coalesceForSafeExpr, "department")()),
+        Alias(coalesceExpr, "department")()),
       joinPlan)
     val dropColumns = DataFrameDropColumns(
       Seq(
@@ -314,7 +299,7 @@ class FlintSparkPPLLookupITSuite
         s"source = $sourceTable | eval major = occupation | fields id, name, major, country, salary | LOOKUP $lookupTable name REPLACE occupation AS major")
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "England", 100000, "Engineer"),
-      Row(1001, "Hello", "USA", 70000, "Artist"),
+      Row(1001, "Hello", "USA", 70000, null),
       Row(1002, "John", "Canada", 120000, "Scientist"),
       Row(1003, "David", null, 120000, "Doctor"),
       Row(1004, "David", "Canada", 0, "Doctor"),
@@ -340,15 +325,10 @@ class FlintSparkPPLLookupITSuite
       UnresolvedAttribute("__auto_generated_subquery_name_s.name"),
       UnresolvedAttribute("__auto_generated_subquery_name_l.name"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
-    val coalesceForSafeExpr =
-      Coalesce(
-        Seq(
-          UnresolvedAttribute("__auto_generated_subquery_name_l.occupation"),
-          UnresolvedAttribute("major")))
     val projectAfterJoin = Project(
       Seq(
         UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
-        Alias(coalesceForSafeExpr, "major")()),
+        Alias(UnresolvedAttribute("__auto_generated_subquery_name_l.occupation"), "major")()),
       joinPlan)
     val dropColumns = DataFrameDropColumns(
       Seq(
@@ -398,12 +378,10 @@ class FlintSparkPPLLookupITSuite
         Seq(
           UnresolvedAttribute("major"),
           UnresolvedAttribute("__auto_generated_subquery_name_l.occupation")))
-    val coalesceForSafeExpr =
-      Coalesce(Seq(coalesceExpr, UnresolvedAttribute("major")))
     val projectAfterJoin = Project(
       Seq(
         UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
-        Alias(coalesceForSafeExpr, "major")()),
+        Alias(coalesceExpr, "major")()),
       joinPlan)
     val dropColumns = DataFrameDropColumns(
       Seq(
@@ -445,8 +423,7 @@ class FlintSparkPPLLookupITSuite
     assertSameRows(expectedResults, frame)
   }
 
-  test(
-    "test the unmatched rows in LOOKUP without inputField doesn't apply explicit replacement") {
+  test("correctness combination test") {
     sql(s"""
            | CREATE TABLE s
            | (
@@ -459,7 +436,8 @@ class FlintSparkPPLLookupITSuite
     sql(s"""
            | INSERT INTO s
            | VALUES (1, 'a', 'b'),
-           |        (2, 'aa', 'bb')
+           |        (2, 'aa', 'bb'),
+           |        (3, null, 'ccc')
            | """.stripMargin)
 
     sql(s"""
@@ -476,9 +454,35 @@ class FlintSparkPPLLookupITSuite
            | VALUES (1, 'x', 'y'),
            |        (3, 'xx', 'yy')
            | """.stripMargin)
-    val frame = sql(s"source = s | LOOKUP l id | fields id, col1, col2, col3")
-    val expectedResults: Array[Row] = Array(Row(1, "x", "b", "y"), Row(2, null, "bb", null))
+    var frame = sql(s"source = s | LOOKUP l id | fields id, col1, col2, col3")
+    var expectedResults =
+      Array(Row(1, "x", "b", "y"), Row(2, null, "bb", null), Row(3, "xx", "ccc", "yy"))
     assertSameRows(expectedResults, frame)
+    frame = sql(s"source = s | LOOKUP l id REPLACE id, col1, col3 | fields id, col1, col2, col3")
+    expectedResults =
+      Array(Row(1, "x", "b", "y"), Row(null, null, "bb", null), Row(3, "xx", "ccc", "yy"))
+    assertSameRows(expectedResults, frame)
+    frame = sql(s"source = s | LOOKUP l id APPEND id, col1, col3 | fields id, col1, col2, col3")
+    expectedResults =
+      Array(Row(1, "a", "b", "y"), Row(2, "aa", "bb", null), Row(3, "xx", "ccc", "yy"))
+    assertSameRows(expectedResults, frame)
+    frame = sql(s"source = s | LOOKUP l id REPLACE col1 | fields id, col1, col2")
+    expectedResults = Array(Row(1, "x", "b"), Row(2, null, "bb"), Row(3, "xx", "ccc"))
+    assertSameRows(expectedResults, frame)
+    frame = sql(s"source = s | LOOKUP l id APPEND col1 | fields id, col1, col2")
+    expectedResults = Array(Row(1, "a", "b"), Row(2, "aa", "bb"), Row(3, "xx", "ccc"))
+    assertSameRows(expectedResults, frame)
+    frame = sql(s"source = s | LOOKUP l id REPLACE col1 as col2 | fields id, col1, col2")
+    expectedResults = Array(Row(1, "a", "x"), Row(2, "aa", null), Row(3, null, "xx"))
+    assertSameRows(expectedResults, frame)
+    frame = sql(s"source = s | LOOKUP l id APPEND col1 as col2 | fields id, col1, col2")
+    expectedResults = Array(Row(1, "a", "b"), Row(2, "aa", "bb"), Row(3, null, "ccc"))
+    assertSameRows(expectedResults, frame)
+    frame = sql(s"source = s | LOOKUP l id REPLACE col1 as colA | fields id, col1, col2, colA")
+    expectedResults =
+      Array(Row(1, "a", "b", "x"), Row(2, "aa", "bb", null), Row(3, null, "ccc", "xx"))
+    assertSameRows(expectedResults, frame)
+    // source = s | LOOKUP l id APPEND col1 as colA | fields id, col1, col2, colA throw exception
   }
 
   test("test LOOKUP lookupTable name REPLACE occupation - 2") {
@@ -486,7 +490,7 @@ class FlintSparkPPLLookupITSuite
       sql(s"source = $sourceTable | LOOKUP $lookupTable name REPLACE occupation")
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "England", 100000, "Engineer"),
-      Row(1001, "Hello", "USA", 70000, "Artist"),
+      Row(1001, "Hello", "USA", 70000, null),
       Row(1002, "John", "Canada", 120000, "Scientist"),
       Row(1003, "David", null, 120000, "Doctor"),
       Row(1004, "David", "Canada", 0, "Doctor"),
@@ -494,9 +498,22 @@ class FlintSparkPPLLookupITSuite
     assertSameRows(expectedResults, frame)
   }
 
-  test("test LOOKUP lookupTable name REPLACE occupation - 3") {
+  test("test LOOKUP lookupTable name REPLACE occupation as new_col") {
+    val frame =
+      sql(s"source = $sourceTable | LOOKUP $lookupTable name REPLACE occupation as new_col")
+    val expectedResults: Array[Row] = Array(
+      Row(1000, "Jake", "Engineer", "England", 100000, "Engineer"),
+      Row(1001, "Hello", "Artist", "USA", 70000, null),
+      Row(1002, "John", "Doctor", "Canada", 120000, "Scientist"),
+      Row(1003, "David", "Doctor", null, 120000, "Doctor"),
+      Row(1004, "David", null, "Canada", 0, "Doctor"),
+      Row(1005, "Jane", "Scientist", "Canada", 90000, "Engineer"))
+    assertSameRows(expectedResults, frame)
+  }
+
+  test("test LOOKUP lookupTable name APPEND occupation as new_col throw exception") {
     val ex = intercept[AnalysisException](sql(s"""
-             | source = $sourceTable | LOOKUP $lookupTable name REPLACE occupation as new_col
+             | source = $sourceTable | LOOKUP $lookupTable name APPEND occupation as new_col
              | """.stripMargin))
     assert(
       ex.getMessage.contains(

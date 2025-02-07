@@ -106,16 +106,13 @@ public interface LookupTransformer {
             } else {
                 child = inputCol;
             }
-            // The result output project list we build here is used to replace the source output,
-            // for the unmatched rows of left outer join, the outputs are null, so fall back to source output.
-            Expression nullSafeOutput = Coalesce$.MODULE$.apply(seq(child, outputCol));
-            NamedExpression nullSafeOutputCol = Alias$.MODULE$.apply(nullSafeOutput,
+            NamedExpression output = Alias$.MODULE$.apply(child,
                 inputFieldWithAlias.getName(),
                 NamedExpression.newExprId(),
                 seq(new java.util.ArrayList<String>()),
                 Option.empty(),
                 seq(new java.util.ArrayList<String>()));
-            outputProjectList.add(nullSafeOutputCol);
+            outputProjectList.add(output);
         }
         context.retainAllNamedParseExpressions(p -> p);
         return outputProjectList;

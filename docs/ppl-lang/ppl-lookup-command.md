@@ -34,12 +34,12 @@ LOOKUP <lookupIndex> (<lookupMappingField> [AS <sourceMappingField>])...
 **outputField**
 - Optional
 - Default: \<inputField\>
-- Description:  A field of output. You can specify zero or multiple \<outputField\>. The specified \<outputField\> must be an existing field name in source query output.
+- Description:  A field of output. You can specify zero or multiple \<outputField\>. If you specify \<outputField\> with an existing field name in source query, its values will be replaced or appended by matched values from \<inputField\>. If the field specified in \<outputField\> is a new field, in REPLACE strategy, an extended new field will be applied to the results, but fail in APPEND strategy.
 
 **REPLACE | APPEND**
 - Optional
 - Default: REPLACE
-- Description: If you specify REPLACE, matched values in \<lookupIndex\> field overwrite the values in result. If you specify APPEND, matched values in \<lookupIndex\> field only append to the missing values in result.
+- Description: The output strategies. If you specify REPLACE, matched values in \<lookupIndex\> field overwrite the values in result. If you specify APPEND, matched values in \<lookupIndex\> field only append to the missing values in result.
 
 ### Usage
 - `LOOKUP <lookupIndex> id AS cid REPLACE mail AS email`
