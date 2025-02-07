@@ -12,6 +12,7 @@ import static org.junit.Assert.assertNull;
 import static org.opensearch.sql.expression.function.SerializableUdf.jsonAppendFunction;
 import static org.opensearch.sql.expression.function.SerializableUdf.jsonExtendFunction;
 import static org.opensearch.sql.expression.function.SerializableUdf.jsonDeleteFunction;
+import static org.opensearch.sql.expression.function.SerializableUdf.jsonSetFunction;
 
 public class SerializableJsonUdfTest {
 
@@ -83,6 +84,85 @@ public class SerializableJsonUdfTest {
         String result = jsonDeleteFunction.apply(invalidJson, WrappedArray.make(new String[]{"key1"}));
         assertNull(result);
     }
+
+    ///////////////////
+    @Test
+    public void testJsonSetFunctionUpdateSingleKey() {
+        String jsonStr = "{\"key1\":\"value1\",\"key2\":\"value2\",\"key3\":\"value3\"}";
+        String expectedJson = "{\"key1\":\"value1\",\"key2\":\"newValue2\",\"key3\":\"value3\"}";
+        String result = jsonSetFunction.apply(jsonStr, WrappedArray.make(new String[]{"key2", "newValue2"}));
+        assertEquals(expectedJson, result);
+    }
+
+    @Test
+    public void testJsonSetFunctionUpdateNestedKey() {
+        String jsonStr = "{\"key1\":\"value1\",\"key2\":{\"key3\":\"value3\",\"key4\":\"value4\"}}";
+        String expectedJson = "{\"key1\":\"value1\",\"key2\":{\"key3\":\"newValue3\",\"key4\":\"value4\"}}";
+        String result = jsonSetFunction.apply(jsonStr, WrappedArray.make(new String[]{"key2.key3", "newValue3"}));
+        assertEquals(expectedJson, result);
+    }
+
+    @Test
+    public void testJsonSetFunctionUpdateSingleArrayedKey() {
+        String jsonStr = "{\"key1\":\"value1\",\"key2\":\"value2\",\"keyArray\":[\"value1\",\"value2\"]}";
+        String expectedJson = "{\"key1\":\"value1\",\"key2\":\"value2\",\"keyArray\":[1,2,3]}";
+        String result = jsonSetFunction.apply(jsonStr, WrappedArray.make(new String[]{"keyArray", "[1,2,3]"}));
+        assertEquals(expectedJson, result);
+    }
+
+    @Test
+    public void testJsonSetFunctionUpdateMultipleKeys() {
+        String jsonStr = "{\"key1\":\"value1\",\"key2\":\"value2\",\"key3\":\"value3\"}";
+        String expectedJson = "{\"key1\":\"newValue1\",\"key2\":\"newValue2\",\"key3\":\"value3\"}";
+        String result = jsonSetFunction.apply(jsonStr, WrappedArray.make(new String[]{"key1","newValue1","key2","newValue2"}));
+        assertEquals(expectedJson, result);
+    }
+
+    @Test
+    public void testJsonSetFunctionUpdateMultipleSomeAreNestedKeys() {
+        String jsonStr = "{\"key1\":\"value1\",\"key2\":{ \"key3\":\"value3\",\"key4\":\"value4\"}}";
+        String expectedJson = "{\"key1\":\"newValue1\",\"key2\":{\"key3\":\"value3\",\"key4\":\"newValue4\"}}";
+        String result = jsonSetFunction.apply(
+            jsonStr, WrappedArray.make(new String[]{"key1", "newValue1", "key2.key4", "newValue4"}));
+        assertEquals(expectedJson, result);
+    }
+
+    @Test
+    public void testJsonSetFunctionUpdateMultipleKeysNestedArrayKeys() {
+        String jsonStr = "{\"key1\":\"value1\",\"key2\":[{ \"a\":\"valueA\",\"key3\":\"value3\"}, {\"a\":\"valueA\",\"key4\":\"value4\"}]}";
+        String expectedJson = "{\"key1\":\"newValue1\",\"key2\":[{\"a\":\"newValueA\",\"key3\":\"value3\"},{\"a\":\"newValueA\",\"key4\":\"value4\"}]}";
+        String result = jsonSetFunction.apply(jsonStr, WrappedArray.make(new String[]{"key1", "newValue1", "key2.a", "newValueA"}));
+        assertEquals(expectedJson, result);
+    }
+
+    @Test
+    public void testJsonSetFunctionNoKeysUpdated() {
+        String jsonStr = "{\"key1\":\"value1\",\"key2\":\"value2\"}";
+        String result = jsonSetFunction.apply(jsonStr, WrappedArray.make(new String[0]));
+        assertEquals(jsonStr, result);
+    }
+
+    @Test
+    public void testJsonSetFunctionNoKeysUpdatedWithoutValuePair() {
+        String jsonStr = "{\"key1\":\"value1\",\"key2\":\"value2\"}";
+        // value is not provided, so nothing to update to
+        String result = jsonSetFunction.apply(jsonStr, WrappedArray.make(new String[]{"key1"}));
+        assertEquals(jsonStr, result);
+    }
+
+    @Test
+    public void testJsonSetFunctionNullJson() {
+        String result = jsonSetFunction.apply(null, WrappedArray.make(new String[]{"key1", "key2"}));
+        assertNull(result);
+    }
+
+    @Test
+    public void testJsonSetFunctionInvalidJson() {
+        String invalidJson = "invalid_json";
+        String result = jsonSetFunction.apply(invalidJson, WrappedArray.make(new String[]{"key1", "key2"}));
+        assertNull(result);
+    }
+    ////////////////////////////
 
     @Test
     public void testJsonAppendFunctionAppendToExistingArray() {

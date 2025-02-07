@@ -191,6 +191,35 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
+  test("test json_set()") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          """source=t | eval result = json_set('{"a":[{"b":1},{"c":2}]}', array('a.b', 3, 'a.c', 4))"""),
+        context)
+
+    val table = UnresolvedRelation(Seq("t"))
+    val keysExpression =
+      UnresolvedFunction(
+        "array",
+        Seq(
+          Literal("a.b"),
+          Literal(3),
+          Literal("a.c"),
+          Literal(4)),
+        isDistinct = false)
+    val jsonObjExp =
+      Literal("""{"a":[{"b":1},{"c":2}]}""")
+    val jsonFunc =
+      Alias(visit("json_delete", util.List.of(jsonObjExp, keysExpression)), "result")()
+    val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), eval)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+
   test("test json_delete()") {
     val context = new CatalystPlanContext
     val logPlan =
@@ -249,7 +278,11 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val keysExpression =
       UnresolvedFunction(
         "array",
-        Seq(Literal("a.b"), Seq(Literal("c"), Literal("d"))),
+        Seq(Literal("a.b"),
+          UnresolvedFunction(
+            "array",
+            Seq(Literal("c"), Literal("d")),
+            isDistinct = false)),
         isDistinct = false)
     val jsonObjExp =
       Literal("""{"a":[{"b":1},{"c":2}]}""")

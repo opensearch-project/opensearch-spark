@@ -24,13 +24,51 @@ public interface JsonUtils {
             return value;
         }
     }
-    
+
     /**
-     * append nested value to the json object
-     * @param currentObj
-     * @param pathParts
-     * @param depth
-     * @param valueToAppend
+     * update a nested value in a json object.
+     *
+     * @param currentObj - json object to traverse
+     * @param pathParts - key at path to update
+     * @param depth - current traversal depth
+     * @param valueToUpdate - value to update
+     */
+    static void updateNestedValue(Object currentObj, String[] pathParts, int depth, Object valueToUpdate) {
+        if (currentObj == null || depth >= pathParts.length) {
+            return;
+        }
+
+        if (currentObj instanceof Map) {
+            Map<String, Object> currentMap = (Map<String, Object>) currentObj;
+            String currentKey = pathParts[depth];
+
+            if (depth == pathParts.length - 1) {
+                // If it's the last key, append to the array
+                currentMap.put(currentKey, valueToUpdate);
+            } else {
+                // Continue traversing
+                currentMap.computeIfAbsent(currentKey, k -> new LinkedHashMap<>()); // Create map if not present
+                updateNestedValue(currentMap.get(currentKey), pathParts, depth + 1, valueToUpdate);
+            }
+        } else if (currentObj instanceof List) {
+            // If the current object is a list, process each map in the list
+            List<Object> list = (List<Object>) currentObj;
+            for (Object item : list) {
+                if (item instanceof Map) {
+                    updateNestedValue(item, pathParts, depth, valueToUpdate);
+                }
+            }
+        }
+    }
+
+    /**
+     * append nested value to the json object.
+     *
+     * @param currentObj - json object to traverse
+     * @param pathParts - key at path to update
+     * @param depth - current traversal depth
+     * @param valueToAppend - value to add list
+     * @param flattenValue - if value should be flattened first
      */
     static void appendNestedValue(Object currentObj, String[] pathParts, int depth, Object valueToAppend, boolean flattenValue) {
         if (currentObj == null || depth >= pathParts.length) {
@@ -71,7 +109,8 @@ public interface JsonUtils {
     }
 
     /**
-     * remove nested json object using its keys parts
+     * remove nested json object using its keys parts.
+     *
      * @param currentObj
      * @param keyParts
      * @param depth

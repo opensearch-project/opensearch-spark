@@ -202,6 +202,28 @@ Example:
     | null           |
     +----------------+
 
+### `JSON_SET`
+
+**Description**
+
+`json_set(json_string, [key, value...])` Inserts or updates one or more keys and their corresponding values from the specified JSON object.
+
+**Arguments type:** JSON_STRING, List<STRING, STRING>
+
+**Return type:** JSON_STRING
+
+An updated JSON object format.
+
+Example:
+
+    os> source=people | eval updated = json_set('{"a":[{"b":1},{"b":2}]}', '$.a[*].b', 3) | head 1 | fields updated 
+    fetched rows / total rows = 1/1
+    +-------------------------+
+    | updated                 |
+    +-------------------------+
+    | {"a":[{"b":3},{"b":3}]} |
+    +-------------------------+
+
 
 ### `JSON_DELETE`
 

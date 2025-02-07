@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import static org.opensearch.sql.expression.function.JsonUtils.updateNestedValue;
 import static org.opensearch.sql.expression.function.JsonUtils.appendNestedValue;
 import static org.opensearch.sql.expression.function.JsonUtils.objectMapper;
 import static org.opensearch.sql.expression.function.JsonUtils.parseValue;
@@ -85,14 +86,58 @@ public interface SerializableUdf {
         }
     };
 
+    /**
+     * Update the specified key-value pairs in a JSON string. If the key doesn't exist, the key-value is added.
+     *
+     * @param jsonStr    The input JSON string.
+     * @param elements   A list of key-values pairs where the key is the key/path and value item is the updated value.
+     * @return A new JSON string with updated values.
+     */
+    Function2<String, WrappedArray<String>, String> jsonSetFunction = new SerializableAbstractFunction2<>() {
+        public String apply(String jsonStr, WrappedArray<String> elements) {
+            if (jsonStr == null) {
+                return null;
+            }
+            try {
+                List<String> pathValues = JavaConverters.mutableSeqAsJavaList(elements);
+                // don't update if the list is empty, or the list is not key-value pairs
+                if (pathValues.isEmpty()) {
+                    return jsonStr;
+                }
+
+                // Parse the JSON string into a Map
+                Map<String, Object> jsonMap = objectMapper.readValue(jsonStr, Map.class);
+
+                // Iterate through the key-value pairs and update the json
+                var iter = pathValues.iterator();
+                while (iter.hasNext()) {
+                    String path = iter.next();
+                    if (!iter.hasNext()) {
+                        // no value provided and cannot update anything
+                        break;
+                    }
+                    String[] pathParts = path.split("\\.");
+                    Object parsedValue = parseValue(iter.next());
+
+                    updateNestedValue(jsonMap, pathParts, 0, parsedValue);
+                }
+
+                // Convert the updated map back to JSON
+                return objectMapper.writeValueAsString(jsonMap);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+    };
+
+    /**
+     * Append values to JSON arrays based on specified path-values.
+     *
+     * @param jsonStr    The input JSON string.
+     * @param elements   A list of path-values where the first item is the path and subsequent items are values to append.
+     * @return The updated JSON string.
+     */
     Function2<String, WrappedArray<String>, String> jsonAppendFunction = new SerializableAbstractFunction2<>() {
-        /**
-         * Append values to JSON arrays based on specified path-values.
-         *
-         * @param jsonStr    The input JSON string.
-         * @param elements   A list of path-values where the first item is the path and subsequent items are values to append.
-         * @return The updated JSON string.
-         */
         public String apply(String jsonStr, WrappedArray<String> elements) {
             if (jsonStr == null) {
                 return null;
@@ -124,14 +169,14 @@ public interface SerializableUdf {
         }
     };
 
+    /**
+     * Extend values to JSON arrays based on specified path-values - flattening any given array/list first
+     *
+     * @param jsonStr    The input JSON string.
+     * @param elements   A list of path-values where the first item is the path and subsequent items are values to append.
+     * @return The updated JSON string.
+     */
     Function2<String, WrappedArray<String>, String> jsonExtendFunction = new SerializableAbstractFunction2<>() {
-        /**
-         * Extend values to JSON arrays based on specified path-values - flattening any given array/list first
-         *
-         * @param jsonStr    The input JSON string.
-         * @param elements   A list of path-values where the first item is the path and subsequent items are values to append.
-         * @return The updated JSON string.
-         */
         public String apply(String jsonStr, WrappedArray<String> elements) {
             if (jsonStr == null) {
                 return null;
@@ -300,6 +345,15 @@ public interface SerializableUdf {
                         Option.apply("json_delete"),
                         false,
                         true);
+            case "json_set":
+                return new ScalaUDF(jsonSetFunction,
+                        DataTypes.StringType,
+                        seq(expressions),
+                        seq(),
+                        Option.empty(),
+                        Option.apply("json_set"),
+                        false,
+                        true);
             case "json_append":
                 return new ScalaUDF(jsonAppendFunction,
                         DataTypes.StringType,
@@ -311,13 +365,13 @@ public interface SerializableUdf {
                         true);
             case "json_extend":
                 return new ScalaUDF(jsonExtendFunction,
-                    DataTypes.StringType,
-                    seq(expressions),
-                    seq(),
-                    Option.empty(),
-                    Option.apply("json_extend"),
-                    false,
-                    true);
+                        DataTypes.StringType,
+                        seq(expressions),
+                        seq(),
+                        Option.empty(),
+                        Option.apply("json_extend"),
+                        false,
+                        true);
             case "is_ipv4":
                 return new ScalaUDF(geoIpUtils.isIpv4,
                         DataTypes.BooleanType,
