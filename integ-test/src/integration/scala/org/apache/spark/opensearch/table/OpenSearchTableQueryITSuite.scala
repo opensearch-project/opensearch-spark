@@ -7,17 +7,16 @@ package org.apache.spark.opensearch.table
 
 import org.opensearch.flint.spark.ppl.FlintPPLSuite
 
-import org.apache.spark.FlintDataSourceV2ITSuite
-import org.apache.spark.sql.{QueryTest, Row}
-import org.apache.spark.sql.jdbc.JDBCV2Suite
+import org.apache.spark.sql.{DataFrame, ExplainSuiteHelper, Row}
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 
 /**
  * Test queries on OpenSearch Table
  */
 class OpenSearchTableQueryITSuite
-    extends FlintDataSourceV2ITSuite
-    with OpenSearchCatalogSuite
-    with FlintPPLSuite {
+    extends OpenSearchCatalogSuite
+    with FlintPPLSuite
+    with ExplainSuiteHelper {
   test("SQL Join two indices") {
     val indexName1 = "t0001"
     val indexName2 = "t0002"
@@ -114,6 +113,12 @@ class OpenSearchTableQueryITSuite
       // that does not exactly match returns no results.
       df = spark.sql(s"""SELECT id FROM $table WHERE aText = "Airport" """)
       checkAnswer(df, Seq())
+    }
+  }
+
+  def checkPushedInfo(df: DataFrame, expectedPlanFragment: String*): Unit = {
+    df.queryExecution.optimizedPlan.collect { case _: DataSourceV2ScanRelation =>
+      checkKeywordsExistsInExplain(df, expectedPlanFragment: _*)
     }
   }
 }
