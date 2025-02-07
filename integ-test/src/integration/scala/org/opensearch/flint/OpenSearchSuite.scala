@@ -139,6 +139,36 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
     index(indexName, oneNodeSetting, mappings, docs)
   }
 
+  def indexMultiFields(indexName: String): Unit = {
+    val mappings = """{
+                     |  "properties": {
+                     |    "id": {
+                     |      "type": "integer"
+                     |    },
+                     |    "aText": {
+                     |      "type": "text"
+                     |    },
+                     |    "aString": {
+                     |      "type": "keyword"
+                     |    },
+                     |    "aTextString": {
+                     |      "type": "text",
+                     |      "fields": {
+                     |        "raw": {
+                     |          "type": "keyword"
+                     |        }
+                     |      }
+                     |    }
+                     |  }
+                     |}""".stripMargin
+    val docs = Seq("""{
+        | "id": 1,
+        | "aText": "Treviso-Sant'Angelo Airport",
+        | "aString": "OpenSearch-Air",
+        | "aTextString": "Treviso-Sant'Angelo Airport"}""".stripMargin)
+    index(indexName, oneNodeSetting, mappings, docs)
+  }
+
   def index(index: String, settings: String, mappings: String, docs: Seq[String]): Unit = {
     openSearchClient.indices.create(
       new CreateIndexRequest(index)

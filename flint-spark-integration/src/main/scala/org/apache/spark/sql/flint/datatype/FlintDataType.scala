@@ -95,10 +95,19 @@ object FlintDataType {
           (fieldProperties \ "format")
             .extractOrElse(DEFAULT_DATE_FORMAT))
 
-      // Text
+      // Text with possible multi-fields
       case JString("text") =>
-        metadataBuilder.putString("osType", "text")
-        StringType
+        FlintMetadataHelper.addTextFieldMetadata(metadataBuilder)
+        (fieldProperties \ "fields") match {
+          case fields: JObject =>
+            FlintMetadataHelper.addMultiFieldMetadata(
+              metadataBuilder,
+              fields.obj.map { case (name, props) =>
+                (s"$fieldName.$name", (props \ "type").extract[String])
+              }.toMap)
+            StringType
+          case _ => StringType
+        }
 
       // object types
       case JString("object") | JNothing => deserializeJValue(fieldProperties)
@@ -155,7 +164,7 @@ object FlintDataType {
 
       // string
       case StringType | _: VarcharType | _: CharType =>
-        if (metadata.contains("osType") && metadata.getString("osType") == "text") {
+        if (FlintMetadataHelper.isTextField(metadata)) {
           JObject("type" -> JString("text"))
         } else {
           JObject("type" -> JString("keyword"))

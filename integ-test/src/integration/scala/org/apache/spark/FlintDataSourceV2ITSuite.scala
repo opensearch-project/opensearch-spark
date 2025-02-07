@@ -537,7 +537,7 @@ class FlintDataSourceV2ITSuite
   /**
    * Copy from SPARK JDBCV2Suite.
    */
-  private def checkPushedInfo(df: DataFrame, expectedPlanFragment: String*): Unit = {
+  def checkPushedInfo(df: DataFrame, expectedPlanFragment: String*): Unit = {
     df.queryExecution.optimizedPlan.collect { case _: DataSourceV2ScanRelation =>
       checkKeywordsExistsInExplain(df, expectedPlanFragment: _*)
     }
@@ -546,7 +546,7 @@ class FlintDataSourceV2ITSuite
   /**
    * Copy from SPARK JDBCV2Suite.
    */
-  private def checkFiltersRemoved(df: DataFrame, removed: Boolean = true): Unit = {
+  def checkFiltersRemoved(df: DataFrame, removed: Boolean = true): Unit = {
     val filters = df.queryExecution.optimizedPlan.collect { case f: Filter =>
       f
     }

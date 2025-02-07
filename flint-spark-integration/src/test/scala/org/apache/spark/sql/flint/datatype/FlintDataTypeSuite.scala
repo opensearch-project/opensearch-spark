@@ -205,6 +205,51 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
         Nil)
   }
 
+  test("text field with multi-fields deserialize") {
+    val flintDataType = """{
+                          |  "properties": {
+                          |    "city": {
+                          |      "type": "text",
+                          |      "fields": {
+                          |        "raw": {
+                          |          "type": "keyword"
+                          |        },
+                          |        "keyword": {
+                          |          "type": "keyword"
+                          |        }
+                          |      }
+                          |    }
+                          |  }
+                          |}""".stripMargin
+    val mb = new MetadataBuilder()
+    FlintMetadataHelper.addTextFieldMetadata(mb)
+    FlintMetadataHelper.addMultiFieldMetadata(
+      mb,
+      Map("city.raw" -> "keyword", "city.keyword" -> "keyword"))
+    val metadata = mb.build()
+    val expectedStructType = StructType(StructField("city", StringType, true, metadata) :: Nil)
+
+    FlintDataType.deserialize(flintDataType) should contain theSameElementsAs expectedStructType
+  }
+
+  test("text field without multi-fields deserialize") {
+    val flintDataType = """{
+                          |  "properties": {
+                          |    "description": {
+                          |      "type": "text"
+                          |    }
+                          |  }
+                          |}""".stripMargin
+
+    val mb = new MetadataBuilder()
+    FlintMetadataHelper.addTextFieldMetadata(mb)
+    val metadata = mb.build()
+
+    val expectedStructType =
+      StructType(StructField("description", StringType, true, metadata) :: Nil)
+    FlintDataType.deserialize(flintDataType) should contain theSameElementsAs expectedStructType
+  }
+
   test("flint date type deserialize and serialize") {
     val flintDataType = """{
                           |  "properties": {

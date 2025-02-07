@@ -10,6 +10,7 @@ import scala.io.Source
 import org.apache.spark.FlintSuite
 import org.apache.spark.sql.connector.expressions.{FieldReference, GeneralScalarExpression, LiteralValue}
 import org.apache.spark.sql.connector.expressions.filter.Predicate
+import org.apache.spark.sql.flint.datatype.FlintMetadataHelper
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
 
@@ -165,6 +166,37 @@ class FlintQueryCompilerSuite extends FlintSuite {
          |  }
          |}
          |""".stripMargin)(query)
+  }
+
+  test("compile text field with keyword subfield should use term query on subfield") {
+    val schema = StructType(
+      Seq(StructField(
+        "city",
+        StringType,
+        nullable = true, {
+          val mb = new MetadataBuilder()
+          FlintMetadataHelper.addTextFieldMetadata(mb)
+          FlintMetadataHelper.addMultiFieldMetadata(mb, Map("city.raw" -> "keyword"))
+          mb.build()
+        })))
+    val query = FlintQueryCompiler(schema).compile(EqualTo("city", "Seattle").toV2)
+    assertResult("""{"term":{"city.raw":{"value":"Seattle"}}}""")(query)
+  }
+
+  test("compile text field without keyword subfield should return empty") {
+    val schema = StructType(
+      Seq(
+        StructField(
+          "aText",
+          StringType,
+          nullable = true, {
+            val mb = new MetadataBuilder()
+            FlintMetadataHelper.addTextFieldMetadata(mb)
+            mb.build()
+          })))
+
+    val query = FlintQueryCompiler(schema).compile(EqualTo("aText", "text").toV2)
+    assertResult("")(query)
   }
 
   protected def schema(): StructType = {
