@@ -9,6 +9,7 @@ import scala.io.Source
 
 import org.apache.spark.sql.catalyst.expressions.Literal
 import org.apache.spark.sql.catalyst.util.{DateTimeUtils, TimestampFormatter}
+import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.parseColumnPath
 import org.apache.spark.sql.connector.expressions.{Expression, FieldReference, LiteralValue}
 import org.apache.spark.sql.connector.expressions.filter.{And, Predicate}
 import org.apache.spark.sql.flint.datatype.FlintDataType.STRICT_DATE_OPTIONAL_TIME_FORMATTER_WITH_NANOS
@@ -152,10 +153,14 @@ case class FlintQueryCompiler(schema: StructType) {
    * return true if the field is Flint Text field.
    */
   protected def isTextField(attribute: String): Boolean = {
-    schema.apply(attribute) match {
-      case StructField(_, StringType, _, metadata) =>
-        FlintMetadataHelper.isTextField(metadata)
-      case _ => false
+    schema.findNestedField(parseColumnPath(attribute)) match {
+      case Some((_, field)) =>
+        field.dataType match {
+          case StringType =>
+            FlintMetadataHelper.isTextField(field.metadata)
+          case _ => false
+        }
+      case None => false
     }
   }
 
