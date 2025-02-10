@@ -11,13 +11,13 @@ import org.apache.spark.sql.catalyst.expressions.Coalesce$;
 import org.apache.spark.sql.catalyst.expressions.EqualTo$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.opensearch.sql.ast.expression.Alias;
 import org.opensearch.sql.ast.expression.Field;
 import org.opensearch.sql.ast.expression.QualifiedName;
 import org.opensearch.sql.ast.tree.Lookup;
 import org.opensearch.sql.ppl.CatalystExpressionVisitor;
 import org.opensearch.sql.ppl.CatalystPlanContext;
-import org.opensearch.sql.ppl.CatalystQueryPlanVisitor;
 import scala.Option;
 
 import java.util.ArrayList;
@@ -83,31 +83,36 @@ public interface LookupTransformer {
         Lookup node,
         Lookup.OutputStrategy strategy,
         CatalystExpressionVisitor expressionAnalyzer,
-        CatalystPlanContext context) {
+        CatalystPlanContext context,
+        LogicalPlan searchSide) {
         List<NamedExpression> outputProjectList = new ArrayList<>();
         for (Map.Entry<Alias, Field> entry : node.getOutputCandidateMap().entrySet()) {
             Alias inputFieldWithAlias = entry.getKey();
             Field inputField = (Field) inputFieldWithAlias.getDelegated();
             Field outputField = entry.getValue();
-            Expression inputCol = expressionAnalyzer.visitField(inputField, context);
-            Expression outputCol = expressionAnalyzer.visitField(outputField, context);
-
+            // Always resolve the inputCol expression with alias: __auto_generated_subquery_name_l.<fieldName>
+            // If the outputField existed in source table, resolve the outputCol expression with alias: __auto_generated_subquery_name_s.<fieldName>
+            // If not, resolve the outputCol expression without alias: <fieldName> to avoid failure of unable to resolved attribute.
+            Expression inputCol = expressionAnalyzer.visitField(buildFieldWithLookupSubqueryAlias(node, inputField), context);
+            Expression outputCol;
+            if (RelationUtils.columnExistsInCatalogTable(context.getSparkSession(), searchSide, outputField)) {
+                outputCol = expressionAnalyzer.visitField(buildFieldWithSourceSubqueryAlias(node, outputField), context);
+            } else {
+                outputCol = expressionAnalyzer.visitField(outputField, context);
+            }
             Expression child;
             if (strategy == Lookup.OutputStrategy.APPEND) {
                 child = Coalesce$.MODULE$.apply(seq(outputCol, inputCol));
             } else {
                 child = inputCol;
             }
-            // The result output project list we build here is used to replace the source output,
-            // for the unmatched rows of left outer join, the outputs are null, so fall back to source output.
-            Expression nullSafeOutput = Coalesce$.MODULE$.apply(seq(child, outputCol));
-            NamedExpression nullSafeOutputCol = Alias$.MODULE$.apply(nullSafeOutput,
+            NamedExpression output = Alias$.MODULE$.apply(child,
                 inputFieldWithAlias.getName(),
                 NamedExpression.newExprId(),
                 seq(new java.util.ArrayList<String>()),
                 Option.empty(),
                 seq(new java.util.ArrayList<String>()));
-            outputProjectList.add(nullSafeOutputCol);
+            outputProjectList.add(output);
         }
         context.retainAllNamedParseExpressions(p -> p);
         return outputProjectList;

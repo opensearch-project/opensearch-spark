@@ -31,6 +31,7 @@ import org.opensearch.flint.spark.ppl.PlaneUtils.plan
 import org.opensearch.sql.common.antlr.SyntaxCheckException
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.parser._
@@ -44,7 +45,8 @@ import org.apache.spark.sql.types.{DataType, StructType}
  * @param sparkParser
  *   Spark SQL parser
  */
-class FlintSparkPPLParser(sparkParser: ParserInterface) extends ParserInterface {
+class FlintSparkPPLParser(sparkParser: ParserInterface, val spark: SparkSession)
+    extends ParserInterface {
 
   /** OpenSearch (PPL) AST builder. */
   private val planTransformer = new CatalystQueryPlanVisitor()
@@ -55,6 +57,7 @@ class FlintSparkPPLParser(sparkParser: ParserInterface) extends ParserInterface 
     try {
       // if successful build ppl logical plan and translate to catalyst logical plan
       val context = new CatalystPlanContext
+      context.withSparkSession(spark)
       planTransformer.visit(plan(pplParser, sqlText), context)
       context.getPlan
     } catch {
