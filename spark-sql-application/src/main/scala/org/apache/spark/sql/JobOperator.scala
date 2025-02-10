@@ -26,19 +26,18 @@ case class JobOperator(
     applicationId: String,
     jobId: String,
     sparkSession: SparkSession,
-    query: String,
-    queryId: String,
+    statement: FlintStatement,
     dataSource: String,
     resultIndex: String,
     jobType: String,
     streamingRunningCount: AtomicInteger,
-    statementRunningCount: AtomicInteger,
-    statementContext: Map[String, Any] = Map.empty[String, Any])
+    statementRunningCount: AtomicInteger)
     extends Logging
     with FlintJobExecutor {
 
   // JVM shutdown hook
   sys.addShutdownHook(stop())
+  val isStreaming = jobType.equalsIgnoreCase(FlintJobType.STREAMING)
   val isStreamingOrBatch =
     jobType.equalsIgnoreCase(FlintJobType.STREAMING) || jobType.equalsIgnoreCase(
       FlintJobType.BATCH)
@@ -65,7 +64,6 @@ case class JobOperator(
     // QueryResultWriter depends on sessionManager to fetch the sessionContext
     val sessionManager = instantiateSessionManager(sparkSession, Some(resultIndex))
 
-    // TODO: Update FlintJob to Support All Query Types. Track on https://github.com/opensearch-project/opensearch-spark/issues/633
     val commandContext = CommandContext(
       applicationId,
       jobId,
@@ -86,17 +84,6 @@ case class JobOperator(
     val readWriteBytesSparkListener = new MetricsSparkListener()
     sparkSession.sparkContext.addSparkListener(readWriteBytesSparkListener)
 
-    val statement =
-      new FlintStatement(
-        "running",
-        query,
-        "",
-        queryId,
-        LangType.SQL,
-        currentTimeProvider.currentEpochMillis(),
-        Option.empty,
-        statementContext)
-
     try {
       val futurePrepareQueryExecution = Future {
         statementExecutionManager.prepareStatementExecution()
@@ -114,8 +101,8 @@ case class JobOperator(
               dataSource,
               "FAILED",
               err,
-              queryId,
-              query,
+              statement.queryId,
+              statement.query,
               "",
               startTime)
         })
@@ -130,8 +117,8 @@ case class JobOperator(
             dataSource,
             "TIMEOUT",
             throwableHandler.error,
-            queryId,
-            query,
+            statement.queryId,
+            statement.query,
             "",
             startTime))
         incrementCounter(MetricConstants.QUERY_EXECUTION_FAILED_METRIC)
@@ -145,8 +132,8 @@ case class JobOperator(
             dataSource,
             "FAILED",
             error,
-            queryId,
-            query,
+            statement.queryId,
+            statement.query,
             "",
             startTime))
         incrementCounter(MetricConstants.QUERY_EXECUTION_FAILED_METRIC)
@@ -169,7 +156,7 @@ case class JobOperator(
         case t: Throwable =>
           incrementCounter(MetricConstants.RESULT_WRITER_FAILED_METRIC)
           throwableHandler.recordThrowable(
-            s"Failed to write to result. originalError='${throwableHandler.error}'",
+            s"Failed to write to result. Cause='${t.getMessage}', originalError='${throwableHandler.error}'",
             t)
       } finally {
         emitTimerMetric(MetricConstants.QUERY_RESULT_WRITER_TIME_METRIC, resultWriterStartTime)
@@ -182,7 +169,7 @@ case class JobOperator(
       } catch {
         case t: Throwable =>
           throwableHandler.recordThrowable(
-            s"Failed to update statement. originalError='${throwableHandler.error}'",
+            s"Failed to update statement. Cause='${t.getMessage}', originalError='${throwableHandler.error}'",
             t)
       }
       emitTimerMetric(MetricConstants.QUERY_TOTAL_TIME_METRIC, startTime)
@@ -193,16 +180,19 @@ case class JobOperator(
   def cleanUpResources(threadPool: ThreadPoolExecutor): Unit = {
     try {
       // Wait for job complete if no error
-      if (!throwableHandler.hasException && isStreamingOrBatch) {
+      if (!throwableHandler.hasException) {
         // Clean Spark shuffle data after each microBatch.
         sparkSession.streams.addListener(new ShuffleCleaner(sparkSession))
-        // Await index monitor before the main thread terminates
-        new FlintSpark(sparkSession).flintIndexMonitor.awaitMonitor()
+
+        if (isStreaming) {
+          // Await index monitor before the main thread terminates
+          new FlintSpark(sparkSession).flintIndexMonitor.awaitMonitor()
+        }
       } else {
         logInfo(s"""
                    | Skip job await due to conditions not met:
                    |  - exceptionThrown: ${throwableHandler.hasException}
-                   |  - streaming: $isStreamingOrBatch
+                   |  - streaming: $isStreaming
                    |  - activeStreams: ${sparkSession.streams.active.mkString(",")}
                    |""".stripMargin)
       }

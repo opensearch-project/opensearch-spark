@@ -7,12 +7,14 @@ package org.apache.spark.sql
 
 import java.util.Locale
 import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.atomic.AtomicInteger
 
 import com.amazonaws.services.glue.model.{AccessDeniedException, AWSGlueException}
 import com.amazonaws.services.s3.model.AmazonS3Exception
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.commons.text.StringEscapeUtils.unescapeJava
 import org.opensearch.common.Strings
+import org.opensearch.flint.common.model.FlintStatement
 import org.opensearch.flint.core.IRestHighLevelClient
 import org.opensearch.flint.core.logging.{CustomLogging, ExceptionMessages, OperationMessage}
 import org.opensearch.flint.core.metrics.MetricConstants
@@ -567,6 +569,39 @@ trait FlintJobExecutor {
           throw new RuntimeException(s"Failed to instantiate provider: $className", e)
       }
     }
+  }
+
+  def createJobOperator(
+      spark: SparkSession,
+      applicationId: String,
+      jobId: String,
+      flintStatement: FlintStatement,
+      dataSource: String,
+      resultIndex: String,
+      jobType: String,
+      streamingRunningCount: AtomicInteger,
+      statementRunningCount: AtomicInteger): JobOperator = {
+    // https://github.com/opensearch-project/opensearch-spark/issues/138
+    /*
+     * To execute queries such as `CREATE SKIPPING INDEX ON my_glue1.default.http_logs_plain (`@timestamp` VALUE_SET) WITH (auto_refresh = true)`,
+     * it's necessary to set `spark.sql.defaultCatalog=my_glue1`. This is because AWS Glue uses a single database (default) and table (http_logs_plain),
+     * and we need to configure Spark to recognize `my_glue1` as a reference to AWS Glue's database and table.
+     * By doing this, we effectively map `my_glue1` to AWS Glue, allowing Spark to resolve the database and table names correctly.
+     * Without this setup, Spark would not recognize names in the format `my_glue1.default`.
+     */
+    spark.conf.set("spark.sql.defaultCatalog", dataSource)
+    val jobOperator =
+      JobOperator(
+        applicationId,
+        jobId,
+        spark,
+        flintStatement,
+        dataSource,
+        resultIndex,
+        jobType,
+        streamingRunningCount,
+        statementRunningCount)
+    jobOperator
   }
 
   def instantiateQueryResultWriter(

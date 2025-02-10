@@ -15,6 +15,7 @@ import scala.util.control.NonFatal
 
 import com.codahale.metrics.Timer
 import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession, SessionStates}
+import org.opensearch.flint.common.scheduler.model.LangType
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.logging.CustomLogging
 import org.opensearch.flint.core.metrics.{MetricConstants, MetricsSparkListener, MetricsUtil}
@@ -23,6 +24,7 @@ import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, increment
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
+import org.apache.spark.sql.FlintJob.currentTimeProvider
 import org.apache.spark.sql.FlintREPLConfConstants._
 import org.apache.spark.sql.SessionUpdateMode._
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -95,14 +97,24 @@ object FlintREPL extends Logging with FlintJobExecutor {
         logAndThrow("resultIndex is not set")
       }
       configDYNMaxExecutors(conf, jobType)
+
       val streamingRunningCount = new AtomicInteger(0)
+      val flintStatement =
+        new FlintStatement(
+          "running",
+          query,
+          "",
+          queryId,
+          LangType.SQL,
+          currentTimeProvider.currentEpochMillis(),
+          Option.empty,
+          Map.empty)
       val jobOperator =
         JobOperator(
           applicationId,
           jobId,
           createSparkSession(conf),
-          query,
-          queryId,
+          flintStatement,
           dataSource,
           resultIndexOption.get,
           jobType,

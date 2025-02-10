@@ -78,7 +78,16 @@ class WarmpoolTest extends SparkFunSuite with MockitoSugar with JobMatchers {
 
     doAnswer(_ => mockJobOperator)
       .when(job)
-      .createJobOperator(any(), anyString(), anyString(), anyString())
+      .createJobOperator(
+        any(),
+        anyString(),
+        anyString(),
+        any(),
+        anyString(),
+        anyString(),
+        anyString(),
+        any(),
+        any())
 
     job.queryLoop(mockStatementExecutionManager)
     verify(mockJobOperator, times(2)).start()
