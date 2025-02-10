@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 public interface JsonUtils {
     ObjectMapper objectMapper = new ObjectMapper();
@@ -27,13 +28,25 @@ public interface JsonUtils {
 
     /**
      * update a nested value in a json object.
+     */
+    static void updateNestedValue(List <Object> args){
+        Object currentObj = args.get(0);
+        String[] pathParts = (String[]) args.get(1);
+        int depth = (Integer) args.get(2);
+        Object valueToUpdate = args.get(3);
+
+        updateNestedValue(currentObj, pathParts, depth, valueToUpdate);
+    }
+
+    /**
+     * update a nested value in a json object.
      *
      * @param currentObj - json object to traverse
      * @param pathParts - key at path to update
      * @param depth - current traversal depth
      * @param valueToUpdate - value to update
      */
-    static void updateNestedValue(Object currentObj, String[] pathParts, int depth, Object valueToUpdate) {
+    private static void updateNestedValue(Object currentObj, String[] pathParts, int depth, Object valueToUpdate) {
         if (currentObj == null || depth >= pathParts.length) {
             return;
         }
@@ -62,6 +75,30 @@ public interface JsonUtils {
 
     /**
      * append nested value to the json object.
+     */
+    static void appendNestedValue(List <Object> args) {
+        Object currentObj = args.get(0);
+        String[] pathParts = (String[]) args.get(1);
+        int depth = (Integer) args.get(2);
+        Object valueToUpdate = args.get(3);
+
+        appendNestedValue(currentObj, pathParts, depth, valueToUpdate, false);
+    }
+
+    /**
+     * append nested value to the json object.
+     */
+    static void extendNestedValue(List <Object> args) {
+        Object currentObj = args.get(0);
+        String[] pathParts = (String[]) args.get(1);
+        int depth = (Integer) args.get(2);
+        Object valueToUpdate = args.get(3);
+
+        appendNestedValue(currentObj, pathParts, depth, valueToUpdate, true);
+    }
+
+    /**
+     * append nested value to the json object.
      *
      * @param currentObj - json object to traverse
      * @param pathParts - key at path to update
@@ -69,7 +106,7 @@ public interface JsonUtils {
      * @param valueToAppend - value to add list
      * @param flattenValue - if value should be flattened first
      */
-    static void appendNestedValue(Object currentObj, String[] pathParts, int depth, Object valueToAppend, boolean flattenValue) {
+    private static void appendNestedValue(Object currentObj, String[] pathParts, int depth, Object valueToAppend, boolean flattenValue) {
         if (currentObj == null || depth >= pathParts.length) {
             return;
         }

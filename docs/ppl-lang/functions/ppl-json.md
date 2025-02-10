@@ -206,12 +206,12 @@ Example:
 
 **Description**
 
-`json_set(json_string, array(<path>, <value>, ...))` Inserts or updates one or more values at the corresponding paths in the specified JSON object.
+`json_set(json_string, array(path1, value1, path2, value2, ...))` Inserts or updates one or more values at the corresponding paths in the specified JSON object.
 
 **Argument type:**
 - \<json_string\> must be a JSON_STRING.
 - \<path\> must be a STRING.
-- \<value\> can be a JSON_STRING.
+- \<value\> must be a JSON_STRING.
 
 **Return type:** JSON_STRING
 
@@ -232,9 +232,9 @@ Example:
 
 **Description**
 
-`json_delete(json_string, [keys list])` Deletes json elements from a json object based on json specific keys. Return the updated object after keys deletion .
+`json_delete(json_string, array(key1, key2, ...))` Deletes json elements from a json object based on json specific keys. Return the updated object after keys deletion .
 
-**Arguments type:** JSON_STRING, List<STRING>
+**Arguments type:** JSON_STRING, List<JSON_STRING>
 
 **Return type:** JSON_STRING
 
@@ -270,7 +270,7 @@ Example:
 
 **Description**
 
-`json_append(json_string, [path_key, value,...])` appends values to end of an array at path_key within the json elements. Return the updated json object after appending.
+`json_append(json_string, [path_key1, value1, path_key2, value2, ...])` appends values to end of an array at path_key within the json elements. Return the updated json object after appending.
 
 **Argument type:**
 - \<json_string\> must be a JSON_STRING.
@@ -319,7 +319,7 @@ Example:
 
 **Description**
 
-`json_extend(json_string, [path_key, value,...])` extends values to end of an array at path_key within the json elements. Return the updated json object after extending. 
+`json_extend(json_string, [path_key1, value1, path_key2, value2, ...])` extends values to end of an array at path_key within the json elements. Return the updated json object after extending. 
 
 **Argument type:**
 - \<json_string\> must be a JSON_STRING.
@@ -370,7 +370,7 @@ Example:
 
 `json_keys(jsonStr)` Returns all the keys of the outermost JSON object as an array.
 
-**Argument type:** STRING
+**Argument type:** JSON_STRING
 
 A STRING expression of a valid JSON object format.
 
