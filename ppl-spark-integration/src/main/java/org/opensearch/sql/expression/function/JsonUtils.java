@@ -43,7 +43,6 @@ public interface JsonUtils {
             String currentKey = pathParts[depth];
 
             if (depth == pathParts.length - 1) {
-                // If it's the last key, append to the array
                 currentMap.put(currentKey, valueToUpdate);
             } else {
                 // Continue traversing

@@ -44,16 +44,16 @@ import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 public interface SerializableUdf {
 
     abstract class SerializableAbstractFunction1<T1, R> extends AbstractFunction1<T1, R>
-            implements Serializable {
-    }
+            implements Serializable {}
 
     abstract class SerializableAbstractFunction2<T1, T2, R> extends AbstractFunction2<T1, T2, R>
-            implements Serializable {
-    }
+            implements Serializable {}
 
     abstract class SerializableAbstractFunction3<T1, T2, T3, R> extends AbstractFunction3<T1, T2, T3, R>
-            implements Serializable {
-    }
+            implements Serializable {}
+
+    abstract class SerializeableUpdateNestedFunction<T1, T2, R> extends AbstractFunction2<T1, T2, R>
+            implements Serializable {}
 
     /**
      * Remove specified keys from a JSON string.
@@ -144,20 +144,25 @@ public interface SerializableUdf {
             }
             try {
                 List<String> pathValues = JavaConverters.mutableSeqAsJavaList(elements);
+                // don't update if the list is empty, or the list is not key-value pairs
                 if (pathValues.isEmpty()) {
                     return jsonStr;
                 }
 
-                String path = pathValues.get(0);
-                String[] pathParts = path.split("\\.");
-                List<String> values = pathValues.subList(1, pathValues.size());
-
                 // Parse the JSON string into a Map
                 Map<String, Object> jsonMap = objectMapper.readValue(jsonStr, Map.class);
 
-                // Append each value at the specified path
-                for (String value : values) {
-                    Object parsedValue = parseValue(value); // Parse the value
+                // Iterate through the key-value pairs and update the json
+                var iter = pathValues.iterator();
+                while (iter.hasNext()) {
+                    String path = iter.next();
+                    if (!iter.hasNext()) {
+                        // no value provided and cannot update anything
+                        break;
+                    }
+                    String[] pathParts = path.split("\\.");
+                    Object parsedValue = parseValue(iter.next());
+
                     appendNestedValue(jsonMap, pathParts, 0, parsedValue, false);
                 }
 
@@ -183,20 +188,25 @@ public interface SerializableUdf {
             }
             try {
                 List<String> pathValues = JavaConverters.mutableSeqAsJavaList(elements);
+                // don't update if the list is empty, or the list is not key-value pairs
                 if (pathValues.isEmpty()) {
                     return jsonStr;
                 }
 
-                String path = pathValues.get(0);
-                String[] pathParts = path.split("\\.");
-                List<String> values = pathValues.subList(1, pathValues.size());
-
                 // Parse the JSON string into a Map
                 Map<String, Object> jsonMap = objectMapper.readValue(jsonStr, Map.class);
 
-                // Append each value at the specified path
-                for (String value : values) {
-                    Object parsedValue = parseValue(value); // Parse the value
+                // Iterate through the key-value pairs and update the json
+                var iter = pathValues.iterator();
+                while (iter.hasNext()) {
+                    String path = iter.next();
+                    if (!iter.hasNext()) {
+                        // no value provided and cannot update anything
+                        break;
+                    }
+                    String[] pathParts = path.split("\\.");
+                    Object parsedValue = parseValue(iter.next());
+
                     appendNestedValue(jsonMap, pathParts, 0, parsedValue, true);
                 }
 

@@ -173,8 +173,8 @@ public class SerializableJsonUdfTest {
     @Test
     public void testJsonAppendFunctionAppendArrayItemToExistingArray() {
         String jsonStr = "{\"arrayKey\":[\"value1\",\"value2\"]}";
-        String expectedJson = "{\"arrayKey\":[\"value1\",\"value2\",[\"value3\",\"value4\"]]}";
-        String result = jsonAppendFunction.apply(jsonStr, WrappedArray.make(new String[]{"arrayKey", "[\"value3\",\"value4\"]"}));
+        String expectedJson = "{\"arrayKey\":[\"value1\",\"value2\",[\"value3\",\"value4\"],[\"value5\",\"value6\"]]}";
+        String result = jsonAppendFunction.apply(jsonStr, WrappedArray.make(new String[]{"arrayKey", "[\"value3\",\"value4\"]", "arrayKey", "[\"value5\",\"value6\"]"}));
         assertEquals(expectedJson, result);
     }
 
@@ -260,7 +260,7 @@ public class SerializableJsonUdfTest {
         // in that it flattens the given arrays
         String jsonStr = "{\"arrayKey\":[\"value1\",\"value2\"]}";
         String expectedJson = "{\"arrayKey\":[\"value1\",\"value2\",\"value3\",\"value4\",\"value5\",\"value6\"]}";
-        String result = jsonExtendFunction.apply(jsonStr, WrappedArray.make(new String[]{"arrayKey", "[\"value3\",\"value4\"]", "[\"value5\",\"value6\"]"}));
+        String result = jsonExtendFunction.apply(jsonStr, WrappedArray.make(new String[]{"arrayKey", "[\"value3\",\"value4\"]", "arrayKey", "[\"value5\",\"value6\"]"}));
         assertEquals(expectedJson, result);
     }
 
