@@ -173,6 +173,7 @@ object FlintSparkConf {
 
   val WARMPOOL_ENABLED =
     FlintConfig("spark.flint.job.warmpoolEnabled")
+      .doc("Enable warmPool mode for the EMR Job to reduce startup times")
       .createWithDefault("false")
 
   val MAX_EXECUTORS_COUNT = FlintConfig("spark.dynamicAllocation.maxExecutors").createOptional()
