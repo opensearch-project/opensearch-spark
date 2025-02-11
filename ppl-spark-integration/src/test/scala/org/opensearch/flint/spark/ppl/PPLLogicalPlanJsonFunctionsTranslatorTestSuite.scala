@@ -209,7 +209,7 @@ class PPLLogicalPlanJsonFunctionsTranslatorTestSuite
     val jsonObjExp =
       Literal("""{"a":[{"b":1},{"c":2}]}""")
     val jsonFunc =
-      Alias(visit("json_delete", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit("json_set", util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val expectedPlan = Project(Seq(UnresolvedStar(None)), eval)
     comparePlans(expectedPlan, logPlan, false)
