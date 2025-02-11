@@ -271,6 +271,7 @@ Example:
 **Description**
 
 `json_append(json_string, array(key1, value1, key2, value2, ...))` appends values to end of an array at key within the json elements. Returns the updated json object after appending.
+`json_append` is identical to `json_extend` function except that it does not flatten given arrays before appending them.
 
 **Argument type:**
 - \<json_string\> must be a JSON_STRING.
@@ -287,7 +288,6 @@ Append adds the value to the end of the existing array with the following cases:
   - path is an existing array not empty - the value are added to the array's tail
   - path not found - the value are added to the root of the json tree
   - path is an existing array is empty - create a new array with the given value
-  - json_append is identical to json_extend function except that it does not flatten given arrays before appending them.
 
 Example:
 
@@ -320,6 +320,7 @@ Example:
 **Description**
 
 `json_extend(json_string, array(key1, value1, key2, value2, ...))` extends values to end of an array at path_key within the json elements. Returns the updated json object after extending. 
+`json_extend` is identical to `json_append` function except that it flattens given arrays before appending.
 
 **Argument type:**
 - \<json_string\> must be a JSON_STRING.
@@ -336,7 +337,6 @@ Extends adds the value to the end of the existing array with the following cases
 - path is an existing array not empty - the value are added to the array's tail
 - path not found - the value are added to the root of the json tree
 - path is an existing array is empty - create a new array with the given value
-- json_extend is identical to json_append function except that it flattens given arrays before appending.
 
 Example:
 

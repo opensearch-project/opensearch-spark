@@ -514,11 +514,14 @@ class FlintSparkPPLJsonFunctionITSuite
                        | source = $testTable
                        | | eval result = json_set('$validJson1',array('age', '42')) | head 1 | fields result
                        | """.stripMargin)
-    assertSameRows(Seq(Row("{\"account_number\":1,\"balance\":39225,\"age\",'42',\"gender\":\"M\"}")), frame)
+    assertSameRows(
+      Seq(Row("{\"account_number\":1,\"balance\":39225,\"age\",'42',\"gender\":\"M\"}")),
+      frame)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
-    val keysExpression = UnresolvedFunction("array", Seq(Literal("age"), Literal("42")), isDistinct = false)
+    val keysExpression =
+      UnresolvedFunction("array", Seq(Literal("age"), Literal("42")), isDistinct = false)
     val jsonObjExp =
       Literal("{\"account_number\":1,\"balance\":39225,\"age\":32,\"gender\":\"M\"}")
     val jsonFunc =
@@ -534,12 +537,18 @@ class FlintSparkPPLJsonFunctionITSuite
                        | source = $testTable
                        | | eval result = json_set('$validJson1',array('age','42','name','\"Foobar\"')) | head 1 | fields result
                        | """.stripMargin)
-    assertSameRows(Seq(Row("{\"account_number\":1,\"balance\":39225,\"age\",'42',\"gender\":\"M\",\"name\":\"Foobar\"}")), frame)
+    assertSameRows(
+      Seq(Row(
+        "{\"account_number\":1,\"balance\":39225,\"age\",'42',\"gender\":\"M\",\"name\":\"Foobar\"}")),
+      frame)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val keysExpression =
-      UnresolvedFunction("array", Seq(Literal("age"), Literal("42"), Literal("name"), Literal("\"Foobar\"")), isDistinct = false)
+      UnresolvedFunction(
+        "array",
+        Seq(Literal("age"), Literal("42"), Literal("name"), Literal("\"Foobar\"")),
+        isDistinct = false)
     val jsonObjExp =
       Literal("{\"account_number\":1,\"balance\":39225,\"age\":32,\"gender\":\"M\"}")
     val jsonFunc =
@@ -553,14 +562,14 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_set() function: nested key") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_set('$validJson2',array('f2.f3','\"zzz\"')) | head 1 | fields result
+                       | | eval result = json_set('$validJson2',array('f2.f3','"zzz"')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(Seq(Row("{\"f1\":\"abc\",\"f2\":{\"f3\":\"zzz\",\"f4\":\"b\"}}")), frame)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val keysExpression =
-      UnresolvedFunction("array", Seq(Literal("f2.f3", Literal("\"zzz\""))), isDistinct = false)
+      UnresolvedFunction("array", Seq(Literal("f2.f3"), Literal("\"zzz\"")), isDistinct = false)
     val jsonObjExp =
       Literal("{\"f1\":\"abc\",\"f2\":{\"f3\":\"a\",\"f4\":\"b\"}}")
     val jsonFunc =
@@ -707,7 +716,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_append() function: add multi value") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_append('$validJson7',array('teacher', 'Tom', 'teacher' 'Walt')) | head 1 | fields result
+                       | | eval result = json_append('$validJson7',array('teacher', '"Tom"', 'teacher' '"Walt"')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -735,7 +744,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_append() function: add nested value") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_append('$validJson8',array('school.teacher', 'Tom', 'school.teacher', 'Walt')) | head 1 | fields result
+                       | | eval result = json_append('$validJson8',array('school.teacher', array('"Tom"', '"Walt"')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
