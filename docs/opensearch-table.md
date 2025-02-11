@@ -69,6 +69,7 @@ The following table defines the data type mapping between OpenSearch index field
 | date(Date)               | DateType                          |
 | keyword                  | StringType, VarcharType, CharType |
 | text                     | StringType(meta(osType)=text)     |
+| ip                       | StringType(meta(osType)=ip)       |
 | object                   | StructType                        |
 | alias                    | Inherits referenced field type    |
 

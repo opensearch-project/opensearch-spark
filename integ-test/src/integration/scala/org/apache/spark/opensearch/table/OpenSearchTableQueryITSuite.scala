@@ -121,4 +121,27 @@ class OpenSearchTableQueryITSuite
       checkKeywordsExistsInExplain(df, expectedPlanFragment: _*)
     }
   }
+
+  test("Query index with ip data type") {
+    val index1 = "t0001"
+    withIndexName(index1) {
+      indexWithIp(index1)
+
+      var df = spark.sql(s"""SELECT client, server FROM ${catalogName}.default.$index1""")
+      val ip0 = "192.168.0.10"
+      val ip1 = "192.168.0.11"
+      val ip2 = "100.10.12.123"
+      val ip3 = "2001:db8:3333:4444:5555:6666:7777:8888"
+      val ip4 = "2001:db8::1234:5678"
+      checkAnswer(df, Seq(Row(ip0, ip2), Row(ip1, ip2), Row(ip3, ip4)))
+
+      df = spark.sql(
+        s"""SELECT client, server FROM ${catalogName}.default.$index1 WHERE client = '192.168.0.10'""")
+      checkAnswer(df, Seq(Row(ip0, ip2)))
+
+      df = spark.sql(
+        s"""SELECT client, server FROM ${catalogName}.default.$index1 WHERE server = '2001:db8::1234:5678'""")
+      checkAnswer(df, Seq(Row(ip3, ip4)))
+    }
+  }
 }
