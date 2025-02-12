@@ -21,5 +21,6 @@ trait OpenSearchCatalogSuite extends FlintSparkSuite {
     spark.conf.set(
       s"spark.sql.catalog.${catalogName}.opensearch.write.refresh_policy",
       "wait_for")
+    spark.conf.set("spark.sql.session.timeZone", "UTC")
   }
 }
