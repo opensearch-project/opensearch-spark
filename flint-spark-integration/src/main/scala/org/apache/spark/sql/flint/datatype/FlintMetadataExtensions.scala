@@ -40,9 +40,13 @@ object FlintMetadataExtensions {
     def keywordSubfield: Option[String] = {
       if (metadata.contains(FIELDS_NAMES_KEY)) {
         val multiFieldMetadata = metadata.getMetadata(FIELDS_NAMES_KEY)
-        multiFieldMetadata
-          .getStringArray(KEYWORD_TYPE)
-          .headOption
+        if (multiFieldMetadata.contains(KEYWORD_TYPE)) {
+          multiFieldMetadata
+            .getStringArray(KEYWORD_TYPE)
+            .headOption
+        } else {
+          None
+        }
       } else {
         None
       }
