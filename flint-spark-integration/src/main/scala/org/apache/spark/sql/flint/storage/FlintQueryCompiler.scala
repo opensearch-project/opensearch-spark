@@ -13,7 +13,8 @@ import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.parseColumnPath
 import org.apache.spark.sql.connector.expressions.{Expression, FieldReference, LiteralValue}
 import org.apache.spark.sql.connector.expressions.filter.{And, Predicate}
 import org.apache.spark.sql.flint.datatype.FlintDataType.STRICT_DATE_OPTIONAL_TIME_FORMATTER_WITH_NANOS
-import org.apache.spark.sql.flint.datatype.FlintMetadataHelper
+import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions
+import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.MetadataExtension
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -157,7 +158,7 @@ case class FlintQueryCompiler(schema: StructType) {
       case Some((_, field)) =>
         field.dataType match {
           case StringType =>
-            FlintMetadataHelper.isTextField(field.metadata)
+            field.metadata.isTextField
           case _ => false
         }
       case None => false
@@ -169,8 +170,7 @@ case class FlintQueryCompiler(schema: StructType) {
    */
   protected def getKeywordSubfield(attribute: String): Option[String] = {
     schema.apply(attribute) match {
-      case StructField(_, StringType, _, metadata) =>
-        FlintMetadataHelper.getKeywordSubfield(metadata)
+      case StructField(_, StringType, _, metadata) => metadata.keywordSubfield
       case _ => None
     }
   }

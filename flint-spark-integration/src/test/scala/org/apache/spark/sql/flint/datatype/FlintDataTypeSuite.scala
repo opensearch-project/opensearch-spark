@@ -10,6 +10,7 @@ import org.json4s.jackson.JsonMethods
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.FlintSuite
+import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.MetadataBuilderExtension
 import org.apache.spark.sql.types._
 
 class FlintDataTypeSuite extends FlintSuite with Matchers {
@@ -221,12 +222,9 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
                           |    }
                           |  }
                           |}""".stripMargin
-    val mb = new MetadataBuilder()
-    FlintMetadataHelper.addTextFieldMetadata(mb)
-    FlintMetadataHelper.addMultiFieldMetadata(
-      mb,
-      Map("city.raw" -> "keyword", "city.keyword" -> "keyword"))
-    val metadata = mb.build()
+    val metadata = new MetadataBuilder().withTextField
+      .withMultiFields(Map("city.raw" -> "keyword", "city.keyword" -> "keyword"))
+      .build()
     val expectedStructType = StructType(StructField("city", StringType, true, metadata) :: Nil)
 
     FlintDataType.deserialize(flintDataType) should contain theSameElementsAs expectedStructType
@@ -241,9 +239,7 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
                           |  }
                           |}""".stripMargin
 
-    val mb = new MetadataBuilder()
-    FlintMetadataHelper.addTextFieldMetadata(mb)
-    val metadata = mb.build()
+    val metadata = new MetadataBuilder().withTextField().build()
 
     val expectedStructType =
       StructType(StructField("description", StringType, true, metadata) :: Nil)
