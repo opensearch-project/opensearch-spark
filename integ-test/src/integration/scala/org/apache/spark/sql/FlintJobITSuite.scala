@@ -16,12 +16,15 @@ import scala.util.{Failure, Success}
 import org.opensearch.action.admin.indices.settings.put.UpdateSettingsRequest
 import org.opensearch.action.get.GetRequest
 import org.opensearch.client.RequestOptions
+import org.opensearch.flint.common.model.FlintStatement
+import org.opensearch.flint.common.scheduler.model.LangType
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.spark.{FlintSparkIndexMonitor, FlintSparkSuite}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.{contain, defined}
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
+import org.apache.spark.sql.FlintREPL.currentTimeProvider
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf._
@@ -39,6 +42,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
   val appId = "00feq82b752mbt0p"
   val dataSourceName = "my_glue1"
   val queryId = "testQueryId"
+  val requestIndex = "testRequestIndex"
   var osClient: OSClient = _
   val threadLocalFuture = new ThreadLocal[Future[Unit]]()
 
@@ -83,6 +87,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
 
   def createJobOperator(query: String, jobRunId: String): JobOperator = {
     val streamingRunningCount = new AtomicInteger(0)
+    val statementRunningCount = new AtomicInteger(0)
 
     /*
      * Because we cannot test from FlintJob.main() for the reason below, we have to configure
@@ -90,17 +95,29 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
      */
     spark.conf.set(DATA_SOURCE_NAME.key, dataSourceName)
     spark.conf.set(JOB_TYPE.key, FlintJobType.STREAMING)
+    spark.conf.set(REQUEST_INDEX.key, requestIndex)
+
+    val flintStatement =
+      new FlintStatement(
+        "running",
+        query,
+        "",
+        queryId,
+        LangType.SQL,
+        currentTimeProvider.currentEpochMillis(),
+        Option.empty,
+        Map.empty)
 
     val job = JobOperator(
       appId,
       jobRunId,
       spark,
-      query,
-      queryId,
+      flintStatement,
       dataSourceName,
       resultIndex,
       FlintJobType.STREAMING,
-      streamingRunningCount)
+      streamingRunningCount,
+      statementRunningCount)
     job.terminateJVM = false
     job
   }
