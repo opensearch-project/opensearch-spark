@@ -31,6 +31,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import static org.opensearch.sql.expression.function.JsonUtils.objectMapper;
