@@ -10,6 +10,7 @@ import org.json4s.jackson.JsonMethods
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.FlintSuite
+import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.MetadataBuilderExtension
 import org.apache.spark.sql.types._
 
 class FlintDataTypeSuite extends FlintSuite with Matchers {
@@ -203,6 +204,46 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
       StructField("varcharTextField", StringType, true, textMetadata) ::
         StructField("charTextField", StringType, true, textMetadata) ::
         Nil)
+  }
+
+  test("text field with multi-fields deserialize") {
+    val flintDataType = """{
+                          |  "properties": {
+                          |    "city": {
+                          |      "type": "text",
+                          |      "fields": {
+                          |        "raw": {
+                          |          "type": "keyword"
+                          |        },
+                          |        "keyword": {
+                          |          "type": "keyword"
+                          |        }
+                          |      }
+                          |    }
+                          |  }
+                          |}""".stripMargin
+    val metadata = new MetadataBuilder().withTextField
+      .withMultiFields(Map("city.raw" -> "keyword", "city.keyword" -> "keyword"))
+      .build()
+    val expectedStructType = StructType(StructField("city", StringType, true, metadata) :: Nil)
+
+    FlintDataType.deserialize(flintDataType) should contain theSameElementsAs expectedStructType
+  }
+
+  test("text field without multi-fields deserialize") {
+    val flintDataType = """{
+                          |  "properties": {
+                          |    "description": {
+                          |      "type": "text"
+                          |    }
+                          |  }
+                          |}""".stripMargin
+
+    val metadata = new MetadataBuilder().withTextField().build()
+
+    val expectedStructType =
+      StructType(StructField("description", StringType, true, metadata) :: Nil)
+    FlintDataType.deserialize(flintDataType) should contain theSameElementsAs expectedStructType
   }
 
   test("flint date type deserialize and serialize") {

@@ -9,9 +9,12 @@ import scala.io.Source
 
 import org.apache.spark.sql.catalyst.expressions.Literal
 import org.apache.spark.sql.catalyst.util.{DateTimeUtils, TimestampFormatter}
+import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.parseColumnPath
 import org.apache.spark.sql.connector.expressions.{Expression, FieldReference, LiteralValue}
 import org.apache.spark.sql.connector.expressions.filter.{And, Predicate}
 import org.apache.spark.sql.flint.datatype.FlintDataType.STRICT_DATE_OPTIONAL_TIME_FORMATTER_WITH_NANOS
+import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions
+import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.MetadataExtension
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -89,7 +92,16 @@ case class FlintQueryCompiler(schema: StructType) {
       case "NOT" =>
         s"""{"bool":{"must_not":${compile(p.children()(0))}}}"""
       case "=" =>
-        s"""{"term":{"${compile(p.children()(0))}":{"value":${compile(p.children()(1))}}}}"""
+        val fieldName = compile(p.children()(0))
+        if (isTextField(fieldName)) {
+          getKeywordSubfield(fieldName) match {
+            case Some(keywordField) =>
+              s"""{"term":{"$keywordField":{"value":${compile(p.children()(1))}}}}"""
+            case None => ""
+          }
+        } else {
+          s"""{"term":{"$fieldName":{"value":${compile(p.children()(1))}}}}"""
+        }
       case ">" =>
         s"""{"range":{"${compile(p.children()(0))}":{"gt":${compile(p.children()(1))}}}}"""
       case ">=" =>
@@ -142,10 +154,24 @@ case class FlintQueryCompiler(schema: StructType) {
    * return true if the field is Flint Text field.
    */
   protected def isTextField(attribute: String): Boolean = {
+    schema.findNestedField(parseColumnPath(attribute)) match {
+      case Some((_, field)) =>
+        field.dataType match {
+          case StringType =>
+            field.metadata.isTextField
+          case _ => false
+        }
+      case None => false
+    }
+  }
+
+  /**
+   * Get keyword subfield name if available for text fields
+   */
+  protected def getKeywordSubfield(attribute: String): Option[String] = {
     schema.apply(attribute) match {
-      case StructField(_, StringType, _, metadata) =>
-        metadata.contains("osType") && metadata.getString("osType") == "text"
-      case _ => false
+      case StructField(_, StringType, _, metadata) => metadata.keywordSubfield
+      case _ => None
     }
   }
 }

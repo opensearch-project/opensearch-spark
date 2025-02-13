@@ -12,6 +12,7 @@ import org.json4s.jackson.JsonMethods
 import org.json4s.native.Serialization
 
 import org.apache.spark.sql.catalyst.util.DateFormatter
+import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.{MetadataBuilderExtension, MetadataExtension}
 import org.apache.spark.sql.types._
 
 /**
@@ -95,10 +96,17 @@ object FlintDataType {
           (fieldProperties \ "format")
             .extractOrElse(DEFAULT_DATE_FORMAT))
 
-      // Text
+      // Text with possible multi-fields
       case JString("text") =>
-        metadataBuilder.putString("osType", "text")
-        StringType
+        metadataBuilder.withTextField()
+        (fieldProperties \ "fields") match {
+          case fields: JObject =>
+            metadataBuilder.withMultiFields(fields.obj.map { case (name, props) =>
+              (s"$fieldName.$name", (props \ "type").extract[String])
+            }.toMap)
+            StringType
+          case _ => StringType
+        }
 
       // object types
       case JString("object") | JNothing => deserializeJValue(fieldProperties)
@@ -155,7 +163,7 @@ object FlintDataType {
 
       // string
       case StringType | _: VarcharType | _: CharType =>
-        if (metadata.contains("osType") && metadata.getString("osType") == "text") {
+        if (metadata.isTextField) {
           JObject("type" -> JString("text"))
         } else {
           JObject("type" -> JString("keyword"))
