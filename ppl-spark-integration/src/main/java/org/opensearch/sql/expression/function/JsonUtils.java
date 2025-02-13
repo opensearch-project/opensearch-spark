@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
 
 public interface JsonUtils {
     ObjectMapper objectMapper = new ObjectMapper();
@@ -26,27 +25,13 @@ public interface JsonUtils {
         }
     }
 
-    /**
-     * update a nested value in a json object.
-     */
-    static void updateNestedValue(List <Object> args){
-        Object currentObj = args.get(0);
-        String[] pathParts = (String[]) args.get(1);
-        int depth = (Integer) args.get(2);
-        Object valueToUpdate = args.get(3);
-
-        updateNestedValue(currentObj, pathParts, depth, valueToUpdate);
+    @FunctionalInterface
+    interface UpdateConsumer {
+        void apply(Map<String, Object> obj, String key, Object value);
     }
 
-    /**
-     * update a nested value in a json object.
-     *
-     * @param currentObj - json object to traverse
-     * @param pathParts - key at path to update
-     * @param depth - current traversal depth
-     * @param valueToUpdate - value to update
-     */
-    private static void updateNestedValue(Object currentObj, String[] pathParts, int depth, Object valueToUpdate) {
+    private static void traverseNestedObject(Object currentObj, String[] pathParts, int depth,
+                                     Object valueToUpdate, UpdateConsumer updateObjectFunction) {
         if (currentObj == null || depth >= pathParts.length) {
             return;
         }
@@ -56,90 +41,80 @@ public interface JsonUtils {
             String currentKey = pathParts[depth];
 
             if (depth == pathParts.length - 1) {
-                currentMap.put(currentKey, valueToUpdate);
+                updateObjectFunction.apply(currentMap, currentKey, valueToUpdate);
             } else {
                 // Continue traversing
-                currentMap.computeIfAbsent(currentKey, k -> new LinkedHashMap<>()); // Create map if not present
-                updateNestedValue(currentMap.get(currentKey), pathParts, depth + 1, valueToUpdate);
+                currentMap.computeIfAbsent(currentKey,
+                    k -> new LinkedHashMap<>()); // Create map if not present
+                traverseNestedObject(currentMap.get(currentKey), pathParts, depth + 1,
+                    valueToUpdate, updateObjectFunction);
             }
         } else if (currentObj instanceof List) {
             // If the current object is a list, process each map in the list
             List<Object> list = (List<Object>) currentObj;
             for (Object item : list) {
                 if (item instanceof Map) {
-                    updateNestedValue(item, pathParts, depth, valueToUpdate);
+                    traverseNestedObject(item, pathParts, depth, valueToUpdate, updateObjectFunction);
                 }
             }
         }
     }
 
-    /**
-     * append nested value to the json object.
-     */
-    static void appendNestedValue(List <Object> args) {
-        Object currentObj = args.get(0);
-        String[] pathParts = (String[]) args.get(1);
-        int depth = (Integer) args.get(2);
-        Object valueToUpdate = args.get(3);
-
-        appendNestedValue(currentObj, pathParts, depth, valueToUpdate, false);
-    }
-
-    /**
-     * append nested value to the json object.
-     */
-    static void extendNestedValue(List <Object> args) {
-        Object currentObj = args.get(0);
-        String[] pathParts = (String[]) args.get(1);
-        int depth = (Integer) args.get(2);
-        Object valueToUpdate = args.get(3);
-
-        appendNestedValue(currentObj, pathParts, depth, valueToUpdate, true);
-    }
-
-    /**
-     * append nested value to the json object.
-     *
-     * @param currentObj - json object to traverse
-     * @param pathParts - key at path to update
-     * @param depth - current traversal depth
-     * @param valueToAppend - value to add list
-     * @param flattenValue - if value should be flattened first
-     */
-    private static void appendNestedValue(Object currentObj, String[] pathParts, int depth, Object valueToAppend, boolean flattenValue) {
-        if (currentObj == null || depth >= pathParts.length) {
-            return;
+    static String updateNestedJson(String jsonStr, List<String> pathValues, UpdateConsumer updateFieldConsumer) {
+        if (jsonStr == null) {
+            return null;
         }
+        // don't update if the list is empty, or the list is not key-value pairs
+        if (pathValues.isEmpty()) {
+            return jsonStr;
+        }
+        try {
+            // Parse the JSON string into a Map
+            Map<String, Object> jsonMap = objectMapper.readValue(jsonStr, Map.class);
 
-        if (currentObj instanceof Map) {
-            Map<String, Object> currentMap = (Map<String, Object>) currentObj;
-            String currentKey = pathParts[depth];
-
-            if (depth == pathParts.length - 1) {
-                // If it's the last key, append to the array
-                currentMap.computeIfAbsent(currentKey, k -> new ArrayList<>()); // Create list if not present
-                Object existingValue = currentMap.get(currentKey);
-
-                if (existingValue instanceof List) {
-                    List<Object> existingList = (List<Object>) existingValue;
-                    if (flattenValue && valueToAppend instanceof List) {
-                        existingList.addAll((List) valueToAppend);
-                    } else {
-                        existingList.add(valueToAppend);
-                    }
+            // Iterate through the key-value pairs and update the json
+            var iter = pathValues.iterator();
+            while (iter.hasNext()) {
+                String path = iter.next();
+                if (!iter.hasNext()) {
+                    // no value provided and cannot update anything
+                    break;
                 }
+                String[] pathParts = path.split("\\.");
+                Object parsedValue = parseValue(iter.next());
+
+                traverseNestedObject(jsonMap, pathParts, 0, parsedValue, updateFieldConsumer);
+            }
+
+            // Convert the updated map back to JSON
+            return objectMapper.writeValueAsString(jsonMap);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    static void appendObjectValue(Map<String, Object> obj, String key, Object value) {
+        // If it's the last key, append to the array
+        obj.computeIfAbsent(key, k -> new ArrayList<>()); // Create list if not present
+        Object existingValue = obj.get(key);
+
+        if (existingValue instanceof List) {
+            List<Object> list = (List<Object>) existingValue;
+            list.add(value);
+        }
+    }
+
+    static void extendObjectValue(Map<String, Object> obj, String key, Object value) {
+        // If it's the last key, append to the array
+        obj.computeIfAbsent(key, k -> new ArrayList<>()); // Create list if not present
+        Object existingValue = obj.get(key);
+
+        if (existingValue instanceof List) {
+            List<Object> existingList = (List<Object>) existingValue;
+            if (value instanceof List) {
+                existingList.addAll((List) value);
             } else {
-                // Continue traversing
-                currentMap.computeIfAbsent(currentKey, k -> new LinkedHashMap<>()); // Create map if not present
-                appendNestedValue(currentMap.get(currentKey), pathParts, depth + 1, valueToAppend, flattenValue);
-            }
-        } else if (currentObj instanceof List) {
-            // If the current object is a list, process each map in the list
-            List<Object> list = (List<Object>) currentObj;
-            for (Object item : list) {
-                if (item instanceof Map) {
-                    appendNestedValue(item, pathParts, depth, valueToAppend, flattenValue);
-                }
+                existingList.add(value);
             }
         }
     }

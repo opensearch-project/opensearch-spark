@@ -8,7 +8,6 @@ package org.opensearch.sql.expression.function;
 import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddressString;
 import inet.ipaddr.IPAddressStringParameters;
-import java.util.function.Consumer;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.types.DataTypes;
@@ -32,13 +31,11 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 
-import static org.opensearch.sql.expression.function.JsonUtils.appendNestedValue;
 import static org.opensearch.sql.expression.function.JsonUtils.objectMapper;
-import static org.opensearch.sql.expression.function.JsonUtils.parseValue;
 import static org.opensearch.sql.expression.function.JsonUtils.removeNestedKey;
+import static org.opensearch.sql.expression.function.JsonUtils.updateNestedJson;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 
 public interface SerializableUdf {
@@ -83,45 +80,6 @@ public interface SerializableUdf {
         }
     };
 
-    abstract class NestedFunction2<T1, T2, R> extends AbstractFunction2<T1, T2, R>
-        implements Serializable {
-
-        protected String updateNestedJson(String jsonStr, WrappedArray<String> elements, Consumer<List> updateFieldConsumer) {
-            if (jsonStr == null) {
-                return null;
-            }
-            try {
-                List<String> pathValues = JavaConverters.mutableSeqAsJavaList(elements);
-                // don't update if the list is empty, or the list is not key-value pairs
-                if (pathValues.isEmpty()) {
-                    return jsonStr;
-                }
-
-                // Parse the JSON string into a Map
-                Map<String, Object> jsonMap = objectMapper.readValue(jsonStr, Map.class);
-
-                // Iterate through the key-value pairs and update the json
-                var iter = pathValues.iterator();
-                while (iter.hasNext()) {
-                    String path = iter.next();
-                    if (!iter.hasNext()) {
-                        // no value provided and cannot update anything
-                        break;
-                    }
-                    String[] pathParts = path.split("\\.");
-                    Object parsedValue = parseValue(iter.next());
-
-                    updateFieldConsumer.accept(List.of(jsonMap, pathParts, 0, parsedValue));
-                }
-
-                // Convert the updated map back to JSON
-                return objectMapper.writeValueAsString(jsonMap);
-            } catch (Exception e) {
-                return null;
-            }
-        }
-    }
-
     /**
      * Update the specified key-value pairs in a JSON string. If the key doesn't exist, the key-value is added.
      *
@@ -129,10 +87,10 @@ public interface SerializableUdf {
      * @param elements   A list of key-values pairs where the key is the key/path and value item is the updated value.
      * @return A new JSON string with updated values.
      */
-    Function2<String, WrappedArray<String>, String> jsonSetFunction = new NestedFunction2<>() {
+    Function2<String, WrappedArray<String>, String> jsonSetFunction = new SerializableAbstractFunction2<>() {
         @Override
         public String apply(String jsonStr, WrappedArray<String> elements) {
-            return updateNestedJson(jsonStr, elements, JsonUtils::updateNestedValue);
+            return updateNestedJson(jsonStr, JavaConverters.mutableSeqAsJavaList(elements), (obj, key, value) -> obj.put(key, value));
         }
     };
 
@@ -143,10 +101,10 @@ public interface SerializableUdf {
      * @param elements   A list of path-values where the first item is the path and subsequent items are values to append.
      * @return The updated JSON string.
      */
-    Function2<String, WrappedArray<String>, String> jsonAppendFunction = new NestedFunction2<>() {
+    Function2<String, WrappedArray<String>, String> jsonAppendFunction = new SerializableAbstractFunction2<>() {
         @Override
         public String apply(String jsonStr, WrappedArray<String> elements) {
-            return updateNestedJson(jsonStr, elements, JsonUtils::appendNestedValue);
+            return updateNestedJson(jsonStr, JavaConverters.mutableSeqAsJavaList(elements), JsonUtils::appendObjectValue);
         }
     };
 
@@ -157,10 +115,10 @@ public interface SerializableUdf {
      * @param elements   A list of path-values where the first item is the path and subsequent items are values to append.
      * @return The updated JSON string.
      */
-    Function2<String, WrappedArray<String>, String> jsonExtendFunction = new NestedFunction2<>() {
+    Function2<String, WrappedArray<String>, String> jsonExtendFunction = new SerializableAbstractFunction2<>() {
         @Override
         public String apply(String jsonStr, WrappedArray<String> elements) {
-            return updateNestedJson(jsonStr, elements, JsonUtils::extendNestedValue);
+            return updateNestedJson(jsonStr, JavaConverters.mutableSeqAsJavaList(elements), JsonUtils::extendObjectValue);
         }
     };
 
