@@ -307,7 +307,7 @@ Example:
     |{"teacher":["Alice","Tom","Walt"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}                                 |
     +-----------------------------------------------------------------------------------------------------------------------------------+
 
-    os> source=people | eval append = json_append(`{"school":{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}}`, array('school.teacher', array('"Tom"', '"Walt"'))) | head 1 | fields append
+    os> source=people | eval append = json_append(`{"school":{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}}`, array('school.teacher', '["Tom", "Walt"]')) | head 1 | fields append
     fetched rows / total rows = 1/1
     +-------------------------------------------------------------------------------------------------------------------------+
     | append                                                                                                                  |
@@ -356,7 +356,7 @@ Example:
     |{"teacher":["Alice","Tom","Walt"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}                                 |
     +-----------------------------------------------------------------------------------------------------------------------------------+
 
-    os> source=people | eval extend = json_extend(`{"school":{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}}`, array('school.teacher', array('"Tom"', '"Walt"'))) | head 1 | fields extend
+    os> source=people | eval extend = json_extend(`{"school":{"teacher":["Alice"],"student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}}`, array('school.teacher', '["Tom", "Walt"]')) | head 1 | fields extend
     fetched rows / total rows = 1/1
     +-------------------------------------------------------------------------------------------------------------------------+
     | extend                                                                                                                  |
