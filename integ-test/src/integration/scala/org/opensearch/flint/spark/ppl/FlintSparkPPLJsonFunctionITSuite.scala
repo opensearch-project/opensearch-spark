@@ -515,7 +515,7 @@ class FlintSparkPPLJsonFunctionITSuite
                        | | eval result = json_set('$validJson1',array('age', '42')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
-      Seq(Row("{\"account_number\":1,\"balance\":39225,\"age\",'42',\"gender\":\"M\"}")),
+      Seq(Row("{\"account_number\":1,\"balance\":39225,\"age\":42,\"gender\":\"M\"}")),
       frame)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
@@ -539,7 +539,7 @@ class FlintSparkPPLJsonFunctionITSuite
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
-        "{\"account_number\":1,\"balance\":39225,\"age\",'42',\"gender\":\"M\",\"name\":\"Foobar\"}")),
+        "{\"account_number\":1,\"balance\":39225,\"age\":42,\"gender\":\"M\",\"name\":\"Foobar\"}")),
       frame)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
@@ -593,7 +593,7 @@ class FlintSparkPPLJsonFunctionITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val keysExpression =
-      UnresolvedFunction("array", Seq(Literal("grade"), Literal(8)), isDistinct = false)
+      UnresolvedFunction("array", Seq(Literal("grade"), Literal("8")), isDistinct = false)
     val jsonObjExp =
       Literal(
         "{\"teacher\":\"Alice\",\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
@@ -610,7 +610,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_append() function: add single value") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_append('$validJson7',array('teacher', 'Tom')) | head 1 | fields result
+                       | | eval result = json_append('$validJson7',array('teacher', '"Tom"')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -620,7 +620,7 @@ class FlintSparkPPLJsonFunctionITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val keysExpression =
-      UnresolvedFunction("array", Seq(Literal("teacher"), Literal("Tom")), isDistinct = false)
+      UnresolvedFunction("array", Seq(Literal("teacher"), Literal("\"Tom\"")), isDistinct = false)
     val jsonObjExp =
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
@@ -635,7 +635,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_append() function: add single value key not found") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_append('$validJson7',array('headmaster', 'Tom')) | head 1 | fields result
+                       | | eval result = json_append('$validJson7',array('headmaster', '"Tom"')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -645,7 +645,10 @@ class FlintSparkPPLJsonFunctionITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val keysExpression =
-      UnresolvedFunction("array", Seq(Literal("headmaster"), Literal("Tom")), isDistinct = false)
+      UnresolvedFunction(
+        "array",
+        Seq(Literal("headmaster"), Literal("\"Tom\"")),
+        isDistinct = false)
     val jsonObjExp =
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
@@ -716,7 +719,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_append() function: add multi value") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_append('$validJson7',array('teacher', '"Tom"', 'teacher' '"Walt"')) | head 1 | fields result
+                       | | eval result = json_append('$validJson7', array('teacher', '"Tom"', 'teacher', '"Walt"')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -728,7 +731,7 @@ class FlintSparkPPLJsonFunctionITSuite
     val keysExpression =
       UnresolvedFunction(
         "array",
-        Seq(Literal("teacher"), Literal("Tom"), Literal("Walt")),
+        Seq(Literal("teacher"), Literal("\"Tom\""), Literal("teacher"), Literal("\"Walt\"")),
         isDistinct = false)
     val jsonObjExp =
       Literal(
@@ -744,7 +747,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_append() function: add nested value") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_append('$validJson8',array('school.teacher', array('"Tom"', '"Walt"')) | head 1 | fields result
+                       | | eval result = json_append('$validJson8', array('school.teacher', '"Tom"', 'school.teacher', '"Walt"')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -756,7 +759,11 @@ class FlintSparkPPLJsonFunctionITSuite
     val keysExpression =
       UnresolvedFunction(
         "array",
-        Seq(Literal("school.teacher"), Literal("Tom"), Literal("Walt")),
+        Seq(
+          Literal("school.teacher"),
+          Literal("\"Tom\""),
+          Literal("school.teacher"),
+          Literal("\"Walt\"")),
         isDistinct = false)
     val jsonObjExp =
       Literal(
@@ -774,7 +781,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_extend() function: add single value") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_extend('$validJson7',array('teacher', 'Tom')) | head 1 | fields result
+                       | | eval result = json_extend('$validJson7',array('teacher', '"Tom"')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -784,7 +791,7 @@ class FlintSparkPPLJsonFunctionITSuite
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
     val keysExpression =
-      UnresolvedFunction("array", Seq(Literal("teacher"), Literal("Tom")), isDistinct = false)
+      UnresolvedFunction("array", Seq(Literal("teacher"), Literal("\"Tom\"")), isDistinct = false)
     val jsonObjExp =
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
@@ -880,7 +887,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_extend() function: add multi value") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_extend('$validJson7',array('teacher', array('Tom', 'Walt'))) | head 1 | fields result
+                       | | eval result = json_extend('$validJson7', array('teacher', '"Tom"', 'teacher', '"Walt"')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -892,7 +899,7 @@ class FlintSparkPPLJsonFunctionITSuite
     val keysExpression =
       UnresolvedFunction(
         "array",
-        Seq(Literal("teacher"), Literal("Tom"), Literal("Walt")),
+        Seq(Literal("teacher"), Literal("\"Tom\""), Literal("teacher"), Literal("\"Walt\"")),
         isDistinct = false)
     val jsonObjExp =
       Literal(
@@ -908,7 +915,7 @@ class FlintSparkPPLJsonFunctionITSuite
   test("test json_extend() function: add nested value") {
     val frame = sql(s"""
                        | source = $testTable
-                       | | eval result = json_extend('$validJson8',array('school.teacher', array('Tom', 'Walt'))) | head 1 | fields result
+                       | | eval result = json_extend('$validJson8', array('school.teacher', '"Tom"', 'school.teacher', '"Walt"')) | head 1 | fields result
                        | """.stripMargin)
     assertSameRows(
       Seq(Row(
@@ -920,7 +927,11 @@ class FlintSparkPPLJsonFunctionITSuite
     val keysExpression =
       UnresolvedFunction(
         "array",
-        Seq(Literal("school.teacher"), Literal("Tom"), Literal("Walt")),
+        Seq(
+          Literal("school.teacher"),
+          Literal("\"Tom\""),
+          Literal("school.teacher"),
+          Literal("\"Walt\"")),
         isDistinct = false)
     val jsonObjExp =
       Literal(
