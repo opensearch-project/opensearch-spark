@@ -1,0 +1,7 @@
+request,size,year,day,month
+GET /images/hm_bg.jpg HTTP/1.0,24736,2023,1,10
+GET /images/hm_bg.jpg HTTP/1.0,24736,2023,1,10
+GET /images/hm_bg.jpg HTTP/1.0,24736,2023,1,10
+GET /french/splash_inet.html HTTP/1.0,3781,2023,1,10
+GET /images/hm_nbg.jpg HTTP/1.0,0,2023,1,10
+GET /images/hm_bg.jpg HTTP/1.0,24736,2023,1,10

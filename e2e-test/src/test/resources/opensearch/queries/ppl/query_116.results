@@ -1,0 +1,141 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "c_custkey",
+      "type": "long"
+    },
+    {
+      "name": "c_name",
+      "type": "string"
+    },
+    {
+      "name": "c_address",
+      "type": "string"
+    },
+    {
+      "name": "c_nationkey",
+      "type": "long"
+    },
+    {
+      "name": "c_phone",
+      "type": "string"
+    },
+    {
+      "name": "c_acctbal",
+      "type": "double"
+    },
+    {
+      "name": "c_mktsegment",
+      "type": "string"
+    },
+    {
+      "name": "c_comment",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      123,
+      "Customer#000000123",
+      "YsOnaaER8MkvK5cpf4VSlq",
+      5,
+      "15-817-151-1168",
+      5897.83,
+      "BUILDING",
+      "ependencies. regular, ironic requests are fluffily regu"
+    ],
+    [
+      108,
+      "Customer#000000108",
+      "GPoeEvpKo1",
+      5,
+      "15-908-619-7526",
+      2259.38,
+      "BUILDING",
+      "refully ironic deposits sleep. regular, unusual requests wake slyly"
+    ],
+    [
+      102,
+      "Customer#000000102",
+      "UAtflJ06 fn9zBfKjInkQZlWtqaA",
+      19,
+      "29-324-978-8538",
+      8462.17,
+      "BUILDING",
+      "ously regular dependencies nag among the furiously express dinos. blithely final"
+    ],
+    [
+      90,
+      "Customer#000000090",
+      "QxCzH7VxxYUWwfL7",
+      16,
+      "26-603-491-1238",
+      7354.23,
+      "BUILDING",
+      "sly across the furiously even "
+    ],
+    [
+      81,
+      "Customer#000000081",
+      "SH6lPA7JiiNC6dNTrR",
+      20,
+      "30-165-277-3269",
+      2023.71,
+      "BUILDING",
+      "r packages. fluffily ironic requests cajole fluffily. ironically regular theodolit"
+    ],
+    [
+      48,
+      "Customer#000000048",
+      "0UU iPhBupFvemNB",
+      0,
+      "10-508-348-5882",
+      3792.5,
+      "BUILDING",
+      "re fluffily pending foxes. pending, bold platelets sleep slyly. even platelets cajo"
+    ],
+    [
+      42,
+      "Customer#000000042",
+      "ziSrvyyBke",
+      5,
+      "15-416-330-4175",
+      8727.01,
+      "BUILDING",
+      "ssly according to the pinto beans: carefully special requests across the even, pending accounts wake special"
+    ],
+    [
+      36,
+      "Customer#000000036",
+      "3TvCzjuPzpJ0,DdJ8kW5U",
+      21,
+      "31-704-669-5769",
+      4987.27,
+      "BUILDING",
+      "haggle. enticing, quiet platelets grow quickly bold sheaves. carefully regular acc"
+    ],
+    [
+      30,
+      "Customer#000000030",
+      "nJDsELGAavU63Jl0c5NKsKfL8rIJQQkQnYL2QJY",
+      1,
+      "11-764-165-5076",
+      9321.01,
+      "BUILDING",
+      "lithely final requests. furiously unusual account"
+    ],
+    [
+      27,
+      "Customer#000000027",
+      "IS8GIyxpBrLpMT0u7",
+      3,
+      "13-137-193-2709",
+      5679.84,
+      "BUILDING",
+      " about the carefully ironic pinto beans. accoun"
+    ]
+  ],
+  "total": 10,
+  "size": 10
+}

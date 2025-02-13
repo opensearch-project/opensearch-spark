@@ -1,0 +1,1 @@
+source = dev.default.nested | stats avg(int_col) by span(struct_col.field2, 10) as a_span, struct_col2.field2

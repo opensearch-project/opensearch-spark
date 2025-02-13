@@ -1,0 +1,5 @@
+source = mys3.default.supplier
+| where like(s_comment, '%Customer%Complaints%')
+| join [ source = mys3.default.nation | where n_name = 'SAUDI ARABIA' ]
+| sort - s_name
+| head 10

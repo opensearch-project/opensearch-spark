@@ -1,0 +1,1 @@
+l_returnflag,l_comment,l_linestatus,l_shipmode,l_shipinstruct,l_quantity,l_receiptdate,l_linenumber,l_tax,l_shipdate,l_extendedprice,l_partkey,l_discount,l_commitdate,l_suppkey,l_orderkey,p_comment,p_name,p_type,p_retailprice,p_mfgr,p_container,p_brand,p_size,p_partkey

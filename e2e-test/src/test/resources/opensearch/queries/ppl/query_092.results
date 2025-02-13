@@ -1,0 +1,8 @@
+{
+  "status": 500,
+  "error": {
+    "type": "SemanticCheckException",
+    "reason": "There was internal problem at backend",
+    "details": "timestamp:2024-06-14 in unsupported format, please use \u0027yyyy-MM-dd HH:mm:ss[.SSSSSSSSS]\u0027"
+  }
+}

@@ -169,6 +169,86 @@ Sample response:
 }
 ```
 
+## Adding Tests
+
+### Spark Tests
+
+|     | Query File Extension | Directory                                     |
+|-----|----------------------|-----------------------------------------------|
+| PPL | .ppl                 | e2e-test/src/test/resources/spark/queries/ppl |
+| SQL | .sql                 | e2e-test/src/test/resources/spark/queries/sql |
+
+A test consists of a query and the expected results. Choose a base filename. The query file uses the base filename
+with the extension above. The results file uses the base filename with a `.results` extension. The results file is
+in CSV format with a field headers line.
+
+Example: Adding a PPL Test
+
+1. Create a file named `e2e-test/src/test/resources/spark/queries/ppl/sample-test.ppl` with the following contents:
+   ```
+   source=my-table | fields x, y
+   ```
+2. Generate the expected results file named `e2e-test/src/test/resources/spark/queries/ppl/sample-test.results`
+   It is a CSV file with the field name header. For example:
+   ```
+   x,y
+   1,1
+   2,4
+   3,9
+   ```
+
+### Async API Tests
+
+|     | Query File Extension | Directory                                          |
+|-----|----------------------|----------------------------------------------------|
+| PPL | .ppl                 | e2e-test/src/test/resources/opensearch/queries/ppl |
+| SQL | .sql                 | e2e-test/src/test/resources/opensearch/queries/sql |
+
+A test consists of a query and the expected results. Choose a base filename. The query file uses the base filename
+with the extension above. The results file uses the base filename with a `.results` extension. The results file is
+in JSON format is the response when retrieving the results using the Async Query API.
+
+Example: Adding a PPL Test
+
+1. Create a file named `e2e-test/src/test/resources/opensearch/queries/ppl/sample-test.ppl` with the following
+   contents:
+   ```
+   source=my-table | fields x, y
+   ```
+2. Generate the expected results file named `e2e-test/src/test/resources/opensearch/queries/ppl/sample-test.results`
+   It is a JSON file. For example:
+   ```
+   {
+     "status": "SUCCESS",
+     "schema": [
+       {
+         "name": "x",
+         "type": "integer"
+       },
+       {
+         "name": "y",
+         "type": "integer"
+       }
+     ],
+     "datarows": [
+       [
+         1,
+         1
+       ],
+       [
+         2,
+         4
+       ],
+       [
+         3,
+         9
+       ]
+     ],
+     "total": 3,
+     "size": 3
+   }
+   ```
+
 ## Configuration of the Cluster
 
 There are several settings that can be adjusted for the cluster.

@@ -12,6 +12,7 @@ ENV SQL_APP_JAR $SQL_APP_JAR
 COPY docker/integ-test/spark/spark-defaults.conf /opt/bitnami/spark/conf/spark-defaults.conf
 COPY ${FLINT_JAR} /opt/bitnami/spark/jars/flint-spark-integration.jar
 COPY ${PPL_JAR} /opt/bitnami/spark/jars/ppl-spark-integration.jar
+COPY ${SQL_APP_JAR} /opt/bitnami/spark/jars/opensearch-spark-sql-application.jar
 
 USER root
 RUN mkdir /app

@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | eval f = UPPER(request) | eval h = 40 | fields f, h | head 10

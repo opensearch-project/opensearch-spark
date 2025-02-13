@@ -1,0 +1,1 @@
+source = dev.default.http_logs | patterns request | where size > 0 | fields patterns_field | head 10

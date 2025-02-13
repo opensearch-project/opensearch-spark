@@ -47,6 +47,12 @@ Using a wildcard index name:
 val df = spark.sql("SELECT * FROM dev.default.`my_index*`")
 df.show()
 ```
+Join two indices
+```scala
+val df = spark.sql("SELECT * FROM dev.default.my_index as t1 JOIN dev.default.my_index as t2 ON t1.id == t2.id")
+df.show()
+```
+
 ## Data Types
 The following table defines the data type mapping between OpenSearch index field type and Spark data type.
 
@@ -70,20 +76,15 @@ The following table defines the data type mapping between OpenSearch index field
     * Map to DateType if format = strict_date, (we also support format = date, may change in future)
     * Map to TimestampType if format = strict_date_optional_time_nanos, (we also support format =
       strict_date_optional_time | epoch_millis, may change in future)
-* Spark data types VarcharType(length) and CharType(length) are both currently mapped to Flint data
-  type *keyword*, dropping their length property. On the other hand, Flint data type *keyword* only
-  maps to StringType.
+* Spark data types VarcharType(length) and CharType(length) are both currently mapped to OpenSearch 
+  data type *keyword*, dropping their length property. On the other hand, OpenSearch data type 
+  *keyword* only maps to StringType.
 * Spark data type MapType is mapped to an empty OpenSearch object. The inner fields then rely on
-  dynamic mapping. On the other hand, Flint data type *object* only maps to StructType.
-* Spark data type DecimalType is mapped to an OpenSearch double. On the other hand, Flint data type
-  *double* only maps to DoubleType.
+  dynamic mapping. On the other hand, OpenSearch data type *object* only maps to StructType.
+* Spark data type DecimalType is mapped to an OpenSearch double. On the other hand, OpenSearch data 
+  type *double* only maps to DoubleType.
 * OpenSearch alias fields allow alternative names for existing fields in the schema without duplicating data. They inherit the data type and nullability of the referenced field and resolve dynamically to the primary field in queries.
-
-Join two indices
-```scala
-val df = spark.sql("SELECT * FROM dev.default.my_index as t1 JOIN dev.default.my_index as t2 ON t1.id == t2.id")
-df.show()
-```
+* OpenSearch multi-fields on text field is supported. These multi-fields are stored as part of the field's metadata and cannot be directly selected. Instead, they are automatically utilized during the DSL query translation process.
 
 ## Limitation
 ### catalog operation

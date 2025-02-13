@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | eval status_string = case(status = 200, 'success' else 'failed') | head 10

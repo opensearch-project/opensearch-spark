@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | eval res = to_json_string(json_object('key', 123.45)) | head 1 | fields res

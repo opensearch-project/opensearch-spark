@@ -1,0 +1,1 @@
+source=mys3.default.people | eval age = salary | eventstats avg(age) | sort id | head 10

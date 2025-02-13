@@ -1,0 +1,1 @@
+source = dev.default.http_logs | dedup status, size | head 10

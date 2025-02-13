@@ -1,0 +1,4 @@
+count_request,request
+1,GET /images/hm_nbg.jpg HTTP/1.0
+1,GET /french/splash_inet.html HTTP/1.0
+4,GET /images/hm_bg.jpg HTTP/1.0

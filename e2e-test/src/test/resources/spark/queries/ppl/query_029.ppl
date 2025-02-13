@@ -1,0 +1,1 @@
+source = dev.default.http_logs | where case(status = 200, 'success' else 'failed') = 'success' | head 10

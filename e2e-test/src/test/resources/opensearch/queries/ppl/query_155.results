@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "error": {
+    "type": "AsyncQueryNotFoundException",
+    "reason": "Invalid Request",
+    "details": "Invalid QueryId: null"
+  }
+}

@@ -1,0 +1,5 @@
+source = dev.default.orders
+ | right outer join ON c_custkey = o_custkey AND not like(o_comment, '%special%requests%')
+  dev.default.customer
+| stats count(o_orderkey) as c_count by c_custkey
+| sort - c_count

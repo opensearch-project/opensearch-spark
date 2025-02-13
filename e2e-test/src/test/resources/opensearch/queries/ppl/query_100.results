@@ -1,0 +1,41 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "TIMESTAMPDIFF(YEAR, 1997-01-01 00:00:00, 2001-03-06 00:00:00)",
+      "type": "long"
+    },
+    {
+      "name": "TIMESTAMPDIFF(SECOND, timestamp(1997-01-01 00:00:23), timestamp(1997-01-01 00:00:00))",
+      "type": "long"
+    }
+  ],
+  "datarows": [
+    [
+      4,
+      -23
+    ],
+    [
+      4,
+      -23
+    ],
+    [
+      4,
+      -23
+    ],
+    [
+      4,
+      -23
+    ],
+    [
+      4,
+      -23
+    ],
+    [
+      4,
+      -23
+    ]
+  ],
+  "total": 6,
+  "size": 6
+}

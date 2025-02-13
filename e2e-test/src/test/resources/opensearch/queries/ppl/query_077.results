@@ -1,0 +1,37 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "size",
+      "type": "long"
+    },
+    {
+      "name": "domain",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      24736,
+      "images"
+    ],
+    [
+      24736,
+      "images"
+    ],
+    [
+      24736,
+      "images"
+    ],
+    [
+      24736,
+      "images"
+    ],
+    [
+      3781,
+      "french"
+    ]
+  ],
+  "total": 5,
+  "size": 5
+}

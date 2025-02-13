@@ -1,0 +1,1 @@
+source = dev.default.people| LOOKUP dev.default.work_info uID AS id, name REPLACE department | stats distinct_count(department)

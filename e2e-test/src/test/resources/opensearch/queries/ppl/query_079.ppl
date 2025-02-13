@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | patterns request | fields patterns_field | head 10

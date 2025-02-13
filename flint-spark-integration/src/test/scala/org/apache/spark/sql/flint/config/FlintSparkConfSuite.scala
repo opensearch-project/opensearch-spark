@@ -11,6 +11,7 @@ import scala.collection.JavaConverters._
 
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.http.FlintRetryOptions._
+import org.scalatest.matchers.must.Matchers.contain
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
@@ -46,7 +47,7 @@ class FlintSparkConfSuite extends FlintSuite {
   test("test retry options default values") {
     val retryOptions = FlintSparkConf().flintOptions().getRetryOptions
     retryOptions.getMaxRetries shouldBe DEFAULT_MAX_RETRIES
-    retryOptions.getRetryableHttpStatusCodes shouldBe DEFAULT_RETRYABLE_HTTP_STATUS_CODES
+    retryOptions.getRetryableHttpStatusCodes should contain theSameElementsAs Set(429, 500, 502)
     retryOptions.getRetryableExceptionClassNames shouldBe Optional.empty
   }
 
@@ -60,7 +61,11 @@ class FlintSparkConfSuite extends FlintSuite {
       .getRetryOptions
 
     retryOptions.getMaxRetries shouldBe 5
-    retryOptions.getRetryableHttpStatusCodes shouldBe "429,502,503,504"
+    retryOptions.getRetryableHttpStatusCodes should contain theSameElementsAs Set(
+      429,
+      502,
+      503,
+      504)
     retryOptions.getRetryableExceptionClassNames.get() shouldBe "java.net.ConnectException"
   }
 

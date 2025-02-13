@@ -1,0 +1,1 @@
+source = dev.default.http_logs | eval res = json_array_length('[]') | head 1 | fields res

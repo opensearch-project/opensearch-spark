@@ -15,9 +15,12 @@ import dev.failsafe.RetryPolicyBuilder;
 import dev.failsafe.event.ExecutionAttemptedEvent;
 import dev.failsafe.function.CheckedPredicate;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.flint.core.http.handler.ExceptionClassNameFailurePredicate;
 import org.opensearch.flint.core.http.handler.HttpAOSSResultPredicate;
@@ -41,8 +44,12 @@ public class FlintRetryOptions implements Serializable {
    */
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final String MAX_RETRIES = "retry.max_retries";
+  public static final int DEFAULT_BULK_MAX_RETRIES = 10;
+  public static final String BULK_MAX_RETRIES = "retry.bulk.max_retries";
+  public static final int DEFAULT_BULK_INITIAL_BACKOFF = 4;
+  public static final String BULK_INITIAL_BACKOFF = "retry.bulk.initial_backoff";
 
-  public static final String DEFAULT_RETRYABLE_HTTP_STATUS_CODES = "429,502";
+  public static final String DEFAULT_RETRYABLE_HTTP_STATUS_CODES = "429,500,502";
   public static final String RETRYABLE_HTTP_STATUS_CODES = "retry.http_status_codes";
 
   /**
@@ -90,9 +97,9 @@ public class FlintRetryOptions implements Serializable {
   public RetryPolicy<BulkResponse> getBulkRetryPolicy(CheckedPredicate<BulkResponse> resultPredicate) {
     return RetryPolicy.<BulkResponse>builder()
         // Using higher initial backoff to mitigate throttling quickly
-        .withBackoff(4, 30, SECONDS)
+        .withBackoff(getBulkInitialBackoff(), 30, SECONDS)
         .withJitter(Duration.ofMillis(100))
-        .withMaxRetries(getMaxRetries())
+        .withMaxRetries(getBulkMaxRetries())
         // Do not retry on exception (will be handled by the other retry policy
         .handleIf((ex) -> false)
         .handleResultIf(resultPredicate)
@@ -122,10 +129,27 @@ public class FlintRetryOptions implements Serializable {
   }
 
   /**
-   * @return retryable HTTP status code list
+   * @return bulk maximum retry option value
    */
-  public String getRetryableHttpStatusCodes() {
-    return options.getOrDefault(RETRYABLE_HTTP_STATUS_CODES, DEFAULT_RETRYABLE_HTTP_STATUS_CODES);
+  public int getBulkMaxRetries() {
+    return Integer.parseInt(
+        options.getOrDefault(BULK_MAX_RETRIES, String.valueOf(DEFAULT_BULK_MAX_RETRIES)));
+  }
+
+  /**
+   * @return maximum retry option value
+   */
+  public int getBulkInitialBackoff() {
+    return Integer.parseInt(
+        options.getOrDefault(BULK_INITIAL_BACKOFF, String.valueOf(DEFAULT_BULK_INITIAL_BACKOFF)));
+  }
+
+  public Set<Integer> getRetryableHttpStatusCodes() {
+    String statusCodes = options.getOrDefault(RETRYABLE_HTTP_STATUS_CODES, DEFAULT_RETRYABLE_HTTP_STATUS_CODES);
+    return Arrays.stream(statusCodes.split(","))
+        .map(String::trim)
+        .map(Integer::valueOf)
+        .collect(Collectors.toSet());
   }
 
   /**

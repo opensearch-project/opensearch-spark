@@ -1,0 +1,1 @@
+source = mys3.default.people| LOOKUP mys3.default.work_info uid AS ID, name APPEND department | stats distinct_count(department)

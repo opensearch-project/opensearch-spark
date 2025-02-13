@@ -44,6 +44,9 @@ services:
       - type: bind
         source: ../../$FLINT_JAR
         target: /opt/bitnami/spark/jars/flint-spark-integration.jar
+      - type: bind
+        source: ../../$SQL_APP_JAR
+        target: /opt/bitnami/spark/jars/opensearch-spark-sql-application.jar
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 1m
@@ -87,6 +90,9 @@ services:
       - type: bind
         source: ../../$FLINT_JAR
         target: /opt/bitnami/spark/jars/flint-spark-integration.jar
+      - type: bind
+        source: ../../$SQL_APP_JAR
+        target: /opt/bitnami/spark/jars/opensearch-spark-sql-application.jar
     networks:
       - opensearch-net
     depends_on:

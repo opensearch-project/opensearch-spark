@@ -1,0 +1,56 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "o_orderkey",
+      "type": "long"
+    },
+    {
+      "name": "o_custkey",
+      "type": "long"
+    },
+    {
+      "name": "o_orderstatus",
+      "type": "string"
+    },
+    {
+      "name": "o_totalprice",
+      "type": "double"
+    },
+    {
+      "name": "o_orderdate",
+      "type": "timestamp_ntz"
+    },
+    {
+      "name": "o_orderpriority",
+      "type": "string"
+    },
+    {
+      "name": "o_clerk",
+      "type": "string"
+    },
+    {
+      "name": "o_shippriority",
+      "type": "string"
+    },
+    {
+      "name": "o_comment",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      1,
+      37,
+      "O",
+      131251.81,
+      "1996-01-02T00:00:00.000",
+      "5-LOW",
+      "Clerk#000000951",
+      "0",
+      "nstructions sleep furiously among "
+    ]
+  ],
+  "total": 1,
+  "size": 1
+}
