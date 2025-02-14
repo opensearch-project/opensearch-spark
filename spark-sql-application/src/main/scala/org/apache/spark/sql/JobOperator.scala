@@ -17,6 +17,7 @@ import org.opensearch.flint.common.scheduler.model.LangType
 import org.opensearch.flint.core.metrics.{MetricConstants, MetricsSparkListener, MetricsUtil}
 import org.opensearch.flint.spark.FlintSpark
 
+import org.apache.spark.SparkUpgradeException
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.util.ShuffleCleaner
@@ -153,6 +154,11 @@ case class JobOperator(
           }
         })
       } catch {
+        case e: SparkUpgradeException =>
+          incrementCounter(MetricConstants.RESULT_WRITER_FAILED_METRIC)
+          throwableHandler.recordThrowable(
+            s"Failed to write to result. Cause='${sanitizeSparkUpgradeErrorMessage(e.getMessage)}'",
+            e)
         case t: Throwable =>
           incrementCounter(MetricConstants.RESULT_WRITER_FAILED_METRIC)
           throwableHandler.recordThrowable(
@@ -318,6 +324,11 @@ case class JobOperator(
       return newMetricName
     }
     metricName
+  }
+
+  private def sanitizeSparkUpgradeErrorMessage(errorMessage: String): String = {
+    val pattern = "You may get a different result due to the upgrading to Spark[^\\n]*:\\n".r
+    pattern.replaceAllIn(errorMessage, "").trim
   }
 
   private def incrementCounter(metricName: String): Unit = {
