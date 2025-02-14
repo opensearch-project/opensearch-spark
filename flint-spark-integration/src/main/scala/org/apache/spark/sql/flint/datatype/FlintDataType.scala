@@ -33,6 +33,8 @@ object FlintDataType {
 
   val METADATA_ALIAS_PATH_NAME = "aliasPath"
 
+  val UNSUPPORTED_OPENSEARCH_FIELD_TYPE = Set("geo_point")
+
   /**
    * parse Flint metadata and extract properties to StructType.
    */
@@ -49,25 +51,24 @@ object FlintDataType {
       }
     }
 
-    val fields: Seq[StructField] = normalProps.map { case (fieldName, fieldProperties) =>
-      deserializeField(fieldName, fieldProperties)
-    }.toSeq
+    val fields: Seq[StructField] = normalProps
+      .filter { case (_, fp) => isSupported(fp) }
+      .map { case (fieldName, fieldProperties) =>
+        deserializeField(fieldName, fieldProperties)
+      }
+      .toSeq
 
     val normalFieldMap: Map[String, StructField] = fields.map(f => f.name -> f).toMap
 
-    val aliasFields: Seq[StructField] = aliasProps.map { case (fieldName, fieldProperties) =>
+    // Process alias fields: only include alias fields if the referenced field exists.
+    val aliasFields: Seq[StructField] = aliasProps.flatMap { case (fieldName, fieldProperties) =>
       val aliasPath = (fieldProperties \ "path").extract[String]
-      if (!normalFieldMap.contains(aliasPath)) {
-        throw new IllegalStateException(
-          s"Alias field [$fieldName] references undefined field [$aliasPath]")
+      normalFieldMap.get(aliasPath).map { referencedField =>
+        val metadataBuilder = new MetadataBuilder()
+        metadataBuilder.putString(METADATA_ALIAS_PATH_NAME, aliasPath)
+        DataTypes
+          .createStructField(fieldName, referencedField.dataType, true, metadataBuilder.build())
       }
-      val metadataBuilder = new MetadataBuilder()
-      metadataBuilder.putString(METADATA_ALIAS_PATH_NAME, aliasPath)
-      DataTypes.createStructField(
-        fieldName,
-        normalFieldMap(aliasPath).dataType,
-        true,
-        metadataBuilder.build())
     }.toSeq
 
     StructType(fields ++ aliasFields)
@@ -118,6 +119,13 @@ object FlintDataType {
       case unknown => throw new IllegalStateException(s"unsupported data type: $unknown")
     }
     DataTypes.createStructField(fieldName, dataType, true, metadataBuilder.build())
+  }
+
+  def isSupported(fieldProperties: JValue): Boolean = {
+    (fieldProperties \ "type") match {
+      case JString(fieldType) => !UNSUPPORTED_OPENSEARCH_FIELD_TYPE.contains(fieldType)
+      case _ => true
+    }
   }
 
   /**

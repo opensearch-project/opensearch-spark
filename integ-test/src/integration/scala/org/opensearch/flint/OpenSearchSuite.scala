@@ -5,6 +5,8 @@
 
 package org.opensearch.flint
 
+import scala.io.Source
+
 import org.apache.http.HttpHost
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
 import org.opensearch.action.bulk.BulkRequest
@@ -120,6 +122,16 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
                      |}""".stripMargin
 
     val docs = for (n <- 1 to N) yield s"""{"id": $n}""".stripMargin
+    index(indexName, oneNodeSetting, mappings, docs)
+  }
+
+  def openSearchDashboardsIndex(useCaseName: String, indexName: String): Unit = {
+    val mappings =
+      Source
+        .fromResource(s"opensearch/${useCaseName}_mappings.json")
+        .mkString
+    val docs: Seq[String] =
+      Source.fromResource(s"opensearch/${useCaseName}.json").getLines().toSeq
     index(indexName, oneNodeSetting, mappings, docs)
   }
 

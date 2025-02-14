@@ -1,0 +1,80 @@
+{
+  "tests": [
+    { "index": "flights" },
+    {
+      "do": {
+        "sql": {
+          "query": "SELECT COUNT(*) as count FROM dev.default.flights WHERE FlightDelay = true"
+        },
+        "match": [ "[1]" ]
+      }
+    },
+    {
+      "do": {
+        "sql": {
+          "query": "SELECT FlightDelay, COUNT(*) as count FROM dev.default.flights GROUP BY FlightDelay"
+        },
+        "match": [ "[false,4]", "[true,1]" ]
+      }
+    },
+    {
+      "do": {
+        "sql": {
+          "query": "SELECT FLOOR(FlightDelayMin / 30) * 30 AS bucket, COUNT(*) AS doc_count FROM dev.default.flights GROUP BY bucket ORDER BY bucket"
+        },
+        "match": [ "[0,4]", "[180,1]" ]
+      }
+    },
+    {
+      "do": {
+        "sql": {
+          "query": "SELECT carrier, COUNT(*) as count FROM dev.default.flights GROUP BY Carrier ORDER BY count DESC"
+        },
+        "match": [ "[OpenSearch Dashboards Airlines,3]", "[Logstash Airways,2]" ]
+      }
+    },
+    {
+      "do": {
+        "sql": {
+          "query": "SELECT date_format(window.start, 'yyyy-MM-dd HH:mm:ss'),MAX(AvgTicketPrice) AS avg_ticket_price FROM dev.default.flights GROUP BY window(to_utc_timestamp(timestamp, 'UTC'),'1 day') ORDER BY window.start"
+        },
+        "match": [ "[2025-01-27 00:00:00,882.98267]" ]
+      }
+    },
+    {
+      "do": {
+        "sql": {
+          "query": "SELECT OriginCountry, DestCountry, cnt
+          FROM (
+          SELECT
+          OriginCountry,
+          DestCountry,
+          cnt,
+          ROW_NUMBER() OVER (PARTITION BY OriginCountry ORDER BY cnt DESC) AS dest_rn
+          FROM (
+          SELECT
+          OriginCountry,
+          DestCountry,
+          COUNT(*) AS cnt
+          FROM your_table
+          WHERE OriginCountry IN (
+          SELECT OriginCountry
+          FROM (
+          SELECT OriginCountry, COUNT(*) AS cnt
+          FROM your_table
+          GROUP BY OriginCountry
+          ORDER BY cnt DESC
+          LIMIT 5
+          ) AS top_origins
+          )
+          GROUP BY OriginCountry, DestCountry
+          ) AS grouped
+          ) AS ranked
+          WHERE dest_rn <= 5
+          ORDER BY cnt DESC;"
+        },
+        "match": [ "[2025-01-27 00:00:00,No Delay,2]", "[2025-01-27 08:00:00,Weather Delay,1]", "[2025-01-27 16:00:00,No Delay,2]" ]
+      }
+    }
+  ]
+}
