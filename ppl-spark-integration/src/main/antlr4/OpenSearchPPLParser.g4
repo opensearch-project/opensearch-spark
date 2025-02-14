@@ -894,8 +894,8 @@ jsonFunctionName
    | JSON_APPEND
    | JSON_KEYS
    | JSON_VALID
-//   | JSON_EXTEND
-//   | JSON_SET
+   | JSON_EXTEND
+   | JSON_SET
 //   | JSON_ARRAY_ALL_MATCH
 //   | JSON_ARRAY_ANY_MATCH
 //   | JSON_ARRAY_FILTER
