@@ -29,7 +29,7 @@ jobs:
         # Needed to extend the JVM memory size to avoid OutOfMemoryError for HTML test report
         run: echo "SBT_OPTS=-Xmx2G" >> $GITHUB_ENV
 
-      - name: Integ Test
+      - name: End-to-End Test
         run: sbt e2etest/test
 
       - name: Upload test report
