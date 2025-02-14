@@ -33,7 +33,7 @@ jobs:
         run: echo "SBT_OPTS=-Xmx2G" >> $GITHUB_ENV
 
       - name: Integ Test
-        run: sbt integtest/integration
+        run: sbt integtest/integration e2etest/test
 
       - name: Upload test report
         if: always() # Ensures the artifact is saved even if tests fail
