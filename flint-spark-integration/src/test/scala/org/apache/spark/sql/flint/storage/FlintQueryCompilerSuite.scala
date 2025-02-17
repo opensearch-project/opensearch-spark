@@ -196,6 +196,19 @@ class FlintQueryCompilerSuite extends FlintSuite {
     assertResult("")(query)
   }
 
+  test("Bug fix, https://github.com/opensearch-project/opensearch-spark/issues/1056") {
+    val schema = StructType(
+      Seq(
+        StructField(
+          "aText",
+          StringType,
+          nullable = true,
+          new MetadataBuilder().withTextField.build())))
+
+    val query = FlintQueryCompiler(schema).compile(Not(EqualTo("aText", "text")).toV2)
+    assertResult("")(query)
+  }
+
   protected def schema(): StructType = {
     StructType(
       Seq(
