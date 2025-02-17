@@ -196,8 +196,7 @@ class FlintQueryCompilerSuite extends FlintSuite {
     assertResult("")(query)
   }
 
-  test(
-    "Bug fix, https://github.com/opensearch-project/opensearch-spark/actions/runs/13338348402/job/37258321066?pr=1052 ") {
+  test("Bug fix, https://github.com/opensearch-project/opensearch-spark/issues/1056") {
     val schema = StructType(
       Seq(
         StructField(
