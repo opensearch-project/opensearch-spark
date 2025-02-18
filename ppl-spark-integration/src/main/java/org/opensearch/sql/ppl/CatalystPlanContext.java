@@ -8,15 +8,11 @@ package org.opensearch.sql.ppl;
 import lombok.Getter;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
-import org.apache.spark.sql.catalyst.expressions.AttributeReference;
 import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.catalyst.expressions.NamedExpression;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias;
 import org.apache.spark.sql.catalyst.plans.logical.Union;
-import org.apache.spark.sql.types.Metadata;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
-import org.opensearch.sql.data.type.ExprType;
 import scala.collection.Iterator;
 import scala.collection.Seq;
 
@@ -27,7 +23,6 @@ import java.util.Optional;
 import java.util.Stack;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
@@ -219,6 +214,14 @@ public class CatalystPlanContext {
     }
 
     /**
+     * Reset all expressions in stack,
+     * generally use it after calling visitFirstChild() in visit methods.
+     */
+    public void resetNamedParseExpressions() {
+        getNamedParseExpressions().retainAll(emptyList());
+    }
+
+    /**
      * retain all expressions and clear expression stack
      *
      * @return
@@ -226,7 +229,7 @@ public class CatalystPlanContext {
     public <T> Seq<T> retainAllNamedParseExpressions(Function<Expression, T> transformFunction) {
         Seq<T> aggregateExpressions = seq(getNamedParseExpressions().stream()
                 .map(transformFunction).collect(Collectors.toList()));
-        getNamedParseExpressions().retainAll(emptyList());
+        resetNamedParseExpressions();
         return aggregateExpressions;
     }
 

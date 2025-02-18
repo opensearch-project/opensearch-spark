@@ -481,4 +481,103 @@ class FlintSparkPPLScalarSubqueryITSuite
     implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Integer](_.getAs[Integer](0))
     assert(results.sorted.sameElements(expectedResults.sorted))
   }
+
+  test("test nested scalar subquery with table alias") {
+    val frame = sql(s"""
+                       | source = $outerTable as o
+                       | | where id = [
+                       |     source = $innerTable as i
+                       |     | where uid = [
+                       |         source = $nestedInnerTable as n
+                       |         | stats min(n.salary)
+                       |       ] + 1000
+                       |     | sort i.department
+                       |     | stats max(i.uid)
+                       |   ]
+                       | | fields o.id, o.name
+                       | """.stripMargin)
+    val expectedResults: Array[Row] = Array(Row(1000, "Jake"))
+    assertSameRows(expectedResults, frame)
+  }
+
+  test("test correlated scalar subquery with table alias") {
+    val frame = sql(s"""
+                       | source = $outerTable as o
+                       | | where id = [
+                       |     source = $innerTable as i | where o.id = i.uid | stats max(i.uid)
+                       |   ]
+                       | | fields o.id, o.name
+                       | """.stripMargin)
+    val expectedResults: Array[Row] = Array(
+      Row(1000, "Jake"),
+      Row(1002, "John"),
+      Row(1003, "David"),
+      Row(1005, "Jane"),
+      Row(1006, "Tommy"))
+    assertSameRows(expectedResults, frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val outer =
+      SubqueryAlias("o", UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1")))
+    val inner =
+      SubqueryAlias("i", UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2")))
+    val aggregateExpressions = Seq(
+      Alias(
+        UnresolvedFunction(Seq("MAX"), Seq(UnresolvedAttribute("i.uid")), isDistinct = false),
+        "max(i.uid)")())
+    val innerFilter =
+      Filter(EqualTo(UnresolvedAttribute("o.id"), UnresolvedAttribute("i.uid")), inner)
+    val aggregatePlan = Aggregate(Seq(), aggregateExpressions, innerFilter)
+    val scalarSubqueryExpr = ScalarSubquery(aggregatePlan)
+    val outerFilter = Filter(EqualTo(UnresolvedAttribute("id"), scalarSubqueryExpr), outer)
+    val expectedPlan =
+      Project(Seq(UnresolvedAttribute("o.id"), UnresolvedAttribute("o.name")), outerFilter)
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test uncorrelated scalar subquery with table alias") {
+    val frame = sql(s"""
+                       | source = $outerTable as o
+                       | | eval max_uid = [
+                       |     source = $innerTable as i | where i.department = 'DATA' | stats max(i.uid)
+                       |   ]
+                       | | fields o.id, o.name, max_uid
+                       | """.stripMargin)
+    val expectedResults: Array[Row] = Array(
+      Row(1000, "Jake", 1005),
+      Row(1001, "Hello", 1005),
+      Row(1002, "John", 1005),
+      Row(1003, "David", 1005),
+      Row(1004, "David", 1005),
+      Row(1005, "Jane", 1005),
+      Row(1006, "Tommy", 1005))
+    assertSameRows(expectedResults, frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    val outer =
+      SubqueryAlias("o", UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1")))
+    val inner =
+      SubqueryAlias("i", UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2")))
+    val aggregateExpressions = Seq(
+      Alias(
+        UnresolvedFunction(Seq("MAX"), Seq(UnresolvedAttribute("i.uid")), isDistinct = false),
+        "max(i.uid)")())
+    val innerFilter =
+      Filter(EqualTo(UnresolvedAttribute("i.department"), Literal("DATA")), inner)
+    val aggregatePlan = Aggregate(Seq(), aggregateExpressions, innerFilter)
+    val scalarSubqueryExpr = Alias(ScalarSubquery(aggregatePlan), "max_uid")()
+    val outerFilter = Project(Seq(UnresolvedStar(None), scalarSubqueryExpr), outer)
+    val expectedPlan =
+      Project(
+        Seq(
+          UnresolvedAttribute("o.id"),
+          UnresolvedAttribute("o.name"),
+          UnresolvedAttribute("max_uid")),
+        outerFilter)
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
 }

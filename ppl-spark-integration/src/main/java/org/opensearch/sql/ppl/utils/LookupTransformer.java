@@ -75,7 +75,7 @@ public interface LookupTransformer {
             Expression equalTo = EqualTo$.MODULE$.apply(lookupNamedExpression, sourceNamedExpression);
             equiConditions.add(equalTo);
         }
-        context.retainAllNamedParseExpressions(e -> e);
+        context.resetNamedParseExpressions();
         return equiConditions.stream().reduce(org.apache.spark.sql.catalyst.expressions.And::new).orElse(null);
     }
 
@@ -114,7 +114,7 @@ public interface LookupTransformer {
                 seq(new java.util.ArrayList<String>()));
             outputProjectList.add(output);
         }
-        context.retainAllNamedParseExpressions(p -> p);
+        context.resetNamedParseExpressions();
         return outputProjectList;
     }
 
