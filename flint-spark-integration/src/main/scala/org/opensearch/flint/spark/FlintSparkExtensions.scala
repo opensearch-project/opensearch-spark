@@ -5,8 +5,10 @@
 
 package org.opensearch.flint.spark
 
+import org.opensearch.common.geo.GeoPoint
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.sql.FlintSparkSqlParser
+import org.opensearch.flint.spark.udt.GeoPointUDT
 import org.opensearch.flint.spark.udt.{IPAddress, IPAddressUDT}
 
 import org.apache.spark.sql.SparkSessionExtensions
@@ -30,5 +32,6 @@ class FlintSparkExtensions extends (SparkSessionExtensions => Unit) {
 
     // Register UDTs
     UDTRegistration.register(classOf[IPAddress].getName, classOf[IPAddressUDT].getName)
+    UDTRegistration.register(classOf[GeoPoint].getName, classOf[GeoPointUDT].getName)
   }
 }
