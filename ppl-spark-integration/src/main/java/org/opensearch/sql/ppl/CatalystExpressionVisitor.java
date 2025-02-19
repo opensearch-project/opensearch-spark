@@ -349,7 +349,7 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
                         )
                 );
             }
-            context.retainAllNamedParseExpressions(e -> e);
+            context.resetNamedParseExpressions();
         }
         context.setNamedParseExpressions(initialNameExpressions);
         return context.getNamedParseExpressions().push(new CaseWhen(seq(whens), Option.apply(elseValue)));
@@ -421,7 +421,7 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
         Expression value = analyze(node.getValue(), context);
         Expression lower = analyze(node.getLowerBound(), context);
         Expression upper = analyze(node.getUpperBound(), context);
-        context.retainAllNamedParseExpressions(p -> p);
+        context.resetNamedParseExpressions();
         return context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.And(new GreaterThanOrEqual(value, lower), new LessThanOrEqual(value, upper)));
     }
 

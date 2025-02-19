@@ -116,7 +116,7 @@ public interface GeoIpCatalystLogicalPlanTranslator {
                             UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,GEOIP_IPV4_COLUMN_NAME))
                     )
             ));
-            context.retainAllNamedParseExpressions(p -> p);
+            context.resetNamedParseExpressions();
             context.retainAllPlans(p -> p);
             return join(leftAlias,
                     rightAlias,
