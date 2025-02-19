@@ -8,7 +8,7 @@ package org.opensearch.flint.spark.ppl
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, EqualTo, IsNotNull, Literal, Not, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, EqualTo, GreaterThanOrEqual, IsNotNull, Literal, Not, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.ExplainMode
 import org.apache.spark.sql.execution.command.{DescribeTableCommand, ExplainCommand}
@@ -670,5 +670,23 @@ class FlintSparkPPLBasicITSuite
       Union(Seq(projectedTable1, projectedTable2), byName = true, allowMissingCol = true)
 
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test fields with alias") {
+    val frame = sql(s"""
+         | source = $testTable as l | where l.age >= 30 | fields l.name, l.age
+         | """.stripMargin)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val expectedPlan = Project(
+      Seq(UnresolvedAttribute("l.name"), UnresolvedAttribute("l.age")),
+      Filter(
+        GreaterThanOrEqual(UnresolvedAttribute("l.age"), Literal(30)),
+        SubqueryAlias(
+          "l",
+          UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))))
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+    assertSameRows(Seq(Row("Jake", 70), Row("Hello", 30)), frame)
+
   }
 }

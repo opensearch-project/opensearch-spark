@@ -475,4 +475,45 @@ class FlintSparkPPLInSubqueryITSuite
     assert(ex.getMessage.contains(
       "The number of columns in the left hand side of an IN subquery does not match the number of columns in the output of subquery"))
   }
+
+  test("test in subquery with table alias") {
+    val frame = sql(s"""
+         | source = $outerTable as o
+         | | where id in [
+         |   source = $innerTable as i
+         | | where i.department = 'DATA'
+         | | fields i.uid
+         | ]
+         | | sort  - o.salary
+         | | fields o.id, o.name, o.salary
+         | """.stripMargin)
+    val expectedResults: Array[Row] = Array(Row(1002, "John", 120000), Row(1005, "Jane", 90000))
+    assertSameRows(expectedResults, frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val outer =
+      SubqueryAlias("o", UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1")))
+    val inner =
+      SubqueryAlias("i", UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2")))
+    val inSubquery =
+      Filter(
+        InSubquery(
+          Seq(UnresolvedAttribute("id")),
+          ListQuery(
+            Project(
+              Seq(UnresolvedAttribute("i.uid")),
+              Filter(EqualTo(UnresolvedAttribute("i.department"), Literal("DATA")), inner)))),
+        outer)
+    val sortedPlan: LogicalPlan =
+      Sort(Seq(SortOrder(UnresolvedAttribute("o.salary"), Descending)), global = true, inSubquery)
+    val expectedPlan =
+      Project(
+        Seq(
+          UnresolvedAttribute("o.id"),
+          UnresolvedAttribute("o.name"),
+          UnresolvedAttribute("o.salary")),
+        sortedPlan)
+
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
 }
