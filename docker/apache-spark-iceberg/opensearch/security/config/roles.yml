@@ -1,0 +1,7 @@
+flint_role:
+  cluster:
+    - "all"
+  indices:
+    - names: [".query_execution_request*"]
+      privileges:
+        - "all"

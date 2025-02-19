@@ -19,7 +19,7 @@ Please refer to the [Flint Index Reference Manual](./docs/index.md) for more inf
 
 * For additional details on Spark PPL commands project, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
 
-* Experiment ppl queries on local spark cluster [PPL on local spark ](docs/ppl-lang/local-spark-ppl-test-instruction.md)
+* Experiment ppl queries on local spark cluster [PPL on local spark ](docs/local-spark-ppl-test-instruction.md)
 
 ## Prerequisites
 
@@ -88,7 +88,7 @@ bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.7.0-SNAPS
 ```
 
 ### PPL Run queries on a local spark cluster
-See ppl usage sample on local spark cluster [PPL on local spark ](docs/ppl-lang/local-spark-ppl-test-instruction.md)
+See ppl usage sample on local spark cluster [PPL on local spark ](docs/local-spark-ppl-test-instruction.md)
 
 ### Running integration tests on a local spark cluster
 See integration test documentation [Docker Integration Tests](integ-test/script/README.md)

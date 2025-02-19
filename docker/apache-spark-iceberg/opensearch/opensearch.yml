@@ -1,0 +1,25 @@
+# Network and plugin configuration
+network.host: 0.0.0.0
+plugins.security.ssl.http.enabled: false
+plugins.security.ssl.transport.enabled: false
+
+# Enable security plugin
+plugins.security.enabled: true
+plugins.security.audit.type: internal_opensearch
+plugins.security.allow_default_init_securityindex: true
+
+# Allow anonymous access (disable in production)
+plugins.security.allow_unsafe_democertificates: true
+plugins.security.authcz.admin_dn:
+  - "CN=kirk,OU=client,O=client,L=test,C=de"
+
+# Cluster settings
+cluster.name: opensearch-cluster
+node.name: opensearch-node1
+discovery.type: single-node
+
+# Enable CORS (if needed)
+http.cors.enabled: true
+http.cors.allow-origin: "*"
+http.cors.allow-methods: GET, POST, PUT, DELETE, OPTIONS
+http.cors.allow-headers: X-Requested-With, X-Auth-Token, Content-Type, Content-Length, Authorization, Access-Control-Allow-Headers, Accept
