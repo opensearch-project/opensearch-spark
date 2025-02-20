@@ -223,6 +223,10 @@ public enum BuiltinFunctionName {
   JSON_EXTRACT(FunctionName.of("json_extract")),
   JSON_KEYS(FunctionName.of("json_keys")),
   JSON_VALID(FunctionName.of("json_valid")),
+  JSON_DELETE(FunctionName.of("json_delete")),
+  JSON_SET(FunctionName.of("json_set")),
+  JSON_APPEND(FunctionName.of("json_append")),
+  JSON_EXTEND(FunctionName.of("json_extend")),
 //  JSON_ARRAY_ALL_MATCH(FunctionName.of("json_array_all_match")),
 //  JSON_ARRAY_ANY_MATCH(FunctionName.of("json_array_any_match")),
 //  JSON_ARRAY_FILTER(FunctionName.of("json_array_filter")),
@@ -293,7 +297,13 @@ public enum BuiltinFunctionName {
   MULTIMATCHQUERY(FunctionName.of("multimatchquery")),
   WILDCARDQUERY(FunctionName.of("wildcardquery")),
   WILDCARD_QUERY(FunctionName.of("wildcard_query")),
-  COALESCE(FunctionName.of("coalesce"));
+  COALESCE(FunctionName.of("coalesce")),
+
+  /** IP Relevance Function. */
+  CIDR(FunctionName.of("cidr")),
+  IS_IPV4(FunctionName.of("is_ipv4")),
+  IP_TO_INT(FunctionName.of("ip_to_int")),
+  ;
 
   private FunctionName name;
 

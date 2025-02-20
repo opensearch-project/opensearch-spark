@@ -8,6 +8,7 @@ package org.opensearch.flint.spark.ppl
 import java.util
 
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.sql.expression.function.BuiltinFunctionName.{IP_TO_INT, IS_IPV4}
 import org.opensearch.sql.expression.function.SerializableUdf.visit
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
@@ -15,10 +16,9 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, CreateNamedStruct, Descending, EqualTo, Expression, ExprId, GreaterThanOrEqual, In, LessThan, Literal, NamedExpression, ScalaUDF, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, CreateNamedStruct, EqualTo, Expression, GreaterThanOrEqual, LessThan, Literal, NamedExpression}
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, PlanTest}
-import org.apache.spark.sql.catalyst.plans.logical.{DataFrameDropColumns, Join, JoinHint, LogicalPlan, Project, Sort, SubqueryAlias}
-import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.catalyst.plans.logical.{DataFrameDropColumns, Join, JoinHint, LogicalPlan, Project, SubqueryAlias}
 
 class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
     extends SparkFunSuite
@@ -42,8 +42,8 @@ class PPLLogicalPlanGeoipFunctionTranslatorTestSuite
       ipAddress: UnresolvedAttribute,
       left: LogicalPlan,
       right: LogicalPlan): LogicalPlan = {
-    val is_ipv4 = visit("is_ipv4", util.List.of[Expression](ipAddress))
-    val ip_to_int = visit("ip_to_int", util.List.of[Expression](ipAddress))
+    val is_ipv4 = visit(IS_IPV4, util.List.of[Expression](ipAddress))
+    val ip_to_int = visit(IP_TO_INT, util.List.of[Expression](ipAddress))
 
     val t1 = SubqueryAlias("t1", left)
     val t2 = SubqueryAlias("t2", right)
