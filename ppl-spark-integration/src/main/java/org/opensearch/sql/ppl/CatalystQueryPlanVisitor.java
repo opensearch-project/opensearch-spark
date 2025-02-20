@@ -89,12 +89,14 @@ import scala.collection.IterableLike;
 import scala.collection.Seq;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
 import static java.util.List.of;
@@ -196,7 +198,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     public LogicalPlan visitLookup(Lookup node, CatalystPlanContext context) {
         visitFirstChild(node, context);
         return context.apply( searchSide -> {
-            context.retainAllNamedParseExpressions(p -> p);
+            context.resetNamedParseExpressions();
             context.retainAllPlans(p -> p);
             LogicalPlan target;
             LogicalPlan lookupTable = node.getLookupRelation().accept(this, context);
@@ -257,7 +259,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
             LogicalPlan outputWithDropped = DataFrameDropColumns$.MODULE$.apply(seq(toDrop), target);
 
-            context.retainAllNamedParseExpressions(p -> p);
+            context.resetNamedParseExpressions();
             context.retainAllPlans(p -> p);
             return outputWithDropped;
         });
@@ -304,7 +306,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             var subSearchWithRowNumber = getRowNumStarProjection(context, subSearch, TABLE_RHS);
 
             context.withSubqueryAlias(subSearchWithRowNumber);
-            context.retainAllNamedParseExpressions(p -> p);
+            context.resetNamedParseExpressions();
             context.retainAllPlans(p -> p);
 
             // Join both Main and Sub search with _ROW_NUMBER_ column
@@ -351,7 +353,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             LogicalPlan right = node.getRight().accept(this, context);
             Optional<Expression> joinCondition = node.getJoinCondition()
                 .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context));
-            context.retainAllNamedParseExpressions(p -> p);
+            context.resetNamedParseExpressions();
             context.retainAllPlans(p -> p);
             return join(left, right, node.getJoinType(), joinCondition, node.getJoinHint());
         });
@@ -371,6 +373,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitAggregation(Aggregation node, CatalystPlanContext context) {
         visitFirstChild(node, context);
+        // clean before to go
+        context.resetNamedParseExpressions();
         List<Expression> aggsExpList = visitExpressionList(node.getAggExprList(), context);
         List<Expression> groupExpList = visitExpressionList(node.getGroupExprList(), context);
         if (!groupExpList.isEmpty()) {
@@ -460,6 +464,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.withProjectedFields(node.getProjectList());
         }
         LogicalPlan child = visitFirstChild(node, context);
+
+        // reset expression stack before resolving project
+        context.resetNamedParseExpressions();
         visitExpressionList(node.getProjectList(), context);
 
         // Create a projection list from the existing expressions
@@ -481,6 +488,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
     @Override
     public LogicalPlan visitSort(Sort node, CatalystPlanContext context) {
         visitFirstChild(node, context);
+        context.resetNamedParseExpressions();
         visitFieldList(node.getSortList(), context);
         Seq<SortOrder> sortElements = context.retainAllNamedParseExpressions(exp -> SortUtils.getSortDirection(node, (NamedExpression) exp));
         return context.apply(p -> (LogicalPlan) new org.apache.spark.sql.catalyst.plans.logical.Sort(sortElements, true, p));
