@@ -5,24 +5,14 @@
 
 package org.opensearch.sql.expression.function;
 
+import static org.opensearch.sql.expression.function.JsonUtils.objectMapper;
+import static org.opensearch.sql.expression.function.JsonUtils.removeNestedKey;
+import static org.opensearch.sql.expression.function.JsonUtils.updateNestedJson;
+import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
+
 import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddressString;
 import inet.ipaddr.IPAddressStringParameters;
-import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
-import org.apache.spark.sql.types.DataTypes;
-import scala.Function1;
-import scala.Function2;
-import scala.Function3;
-import scala.Option;
-import scala.Serializable;
-import scala.runtime.AbstractFunction1;
-import scala.runtime.AbstractFunction2;
-import scala.runtime.AbstractFunction3;
-import scala.collection.JavaConverters;
-import scala.collection.mutable.WrappedArray;
-
-import java.lang.Boolean;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -33,11 +23,21 @@ import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
-import static org.opensearch.sql.expression.function.JsonUtils.objectMapper;
-import static org.opensearch.sql.expression.function.JsonUtils.removeNestedKey;
-import static org.opensearch.sql.expression.function.JsonUtils.updateNestedJson;
-import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
+import java.util.Optional;
+import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
+import org.apache.spark.sql.types.DataTypes;
+import org.jetbrains.annotations.TestOnly;
+import scala.Function1;
+import scala.Function2;
+import scala.Function3;
+import scala.Option;
+import scala.Serializable;
+import scala.collection.JavaConverters;
+import scala.collection.mutable.WrappedArray;
+import scala.runtime.AbstractFunction1;
+import scala.runtime.AbstractFunction2;
+import scala.runtime.AbstractFunction3;
 
 public interface SerializableUdf {
 
@@ -237,21 +237,12 @@ public interface SerializableUdf {
     /**
      * Get the function reference according to its name
      *
-     * @param funcName string representing function to retrieve.
+     * @param funcName PPL BuiltinFunctionName to retrieve.
      * @return relevant ScalaUDF for given function name.
      */
-    static ScalaUDF visit(String funcName, List<Expression> expressions) {
+    static ScalaUDF visit(BuiltinFunctionName funcName, List<Expression> expressions) {
         switch (funcName) {
-            case "cidr":
-                return new ScalaUDF(cidrFunction,
-                        DataTypes.BooleanType,
-                        seq(expressions),
-                        seq(),
-                        Option.empty(),
-                        Option.apply("cidr"),
-                        false,
-                        true);
-            case "json_delete":
+            case JSON_DELETE:
                 return new ScalaUDF(jsonDeleteFunction,
                         DataTypes.StringType,
                         seq(expressions),
@@ -260,7 +251,7 @@ public interface SerializableUdf {
                         Option.apply("json_delete"),
                         false,
                         true);
-            case "json_set":
+            case JSON_SET:
                 return new ScalaUDF(jsonSetFunction,
                         DataTypes.StringType,
                         seq(expressions),
@@ -269,7 +260,7 @@ public interface SerializableUdf {
                         Option.apply("json_set"),
                         false,
                         true);
-            case "json_append":
+            case JSON_APPEND:
                 return new ScalaUDF(jsonAppendFunction,
                         DataTypes.StringType,
                         seq(expressions),
@@ -278,7 +269,7 @@ public interface SerializableUdf {
                         Option.apply("json_append"),
                         false,
                         true);
-            case "json_extend":
+            case JSON_EXTEND:
                 return new ScalaUDF(jsonExtendFunction,
                         DataTypes.StringType,
                         seq(expressions),
@@ -287,7 +278,16 @@ public interface SerializableUdf {
                         Option.apply("json_extend"),
                         false,
                         true);
-            case "is_ipv4":
+            case CIDR:
+                return new ScalaUDF(cidrFunction,
+                    DataTypes.BooleanType,
+                    seq(expressions),
+                    seq(),
+                    Option.empty(),
+                    Option.apply("cidr"),
+                    false,
+                    true);
+            case IS_IPV4:
                 return new ScalaUDF(geoIpUtils.isIpv4,
                         DataTypes.BooleanType,
                         seq(expressions),
@@ -296,7 +296,7 @@ public interface SerializableUdf {
                         Option.apply("is_ipv4"),
                         false,
                         true);
-            case "ip_to_int":
+            case IP_TO_INT:
                 return new ScalaUDF(geoIpUtils.ipToInt,
                         DataTypes.createDecimalType(38, 0),
                         seq(expressions),
@@ -305,7 +305,7 @@ public interface SerializableUdf {
                         Option.apply("ip_to_int"),
                         false,
                         true);
-            case "relative_timestamp":
+            case RELATIVE_TIMESTAMP:
                 return new ScalaUDF(relativeTimestampFunction,
                         DataTypes.TimestampType,
                         seq(expressions),
@@ -317,5 +317,18 @@ public interface SerializableUdf {
             default:
                 return null;
         }
+    }
+
+    /**
+     * Get the function reference according to its name
+     *
+     * @param funcName string representing function to retrieve.
+     * @return relevant ScalaUDF for given function name.
+     */
+    @TestOnly
+    static ScalaUDF visit(String funcName, List<Expression> expressions) {
+        Optional<BuiltinFunctionName> funcNameEnum = BuiltinFunctionName.of(funcName);
+        assert funcNameEnum.isPresent();
+        return visit(funcNameEnum.get(), expressions);
     }
 }
