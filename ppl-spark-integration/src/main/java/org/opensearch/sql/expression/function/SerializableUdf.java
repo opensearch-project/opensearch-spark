@@ -23,11 +23,9 @@ import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.types.DataTypes;
-import org.jetbrains.annotations.TestOnly;
 import scala.Function1;
 import scala.Function2;
 import scala.Function3;
@@ -317,18 +315,5 @@ public interface SerializableUdf {
             default:
                 return null;
         }
-    }
-
-    /**
-     * Get the function reference according to its name
-     *
-     * @param funcName string representing function to retrieve.
-     * @return relevant ScalaUDF for given function name.
-     */
-    @TestOnly
-    static ScalaUDF visit(String funcName, List<Expression> expressions) {
-        Optional<BuiltinFunctionName> funcNameEnum = BuiltinFunctionName.of(funcName);
-        assert funcNameEnum.isPresent();
-        return visit(funcNameEnum.get(), expressions);
     }
 }
