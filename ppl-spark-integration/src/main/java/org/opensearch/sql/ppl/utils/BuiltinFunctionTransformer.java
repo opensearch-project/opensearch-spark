@@ -88,7 +88,7 @@ import static scala.Option.empty;
  * 1. Transform to spark built-int function directly without name mapping
  * 2. Transform to spark built-int function with direct name mapping in `SPARK_BUILTIN_FUNCTION_NAME_MAPPING`
  * 3. Transform to spark built-int function with alternative implementation mapping in `PPL_TO_SPARK_FUNC_MAPPING`
- * 4. Transform to spark scala function implemented in {@link SerializableUdf}
+ * 4. Transform to spark scala function implemented in {@link SerializableUdf} by mapping in `PPL_TO_SPARK_UDF_MAPPING`
  */
 public interface BuiltinFunctionTransformer {
 
