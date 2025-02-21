@@ -6,6 +6,7 @@
 package org.opensearch.sql.ppl.utils;
 
 import com.google.common.collect.ImmutableMap;
+import java.util.Optional;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction$;
 import org.apache.spark.sql.catalyst.expressions.CurrentTimeZone$;
@@ -15,7 +16,6 @@ import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual$;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual$;
 import org.apache.spark.sql.catalyst.expressions.Literal$;
-import org.apache.spark.sql.catalyst.expressions.ScalaUDF;
 import org.apache.spark.sql.catalyst.expressions.TimestampAdd$;
 import org.apache.spark.sql.catalyst.expressions.TimestampDiff$;
 import org.apache.spark.sql.catalyst.expressions.ToUTCTimestamp$;
@@ -34,18 +34,25 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADD;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADDDATE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.APPROX_COUNT_DISTINCT;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ARRAY_LENGTH;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.CIDR;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATEDIFF;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATE_ADD;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DATE_SUB;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.DAY_OF_MONTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.COALESCE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.EARLIEST;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.IP_TO_INT;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_IPV4;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_APPEND;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_ARRAY;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_ARRAY_LENGTH;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_DELETE;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_EXTEND;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_EXTRACT;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_KEYS;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_OBJECT;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_SET;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_VALID;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.LATEST;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.SUBTRACT;
@@ -75,6 +82,14 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.WEEK_OF
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static scala.Option.empty;
 
+/**
+ * Transformer for built-in functions. It will transform PPL built-in functions to Spark functions.
+ * There are four ways of transformation:
+ * 1. Transform to spark built-int function directly without name mapping
+ * 2. Transform to spark built-int function with direct name mapping in `SPARK_BUILTIN_FUNCTION_NAME_MAPPING`
+ * 3. Transform to spark built-int function with alternative implementation mapping in `PPL_TO_SPARK_FUNC_MAPPING`
+ * 4. Transform to spark scala function implemented in {@link SerializableUdf} by mapping in `PPL_TO_SPARK_UDF_MAPPING`
+ */
 public interface BuiltinFunctionTransformer {
 
     /**
@@ -178,48 +193,86 @@ public interface BuiltinFunctionTransformer {
             args -> {
                 return ToUTCTimestamp$.MODULE$.apply(CurrentTimestamp$.MODULE$.apply(), CurrentTimeZone$.MODULE$.apply());
             })
-
-        // Relative time functions
-        .put(
-                RELATIVE_TIMESTAMP,
-                args -> buildRelativeTimestamp(args.get(0)))
-        .put(
-                EARLIEST,
-                args -> {
-                    Expression relativeTimestamp = buildRelativeTimestamp(args.get(0));
-                    Expression timestamp = args.get(1);
-                    return LessThanOrEqual$.MODULE$.apply(relativeTimestamp, timestamp);
-                })
-        .put(
-                LATEST,
-                args -> {
-                    Expression relativeTimestamp = buildRelativeTimestamp(args.get(0));
-                    Expression timestamp = args.get(1);
-                    return GreaterThanOrEqual$.MODULE$.apply(relativeTimestamp, timestamp);
-                })
         .build();
 
+  /**
+   * The mapping between PPL builtin functions to Spark UDF implemented in this project.
+   */
+  Map<BuiltinFunctionName, Function<List<Expression>, Expression>> PPL_TO_SPARK_UDF_MAPPING
+      = ImmutableMap.<BuiltinFunctionName, Function<List<Expression>, Expression>>builder()
+      // JSON UDF
+      .put(
+          JSON_DELETE,
+          args -> SerializableUdf.visit(JSON_DELETE, args))
+      .put(
+          JSON_SET,
+          args -> SerializableUdf.visit(JSON_SET, args))
+      .put(
+          JSON_APPEND,
+          args -> SerializableUdf.visit(JSON_APPEND, args))
+      .put(
+          JSON_EXTEND,
+          args -> SerializableUdf.visit(JSON_EXTEND, args))
+      // IP Relevance UDF
+      .put(
+          CIDR,
+          args -> SerializableUdf.visit(CIDR, args))
+      .put(
+          IS_IPV4,
+          args -> SerializableUdf.visit(IS_IPV4, args))
+      .put(
+          IP_TO_INT,
+          args -> SerializableUdf.visit(IP_TO_INT, args))
+      // Relative Time UDF
+      .put(
+          RELATIVE_TIMESTAMP,
+          args -> buildRelativeTimestamp(args.get(0)))
+      .put(
+          EARLIEST,
+          args -> {
+            Expression relativeTimestamp = buildRelativeTimestamp(args.get(0));
+            Expression timestamp = args.get(1);
+            return LessThanOrEqual$.MODULE$.apply(relativeTimestamp, timestamp);
+          })
+      .put(
+          LATEST,
+          args -> {
+            Expression relativeTimestamp = buildRelativeTimestamp(args.get(0));
+            Expression timestamp = args.get(1);
+            return GreaterThanOrEqual$.MODULE$.apply(relativeTimestamp, timestamp);
+          })
+      .build();
+
     static Expression builtinFunction(org.opensearch.sql.ast.expression.Function function, List<Expression> args) {
-        if (BuiltinFunctionName.of(function.getFuncName()).isEmpty()) {
-            ScalaUDF udf = SerializableUdf.visit(function.getFuncName(), args);
-            if(udf == null) {
-                throw new UnsupportedOperationException(function.getFuncName() + " is not a builtin function of PPL");
-            }
-            return udf;
-        } else {
-            BuiltinFunctionName builtin = BuiltinFunctionName.of(function.getFuncName()).get();
-            String name = SPARK_BUILTIN_FUNCTION_NAME_MAPPING.get(builtin);
-            if (name != null) {
-                // there is a Spark builtin function mapping with the PPL builtin function
-                return new UnresolvedFunction(seq(name), seq(args), false, empty(),false);
-            }
-            Function<List<Expression>, Expression> alternative = PPL_TO_SPARK_FUNC_MAPPING.get(builtin);
-            if (alternative != null) {
-                return alternative.apply(args);
-            }
-            name = builtin.getName().getFunctionName();
-            return new UnresolvedFunction(seq(name), seq(args), false, empty(),false);
-        }
+      Optional<BuiltinFunctionName> builtinOpt = BuiltinFunctionName.of(function.getFuncName());
+      if (builtinOpt.isEmpty()) {
+          throw new UnsupportedOperationException(function.getFuncName() + " is not a builtin function of PPL");
+      }
+      BuiltinFunctionName builtin = builtinOpt.get();
+
+      // 1. Transform to spark built-int function if there is a direct mapping
+      String name = SPARK_BUILTIN_FUNCTION_NAME_MAPPING.get(builtin);
+      if (name != null) {
+          // there is a Spark builtin function mapping with the PPL builtin function
+          return new UnresolvedFunction(seq(name), seq(args), false, empty(),false);
+      }
+
+      // 2. Transform to spark built-int function if there is an alternative mapping
+      Function<List<Expression>, Expression> alternative = PPL_TO_SPARK_FUNC_MAPPING.get(builtin);
+      if (alternative != null) {
+          return alternative.apply(args);
+      }
+
+      // 3. Transform to spark UDF
+      // if we already have a self-defined implementation in this project
+      Function<List<Expression>, Expression> udf = PPL_TO_SPARK_UDF_MAPPING.get(builtin);
+      if(udf != null) {
+          return udf.apply(args);
+      }
+
+      // 4. Transform to spark built-int function directly without mapping
+      name = builtin.getName().getFunctionName();
+      return new UnresolvedFunction(seq(name), seq(args), false, empty(),false);
     }
 
     static Expression[] createIntervalArgs(IntervalUnit unit, Expression value) {
@@ -241,7 +294,7 @@ public interface BuiltinFunctionTransformer {
 
     private static Expression buildRelativeTimestamp(Expression relativeStringExpression) {
         return SerializableUdf.visit(
-                RELATIVE_TIMESTAMP.getName().getFunctionName(),
+                RELATIVE_TIMESTAMP,
                 List.of(relativeStringExpression, CurrentTimestamp$.MODULE$.apply(), CurrentTimeZone$.MODULE$.apply()));
     }
 }
