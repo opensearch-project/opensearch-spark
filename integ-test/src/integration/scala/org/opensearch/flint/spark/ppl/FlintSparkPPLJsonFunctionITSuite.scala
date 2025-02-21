@@ -7,6 +7,10 @@ package org.opensearch.flint.spark.ppl
 
 import java.util
 
+import org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_APPEND
+import org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_DELETE
+import org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_EXTEND
+import org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_SET
 import org.opensearch.sql.expression.function.SerializableUdf.visit
 
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
@@ -408,7 +412,7 @@ class FlintSparkPPLJsonFunctionITSuite
     val jsonObjExp =
       Literal("{\"account_number\":1,\"balance\":39225,\"age\":32,\"gender\":\"M\"}")
     val jsonFunc =
-      Alias(visit("json_delete", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_DELETE, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -429,7 +433,7 @@ class FlintSparkPPLJsonFunctionITSuite
     val jsonObjExp =
       Literal("{\"account_number\":1,\"balance\":39225,\"age\":32,\"gender\":\"M\"}")
     val jsonFunc =
-      Alias(visit("json_delete", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_DELETE, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -450,7 +454,7 @@ class FlintSparkPPLJsonFunctionITSuite
     val jsonObjExp =
       Literal("{\"f1\":\"abc\",\"f2\":{\"f3\":\"a\",\"f4\":\"b\"}}")
     val jsonFunc =
-      Alias(visit("json_delete", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_DELETE, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -475,7 +479,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":\"Alice\",\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_delete", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_DELETE, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -500,7 +504,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":\"Alice\",\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_delete", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_DELETE, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -525,7 +529,7 @@ class FlintSparkPPLJsonFunctionITSuite
     val jsonObjExp =
       Literal("{\"account_number\":1,\"balance\":39225,\"age\":32,\"gender\":\"M\"}")
     val jsonFunc =
-      Alias(visit("json_set", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_SET, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -552,7 +556,7 @@ class FlintSparkPPLJsonFunctionITSuite
     val jsonObjExp =
       Literal("{\"account_number\":1,\"balance\":39225,\"age\":32,\"gender\":\"M\"}")
     val jsonFunc =
-      Alias(visit("json_set", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_SET, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -573,7 +577,7 @@ class FlintSparkPPLJsonFunctionITSuite
     val jsonObjExp =
       Literal("{\"f1\":\"abc\",\"f2\":{\"f3\":\"a\",\"f4\":\"b\"}}")
     val jsonFunc =
-      Alias(visit("json_set", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_SET, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -598,7 +602,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":\"Alice\",\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_set", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_SET, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -625,7 +629,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_APPEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -653,7 +657,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_APPEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -681,7 +685,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_APPEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -709,7 +713,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_APPEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -737,7 +741,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_APPEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -765,7 +769,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_APPEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -797,7 +801,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"school\":{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}}")
     val jsonFunc =
-      Alias(visit("json_append", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_APPEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -824,7 +828,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_extend", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_EXTEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -849,7 +853,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_extend", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_EXTEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -877,7 +881,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_extend", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_EXTEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -905,7 +909,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_extend", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_EXTEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -933,7 +937,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_extend", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_EXTEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -961,7 +965,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}")
     val jsonFunc =
-      Alias(visit("json_extend", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_EXTEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)
@@ -993,7 +997,7 @@ class FlintSparkPPLJsonFunctionITSuite
       Literal(
         "{\"school\":{\"teacher\":[\"Alice\"],\"student\":[{\"name\":\"Bob\",\"rank\":1},{\"name\":\"Charlie\",\"rank\":2}]}}")
     val jsonFunc =
-      Alias(visit("json_extend", util.List.of(jsonObjExp, keysExpression)), "result")()
+      Alias(visit(JSON_EXTEND, util.List.of(jsonObjExp, keysExpression)), "result")()
     val eval = Project(Seq(UnresolvedStar(None), jsonFunc), table)
     val limit = GlobalLimit(Literal(1), LocalLimit(Literal(1), eval))
     val expectedPlan = Project(Seq(UnresolvedAttribute("result")), limit)

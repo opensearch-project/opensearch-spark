@@ -7,6 +7,8 @@ package org.opensearch.flint.spark.ppl
 
 import java.util
 
+import org.opensearch.sql.expression.function.BuiltinFunctionName.IP_TO_INT
+import org.opensearch.sql.expression.function.BuiltinFunctionName.IS_IPV4
 import org.opensearch.sql.expression.function.SerializableUdf.visit
 import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 
@@ -57,8 +59,8 @@ class FlintSparkPPLGeoipITSuite
       ipAddress: UnresolvedAttribute,
       left: LogicalPlan,
       right: LogicalPlan): LogicalPlan = {
-    val is_ipv4 = visit("is_ipv4", util.List.of[Expression](ipAddress))
-    val ip_to_int = visit("ip_to_int", util.List.of[Expression](ipAddress))
+    val is_ipv4 = visit(IS_IPV4, util.List.of[Expression](ipAddress))
+    val ip_to_int = visit(IP_TO_INT, util.List.of[Expression](ipAddress))
 
     val t1 = SubqueryAlias("t1", left)
     val t2 = SubqueryAlias("t2", right)
