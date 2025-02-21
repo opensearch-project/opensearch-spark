@@ -38,6 +38,8 @@ import java.util.stream.Collectors;
 
 import static java.util.List.of;
 
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.IP_TO_INT;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_IPV4;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
 import static org.opensearch.sql.ppl.utils.JoinSpecTransformer.join;
 
@@ -103,16 +105,16 @@ public interface GeoIpCatalystLogicalPlanTranslator {
             Optional<Expression> joinCondition = Optional.of(new And(
                     new And(
                             new GreaterThanOrEqual(
-                                    SerializableUdf.visit("ip_to_int", of(ipAddress)),
+                                    SerializableUdf.visit(IP_TO_INT, of(ipAddress)),
                                     UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,GEOIP_IP_RANGE_START_COLUMN_NAME))
                             ),
                             new LessThan(
-                                    SerializableUdf.visit("ip_to_int", of(ipAddress)),
+                                    SerializableUdf.visit(IP_TO_INT, of(ipAddress)),
                                     UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,GEOIP_IP_RANGE_END_COLUMN_NAME))
                             )
                     ),
                     new EqualTo(
-                            SerializableUdf.visit("is_ipv4", of(ipAddress)),
+                            SerializableUdf.visit(IS_IPV4, of(ipAddress)),
                             UnresolvedAttribute$.MODULE$.apply(seq(GEOIP_TABLE_ALIAS,GEOIP_IPV4_COLUMN_NAME))
                     )
             ));

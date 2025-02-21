@@ -79,6 +79,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static java.util.List.of;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.CIDR;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
 import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
 import static org.opensearch.sql.ppl.utils.BuiltinFunctionTransformer.createIntervalArgs;
@@ -431,7 +432,7 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
         Expression ipAddressExpression = context.getNamedParseExpressions().pop();
         analyze(node.getCidrBlock(), context);
         Expression cidrBlockExpression = context.getNamedParseExpressions().pop();
-        return context.getNamedParseExpressions().push(SerializableUdf.visit("cidr", of(ipAddressExpression,cidrBlockExpression)));
+        return context.getNamedParseExpressions().push(SerializableUdf.visit(CIDR, of(ipAddressExpression,cidrBlockExpression)));
     }
 
     @Override

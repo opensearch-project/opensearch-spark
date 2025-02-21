@@ -6,18 +6,16 @@
 package org.opensearch.flint.spark.ppl
 
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
-import org.opensearch.sql.expression.function.SerializableUdf
+import org.opensearch.sql.expression.function.BuiltinFunctionName.CIDR
 import org.opensearch.sql.expression.function.SerializableUdf.visit
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
-import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, CaseWhen, Descending, EqualTo, GreaterThan, Literal, NullsFirst, NullsLast, RegExpExtract, SortOrder}
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, CaseWhen, EqualTo, Literal}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.types.DataTypes
 
 class PPLLogicalPlanParseCidrmatchTestSuite
     extends SparkFunSuite
@@ -42,7 +40,7 @@ class PPLLogicalPlanParseCidrmatchTestSuite
 
     val filterIpv6 = EqualTo(UnresolvedAttribute("isV6"), Literal(false))
     val filterIsValid = EqualTo(UnresolvedAttribute("isValid"), Literal(true))
-    val cidr = visit("cidr", java.util.List.of(ipAddress, cidrExpression))
+    val cidr = visit(CIDR, java.util.List.of(ipAddress, cidrExpression))
 
     val expectedPlan = Project(
       Seq(UnresolvedStar(None)),
@@ -64,7 +62,7 @@ class PPLLogicalPlanParseCidrmatchTestSuite
 
     val filterIpv6 = EqualTo(UnresolvedAttribute("isV6"), Literal(true))
     val filterIsValid = EqualTo(UnresolvedAttribute("isValid"), Literal(false))
-    val cidr = visit("cidr", java.util.List.of(ipAddress, cidrExpression))
+    val cidr = visit(CIDR, java.util.List.of(ipAddress, cidrExpression))
 
     val expectedPlan = Project(
       Seq(UnresolvedStar(None)),
@@ -85,7 +83,7 @@ class PPLLogicalPlanParseCidrmatchTestSuite
     val cidrExpression = Literal("2003:db8::/32")
 
     val filterIpv6 = EqualTo(UnresolvedAttribute("isV6"), Literal(true))
-    val cidr = visit("cidr", java.util.List.of(ipAddress, cidrExpression))
+    val cidr = visit(CIDR, java.util.List.of(ipAddress, cidrExpression))
 
     val expectedPlan = Project(
       Seq(UnresolvedAttribute("ip")),
@@ -107,7 +105,7 @@ class PPLLogicalPlanParseCidrmatchTestSuite
 
     val filterIpv6 = EqualTo(UnresolvedAttribute("isV6"), Literal(true))
     val filterClause = Filter(filterIpv6, UnresolvedRelation(Seq("t")))
-    val cidr = visit("cidr", java.util.List.of(ipAddress, cidrExpression))
+    val cidr = visit(CIDR, java.util.List.of(ipAddress, cidrExpression))
 
     val equalTo = EqualTo(Literal(true), cidr)
     val caseFunction = CaseWhen(Seq((equalTo, Literal("in"))), Literal("out"))
