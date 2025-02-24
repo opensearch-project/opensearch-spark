@@ -1,7 +1,8 @@
-name: Test and Build Report
+name: Test Report
 on:
   workflow_run:
-    workflows: ['CI']                     # runs after CI workflow
+    workflows:
+      - CI # runs after CI workflow
     types:
       - completed
 permissions:
@@ -14,7 +15,7 @@ jobs:
     steps:
       - uses: dorny/test-reporter@v1
         with:
-          artifact: test-results            # artifact name
-          name: JUnit Tests                  # Name of the check run which will be created
-          path: target/test-reports/*.xml   # Path to test results (inside artifact .zip)
-          reporter: java-junit              # Format of test results
+          artifact: test-results # artifact name
+          name: Java Tests
+          path: target/test-reports/*.xml
+          reporter: java-junit
