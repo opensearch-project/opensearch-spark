@@ -1106,38 +1106,13 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 
-  test("test average backticks price") {
-    val context = new CatalystPlanContext
-    val logPlan =
-      planTransformer.visit(plan(pplParser, "source = table | stats avg(`price`)"), context)
-    val star = Seq(UnresolvedStar(None))
-
-    val priceField = UnresolvedAttribute("price")
-    val tableRelation = UnresolvedRelation(Seq("table"))
-    val aggregateExpressions = Seq(
-      Alias(
-        UnresolvedFunction(Seq("AVG"), Seq(priceField), isDistinct = false),
-        "avg(`price`)")())
-    val aggregatePlan = Aggregate(Seq(), aggregateExpressions, tableRelation)
-    val expectedPlan = Project(star, aggregatePlan)
-
-    comparePlans(expectedPlan, logPlan, false)
-  }
-
   test("test average price with backticks alias") {
-    val context = new CatalystPlanContext
+    val expectedPlan = planTransformer.visit(
+      plan(pplParser, "source = table | stats avg(price) as avg_price"),
+      new CatalystPlanContext)
     val logPlan = planTransformer.visit(
-      plan(pplParser, "source = table | stats avg(price) as `avg_price`"),
-      context)
-    val star = Seq(UnresolvedStar(None))
-
-    val priceField = UnresolvedAttribute("price")
-    val tableRelation = UnresolvedRelation(Seq("table"))
-    val aggregateExpressions = Seq(
-      Alias(UnresolvedFunction(Seq("AVG"), Seq(priceField), isDistinct = false), "avg_price")())
-    val aggregatePlan = Aggregate(Seq(), aggregateExpressions, tableRelation)
-    val expectedPlan = Project(star, aggregatePlan)
-
+      plan(pplParser, "source = table | stats avg(`price`) as `avg_price`"),
+      new CatalystPlanContext)
     comparePlans(expectedPlan, logPlan, false)
   }
 }

@@ -395,39 +395,24 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   }
 
   test("Search multiple tables - with backticks table alias") {
-    val context = new CatalystPlanContext
+    val expectedPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          """
+            | source=table1, table2, table3 as t
+            | | where t.name = 'Molly'
+            |""".stripMargin),
+        new CatalystPlanContext)
     val logPlan =
       planTransformer.visit(
         plan(
           pplParser,
           """
             | source=table1, table2, table3 as `t`
-            | | where t.name = 'Molly'
+            | | where `t`.`name` = 'Molly'
             |""".stripMargin),
-        context)
-
-    val table1 = UnresolvedRelation(Seq("table1"))
-    val table2 = UnresolvedRelation(Seq("table2"))
-    val table3 = UnresolvedRelation(Seq("table3"))
-    val star = UnresolvedStar(None)
-    val plan1 = Project(
-      Seq(star),
-      Filter(
-        EqualTo(UnresolvedAttribute("t.name"), Literal("Molly")),
-        SubqueryAlias("t", table1)))
-    val plan2 = Project(
-      Seq(star),
-      Filter(
-        EqualTo(UnresolvedAttribute("t.name"), Literal("Molly")),
-        SubqueryAlias("t", table2)))
-    val plan3 = Project(
-      Seq(star),
-      Filter(
-        EqualTo(UnresolvedAttribute("t.name"), Literal("Molly")),
-        SubqueryAlias("t", table3)))
-
-    val expectedPlan =
-      Union(Seq(plan1, plan2, plan3), byName = true, allowMissingCol = true)
+        new CatalystPlanContext)
 
     comparePlans(expectedPlan, logPlan, false)
   }

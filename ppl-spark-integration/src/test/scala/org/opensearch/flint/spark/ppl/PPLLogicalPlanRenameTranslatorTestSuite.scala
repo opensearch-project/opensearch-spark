@@ -126,20 +126,14 @@ class PPLLogicalPlanRenameTranslatorTestSuite
   }
 
   test("test rename with backticks alias") {
-    val context = new CatalystPlanContext
+    val expectedPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=t | rename a as r_a, b as r_b | fields c"),
+        new CatalystPlanContext)
     val logPlan =
       planTransformer.visit(
         plan(pplParser, "source=t | rename `a` as `r_a`, `b` as `r_b` | fields `c`"),
-        context)
-    val renameProjectList: Seq[NamedExpression] =
-      Seq(
-        UnresolvedStar(None),
-        Alias(UnresolvedAttribute("a"), "r_a")(),
-        Alias(UnresolvedAttribute("b"), "r_b")())
-    val innerProject = Project(renameProjectList, UnresolvedRelation(Seq("t")))
-    val planDropColumn =
-      DataFrameDropColumns(Seq(UnresolvedAttribute("a"), UnresolvedAttribute("b")), innerProject)
-    val expectedPlan = Project(seq(UnresolvedAttribute("c")), planDropColumn)
+        new CatalystPlanContext)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
 }
