@@ -845,4 +845,73 @@ class PPLLogicalPlanJoinTranslatorTestSuite
       Project(Seq(UnresolvedAttribute("t1.name"), UnresolvedAttribute("t2.name")), joinPlan1)
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
+
+  test("test multiple joins with table and subquery backticks alias") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = table1 as t1
+         | | JOIN left = `l` right = `r` ON t1.id = t2.id
+         |   [
+         |     source = table2 as `t2`
+         |   ]
+         | | JOIN left = `l` right = `r` ON t2.id = t3.id
+         |   [
+         |     source = table3 as `t3`
+         |   ]
+         | | JOIN left = `l` right = `r` ON t3.id = t4.id
+         |   [
+         |     source = table4 as `t4`
+         |   ]
+         | """.stripMargin)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("table1"))
+    val table2 = UnresolvedRelation(Seq("table2"))
+    val table3 = UnresolvedRelation(Seq("table3"))
+    val table4 = UnresolvedRelation(Seq("table4"))
+    val joinPlan1 = Join(
+      SubqueryAlias("l", SubqueryAlias("t1", table1)),
+      SubqueryAlias("r", SubqueryAlias("t2", table2)),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("t1.id"), UnresolvedAttribute("t2.id"))),
+      JoinHint.NONE)
+    val joinPlan2 = Join(
+      SubqueryAlias("l", joinPlan1),
+      SubqueryAlias("r", SubqueryAlias("t3", table3)),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("t2.id"), UnresolvedAttribute("t3.id"))),
+      JoinHint.NONE)
+    val joinPlan3 = Join(
+      SubqueryAlias("l", joinPlan2),
+      SubqueryAlias("r", SubqueryAlias("t4", table4)),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("t3.id"), UnresolvedAttribute("t4.id"))),
+      JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), joinPlan3)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test complex backticks subquery alias") {
+    val context = new CatalystPlanContext
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1
+         | | JOIN left = `t1` right = `t2` ON t1.name = t2.name [ source = $testTable2 as `ttt` ] as `tt`
+         | | fields t1.name, t2.name
+         | """.stripMargin)
+    val logicalPlan = planTransformer.visit(logPlan, context)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val joinPlan1 = Join(
+      SubqueryAlias("t1", table1),
+      SubqueryAlias("t2", SubqueryAlias("tt", SubqueryAlias("ttt", table2))),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("t1.name"), UnresolvedAttribute("t2.name"))),
+      JoinHint.NONE)
+    val expectedPlan =
+      Project(Seq(UnresolvedAttribute("t1.name"), UnresolvedAttribute("t2.name")), joinPlan1)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
 }

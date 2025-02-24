@@ -93,6 +93,29 @@ class PPLLogicalPlanTrendlineCommandTranslatorTestSuite
     comparePlans(logPlan, expectedPlan, checkAnalysis = false)
   }
 
+  test("test trendline with sort and backticks alias") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=relation | trendline sort - age sma(3, age) as `age_sma`"),
+        context)
+
+    val table = UnresolvedRelation(Seq("relation"))
+    val ageField = UnresolvedAttribute("age")
+    val sort = Sort(Seq(SortOrder(ageField, Descending)), global = true, table)
+    val countWindow = new WindowExpression(
+      UnresolvedFunction("COUNT", Seq(Literal(1)), isDistinct = false),
+      WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-2), CurrentRow)))
+    val smaWindow = WindowExpression(
+      UnresolvedFunction("AVG", Seq(ageField), isDistinct = false),
+      WindowSpecDefinition(Seq(), Seq(), SpecifiedWindowFrame(RowFrame, Literal(-2), CurrentRow)))
+    val caseWhen = CaseWhen(Seq((LessThan(countWindow, Literal(3)), Literal(null))), smaWindow)
+    val trendlineProjectList = Seq(UnresolvedStar(None), Alias(caseWhen, "age_sma")())
+    val expectedPlan =
+      Project(Seq(UnresolvedStar(None)), Project(trendlineProjectList, sort))
+    comparePlans(logPlan, expectedPlan, checkAnalysis = false)
+  }
+
   test("test trendline with multiple trendline sma commands") {
     val context = new CatalystPlanContext
     val logPlan =

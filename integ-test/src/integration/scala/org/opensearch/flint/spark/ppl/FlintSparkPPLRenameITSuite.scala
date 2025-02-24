@@ -186,4 +186,67 @@ class FlintSparkPPLRenameITSuite
     val expectedPlan = Project(seq(UnresolvedStar(None)), aggregatePlan)
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
   }
+
+  test("test multiple renamed fields with backticks alias") {
+    val frame = sql(s"""
+         | source = $testTable | rename name as `renamed_name`, country as `renamed_country` | fields `renamed_name`, `age`, `renamed_country`
+         | """.stripMargin)
+
+    val expectedResults: Array[Row] =
+      Array(
+        Row("Jake", 70, "USA"),
+        Row("Hello", 30, "USA"),
+        Row("John", 25, "Canada"),
+        Row("Jane", 20, "Canada"))
+    assertSameRows(expectedResults, frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val fieldsProjectList = Seq(
+      UnresolvedAttribute("renamed_name"),
+      UnresolvedAttribute("age"),
+      UnresolvedAttribute("renamed_country"))
+    val renameProjectList =
+      Seq(
+        UnresolvedStar(None),
+        Alias(UnresolvedAttribute("name"), "renamed_name")(),
+        Alias(UnresolvedAttribute("country"), "renamed_country")())
+    val innerProject = Project(renameProjectList, table)
+    val planDropColumn = DataFrameDropColumns(
+      Seq(UnresolvedAttribute("name"), UnresolvedAttribute("country")),
+      innerProject)
+    val expectedPlan = Project(fieldsProjectList, planDropColumn)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
+
+  test("test renamed field with backticks alias used in aggregation") {
+    val frame = sql(s"""
+         | source = $testTable | rename age as `user_age` | stats avg(`user_age`) by country
+         | """.stripMargin)
+
+    val expectedResults: Array[Row] = Array(Row(22.5, "Canada"), Row(50.0, "USA"))
+    assertSameRows(expectedResults, frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+    val renameProjectList =
+      Seq(UnresolvedStar(None), Alias(UnresolvedAttribute("age"), "user_age")())
+    val aggregateExpressions =
+      Seq(
+        Alias(
+          UnresolvedFunction(
+            Seq("AVG"),
+            Seq(UnresolvedAttribute("user_age")),
+            isDistinct = false),
+          "avg(`user_age`)")(),
+        Alias(UnresolvedAttribute("country"), "country")())
+    val innerProject = Project(renameProjectList, table)
+    val planDropColumn = DataFrameDropColumns(Seq(UnresolvedAttribute("age")), innerProject)
+    val aggregatePlan = Aggregate(
+      Seq(Alias(UnresolvedAttribute("country"), "country")()),
+      aggregateExpressions,
+      planDropColumn)
+    val expectedPlan = Project(seq(UnresolvedStar(None)), aggregatePlan)
+    comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
 }
