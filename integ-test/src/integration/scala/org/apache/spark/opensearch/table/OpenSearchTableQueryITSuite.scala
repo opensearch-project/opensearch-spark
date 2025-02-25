@@ -131,7 +131,8 @@ class OpenSearchTableQueryITSuite
       var df = spark.sql(s"""SELECT id, floatField, halfFloatField FROM ${table}""")
       checkAnswer(df, Seq(Row(1, 1.1f, 1.2f), Row(2, 2.1f, 2.2f)))
 
-      df = spark.sql(s"""SELECT id, floatField, halfFloatField FROM ${table} WHERE halfFloatField < 2.0""")
+      df = spark.sql(
+        s"""SELECT id, floatField, halfFloatField FROM ${table} WHERE halfFloatField < 2.0""")
       checkPushedInfo(df, "halfFloatField IS NOT NULL, halfFloatField < 2.0")
       checkAnswer(df, Seq(Row(1, 1.1f, 1.2f)))
     }

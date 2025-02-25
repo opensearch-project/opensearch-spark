@@ -12,7 +12,7 @@ import org.json4s.jackson.JsonMethods
 import org.json4s.native.Serialization
 
 import org.apache.spark.sql.catalyst.util.DateFormatter
-import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.{MetadataBuilderExtension, MetadataExtension}
+import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.{MetadataBuilderExtension, MetadataExtension, OS_TYPE_KEY}
 import org.apache.spark.sql.types._
 
 /**
@@ -90,7 +90,9 @@ object FlintDataType {
       case JString("byte") => ByteType
       case JString("double") => DoubleType
       case JString("float") => FloatType
-      case JString("half_float") => FloatType
+      case JString("half_float") =>
+        metadataBuilder.putString(OS_TYPE_KEY, "half_float")
+        FloatType
 
       // Date
       case JString("date") =>
@@ -184,7 +186,12 @@ object FlintDataType {
       case ShortType => JObject("type" -> JString("short"))
       case ByteType => JObject("type" -> JString("byte"))
       case DoubleType => JObject("type" -> JString("double"))
-      case FloatType => JObject("type" -> JString("float"))
+      case FloatType =>
+        if (metadata.isHalfFloatField) {
+          JObject("type" -> JString("half_float"))
+        } else {
+          JObject("type" -> JString("float"))
+        }
       case DecimalType() => JObject("type" -> JString("double"))
 
       // Date
