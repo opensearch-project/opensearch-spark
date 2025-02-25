@@ -181,6 +181,35 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
     index(indexName, oneNodeSetting, mappings, docs)
   }
 
+  def indexWithNumericFields(indexName: String): Unit = {
+    val mappings = """{
+                     |  "properties": {
+                     |    "id": {
+                     |      "type": "integer"
+                     |    },
+                     |    "floatField": {
+                     |      "type": "float"
+                     |    },
+                     |    "halfFloatField": {
+                     |      "type": "half_float"
+                     |    }
+                     |  }
+                     |}""".stripMargin
+    val docs = Seq("""{
+                     |  "id": 1,
+                     |  "floatField": 1.1,
+                     |  "halfFloatField": 1.2
+                     |}""".stripMargin,
+                  """{
+                    |  "id": 2,
+                    |  "floatField": 2.1,
+                    |  "halfFloatField": 2.2
+                    |}""".stripMargin
+    )
+    index(indexName, oneNodeSetting, mappings, docs)
+  }
+
+
   def index(index: String, settings: String, mappings: String, docs: Seq[String]): Unit = {
     openSearchClient.indices.create(
       new CreateIndexRequest(index)

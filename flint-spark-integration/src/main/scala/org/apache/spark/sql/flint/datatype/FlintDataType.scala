@@ -90,6 +90,7 @@ object FlintDataType {
       case JString("byte") => ByteType
       case JString("double") => DoubleType
       case JString("float") => FloatType
+      case JString("half_float") => FloatType
 
       // Date
       case JString("date") =>

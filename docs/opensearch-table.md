@@ -65,6 +65,7 @@ The following table defines the data type mapping between OpenSearch index field
 | byte                     | ByteType                          |
 | double                   | DoubleType                        |
 | float                    | FloatType                         |
+| half_float               | FloatType                         |
 | date(Timestamp)          | TimestampType                     |
 | date(Date)               | DateType                          |
 | keyword                  | StringType, VarcharType, CharType |
