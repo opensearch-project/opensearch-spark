@@ -124,4 +124,16 @@ class PPLLogicalPlanRenameTranslatorTestSuite
       Project(seq(UnresolvedAttribute("eval_rand")), planDropColumn)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
+
+  test("test rename with backticks alias") {
+    val expectedPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=t | rename a as r_a, b as r_b | fields c"),
+        new CatalystPlanContext)
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=t | rename `a` as `r_a`, `b` as `r_b` | fields `c`"),
+        new CatalystPlanContext)
+    comparePlans(expectedPlan, logPlan, checkAnalysis = false)
+  }
 }

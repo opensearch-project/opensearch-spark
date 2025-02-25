@@ -394,6 +394,29 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
     comparePlans(expectedPlan, logPlan, false)
   }
 
+  test("Search multiple tables - with backticks table alias") {
+    val expectedPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          """
+            | source=table1, table2, table3 as t
+            | | where t.name = 'Molly'
+            |""".stripMargin),
+        new CatalystPlanContext)
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          """
+            | source=table1, table2, table3 as `t`
+            | | where `t`.`name` = 'Molly'
+            |""".stripMargin),
+        new CatalystPlanContext)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
   test("test fields + field list") {
     val context = new CatalystPlanContext
     val logPlan = planTransformer.visit(

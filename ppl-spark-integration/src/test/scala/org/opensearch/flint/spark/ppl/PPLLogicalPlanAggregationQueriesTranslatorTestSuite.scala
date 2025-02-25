@@ -1105,4 +1105,14 @@ class PPLLogicalPlanAggregationQueriesTranslatorTestSuite
     val expectedPlan = Project(Seq(UnresolvedStar(None)), aggregate)
     comparePlans(expectedPlan, logPlan, checkAnalysis = false)
   }
+
+  test("test average price with backticks alias") {
+    val expectedPlan = planTransformer.visit(
+      plan(pplParser, "source = table | stats avg(price) as avg_price"),
+      new CatalystPlanContext)
+    val logPlan = planTransformer.visit(
+      plan(pplParser, "source = table | stats avg(`price`) as `avg_price`"),
+      new CatalystPlanContext)
+    comparePlans(expectedPlan, logPlan, false)
+  }
 }
