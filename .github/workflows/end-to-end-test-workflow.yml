@@ -1,4 +1,4 @@
-name: CI
+name: End-to-End Tests
 
 on:
   pull_request:
@@ -25,15 +25,12 @@ jobs:
       - name: Set up SBT
         uses: sbt/setup-sbt@v1
 
-      - name: Style check
-        run: sbt scalafmtCheckAll
-
       - name: Set SBT_OPTS
         # Needed to extend the JVM memory size to avoid OutOfMemoryError for HTML test report
         run: echo "SBT_OPTS=-Xmx2G" >> $GITHUB_ENV
 
-      - name: Integ Test
-        run: sbt integtest/integration
+      - name: End-to-End Test
+        run: sbt e2etest/test
 
       - name: Upload test report
         if: always() # Ensures the artifact is saved even if tests fail
