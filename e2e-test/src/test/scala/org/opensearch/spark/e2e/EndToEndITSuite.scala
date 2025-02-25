@@ -86,7 +86,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
         }
       }
     }.start()
-    val completed = dockerProcess.waitFor(30, TimeUnit.MINUTES)
+    val completed = dockerProcess.waitFor(20, TimeUnit.MINUTES)
     stopReading = true
     if (!completed) {
       throw new IllegalStateException("Unable to start docker cluster")
