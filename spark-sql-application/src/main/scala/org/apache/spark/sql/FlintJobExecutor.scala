@@ -394,7 +394,13 @@ trait FlintJobExecutor {
       mapping: String): Either[String, Unit] = {
     try {
       logInfo(s"create $resultIndex")
-      osClient.createIndex(resultIndex, mapping)
+      val fastRefreshSettings =
+        """ {
+          |   "auto_refresh": "true",
+          |   "refresh_interval": "1 Second",
+          | }
+          |""".stripMargin
+      osClient.createIndex(resultIndex, mapping, fastRefreshSettings)
       logInfo(s"create $resultIndex successfully")
       Right(())
     } catch {

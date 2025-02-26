@@ -61,25 +61,18 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
    *   the name of the index
    * @param mapping
    *   the mapping of the index
+   * @param settings
+   *   * the index settings as a JSON string
    * @return
    *   use Either for representing success or failure. A Right value indicates success, while a
    *   Left value indicates an error.
    */
-  def createIndex(osIndexName: String, mapping: String): Unit = {
+  def createIndex(osIndexName: String, mapping: String, settings: String): Unit = {
     logInfo(s"create $osIndexName")
 
     using(flintClient.createClient()) { client =>
       val request = new CreateIndexRequest(osIndexName)
-      val fastRefreshSettings =
-        """ {
-          |   "auto_refresh": "true",
-          |   "refresh_interval": "1 Second",
-          | }
-          |""".stripMargin
-
-      request
-        .mapping(mapping, XContentType.JSON)
-        .settings(fastRefreshSettings, XContentType.JSON)
+      request.mapping(mapping, XContentType.JSON).settings(settings, XContentType.JSON)
 
       try {
         client.createIndex(request, RequestOptions.DEFAULT)
