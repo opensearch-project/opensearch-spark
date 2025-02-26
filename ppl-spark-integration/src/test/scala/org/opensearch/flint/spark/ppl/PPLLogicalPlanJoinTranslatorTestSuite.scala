@@ -845,4 +845,64 @@ class PPLLogicalPlanJoinTranslatorTestSuite
       Project(Seq(UnresolvedAttribute("t1.name"), UnresolvedAttribute("t2.name")), joinPlan1)
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
+
+  test("test multiple joins with table and subquery backticks alias") {
+    val originPlan = plan(
+      pplParser,
+      s"""
+         | source = table1 as t1
+         | | JOIN left = l right = r ON t1.id = t2.id
+         |   [
+         |     source = table2 as t2
+         |   ]
+         | | JOIN left = l right = r ON t2.id = t3.id
+         |   [
+         |     source = table3 as t3
+         |   ]
+         | | JOIN left = l right = r ON t3.id = t4.id
+         |   [
+         |     source = table4 as t4
+         |   ]
+         | """.stripMargin)
+    val expectedPlan = planTransformer.visit(originPlan, new CatalystPlanContext)
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = table1 as `t1`
+         | | JOIN left = `l` right = `r` ON `t1`.`id` = `t2`.`id`
+         |   [
+         |     source = table2 as `t2`
+         |   ]
+         | | JOIN left = `l` right = `r` ON `t2`.`id` = `t3`.`id`
+         |   [
+         |     source = table3 as `t3`
+         |   ]
+         | | JOIN left = `l` right = `r` ON `t3`.`id` = `t4`.`id`
+         |   [
+         |     source = table4 as `t4`
+         |   ]
+         | """.stripMargin)
+    val logicalPlan = planTransformer.visit(logPlan, new CatalystPlanContext)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test complex backticks subquery alias") {
+    val originPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1
+         | | JOIN left = t1 right = t2 ON t1.name = t2.name [ source = $testTable2 as ttt ] as tt
+         | | fields t1.name, t2.name
+         | """.stripMargin)
+    val expectedPlan = planTransformer.visit(originPlan, new CatalystPlanContext)
+    val logPlan = plan(
+      pplParser,
+      s"""
+         | source = $testTable1
+         | | JOIN left = `t1` right = `t2` ON `t1`.`name` = `t2`.`name` [ source = $testTable2 as `ttt` ] as `tt`
+         | | fields `t1`.`name`, `t2`.`name`
+         | """.stripMargin)
+    val logicalPlan = planTransformer.visit(logPlan, new CatalystPlanContext)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
 }

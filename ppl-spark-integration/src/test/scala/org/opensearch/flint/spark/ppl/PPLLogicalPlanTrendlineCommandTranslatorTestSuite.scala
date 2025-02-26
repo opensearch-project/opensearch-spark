@@ -93,6 +93,18 @@ class PPLLogicalPlanTrendlineCommandTranslatorTestSuite
     comparePlans(logPlan, expectedPlan, checkAnalysis = false)
   }
 
+  test("test trendline with sort and backticks alias") {
+    val expectedPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=relation | trendline sort - age sma(3, age) as age_sma"),
+        new CatalystPlanContext)
+    val logPlan =
+      planTransformer.visit(
+        plan(pplParser, "source=relation | trendline sort - `age` sma(3, `age`) as `age_sma`"),
+        new CatalystPlanContext)
+    comparePlans(logPlan, expectedPlan, checkAnalysis = false)
+  }
+
   test("test trendline with multiple trendline sma commands") {
     val context = new CatalystPlanContext
     val logPlan =
