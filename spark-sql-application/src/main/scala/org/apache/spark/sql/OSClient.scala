@@ -70,7 +70,16 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
 
     using(flintClient.createClient()) { client =>
       val request = new CreateIndexRequest(osIndexName)
-      request.mapping(mapping, XContentType.JSON)
+      val fastRefreshSettings =
+        """ {
+          |   "auto_refresh": "true",
+          |   "refresh_interval": "1 Second",
+          | }
+          |""".stripMargin
+
+      request
+        .mapping(mapping, XContentType.JSON)
+        .settings(fastRefreshSettings, XContentType.JSON)
 
       try {
         client.createIndex(request, RequestOptions.DEFAULT)
