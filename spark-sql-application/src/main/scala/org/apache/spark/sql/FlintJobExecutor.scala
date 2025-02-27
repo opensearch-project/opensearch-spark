@@ -108,6 +108,15 @@ trait FlintJobExecutor {
       }
     }""".stripMargin
 
+  // Fast refresh index setting for OpenSearch index. Eliminates index refresh as a source
+  // of latency for ad-hoc queries.
+  val resultIndexSettings =
+    """{
+      "index": {
+        "refresh_interval": "1s"
+      }
+    }""".stripMargin
+
   // Define the data schema
   val schema = StructType(
     Seq(
@@ -199,7 +208,7 @@ trait FlintJobExecutor {
     if (osClient.doesIndexExist(resultIndex)) {
       writeData(resultData, resultIndex, refreshPolicy)
     } else {
-      createResultIndex(osClient, resultIndex, resultIndexMapping)
+      createResultIndex(osClient, resultIndex, resultIndexMapping, resultIndexSettings)
       writeData(resultData, resultIndex, refreshPolicy)
     }
   }
@@ -375,7 +384,7 @@ trait FlintJobExecutor {
       case e: IllegalStateException
           if e.getCause != null &&
             e.getCause.getMessage.contains("index_not_found_exception") =>
-        createResultIndex(osClient, resultIndex, resultIndexMapping)
+        createResultIndex(osClient, resultIndex, resultIndexMapping, resultIndexSettings)
       case e: InterruptedException =>
         val error = s"Interrupted by the main thread: ${e.getMessage}"
         Thread.currentThread().interrupt() // Preserve the interrupt status
@@ -391,17 +400,11 @@ trait FlintJobExecutor {
   def createResultIndex(
       osClient: OSClient,
       resultIndex: String,
-      mapping: String): Either[String, Unit] = {
+      mapping: String,
+      settings: String): Either[String, Unit] = {
     try {
       logInfo(s"create $resultIndex")
-      val fastRefreshSettings =
-        """ {
-          |   "index": {
-          |     "refresh_interval": "1s"
-          |   }
-          | }
-          |""".stripMargin
-      osClient.createIndex(resultIndex, mapping, fastRefreshSettings)
+      osClient.createIndex(resultIndex, mapping, settings)
       logInfo(s"create $resultIndex successfully")
       Right(())
     } catch {
