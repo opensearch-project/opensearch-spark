@@ -396,8 +396,9 @@ trait FlintJobExecutor {
       logInfo(s"create $resultIndex")
       val fastRefreshSettings =
         """ {
-          |   "auto_refresh": "true",
-          |   "refresh_interval": "1 Second",
+          |   "index": {
+          |     "refresh_interval": "1s"
+          |   }
           | }
           |""".stripMargin
       osClient.createIndex(resultIndex, mapping, fastRefreshSettings)
