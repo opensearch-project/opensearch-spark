@@ -18,6 +18,7 @@ object FlintMetadataExtensions {
   // OpenSearch field types. https://opensearch.org/docs/latest/field-types/supported-field-types/index/
   val TEXT_TYPE = "text"
   val KEYWORD_TYPE = "keyword"
+  val HALF_FLOAT_TYPE = "half_float"
 
   implicit class MetadataExtension(val metadata: Metadata) {
 
@@ -51,6 +52,9 @@ object FlintMetadataExtensions {
         None
       }
     }
+
+    def isHalfFloatField: Boolean =
+      metadata.contains(OS_TYPE_KEY) && metadata.getString(OS_TYPE_KEY) == HALF_FLOAT_TYPE
   }
 
   implicit class MetadataBuilderExtension(val builder: MetadataBuilder) {
@@ -88,6 +92,17 @@ object FlintMetadataExtensions {
           nestedBuilder.putStringArray(fieldType, entries.keys.toArray)
         }
       builder.putMetadata(FIELDS_NAMES_KEY, nestedBuilder.build())
+      builder
+    }
+
+    /**
+     * Marks the field as a half_float field in OpenSearch metadata.
+     *
+     * @return
+     *   the modified [[MetadataBuilder]] instance for method chaining
+     */
+    def withHalfFloat(): MetadataBuilder = {
+      builder.putString(OS_TYPE_KEY, HALF_FLOAT_TYPE)
       builder
     }
   }
