@@ -181,6 +181,33 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
     index(indexName, oneNodeSetting, mappings, docs)
   }
 
+  def indexWithIp(indexName: String): Unit = {
+    val mappings = """{
+                     |  "properties": {
+                     |    "client": {
+                     |      "type": "ip"
+                     |    },
+                     |    "server": {
+                     |      "type": "ip"
+                     |    }
+                     |  }
+                     |}""".stripMargin
+    val docs = Seq(
+      """{
+                     |  "client": "192.168.0.10",
+                     |  "server": "100.10.12.123"
+                     |}""".stripMargin,
+      """{
+                    |  "client": "192.168.0.11",
+                    |  "server": "100.10.12.123"
+                    |}""".stripMargin,
+      """{
+                    |  "client": "2001:db8:3333:4444:5555:6666:7777:8888",
+                    |  "server": "2001:db8::1234:5678"
+                    |}""".stripMargin)
+    index(indexName, oneNodeSetting, mappings, docs)
+  }
+
   def index(index: String, settings: String, mappings: String, docs: Seq[String]): Unit = {
     openSearchClient.indices.create(
       new CreateIndexRequest(index)
