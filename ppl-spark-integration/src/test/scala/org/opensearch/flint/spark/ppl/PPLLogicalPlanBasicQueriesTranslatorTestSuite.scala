@@ -13,7 +13,7 @@ import org.scalatest.matchers.should.Matchers
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, Descending, GreaterThan, Literal, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Ascending, Descending, EqualTo, GreaterThan, Literal, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.command.DescribeTableCommand
@@ -27,7 +27,8 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
   private val planTransformer = new CatalystQueryPlanVisitor()
   private val pplParser = new PPLSyntaxParser()
 
-  test("test error describe clause") {
+  // TODO Do not support 4+ parts table identifier in future (may be reverted this PR in 0.8.0)
+  ignore("test error describe clause") {
     val context = new CatalystPlanContext
     val thrown = intercept[IllegalArgumentException] {
       planTransformer.visit(plan(pplParser, "describe t.b.c.d"), context)
@@ -47,6 +48,69 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
       Map.empty[String, String].empty,
       isExtended = true,
       output = DescribeRelation.getOutputAttrs)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  // TODO Do not support 4+ parts table identifier in future (may be reverted this PR in 0.8.0)
+  test("test describe with backticks and more then 3 parts") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(plan(pplParser, "describe `t`.b.`c.d`.`e.f`"), context)
+
+    val expectedPlan = DescribeTableCommand(
+      TableIdentifier("c.d.e.f", Option("b"), Option("t")),
+      Map.empty[String, String].empty,
+      isExtended = true,
+      output = DescribeRelation.getOutputAttrs)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test read table with backticks and more then 3 parts") {
+    val context = new CatalystPlanContext
+    val logPlan = {
+      planTransformer.visit(plan(pplParser, "source=`t`.b.`c.d`.`e.f`"), context)
+    }
+
+    val table = UnresolvedRelation(Seq("t", "b", "c.d", "e.f"))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), table)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test describe with complex backticks and more then 3 parts") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "describe `_Basic`.default.`startTime:0,endTime:1`.`logGroups(logGroupIdentifier:['hello/service_log'])`"),
+        context)
+
+    val expectedPlan = DescribeTableCommand(
+      TableIdentifier(
+        "startTime:0,endTime:1.logGroups(logGroupIdentifier:['hello/service_log'])",
+        Option("default"),
+        Option("_Basic")),
+      Map.empty[String, String].empty,
+      isExtended = true,
+      output = DescribeRelation.getOutputAttrs)
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("test read complex table with backticks and more then 3 parts") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          "source=`_Basic`.default.`startTime:0,endTime:1`.`123.logGroups(logGroupIdentifier:['hello.world/service_log'])`"),
+        context)
+    val table = UnresolvedRelation(
+      Seq(
+        "_Basic",
+        "default",
+        "startTime:0,endTime:1",
+        "123.logGroups(logGroupIdentifier:['hello.world/service_log'])"))
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), table)
     comparePlans(expectedPlan, logPlan, false)
   }
 
@@ -288,6 +352,67 @@ class PPLLogicalPlanBasicQueriesTranslatorTestSuite
 
     val expectedPlan =
       Union(Seq(projectedTable1, projectedTable2), byName = true, allowMissingCol = true)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("Search multiple tables - with table alias") {
+    val context = new CatalystPlanContext
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          """
+            | source=table1, table2, table3 as t
+            | | where t.name = 'Molly'
+            |""".stripMargin),
+        context)
+
+    val table1 = UnresolvedRelation(Seq("table1"))
+    val table2 = UnresolvedRelation(Seq("table2"))
+    val table3 = UnresolvedRelation(Seq("table3"))
+    val star = UnresolvedStar(None)
+    val plan1 = Project(
+      Seq(star),
+      Filter(
+        EqualTo(UnresolvedAttribute("t.name"), Literal("Molly")),
+        SubqueryAlias("t", table1)))
+    val plan2 = Project(
+      Seq(star),
+      Filter(
+        EqualTo(UnresolvedAttribute("t.name"), Literal("Molly")),
+        SubqueryAlias("t", table2)))
+    val plan3 = Project(
+      Seq(star),
+      Filter(
+        EqualTo(UnresolvedAttribute("t.name"), Literal("Molly")),
+        SubqueryAlias("t", table3)))
+
+    val expectedPlan =
+      Union(Seq(plan1, plan2, plan3), byName = true, allowMissingCol = true)
+
+    comparePlans(expectedPlan, logPlan, false)
+  }
+
+  test("Search multiple tables - with backticks table alias") {
+    val expectedPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          """
+            | source=table1, table2, table3 as t
+            | | where t.name = 'Molly'
+            |""".stripMargin),
+        new CatalystPlanContext)
+    val logPlan =
+      planTransformer.visit(
+        plan(
+          pplParser,
+          """
+            | source=table1, table2, table3 as `t`
+            | | where `t`.`name` = 'Molly'
+            |""".stripMargin),
+        new CatalystPlanContext)
 
     comparePlans(expectedPlan, logPlan, false)
   }

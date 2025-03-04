@@ -1,0 +1,5 @@
+source = dev.default.customer
+| semi join ON c_custkey = o_custkey dev.default.orders
+| where c_mktsegment = 'BUILDING'
+ | sort - c_custkey
+| head 10

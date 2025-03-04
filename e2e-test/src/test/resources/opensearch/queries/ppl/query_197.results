@@ -1,0 +1,108 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "l_orderkey",
+      "type": "long"
+    },
+    {
+      "name": "l_partkey",
+      "type": "long"
+    },
+    {
+      "name": "l_suppkey",
+      "type": "long"
+    },
+    {
+      "name": "l_linenumber",
+      "type": "integer"
+    },
+    {
+      "name": "l_quantity",
+      "type": "double"
+    },
+    {
+      "name": "l_extendedprice",
+      "type": "double"
+    },
+    {
+      "name": "l_discount",
+      "type": "double"
+    },
+    {
+      "name": "l_tax",
+      "type": "double"
+    },
+    {
+      "name": "l_returnflag",
+      "type": "string"
+    },
+    {
+      "name": "l_linestatus",
+      "type": "string"
+    },
+    {
+      "name": "l_shipdate",
+      "type": "timestamp_ntz"
+    },
+    {
+      "name": "l_commitdate",
+      "type": "timestamp_ntz"
+    },
+    {
+      "name": "l_receiptdate",
+      "type": "timestamp_ntz"
+    },
+    {
+      "name": "l_shipinstruct",
+      "type": "string"
+    },
+    {
+      "name": "l_shipmode",
+      "type": "string"
+    },
+    {
+      "name": "l_comment",
+      "type": "string"
+    },
+    {
+      "name": "p_partkey",
+      "type": "long"
+    },
+    {
+      "name": "p_name",
+      "type": "string"
+    },
+    {
+      "name": "p_mfgr",
+      "type": "string"
+    },
+    {
+      "name": "p_brand",
+      "type": "string"
+    },
+    {
+      "name": "p_type",
+      "type": "string"
+    },
+    {
+      "name": "p_size",
+      "type": "integer"
+    },
+    {
+      "name": "p_container",
+      "type": "string"
+    },
+    {
+      "name": "p_retailprice",
+      "type": "double"
+    },
+    {
+      "name": "p_comment",
+      "type": "string"
+    }
+  ],
+  "datarows": [],
+  "total": 0,
+  "size": 0
+}

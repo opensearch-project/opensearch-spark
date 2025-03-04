@@ -1,0 +1,1 @@
+source=dev.default.people  | eval c2 = subdate(@timestamp, 1) | fields c2 | head 10

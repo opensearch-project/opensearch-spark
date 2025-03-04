@@ -1,0 +1,7 @@
+request,domain
+GET /images/hm_bg.jpg HTTP/1.0,images
+GET /images/hm_bg.jpg HTTP/1.0,images
+GET /images/hm_bg.jpg HTTP/1.0,images
+GET /french/splash_inet.html HTTP/1.0,french
+GET /images/hm_nbg.jpg HTTP/1.0,images
+GET /images/hm_bg.jpg HTTP/1.0,images

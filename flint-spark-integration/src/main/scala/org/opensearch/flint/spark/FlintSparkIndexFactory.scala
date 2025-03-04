@@ -14,7 +14,7 @@ import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.COVERING_INDEX_TYPE
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView
-import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.MV_INDEX_TYPE
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getSourceTablesFromMetadata, MV_INDEX_TYPE}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.SKIPPING_INDEX_TYPE
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingStrategy.SkippingKind
@@ -25,6 +25,7 @@ import org.opensearch.flint.spark.skipping.partition.PartitionSkippingStrategy
 import org.opensearch.flint.spark.skipping.valueset.ValueSetSkippingStrategy
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.SparkSession
 
 /**
  * Flint Spark index factory that encapsulates specific Flint index instance creation. This is for
@@ -35,14 +36,16 @@ object FlintSparkIndexFactory extends Logging {
   /**
    * Creates Flint index from generic Flint metadata.
    *
+   * @param spark
+   *   Spark session
    * @param metadata
    *   Flint metadata
    * @return
    *   Flint index instance, or None if any error during creation
    */
-  def create(metadata: FlintMetadata): Option[FlintSparkIndex] = {
+  def create(spark: SparkSession, metadata: FlintMetadata): Option[FlintSparkIndex] = {
     try {
-      Some(doCreate(metadata))
+      Some(doCreate(spark, metadata))
     } catch {
       case e: Exception =>
         logWarning(s"Failed to create Flint index from metadata $metadata", e)
@@ -53,24 +56,26 @@ object FlintSparkIndexFactory extends Logging {
   /**
    * Creates Flint index with default options.
    *
+   * @param spark
+   *   Spark session
    * @param index
    *   Flint index
-   * @param metadata
-   *   Flint metadata
    * @return
    *   Flint index with default options
    */
-  def createWithDefaultOptions(index: FlintSparkIndex): Option[FlintSparkIndex] = {
+  def createWithDefaultOptions(
+      spark: SparkSession,
+      index: FlintSparkIndex): Option[FlintSparkIndex] = {
     val originalOptions = index.options
     val updatedOptions =
       FlintSparkIndexOptions.updateOptionsWithDefaults(index.name(), originalOptions)
     val updatedMetadata = index
       .metadata()
       .copy(options = updatedOptions.options.mapValues(_.asInstanceOf[AnyRef]).asJava)
-    this.create(updatedMetadata)
+    this.create(spark, updatedMetadata)
   }
 
-  private def doCreate(metadata: FlintMetadata): FlintSparkIndex = {
+  private def doCreate(spark: SparkSession, metadata: FlintMetadata): FlintSparkIndex = {
     val indexOptions = FlintSparkIndexOptions(
       metadata.options.asScala.mapValues(_.asInstanceOf[String]).toMap)
     val latestLogEntry = metadata.latestLogEntry
@@ -118,6 +123,7 @@ object FlintSparkIndexFactory extends Logging {
         FlintSparkMaterializedView(
           metadata.name,
           metadata.source,
+          getMvSourceTables(spark, metadata),
           metadata.indexedColumns.map { colInfo =>
             getString(colInfo, "columnName") -> getString(colInfo, "columnType")
           }.toMap,
@@ -132,6 +138,15 @@ object FlintSparkIndexFactory extends Logging {
       .asInstanceOf[java.util.Map[String, String]]
       .asScala
       .toMap
+  }
+
+  private def getMvSourceTables(spark: SparkSession, metadata: FlintMetadata): Array[String] = {
+    val sourceTables = getSourceTablesFromMetadata(metadata)
+    if (sourceTables.isEmpty) {
+      FlintSparkMaterializedView.extractSourceTablesFromQuery(spark, metadata.source)
+    } else {
+      sourceTables
+    }
   }
 
   private def getString(map: java.util.Map[String, AnyRef], key: String): String = {

@@ -33,9 +33,11 @@ import org.apache.spark.{SparkConf, SparkContext, SparkFunSuite}
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.sql.FlintREPL.PreShutdownListener
 import org.apache.spark.sql.FlintREPLConfConstants.DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY
+import org.apache.spark.sql.SessionUpdateMode.SessionUpdateMode
 import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.trees.Origin
+import org.apache.spark.sql.exception.UnrecoverableException
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.types.{LongType, NullType, StringType, StructField, StructType}
 import org.apache.spark.sql.util.{DefaultThreadPoolFactory, MockThreadPoolFactory, MockTimeProvider, RealTimeProvider, ShutdownHookManagerTrait}
@@ -195,19 +197,44 @@ class FlintREPLTest
         scheduledFutureRaw
       })
 
-    // Invoke the method
     FlintREPL.createHeartBeatUpdater(sessionId, sessionManager, threadPool)
 
-    // Verifications
     verify(sessionManager, atLeastOnce()).recordHeartbeat(sessionId)
+    FlintREPL.throwableHandler.hasException shouldBe false
   }
 
-  test("PreShutdownListener updates FlintInstance if conditions are met") {
+  test("createHeartBeatUpdater should handle unrecoverable exception") {
+    val threadPool = mock[ScheduledExecutorService]
+    val scheduledFutureRaw = mock[ScheduledFuture[_]]
+    val sessionManager = mock[SessionManager]
+    val sessionId = "session1"
+
+    FlintREPL.throwableHandler.reset()
+    val unrecoverableException =
+      UnrecoverableException(new RuntimeException("Unrecoverable error"))
+    when(sessionManager.recordHeartbeat(sessionId))
+      .thenThrow(unrecoverableException)
+
+    when(threadPool
+      .scheduleAtFixedRate(any[Runnable], *, *, eqTo(java.util.concurrent.TimeUnit.MILLISECONDS)))
+      .thenAnswer((invocation: InvocationOnMock) => {
+        val runnable = invocation.getArgument[Runnable](0)
+        runnable.run()
+        scheduledFutureRaw
+      })
+
+    FlintREPL.createHeartBeatUpdater(sessionId, sessionManager, threadPool)
+
+    FlintREPL.throwableHandler.exceptionThrown shouldBe Some(unrecoverableException)
+  }
+
+  test("PreShutdownListener updates InteractiveSession if conditions are met") {
     // Mock dependencies
     val sessionId = "testSessionId"
     val timerContext = mock[Timer.Context]
     val sessionManager = mock[SessionManager]
 
+    FlintREPL.throwableHandler.reset()
     val interactiveSession = new InteractiveSession(
       "app123",
       "job123",
@@ -225,6 +252,28 @@ class FlintREPLTest
 
     verify(sessionManager).updateSessionDetails(interactiveSession, SessionUpdateMode.UPDATE_IF)
     interactiveSession.state shouldBe SessionStates.DEAD
+  }
+
+  test("PreShutdownListener handles unrecoverable exception from sessionManager") {
+    val sessionId = "testSessionId"
+    val timerContext = mock[Timer.Context]
+    val sessionManager = mock[SessionManager]
+
+    FlintREPL.throwableHandler.reset()
+    val unrecoverableException =
+      UnrecoverableException(new RuntimeException("Unrecoverable database error"))
+    when(sessionManager.getSessionDetails(sessionId))
+      .thenThrow(unrecoverableException)
+
+    val listener = new PreShutdownListener(sessionId, sessionManager, timerContext)
+
+    listener.onApplicationEnd(SparkListenerApplicationEnd(System.currentTimeMillis()))
+
+    FlintREPL.throwableHandler.exceptionThrown shouldBe Some(unrecoverableException)
+    FlintREPL.throwableHandler.error shouldBe s"Failed to update session state for $sessionId"
+
+    verify(sessionManager, never())
+      .updateSessionDetails(any[InteractiveSession], any[SessionUpdateMode])
   }
 
   test("Test super.constructErrorDF should construct dataframe properly") {
@@ -463,6 +512,29 @@ class FlintREPLTest
     assert(result)
   }
 
+  test("test canPickNextStatement: sessionManager throws unrecoverableException") {
+    val sessionId = "session123"
+    val jobId = "jobABC"
+    val sessionIndex = "sessionIndex"
+    val mockSparkSession = mock[SparkSession]
+    val mockConf = mock[RuntimeConfig]
+    when(mockSparkSession.conf).thenReturn(mockConf)
+    when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
+      .thenReturn(sessionIndex)
+
+    FlintREPL.throwableHandler.reset()
+    val sessionManager = mock[SessionManager]
+    val unrecoverableException =
+      UnrecoverableException(new RuntimeException("OpenSearch cluster unresponsive"))
+    when(sessionManager.getSessionDetails(sessionId))
+      .thenThrow(unrecoverableException)
+
+    val result = FlintREPL.canPickNextStatement(sessionId, sessionManager, jobId)
+
+    assert(result)
+    FlintREPL.throwableHandler.exceptionThrown shouldBe Some(unrecoverableException)
+  }
+
   test(
     "test canPickNextStatement: Doc Exists and excludeJobIds is a Single String Not Matching JobId") {
     val sessionId = "session123"
@@ -521,6 +593,7 @@ class FlintREPLTest
     verify(mockFlintStatement).error = Some(expectedError)
 
     assert(result == expectedError)
+    FlintREPL.throwableHandler.exceptionThrown shouldBe Some(exception)
   }
 
   test("processQueryException should handle MetaException with AccessDeniedException properly") {
@@ -664,8 +737,6 @@ class FlintREPLTest
       val sessionManager = new SessionManagerImpl(spark, Some("resultIndex")) {
         override val osClient: OSClient = mockOSClient
       }
-
-      val queryResultWriter = mock[QueryResultWriter]
 
       val commandContext = CommandContext(
         applicationId,
@@ -1026,6 +1097,87 @@ class FlintREPLTest
     assert(!result) // Expecting false as the job proceeds normally
   }
 
+  test("handleSessionError handles unrecoverable exception") {
+    val sessionManager = mock[SessionManager]
+    val timerContext = mock[Timer.Context]
+    val applicationId = "app123"
+    val jobId = "job123"
+    val sessionId = "session123"
+    val jobStartTime = System.currentTimeMillis()
+
+    FlintREPL.throwableHandler.reset()
+    val unrecoverableException =
+      UnrecoverableException(new RuntimeException("Unrecoverable error"))
+    val interactiveSession = new InteractiveSession(
+      applicationId,
+      jobId,
+      sessionId,
+      SessionStates.RUNNING,
+      System.currentTimeMillis(),
+      System.currentTimeMillis() - 10000)
+    when(sessionManager.getSessionDetails(sessionId)).thenReturn(Some(interactiveSession))
+
+    FlintREPL.handleSessionError(
+      unrecoverableException,
+      applicationId,
+      jobId,
+      sessionId,
+      sessionManager,
+      jobStartTime,
+      timerContext)
+
+    FlintREPL.throwableHandler.exceptionThrown shouldBe Some(unrecoverableException)
+
+    verify(sessionManager).updateSessionDetails(
+      argThat { (session: InteractiveSession) =>
+        session.applicationId == applicationId &&
+        session.jobId == jobId &&
+        session.sessionId == sessionId &&
+        session.state == SessionStates.FAIL &&
+        session.error.contains(s"Session error: ${unrecoverableException.getMessage}")
+      },
+      any[SessionUpdateMode])
+
+    verify(timerContext).stop()
+  }
+
+  test("handleSessionError handles exception during refreshSessionState") {
+    val sessionManager = mock[SessionManager]
+    val timerContext = mock[Timer.Context]
+    val applicationId = "app123"
+    val jobId = "job123"
+    val sessionId = "session123"
+    val jobStartTime = System.currentTimeMillis()
+
+    FlintREPL.throwableHandler.reset()
+    val initialException = UnrecoverableException(new RuntimeException("Unrecoverable error"))
+    val refreshException =
+      UnrecoverableException(new RuntimeException("Failed to refresh session state"))
+
+    val interactiveSession = new InteractiveSession(
+      applicationId,
+      jobId,
+      sessionId,
+      SessionStates.RUNNING,
+      System.currentTimeMillis(),
+      System.currentTimeMillis() - 10000)
+    when(sessionManager.getSessionDetails(sessionId)).thenReturn(Some(interactiveSession))
+    when(sessionManager.updateSessionDetails(any[InteractiveSession], any[SessionUpdateMode]))
+      .thenThrow(refreshException)
+
+    FlintREPL.handleSessionError(
+      initialException,
+      applicationId,
+      jobId,
+      sessionId,
+      sessionManager,
+      jobStartTime,
+      timerContext)
+
+    FlintREPL.throwableHandler.exceptionThrown shouldBe Some(refreshException)
+    verify(timerContext).stop()
+  }
+
   test("queryLoop continue until inactivity limit is reached") {
     val resultIndex = "testResultIndex"
     val dataSource = "testDataSource"
@@ -1064,7 +1216,6 @@ class FlintREPLTest
     val sessionManager = new SessionManagerImpl(spark, Some(resultIndex)) {
       override val osClient: OSClient = mockOSClient
     }
-    val queryResultWriter = mock[QueryResultWriter]
 
     val commandContext = CommandContext(
       applicationId,
@@ -1133,7 +1284,6 @@ class FlintREPLTest
     val sessionManager = new SessionManagerImpl(spark, Some(resultIndex)) {
       override val osClient: OSClient = mockOSClient
     }
-    val queryResultWriter = mock[QueryResultWriter]
 
     val commandContext = CommandContext(
       applicationId,
@@ -1198,7 +1348,6 @@ class FlintREPLTest
     val sessionManager = new SessionManagerImpl(spark, Some(resultIndex)) {
       override val osClient: OSClient = mockOSClient
     }
-    val queryResultWriter = mock[QueryResultWriter]
 
     val commandContext = CommandContext(
       applicationId,
@@ -1255,7 +1404,8 @@ class FlintREPLTest
       mockOSClient.createQueryReader(any[String], any[String], any[String], eqTo(SortOrder.ASC)))
       .thenReturn(mockReader)
     // Simulate an exception thrown when hasNext is called
-    when(mockReader.hasNext).thenThrow(new RuntimeException("Test exception"))
+    val unrecoverableException = UnrecoverableException(new RuntimeException("Test exception"))
+    when(mockReader.hasNext).thenThrow(unrecoverableException)
     when(mockOSClient.doesIndexExist(*)).thenReturn(true)
     when(mockOSClient.getIndexMetadata(*)).thenReturn(FlintREPL.resultIndexMapping)
 
@@ -1268,7 +1418,6 @@ class FlintREPLTest
     val sessionManager = new SessionManagerImpl(spark, Some(resultIndex)) {
       override val osClient: OSClient = mockOSClient
     }
-    val queryResultWriter = mock[QueryResultWriter]
 
     val commandContext = CommandContext(
       applicationId,
@@ -1287,13 +1436,15 @@ class FlintREPLTest
       // Mocking ThreadUtils to track the shutdown call
       val mockThreadPool = mock[ScheduledExecutorService]
       FlintREPL.threadPoolFactory = new MockThreadPoolFactory(mockThreadPool)
+      FlintREPL.throwableHandler.reset()
 
-      intercept[RuntimeException] {
+      intercept[UnrecoverableException] {
         FlintREPL.queryLoop(commandContext)
       }
 
       // Verify if the shutdown method was called on the thread pool
       verify(mockThreadPool).shutdown()
+      FlintREPL.throwableHandler.exceptionThrown shouldBe Some(unrecoverableException)
     } finally {
       // Stop the SparkSession
       spark.stop()
@@ -1387,7 +1538,8 @@ class FlintREPLTest
 
     val expectedCalls =
       Math.ceil(inactivityLimit.toDouble / DEFAULT_QUERY_LOOP_EXECUTION_FREQUENCY).toInt
-    verify(mockOSClient, Mockito.atMost(expectedCalls)).getIndexMetadata(*)
+    verify(mockOSClient, times(1)).getIndexMetadata(*)
+    verify(mockOSClient, Mockito.atMost(expectedCalls)).createQueryReader(*, *, *, *)
   }
 
   val testCases = Table(
@@ -1435,7 +1587,6 @@ class FlintREPLTest
       val sessionManager = new SessionManagerImpl(spark, Some(resultIndex)) {
         override val osClient: OSClient = mockOSClient
       }
-      val queryResultWriter = mock[QueryResultWriter]
 
       val commandContext = CommandContext(
         applicationId,

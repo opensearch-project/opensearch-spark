@@ -6,13 +6,15 @@
 package org.apache.spark.sql
 
 import java.util.Locale
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.atomic.AtomicInteger
 
 import com.amazonaws.services.glue.model.{AccessDeniedException, AWSGlueException}
 import com.amazonaws.services.s3.model.AmazonS3Exception
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.apache.commons.text.StringEscapeUtils.unescapeJava
 import org.opensearch.common.Strings
+import org.opensearch.flint.common.model.FlintStatement
 import org.opensearch.flint.core.IRestHighLevelClient
 import org.opensearch.flint.core.logging.{CustomLogging, ExceptionMessages, OperationMessage}
 import org.opensearch.flint.core.metrics.MetricConstants
@@ -21,8 +23,10 @@ import play.api.libs.json._
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.FlintREPL.instantiate
 import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
+import org.apache.spark.sql.exception.UnrecoverableException
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.REFRESH_POLICY
 import org.apache.spark.sql.types._
@@ -45,13 +49,13 @@ trait FlintJobExecutor {
   this: Logging =>
 
   val mapper = new ObjectMapper()
-  mapper.registerModule(DefaultScalaModule)
+  val throwableHandler = new ThrowableHandler()
 
   var currentTimeProvider: TimeProvider = new RealTimeProvider()
   var threadPoolFactory: ThreadPoolFactory = new DefaultThreadPoolFactory()
   var environmentProvider: EnvironmentProvider = new RealEnvironment()
   var enableHiveSupport: Boolean = true
-  // termiante JVM in the presence non-deamon thread before exiting
+  // terminate JVM in the presence non-daemon thread before exiting
   var terminateJVM = true
 
   // The enabled setting, which can be applied only to the top-level mapping definition and to object fields,
@@ -168,10 +172,12 @@ trait FlintJobExecutor {
       IRestHighLevelClient.recordOperationSuccess(
         MetricConstants.RESULT_METADATA_WRITE_METRIC_PREFIX)
     } catch {
-      case e: Exception =>
+      case t: Throwable =>
         IRestHighLevelClient.recordOperationFailure(
           MetricConstants.RESULT_METADATA_WRITE_METRIC_PREFIX,
-          e)
+          t)
+        // Re-throw the exception
+        throw t
     }
   }
 
@@ -437,39 +443,43 @@ trait FlintJobExecutor {
   }
 
   private def handleQueryException(
-      e: Exception,
+      t: Throwable,
       messagePrefix: String,
       errorSource: Option[String] = None,
       statusCode: Option[Int] = None): String = {
-    val errorMessage = s"$messagePrefix: ${e.getMessage}"
-    val errorDetails = Map("Message" -> errorMessage) ++
-      errorSource.map("ErrorSource" -> _) ++
-      statusCode.map(code => "StatusCode" -> code.toString)
+    throwableHandler.setThrowable(t)
+
+    val errorMessage = s"$messagePrefix: ${t.getMessage}"
+    val errorDetails = new java.util.LinkedHashMap[String, String]()
+    errorDetails.put("Message", errorMessage)
+    errorSource.foreach(es => errorDetails.put("ErrorSource", es))
+    statusCode.foreach(code => errorDetails.put("StatusCode", code.toString))
 
     val errorJson = mapper.writeValueAsString(errorDetails)
-
+    // Record the processed error message
+    throwableHandler.setError(errorJson)
     // CustomLogging will call log4j logger.error() underneath
     statusCode match {
       case Some(code) =>
-        CustomLogging.logError(new OperationMessage(errorMessage, code), e)
+        CustomLogging.logError(new OperationMessage(errorMessage, code), t)
       case None =>
-        CustomLogging.logError(errorMessage, e)
+        CustomLogging.logError(errorMessage, t)
     }
 
     errorJson
   }
 
-  def getRootCause(e: Throwable): Throwable = {
-    if (e.getCause == null) e
-    else getRootCause(e.getCause)
+  def getRootCause(t: Throwable): Throwable = {
+    if (t.getCause == null) t
+    else getRootCause(t.getCause)
   }
 
   /**
    * This method converts query exception into error string, which then persist to query result
    * metadata
    */
-  def processQueryException(ex: Exception): String = {
-    getRootCause(ex) match {
+  def processQueryException(throwable: Throwable): String = {
+    getRootCause(throwable) match {
       case r: ParseException =>
         handleQueryException(r, ExceptionMessages.SyntaxErrorPrefix)
       case r: AmazonS3Exception =>
@@ -496,15 +506,15 @@ trait FlintJobExecutor {
         handleQueryException(r, ExceptionMessages.QueryAnalysisErrorPrefix)
       case r: SparkException =>
         handleQueryException(r, ExceptionMessages.SparkExceptionErrorPrefix)
-      case r: Exception =>
-        val rootCauseClassName = r.getClass.getName
-        val errMsg = r.getMessage
+      case t: Throwable =>
+        val rootCauseClassName = t.getClass.getName
+        val errMsg = t.getMessage
         if (rootCauseClassName == "org.apache.hadoop.hive.metastore.api.MetaException" &&
           errMsg.contains("com.amazonaws.services.glue.model.AccessDeniedException")) {
           val e = new SecurityException(ExceptionMessages.GlueAccessDeniedMessage)
           handleQueryException(e, ExceptionMessages.QueryRunErrorPrefix)
         } else {
-          handleQueryException(r, ExceptionMessages.QueryRunErrorPrefix)
+          handleQueryException(t, ExceptionMessages.QueryRunErrorPrefix)
         }
     }
   }
@@ -533,6 +543,14 @@ trait FlintJobExecutor {
     throw t
   }
 
+  def checkAndThrowUnrecoverableExceptions(): Unit = {
+    throwableHandler.exceptionThrown.foreach {
+      case e: UnrecoverableException =>
+        throw e
+      case _ => // Do nothing for other types of exceptions
+    }
+  }
+
   def instantiate[T](defaultConstructor: => T, className: String, args: Any*): T = {
     if (Strings.isNullOrEmpty(className)) {
       defaultConstructor
@@ -553,4 +571,63 @@ trait FlintJobExecutor {
     }
   }
 
+  def createJobOperator(
+      spark: SparkSession,
+      applicationId: String,
+      jobId: String,
+      flintStatement: FlintStatement,
+      dataSource: String,
+      resultIndex: String,
+      jobType: String,
+      streamingRunningCount: AtomicInteger,
+      statementRunningCount: AtomicInteger): JobOperator = {
+    // https://github.com/opensearch-project/opensearch-spark/issues/138
+    /*
+     * To execute queries such as `CREATE SKIPPING INDEX ON my_glue1.default.http_logs_plain (`@timestamp` VALUE_SET) WITH (auto_refresh = true)`,
+     * it's necessary to set `spark.sql.defaultCatalog=my_glue1`. This is because AWS Glue uses a single database (default) and table (http_logs_plain),
+     * and we need to configure Spark to recognize `my_glue1` as a reference to AWS Glue's database and table.
+     * By doing this, we effectively map `my_glue1` to AWS Glue, allowing Spark to resolve the database and table names correctly.
+     * Without this setup, Spark would not recognize names in the format `my_glue1.default`.
+     */
+    spark.conf.set("spark.sql.defaultCatalog", dataSource)
+    val jobOperator =
+      JobOperator(
+        applicationId,
+        jobId,
+        spark,
+        flintStatement,
+        dataSource,
+        resultIndex,
+        jobType,
+        streamingRunningCount,
+        statementRunningCount)
+    jobOperator
+  }
+
+  def instantiateQueryResultWriter(
+      spark: SparkSession,
+      commandContext: CommandContext): QueryResultWriter = {
+    instantiate(
+      new QueryResultWriterImpl(commandContext),
+      spark.conf.get(FlintSparkConf.CUSTOM_QUERY_RESULT_WRITER.key, ""))
+  }
+
+  def instantiateStatementExecutionManager(
+      commandContext: CommandContext): StatementExecutionManager = {
+    import commandContext._
+    instantiate(
+      new StatementExecutionManagerImpl(commandContext),
+      spark.conf.get(FlintSparkConf.CUSTOM_STATEMENT_MANAGER.key, ""),
+      spark,
+      sessionId)
+  }
+
+  def instantiateSessionManager(
+      spark: SparkSession,
+      resultIndexOption: Option[String]): SessionManager = {
+    instantiate(
+      new SessionManagerImpl(spark, resultIndexOption),
+      spark.conf.get(FlintSparkConf.CUSTOM_SESSION_MANAGER.key, ""),
+      resultIndexOption.getOrElse(""))
+  }
 }

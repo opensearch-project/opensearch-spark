@@ -31,6 +31,8 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`describe command`](PPL-Example-Commands.md/#describe)
   
     - [`fillnull command`](ppl-fillnull-command.md)
+     
+    - [`flatten command`](ppl-flatten-command.md)
 
     - [`eval command`](ppl-eval-command.md)
 
@@ -67,7 +69,12 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
     - [`subquery commands`](ppl-subquery-command.md)
   
     - [`correlation commands`](ppl-correlation-command.md)
+  
+    - [`trendline commands`](ppl-trendline-command.md)
+  
+    - [`expand commands`](ppl-expand-command.md)
 
+    - [`appendcol command`](ppl-appendcol-command.md)
 
 * **Functions**
 
@@ -87,6 +94,9 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 
     - [`Cryptographic Functions`](functions/ppl-cryptographic.md)
 
+    - [`IP Address Functions`](functions/ppl-ip.md)
+     
+    - [`Collection Functions`](functions/ppl-collection)
 
 ---
 ### PPL On Spark
@@ -97,6 +107,15 @@ For additional examples see the next [documentation](PPL-Example-Commands.md).
 ---
 ### Example PPL Queries
 See samples of [PPL queries](PPL-Example-Commands.md) 
+
+---
+
+### Experiment PPL locally using Spark-Cluster
+See ppl usage sample on local spark cluster[PPL on local spark ](local-spark-ppl-test-instruction.md) 
+
+---
+### TPC-H PPL Query Rewriting
+See samples of [TPC-H PPL query rewriting](ppl-tpch.md)
 
 ---
 ### Planned PPL Commands

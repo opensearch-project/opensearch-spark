@@ -1,0 +1,31 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "count_int_col",
+      "type": "long"
+    },
+    {
+      "name": "int_col",
+      "type": "integer"
+    },
+    {
+      "name": "struct_col.field2",
+      "type": "integer"
+    }
+  ],
+  "datarows": [
+    [
+      1,
+      50,
+      789
+    ],
+    [
+      1,
+      30,
+      123
+    ]
+  ],
+  "total": 2,
+  "size": 2
+}

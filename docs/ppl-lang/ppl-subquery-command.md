@@ -1,27 +1,27 @@
-## PPL SubQuery Commands:
+## PPL `subquery` command
+
+### Description
+The subquery commands contain 4 types: `InSubquery`, `ExistsSubquery`, `ScalarSubquery` and `RelationSubquery`.
+`InSubquery`, `ExistsSubquery` and `ScalarSubquery` are subquery expressions, their common usage is in Where clause(`where <boolean expression>`) and Search filter(`search source=* <boolean expression>`).
+
+For example, a subquery expression could be used in boolean expression:
+```
+| where orders.order_id in [ source=returns | where return_reason="damaged" | field order_id ]
+```
+The `orders.order_id in [ source=... ]` is a `<boolean expression>`.
+
+But `RelationSubquery` is not a subquery expression, it is a subquery plan.
+[Recall the join command doc](ppl-join-command.md), the example is a subquery/subsearch **plan**, rather than a **expression**.
 
 ### Syntax
-The subquery command should be implemented using a clean, logical syntax that integrates with existing PPL structure.
+- `where <field> [not] in [ source=... | ... | ... ]` (InSubquery)
+- `where [not] exists [ source=... | ... | ... ]` (ExistsSubquery)
+- `where <field> = [ source=... | ... | ... ]` (ScalarSubquery)
+- `source=[ source= ...]` (RelationSubquery)
+- `| join ON condition [ source= ]` (RelationSubquery in join right side)
 
-```sql
-source=logs | where field in [ subquery source=events | where condition | fields field ]
-```
-
-In this example, the primary search (`source=logs`) is filtered by results from the subquery (`source=events`).
-
-The subquery command should allow nested queries to be as complex as necessary, supporting multiple levels of nesting.
-
-Example:
-
-```sql
-  source=logs | where id in [ subquery source=users | where user in [ subquery source=actions | where action="login" | fields user] | fields uid ]
-```
-
-For additional info See [Issue](https://github.com/opensearch-project/opensearch-spark/issues/661)
-
----
-
-### InSubquery usage
+### Usage
+InSubquery:
 - `source = outer | where a in [ source = inner | fields b ]`
 - `source = outer | where (a) in [ source = inner | fields b ]`
 - `source = outer | where (a,b,c) in [ source = inner | fields d,e,f ]`
@@ -33,92 +33,9 @@ For additional info See [Issue](https://github.com/opensearch-project/opensearch
 - `source = outer | where a in [ source = inner1 | where b not in [ source = inner2 | fields c ] | fields b ]` (nested)
 - `source = table1 | inner join left = l right = r on l.a = r.a AND r.a in [ source = inner | fields d ] | fields l.a, r.a, b, c` (as join filter)
 
-**_SQL Migration examples with IN-Subquery PPL:_**
-1. tpch q4 (in-subquery with aggregation)
-```sql
-select
-  o_orderpriority,
-  count(*) as order_count
-from
-  orders
-where
-  o_orderdate >= date '1993-07-01'
-  and o_orderdate < date '1993-07-01' + interval '3' month
-  and o_orderkey in (
-    select
-      l_orderkey
-    from
-      lineitem
-    where l_commitdate < l_receiptdate
-  )
-group by
-  o_orderpriority
-order by
-  o_orderpriority
-```
-Rewritten by PPL InSubquery query:
-```sql
-source = orders
-| where o_orderdate >= "1993-07-01" and o_orderdate < "1993-10-01" and o_orderkey IN
-  [ source = lineitem
-    | where l_commitdate < l_receiptdate
-    | fields l_orderkey
-  ]
-| stats count(1) as order_count by o_orderpriority
-| sort o_orderpriority
-| fields o_orderpriority, order_count
-```
-2.tpch q20 (nested in-subquery)
-```sql
-select
-  s_name,
-  s_address
-from
-  supplier,
-  nation
-where
-  s_suppkey in (
-    select
-      ps_suppkey
-    from
-      partsupp
-    where
-      ps_partkey in (
-        select
-          p_partkey
-        from
-          part
-        where
-          p_name like 'forest%'
-      )
-  )
-  and s_nationkey = n_nationkey
-  and n_name = 'CANADA'
-order by
-  s_name
-```
-Rewritten by PPL InSubquery query:
-```sql
-source = supplier
-| where s_suppkey IN [
-    source = partsupp
-    | where ps_partkey IN [
-        source = part
-        | where like(p_name, "forest%")
-        | fields p_partkey
-      ]
-    | fields ps_suppkey
-  ]
-| inner join left=l right=r on s_nationkey = n_nationkey and n_name = 'CANADA'
-  nation
-| sort s_name
-```
----
+ExistsSubquery:
 
-### ExistsSubquery usage
-
-Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table inner,  `e`, `f` are fields of table inner2
-
+(Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table inner,  `e`, `f` are fields of table inner2)
 - `source = outer | where exists [ source = inner | where a = c ]`
 - `source = outer | where not exists [ source = inner | where a = c ]`
 - `source = outer | where exists [ source = inner | where a = c and b = d ]`
@@ -132,48 +49,9 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 - `source = outer | where not exists [ source = inner | where c > 10 ]` (uncorrelated exists)
 - `source = outer | where exists [ source = inner ] | eval l = "nonEmpty" | fields l` (special uncorrelated exists)
 
-**_SQL Migration examples with Exists-Subquery PPL:_**
+ScalarSubquery:
 
-tpch q4 (exists subquery with aggregation)
-```sql
-select
-  o_orderpriority,
-  count(*) as order_count
-from
-  orders
-where
-  o_orderdate >= date '1993-07-01'
-  and o_orderdate < date '1993-07-01' + interval '3' month
-  and exists (
-    select
-      l_orderkey
-    from
-      lineitem
-    where l_orderkey = o_orderkey
-      and l_commitdate < l_receiptdate
-  )
-group by
-  o_orderpriority
-order by
-  o_orderpriority
-```
-Rewritten by PPL ExistsSubquery query:
-```sql
-source = orders
-| where o_orderdate >= "1993-07-01" and o_orderdate < "1993-10-01"
-    and exists [
-      source = lineitem
-      | where l_orderkey = o_orderkey and l_commitdate < l_receiptdate
-    ]
-| stats count(1) as order_count by o_orderpriority
-| sort o_orderpriority
-| fields o_orderpriority, order_count
-```
----
-
-### ScalarSubquery usage
-
-Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table inner,  `e`, `f` are fields of table nested
+(Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table inner,  `e`, `f` are fields of table nested)
 
 **Uncorrelated scalar subquery in Select**
 - `source = outer | eval m = [ source = inner | stats max(c) ] | fields m, a`
@@ -203,146 +81,102 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 - `source = outer | where a = [ source = inner | stats max(c) | sort c ] OR b = [ source = inner | where c = 1 | stats min(d) | sort d ]`
 - `source = outer | where a = [ source = inner | where c =  [ source = nested | stats max(e) by f | sort f ] | stats max(d) by c | sort c | head 1 ]`
 
-_SQL Migration examples with Scalar-Subquery PPL:_
-Example 1
-```sql
-SELECT *
-FROM   outer
-WHERE  a = (SELECT   max(c)
-            FROM     inner1
-            WHERE c = (SELECT   max(e)
-                       FROM     inner2
-                       GROUP BY f
-                       ORDER BY f
-                       )
-            GROUP BY c
-            ORDER BY c
-            LIMIT 1)
-```
-Rewritten by PPL ScalarSubquery query:
-```sql
-source = spark_catalog.default.outer
-| where a = [
-    source = spark_catalog.default.inner1
-    | where c = [
-        source = spark_catalog.default.inner2
-        | stats max(e) by f
-        | sort f
-      ]
-    | stats max(d) by c
-    | sort c
-    | head 1
-  ]
-```
-Example 2
-```sql
-SELECT * FROM outer
-WHERE  a = (SELECT max(c)
-            FROM   inner
-            ORDER BY c)
-OR     b = (SELECT min(d)
-            FROM   inner
-            WHERE  c = 1
-            ORDER BY d)
-```
-Rewritten by PPL ScalarSubquery query:
-```sql
-source = spark_catalog.default.outer
-| where a = [
-    source = spark_catalog.default.inner | stats max(c) | sort c
-  ] OR b = [
-    source = spark_catalog.default.inner | where c = 1 | stats min(d) | sort d
-  ]
-```
----
-
-### (Relation) Subquery
-`InSubquery`, `ExistsSubquery` and `ScalarSubquery` are all subquery expressions. But `RelationSubquery` is not a subquery expression, it is a subquery plan which is common used in Join or From clause.
-
-- `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]` (subquery in join right side)
+RelationSubquery:
+- `source = table1 | join left = l right = r on condition [ source = table2 | where d > 10 | head 5 ]` (subquery in join right side)
 - `source = [ source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ] | stats count(a) by b ] as outer | head 1`
 
-**_SQL Migration examples with Subquery PPL:_**
+### Examples 1: TPC-H q20
 
-tpch q13
-```sql
-select
-    c_count,
-    count(*) as custdist
-from
-    (
-        select
-            c_custkey,
-            count(o_orderkey) as c_count
-        from
-            customer left outer join orders on
-                c_custkey = o_custkey
-                and o_comment not like '%special%requests%'
-        group by
-            c_custkey
-    ) as c_orders
-group by
-    c_count
-order by
-    custdist desc,
-    c_count desc
-```
-Rewritten by PPL (Relation) Subquery:
-```sql
-SEARCH source = [
-  SEARCH source = customer
-  | LEFT OUTER JOIN left = c right = o ON c_custkey = o_custkey
-    [
-      SEARCH source = orders
-      | WHERE not like(o_comment, '%special%requests%')
-    ]
-  | STATS COUNT(o_orderkey) AS c_count BY c_custkey
-] AS c_orders
-| STATS COUNT(o_orderkey) AS c_count BY c_custkey
-| STATS COUNT(1) AS custdist BY c_count
-| SORT - custdist, - c_count
-```
----
+InSubquery and ScalarSubquery
+
+PPL query:
+
+    os> source=supplier
+        | join ON s_nationkey = n_nationkey nation
+        | where n_name = 'CANADA'
+            and s_suppkey in [                      // InSubquery
+                source = partsupp
+                | where ps_partkey in [             // InSubquery
+                    source = part
+                    | where like(p_name, 'forest%')
+                    | fields p_partkey
+                ]
+                and ps_availqty > [                 // ScalarSubquery
+                    source = lineitem
+                    | where l_partkey = ps_partkey
+                        and l_suppkey = ps_suppkey
+                        and l_shipdate >= date('1994-01-01')
+                        and l_shipdate < date_add(date('1994-01-01'), interval 1 year)
+                    | stats sum(l_quantity) as sum_l_quantity
+                    | eval half_sum_l_quantity = 0.5 * sum_l_quantity
+                    | fields half_sum_l_quantity
+                ]
+            | fields ps_suppkey
+        ]
+        | fields s_suppkey, s_name, s_phone, s_acctbal, n_name | head 10
+    fetched rows / total rows = 10/10
+    +-----------+---------------------+----------------+----------+---------+
+    | s_suppkey | s_name              | s_phone        | s_acctbal| n_name  |
+    +-----------+---------------------+----------------+----------+---------+
+    | 8243      | Supplier#000008243  | 13-707-547-1386| 9067.07  | CANADA  |
+    | 736       | Supplier#000000736  | 13-681-806-8650| 5700.83  | CANADA  |
+    | 9032      | Supplier#000009032  | 13-441-662-5539| 3982.32  | CANADA  |
+    | 3201      | Supplier#000003201  | 13-600-413-7165| 3799.41  | CANADA  |
+    | 3849      | Supplier#000003849  | 13-582-965-9117| 52.33    | CANADA  |
+    | 5505      | Supplier#000005505  | 13-531-190-6523| 2023.4   | CANADA  |
+    | 5195      | Supplier#000005195  | 13-622-661-2956| 3717.34  | CANADA  |
+    | 9753      | Supplier#000009753  | 13-724-256-7877| 4406.93  | CANADA  |
+    | 7135      | Supplier#000007135  | 13-367-994-6705| 4950.29  | CANADA  |
+    | 5256      | Supplier#000005256  | 13-180-538-8836| 5624.79  | CANADA  |
+    +-----------+---------------------+----------------+----------+---------+
+
+
+### Examples 2: TPC-H q22
+
+RelationSubquery, ScalarSubquery and ExistsSubquery
+
+PPL query:
+
+    os> source = [                                  // RelationSubquery
+            source = customer
+            | where substring(c_phone, 1, 2) in ('13', '31', '23', '29', '30', '18', '17')
+            and c_acctbal > [                       // ScalarSubquery
+                source = customer
+                | where c_acctbal > 0.00
+                    and substring(c_phone, 1, 2) in ('13', '31', '23', '29', '30', '18', '17')
+                | stats avg(c_acctbal)
+            ]
+            and not exists [                        // ExistsSubquery
+                source = orders
+                | where o_custkey = c_custkey
+            ]
+            | eval cntrycode = substring(c_phone, 1, 2)
+            | fields cntrycode, c_acctbal
+        ] as custsale
+        | stats count() as numcust, sum(c_acctbal) as totacctbal by cntrycode
+        | sort cntrycode
+    fetched rows / total rows = 10/10
+    +---------+--------------------+------------+
+    | numcust | totacctbal         | cntrycode  |
+    +---------+--------------------+------------+
+    | 888     | 6737713.989999999  | 13         |
+    | 861     | 6460573.72         | 17         |
+    | 964     | 7236687.4          | 18         |
+    | 892     | 6701457.950000001  | 23         |
+    | 948     | 7158866.630000001  | 29         |
+    | 909     | 6808436.129999999  | 30         |
+    | 922     | 6806670.179999999  | 31         |
+    +---------+--------------------+------------+
 
 ### Additional Context
 
-`InSubquery`, `ExistsSubquery` and `ScalarSubquery` as subquery expressions, their common usage is in `where` clause and `search filter`.
+#### RelationSubquery
 
-Where command:
+RelationSubquery is plan instead of expression, for example
 ```
-| where <boolean expression> | ...
-```
-Search filter:
-```
-search source=* <boolean expression> | ...
-```
-A subquery expression could be used in boolean expression, for example
-
-```sql
-| where orders.order_id in [ source=returns | where return_reason="damaged" | field order_id ]
-```
-
-The `orders.order_id in [ source=... ]` is a `<boolean expression>`.
-
-In general, we name this kind of subquery clause the `InSubquery` expression, it is a `<boolean expression>`.
-
-**Subquery with Different Join Types**
-
-In issue description is a `ScalarSubquery`:
-
-```sql
-source=employees
-| join source=sales on employees.employee_id = sales.employee_id
-| where sales.sale_amount > [ source=targets | where target_met="true" | fields target_value ]
-```
-
-But `RelationSubquery` is not a subquery expression, it is a subquery plan.
-[Recall the join command doc](ppl-join-command.md), the example is a subquery/subsearch **plan**, rather than a **expression**.
-
-```sql
-SEARCH source=customer
+source=customer
 | FIELDS c_custkey
-| LEFT OUTER JOIN left = c, right = o ON c.c_custkey = o.o_custkey
+| LEFT OUTER JOIN left = c right = o ON c.c_custkey = o.o_custkey
    [
       SEARCH source=orders
       | WHERE o_comment NOT LIKE '%unusual%packages%'
@@ -351,7 +185,7 @@ SEARCH source=customer
 | STATS ...
 ```
 simply into
-```sql
+```
 SEARCH <leftPlan>
 | LEFT OUTER JOIN ON <condition>
    [
@@ -359,21 +193,14 @@ SEARCH <leftPlan>
    ]
 | STATS ...
 ```
-Apply the syntax here and simply into
 
-```sql
-search <leftPlan> | left join on <condition> [ search ... ]
-```
-
-The `[ search ...]` is not a `expression`, it's `plan`, similar to the `relation` plan
-
-**Uncorrelated Subquery**
+#### Uncorrelated Subquery
 
 An uncorrelated subquery is independent of the outer query. It is executed once, and the result is used by the outer query.
 It's **less common** when using `ExistsSubquery` because `ExistsSubquery` typically checks for the presence of rows that are dependent on the outer query’s row.
 
 There is a very special exists subquery which highlight by `(special uncorrelated exists)`:
-```sql
+```
 SELECT 'nonEmpty'
 FROM outer
     WHERE EXISTS (
@@ -382,7 +209,7 @@ FROM outer
     );
 ```
 Rewritten by PPL ExistsSubquery query:
-```sql
+```
 source = outer
 | where exists [
     source = inner
@@ -392,11 +219,11 @@ source = outer
 ```
 This query just print "nonEmpty" if the inner table is not empty.
 
-**Table alias in subquery**
+#### Table alias in subquery
 
 Table alias is useful in query which contains a subquery, for example
 
-```sql
+```
 select a, (
              select sum(b)
              from catalog.schema.table1 as t1

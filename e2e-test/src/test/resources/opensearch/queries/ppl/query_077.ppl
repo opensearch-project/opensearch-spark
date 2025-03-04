@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | parse request 'GET /(?<domain>[a-zA-Z]+)/.*' | where size > 0 | sort - size | fields size, domain | head 10

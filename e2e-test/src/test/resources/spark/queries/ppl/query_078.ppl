@@ -1,0 +1,1 @@
+source = dev.default.http_logs | parse request 'GET /(?<domain>[a-zA-Z]+)/(?<picName>[a-zA-Z]+)/.*' | where domain = 'english' | sort - picName | fields domain, picName | head 10

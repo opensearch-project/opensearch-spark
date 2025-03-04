@@ -1,0 +1,1 @@
+source = dev.default.http_logs | where isnull(size) | head 10

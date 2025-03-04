@@ -19,6 +19,8 @@ Please refer to the [Flint Index Reference Manual](./docs/index.md) for more inf
 
 * For additional details on Spark PPL commands project, see [PPL Project](https://github.com/orgs/opensearch-project/projects/214/views/2)
 
+* Experiment ppl queries on local spark cluster [PPL on local spark ](docs/ppl-lang/local-spark-ppl-test-instruction.md)
+
 ## Prerequisites
 
 Version compatibility:
@@ -31,6 +33,7 @@ Version compatibility:
 | 0.4.0         | 11+         | 3.3.2         | 2.12.14       | 2.13+      |
 | 0.5.0         | 11+         | 3.5.1         | 2.12.14       | 2.17+      |
 | 0.6.0         | 11+         | 3.5.1         | 2.12.14       | 2.17+      |
+| 0.7.0         | 11+         | 3.5.1         | 2.12.14       | 2.17+      |
 
 ## Flint Extension Usage 
 
@@ -62,7 +65,7 @@ sbt clean standaloneCosmetic/publishM2
 ```
 then add org.opensearch:opensearch-spark-standalone_2.12 when run spark application, for example,
 ```
-bin/spark-shell --packages "org.opensearch:opensearch-spark-standalone_2.12:0.6.0-SNAPSHOT" \
+bin/spark-shell --packages "org.opensearch:opensearch-spark-standalone_2.12:1.0.0-SNAPSHOT" \
                 --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintSparkExtensions" \
                 --conf "spark.sql.catalog.dev=org.apache.spark.opensearch.catalog.OpenSearchCatalog"
 ```
@@ -74,13 +77,21 @@ To build and run this PPL in Spark, you can run (requires Java 11):
 ```
 sbt clean sparkPPLCosmetic/publishM2
 ```
-then add org.opensearch:opensearch-spark-ppl_2.12 when run spark application, for example,
+
+Then add org.opensearch:opensearch-spark-ppl_2.12 when run spark application, for example,
+
 ```
-bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.6.0-SNAPSHOT" \
+bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:1.0.0-SNAPSHOT" \
                 --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintPPLSparkExtensions" \
                 --conf "spark.sql.catalog.dev=org.apache.spark.opensearch.catalog.OpenSearchCatalog"
 
 ```
+
+### PPL Run queries on a local spark cluster
+See ppl usage sample on local spark cluster [PPL on local spark ](docs/ppl-lang/local-spark-ppl-test-instruction.md)
+
+### Running integration tests on a local spark cluster
+See integration test documentation [Docker Integration Tests](integ-test/script/README.md)
 
 ## Code of Conduct
 

@@ -2,7 +2,7 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-import Dependencies._
+import Dependencies.*
 
 lazy val scala212 = "2.12.14"
 lazy val sparkVersion = "3.5.1"
@@ -21,7 +21,7 @@ val sparkMinorVersion = sparkVersion.split("\\.").take(2).mkString(".")
 
 ThisBuild / organization := "org.opensearch"
 
-ThisBuild / version := "0.6.0-SNAPSHOT"
+ThisBuild / version := "1.0.0-SNAPSHOT"
 
 ThisBuild / scalaVersion := scala212
 
@@ -37,13 +37,43 @@ ThisBuild / scalastyleConfig := baseDirectory.value / "scalastyle-config.xml"
  */
 ThisBuild / Test / parallelExecution := false
 
+/**
+ * Set the parallelism of forked tests to 4 to accelerate integration test
+ */
+concurrentRestrictions in Global := Seq(Tags.limit(Tags.ForkedTestGroup, 4))
+
 // Run as part of compile task.
 lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")
 
 // Run as part of test task.
 lazy val testScalastyle = taskKey[Unit]("testScalastyle")
 
+// Explanation:
+// - ThisBuild / assemblyShadeRules sets the shading rules for the entire build
+// - ShadeRule.rename(...) creates a rule to rename multiple package patterns
+// - "shaded.@0" means prepend "shaded." to the original package name
+// - .inAll applies the rule to all dependencies, not just direct dependencies
+val packagesToShade = Seq(
+  "com.amazonaws.cloudwatch.**",
+  "com.google.**",
+  "com.sun.jna.**",
+  "com.thoughtworks.paranamer.**",
+  "javax.annotation.**",
+  "org.apache.commons.codec.**",
+  "org.apache.commons.logging.**",
+  "org.apache.hc.**",
+  "org.apache.http.**",
+  "org.glassfish.json.**",
+  "org.joda.time.**",
+  "org.reactivestreams.**",
+  "org.yaml.**"
+)
 
+ThisBuild / assemblyShadeRules := Seq(
+  ShadeRule.rename(
+    packagesToShade.map(_ -> "shaded.flint.@0"): _*
+  ).inAll
+)
 
 lazy val commonSettings = Seq(
   javacOptions ++= Seq("-source", "11"),
@@ -53,7 +83,11 @@ lazy val commonSettings = Seq(
   compileScalastyle := (Compile / scalastyle).toTask("").value,
   Compile / compile := ((Compile / compile) dependsOn compileScalastyle).value,
   testScalastyle := (Test / scalastyle).toTask("").value,
+  // Enable HTML report and output to separate folder per package
+  Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-h", s"target/test-reports/${name.value}"),
   Test / test := ((Test / test) dependsOn testScalastyle).value,
+  // Needed for HTML report
+  libraryDependencies += "com.vladsch.flexmark" % "flexmark-all" % "0.64.8" % "test",
   dependencyOverrides ++= Seq(
     "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion
@@ -84,11 +118,14 @@ lazy val flintCore = (project in file("flint-core"))
         exclude ("org.apache.httpcomponents.client5", "httpclient5"),
       "org.opensearch" % "opensearch-job-scheduler-spi" % opensearchMavenVersion,
       "dev.failsafe" % "failsafe" % "3.3.2",
+      "com.google.guava" % "guava" % "33.3.1-jre",
       "com.amazonaws" % "aws-java-sdk" % "1.12.397" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
       "com.amazonaws" % "aws-java-sdk-cloudwatch" % "1.12.593"
         exclude("com.fasterxml.jackson.core", "jackson-databind"),
       "software.amazon.awssdk" % "auth-crt" % "2.28.10",
+      "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
+      "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.projectlombok" % "lombok" % "1.18.30" % "provided",
       "org.scalactic" %% "scalactic" % "3.2.15" % "test",
       "org.scalatest" %% "scalatest" % "3.2.15" % "test",
@@ -154,6 +191,7 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
       "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
       "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
       "org.projectlombok" % "lombok" % "1.18.30",
+      "com.github.seancfoley" % "ipaddress" % "5.5.1",
     ),
     libraryDependencies ++= deps(sparkVersion),
     // ANTLR settings
@@ -237,13 +275,30 @@ lazy val integtest = (project in file("integ-test"))
     inConfig(IntegrationTest)(Defaults.testSettings ++ Seq(
       IntegrationTest / javaSource := baseDirectory.value / "src/integration/java",
       IntegrationTest / scalaSource := baseDirectory.value / "src/integration/scala",
-      IntegrationTest / parallelExecution := false,
+      IntegrationTest / resourceDirectory := baseDirectory.value / "src/integration/resources",
+      IntegrationTest / parallelExecution := true, // enable parallel execution
+      IntegrationTest / testForkedParallel := false, // disable forked parallel execution to avoid duplicate spark context in the same JVM
       IntegrationTest / fork := true,
+      IntegrationTest / testGrouping := {
+        val tests = (IntegrationTest / definedTests).value
+        val forkOptions = ForkOptions()
+        val groups = tests.grouped(tests.size / 4 + 1).zipWithIndex.map { case (group, index) =>
+          val groupName = s"group-${index + 1}"
+          new Tests.Group(
+            name = groupName,
+            tests = group,
+            runPolicy = Tests.SubProcess(
+              forkOptions.withRunJVMOptions(forkOptions.runJVMOptions ++
+                Seq(s"-Djava.io.tmpdir=${baseDirectory.value}/integ-test/target/tmp/$groupName")))
+          )
+        }
+        groups.toSeq
+      }
     )),
     inConfig(AwsIntegrationTest)(Defaults.testSettings ++ Seq(
       AwsIntegrationTest / javaSource := baseDirectory.value / "src/aws-integration/java",
       AwsIntegrationTest / scalaSource := baseDirectory.value / "src/aws-integration/scala",
-      AwsIntegrationTest / parallelExecution := false,
+      AwsIntegrationTest / parallelExecution := true,
       AwsIntegrationTest / fork := true,
     )),
     libraryDependencies ++= Seq(
@@ -266,6 +321,28 @@ lazy val integtest = (project in file("integ-test"))
   )
 lazy val integration = taskKey[Unit]("Run integration tests")
 lazy val awsIntegration = taskKey[Unit]("Run AWS integration tests")
+
+lazy val e2etest = (project in file("e2e-test"))
+  .dependsOn(flintCommons % "test->package", flintSparkIntegration % "test->package", pplSparkIntegration % "test->package", sparkSqlApplication % "test->package")
+  .settings(
+    commonSettings,
+    name := "e2e-test",
+    scalaVersion := scala212,
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % "3.2.15" % "test",
+      "org.apache.spark" %% "spark-connect-client-jvm" % "3.5.3" % "test",
+      "com.amazonaws" % "aws-java-sdk-s3" % "1.12.568" % "test",
+      "com.softwaremill.sttp.client3" %% "core" % "3.10.2" % "test",
+      "com.softwaremill.sttp.client3" %% "play2-json" % "3.10.2",
+      "com.typesafe.play" %% "play-json" % "2.9.2" % "test",
+    ),
+    libraryDependencies ++= deps(sparkVersion),
+    javaOptions ++= Seq(
+      s"-DappJar=${(sparkSqlApplication / assembly).value.getAbsolutePath}",
+      s"-DextensionJar=${(flintSparkIntegration / assembly).value.getAbsolutePath}",
+      s"-DpplJar=${(pplSparkIntegration / assembly).value.getAbsolutePath}",
+    )
+  )
 
 lazy val standaloneCosmetic = project
   .settings(

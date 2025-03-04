@@ -82,6 +82,14 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
            *   Row(timestamp("2023-10-01 02:00:00"), 1)
            */
         ))
+
+      sql(s"""
+             | INSERT INTO $testTable VALUES
+             | (TIMESTAMP '2023-10-01 04:00:00', 'F', 25, 'Vancouver')
+             | """.stripMargin)
+      failAfter(streamingTimeout) {
+        job.get.processAllAvailable()
+      }
     }
   }
 
@@ -152,6 +160,50 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       options.extraSourceOptions(testTable) shouldBe Map("maxFilesPerTrigger" -> "1")
       options.extraSinkOptions() shouldBe Map.empty
     }
+  }
+
+  test("create materialized view with auto refresh and ID expression") {
+    withTempDir { checkpointDir =>
+      sql(s"""
+             | CREATE MATERIALIZED VIEW $testMvName
+             | AS $testQuery
+             | WITH (
+             |   auto_refresh = true,
+             |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+             |   watermark_delay = '1 Second',
+             |   id_expression = "sha1(concat_ws('\0',startTime))"
+             | )
+             |""".stripMargin)
+
+      // Wait for streaming job complete current micro batch
+      val job = spark.streams.active.find(_.name == testFlintIndex)
+      job shouldBe defined
+      failAfter(streamingTimeout) {
+        job.get.processAllAvailable()
+      }
+
+      flint.queryIndex(testFlintIndex).count() shouldBe 3
+    }
+  }
+
+  test("create materialized view with full refresh and ID expression") {
+    sql(s"""
+           | CREATE MATERIALIZED VIEW $testMvName
+           | AS $testQuery
+           | WITH (
+           |   id_expression = 'count'
+           | )
+           |""".stripMargin)
+
+    sql(s"REFRESH MATERIALIZED VIEW $testMvName")
+
+    // 2 rows missing due to ID conflict intentionally
+    val indexData = flint.queryIndex(testFlintIndex)
+    indexData.count() shouldBe 2
+
+    // Rerun should not generate duplicate data
+    sql(s"REFRESH MATERIALIZED VIEW $testMvName")
+    indexData.count() shouldBe 2
   }
 
   test("create materialized view with index settings") {
@@ -445,6 +497,121 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       sql(s"VACUUM MATERIALIZED VIEW $testMvName")
       flint.describeIndex(testFlintIndex) shouldBe empty
       checkpointDir.exists() shouldBe false
+    }
+  }
+
+  test("tumble function should raise error for non-simple time column") {
+    val httpLogs = s"$catalogName.default.mv_test_tumble"
+    withTable(httpLogs) {
+      createTableHttpLog(httpLogs)
+
+      withTempDir { checkpointDir =>
+        val ex = the[IllegalStateException] thrownBy {
+          sql(s"""
+               | CREATE MATERIALIZED VIEW `$catalogName`.`default`.`mv_test_metrics`
+               | AS
+               | SELECT
+               |   window.start AS startTime,
+               |   COUNT(*) AS count
+               | FROM $httpLogs
+               | GROUP BY
+               |   TUMBLE(CAST(timestamp AS TIMESTAMP), '10 Minute')
+               | WITH (
+               |   auto_refresh = true,
+               |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+               |   watermark_delay = '1 Second'
+               | )
+               |""".stripMargin)
+        }
+        ex.getCause should have message
+          "Tumble function only supports simple timestamp column, but found: cast('timestamp as timestamp)"
+      }
+    }
+  }
+
+  test("tumble function should succeed with casted time column within subquery") {
+    val httpLogs = s"$catalogName.default.mv_test_tumble"
+    withTable(httpLogs) {
+      createTableHttpLog(httpLogs)
+
+      withTempDir { checkpointDir =>
+        sql(s"""
+             | CREATE MATERIALIZED VIEW `$catalogName`.`default`.`mv_test_metrics`
+             | AS
+             | SELECT
+             |   window.start AS startTime,
+             |   COUNT(*) AS count
+             | FROM (
+             |   SELECT CAST(timestamp AS TIMESTAMP) AS time
+             |   FROM $httpLogs
+             | )
+             | GROUP BY
+             |   TUMBLE(time, '10 Minute')
+             | WITH (
+             |   auto_refresh = true,
+             |   checkpoint_location = '${checkpointDir.getAbsolutePath}',
+             |   watermark_delay = '1 Second'
+             | )
+             |""".stripMargin)
+
+        // Wait for streaming job complete current micro batch
+        val job = spark.streams.active.find(_.name == testFlintIndex)
+        job shouldBe defined
+        failAfter(streamingTimeout) {
+          job.get.processAllAvailable()
+        }
+
+        checkAnswer(
+          flint.queryIndex(testFlintIndex).select("startTime", "count"),
+          Seq(
+            Row(timestamp("2023-10-01 10:00:00"), 2),
+            Row(timestamp("2023-10-01 10:10:00"), 2)
+            /*
+             * The last row is pending to fire upon watermark
+             *   Row(timestamp("2023-10-01 10:20:00"), 2)
+             */
+          ))
+      }
+    }
+  }
+
+  test("create materialized view with decimal and map types") {
+    val decimalAndMapTable = s"$catalogName.default.mv_test_decimal_map"
+    val decimalAndMapMv = s"$catalogName.default.mv_test_decimal_map_ser"
+    withTable(decimalAndMapTable) {
+      createMapAndDecimalTimeSeriesTable(decimalAndMapTable)
+
+      withTempDir { checkpointDir =>
+        sql(s"""
+             | CREATE MATERIALIZED VIEW $decimalAndMapMv
+             | AS
+             | SELECT
+             |   base_score, mymap
+             | FROM $decimalAndMapTable
+             | WITH (
+             |   auto_refresh = true,
+             |   checkpoint_location = '${checkpointDir.getAbsolutePath}'
+             | )
+             |""".stripMargin)
+
+        // Wait for streaming job complete current micro batch
+        val flintIndex = getFlintIndexName(decimalAndMapMv)
+        val job = spark.streams.active.find(_.name == flintIndex)
+        job shouldBe defined
+        failAfter(streamingTimeout) {
+          job.get.processAllAvailable()
+        }
+
+        flint.describeIndex(flintIndex) shouldBe defined
+        checkAnswer(
+          flint.queryIndex(flintIndex).select("base_score", "mymap"),
+          Seq(
+            Row(3.1415926, Row(null, null, null, null, "mapvalue1")),
+            Row(4.1415926, Row("mapvalue2", null, null, null, null)),
+            Row(5.1415926, Row(null, null, "mapvalue3", null, null)),
+            Row(6.1415926, Row(null, null, null, "mapvalue4", null)),
+            Row(7.1415926, Row(null, "mapvalue5", null, null, null))))
+      }
     }
   }
 

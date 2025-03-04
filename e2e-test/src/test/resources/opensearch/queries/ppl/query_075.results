@@ -1,0 +1,25 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "count()",
+      "type": "long"
+    },
+    {
+      "name": "domain",
+      "type": "string"
+    }
+  ],
+  "datarows": [
+    [
+      1,
+      "french"
+    ],
+    [
+      5,
+      "images"
+    ]
+  ],
+  "total": 2,
+  "size": 2
+}

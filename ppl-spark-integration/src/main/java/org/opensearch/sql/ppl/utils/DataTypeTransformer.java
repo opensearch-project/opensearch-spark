@@ -9,21 +9,20 @@ package org.opensearch.sql.ppl.utils;
 import org.apache.spark.sql.types.BooleanType$;
 import org.apache.spark.sql.types.ByteType$;
 import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.DateType$;
 import org.apache.spark.sql.types.DoubleType$;
 import org.apache.spark.sql.types.FloatType$;
 import org.apache.spark.sql.types.IntegerType$;
 import org.apache.spark.sql.types.LongType$;
+import org.apache.spark.sql.types.NullType$;
 import org.apache.spark.sql.types.ShortType$;
 import org.apache.spark.sql.types.StringType$;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.opensearch.sql.ast.expression.SpanUnit;
 import scala.collection.mutable.Seq;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 import static org.opensearch.sql.ast.expression.SpanUnit.DAY;
 import static org.opensearch.sql.ast.expression.SpanUnit.HOUR;
@@ -51,8 +50,12 @@ public interface DataTypeTransformer {
     
     static DataType translate(org.opensearch.sql.ast.expression.DataType source) {
         switch (source.getCoreType()) {
-            case TIME:
+            case DATE:
                 return DateType$.MODULE$;
+            case TIMESTAMP:
+                return DataTypes.TimestampType;
+            case STRING:
+                return DataTypes.StringType;
             case INTEGER:
                 return IntegerType$.MODULE$;
             case LONG:
@@ -67,8 +70,10 @@ public interface DataTypeTransformer {
                 return ShortType$.MODULE$;
             case BYTE:
                 return ByteType$.MODULE$;
+            case UNDEFINED:
+                return NullType$.MODULE$;
             default:
-                return StringType$.MODULE$;
+                throw new IllegalArgumentException("Unsupported data type for Spark: " + source);
         }
     }
     

@@ -16,12 +16,15 @@ import scala.util.{Failure, Success}
 import org.opensearch.action.admin.indices.settings.put.UpdateSettingsRequest
 import org.opensearch.action.get.GetRequest
 import org.opensearch.client.RequestOptions
+import org.opensearch.flint.common.model.FlintStatement
+import org.opensearch.flint.common.scheduler.model.LangType
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.spark.{FlintSparkIndexMonitor, FlintSparkSuite}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.{contain, defined}
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
+import org.apache.spark.sql.FlintREPL.currentTimeProvider
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf._
@@ -39,6 +42,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
   val appId = "00feq82b752mbt0p"
   val dataSourceName = "my_glue1"
   val queryId = "testQueryId"
+  val requestIndex = "testRequestIndex"
   var osClient: OSClient = _
   val threadLocalFuture = new ThreadLocal[Future[Unit]]()
 
@@ -81,36 +85,55 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     }
   }
 
+  def createJobOperator(query: String, jobRunId: String): JobOperator = {
+    val streamingRunningCount = new AtomicInteger(0)
+    val statementRunningCount = new AtomicInteger(0)
+
+    /*
+     * Because we cannot test from FlintJob.main() for the reason below, we have to configure
+     * all Spark conf required by Flint code underlying manually.
+     */
+    spark.conf.set(DATA_SOURCE_NAME.key, dataSourceName)
+    spark.conf.set(JOB_TYPE.key, FlintJobType.STREAMING)
+    spark.conf.set(REQUEST_INDEX.key, requestIndex)
+
+    val flintStatement =
+      new FlintStatement(
+        "running",
+        query,
+        "",
+        queryId,
+        LangType.SQL,
+        currentTimeProvider.currentEpochMillis(),
+        Option.empty,
+        Map.empty)
+
+    val job = JobOperator(
+      appId,
+      jobRunId,
+      spark,
+      flintStatement,
+      dataSourceName,
+      resultIndex,
+      FlintJobType.STREAMING,
+      streamingRunningCount,
+      statementRunningCount)
+    job.terminateJVM = false
+    job
+  }
+
   def startJob(query: String, jobRunId: String): Future[Unit] = {
     val prefix = "flint-job-test"
     val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor(prefix, 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
-    val streamingRunningCount = new AtomicInteger(0)
 
     val futureResult = Future {
-      /*
-       * Because we cannot test from FlintJob.main() for the reason below, we have to configure
-       * all Spark conf required by Flint code underlying manually.
-       */
-      spark.conf.set(DATA_SOURCE_NAME.key, dataSourceName)
-      spark.conf.set(JOB_TYPE.key, FlintJobType.STREAMING)
 
       /**
        * FlintJob.main() is not called because we need to manually set these variables within a
        * JobOperator instance to accommodate specific runtime requirements.
        */
-      val job =
-        JobOperator(
-          appId,
-          jobRunId,
-          spark,
-          query,
-          queryId,
-          dataSourceName,
-          resultIndex,
-          FlintJobType.STREAMING,
-          streamingRunningCount)
-      job.terminateJVM = false
+      val job = createJobOperator(query, jobRunId)
       job.start()
     }
     futureResult.onComplete {
@@ -291,6 +314,10 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
   }
 
   test("create skipping index with non-existent table") {
+    val prefix = "flint-job-test"
+    val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor(prefix, 1)
+    implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
+
     val query =
       s"""
          | CREATE SKIPPING INDEX ON testTable
@@ -303,7 +330,9 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
          | """.stripMargin
     val queryStartTime = System.currentTimeMillis()
     val jobRunId = "00ff4o3b5091080r"
-    threadLocalFuture.set(startJob(query, jobRunId))
+
+    val job = createJobOperator(query, jobRunId)
+    threadLocalFuture.set(Future(job.start()))
 
     val validation: REPLResult => Boolean = result => {
       assert(
@@ -315,6 +344,9 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
 
       assert(result.status == "FAILED", s"expected status is FAILED, but got ${result.status}")
       assert(!result.error.isEmpty, s"we expect error, but got ${result.error}")
+      assert(
+        job.throwableHandler.error.contains("Table spark_catalog.default.testTable is not found"),
+        "Expected error message to mention 'spark_catalog.default.testTable is not found'")
       commonAssert(result, jobRunId, query, queryStartTime)
       true
     }

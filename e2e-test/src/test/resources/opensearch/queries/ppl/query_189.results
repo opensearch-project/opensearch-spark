@@ -1,0 +1,16 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "value",
+      "type": "double"
+    },
+    {
+      "name": "ps_partkey",
+      "type": "long"
+    }
+  ],
+  "datarows": [],
+  "total": 0,
+  "size": 0
+}

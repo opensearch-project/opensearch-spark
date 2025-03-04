@@ -1,7 +1,7 @@
 ## PPL `search` command
 
 ### Description
-Using ``search`` command to retrieve document from the index. ``search`` command could be only used as the first command in the PPL query.
+Using `search` command to retrieve document from the index. `search` command could be only used as the first command in the PPL query.
 
 
 ### Syntax

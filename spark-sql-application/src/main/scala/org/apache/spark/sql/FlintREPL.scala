@@ -15,14 +15,16 @@ import scala.util.control.NonFatal
 
 import com.codahale.metrics.Timer
 import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession, SessionStates}
+import org.opensearch.flint.common.scheduler.model.LangType
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.logging.CustomLogging
-import org.opensearch.flint.core.metrics.{MetricConstants, ReadWriteBytesSparkListener}
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsSparkListener, MetricsUtil}
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
+import org.apache.spark.sql.FlintJob.currentTimeProvider
 import org.apache.spark.sql.FlintREPLConfConstants._
 import org.apache.spark.sql.SessionUpdateMode._
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -57,6 +59,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
 
   private val sessionRunningCount = new AtomicInteger(0)
   private val statementRunningCount = new AtomicInteger(0)
+  private var queryCountMetric = 0
 
   def main(args: Array[String]) {
     val (queryOption, resultIndexOption) = parseArgs(args)
@@ -94,18 +97,29 @@ object FlintREPL extends Logging with FlintJobExecutor {
         logAndThrow("resultIndex is not set")
       }
       configDYNMaxExecutors(conf, jobType)
+
       val streamingRunningCount = new AtomicInteger(0)
+      val flintStatement =
+        new FlintStatement(
+          "running",
+          query,
+          "",
+          queryId,
+          LangType.SQL,
+          currentTimeProvider.currentEpochMillis(),
+          Option.empty,
+          Map.empty)
       val jobOperator =
         JobOperator(
           applicationId,
           jobId,
           createSparkSession(conf),
-          query,
-          queryId,
+          flintStatement,
           dataSource,
           resultIndexOption.get,
           jobType,
-          streamingRunningCount)
+          streamingRunningCount,
+          statementRunningCount)
       registerGauge(MetricConstants.STREAMING_RUNNING_METRIC, streamingRunningCount)
       jobOperator.start()
     } else {
@@ -186,9 +200,9 @@ object FlintREPL extends Logging with FlintJobExecutor {
         }
         recordSessionSuccess(sessionTimerContext)
       } catch {
-        case e: Exception =>
+        case t: Throwable =>
           handleSessionError(
-            e,
+            t,
             applicationId,
             jobId,
             sessionId,
@@ -202,6 +216,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
         }
         stopTimer(sessionTimerContext)
         spark.stop()
+
+        // After handling any exceptions from stopping the Spark session,
+        // check if there's a stored exception and throw it if it's an UnrecoverableException
+        checkAndThrowUnrecoverableExceptions()
 
         // Check for non-daemon threads that may prevent the driver from shutting down.
         // Non-daemon threads other than the main thread indicate that the driver is still processing tasks,
@@ -314,7 +332,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
     val threadPool = threadPoolFactory.newDaemonThreadPoolScheduledExecutor("flint-repl-query", 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
     val queryResultWriter = instantiateQueryResultWriter(spark, commandContext)
-    var futurePrepareQueryExecution: Future[Either[String, Unit]] = null
+
+    val statementsExecutionManager =
+      instantiateStatementExecutionManager(commandContext)
+
+    var futurePrepareQueryExecution: Future[Either[String, Unit]] = Future {
+      statementsExecutionManager.prepareStatementExecution()
+    }
     try {
       logInfo(s"""Executing session with sessionId: ${sessionId}""")
 
@@ -324,12 +348,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
       var lastCanPickCheckTime = 0L
       while (currentTimeProvider
           .currentEpochMillis() - lastActivityTime <= commandContext.inactivityLimitMillis && canPickUpNextStatement) {
-        val statementsExecutionManager =
-          instantiateStatementExecutionManager(commandContext)
-
-        futurePrepareQueryExecution = Future {
-          statementsExecutionManager.prepareStatementExecution()
-        }
 
         try {
           val commandState = CommandState(
@@ -355,6 +373,11 @@ object FlintREPL extends Logging with FlintJobExecutor {
           verificationResult = updatedVerificationResult
           canPickUpNextStatement = updatedCanPickUpNextStatement
           lastCanPickCheckTime = updatedLastCanPickCheckTime
+        } catch {
+          case t: Throwable =>
+            // Record and rethrow in query loop
+            throwableHandler.recordThrowable(s"Query loop execution failed.", t)
+            throw t
         } finally {
           statementsExecutionManager.terminateStatementExecution()
         }
@@ -365,6 +388,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
       if (threadPool != null) {
         threadPoolFactory.shutdownThreadPool(threadPool)
       }
+      MetricsUtil.addHistoricGauge(MetricConstants.REPL_QUERY_COUNT_METRIC, queryCountMetric)
     }
   }
 
@@ -410,32 +434,40 @@ object FlintREPL extends Logging with FlintJobExecutor {
           error = error,
           excludedJobIds = excludedJobIds))
     logInfo(s"Current session: ${sessionDetails}")
-    logInfo(s"State is: ${sessionDetails.state}")
     sessionDetails.state = state
-    logInfo(s"State is: ${sessionDetails.state}")
+    sessionDetails.error = error
     sessionManager.updateSessionDetails(sessionDetails, updateMode = UPSERT)
+    logInfo(s"Updated session: ${sessionDetails}")
     sessionDetails
   }
 
   def handleSessionError(
-      e: Exception,
+      t: Throwable,
       applicationId: String,
       jobId: String,
       sessionId: String,
       sessionManager: SessionManager,
       jobStartTime: Long,
       sessionTimerContext: Timer.Context): Unit = {
-    val error = s"Session error: ${e.getMessage}"
-    CustomLogging.logError(error, e)
+    val error = s"Session error: ${t.getMessage}"
+    throwableHandler.recordThrowable(error, t)
 
-    refreshSessionState(
-      applicationId,
-      jobId,
-      sessionId,
-      sessionManager,
-      jobStartTime,
-      SessionStates.FAIL,
-      Some(e.getMessage))
+    try {
+      refreshSessionState(
+        applicationId,
+        jobId,
+        sessionId,
+        sessionManager,
+        jobStartTime,
+        SessionStates.FAIL,
+        Some(error))
+    } catch {
+      case t: Throwable =>
+        throwableHandler.recordThrowable(
+          s"Failed to update session state. Original error: $error",
+          t)
+    }
+
     recordSessionFailed(sessionTimerContext)
   }
 
@@ -483,8 +515,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
       startTime)
   }
 
-  def processQueryException(ex: Exception, flintStatement: FlintStatement): String = {
-    val error = super.processQueryException(ex)
+  def processQueryException(t: Throwable, flintStatement: FlintStatement): String = {
+    val error = super.processQueryException(t)
     flintStatement.fail()
     flintStatement.error = Some(error)
     error
@@ -521,11 +553,12 @@ object FlintREPL extends Logging with FlintJobExecutor {
             flintStatement.running()
             statementExecutionManager.updateStatement(flintStatement)
             statementRunningCount.incrementAndGet()
+            queryCountMetric += 1
 
             val statementTimerContext = getTimerContext(
               MetricConstants.STATEMENT_PROCESSING_TIME_METRIC)
             val (dataToWrite, returnedVerificationResult) =
-              ReadWriteBytesSparkListener.withMetrics(
+              MetricsSparkListener.withMetrics(
                 spark,
                 () => {
                   processStatementOnVerification(
@@ -578,11 +611,13 @@ object FlintREPL extends Logging with FlintJobExecutor {
     } catch {
       // e.g., maybe due to authentication service connection issue
       // or invalid catalog (e.g., we are operating on data not defined in provided data source)
-      case e: Exception =>
-        val error = s"""Fail to write result of ${flintStatement}, cause: ${e.getMessage}"""
-        CustomLogging.logError(error, e)
+      case e: Throwable =>
+        throwableHandler.recordThrowable(
+          s"""Fail to write result of ${flintStatement}, cause: ${e.getMessage}""",
+          e)
         flintStatement.fail()
     } finally {
+      logInfo(s"command complete: $flintStatement")
       statementExecutionManager.updateStatement(flintStatement)
       recordStatementStateChange(flintStatement, statementTimerContext)
     }
@@ -668,8 +703,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
             flintStatement,
             sessionId,
             startTime))
-      case e: Exception =>
-        val error = processQueryException(e, flintStatement)
+      case t: Throwable =>
+        val error = processQueryException(t, flintStatement)
         Some(
           handleCommandFailureAndGetFailedData(
             applicationId,
@@ -744,7 +779,7 @@ object FlintREPL extends Logging with FlintJobExecutor {
                 startTime))
           case NonFatal(e) =>
             val error = s"An unexpected error occurred: ${e.getMessage}"
-            CustomLogging.logError(error, e)
+            throwableHandler.recordThrowable(error, e)
             dataToWrite = Some(
               handleCommandFailureAndGetFailedData(
                 applicationId,
@@ -783,7 +818,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
           queryWaitTimeMillis)
     }
 
-    logInfo(s"command complete: $flintStatement")
     (dataToWrite, verificationResult)
   }
 
@@ -855,7 +889,8 @@ object FlintREPL extends Logging with FlintJobExecutor {
           }
         }
       } catch {
-        case e: Exception => logError(s"Failed to update session state for $sessionId", e)
+        case t: Throwable =>
+          throwableHandler.recordThrowable(s"Failed to update session state for $sessionId", t)
       }
     }
   }
@@ -894,10 +929,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
                 MetricConstants.REQUEST_METADATA_HEARTBEAT_FAILED_METRIC
               ) // Record heartbeat failure metric
             // maybe due to invalid sequence number or primary term
-            case e: Exception =>
-              CustomLogging.logWarning(
+            case t: Throwable =>
+              throwableHandler.recordThrowable(
                 s"""Fail to update the last update time of the flint instance ${sessionId}""",
-                e)
+                t)
               incrementCounter(
                 MetricConstants.REQUEST_METADATA_HEARTBEAT_FAILED_METRIC
               ) // Record heartbeat failure metric
@@ -945,8 +980,10 @@ object FlintREPL extends Logging with FlintJobExecutor {
       }
     } catch {
       // still proceed since we are not sure what happened (e.g., OpenSearch cluster may be unresponsive)
-      case e: Exception =>
-        CustomLogging.logError(s"""Fail to find id ${sessionId} from session index.""", e)
+      case t: Throwable =>
+        throwableHandler.recordThrowable(
+          s"""Fail to find id ${sessionId} from session index.""",
+          t)
         true
     }
   }
@@ -995,33 +1032,6 @@ object FlintREPL extends Logging with FlintJobExecutor {
       case _ =>
         logAndThrow(s"${FlintSparkConf.SESSION_ID.key} is not set or is empty")
     }
-  }
-
-  private def instantiateSessionManager(
-      spark: SparkSession,
-      resultIndexOption: Option[String]): SessionManager = {
-    instantiate(
-      new SessionManagerImpl(spark, resultIndexOption),
-      spark.conf.get(FlintSparkConf.CUSTOM_SESSION_MANAGER.key, ""),
-      resultIndexOption.getOrElse(""))
-  }
-
-  private def instantiateStatementExecutionManager(
-      commandContext: CommandContext): StatementExecutionManager = {
-    import commandContext._
-    instantiate(
-      new StatementExecutionManagerImpl(commandContext),
-      spark.conf.get(FlintSparkConf.CUSTOM_STATEMENT_MANAGER.key, ""),
-      spark,
-      sessionId)
-  }
-
-  private def instantiateQueryResultWriter(
-      spark: SparkSession,
-      commandContext: CommandContext): QueryResultWriter = {
-    instantiate(
-      new QueryResultWriterImpl(commandContext),
-      spark.conf.get(FlintSparkConf.CUSTOM_QUERY_RESULT_WRITER.key, ""))
   }
 
   private def recordSessionSuccess(sessionTimerContext: Timer.Context): Unit = {

@@ -1,0 +1,1 @@
+/* lots of inner join tests in tpch */ source = dev.default.orders | head 1

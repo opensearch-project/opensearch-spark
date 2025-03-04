@@ -1,0 +1,1 @@
+source = dev.default.http_logs | eval new_time = @timestamp, new_clientip = clientip | fields - new_time, new_clientip, status | head 10

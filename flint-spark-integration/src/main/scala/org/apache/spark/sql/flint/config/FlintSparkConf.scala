@@ -136,11 +136,54 @@ object FlintSparkConf {
     .doc("max retries on failed HTTP request, 0 means retry is disabled, default is 3")
     .createWithDefault(String.valueOf(FlintRetryOptions.DEFAULT_MAX_RETRIES))
 
-  val BULK_REQUEST_RATE_LIMIT_PER_NODE =
-    FlintConfig(s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE}")
+  val BULK_MAX_RETRIES =
+    FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.BULK_MAX_RETRIES}")
       .datasourceOption()
-      .doc("[Experimental] Rate limit (requests/sec) for bulk request per worker node. Rate won't be limited by default")
-      .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE)
+      .doc("max retries on failed HTTP request, 0 means retry is disabled, default is 10")
+      .createWithDefault(String.valueOf(FlintRetryOptions.DEFAULT_BULK_MAX_RETRIES))
+
+  val BULK_INITIAL_BACKOFF =
+    FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.BULK_INITIAL_BACKOFF}")
+      .datasourceOption()
+      .doc("initial backoff in seconds for bulk request retry, default is 4s")
+      .createWithDefault(String.valueOf(FlintRetryOptions.DEFAULT_BULK_INITIAL_BACKOFF))
+
+  val BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED =
+    FlintConfig(
+      s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED}")
+      .datasourceOption()
+      .doc("[Experimental] Enable adaptive rate limit for bulk request per worker node")
+      .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED)
+
+  val BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE =
+    FlintConfig(s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE}")
+      .datasourceOption()
+      .doc(
+        "[Experimental] Lower limit (documents/sec) for adaptive rate limiting for bulk request per worker node, if rate limit enabled. " +
+          "The adaptive rate will not drop below this value. Must be greater than 0.")
+      .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE)
+
+  val BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE =
+    FlintConfig(s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE}")
+      .datasourceOption()
+      .doc(
+        "[Experimental] Upper limit (documents/sec) for adaptive rate limiting for bulk request per worker node, if rate limit enabled. " +
+          "The adaptive rate will not exceed this value. Set to -1 for no upper bound.")
+      .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE)
+
+  val BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP =
+    FlintConfig(
+      s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP}")
+      .datasourceOption()
+      .doc("[Experimental] Adaptive rate limit increase step for bulk request per worker node, if rate limit enabled. Must be greater than 0.")
+      .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP)
+
+  val BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO =
+    FlintConfig(
+      s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO}")
+      .datasourceOption()
+      .doc("[Experimental] Adaptive rate limit decrease ratio for bulk request per worker node, if rate limit enabled. Must be between 0 and 1.")
+      .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO)
 
   val RETRYABLE_HTTP_STATUS_CODES =
     FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.RETRYABLE_HTTP_STATUS_CODES}")
@@ -170,6 +213,13 @@ object FlintSparkConf {
   val EXTERNAL_SCHEDULER_ENABLED = FlintConfig("spark.flint.job.externalScheduler.enabled")
     .doc("Enable external scheduler for index refresh")
     .createWithDefault("false")
+
+  val WARMPOOL_ENABLED =
+    FlintConfig("spark.flint.job.warmpoolEnabled")
+      .doc("Enable warmPool mode for the EMR Job to reduce startup times")
+      .createWithDefault("false")
+
+  val MAX_EXECUTORS_COUNT = FlintConfig("spark.dynamicAllocation.maxExecutors").createOptional()
 
   val EXTERNAL_SCHEDULER_INTERVAL_THRESHOLD =
     FlintConfig("spark.flint.job.externalScheduler.interval")
@@ -201,6 +251,11 @@ object FlintSparkConf {
       .datasourceOption()
       .doc("socket duration in milliseconds")
       .createWithDefault(String.valueOf(FlintOptions.DEFAULT_SOCKET_TIMEOUT_MILLIS))
+  val REQUEST_COMPLETION_DELAY_MILLIS =
+    FlintConfig(s"spark.datasource.flint.${FlintOptions.REQUEST_COMPLETION_DELAY_MILLIS}")
+      .datasourceOption()
+      .doc("delay in milliseconds after index creation is completed")
+      .createOptional()
   val DATA_SOURCE_NAME =
     FlintConfig(s"spark.flint.datasource.name")
       .doc("data source name")
@@ -241,6 +296,10 @@ object FlintSparkConf {
     FlintConfig(s"spark.flint.job.requestIndex")
       .doc("Request index")
       .createOptional()
+  val RESULT_INDEX =
+    FlintConfig(s"spark.flint.job.resultIndex")
+      .doc("Result index")
+      .createOptional()
   val EXCLUDE_JOB_IDS =
     FlintConfig(s"spark.flint.deployment.excludeJobs")
       .doc("Exclude job ids")
@@ -266,6 +325,9 @@ object FlintSparkConf {
   val CUSTOM_QUERY_RESULT_WRITER =
     FlintConfig("spark.flint.job.customQueryResultWriter")
       .createOptional()
+  val TERMINATE_JVM = FlintConfig("spark.flint.terminateJVM")
+    .doc("Indicates whether the JVM should be terminated after query execution")
+    .createWithDefault("true")
 }
 
 /**
@@ -332,8 +394,14 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       SCHEME,
       AUTH,
       MAX_RETRIES,
+      BULK_MAX_RETRIES,
+      BULK_INITIAL_BACKOFF,
       RETRYABLE_HTTP_STATUS_CODES,
-      BULK_REQUEST_RATE_LIMIT_PER_NODE,
+      BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED,
+      BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE,
+      BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE,
+      BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP,
+      BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO,
       REGION,
       CUSTOM_AWS_CREDENTIALS_PROVIDER,
       SERVICE_NAME,
@@ -356,7 +424,8 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       REQUEST_INDEX,
       METADATA_ACCESS_AWS_CREDENTIALS_PROVIDER,
       EXCLUDE_JOB_IDS,
-      SCROLL_SIZE)
+      SCROLL_SIZE,
+      REQUEST_COMPLETION_DELAY_MILLIS)
       .map(conf => (conf.optionKey, conf.readFrom(reader)))
       .flatMap {
         case (_, None) => None

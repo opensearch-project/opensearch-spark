@@ -1,0 +1,12 @@
+{"index": {"_index": "people"}}
+{"@timestamp": 1718458823000, "id": 1000, "name": "Jake", "occupation": "Engineer", "country": "England", "salary": 100000}
+{"index": {"_index": "people"}}
+{"@timestamp": 1718458833000, "id": 1001, "name": "Hello", "occupation": "Artist", "country": "USA", "salary": 70000}
+{"index": {"_index": "people"}}
+{"@timestamp": 1718458843000, "id": 1002, "name": "John", "occupation": "Doctor", "country": "Canada", "salary": 120000}
+{"index": {"_index": "people"}}
+{"@timestamp": 1718458853000, "id": 1003, "name": "David", "occupation": "Doctor", "country": null, "salary": 120000}
+{"index": {"_index": "people"}}
+{"@timestamp": 1718458863000, "id": 1004, "name": "David", "occupation": null, "country": "Canada", "salary": 0}
+{"index": {"_index": "people"}}
+{"@timestamp": 1718458873000, "id": 1005, "name": "Jane", "occupation": "Scientist", "country": "Canada", "salary": 90000}

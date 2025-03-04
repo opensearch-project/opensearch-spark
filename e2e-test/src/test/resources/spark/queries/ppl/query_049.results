@@ -1,0 +1,5 @@
+max(int_col),struct_col.field2
+40,456
+30,823
+50,789
+40,123

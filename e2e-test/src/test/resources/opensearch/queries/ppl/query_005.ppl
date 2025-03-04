@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | dedup 2 status | head 10

@@ -8,7 +8,7 @@ package org.opensearch.flint.spark.ppl
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, EqualTo, IsNotNull, Literal, Not, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Descending, EqualTo, GreaterThanOrEqual, IsNotNull, Literal, Not, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.ExplainMode
 import org.apache.spark.sql.execution.command.{DescribeTableCommand, ExplainCommand}
@@ -541,11 +541,6 @@ class FlintSparkPPLBasicITSuite
            | """.stripMargin))
       assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
     }
-    val t7 = "spark_catalog.default.flint_ppl_test7.log"
-    val ex = intercept[IllegalArgumentException](sql(s"""
-           | source = $t7| head 2
-           | """.stripMargin))
-    assert(ex.getMessage().contains("Invalid table name"))
   }
 
   test("test describe backtick table names and name contains '.'") {
@@ -564,11 +559,6 @@ class FlintSparkPPLBasicITSuite
            | """.stripMargin))
       assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
     }
-    val t7 = "spark_catalog.default.flint_ppl_test7.log"
-    val ex = intercept[IllegalArgumentException](sql(s"""
-           | describe $t7
-           | """.stripMargin))
-    assert(ex.getMessage().contains("Invalid table name"))
   }
 
   test("test explain backtick table names and name contains '.'") {
@@ -590,11 +580,113 @@ class FlintSparkPPLBasicITSuite
         Project(Seq(UnresolvedStar(None)), relation),
         ExplainMode.fromString("extended"))
     comparePlans(logicalPlan, expectedPlan, checkAnalysis = false)
+  }
 
+  // TODO Do not support 4+ parts table identifier in future (may be reverted this PR in 0.8.0)
+  test("test table name with more than 3 parts") {
     val t7 = "spark_catalog.default.flint_ppl_test7.log"
-    val ex = intercept[IllegalArgumentException](sql(s"""
-          | explain extended | source = $t7
-          | """.stripMargin))
-    assert(ex.getMessage().contains("Invalid table name"))
+    val t4Parts = "`spark_catalog`.default.`startTime:1,endTime:2`.`this(is:['a/name'])`"
+    val t5Parts =
+      "`spark_catalog`.default.`startTime:1,endTime:2`.`this(is:['sub/name'])`.`this(is:['sub-sub/name'])`"
+
+    Seq(t7, t4Parts, t5Parts).foreach { table =>
+      val ex = intercept[AnalysisException](sql(s"""
+           | source = $table| head 2
+           | """.stripMargin))
+      // Expected since V2SessionCatalog only supports 3 parts
+      assert(
+        ex.getMessage()
+          .contains(
+            "[REQUIRES_SINGLE_PART_NAMESPACE] spark_catalog requires a single-part namespace"))
+    }
+
+    Seq(t7, t4Parts, t5Parts).foreach { table =>
+      val ex = intercept[AnalysisException](sql(s"""
+                                                   | describe $table
+                                                   | """.stripMargin))
+      assert(ex.getMessage().contains("TABLE_OR_VIEW_NOT_FOUND"))
+    }
+  }
+
+  test("Search multiple tables - translated into union call with fields") {
+    val frame = sql(s"""
+                       | source = $t1, $t2
+                       | """.stripMargin)
+    assertSameRows(
+      Seq(
+        Row("Hello", 30, "New York", "USA", 2023, 4),
+        Row("Hello", 30, "New York", "USA", 2023, 4),
+        Row("Jake", 70, "California", "USA", 2023, 4),
+        Row("Jake", 70, "California", "USA", 2023, 4),
+        Row("Jane", 20, "Quebec", "Canada", 2023, 4),
+        Row("Jane", 20, "Quebec", "Canada", 2023, 4),
+        Row("John", 25, "Ontario", "Canada", 2023, 4),
+        Row("John", 25, "Ontario", "Canada", 2023, 4)),
+      frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+
+    val allFields1 = UnresolvedStar(None)
+    val allFields2 = UnresolvedStar(None)
+
+    val projectedTable1 = Project(Seq(allFields1), table1)
+    val projectedTable2 = Project(Seq(allFields2), table2)
+
+    val expectedPlan =
+      Union(Seq(projectedTable1, projectedTable2), byName = true, allowMissingCol = true)
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("Search multiple tables - with table alias") {
+    val frame = sql(s"""
+                       | source = $t1, $t2 as t | where t.country = "USA"
+                       | """.stripMargin)
+    assertSameRows(
+      Seq(
+        Row("Hello", 30, "New York", "USA", 2023, 4),
+        Row("Hello", 30, "New York", "USA", 2023, 4),
+        Row("Jake", 70, "California", "USA", 2023, 4),
+        Row("Jake", 70, "California", "USA", 2023, 4)),
+      frame)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+
+    val plan1 = Filter(
+      EqualTo(UnresolvedAttribute("t.country"), Literal("USA")),
+      SubqueryAlias("t", table1))
+    val plan2 = Filter(
+      EqualTo(UnresolvedAttribute("t.country"), Literal("USA")),
+      SubqueryAlias("t", table2))
+
+    val projectedTable1 = Project(Seq(UnresolvedStar(None)), plan1)
+    val projectedTable2 = Project(Seq(UnresolvedStar(None)), plan2)
+
+    val expectedPlan =
+      Union(Seq(projectedTable1, projectedTable2), byName = true, allowMissingCol = true)
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test fields with alias") {
+    val frame = sql(s"""
+         | source = $testTable as l | where l.age >= 30 | fields l.name, l.age
+         | """.stripMargin)
+
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    val expectedPlan = Project(
+      Seq(UnresolvedAttribute("l.name"), UnresolvedAttribute("l.age")),
+      Filter(
+        GreaterThanOrEqual(UnresolvedAttribute("l.age"), Literal(30)),
+        SubqueryAlias(
+          "l",
+          UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test")))))
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+    assertSameRows(Seq(Row("Jake", 70), Row("Hello", 30)), frame)
+
   }
 }

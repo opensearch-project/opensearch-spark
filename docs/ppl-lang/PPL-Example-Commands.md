@@ -1,5 +1,10 @@
 ## Example PPL Queries
 
+#### **AppendCol**
+[See additional command details](ppl-appendcol-command.md)
+- `source=employees | stats avg(age) as avg_age1 by dept | fields dept, avg_age1 | APPENDCOL  [ stats avg(age) as avg_age2 by dept | fields avg_age2 ];` (To display multiple table statistics side by side)
+- `source=employees | FIELDS name, dept, age | APPENDCOL OVERRIDE=true [ stats avg(age) as age ];` (When the override option is enabled, fields from the sub-query take precedence over fields in the main query in cases of field name conflicts)
+
 #### **Comment**
 [See additional command details](ppl-comment.md)
 - `source=accounts | top gender // finds most common gender of all the accounts` (line comment)
@@ -50,6 +55,10 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where a < 1 | fields a,b,c`
 - `source = table | where b != 'test' | fields a,b,c`
 - `source = table | where c = 'test' | fields a,b,c | head 3`
+- `source = table | where c = 'test' AND a = 1 | fields a,b,c`
+- `source = table | where c != 'test' OR a > 1 | fields a,b,c`
+- `source = table | where (b > 1 OR a > 1) AND c != 'test' | fields a,b,c`
+- `source = table | where c = 'test' NOT a > 1 | fields a,b,c` - Note: "AND" is optional
 - `source = table | where ispresent(b)`
 - `source = table | where isnull(coalesce(a, b)) | fields a,b,c | head 3`
 - `source = table | where isempty(a)`
@@ -58,6 +67,17 @@ _- **Limitation: new field added by eval command with a function cannot be dropp
 - `source = table | where a not in (1, 2, 3) | fields a,b,c`
 - `source = table | where a between 1 and 4` - Note: This returns a >= 1 and a <= 4, i.e. [1, 4]
 - `source = table | where b not between '2024-09-10' and '2025-09-10'` - Note: This returns b >= '2024-09-10' and b <= '2025-09-10'
+- `source = table | where cidrmatch(ip, '192.169.1.0/24')` 
+- `source = table | where cidrmatch(ipv6, '2003:db8::/32')`
+- `source = table | trendline sma(2, temperature) as temp_trend`
+- `source = table | trendline sort timestamp wma(2, temperature) as temp_trend`
+
+#### **IP related queries**
+[See additional command details](functions/ppl-ip.md)
+
+- `source = table | where cidrmatch(ip, '192.169.1.0/24')`
+- `source = table | where isV6 = false and isValid = true and cidrmatch(ipAddress, '192.168.1.0/24')`
+- `source = table | where isV6 = true | eval inRange = case(cidrmatch(ipAddress, '2003:db8::/32'), 'in' else 'out') | fields ip, inRange`
 
 ```sql
  source = table | eval status_category =
@@ -103,6 +123,7 @@ Assumptions: `a`, `b`, `c` are existing fields in `table`
 - `source = table | eval r = coalesce(a, b, c) | fields r`
 - `source = table | eval e = isempty(a) | fields e`
 - `source = table | eval e = isblank(a) | fields e`
+- `source = table | eval e = cast(a as timestamp) | fields e`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one', a = 2, 'two', a = 3, 'three', a = 4, 'four', a = 5, 'five', a = 6, 'six', a = 7, 'se7en', a = 8, 'eight', a = 9, 'nine')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else 'unknown')`
 - `source = table | eval f = case(a = 0, 'zero', a = 1, 'one' else concat(a, ' is an incorrect binary digit'))`
@@ -119,6 +140,16 @@ Assumptions: `a`, `b`, `c`, `d`, `e` are existing fields in `table`
 - `source = table | fillnull using a = 101`
 - `source = table | fillnull using a = 101, b = 102`
 - `source = table | fillnull using a = concat(b, c), d = 2 * pi() * e`
+
+### Flatten
+[See additional command details](ppl-flatten-command.md)
+Assumptions: `bridges`, `coor` are existing fields in `table`, and the field's types are `struct<?,?>` or `array<struct<?,?>>`  
+- `source = table | flatten bridges`
+- `source = table | flatten coor`
+- `source = table | flatten coor as (altitude, latitude, longitude)`
+- `source = table | flatten bridges | flatten coor`
+- `source = table | fields bridges | flatten bridges`
+- `source = table | fields country, bridges | flatten bridges | fields country, length | stats avg(length) as avg by country`
 
 ```sql
 source = table | eval e = eval status_category =
@@ -158,6 +189,7 @@ source = table |  where ispresent(a) |
 - `source = table | stats max(c) by b`
 - `source = table | stats count(c) by b | head 5`
 - `source = table | stats distinct_count(c)`
+- `source = table | stats distinct_count_approx(c)`
 - `source = table | stats stddev_samp(c)`
 - `source = table | stats stddev_pop(c)`
 - `source = table | stats percentile(c, 90)`
@@ -182,6 +214,7 @@ source = table |  where ispresent(a) |
 - `source = table | eventstats avg(a) `
 - `source = table | where a < 50 | eventstats avg(c) `
 - `source = table | eventstats max(c) by b`
+- `source = table | eventstats count(c) by b | head 5`
 - `source = table | eventstats count(c) by b | head 5`
 - `source = table | eventstats stddev_samp(c)`
 - `source = table | eventstats stddev_pop(c)`
@@ -227,12 +260,15 @@ source = table |  where ispresent(a) |
 
 - `source=accounts | rare gender`
 - `source=accounts | rare age by gender`
+- `source=accounts | rare 5 age by gender`
+- `source=accounts | rare_approx age by gender`
 
 #### **Top**
 [See additional command details](ppl-top-command.md)
 
 - `source=accounts | top gender`
 - `source=accounts | top 1 gender`
+- `source=accounts | top_approx 5 gender`
 - `source=accounts | top 1 age by gender`
 
 #### **Parse**
@@ -243,7 +279,7 @@ source = table |  where ispresent(a) |
 - `source=accounts | parse email '.+@(?<host>.+)' | stats count() by host`
 - `source=accounts | parse email '.+@(?<host>.+)' | eval eval_result=1 | fields host, eval_result`
 - `source=accounts | parse email '.+@(?<host>.+)' | where age > 45 | sort - age | fields age, email, host`
-- `source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | where streetNumber > 500 | sort num(streetNumber) | fields streetNumber, street`
+- `source=accounts | parse address '(?<streetNumber>\d+) (?<street>.+)' | eval streetNumberInt = cast(streetNumber as integer) | where streetNumberInt > 500 | sort streetNumberInt | fields streetNumber, street`
 - Limitation: [see limitations](ppl-parse-command.md#limitations)
 
 #### **Grok**
@@ -287,7 +323,11 @@ source = table |  where ispresent(a) |
 - `source = table1 | left semi join left = l right = r on l.a = r.a table2`
 - `source = table1 | left anti join left = l right = r on l.a = r.a table2`
 - `source = table1 | join left = l right = r [ source = table2 | where d > 10 | head 5 ]`
-
+- `source = table1 | inner join on table1.a = table2.a table2 | fields table1.a, table2.a, table1.b, table1.c` (directly refer table name)
+- `source = table1 | inner join on a = c table2 | fields a, b, c, d` (ignore side aliases as long as no ambiguous)
+- `source = table1 as t1 | join left = l right = r on l.a = r.a table2 as t2 | fields l.a, r.a` (side alias overrides table alias)
+- `source = table1 as t1 | join left = l right = r on l.a = r.a table2 as t2 | fields t1.a, t2.a` (error, side alias overrides table alias)
+- `source = table1 | join left = l right = r on l.a = r.a [ source = table2 ] as s | fields l.a, s.a` (error, side alias overrides subquery alias)
 
 #### **Lookup**
 [See additional command details](ppl-lookup-command.md)
@@ -418,20 +458,6 @@ Assumptions: `a`, `b` are fields of table outer, `c`, `d` are fields of table in
 
 _- **Limitation: another command usage of (relation) subquery is in `appendcols` commands which is unsupported**_
 
----
-#### Experimental Commands:
-[See additional command details](ppl-correlation-command.md)
-
-```sql
-- `source alb_logs, traces, metrics | where ip="10.0.0.1" AND cloud.provider="aws"| correlate exact on (ip, port) scope(@timestamp, 2018-07-02T22:23:00, 1 D)`
-- `source alb_logs, traces | where alb_logs.ip="10.0.0.1" AND alb_logs.cloud.provider="aws"|
-    correlate exact fields(traceId, ip) scope(@timestamp, 1D) mapping(alb_logs.ip = traces.attributes.http.server.address, alb_logs.traceId = traces.traceId ) `
-```
-
-> ppl-correlation-command is an experimental command - it may be removed in future versions
-
----
-### Planned Commands:
 
 #### **fillnull**
 [See additional command details](ppl-fillnull-command.md)
@@ -442,3 +468,54 @@ _- **Limitation: another command usage of (relation) subquery is in `appendcols`
     - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5`
     - `source=accounts | fillnull using field1=concat(field2, field3), field4=2*pi()*field5, field6 = 'N/A'`
 ```
+
+#### **expand**
+[See additional command details](ppl-expand-command.md)
+```sql
+   -  `source = table | expand field_with_array as array_list`
+   -  `source = table | expand employee | stats max(salary) as max by state, company`
+   -  `source = table | expand employee as worker | stats max(salary) as max by state, company`
+   -  `source = table | expand employee as worker | eval bonus = salary * 3 | fields worker, bonus`
+   -  `source = table | expand employee | parse description '(?<email>.+@.+)' | fields employee, email`
+   -  `source = table | eval array=json_array(1, 2, 3) | expand array as uid | fields name, occupation, uid`
+   -  `source = table | expand multi_valueA as multiA | expand multi_valueB as multiB`
+```
+
+#### Correlation Commands:
+[See additional command details](ppl-correlation-command.md)
+
+```sql
+- `source alb_logs, traces, metrics | where ip="10.0.0.1" AND cloud.provider="aws"| correlate exact on (ip, port) scope(@timestamp, 2018-07-02T22:23:00, 1 D)`
+- `source alb_logs, traces | where alb_logs.ip="10.0.0.1" AND alb_logs.cloud.provider="aws"|
+    correlate exact fields(traceId, ip) scope(@timestamp, 1D) mapping(alb_logs.ip = traces.attributes.http.server.address, alb_logs.traceId = traces.traceId ) `
+```
+
+> ppl-correlation-command is an experimental command - it may be removed in future versions
+
+#### **Cast**
+[See additional command details](functions/ppl-conversion.md)
+-  `source = table | eval int_to_string = cast(1 as string) | fields int_to_string`
+-  `source = table | eval int_to_string = cast(int_col as string), string_to_int = cast(string_col as integer) | fields int_to_string, string_to_int`
+-  `source = table | eval cdate = CAST('2012-08-07' as date), ctime = cast('2012-08-07T08:07:06' as timestamp) | fields cdate, ctime`
+-  `source = table | eval chained_cast = cast(cast("true" as boolean) as integer) | fields chained_cast`
+
+### **Relative Time Functions**
+
+#### **relative_timestamp**
+[See additional function details](functions/ppl-datetime#relative_timestamp)
+- `source = table | eval one_hour_ago = relative_timestamp("-1h") | where timestamp < one_hour_ago`
+- `source = table | eval start_of_today = relative_timestamp("@d") | where timestamp > start_of_today`
+- `source = table | eval last_saturday = relative_timestamp("-1d@w6") | where timestamp >= last_saturday`
+
+#### **earliest**
+[See additional function details](functions/ppl-datetime#earliest)
+- `source = table | where earliest("-1wk", timestamp)`
+- `source = table | where earliest("@qtr", timestamp)`
+- `source = table | where earliest("-2y@q", timestamp)`
+
+#### **latest**
+[See additional function details](functions/ppl-datetime#latest)
+- `source = table | where latest("-60m", timestamp)`
+- `source = table | where latest("@year", timestamp)`
+- `source = table | where latest("-day@w1", timestamp)`
+---

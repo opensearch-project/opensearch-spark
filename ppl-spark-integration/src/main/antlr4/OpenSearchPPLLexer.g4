@@ -23,7 +23,9 @@ DEDUP:                              'DEDUP';
 SORT:                               'SORT';
 EVAL:                               'EVAL';
 HEAD:                               'HEAD';
+TOP_APPROX:                         'TOP_APPROX';
 TOP:                                'TOP';
+RARE_APPROX:                        'RARE_APPROX';
 RARE:                               'RARE';
 PARSE:                              'PARSE';
 METHOD:                             'METHOD';
@@ -37,6 +39,10 @@ KMEANS:                             'KMEANS';
 AD:                                 'AD';
 ML:                                 'ML';
 FILLNULL:                           'FILLNULL';
+EXPAND:                             'EXPAND';
+FLATTEN:                            'FLATTEN';
+TRENDLINE:                          'TRENDLINE';
+APPENDCOL:                          'APPENDCOL';
 
 //Native JOIN KEYWORDS
 JOIN:                               'JOIN';
@@ -77,17 +83,24 @@ DATASOURCES:                        'DATASOURCES';
 USING:                              'USING';
 WITH:                               'WITH';
 
-// FIELD KEYWORDS
+// SORT FIELD KEYWORDS
+// TODO #963: Implement 'num', 'str', and 'ip' sort syntax
 AUTO:                               'AUTO';
 STR:                                'STR';
 IP:                                 'IP';
 NUM:                                'NUM';
 
-
 // FIELDSUMMARY keywords
 FIELDSUMMARY:                       'FIELDSUMMARY';
 INCLUDEFIELDS:                      'INCLUDEFIELDS';
 NULLS:                              'NULLS';
+
+//TRENDLINE KEYWORDS
+SMA:                                'SMA';
+WMA:                                'WMA';
+
+// APPENDCOL options
+OVERRIDE:                           'OVERRIDE';
 
 // ARGUMENT KEYWORDS
 KEEPEMPTY:                          'KEEPEMPTY';
@@ -198,6 +211,7 @@ RT_SQR_PRTHS:                       ']';
 SINGLE_QUOTE:                       '\'';
 DOUBLE_QUOTE:                       '"';
 BACKTICK:                           '`';
+ARROW:                              '->';
 
 // Operators. Bit
 
@@ -209,6 +223,7 @@ BIT_XOR_OP:                         '^';
 AVG:                                'AVG';
 COUNT:                              'COUNT';
 DISTINCT_COUNT:                     'DISTINCT_COUNT';
+DISTINCT_COUNT_APPROX:              'DISTINCT_COUNT_APPROX';
 ESTDC:                              'ESTDC';
 ESTDC_ERROR:                        'ESTDC_ERROR';
 MAX:                                'MAX';
@@ -232,10 +247,6 @@ FIRST:                              'FIRST';
 LAST:                               'LAST';
 LIST:                               'LIST';
 VALUES:                             'VALUES';
-EARLIEST:                           'EARLIEST';
-EARLIEST_TIME:                      'EARLIEST_TIME';
-LATEST:                             'LATEST';
-LATEST_TIME:                        'LATEST_TIME';
 PER_DAY:                            'PER_DAY';
 PER_HOUR:                           'PER_HOUR';
 PER_MINUTE:                         'PER_MINUTE';
@@ -295,6 +306,7 @@ CURDATE:                            'CURDATE';
 CURRENT_DATE:                       'CURRENT_DATE';
 CURRENT_TIME:                       'CURRENT_TIME';
 CURRENT_TIMESTAMP:                  'CURRENT_TIMESTAMP';
+CURRENT_TIMEZONE:                   'CURRENT_TIMEZONE';
 CURTIME:                            'CURTIME';
 DATE:                               'DATE';
 DATEDIFF:                           'DATEDIFF';
@@ -343,6 +355,11 @@ UTC_TIMESTAMP:                      'UTC_TIMESTAMP';
 WEEKDAY:                            'WEEKDAY';
 YEARWEEK:                           'YEARWEEK';
 
+// RELATIVE TIME FUNCTIONS
+RELATIVE_TIMESTAMP:                 'RELATIVE_TIMESTAMP';
+EARLIEST:                           'EARLIEST';
+LATEST:                             'LATEST';
+
 // TEXT FUNCTIONS
 SUBSTR:                             'SUBSTR';
 SUBSTRING:                          'SUBSTRING';
@@ -371,21 +388,30 @@ JSON:                               'JSON';
 JSON_OBJECT:                        'JSON_OBJECT';
 JSON_ARRAY:                         'JSON_ARRAY';
 JSON_ARRAY_LENGTH:                  'JSON_ARRAY_LENGTH';
+TO_JSON_STRING:                     'TO_JSON_STRING';
 JSON_EXTRACT:                       'JSON_EXTRACT';
+JSON_DELETE :                       'JSON_DELETE';
 JSON_KEYS:                          'JSON_KEYS';
 JSON_VALID:                         'JSON_VALID';
-//JSON_APPEND:                        'JSON_APPEND';
-//JSON_DELETE:                        'JSON_DELETE';
-//JSON_EXTEND:                        'JSON_EXTEND';
-//JSON_SET:                           'JSON_SET';
-//JSON_ARRAY_ALL_MATCH:               'JSON_ALL_MATCH';
-//JSON_ARRAY_ANY_MATCH:               'JSON_ANY_MATCH';
-//JSON_ARRAY_FILTER:                  'JSON_FILTER';
+JSON_APPEND:                        'JSON_APPEND';
+JSON_EXTEND :                       'JSON_EXTEND';
+JSON_SET:                           'JSON_SET';
+//JSON_ARRAY_ALL_MATCH:               'JSON_ARRAY_ALL_MATCH';
+//JSON_ARRAY_ANY_MATCH:               'JSON_ARRAY_ANY_MATCH';
+//JSON_ARRAY_FILTER:                  'JSON_ARRAY_FILTER';
 //JSON_ARRAY_MAP:                     'JSON_ARRAY_MAP';
 //JSON_ARRAY_REDUCE:                  'JSON_ARRAY_REDUCE';
 
 // COLLECTION FUNCTIONS
 ARRAY:                              'ARRAY';
+ARRAY_LENGTH:                       'ARRAY_LENGTH';
+
+// LAMBDA FUNCTIONS
+//EXISTS:                             'EXISTS';
+FORALL:                             'FORALL';
+FILTER:                             'FILTER';
+TRANSFORM:                          'TRANSFORM';
+REDUCE:                             'REDUCE';
 
 // BOOL FUNCTIONS
 LIKE:                               'LIKE';
@@ -393,6 +419,7 @@ ISNULL:                             'ISNULL';
 ISNOTNULL:                          'ISNOTNULL';
 ISPRESENT:                          'ISPRESENT';
 BETWEEN:                            'BETWEEN';
+CIDRMATCH:                          'CIDRMATCH';
 
 // FLOWCONTROL FUNCTIONS
 IFNULL:                             'IFNULL';
@@ -402,6 +429,18 @@ TYPEOF:                             'TYPEOF';
 
 //OTHER CONDITIONAL EXPRESSIONS
 COALESCE:                           'COALESCE';
+
+//GEOLOCATION FUNCTIONS
+GEOIP:                              'GEOIP';
+
+//GEOLOCATION PROPERTIES
+COUNTRY_ISO_CODE:                   'COUNTRY_ISO_CODE';
+COUNTRY_NAME:                       'COUNTRY_NAME';
+CONTINENT_NAME:                     'CONTINENT_NAME';
+REGION_ISO_CODE:                    'REGION_ISO_CODE';
+REGION_NAME:                        'REGION_NAME';
+CITY_NAME:                          'CITY_NAME';
+LOCATION:                           'LOCATION';
 
 // RELEVANCE FUNCTIONS AND PARAMETERS
 MATCH:                              'MATCH';

@@ -11,6 +11,7 @@ import scala.collection.JavaConverters._
 
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.http.FlintRetryOptions._
+import org.scalatest.matchers.must.Matchers.contain
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
@@ -46,7 +47,7 @@ class FlintSparkConfSuite extends FlintSuite {
   test("test retry options default values") {
     val retryOptions = FlintSparkConf().flintOptions().getRetryOptions
     retryOptions.getMaxRetries shouldBe DEFAULT_MAX_RETRIES
-    retryOptions.getRetryableHttpStatusCodes shouldBe DEFAULT_RETRYABLE_HTTP_STATUS_CODES
+    retryOptions.getRetryableHttpStatusCodes should contain theSameElementsAs Set(429, 500, 502)
     retryOptions.getRetryableExceptionClassNames shouldBe Optional.empty
   }
 
@@ -60,18 +61,37 @@ class FlintSparkConfSuite extends FlintSuite {
       .getRetryOptions
 
     retryOptions.getMaxRetries shouldBe 5
-    retryOptions.getRetryableHttpStatusCodes shouldBe "429,502,503,504"
+    retryOptions.getRetryableHttpStatusCodes should contain theSameElementsAs Set(
+      429,
+      502,
+      503,
+      504)
     retryOptions.getRetryableExceptionClassNames.get() shouldBe "java.net.ConnectException"
   }
 
-  test("test bulkRequestRateLimitPerNode default value") {
+  test("test bulk request rate limit options default value") {
     val options = FlintSparkConf().flintOptions()
-    options.getBulkRequestRateLimitPerNode shouldBe 0
+    options.getBulkRequestRateLimitPerNodeEnabled shouldBe false
+    options.getBulkRequestMinRateLimitPerNode shouldBe 5000
+    options.getBulkRequestMaxRateLimitPerNode shouldBe 50000
+    options.getBulkRequestRateLimitPerNodeIncreaseStep shouldBe 500
+    options.getBulkRequestRateLimitPerNodeDecreaseRatio shouldBe 0.8
   }
 
-  test("test specified bulkRequestRateLimitPerNode") {
-    val options = FlintSparkConf(Map("bulkRequestRateLimitPerNode" -> "5").asJava).flintOptions()
-    options.getBulkRequestRateLimitPerNode shouldBe 5
+  test("test specified bulk request rate limit options") {
+    val options = FlintSparkConf(
+      Map(
+        "write.bulk.rate_limit_per_node.enabled" -> "true",
+        "write.bulk.rate_limit_per_node.min" -> "20",
+        "write.bulk.rate_limit_per_node.max" -> "200",
+        "write.bulk.rate_limit_per_node.increase_step" -> "20",
+        "write.bulk.rate_limit_per_node.decrease_ratio" -> "0.5").asJava)
+      .flintOptions()
+    options.getBulkRequestRateLimitPerNodeEnabled shouldBe true
+    options.getBulkRequestMinRateLimitPerNode shouldBe 20
+    options.getBulkRequestMaxRateLimitPerNode shouldBe 200
+    options.getBulkRequestRateLimitPerNodeIncreaseStep shouldBe 20
+    options.getBulkRequestRateLimitPerNodeDecreaseRatio shouldBe 0.5
   }
 
   test("test metadata access AWS credentials provider option") {
@@ -112,6 +132,21 @@ class FlintSparkConfSuite extends FlintSuite {
       overrideConf.monitorIntervalSeconds() shouldBe 30
       overrideConf.monitorMaxErrorCount() shouldBe 10
     }
+  }
+
+  test("test request completionDelayMillis default value") {
+    FlintSparkConf().flintOptions().getRequestCompletionDelayMillis shouldBe 0
+  }
+
+  test("test request completionDelayMillis default value for aoss") {
+    val options = FlintSparkConf(Map("auth.servicename" -> "aoss").asJava).flintOptions()
+    options.getRequestCompletionDelayMillis shouldBe 2000
+  }
+
+  test("test specified request completionDelayMillis") {
+    val options =
+      FlintSparkConf(Map("request.completionDelayMillis" -> "1000").asJava).flintOptions()
+    options.getRequestCompletionDelayMillis shouldBe 1000
   }
 
   test("externalSchedulerIntervalThreshold should return default value when empty") {

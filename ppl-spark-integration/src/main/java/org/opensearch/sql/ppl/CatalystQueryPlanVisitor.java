@@ -6,72 +6,59 @@
 package org.opensearch.sql.ppl;
 
 import org.apache.spark.sql.catalyst.TableIdentifier;
-import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute$;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedStar$;
 import org.apache.spark.sql.catalyst.expressions.Ascending$;
-import org.apache.spark.sql.catalyst.expressions.CaseWhen;
 import org.apache.spark.sql.catalyst.expressions.Descending$;
-import org.apache.spark.sql.catalyst.expressions.Exists$;
+import org.apache.spark.sql.catalyst.expressions.Explode;
 import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.catalyst.expressions.In$;
-import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual;
-import org.apache.spark.sql.catalyst.expressions.InSubquery$;
-import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual;
-import org.apache.spark.sql.catalyst.expressions.ListQuery$;
+import org.apache.spark.sql.catalyst.expressions.GeneratorOuter;
 import org.apache.spark.sql.catalyst.expressions.NamedExpression;
-import org.apache.spark.sql.catalyst.expressions.Predicate;
-import org.apache.spark.sql.catalyst.expressions.ScalarSubquery$;
 import org.apache.spark.sql.catalyst.expressions.SortDirection;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
-import org.apache.spark.sql.catalyst.plans.logical.*;
+import org.apache.spark.sql.catalyst.plans.logical.Aggregate;
+import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns;
+import org.apache.spark.sql.catalyst.plans.logical.DataFrameDropColumns$;
+import org.apache.spark.sql.catalyst.plans.logical.DescribeRelation$;
+import org.apache.spark.sql.catalyst.plans.logical.Generate;
+import org.apache.spark.sql.catalyst.plans.logical.Limit;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan$;
+import org.apache.spark.sql.catalyst.plans.logical.Project$;
 import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.sql.execution.command.DescribeTableCommand;
 import org.apache.spark.sql.execution.command.ExplainCommand;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.opensearch.flint.spark.FlattenGenerator;
 import org.opensearch.sql.ast.AbstractNodeVisitor;
-import org.opensearch.sql.ast.expression.AggregateFunction;
+import org.opensearch.sql.ast.Node;
 import org.opensearch.sql.ast.expression.Alias;
-import org.opensearch.sql.ast.expression.AllFields;
-import org.opensearch.sql.ast.expression.And;
 import org.opensearch.sql.ast.expression.Argument;
-import org.opensearch.sql.ast.expression.Between;
-import org.opensearch.sql.ast.expression.BinaryExpression;
-import org.opensearch.sql.ast.expression.Case;
-import org.opensearch.sql.ast.expression.Compare;
 import org.opensearch.sql.ast.expression.Field;
-import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
-import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
-import org.opensearch.sql.ast.expression.subquery.InSubquery;
-import org.opensearch.sql.ast.expression.Interval;
-import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
-import org.opensearch.sql.ast.expression.Not;
-import org.opensearch.sql.ast.expression.Or;
 import org.opensearch.sql.ast.expression.ParseMethod;
-import org.opensearch.sql.ast.expression.QualifiedName;
-import org.opensearch.sql.ast.expression.subquery.ScalarSubquery;
-import org.opensearch.sql.ast.expression.Span;
 import org.opensearch.sql.ast.expression.UnresolvedExpression;
-import org.opensearch.sql.ast.expression.When;
 import org.opensearch.sql.ast.expression.WindowFunction;
-import org.opensearch.sql.ast.expression.Xor;
 import org.opensearch.sql.ast.statement.Explain;
 import org.opensearch.sql.ast.statement.Query;
 import org.opensearch.sql.ast.statement.Statement;
 import org.opensearch.sql.ast.tree.Aggregation;
+import org.opensearch.sql.ast.tree.AppendCol;
 import org.opensearch.sql.ast.tree.Correlation;
+import org.opensearch.sql.ast.tree.CountedAggregation;
 import org.opensearch.sql.ast.tree.Dedupe;
 import org.opensearch.sql.ast.tree.DescribeRelation;
 import org.opensearch.sql.ast.tree.Eval;
 import org.opensearch.sql.ast.tree.FieldSummary;
 import org.opensearch.sql.ast.tree.FillNull;
 import org.opensearch.sql.ast.tree.Filter;
+import org.opensearch.sql.ast.tree.Flatten;
+import org.opensearch.sql.ast.tree.GeoIp;
 import org.opensearch.sql.ast.tree.Head;
 import org.opensearch.sql.ast.tree.Join;
 import org.opensearch.sql.ast.tree.Kmeans;
@@ -84,32 +71,45 @@ import org.opensearch.sql.ast.tree.Relation;
 import org.opensearch.sql.ast.tree.Rename;
 import org.opensearch.sql.ast.tree.Sort;
 import org.opensearch.sql.ast.tree.SubqueryAlias;
-import org.opensearch.sql.ast.tree.TopAggregation;
+import org.opensearch.sql.ast.tree.Trendline;
 import org.opensearch.sql.ast.tree.UnresolvedPlan;
 import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
-import org.opensearch.sql.ppl.utils.AggregatorTranslator;
-import org.opensearch.sql.ppl.utils.BuiltinFunctionTranslator;
-import org.opensearch.sql.ppl.utils.ComparatorTransformer;
+import org.opensearch.sql.ppl.utils.AppendColCatalystUtils;
 import org.opensearch.sql.ppl.utils.FieldSummaryTransformer;
-import org.opensearch.sql.ppl.utils.ParseStrategy;
+import org.opensearch.sql.ppl.utils.GeoIpCatalystLogicalPlanTranslator;
+import org.opensearch.sql.ppl.utils.ParseTransformer;
+import org.opensearch.sql.ppl.utils.RelationUtils;
 import org.opensearch.sql.ppl.utils.SortUtils;
+import org.opensearch.sql.ppl.utils.TrendlineCatalystUtils;
 import org.opensearch.sql.ppl.utils.WindowSpecTransformer;
+import scala.None$;
 import scala.Option;
-import scala.Tuple2;
 import scala.collection.IterableLike;
 import scala.collection.Seq;
 
-import java.util.*;
-import java.util.function.BiFunction;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
 import static java.util.List.of;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
-import static org.opensearch.sql.ppl.CatalystPlanContext.findRelation;
+import static org.opensearch.sql.ppl.utils.AppendColCatalystUtils.TABLE_LHS;
+import static org.opensearch.sql.ppl.utils.AppendColCatalystUtils.TABLE_RHS;
+import static org.opensearch.sql.ppl.utils.AppendColCatalystUtils.appendRelationClause;
+import static org.opensearch.sql.ppl.utils.AppendColCatalystUtils.combineQueriesWithJoin;
+import static org.opensearch.sql.ppl.utils.AppendColCatalystUtils.getOverridedList;
+import static org.opensearch.sql.ppl.utils.AppendColCatalystUtils.getRowNumStarProjection;
+import static org.opensearch.sql.ppl.utils.AppendColCatalystUtils.isValidOverrideList;
+import static org.opensearch.sql.ppl.utils.AppendColCatalystUtils.t1Attr;
+import static org.opensearch.sql.ppl.utils.AppendColCatalystUtils.t2Attr;
 import static org.opensearch.sql.ppl.utils.DataTypeTransformer.seq;
-import static org.opensearch.sql.ppl.utils.DataTypeTransformer.translate;
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDuplicateEvents;
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainMultipleDuplicateEventsAndKeepEmpty;
 import static org.opensearch.sql.ppl.utils.DedupeTransformer.retainOneDuplicateEvent;
@@ -121,8 +121,6 @@ import static org.opensearch.sql.ppl.utils.LookupTransformer.buildLookupRelation
 import static org.opensearch.sql.ppl.utils.LookupTransformer.buildOutputProjectList;
 import static org.opensearch.sql.ppl.utils.LookupTransformer.buildProjectListFromFields;
 import static org.opensearch.sql.ppl.utils.RelationUtils.getTableIdentifier;
-import static org.opensearch.sql.ppl.utils.RelationUtils.resolveField;
-import static org.opensearch.sql.ppl.utils.WindowSpecTransformer.window;
 import static scala.collection.JavaConverters.seqAsJavaList;
 
 /**
@@ -130,26 +128,26 @@ import static scala.collection.JavaConverters.seqAsJavaList;
  */
 public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, CatalystPlanContext> {
 
-    private final ExpressionAnalyzer expressionAnalyzer;
+    private final CatalystExpressionVisitor expressionAnalyzer;
 
     public CatalystQueryPlanVisitor() {
-        this.expressionAnalyzer = new ExpressionAnalyzer();
+        this.expressionAnalyzer = new CatalystExpressionVisitor(this);
     }
 
     public LogicalPlan visit(Statement plan, CatalystPlanContext context) {
         return plan.accept(this, context);
     }
-
-    public LogicalPlan visitSubSearch(UnresolvedPlan plan, CatalystPlanContext context) {
-        return plan.accept(this, context);
-    }
-
+    
     /**
      * Handle Query Statement.
      */
     @Override
     public LogicalPlan visitQuery(Query node, CatalystPlanContext context) {
         return node.getPlan().accept(this, context);
+    }
+
+    public LogicalPlan visitFirstChild(Node node, CatalystPlanContext context) {
+        return node.getChild().get(0).accept(this, context);
     }
 
     @Override
@@ -160,6 +158,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitRelation(Relation node, CatalystPlanContext context) {
+        //relations doesnt have a visitFirstChild call since its the leaf of the AST tree 
         if (node instanceof DescribeRelation) {
             TableIdentifier identifier = getTableIdentifier(node.getTableQualifiedName());
             return context.with(
@@ -171,15 +170,19 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         }
         //regular sql algebraic relations
         node.getQualifiedNames().forEach(q ->
-                // Resolving the qualifiedName which is composed of a datasource.schema.table
-                context.withRelation(new UnresolvedRelation(getTableIdentifier(q).nameParts(), CaseInsensitiveStringMap.empty(), false))
+            // TODO Do not support 4+ parts table identifier in future (may be reverted this PR in 0.8.0)
+            // node.getQualifiedNames.getParts().size() > 3
+            // A Spark TableIdentifier should only contain 3 parts: tableName, databaseName and catalogName.
+            // If the qualifiedName has more than 3 parts,
+            // we merge all parts from 3 to last parts into the tableName as one whole
+            context.withRelation(new UnresolvedRelation(seq(q.getParts()), CaseInsensitiveStringMap.empty(), false))
         );
         return context.getPlan();
     }
 
     @Override
     public LogicalPlan visitFilter(Filter node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         return context.apply(p -> {
             Expression conditionExpression = visitExpression(node.getCondition(), context);
             Optional<Expression> innerConditionExpression = context.popNamedParseExpressions();
@@ -193,44 +196,58 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
      */
     @Override
     public LogicalPlan visitLookup(Lookup node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
-
+        visitFirstChild(node, context);
         return context.apply( searchSide -> {
+            context.resetNamedParseExpressions();
+            context.retainAllPlans(p -> p);
+            LogicalPlan target;
             LogicalPlan lookupTable = node.getLookupRelation().accept(this, context);
             Expression lookupCondition = buildLookupMappingCondition(node, expressionAnalyzer, context);
-            // If no output field is specified, all fields from lookup table are applied to the output.
             if (node.allFieldsShouldAppliedToOutputList()) {
-                context.retainAllNamedParseExpressions(p -> p);
-                context.retainAllPlans(p -> p);
-                return join(searchSide, lookupTable, Join.JoinType.LEFT, Optional.of(lookupCondition), new Join.JoinHint());
+                // When no output field is specified, all fields except mapping fields from lookup table are applied to the output.
+                // If some output fields from source side duplicate to fields of lookup table, these fields will
+                // be replaced by fields from lookup table in output.
+                // For example, the lookup table contains fields [id, col1, col3] and source side fields are [id, col1, col2].
+                // For query "index = sourceTable | fields id, col1, col2 | LOOKUP lookupTable id",
+                // the col1 is duplicated field and id is mapping key (and duplicated).
+                // The query outputs 4 fields: [id, col1, col2, col3]. Among them, `col2` is the original field from source,
+                // the matched values of `col1` from lookup table will replace to the values of `col1` from source.
+                Set<Field> duplicatedFieldsMaybeDrop =
+                    new HashSet<>(RelationUtils.getFieldsFromCatalogTable(context.getSparkSession(), lookupTable));
+                Set<Field> mappingFieldsOfLookup = node.getLookupMappingMap().keySet();
+                // lookup mapping keys are not concerned to drop here, it will be checked later.
+                duplicatedFieldsMaybeDrop.removeAll(mappingFieldsOfLookup);
+                List<Expression> duplicated =
+                    buildProjectListFromFields(new ArrayList<>(duplicatedFieldsMaybeDrop), expressionAnalyzer, context)
+                    .stream().map(e -> (Expression) e).collect(Collectors.toList());
+                LogicalPlan searchSideWithDropped = DataFrameDropColumns$.MODULE$.apply(seq(duplicated), searchSide);
+                target = join(searchSideWithDropped, lookupTable, Join.JoinType.LEFT, Optional.of(lookupCondition), new Join.JoinHint());
+            } else {
+                // When output fields are specified, build a project list for lookup table.
+                // The mapping fields of lookup table should be added in this project list, otherwise join will fail.
+                // So the mapping fields of lookup table should be dropped after join.
+                List<NamedExpression> lookupTableProjectList = buildLookupRelationProjectList(node, expressionAnalyzer, context);
+                LogicalPlan lookupTableWithProject = Project$.MODULE$.apply(seq(lookupTableProjectList), lookupTable);
+
+                LogicalPlan join = join(searchSide, lookupTableWithProject, Join.JoinType.LEFT, Optional.of(lookupCondition), new Join.JoinHint());
+
+                // Add all outputFields by __auto_generated_subquery_name_s.*
+                List<NamedExpression> outputFieldsWithNewAdded = new ArrayList<>();
+                outputFieldsWithNewAdded.add(UnresolvedStar$.MODULE$.apply(Option.apply(seq(node.getSourceSubqueryAliasName()))));
+
+                // Add new columns based on different strategies:
+                // Append:  coalesce($outputField, $"inputField").as(outputFieldName)
+                // Replace: $outputField.as(outputFieldName)
+                outputFieldsWithNewAdded.addAll(buildOutputProjectList(node, node.getOutputStrategy(), expressionAnalyzer, context, searchSide));
+
+                target = Project$.MODULE$.apply(seq(outputFieldsWithNewAdded), join);
             }
-
-            // If the output fields are specified, build a project list for lookup table.
-            // The mapping fields of lookup table should be added in this project list, otherwise join will fail.
-            // So the mapping fields of lookup table should be dropped after join.
-            List<NamedExpression> lookupTableProjectList = buildLookupRelationProjectList(node, expressionAnalyzer, context);
-            LogicalPlan lookupTableWithProject = Project$.MODULE$.apply(seq(lookupTableProjectList), lookupTable);
-
-            LogicalPlan join = join(searchSide, lookupTableWithProject, Join.JoinType.LEFT, Optional.of(lookupCondition), new Join.JoinHint());
-
-            // Add all outputFields by __auto_generated_subquery_name_s.*
-            List<NamedExpression> outputFieldsWithNewAdded = new ArrayList<>();
-            outputFieldsWithNewAdded.add(UnresolvedStar$.MODULE$.apply(Option.apply(seq(node.getSourceSubqueryAliasName()))));
-
-            // Add new columns based on different strategies:
-            // Append:  coalesce($outputField, $"inputField").as(outputFieldName)
-            // Replace: $outputField.as(outputFieldName)
-            outputFieldsWithNewAdded.addAll(buildOutputProjectList(node, node.getOutputStrategy(), expressionAnalyzer, context));
-
-            org.apache.spark.sql.catalyst.plans.logical.Project outputWithNewAdded = Project$.MODULE$.apply(seq(outputFieldsWithNewAdded), join);
-
             // Drop the mapping fields of lookup table in result:
             // For example, in command "LOOKUP lookTbl Field1 AS Field2, Field3",
             // the Field1 and Field3 are projection fields and join keys which will be dropped in result.
             List<Field> mappingFieldsOfLookup = node.getLookupMappingMap().entrySet().stream()
                 .map(kv -> kv.getKey().getField() == kv.getValue().getField() ? buildFieldWithLookupSubqueryAlias(node, kv.getKey()) : kv.getKey())
                 .collect(Collectors.toList());
-//            List<Field> mappingFieldsOfLookup = new ArrayList<>(node.getLookupMappingMap().keySet());
             List<Expression> dropListOfLookupMappingFields =
                 buildProjectListFromFields(mappingFieldsOfLookup, expressionAnalyzer, context).stream()
                     .map(Expression.class::cast).collect(Collectors.toList());
@@ -240,17 +257,80 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             List<Expression> toDrop = new ArrayList<>(dropListOfLookupMappingFields);
             toDrop.addAll(dropListOfSourceFields);
 
-            LogicalPlan outputWithDropped = DataFrameDropColumns$.MODULE$.apply(seq(toDrop), outputWithNewAdded);
+            LogicalPlan outputWithDropped = DataFrameDropColumns$.MODULE$.apply(seq(toDrop), target);
 
-            context.retainAllNamedParseExpressions(p -> p);
+            context.resetNamedParseExpressions();
             context.retainAllPlans(p -> p);
             return outputWithDropped;
         });
     }
 
     @Override
+    public LogicalPlan visitTrendline(Trendline node, CatalystPlanContext context) {
+        visitFirstChild(node, context);
+        node.getSortByField()
+                .ifPresent(sortField -> {
+                    Expression sortFieldExpression = visitExpression(sortField, context);
+                    Seq<SortOrder> sortOrder = context
+                            .retainAllNamedParseExpressions(exp -> SortUtils.sortOrder(sortFieldExpression, SortUtils.isSortedAscending(sortField)));
+                    context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Sort(sortOrder, true, p));
+                });
+
+        List<NamedExpression> trendlineProjectExpressions = new ArrayList<>();
+
+        if (context.getNamedParseExpressions().isEmpty()) {
+            // Create an UnresolvedStar for all-fields projection
+            trendlineProjectExpressions.add(UnresolvedStar$.MODULE$.apply(Option.empty()));
+        }
+
+        trendlineProjectExpressions.addAll(TrendlineCatalystUtils.visitTrendlineComputations(expressionAnalyzer, node.getComputations(), node.getSortByField(), context));
+
+        return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(seq(trendlineProjectExpressions), p));
+    }
+
+    @Override
+    public LogicalPlan visitAppendCol(AppendCol node, CatalystPlanContext context) {
+
+        // Apply an additional projection layer on main-search to provide natural order.
+        LogicalPlan mainSearch = visitFirstChild(node, context);
+        var mainSearchWithRowNumber = getRowNumStarProjection(context, mainSearch, TABLE_LHS);
+        context.withSubqueryAlias(mainSearchWithRowNumber);
+
+        // Duplicate the relation clause from main-search to sub-search.
+        final Node subSearchNode = appendRelationClause(node.getSubSearch(), context.getRelations());
+
+        context.apply(left -> {
+
+            // Apply an additional projection layer on sub-search to provide natural order.
+            LogicalPlan subSearch = subSearchNode.accept(this, context);
+            var subSearchWithRowNumber = getRowNumStarProjection(context, subSearch, TABLE_RHS);
+
+            context.withSubqueryAlias(subSearchWithRowNumber);
+            context.resetNamedParseExpressions();
+            context.retainAllPlans(p -> p);
+
+            // Join both Main and Sub search with _ROW_NUMBER_ column
+            List<Expression> fieldsToRemove = new ArrayList<>(List.of(t1Attr, t2Attr));
+            // Remove the APPEND_ID and duplicated field on T1 if override option present.
+            if (node.isOverride()) {
+                final List<Expression> attrToOverride = getOverridedList(subSearch, TABLE_LHS);
+                if (isValidOverrideList(attrToOverride)) {
+                    fieldsToRemove.addAll(attrToOverride);
+                } else {
+                    throw new IllegalStateException("Not Supported operation: " +
+                            "APPENDCOL should specify the output fields");
+                }
+            }
+            return new DataFrameDropColumns(seq(fieldsToRemove),
+                    combineQueriesWithJoin(mainSearchWithRowNumber, subSearchWithRowNumber));
+        });
+        return context.getPlan();
+    }
+
+
+    @Override
     public LogicalPlan visitCorrelation(Correlation node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         context.reduce((left, right) -> {
             visitFieldList(node.getFieldsList().stream().map(Field::new).collect(Collectors.toList()), context);
             Seq<Expression> fields = context.retainAllNamedParseExpressions(e -> e);
@@ -268,11 +348,12 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitJoin(Join node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         return context.apply(left -> {
             LogicalPlan right = node.getRight().accept(this, context);
-            Optional<Expression> joinCondition = node.getJoinCondition().map(c -> visitExpression(c, context));
-            context.retainAllNamedParseExpressions(p -> p);
+            Optional<Expression> joinCondition = node.getJoinCondition()
+                .map(c -> expressionAnalyzer.analyzeJoinCondition(c, context));
+            context.resetNamedParseExpressions();
             context.retainAllPlans(p -> p);
             return join(left, right, node.getJoinType(), joinCondition, node.getJoinHint());
         });
@@ -280,7 +361,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitSubqueryAlias(SubqueryAlias node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         return context.apply(p -> {
             var alias = org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias$.MODULE$.apply(node.getAlias(), p);
             context.withSubqueryAlias(alias);
@@ -291,7 +372,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitAggregation(Aggregation node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
+        // clean before to go
+        context.resetNamedParseExpressions();
         List<Expression> aggsExpList = visitExpressionList(node.getAggExprList(), context);
         List<Expression> groupExpList = visitExpressionList(node.getGroupExprList(), context);
         if (!groupExpList.isEmpty()) {
@@ -322,9 +405,9 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Sort(sortElements, true, logicalPlan));
         }
         //visit TopAggregation results limit
-        if ((node instanceof TopAggregation) && ((TopAggregation) node).getResults().isPresent()) {
+        if ((node instanceof CountedAggregation) && ((CountedAggregation) node).getResults().isPresent()) {
             context.apply(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
-                    ((TopAggregation) node).getResults().get().getValue(), org.apache.spark.sql.types.DataTypes.IntegerType), p));
+                    ((CountedAggregation) node).getResults().get().getValue(), org.apache.spark.sql.types.DataTypes.IntegerType), p));
         }
         return logicalPlan;
     }
@@ -337,7 +420,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitWindow(Window node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         List<Expression> windowFunctionExpList = visitExpressionList(node.getWindowFunctionList(), context);
         Seq<Expression> windowFunctionExpressions = context.retainAllNamedParseExpressions(p -> p);
         List<Expression> partitionExpList = visitExpressionList(node.getPartExprList(), context);
@@ -367,10 +450,11 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitProject(Project node, CatalystPlanContext context) {
+        //update plan's context prior to visiting node children
         if (node.isExcluded()) {
             List<UnresolvedExpression> intersect = context.getProjectedFields().stream()
-                .filter(node.getProjectList()::contains)
-                .collect(Collectors.toList());
+                    .filter(node.getProjectList()::contains)
+                    .collect(Collectors.toList());
             if (!intersect.isEmpty()) {
                 // Fields in parent projection, but they have be excluded in child. For example,
                 // source=t | fields - A, B | fields A, B, C will throw "[Field A, Field B] can't be resolved"
@@ -379,7 +463,10 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         } else {
             context.withProjectedFields(node.getProjectList());
         }
-        LogicalPlan child = node.getChild().get(0).accept(this, context);
+        LogicalPlan child = visitFirstChild(node, context);
+
+        // reset expression stack before resolving project
+        context.resetNamedParseExpressions();
         visitExpressionList(node.getProjectList(), context);
 
         // Create a projection list from the existing expressions
@@ -400,7 +487,8 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitSort(Sort node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
+        context.resetNamedParseExpressions();
         visitFieldList(node.getSortList(), context);
         Seq<SortOrder> sortElements = context.retainAllNamedParseExpressions(exp -> SortUtils.getSortDirection(node, (NamedExpression) exp));
         return context.apply(p -> (LogicalPlan) new org.apache.spark.sql.catalyst.plans.logical.Sort(sortElements, true, p));
@@ -408,20 +496,20 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitHead(Head node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         return context.apply(p -> (LogicalPlan) Limit.apply(new org.apache.spark.sql.catalyst.expressions.Literal(
                 node.getSize(), DataTypes.IntegerType), p));
     }
 
     @Override
     public LogicalPlan visitFieldSummary(FieldSummary fieldSummary, CatalystPlanContext context) {
-        fieldSummary.getChild().get(0).accept(this, context);
+        visitFirstChild(fieldSummary, context);
         return FieldSummaryTransformer.translate(fieldSummary, context);
     }
 
     @Override
     public LogicalPlan visitFillNull(FillNull fillNull, CatalystPlanContext context) {
-        fillNull.getChild().get(0).accept(this, context);
+        visitFirstChild(fillNull, context);
         List<UnresolvedExpression> aliases = new ArrayList<>();
         for(FillNull.NullableFieldFill nullableFieldFill : fillNull.getNullableFieldFills()) {
             Field field = nullableFieldFill.getNullableFieldReference();
@@ -446,8 +534,67 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
         Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
         // build the plan with the projection step
         context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
-        LogicalPlan resultWithoutDuplicatedColumns = context.apply(logicalPlan -> DataFrameDropColumns$.MODULE$.apply(seq(toDrop), logicalPlan));
+        LogicalPlan resultWithoutDuplicatedColumns = context.apply(dropOriginalColumns(p -> p.children().head(), toDrop));
         return Objects.requireNonNull(resultWithoutDuplicatedColumns, "FillNull operation failed");
+    }
+
+    /**
+     * This method is used to generate DataFrameDropColumns operator for dropping duplicated columns
+     * in the original plan. Then achieving similar effect like updating columns.
+     *
+     * PLAN_ID_TAG is a mechanism inner Spark that explicitly specify a plan to resolve the
+     * UnresolvedAttributes. Set toDrop expressions' PLAN_ID_TAG to the same value as that of the
+     * original plan, so Spark will resolve them correctly by that plan instead of the child.
+    */
+    private java.util.function.Function<LogicalPlan, LogicalPlan> dropOriginalColumns(
+        java.util.function.Function<LogicalPlan, LogicalPlan> findOriginalPlan,
+        List<Expression> toDrop) {
+        return logicalPlan -> {
+            LogicalPlan originalPlan = findOriginalPlan.apply(logicalPlan);
+            long planId = logicalPlan.hashCode();
+            originalPlan.setTagValue(LogicalPlan$.MODULE$.PLAN_ID_TAG(), planId);
+            toDrop.forEach(e -> e.setTagValue(LogicalPlan$.MODULE$.PLAN_ID_TAG(), planId));
+            return DataFrameDropColumns$.MODULE$.apply(seq(toDrop), logicalPlan);
+        };
+    }
+
+    @Override
+    public LogicalPlan visitFlatten(Flatten flatten, CatalystPlanContext context) {
+        visitFirstChild(flatten, context);
+        if (context.getNamedParseExpressions().isEmpty()) {
+            // Create an UnresolvedStar for all-fields projection
+            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+        }
+        Expression field = visitExpression(flatten.getField(), context);
+        List<Expression> alias = flatten.getAliasSequence().stream()
+            .map(aliasNode -> visitExpression(aliasNode, context))
+            .collect(Collectors.toList());
+        context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+        FlattenGenerator flattenGenerator = new FlattenGenerator(field);
+        scala.collection.mutable.Seq outputs = alias.isEmpty() ? seq() : seq(alias);
+        context.apply(p -> new Generate(new GeneratorOuter(flattenGenerator), seq(), true, (Option) None$.MODULE$, outputs, p));
+        return context.apply(logicalPlan -> DataFrameDropColumns$.MODULE$.apply(seq(field), logicalPlan));
+    }
+
+    @Override
+    public LogicalPlan visitExpand(org.opensearch.sql.ast.tree.Expand node, CatalystPlanContext context) {
+        visitFirstChild(node, context);
+        if (context.getNamedParseExpressions().isEmpty()) {
+            // Create an UnresolvedStar for all-fields projection
+            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+        }
+        Expression field = visitExpression(node.getField(), context);
+        Optional<Expression> alias = node.getAlias().map(aliasNode -> visitExpression(aliasNode, context));
+        context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+        Explode explodeGenerator = new Explode(field);
+        scala.collection.mutable.Seq outputs = alias.isEmpty() ? seq() : seq(alias.get());
+        if(alias.isEmpty())
+            return context.apply(p -> new Generate(explodeGenerator, seq(), false, (Option) None$.MODULE$, outputs, p));
+        else {
+            //in case an alias does appear - remove the original field from the returning columns
+            context.apply(p -> new Generate(explodeGenerator, seq(), false, (Option) None$.MODULE$, outputs, p));
+            return context.apply(logicalPlan -> DataFrameDropColumns$.MODULE$.apply(seq(field), logicalPlan));
+        }
     }
 
     private void visitFieldList(List<Field> fieldList, CatalystPlanContext context) {
@@ -467,17 +614,17 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitParse(Parse node, CatalystPlanContext context) {
-        LogicalPlan child = node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         Expression sourceField = visitExpression(node.getSourceField(), context);
         ParseMethod parseMethod = node.getParseMethod();
         java.util.Map<String, Literal> arguments = node.getArguments();
         String pattern = (String) node.getPattern().getValue();
-        return ParseStrategy.visitParseCommand(node, sourceField, parseMethod, arguments, pattern, context);
+        return ParseTransformer.visitParseCommand(node, sourceField, parseMethod, arguments, pattern, context);
     }
 
     @Override
     public LogicalPlan visitRename(Rename node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         if (context.getNamedParseExpressions().isEmpty()) {
             // Create an UnresolvedStar for all-fields projection
             context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.empty()));
@@ -494,22 +641,65 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitEval(Eval node, CatalystPlanContext context) {
-        LogicalPlan child = node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         List<UnresolvedExpression> aliases = new ArrayList<>();
-        List<Let> letExpressions = node.getExpressionList();
-        for (Let let : letExpressions) {
-            Alias alias = new Alias(let.getVar().getField().toString(), let.getExpression());
-            aliases.add(alias);
+        List<Node> expressions = node.getExpressionList();
+
+        // Geoip function modifies logical plan and is treated as QueryPlanVisitor instead of ExpressionVisitor
+        for (Node expr : expressions) {
+            if (expr instanceof Let) {
+                Let let = (Let) expr;
+                Alias alias = new Alias(let.getVar().getField().toString(), let.getExpression());
+                aliases.add(alias);
+            } else if (expr instanceof UnresolvedPlan) {
+                expr.accept(this, context);
+            } else {
+                throw new SyntaxCheckException("Unexpected node type when visiting EVAL");
+            }
         }
-        if (context.getNamedParseExpressions().isEmpty()) {
-            // Create an UnresolvedStar for all-fields projection
-            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+
+        if (!aliases.isEmpty()) {
+            if (context.getNamedParseExpressions().isEmpty()) {
+                // Create an UnresolvedStar for all-fields projection
+                context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
+            }
+
+            visitExpressionList(aliases, context);
+            Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
+            // build the plan with the projection step
+            return context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
+        } else {
+            return context.getPlan();
         }
-        List<Expression> expressionList = visitExpressionList(aliases, context);
-        Seq<NamedExpression> projectExpressions = context.retainAllNamedParseExpressions(p -> (NamedExpression) p);
-        // build the plan with the projection step
-        child = context.apply(p -> new org.apache.spark.sql.catalyst.plans.logical.Project(projectExpressions, p));
-        return child;
+    }
+
+    @Override
+    public LogicalPlan visitGeoIp(GeoIp node, CatalystPlanContext context) {
+        visitExpression(node.getProperties(), context);
+        List<String> attributeList = new ArrayList<>();
+
+        while (!context.getNamedParseExpressions().isEmpty()) {
+            Expression nextExpression = context.getNamedParseExpressions().pop();
+            String attributeName = nextExpression.toString();
+
+            if (attributeList.contains(attributeName)) {
+                throw new IllegalStateException("Duplicate attribute in GEOIP attribute list");
+            }
+
+            attributeList.add(0, attributeName);
+        }
+
+        String fieldExpression = node.getField().getField().toString();
+        Expression ipAddressExpression = visitExpression(node.getIpAddress(), context);
+
+        return GeoIpCatalystLogicalPlanTranslator.getGeoipLogicalPlan(
+                new GeoIpCatalystLogicalPlanTranslator.GeoIpParameters(
+                        fieldExpression,
+                        ipAddressExpression,
+                        attributeList
+                ),
+                context
+        );
     }
 
     @Override
@@ -534,7 +724,7 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
 
     @Override
     public LogicalPlan visitDedupe(Dedupe node, CatalystPlanContext context) {
-        node.getChild().get(0).accept(this, context);
+        visitFirstChild(node, context);
         List<Argument> options = node.getOptions();
         Integer allowedDuplication = (Integer) options.get(0).getValue().getValue();
         Boolean keepEmpty = (Boolean) options.get(1).getValue().getValue();
@@ -564,320 +754,6 @@ public class CatalystQueryPlanVisitor extends AbstractNodeVisitor<LogicalPlan, C
             } else {
                 return retainMultipleDuplicateEvents(node, allowedDuplication, expressionAnalyzer, context);
             }
-        }
-    }
-
-    /**
-     * Expression Analyzer.
-     */
-    public class ExpressionAnalyzer extends AbstractNodeVisitor<Expression, CatalystPlanContext> {
-
-        public Expression analyze(UnresolvedExpression unresolved, CatalystPlanContext context) {
-            return unresolved.accept(this, context);
-        }
-
-        @Override
-        public Expression visitLiteral(Literal node, CatalystPlanContext context) {
-            return context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.Literal(
-                    translate(node.getValue(), node.getType()), translate(node.getType())));
-        }
-
-        /**
-         * generic binary (And, Or, Xor , ...) arithmetic expression resolver
-         *
-         * @param node
-         * @param transformer
-         * @param context
-         * @return
-         */
-        public Expression visitBinaryArithmetic(BinaryExpression node, BiFunction<Expression, Expression, Expression> transformer, CatalystPlanContext context) {
-            node.getLeft().accept(this, context);
-            Optional<Expression> left = context.popNamedParseExpressions();
-            node.getRight().accept(this, context);
-            Optional<Expression> right = context.popNamedParseExpressions();
-            if (left.isPresent() && right.isPresent()) {
-                return transformer.apply(left.get(), right.get());
-            } else if (left.isPresent()) {
-                return context.getNamedParseExpressions().push(left.get());
-            } else if (right.isPresent()) {
-                return context.getNamedParseExpressions().push(right.get());
-            }
-            return null;
-
-        }
-
-        @Override
-        public Expression visitAnd(And node, CatalystPlanContext context) {
-            return visitBinaryArithmetic(node,
-                    (left, right) -> context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.And(left, right)), context);
-        }
-
-        @Override
-        public Expression visitOr(Or node, CatalystPlanContext context) {
-            return visitBinaryArithmetic(node,
-                    (left, right) -> context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.Or(left, right)), context);
-        }
-
-        @Override
-        public Expression visitXor(Xor node, CatalystPlanContext context) {
-            return visitBinaryArithmetic(node,
-                    (left, right) -> context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.BitwiseXor(left, right)), context);
-        }
-
-        @Override
-        public Expression visitNot(Not node, CatalystPlanContext context) {
-            node.getExpression().accept(this, context);
-            Optional<Expression> arg = context.popNamedParseExpressions();
-            return arg.map(expression -> context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.Not(expression))).orElse(null);
-        }
-
-        @Override
-        public Expression visitSpan(Span node, CatalystPlanContext context) {
-            node.getField().accept(this, context);
-            Expression field = (Expression) context.popNamedParseExpressions().get();
-            node.getValue().accept(this, context);
-            Expression value = (Expression) context.popNamedParseExpressions().get();
-            return context.getNamedParseExpressions().push(window(field, value, node.getUnit()));
-        }
-
-        @Override
-        public Expression visitAggregateFunction(AggregateFunction node, CatalystPlanContext context) {
-            node.getField().accept(this, context);
-            Expression arg = (Expression) context.popNamedParseExpressions().get();
-            Expression aggregator = AggregatorTranslator.aggregator(node, arg);
-            return context.getNamedParseExpressions().push(aggregator);
-        }
-
-        @Override
-        public Expression visitCompare(Compare node, CatalystPlanContext context) {
-            analyze(node.getLeft(), context);
-            Optional<Expression> left = context.popNamedParseExpressions();
-            analyze(node.getRight(), context);
-            Optional<Expression> right = context.popNamedParseExpressions();
-            if (left.isPresent() && right.isPresent()) {
-                Predicate comparator = ComparatorTransformer.comparator(node, left.get(), right.get());
-                return context.getNamedParseExpressions().push((org.apache.spark.sql.catalyst.expressions.Expression) comparator);
-            }
-            return null;
-        }
-
-        @Override
-        public Expression visitQualifiedName(QualifiedName node, CatalystPlanContext context) {
-            List<UnresolvedRelation> relation = findRelation(context.traversalContext());
-            if (!relation.isEmpty()) {
-                Optional<QualifiedName> resolveField = resolveField(relation, node, context.getRelations());
-                return resolveField.map(qualifiedName -> context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(qualifiedName.getParts()))))
-                    .orElse(resolveQualifiedNameWithSubqueryAlias(node, context));
-            }
-            return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
-        }
-
-        /**
-         * Resolve the qualified name with subquery alias: <br/>
-         * - subqueryAlias1.joinKey = subqueryAlias2.joinKey <br/>
-         * - tableName1.joinKey = subqueryAlias2.joinKey <br/>
-         * - subqueryAlias1.joinKey = tableName2.joinKey <br/>
-         */
-        private Expression resolveQualifiedNameWithSubqueryAlias(QualifiedName node, CatalystPlanContext context) {
-            if (node.getPrefix().isPresent() &&
-                context.traversalContext().peek() instanceof org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias) {
-                if (context.getSubqueryAlias().stream().map(p -> (org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias) p)
-                    .anyMatch(a -> a.alias().equalsIgnoreCase(node.getPrefix().get().toString()))) {
-                    return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
-                } else if (context.getRelations().stream().map(p -> (UnresolvedRelation) p)
-                    .anyMatch(a -> a.tableName().equalsIgnoreCase(node.getPrefix().get().toString()))) {
-                    return context.getNamedParseExpressions().push(UnresolvedAttribute$.MODULE$.apply(seq(node.getParts())));
-                }
-            }
-            return null;
-        }
-
-        @Override
-        public Expression visitCorrelationMapping(FieldsMapping node, CatalystPlanContext context) {
-            return node.getChild().stream().map(expression ->
-                    visitCompare((Compare) expression, context)
-            ).reduce(org.apache.spark.sql.catalyst.expressions.And::new).orElse(null);
-        }
-
-        @Override
-        public Expression visitAllFields(AllFields node, CatalystPlanContext context) {
-            context.getNamedParseExpressions().push(UnresolvedStar$.MODULE$.apply(Option.<Seq<String>>empty()));
-            return context.getNamedParseExpressions().peek();
-        }
-
-        @Override
-        public Expression visitAlias(Alias node, CatalystPlanContext context) {
-            node.getDelegated().accept(this, context);
-            Expression arg = context.popNamedParseExpressions().get();
-            return context.getNamedParseExpressions().push(
-                    org.apache.spark.sql.catalyst.expressions.Alias$.MODULE$.apply(arg,
-                            node.getAlias() != null ? node.getAlias() : node.getName(),
-                            NamedExpression.newExprId(),
-                            seq(new java.util.ArrayList<String>()),
-                            Option.empty(),
-                            seq(new java.util.ArrayList<String>())));
-        }
-
-        @Override
-        public Expression visitEval(Eval node, CatalystPlanContext context) {
-            throw new IllegalStateException("Not Supported operation : Eval");
-        }
-
-        @Override
-        public Expression visitFunction(Function node, CatalystPlanContext context) {
-            List<Expression> arguments =
-                    node.getFuncArgs().stream()
-                            .map(
-                                    unresolvedExpression -> {
-                                        var ret = analyze(unresolvedExpression, context);
-                                        if (ret == null) {
-                                            throw new UnsupportedOperationException(
-                                                    String.format("Invalid use of expression %s", unresolvedExpression));
-                                        } else {
-                                            return context.popNamedParseExpressions().get();
-                                        }
-                                    })
-                            .collect(Collectors.toList());
-            Expression function = BuiltinFunctionTranslator.builtinFunction(node, arguments);
-            return context.getNamedParseExpressions().push(function);
-        }
-
-        @Override
-        public Expression visitIsEmpty(IsEmpty node, CatalystPlanContext context) {
-            Stack<Expression> namedParseExpressions = new Stack<>();
-            namedParseExpressions.addAll(context.getNamedParseExpressions());
-            Expression expression = visitCase(node.getCaseValue(), context);
-            namedParseExpressions.add(expression);
-            context.setNamedParseExpressions(namedParseExpressions);
-            return expression;
-        }
-
-        @Override
-        public Expression visitFillNull(FillNull fillNull, CatalystPlanContext context) {
-            throw new IllegalStateException("Not Supported operation : FillNull");
-        }
-
-        @Override
-        public Expression visitInterval(Interval node, CatalystPlanContext context) {
-            throw new IllegalStateException("Not Supported operation : Interval");
-        }
-
-        @Override
-        public Expression visitDedupe(Dedupe node, CatalystPlanContext context) {
-            throw new IllegalStateException("Not Supported operation : Dedupe");
-        }
-
-        @Override
-        public Expression visitIn(In node, CatalystPlanContext context) {
-            node.getField().accept(this, context);
-            Expression value = context.popNamedParseExpressions().get();
-            List<Expression> list = node.getValueList().stream().map( expression -> {
-                expression.accept(this, context);
-                return context.popNamedParseExpressions().get();
-            }).collect(Collectors.toList());
-            return context.getNamedParseExpressions().push(In$.MODULE$.apply(value, seq(list)));
-        }
-
-        @Override
-        public Expression visitKmeans(Kmeans node, CatalystPlanContext context) {
-            throw new IllegalStateException("Not Supported operation : Kmeans");
-        }
-
-        @Override
-        public Expression visitCase(Case node, CatalystPlanContext context) {
-            Stack<Expression> initialNameExpressions = new Stack<>();
-            initialNameExpressions.addAll(context.getNamedParseExpressions());
-            analyze(node.getElseClause(), context);
-            Expression elseValue = context.getNamedParseExpressions().pop();
-            List<Tuple2<Expression, Expression>> whens = new ArrayList<>();
-            for (When when : node.getWhenClauses()) {
-                if (node.getCaseValue() == null) {
-                    whens.add(
-                            new Tuple2<>(
-                                    analyze(when.getCondition(), context),
-                                    analyze(when.getResult(), context)
-                            )
-                    );
-                } else {
-                    // Merge case value and condition (compare value) into a single equal condition
-                    Compare compare = new Compare(EQUAL.getName().getFunctionName(), node.getCaseValue(), when.getCondition());
-                    whens.add(
-                            new Tuple2<>(
-                                    analyze(compare, context), analyze(when.getResult(), context)
-                            )
-                    );
-                }
-                context.retainAllNamedParseExpressions(e -> e);
-            }
-            context.setNamedParseExpressions(initialNameExpressions);
-            return context.getNamedParseExpressions().push(new CaseWhen(seq(whens), Option.apply(elseValue)));
-        }
-
-        @Override
-        public Expression visitRareTopN(RareTopN node, CatalystPlanContext context) {
-            throw new IllegalStateException("Not Supported operation : RareTopN");
-        }
-
-        @Override
-        public Expression visitWindowFunction(WindowFunction node, CatalystPlanContext context) {
-            throw new IllegalStateException("Not Supported operation : WindowFunction");
-        }
-
-        @Override
-        public Expression visitInSubquery(InSubquery node, CatalystPlanContext outerContext) {
-            CatalystPlanContext innerContext = new CatalystPlanContext();
-            visitExpressionList(node.getChild(), innerContext);
-            Seq<Expression> values = innerContext.retainAllNamedParseExpressions(p -> p);
-            UnresolvedPlan outerPlan = node.getQuery();
-            LogicalPlan subSearch = CatalystQueryPlanVisitor.this.visitSubSearch(outerPlan, innerContext);
-            Expression inSubQuery = InSubquery$.MODULE$.apply(
-                values,
-                ListQuery$.MODULE$.apply(
-                    subSearch,
-                    seq(new java.util.ArrayList<Expression>()),
-                    NamedExpression.newExprId(),
-                    -1,
-                    seq(new java.util.ArrayList<Expression>()),
-                    Option.empty()));
-            return outerContext.getNamedParseExpressions().push(inSubQuery);
-        }
-
-        @Override
-        public Expression visitScalarSubquery(ScalarSubquery node, CatalystPlanContext context) {
-            CatalystPlanContext innerContext = new CatalystPlanContext();
-            UnresolvedPlan outerPlan = node.getQuery();
-            LogicalPlan subSearch = CatalystQueryPlanVisitor.this.visitSubSearch(outerPlan, innerContext);
-            Expression scalarSubQuery = ScalarSubquery$.MODULE$.apply(
-                subSearch,
-                seq(new java.util.ArrayList<Expression>()),
-                NamedExpression.newExprId(),
-                seq(new java.util.ArrayList<Expression>()),
-                Option.empty(),
-                Option.empty());
-            return context.getNamedParseExpressions().push(scalarSubQuery);
-        }
-
-        @Override
-        public Expression visitExistsSubquery(ExistsSubquery node, CatalystPlanContext context) {
-            CatalystPlanContext innerContext = new CatalystPlanContext();
-            UnresolvedPlan outerPlan = node.getQuery();
-            LogicalPlan subSearch = CatalystQueryPlanVisitor.this.visitSubSearch(outerPlan, innerContext);
-            Expression existsSubQuery = Exists$.MODULE$.apply(
-                subSearch,
-                seq(new java.util.ArrayList<Expression>()),
-                NamedExpression.newExprId(),
-                seq(new java.util.ArrayList<Expression>()),
-                Option.empty());
-            return context.getNamedParseExpressions().push(existsSubQuery);
-        }
-
-        @Override
-        public Expression visitBetween(Between node, CatalystPlanContext context) {
-            Expression value = analyze(node.getValue(), context);
-            Expression lower = analyze(node.getLowerBound(), context);
-            Expression upper = analyze(node.getUpperBound(), context);
-            context.retainAllNamedParseExpressions(p -> p);
-            return context.getNamedParseExpressions().push(new org.apache.spark.sql.catalyst.expressions.And(new GreaterThanOrEqual(value, lower), new LessThanOrEqual(value, upper)));
         }
     }
 }

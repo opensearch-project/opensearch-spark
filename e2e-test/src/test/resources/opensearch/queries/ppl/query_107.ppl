@@ -1,0 +1,1 @@
+/* test in tpch q16, q18, q20 */ source = mys3.default.orders | head 1 // add source=xx to avoid failure in automation

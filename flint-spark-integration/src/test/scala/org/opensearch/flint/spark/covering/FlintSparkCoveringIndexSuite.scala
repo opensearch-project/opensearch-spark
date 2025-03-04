@@ -5,12 +5,19 @@
 
 package org.opensearch.flint.spark.covering
 
+import org.opensearch.flint.spark.FlintSparkIndex.ID_COLUMN
+import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.scalatest.matchers.must.Matchers.contain
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.spark.FlintSuite
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
+import org.apache.spark.sql.catalyst.expressions.Alias
+import org.apache.spark.sql.catalyst.plans.logical.Project
 
 class FlintSparkCoveringIndexSuite extends FlintSuite {
+
+  private val testTable = "spark_catalog.default.ci_test"
 
   test("get covering index name") {
     val index =
@@ -52,6 +59,36 @@ class FlintSparkCoveringIndexSuite extends FlintSuite {
   test("should fail if no indexed column given") {
     assertThrows[IllegalArgumentException] {
       new FlintSparkCoveringIndex("ci", "default.test", Map.empty)
+    }
+  }
+
+  test("build batch with ID expression option") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (timestamp TIMESTAMP, name STRING) USING JSON")
+      val index =
+        FlintSparkCoveringIndex(
+          "name_idx",
+          testTable,
+          Map("name" -> "string"),
+          options = FlintSparkIndexOptions(Map("id_expression" -> "name")))
+
+      val batchDf = index.build(spark, None)
+      batchDf.idColumn() shouldBe Some(UnresolvedAttribute(Seq("name")))
+    }
+  }
+
+  test("build stream with ID expression option") {
+    withTable(testTable) {
+      sql(s"CREATE TABLE $testTable (name STRING, age INTEGER) USING JSON")
+      val index = FlintSparkCoveringIndex(
+        "name_idx",
+        testTable,
+        Map("name" -> "string"),
+        options =
+          FlintSparkIndexOptions(Map("auto_refresh" -> "true", "id_expression" -> "name")))
+
+      val streamDf = index.build(spark, Some(spark.table(testTable)))
+      streamDf.idColumn() shouldBe Some(UnresolvedAttribute(Seq("name")))
     }
   }
 }

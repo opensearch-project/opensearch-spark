@@ -64,9 +64,9 @@ public enum BuiltinFunctionName {
   DATE(FunctionName.of("date")),
   DATEDIFF(FunctionName.of("datediff")),
 //  DATETIME(FunctionName.of("datetime")),
-//  DATE_ADD(FunctionName.of("date_add")),
+  DATE_ADD(FunctionName.of("date_add")),
   DATE_FORMAT(FunctionName.of("date_format")),
-//  DATE_SUB(FunctionName.of("date_sub")),
+  DATE_SUB(FunctionName.of("date_sub")),
   DAY(FunctionName.of("day")),
 //  DAYNAME(FunctionName.of("dayname")),
   DAYOFMONTH(FunctionName.of("dayofmonth")),
@@ -105,14 +105,15 @@ public enum BuiltinFunctionName {
 //  TIMEDIFF(FunctionName.of("timediff")),
 //  TIME_TO_SEC(FunctionName.of("time_to_sec")),
   TIMESTAMP(FunctionName.of("timestamp")),
-//  TIMESTAMPADD(FunctionName.of("timestampadd")),
-//  TIMESTAMPDIFF(FunctionName.of("timestampdiff")),
+  TIMESTAMPADD(FunctionName.of("timestampadd")),
+  TIMESTAMPDIFF(FunctionName.of("timestampdiff")),
 //  TIME_FORMAT(FunctionName.of("time_format")),
 //  TO_DAYS(FunctionName.of("to_days")),
 //  TO_SECONDS(FunctionName.of("to_seconds")),
 //  UTC_DATE(FunctionName.of("utc_date")),
 //  UTC_TIME(FunctionName.of("utc_time")),
-//  UTC_TIMESTAMP(FunctionName.of("utc_timestamp")),
+  UTC_TIMESTAMP(FunctionName.of("utc_timestamp")),
+  CURRENT_TIMEZONE(FunctionName.of("current_timezone")),
   UNIX_TIMESTAMP(FunctionName.of("unix_timestamp")),
   WEEK(FunctionName.of("week")),
   WEEKDAY(FunctionName.of("weekday")),
@@ -131,6 +132,11 @@ public enum BuiltinFunctionName {
   CURRENT_TIMESTAMP(FunctionName.of("current_timestamp")),
   LOCALTIMESTAMP(FunctionName.of("localtimestamp")),
   SYSDATE(FunctionName.of("sysdate")),
+
+  // Relative time functions
+  RELATIVE_TIMESTAMP(FunctionName.of("relative_timestamp")),
+  EARLIEST(FunctionName.of("earliest")),
+  LATEST(FunctionName.of("latest")),
 
   /** Text Functions. */
   TOSTRING(FunctionName.of("tostring")),
@@ -184,6 +190,7 @@ public enum BuiltinFunctionName {
   NESTED(FunctionName.of("nested")),
   PERCENTILE(FunctionName.of("percentile")),
   PERCENTILE_APPROX(FunctionName.of("percentile_approx")),
+  APPROX_COUNT_DISTINCT(FunctionName.of("approx_count_distinct")),
 
   /** Text Functions. */
   ASCII(FunctionName.of("ascii")),
@@ -212,13 +219,14 @@ public enum BuiltinFunctionName {
   JSON_OBJECT(FunctionName.of("json_object")),
   JSON_ARRAY(FunctionName.of("json_array")),
   JSON_ARRAY_LENGTH(FunctionName.of("json_array_length")),
+  TO_JSON_STRING(FunctionName.of("to_json_string")),
   JSON_EXTRACT(FunctionName.of("json_extract")),
   JSON_KEYS(FunctionName.of("json_keys")),
   JSON_VALID(FunctionName.of("json_valid")),
-//  JSON_DELETE(FunctionName.of("json_delete")),
-//  JSON_APPEND(FunctionName.of("json_append")),
-//  JSON_EXTEND(FunctionName.of("json_extend")),
-//  JSON_SET(FunctionName.of("json_set")),
+  JSON_DELETE(FunctionName.of("json_delete")),
+  JSON_SET(FunctionName.of("json_set")),
+  JSON_APPEND(FunctionName.of("json_append")),
+  JSON_EXTEND(FunctionName.of("json_extend")),
 //  JSON_ARRAY_ALL_MATCH(FunctionName.of("json_array_all_match")),
 //  JSON_ARRAY_ANY_MATCH(FunctionName.of("json_array_any_match")),
 //  JSON_ARRAY_FILTER(FunctionName.of("json_array_filter")),
@@ -227,6 +235,14 @@ public enum BuiltinFunctionName {
 
   /** COLLECTION Functions **/
   ARRAY(FunctionName.of("array")),
+  ARRAY_LENGTH(FunctionName.of("array_length")),
+
+  /** LAMBDA Functions **/
+  ARRAY_FORALL(FunctionName.of("forall")),
+  ARRAY_EXISTS(FunctionName.of("exists")),
+  ARRAY_FILTER(FunctionName.of("filter")),
+  ARRAY_TRANSFORM(FunctionName.of("transform")),
+  ARRAY_AGGREGATE(FunctionName.of("reduce")),
 
   /** NULL Test. */
   IS_NULL(FunctionName.of("is null")),
@@ -281,8 +297,13 @@ public enum BuiltinFunctionName {
   MULTIMATCHQUERY(FunctionName.of("multimatchquery")),
   WILDCARDQUERY(FunctionName.of("wildcardquery")),
   WILDCARD_QUERY(FunctionName.of("wildcard_query")),
+  COALESCE(FunctionName.of("coalesce")),
 
-  COALESCE(FunctionName.of("coalesce"));
+  /** IP Relevance Function. */
+  CIDR(FunctionName.of("cidr")),
+  IS_IPV4(FunctionName.of("is_ipv4")),
+  IP_TO_INT(FunctionName.of("ip_to_int")),
+  ;
 
   private FunctionName name;
 
@@ -322,6 +343,7 @@ public enum BuiltinFunctionName {
           .put("take", BuiltinFunctionName.TAKE)
           .put("percentile", BuiltinFunctionName.PERCENTILE)
           .put("percentile_approx", BuiltinFunctionName.PERCENTILE_APPROX)
+          .put("approx_count_distinct", BuiltinFunctionName.APPROX_COUNT_DISTINCT)
           .build();
 
   public static Optional<BuiltinFunctionName> of(String str) {

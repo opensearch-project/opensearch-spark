@@ -53,6 +53,10 @@ commands
    | renameCommand
    | fillnullCommand
    | fieldsummaryCommand
+   | flattenCommand
+   | expandCommand
+   | trendlineCommand
+   | appendcolCommand
    ;
 
 commandName
@@ -73,15 +77,21 @@ commandName
    | SORT
    | HEAD
    | TOP
+   | TOP_APPROX
    | RARE
+   | RARE_APPROX
    | EVAL
    | GROK
    | PARSE
    | PATTERNS
    | LOOKUP
    | RENAME
+   | EXPAND
    | FILLNULL
    | FIELDSUMMARY
+   | FLATTEN
+   | TRENDLINE
+   | APPENDCOL
    ;
 
 searchCommand
@@ -89,7 +99,7 @@ searchCommand
    | (SEARCH)? fromClause logicalExpression     # searchFromFilter
    | (SEARCH)? logicalExpression fromClause     # searchFilterFrom
    ;
-   
+
 fieldsummaryCommand
    : FIELDSUMMARY (fieldsummaryParameter)*
    ;
@@ -174,11 +184,11 @@ headCommand
    ;
 
 topCommand
-   : TOP (number = integerLiteral)? fieldList (byClause)?
+   : (TOP | TOP_APPROX) (number = integerLiteral)? fieldList (byClause)?
    ;
 
 rareCommand
-   : RARE fieldList (byClause)?
+   : (RARE | RARE_APPROX) (number = integerLiteral)? fieldList (byClause)?
    ;
 
 grokCommand
@@ -229,23 +239,42 @@ fillnullCommand
    | fillNullWithFieldVariousValues)
    ;
 
- fillNullWithTheSameValue
- : WITH nullReplacement IN nullableField (COMMA nullableField)*
- ;
-
- fillNullWithFieldVariousValues
- : USING nullableField EQUAL nullReplacement (COMMA nullableField EQUAL nullReplacement)*
- ;
-
-
-   nullableField
-   : fieldExpression
+fillNullWithTheSameValue
+   : WITH nullReplacement = valueExpression IN nullableFieldList = fieldList
    ;
 
-   nullReplacement
-   : expression
+fillNullWithFieldVariousValues
+   : USING nullableReplacementExpression (COMMA nullableReplacementExpression)*
    ;
 
+nullableReplacementExpression
+   : nullableField = fieldExpression EQUAL nullableReplacement = valueExpression
+   ;
+
+expandCommand
+    : EXPAND fieldExpression (AS alias = qualifiedName)?
+    ;
+    
+flattenCommand
+    : FLATTEN fieldExpression (AS alias = identifierSeq)?
+    ;
+
+trendlineCommand
+   : TRENDLINE (SORT sortField)? trendlineClause (trendlineClause)*
+   ;
+
+trendlineClause
+   : trendlineType LT_PRTHS numberOfDataPoints = INTEGER_LITERAL COMMA field = fieldExpression RT_PRTHS (AS alias = qualifiedName)?
+   ;
+
+trendlineType
+   : SMA
+   | WMA
+   ;
+
+appendcolCommand
+   : APPENDCOL (OVERRIDE EQUAL override = booleanLiteral)? LT_SQR_PRTHS commands (PIPE commands)* RT_SQR_PRTHS
+   ;
 
 kmeansCommand
    : KMEANS (kmeansParameter)*
@@ -320,7 +349,7 @@ joinType
    ;
 
 sideAlias
-   : LEFT EQUAL leftAlias = ident COMMA? RIGHT EQUAL rightAlias = ident
+   : (LEFT EQUAL leftAlias = qualifiedName)? COMMA? (RIGHT EQUAL rightAlias = qualifiedName)?
    ;
 
 joinCriteria
@@ -364,6 +393,11 @@ sortbyClause
 
 evalClause
    : fieldExpression EQUAL expression
+   | geoipCommand
+   ;
+
+geoipCommand
+   : fieldExpression EQUAL GEOIP LT_PRTHS ipAddress = functionArg (COMMA properties = geoIpPropertyList)? RT_PRTHS
    ;
 
 // aggregation terms
@@ -375,7 +409,7 @@ statsAggTerm
 statsFunction
    : statsFunctionName LT_PRTHS valueExpression RT_PRTHS                                                                            # statsFunctionCall
    | COUNT LT_PRTHS RT_PRTHS                                                                                                        # countAllFunctionCall
-   | (DISTINCT_COUNT | DC) LT_PRTHS valueExpression RT_PRTHS                                                                        # distinctCountFunctionCall
+   | (DISTINCT_COUNT | DC | DISTINCT_COUNT_APPROX) LT_PRTHS valueExpression RT_PRTHS                                                                        # distinctCountFunctionCall
    | percentileFunctionName = (PERCENTILE | PERCENTILE_APPROX) LT_PRTHS valueExpression COMMA percent = integerLiteral RT_PRTHS     # percentileFunctionCall
    ;
 
@@ -397,6 +431,7 @@ expression
 
 logicalExpression
    : NOT logicalExpression                                      # logicalNot
+   | LT_PRTHS logicalExpression RT_PRTHS                        # parentheticLogicalExpr
    | comparisonExpression                                       # comparsion
    | left = logicalExpression (AND)? right = logicalExpression  # logicalAnd
    | left = logicalExpression OR right = logicalExpression      # logicalOr
@@ -421,14 +456,18 @@ valueExpression
    | primaryExpression                                                                          # valueExpressionDefault
    | positionFunction                                                                           # positionFunctionCall
    | caseFunction                                                                               # caseExpr
+   | timestampFunction                                                                          # timestampFunctionCall
    | LT_PRTHS valueExpression RT_PRTHS                                                          # parentheticValueExpr
    | LT_SQR_PRTHS subSearch RT_SQR_PRTHS                                                        # scalarSubqueryExpr
+   | ident ARROW expression                                                                     # lambda
+   | LT_PRTHS ident (COMMA ident)+ RT_PRTHS ARROW expression                                    # lambda
    ;
 
 primaryExpression
    : evalFunctionCall
    | fieldExpression
    | literalValue
+   | dataTypeFunctionCall
    ;
 
 positionFunction
@@ -440,6 +479,7 @@ booleanExpression
    | isEmptyExpression                                                  # isEmptyExpr
    | valueExpressionList NOT? IN LT_SQR_PRTHS subSearch RT_SQR_PRTHS    # inSubqueryExpr
    | EXISTS LT_SQR_PRTHS subSearch RT_SQR_PRTHS                         # existsSubqueryExpr
+   | cidrMatchFunctionCall                                              # cidrFunctionCallExpr
    ;
 
  isEmptyExpression
@@ -490,6 +530,8 @@ sortField
 
 sortFieldExpression
    : fieldExpression
+
+   // TODO #963: Implement 'num', 'str', and 'ip' sort syntax
    | AUTO LT_PRTHS fieldExpression RT_PRTHS
    | STR LT_PRTHS fieldExpression RT_PRTHS
    | IP LT_PRTHS fieldExpression RT_PRTHS
@@ -519,6 +561,10 @@ booleanFunctionCall
    : conditionFunctionBase LT_PRTHS functionArgs RT_PRTHS
    ;
 
+cidrMatchFunctionCall
+   : CIDRMATCH LT_PRTHS ipAddress = functionArg COMMA cidrBlock = functionArg RT_PRTHS
+   ;
+
 convertedDataType
    : typeName = DATE
    | typeName = TIME
@@ -543,6 +589,7 @@ evalFunctionName
    | cryptographicFunctionName
    | jsonFunctionName
    | collectionFunctionName
+   | lambdaFunctionName
    ;
 
 functionArgs
@@ -672,6 +719,7 @@ dateTimeFunctionName
    | CURRENT_DATE
    | CURRENT_TIME
    | CURRENT_TIMESTAMP
+   | CURRENT_TIMEZONE
    | CURTIME
    | DATE
    | DATEDIFF
@@ -731,6 +779,13 @@ dateTimeFunctionName
    | WEEK_OF_YEAR
    | YEAR
    | YEARWEEK
+   | relativeTimeFunctionName
+   ;
+
+relativeTimeFunctionName
+   : RELATIVE_TIMESTAMP
+   | EARLIEST
+   | LATEST
    ;
 
 getFormatFunction
@@ -798,6 +853,8 @@ conditionFunctionBase
    | NULLIF
    | ISPRESENT
    | JSON_VALID
+   | EARLIEST
+   | LATEST
    ;
 
 systemFunctionName
@@ -831,13 +888,14 @@ jsonFunctionName
    | JSON_OBJECT
    | JSON_ARRAY
    | JSON_ARRAY_LENGTH
+   | TO_JSON_STRING
    | JSON_EXTRACT
+   | JSON_DELETE
+   | JSON_APPEND
    | JSON_KEYS
    | JSON_VALID
-//   | JSON_APPEND
-//   | JSON_DELETE
-//   | JSON_EXTEND
-//   | JSON_SET
+   | JSON_EXTEND
+   | JSON_SET
 //   | JSON_ARRAY_ALL_MATCH
 //   | JSON_ARRAY_ANY_MATCH
 //   | JSON_ARRAY_FILTER
@@ -847,14 +905,38 @@ jsonFunctionName
 
 collectionFunctionName
    : ARRAY
+   | ARRAY_LENGTH
    ;
 
+lambdaFunctionName
+   : FORALL
+   | EXISTS
+   | FILTER
+   | TRANSFORM
+   | REDUCE
+   ;
+    
 positionFunctionName
    : POSITION
    ;
 
 coalesceFunctionName
    : COALESCE
+   ;
+
+geoIpPropertyList
+   : geoIpProperty (COMMA geoIpProperty)*
+   ;
+
+geoIpProperty
+   : COUNTRY_ISO_CODE
+   | COUNTRY_NAME
+   | CONTINENT_NAME
+   | REGION_ISO_CODE
+   | REGION_NAME
+   | CITY_NAME
+   | TIME_ZONE
+   | LOCATION
    ;
 
 // operators
@@ -888,6 +970,7 @@ literalValue
    | decimalLiteral
    | booleanLiteral
    | datetimeLiteral //#datetime
+   | intervalLiteral
    ;
 
 intervalLiteral
@@ -982,6 +1065,11 @@ qualifiedName
    : ident (DOT ident)* # identsAsQualifiedName
    ;
 
+identifierSeq
+   : qualifiedName (COMMA qualifiedName)* # identsAsQualifiedNameSeq
+   | LT_PRTHS qualifiedName (COMMA qualifiedName)* RT_PRTHS # identsAsQualifiedNameSeq
+   ;
+
 tableQualifiedName
    : tableIdent (DOT ident)* # identsAsTableQualifiedName
    ;
@@ -1033,10 +1121,6 @@ keywordsCanBeId
    | INDEX
    | DESC
    | DATASOURCES
-   | AUTO
-   | STR
-   | IP
-   | NUM
    | FROM
    | PATTERN
    | NEW_FIELD
@@ -1076,6 +1160,7 @@ keywordsCanBeId
    // AGGREGATIONS
    | statsFunctionName
    | DISTINCT_COUNT
+   | DISTINCT_COUNT_APPROX
    | PERCENTILE
    | PERCENTILE_APPROX
    | ESTDC
@@ -1094,10 +1179,6 @@ keywordsCanBeId
    | LAST
    | LIST
    | VALUES
-   | EARLIEST
-   | EARLIEST_TIME
-   | LATEST
-   | LATEST_TIME
    | PER_DAY
    | PER_HOUR
    | PER_MINUTE
@@ -1116,4 +1197,11 @@ keywordsCanBeId
    | SEMI
    | ANTI
    | BETWEEN
+   | CIDRMATCH
+   | trendlineType
+   // SORT FIELD KEYWORDS
+   | AUTO
+   | STR
+   | IP
+   | NUM
    ;

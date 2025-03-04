@@ -9,7 +9,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.opensearch.sql.data.type.ExprCoreType;
 
-/** The DataType defintion in AST. Question, could we use {@link ExprCoreType} directly in AST? */
+/** The DataType definition in AST. Question, could we use {@link ExprCoreType} directly in AST? */
 
 @RequiredArgsConstructor
 public enum DataType {
@@ -30,4 +30,8 @@ public enum DataType {
   INTERVAL(ExprCoreType.INTERVAL);
 
   @Getter private final  ExprCoreType coreType;
+
+  public static DataType fromString(String name) {
+    return valueOf(name.toUpperCase());
+  }
 }

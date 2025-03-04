@@ -1,12 +1,12 @@
 ## PPL `fields` command
 
-**Description**
+### Description
 Using ``field`` command to keep or remove fields from the search result.
 
 
-**Syntax**
+### Syntax
 
-field [+|-] <field-list>
+`field [+|-] <field-list>`
 
 * index: optional. if the plus (+) is used, only the fields specified in the field list will be keep. if the minus (-) is used, all the fields specified in the field list will be removed. **Default** +
 * field list: mandatory. comma-delimited keep or remove fields.

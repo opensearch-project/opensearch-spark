@@ -494,4 +494,43 @@ class FlintSparkPPLAggregationWithSpanITSuite
     // Compare the two plans
     comparePlans(expectedPlan, logicalPlan, false)
   }
+
+  test(
+    "create ppl simple distinct count age by span of interval of 10 years query with state filter test using approximation") {
+    val frame = sql(s"""
+                       | source = $testTable | where state != 'Quebec' | stats distinct_count_approx(age) by span(age, 10) as age_span
+                       | """.stripMargin)
+
+    // Retrieve the results
+    val results: Array[Row] = frame.collect()
+    // Define the expected results
+    val expectedResults: Array[Row] = Array(Row(1, 70L), Row(1, 30L), Row(1, 20L))
+
+    // Compare the results
+    implicit val rowOrdering: Ordering[Row] = Ordering.by[Row, Long](_.getAs[Long](1))
+    assert(results.sorted.sameElements(expectedResults.sorted))
+
+    // Retrieve the logical plan
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+    // Define the expected logical plan
+    val star = Seq(UnresolvedStar(None))
+    val ageField = UnresolvedAttribute("age")
+    val stateField = UnresolvedAttribute("state")
+    val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test"))
+
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("APPROX_COUNT_DISTINCT"), Seq(ageField), isDistinct = true),
+        "distinct_count_approx(age)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
+      "age_span")()
+    val filterExpr = Not(EqualTo(stateField, Literal("Quebec")))
+    val filterPlan = Filter(filterExpr, table)
+    val aggregatePlan = Aggregate(Seq(span), Seq(aggregateExpressions, span), filterPlan)
+    val expectedPlan = Project(star, aggregatePlan)
+
+    // Compare the two plans
+    comparePlans(expectedPlan, logicalPlan, false)
+  }
 }

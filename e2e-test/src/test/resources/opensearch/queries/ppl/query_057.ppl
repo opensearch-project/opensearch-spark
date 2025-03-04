@@ -1,0 +1,1 @@
+source = mys3.default.nested | stats count(int_col) by span(struct_col.field2, 10) as a_span

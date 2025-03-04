@@ -1,0 +1,1 @@
+source = mys3.default.people | eval major = occupation | fields id, name, major, country, salary | LOOKUP mys3.default.work_info name APPEND occupation AS major | stats distinct_count(major)

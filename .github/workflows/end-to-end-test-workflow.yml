@@ -1,0 +1,40 @@
+name: End-to-End Tests
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        entry:
+          - { os: ubuntu-latest, java: 11 }
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 11
+
+      - name: Set up SBT
+        uses: sbt/setup-sbt@v1
+
+      - name: Set SBT_OPTS
+        # Needed to extend the JVM memory size to avoid OutOfMemoryError for HTML test report
+        run: echo "SBT_OPTS=-Xmx2G" >> $GITHUB_ENV
+
+      - name: End-to-End Test
+        run: sbt e2etest/test
+
+      - name: Upload test report
+        if: always() # Ensures the artifact is saved even if tests fail
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: target/test-reports # Adjust this path if necessary

@@ -10,6 +10,7 @@ import scala.collection.JavaConverters.mapAsScalaMapConverter
 import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.spark.FlintSparkIndexOptions
+import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getSourceTablesFromMetadata, MV_INDEX_TYPE}
 import org.opensearch.flint.spark.scheduler.util.IntervalSchedulerParser
 
 /**
@@ -22,6 +23,8 @@ case class FlintMetadataCache(
     refreshInterval: Option[Int],
     /** Source table names for building the Flint index. */
     sourceTables: Array[String],
+    /** Source query for MV */
+    sourceQuery: Option[String],
     /** Timestamp when Flint index is last refreshed. Unit: milliseconds */
     lastRefreshTime: Option[Long]) {
 
@@ -46,9 +49,7 @@ case class FlintMetadataCache(
 
 object FlintMetadataCache {
 
-  // TODO: constant for version
-  val mockTableName =
-    "dataSourceName.default.logGroups(logGroupIdentifier:['arn:aws:logs:us-east-1:123456:test-llt-xa', 'arn:aws:logs:us-east-1:123456:sample-lg-1'])"
+  val metadataCacheVersion = "1.0"
 
   def apply(metadata: FlintMetadata): FlintMetadataCache = {
     val indexOptions = FlintSparkIndexOptions(
@@ -61,6 +62,14 @@ object FlintMetadataCache {
     } else {
       None
     }
+    val sourceTables = metadata.kind match {
+      case MV_INDEX_TYPE => getSourceTablesFromMetadata(metadata)
+      case _ => Array(metadata.source)
+    }
+    val sourceQuery = metadata.kind match {
+      case MV_INDEX_TYPE => Some(metadata.source)
+      case _ => None
+    }
     val lastRefreshTime: Option[Long] = metadata.latestLogEntry.flatMap { entry =>
       entry.lastRefreshCompleteTime match {
         case FlintMetadataLogEntry.EMPTY_TIMESTAMP => None
@@ -68,7 +77,11 @@ object FlintMetadataCache {
       }
     }
 
-    // TODO: get source tables from metadata
-    FlintMetadataCache("1.0", refreshInterval, Array(mockTableName), lastRefreshTime)
+    FlintMetadataCache(
+      metadataCacheVersion,
+      refreshInterval,
+      sourceTables,
+      sourceQuery,
+      lastRefreshTime)
   }
 }

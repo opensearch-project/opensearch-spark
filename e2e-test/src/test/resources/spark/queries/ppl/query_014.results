@@ -1,0 +1,2 @@
+@timestamp,request,size,year,clientip,status,day,month
+2023-10-01T10:20:00.000Z,GET /images/hm_nbg.jpg HTTP/1.0,0,2023,247.37.0.0,304,1,10

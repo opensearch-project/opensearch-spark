@@ -12,6 +12,7 @@ import org.json4s.jackson.JsonMethods
 import org.json4s.native.Serialization
 
 import org.apache.spark.sql.catalyst.util.DateFormatter
+import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.{MetadataBuilderExtension, MetadataExtension}
 import org.apache.spark.sql.types._
 
 /**
@@ -30,6 +31,10 @@ object FlintDataType {
     "dateFormat" -> DateFormatter.defaultPattern,
     "timestampFormat" -> STRICT_DATE_OPTIONAL_TIME_FORMATTER_WITH_NANOS)
 
+  val METADATA_ALIAS_PATH_NAME = "aliasPath"
+
+  val UNSUPPORTED_OPENSEARCH_FIELD_TYPE = Set("geo_point")
+
   /**
    * parse Flint metadata and extract properties to StructType.
    */
@@ -39,14 +44,37 @@ object FlintDataType {
 
   def deserializeJValue(json: JValue): StructType = {
     val properties = (json \ "properties").extract[Map[String, JValue]]
-    val fields = properties.map { case (fieldName, fieldProperties) =>
-      deserializeFiled(fieldName, fieldProperties)
+    val (aliasProps, normalProps) = properties.partition { case (_, fieldProperties) =>
+      (fieldProperties \ "type") match {
+        case JString("alias") => true
+        case _ => false
+      }
     }
 
-    StructType(fields.toSeq)
+    val fields: Seq[StructField] = normalProps
+      .filter { case (_, fp) => isSupported(fp) }
+      .map { case (fieldName, fieldProperties) =>
+        deserializeField(fieldName, fieldProperties)
+      }
+      .toSeq
+
+    val normalFieldMap: Map[String, StructField] = fields.map(f => f.name -> f).toMap
+
+    // Process alias fields: only include alias fields if the referenced field exists.
+    val aliasFields: Seq[StructField] = aliasProps.flatMap { case (fieldName, fieldProperties) =>
+      val aliasPath = (fieldProperties \ "path").extract[String]
+      normalFieldMap.get(aliasPath).map { referencedField =>
+        val metadataBuilder = new MetadataBuilder()
+        metadataBuilder.putString(METADATA_ALIAS_PATH_NAME, aliasPath)
+        DataTypes
+          .createStructField(fieldName, referencedField.dataType, true, metadataBuilder.build())
+      }
+    }.toSeq
+
+    StructType(fields ++ aliasFields)
   }
 
-  def deserializeFiled(fieldName: String, fieldProperties: JValue): StructField = {
+  def deserializeField(fieldName: String, fieldProperties: JValue): StructField = {
     val metadataBuilder = new MetadataBuilder()
     val dataType = fieldProperties \ "type" match {
       // boolean
@@ -69,10 +97,17 @@ object FlintDataType {
           (fieldProperties \ "format")
             .extractOrElse(DEFAULT_DATE_FORMAT))
 
-      // Text
+      // Text with possible multi-fields
       case JString("text") =>
-        metadataBuilder.putString("osType", "text")
-        StringType
+        metadataBuilder.withTextField()
+        (fieldProperties \ "fields") match {
+          case fields: JObject =>
+            metadataBuilder.withMultiFields(fields.obj.map { case (name, props) =>
+              (s"$fieldName.$name", (props \ "type").extract[String])
+            }.toMap)
+            StringType
+          case _ => StringType
+        }
 
       // object types
       case JString("object") | JNothing => deserializeJValue(fieldProperties)
@@ -84,6 +119,13 @@ object FlintDataType {
       case unknown => throw new IllegalStateException(s"unsupported data type: $unknown")
     }
     DataTypes.createStructField(fieldName, dataType, true, metadataBuilder.build())
+  }
+
+  def isSupported(fieldProperties: JValue): Boolean = {
+    (fieldProperties \ "type") match {
+      case JString(fieldType) => !UNSUPPORTED_OPENSEARCH_FIELD_TYPE.contains(fieldType)
+      case _ => true
+    }
   }
 
   /**
@@ -129,7 +171,7 @@ object FlintDataType {
 
       // string
       case StringType | _: VarcharType | _: CharType =>
-        if (metadata.contains("osType") && metadata.getString("osType") == "text") {
+        if (metadata.isTextField) {
           JObject("type" -> JString("text"))
         } else {
           JObject("type" -> JString("keyword"))
@@ -142,6 +184,7 @@ object FlintDataType {
       case ByteType => JObject("type" -> JString("byte"))
       case DoubleType => JObject("type" -> JString("double"))
       case FloatType => JObject("type" -> JString("float"))
+      case DecimalType() => JObject("type" -> JString("double"))
 
       // Date
       case TimestampType | _: TimestampNTZType =>
@@ -152,6 +195,9 @@ object FlintDataType {
 
       // objects
       case st: StructType => serializeJValue(st)
+
+      // Serialize maps as empty objects and let the map entries automap
+      case mt: MapType => serializeJValue(new StructType())
 
       // array
       case ArrayType(elementType, _) => serializeField(elementType, Metadata.empty)

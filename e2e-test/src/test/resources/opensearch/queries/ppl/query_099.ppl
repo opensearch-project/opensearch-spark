@@ -1,0 +1,1 @@
+source=mys3.default.people  | eval `CURRENT_TIMEZONE()` = CURRENT_TIMEZONE() | fields `CURRENT_TIMEZONE()`

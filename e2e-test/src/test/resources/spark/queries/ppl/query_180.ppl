@@ -1,0 +1,15 @@
+source = dev.default.part
+| join ON p_partkey = ps_partkey dev.default.partsupp
+| join ON s_suppkey = ps_suppkey dev.default.supplier
+| join ON s_nationkey = n_nationkey dev.default.nation
+| join ON n_regionkey = r_regionkey dev.default.region
+| where p_size = 15 AND like(p_type, '%BRASS') AND r_name = 'EUROPE' AND ps_supplycost = [
+    source = dev.default.partsupp
+    | join ON s_suppkey = ps_suppkey dev.default.supplier
+    | join ON s_nationkey = n_nationkey dev.default.nation
+    | join ON n_regionkey = r_regionkey dev.default.region
+    | where r_name = 'EUROPE'
+    | stats MIN(ps_supplycost)
+  ]
+| sort - s_acctbal, n_name, s_name, p_partkey
+| head 100

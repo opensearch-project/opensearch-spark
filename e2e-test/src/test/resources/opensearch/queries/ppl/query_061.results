@@ -1,0 +1,29 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "avg_avg_int",
+      "type": "double"
+    },
+    {
+      "name": "new_col",
+      "type": "double"
+    }
+  ],
+  "datarows": [
+    [
+      50.0,
+      50.0
+    ],
+    [
+      40.0,
+      40.0
+    ],
+    [
+      30.0,
+      30.0
+    ]
+  ],
+  "total": 3,
+  "size": 3
+}

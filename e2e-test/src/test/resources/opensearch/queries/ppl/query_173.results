@@ -1,0 +1,91 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "@timestamp",
+      "type": "timestamp_ntz"
+    },
+    {
+      "name": "id",
+      "type": "long"
+    },
+    {
+      "name": "name",
+      "type": "string"
+    },
+    {
+      "name": "occupation",
+      "type": "string"
+    },
+    {
+      "name": "country",
+      "type": "string"
+    },
+    {
+      "name": "salary",
+      "type": "long"
+    },
+    {
+      "name": "avg(salary)",
+      "type": "double"
+    }
+  ],
+  "datarows": [
+    [
+      "2024-06-15T13:40:23.000",
+      1000,
+      "Jake",
+      "Engineer",
+      "England",
+      100000,
+      100000.0
+    ],
+    [
+      "2024-06-15T13:40:33.000",
+      1001,
+      "Hello",
+      "Artist",
+      "USA",
+      70000,
+      70000.0
+    ],
+    [
+      "2024-06-15T13:40:43.000",
+      1002,
+      "John",
+      "Doctor",
+      "Canada",
+      120000,
+      70000.0
+    ],
+    [
+      "2024-06-15T13:40:53.000",
+      1003,
+      "David",
+      "Doctor",
+      null,
+      120000,
+      120000.0
+    ],
+    [
+      "2024-06-15T13:41:03.000",
+      1004,
+      "David",
+      null,
+      "Canada",
+      0,
+      70000.0
+    ],
+    [
+      "2024-06-15T13:41:13.000",
+      1005,
+      "Jane",
+      "Scientist",
+      "Canada",
+      90000,
+      70000.0
+    ]
+  ],
+  "total": 6,
+  "size": 6
+}

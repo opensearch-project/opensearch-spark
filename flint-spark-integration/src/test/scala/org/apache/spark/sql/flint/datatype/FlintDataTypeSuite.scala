@@ -10,6 +10,7 @@ import org.json4s.jackson.JsonMethods
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.FlintSuite
+import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.MetadataBuilderExtension
 import org.apache.spark.sql.types._
 
 class FlintDataTypeSuite extends FlintSuite with Matchers {
@@ -128,6 +129,35 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
                                                                     |}""".stripMargin)
   }
 
+  test("spark map type serialize") {
+    val sparkStructType = StructType(
+      StructField("mapField", MapType(StringType, StringType), true) ::
+        Nil)
+
+    FlintDataType.serialize(sparkStructType) shouldBe compactJson("""{
+                                                                    |  "properties": {
+                                                                    |    "mapField": {
+                                                                    |      "properties": {
+                                                                    |      }
+                                                                    |    }
+                                                                    |  }
+                                                                    |}""".stripMargin)
+  }
+
+  test("spark decimal type serialize") {
+    val sparkStructType = StructType(
+      StructField("decimalField", DecimalType(1, 1), true) ::
+        Nil)
+
+    FlintDataType.serialize(sparkStructType) shouldBe compactJson("""{
+                                                                    |  "properties": {
+                                                                    |    "decimalField": {
+                                                                    |      "type": "double"
+                                                                    |    }
+                                                                    |  }
+                                                                    |}""".stripMargin)
+  }
+
   test("spark varchar and char type serialize") {
     val flintDataType = """{
                           |  "properties": {
@@ -174,6 +204,46 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
       StructField("varcharTextField", StringType, true, textMetadata) ::
         StructField("charTextField", StringType, true, textMetadata) ::
         Nil)
+  }
+
+  test("text field with multi-fields deserialize") {
+    val flintDataType = """{
+                          |  "properties": {
+                          |    "city": {
+                          |      "type": "text",
+                          |      "fields": {
+                          |        "raw": {
+                          |          "type": "keyword"
+                          |        },
+                          |        "keyword": {
+                          |          "type": "keyword"
+                          |        }
+                          |      }
+                          |    }
+                          |  }
+                          |}""".stripMargin
+    val metadata = new MetadataBuilder().withTextField
+      .withMultiFields(Map("city.raw" -> "keyword", "city.keyword" -> "keyword"))
+      .build()
+    val expectedStructType = StructType(StructField("city", StringType, true, metadata) :: Nil)
+
+    FlintDataType.deserialize(flintDataType) should contain theSameElementsAs expectedStructType
+  }
+
+  test("text field without multi-fields deserialize") {
+    val flintDataType = """{
+                          |  "properties": {
+                          |    "description": {
+                          |      "type": "text"
+                          |    }
+                          |  }
+                          |}""".stripMargin
+
+    val metadata = new MetadataBuilder().withTextField().build()
+
+    val expectedStructType =
+      StructType(StructField("description", StringType, true, metadata) :: Nil)
+    FlintDataType.deserialize(flintDataType) should contain theSameElementsAs expectedStructType
   }
 
   test("flint date type deserialize and serialize") {
@@ -250,4 +320,45 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
     val data: JValue = JsonMethods.parse(json)
     JsonMethods.compact(JsonMethods.render(data))
   }
+
+  test("alias field deserialize") {
+    val flintDataType =
+      """{
+        |  "properties": {
+        |    "distance": {
+        |      "type": "long"
+        |    },
+        |    "route_length_miles": {
+        |      "type": "alias",
+        |      "path": "distance"
+        |    },
+        |    "transit_mode": {
+        |      "type": "keyword"
+        |    }
+        |  }
+        |}""".stripMargin
+
+    val expectedStructType = StructType(
+      Seq(
+        StructField("distance", LongType, true),
+        StructField("transit_mode", StringType, true),
+        StructField(
+          "route_length_miles",
+          LongType,
+          true,
+          new MetadataBuilder().putString("aliasPath", "distance").build())))
+
+    val deserialized = FlintDataType.deserialize(flintDataType)
+
+    deserialized.fields should have length (3)
+    deserialized.fields(0) shouldEqual expectedStructType.fields(0)
+    deserialized.fields(1) shouldEqual expectedStructType.fields(1)
+
+    val aliasField = deserialized.fields(2)
+    aliasField.name shouldEqual "route_length_miles"
+    aliasField.dataType shouldEqual LongType
+    aliasField.metadata.contains("aliasPath") shouldBe true
+    aliasField.metadata.getString("aliasPath") shouldEqual "distance"
+  }
+
 }

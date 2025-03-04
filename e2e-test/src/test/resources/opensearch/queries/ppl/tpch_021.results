@@ -1,0 +1,16 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "numwait",
+      "type": "long"
+    },
+    {
+      "name": "s_name",
+      "type": "string"
+    }
+  ],
+  "datarows": [],
+  "total": 0,
+  "size": 0
+}

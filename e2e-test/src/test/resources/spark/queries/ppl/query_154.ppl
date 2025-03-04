@@ -1,0 +1,1 @@
+source = dev.default.http_logs | eval res = json_extract('{"teacher":"Alice","student":[{"name":"Bob","rank":1},{"name":"Charlie","rank":2}]}', '$') | head 1 | fields res

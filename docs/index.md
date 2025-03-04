@@ -60,7 +60,7 @@ Currently, Flint metadata is only static configuration without version control a
 
 ```json
 {
-  "version": "0.6.0",
+  "version": "1.0.0",
   "name": "...",
   "kind": "skipping",
   "source": "...",
@@ -394,6 +394,7 @@ User can provide the following options in `WITH` clause of create statement:
 + `watermark_delay`: a string as time expression for how late data can come and still be processed, e.g. 1 minute, 10 seconds. This is required by auto and incremental refresh on materialized view if it has aggregation in the query.
 + `output_mode`: a mode string that describes how data will be written to streaming sink. If unspecified, default append mode will be applied.
 + `index_settings`: a JSON string as index settings for OpenSearch index that will be created. Please follow the format in OpenSearch documentation. If unspecified, default OpenSearch index settings will be applied.
++ `id_expression`: an expression string that generates an ID column to guarantee idempotency when index refresh job restart or any retry attempt during an index refresh. If an empty string is provided, no ID column will be generated.
 + `extra_options`: a JSON string as extra options that can be passed to Spark streaming source and sink API directly. Use qualified source table name (because there could be multiple) and "sink", e.g. '{"sink": "{key: val}", "table1": {key: val}}'
 
 Note that the index option name is case-sensitive. Here is an example:
@@ -406,6 +407,7 @@ WITH (
   watermark_delay = '1 Second',
   output_mode = 'complete',
   index_settings = '{"number_of_shards": 2, "number_of_replicas": 3}',
+  id_expression = "sha1(concat_ws('\0',startTime,status))",
   extra_options = '{"spark_catalog.default.alb_logs": {"maxFilesPerTrigger": "1"}}'
 )
 ```
@@ -533,10 +535,16 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.datasource.flint.write.batch_size`: "The number of documents written to Flint in a single batch request. Default value is Integer.MAX_VALUE.
 - `spark.datasource.flint.write.batch_bytes`: The approximately amount of data in bytes written to Flint in a single batch request. The actual data write to OpenSearch may more than it. Default value is 1mb. The writing process checks after each document whether the total number of documents (docCount) has reached batch_size or the buffer size has surpassed batch_bytes. If either condition is met, the current batch is flushed and the document count resets to zero.
 - `spark.datasource.flint.write.refresh_policy`: default value is false. valid values [NONE(false), IMMEDIATE(true), WAIT_UNTIL(wait_for)]
-- `spark.datasource.flint.write.bulkRequestRateLimitPerNode`: [Experimental] Rate limit(request/sec) for bulk request per worker node. Only accept integer value. To reduce the traffic less than 1 req/sec, batch_bytes or batch_size should be reduced. Default value is 0, which disables rate limit.
+- `spark.datasource.flint.write.bulk.rate_limit_per_node.enabled`: [Experimental] Enable rate limit for bulk request per worker node. Default is false.
+- `spark.datasource.flint.write.bulk.rate_limit_per_node.min`: [Experimental] Lower limit (documents/sec) for adaptive rate limiting for bulk request per worker node, if rate limit enabled. The adaptive rate will not drop below this value. Must be greater than 0. Default is 5000.
+- `spark.datasource.flint.write.bulk.rate_limit_per_node.max`: [Experimental] Upper limit (documents/sec) for adaptive rate limiting for bulk request per worker node, if rate limit enabled. The adaptive rate will not exceed this value. Set to -1 for no upper bound. Default is 50000.
+- `spark.datasource.flint.write.bulk.rate_limit_per_node.increase_step`: [Experimental] Adaptive rate limit increase step for bulk request per worker node, if rate limit enabled. Must be greater than 0. Default is 500.
+- `spark.datasource.flint.write.bulk.rate_limit_per_node.decrease_ratio`: [Experimental] Adaptive rate limit decrease ratio for bulk request per worker node, if rate limit enabled. Must be between 0 and 1. Default is 0.8.
 - `spark.datasource.flint.read.scroll_size`: default value is 100.
 - `spark.datasource.flint.read.scroll_duration`: default value is 5 minutes. scroll context keep alive duration.
 - `spark.datasource.flint.retry.max_retries`: max retries on failed HTTP request. default value is 3. Use 0 to disable retry.
+- `spark.datasource.flint.retry.bulk.max_retries`: max retries on failed bulk request. default value is 10. Use 0 to disable retry.
+- `spark.datasource.flint.retry.bulk.initial_backoff`: initial backoff in seconds for bulk request retry, default is 4.
 - `spark.datasource.flint.retry.http_status_codes`: retryable HTTP response status code list. default value is "429,502" (429 Too Many Request and 502 Bad Gateway).
 - `spark.datasource.flint.retry.exception_class_names`: retryable exception class name list. by default no retry on any exception thrown.
 - `spark.datasource.flint.read.support_shard`: default is true. set to false if index does not support shard (AWS OpenSearch Serverless collection). Do not use in production, this setting will be removed in later version. 
@@ -546,6 +554,7 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.flint.index.checkpointLocation.rootDir`: default is None. Flint will create a default checkpoint location in format of '<rootDir>/<indexName>/<UUID>' to isolate checkpoint data.
 - `spark.flint.index.checkpoint.mandatory`: default is true.
 - `spark.datasource.flint.socket_timeout_millis`: default value is 60000.
+- `spark.datasource.flint.request.completionDelayMillis`: Time to wait in milliseconds after request is complete. Applied after index creation. Default value is 2000 if using aoss service, otherwise 0.
 - `spark.flint.monitor.initialDelaySeconds`: Initial delay in seconds before starting the monitoring task. Default value is 15.
 - `spark.flint.monitor.intervalSeconds`: Interval in seconds for scheduling the monitoring task. Default value is 60.
 - `spark.flint.monitor.maxErrorCount`: Maximum number of consecutive errors allowed before stopping the monitoring task. Default value is 5.
@@ -577,6 +586,10 @@ The following table define the data type mapping between Flint data type and Spa
 * Spark data types VarcharType(length) and CharType(length) are both currently mapped to Flint data
   type *keyword*, dropping their length property. On the other hand, Flint data type *keyword* only
   maps to StringType.
+* Spark data type MapType is mapped to an empty OpenSearch object. The inner fields then rely on 
+  dynamic mapping. On the other hand, Flint data type *object* only maps to StructType.
+* Spark data type DecimalType is mapped to an OpenSearch double. On the other hand, Flint data type 
+  *double* only maps to DoubleType.
 
 Unsupported Spark data types:
 * DecimalType
@@ -698,7 +711,7 @@ For now, only single or conjunct conditions (conditions connected by AND) in WHE
 ### AWS EMR Spark Integration - Using execution role
 Flint use [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html). When running in EMR Spark, Flint use executionRole credentials
 ```
---conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.6.0-SNAPSHOT \
+--conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:1.0.0-SNAPSHOT \
 --conf spark.jars.repositories=https://aws.oss.sonatype.org/content/repositories/snapshots \
 --conf spark.emr-serverless.driverEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
 --conf spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
@@ -740,7 +753,7 @@ Flint use [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJa
 ```
 3. Set the spark.datasource.flint.customAWSCredentialsProvider property with value as com.amazonaws.emr.AssumeRoleAWSCredentialsProvider. Set the environment variable ASSUME_ROLE_CREDENTIALS_ROLE_ARN with the ARN value of CrossAccountRoleB.
 ```
---conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:0.6.0-SNAPSHOT \
+--conf spark.jars.packages=org.opensearch:opensearch-spark-standalone_2.12:1.0.0-SNAPSHOT \
 --conf spark.jars.repositories=https://aws.oss.sonatype.org/content/repositories/snapshots \
 --conf spark.emr-serverless.driverEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \
 --conf spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto.x86_64 \

@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | eval col1 = ln(size) | eval col2 = unix_timestamp(@timestamp) | sort - col1 | head 10

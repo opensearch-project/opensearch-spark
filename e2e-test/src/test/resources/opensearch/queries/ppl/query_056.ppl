@@ -1,0 +1,1 @@
+source = mys3.default.http_logs | where status > 200 | stats percentile_approx(status, 99)

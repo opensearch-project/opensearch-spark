@@ -88,7 +88,11 @@ public class FlintOptions implements Serializable {
   public static final int DEFAULT_SOCKET_TIMEOUT_MILLIS = 60000;
 
   public static final int DEFAULT_INACTIVITY_LIMIT_MILLIS = 3 * 60 * 1000;
-  
+
+  public static final String REQUEST_COMPLETION_DELAY_MILLIS = "request.completionDelayMillis";
+  public static final int DEFAULT_REQUEST_COMPLETION_DELAY_MILLIS = 0;
+  public static final int DEFAULT_AOSS_REQUEST_COMPLETION_DELAY_MILLIS = 2000;
+
   public static final String DATA_SOURCE_NAME = "spark.flint.datasource.name";
 
   public static final String BATCH_BYTES = "write.batch_bytes";
@@ -107,8 +111,17 @@ public class FlintOptions implements Serializable {
 
   private static final String UNKNOWN = "UNKNOWN";
 
-  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE = "bulkRequestRateLimitPerNode";
-  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE = "0";
+  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED = "write.bulk.rate_limit_per_node.enabled";
+  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED = "false";
+  public static final String BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE = "write.bulk.rate_limit_per_node.min";
+  public static final String DEFAULT_BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE = "5000";
+  public static final String BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE = "write.bulk.rate_limit_per_node.max";
+  public static final String DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE = "50000";
+  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP = "write.bulk.rate_limit_per_node.increase_step";
+  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP = "500";
+  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO = "write.bulk.rate_limit_per_node.decrease_ratio";
+  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO = "0.8";
+
   public static final String DEFAULT_EXTERNAL_SCHEDULER_INTERVAL = "5 minutes";
 
   public FlintOptions(Map<String, String> options) {
@@ -178,6 +191,13 @@ public class FlintOptions implements Serializable {
     return Integer.parseInt(options.getOrDefault(SOCKET_TIMEOUT_MILLIS, String.valueOf(DEFAULT_SOCKET_TIMEOUT_MILLIS)));
   }
 
+  public int getRequestCompletionDelayMillis() {
+    int defaultValue = SERVICE_NAME_AOSS.equals(getServiceName())
+        ? DEFAULT_AOSS_REQUEST_COMPLETION_DELAY_MILLIS
+        : DEFAULT_REQUEST_COMPLETION_DELAY_MILLIS;
+    return Integer.parseInt(options.getOrDefault(REQUEST_COMPLETION_DELAY_MILLIS, String.valueOf(defaultValue)));
+  }
+
   public String getDataSourceName() {
     return options.getOrDefault(DATA_SOURCE_NAME, "");
   }
@@ -223,8 +243,24 @@ public class FlintOptions implements Serializable {
         DEFAULT_SUPPORT_SHARD);
   }
 
-  public long getBulkRequestRateLimitPerNode() {
-    return Long.parseLong(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE));
+  public boolean getBulkRequestRateLimitPerNodeEnabled() {
+    return Boolean.parseBoolean(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED));
+  }
+
+  public long getBulkRequestMinRateLimitPerNode() {
+    return Long.parseLong(options.getOrDefault(BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE));
+  }
+
+  public long getBulkRequestMaxRateLimitPerNode() {
+    return Long.parseLong(options.getOrDefault(BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE));
+  }
+
+  public long getBulkRequestRateLimitPerNodeIncreaseStep() {
+    return Long.parseLong(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP));
+  }
+
+  public double getBulkRequestRateLimitPerNodeDecreaseRatio() {
+    return Double.parseDouble(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO));
   }
 
   public String getCustomAsyncQuerySchedulerClass() {

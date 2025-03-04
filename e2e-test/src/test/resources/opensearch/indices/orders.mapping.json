@@ -1,0 +1,33 @@
+{
+  "mappings": {
+    "properties": {
+      "o_orderkey": {
+        "type": "integer"
+      },
+      "o_custkey": {
+        "type": "integer"
+      },
+      "o_orderstatus": {
+        "type": "text"
+      },
+      "o_totalprice": {
+        "type": "double"
+      },
+      "o_orderdate": {
+        "type": "date"
+      },
+      "o_orderpriority": {
+        "type": "text"
+      },
+      "o_clerk": {
+        "type": "text"
+      },
+      "o_shippriority": {
+        "type": "integer"
+      },
+      "o_comment": {
+        "type": "text"
+      }
+    }
+  }
+}

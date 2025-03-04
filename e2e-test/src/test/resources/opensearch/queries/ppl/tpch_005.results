@@ -1,0 +1,16 @@
+{
+  "status": "SUCCESS",
+  "schema": [
+    {
+      "name": "revenue",
+      "type": "double"
+    },
+    {
+      "name": "n_name",
+      "type": "string"
+    }
+  ],
+  "datarows": [],
+  "total": 0,
+  "size": 0
+}
