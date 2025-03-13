@@ -558,15 +558,14 @@ object FlintREPL extends Logging with FlintJobExecutor {
             val statementTimerContext = getTimerContext(
               MetricConstants.STATEMENT_PROCESSING_TIME_METRIC)
             val (dataToWrite, returnedVerificationResult) =
-              WithSparkListeners(spark, List(ProgressListener(), MetricsSparkListener())).run(
-                () => {
-                  processStatementOnVerification(
-                    statementExecutionManager,
-                    queryResultWriter,
-                    flintStatement,
-                    state,
-                    context)
-                })
+              WithSparkListeners(spark, List(MetricsSparkListener())).run(() => {
+                processStatementOnVerification(
+                  statementExecutionManager,
+                  queryResultWriter,
+                  flintStatement,
+                  state,
+                  context)
+              })
 
             verificationResult = returnedVerificationResult
             finalizeCommand(

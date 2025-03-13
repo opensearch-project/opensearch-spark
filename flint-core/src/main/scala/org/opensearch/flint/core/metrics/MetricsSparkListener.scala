@@ -37,7 +37,7 @@ case class MetricsSparkListener() extends FlintListener {
       taskEnd.taskMetrics.jvmGCTime)
   }
 
-  def finish(): Unit = {
+  def complete(): Unit = {
     logInfo(s"Input: totalBytesRead=${bytesRead}, totalRecordsRead=${recordsRead}")
     logInfo(s"Output: totalBytesWritten=${bytesWritten}, totalRecordsWritten=${recordsWritten}")
     logInfo(s"totalJvmGcTime=${totalJvmGcTime}")

@@ -139,7 +139,7 @@ case class JobOperator(
         incrementCounter(MetricConstants.QUERY_EXECUTION_FAILED_METRIC)
     } finally {
       emitTimerMetric(MetricConstants.QUERY_EXECUTION_TIME_METRIC, startTime)
-      readWriteBytesSparkListener.finish()
+      readWriteBytesSparkListener.complete()
       sparkSession.sparkContext.removeSparkListener(readWriteBytesSparkListener)
 
       val resultWriterStartTime = System.currentTimeMillis()

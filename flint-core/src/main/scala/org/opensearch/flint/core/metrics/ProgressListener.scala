@@ -18,7 +18,6 @@ case class ProgressListener() extends FlintListener {
   private var numTasks: Long = 0
 
   // Then for each task, we want to use runtime information to compute the processing rate and estimate remaining bytes.
-  // We keep everything as doubles since it reduces the need for type casting.
   private var tasksComplete: Long = 0
   private var bytesProcessed: Long = 0
   private var elapsedSeconds: Double = 0.0
@@ -42,7 +41,7 @@ case class ProgressListener() extends FlintListener {
       .asInstanceOf[Double] / Math.max(1.0, this.tasksComplete)),
     this.bytesProcessed / Math.max(1.0, this.elapsedSeconds))
 
-  def finish(): Unit = {
+  def complete(): Unit = {
     // No-op
   }
 }
