@@ -38,9 +38,9 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
 
 /**
- * Flint Spark integration API entrypoint. This uses the given Spark session to provide an asynchronous, transactional
- * wrapping layer for working with OpenSearch indices. It also provides an interface to manage long-running index
- * management jobs.
+ * Flint Spark integration API entrypoint. This uses the given Spark session to provide an
+ * asynchronous, transactional wrapping layer for working with OpenSearch indices. It also
+ * provides an interface to manage long-running index management jobs.
  */
 class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport with Logging {
 

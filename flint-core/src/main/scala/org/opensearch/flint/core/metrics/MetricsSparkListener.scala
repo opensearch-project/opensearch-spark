@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.core.metrics
 
-import org.apache.spark.scheduler.{SparkListenerTaskEnd}
+import org.apache.spark.scheduler.SparkListenerTaskEnd
 
 /**
  * Collect and emit metrics by listening spark events

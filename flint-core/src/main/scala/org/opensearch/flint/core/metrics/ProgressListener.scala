@@ -7,13 +7,7 @@ package org.opensearch.flint.core.metrics
 
 import org.apache.spark.scheduler.{SparkListenerStageSubmitted, SparkListenerTaskEnd}
 
-case class Progress(
-    bytesCompleted: Long,
-    estimatedBytesTotal: Double,
-    bytesPerSecond: Double,
-) {
-
-}
+case class Progress(bytesCompleted: Long, estimatedBytesTotal: Double, bytesPerSecond: Double) {}
 
 /**
  * Collect and emit metrics by listening spark events
@@ -44,9 +38,9 @@ case class ProgressListener() extends FlintListener {
     this.bytesProcessed,
     // Lower-clamp divisors to avoid division by 0. In these cases it's fine if the results aren't accurate,
     // it should stabilize quickly as more tasks are completed.
-    this.numTasks * (this.bytesProcessed.asInstanceOf[Double] / Math.max(1.0, this.tasksComplete)),
-    this.bytesProcessed / Math.max(1.0, this.elapsedSeconds)
-  )
+    this.numTasks * (this.bytesProcessed
+      .asInstanceOf[Double] / Math.max(1.0, this.tasksComplete)),
+    this.bytesProcessed / Math.max(1.0, this.elapsedSeconds))
 
   def finish(): Unit = {
     // No-op

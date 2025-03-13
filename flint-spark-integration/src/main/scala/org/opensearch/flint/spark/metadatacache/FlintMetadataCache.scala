@@ -76,7 +76,6 @@ object FlintMetadataCache {
         case timestamp => Some(timestamp)
       }
     }
-
     FlintMetadataCache(
       metadataCacheVersion,
       refreshInterval,
