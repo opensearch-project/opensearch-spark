@@ -5,14 +5,12 @@
 
 package org.opensearch.flint.core.metrics
 
-import org.apache.spark.internal.Logging
-import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorMetricsUpdate, SparkListenerTaskEnd}
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.scheduler.{SparkListenerTaskEnd}
 
 /**
  * Collect and emit metrics by listening spark events
  */
-class MetricsSparkListener extends SparkListener with Logging {
+case class MetricsSparkListener() extends FlintListener {
   var bytesRead: Long = 0
   var recordsRead: Long = 0
   var bytesWritten: Long = 0
@@ -39,7 +37,7 @@ class MetricsSparkListener extends SparkListener with Logging {
       taskEnd.taskMetrics.jvmGCTime)
   }
 
-  def emitMetrics(): Unit = {
+  def finish(): Unit = {
     logInfo(s"Input: totalBytesRead=${bytesRead}, totalRecordsRead=${recordsRead}")
     logInfo(s"Output: totalBytesWritten=${bytesWritten}, totalRecordsWritten=${recordsWritten}")
     logInfo(s"totalJvmGcTime=${totalJvmGcTime}")
@@ -48,19 +46,5 @@ class MetricsSparkListener extends SparkListener with Logging {
     MetricsUtil.addHistoricGauge(MetricConstants.OUTPUT_TOTAL_BYTES_WRITTEN, bytesWritten)
     MetricsUtil.addHistoricGauge(MetricConstants.OUTPUT_TOTAL_RECORDS_WRITTEN, recordsWritten)
     MetricsUtil.addHistoricGauge(MetricConstants.TOTAL_JVM_GC_TIME_METRIC, totalJvmGcTime)
-  }
-}
-
-object MetricsSparkListener {
-  def withMetrics[T](spark: SparkSession, lambda: () => T): T = {
-    val listener = new MetricsSparkListener()
-    spark.sparkContext.addSparkListener(listener)
-
-    val result = lambda()
-
-    spark.sparkContext.removeSparkListener(listener)
-    listener.emitMetrics()
-
-    result
   }
 }
