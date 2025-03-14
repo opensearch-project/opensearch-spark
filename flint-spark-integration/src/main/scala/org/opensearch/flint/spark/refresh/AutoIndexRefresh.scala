@@ -6,12 +6,10 @@
 package org.opensearch.flint.spark.refresh
 
 import java.util.Collections
-
-import org.opensearch.flint.core.metrics.{MetricsSparkListener, WithSparkListeners}
+import org.opensearch.flint.core.metrics.{MetricsSparkListener, ProgressListener, WithSparkListeners}
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkIndexOptions, FlintSparkValidationHelper}
-import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, StreamingRefresh}
+import org.opensearch.flint.spark.FlintSparkIndex.{StreamingRefresh, quotedTableName}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{AUTO, RefreshMode}
-
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
 import org.apache.spark.sql.flint.config.FlintSparkConf
@@ -68,7 +66,9 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
       // Flint index has specialized logic and capability for incremental refresh
       case refresh: StreamingRefresh =>
         logInfo("Start refreshing index in streaming style")
-        val job = WithSparkListeners(spark, List(MetricsSparkListener())).run(() =>
+        val jobContext = WithSparkListeners(spark, List(MetricsSparkListener(), ProgressListener()))
+
+        val job = jobContext.run(() =>
           refresh
             .buildStream(spark)
             .writeStream
@@ -77,6 +77,7 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
             .options(flintSparkConf.properties)
             .addSinkOptions(options, flintSparkConf)
             .start(indexName))
+        val progress = jobContext.listeners(1).asInstanceOf[ProgressListener]
         Some(job.id.toString)
 
       // Otherwise, fall back to foreachBatch + batch refresh

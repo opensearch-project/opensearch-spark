@@ -7,10 +7,10 @@ package org.opensearch.flint.spark.refresh
 
 import org.opensearch.flint.spark.FlintSparkIndex
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.RefreshMode
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.flint.config.FlintSparkConf
+import org.opensearch.flint.core.metrics.Progress
 
 /**
  * Flint Spark index refresh that sync index data with source in style defined by concrete
@@ -49,6 +49,15 @@ trait FlintSparkIndexRefresh extends Logging {
    *   optional Spark job ID
    */
   def start(spark: SparkSession, flintSparkConf: FlintSparkConf): Option[String]
+
+  /**
+   * For refresh types supporting progress recording, return the progress.
+   *
+   * Either always or never set depending on the specific implementation. If the job hasn't started yet, the progress
+   * should be filled with zeroes, not None. This is necessary for the front-end to determine whether to render a
+   * progress bar at all.
+   */
+  def progress(): Option[Progress]
 }
 
 object FlintSparkIndexRefresh {
