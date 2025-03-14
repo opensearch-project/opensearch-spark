@@ -9,15 +9,17 @@ import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
+import org.opensearch.flint.core.metrics.Progress
 import org.opensearch.flint.spark.FlintSparkIndexOptions
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getSourceTablesFromMetadata, MV_INDEX_TYPE}
 import org.opensearch.flint.spark.scheduler.util.IntervalSchedulerParser
 
 /**
- * Flint metadata cache defines metadata required to store in read cache for frontend user to
- * access.
+ * Select fields that are exported as part of the mapping `_meta` object under `properties`.
+ * Useful for providing front-end features that need specific data without needing to go through
+ * the full async query system.
  */
-case class FlintMetadataCache(
+case class ExportedFlintMetadata(
     metadataCacheVersion: String,
     /** Refresh interval for Flint index with auto refresh. Unit: seconds */
     refreshInterval: Option[Int],
@@ -26,7 +28,9 @@ case class FlintMetadataCache(
     /** Source query for MV */
     sourceQuery: Option[String],
     /** Timestamp when Flint index is last refreshed. Unit: milliseconds */
-    lastRefreshTime: Option[Long]) {
+    lastRefreshTime: Option[Long],
+    /** Information on the current progress of the index job */
+    currentProgress: Option[Map[String, Double]]) {
 
   /**
    * Convert FlintMetadataCache to a map. Skips a field if its value is not defined.
@@ -47,11 +51,11 @@ case class FlintMetadataCache(
   }
 }
 
-object FlintMetadataCache {
+object ExportedFlintMetadata {
 
   val metadataCacheVersion = "1.0"
 
-  def apply(metadata: FlintMetadata): FlintMetadataCache = {
+  def apply(metadata: FlintMetadata): ExportedFlintMetadata = {
     val indexOptions = FlintSparkIndexOptions(
       metadata.options.asScala.mapValues(_.asInstanceOf[String]).toMap)
     val refreshInterval = if (indexOptions.autoRefresh()) {
@@ -76,11 +80,12 @@ object FlintMetadataCache {
         case timestamp => Some(timestamp)
       }
     }
-    FlintMetadataCache(
+    ExportedFlintMetadata(
       metadataCacheVersion,
       refreshInterval,
       sourceTables,
       sourceQuery,
-      lastRefreshTime)
+      lastRefreshTime,
+      None)
   }
 }

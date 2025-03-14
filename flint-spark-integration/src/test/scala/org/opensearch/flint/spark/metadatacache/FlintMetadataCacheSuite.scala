@@ -46,8 +46,8 @@ class FlintMetadataCacheSuite extends AnyFlatSpec with Matchers {
       .deserialize(content)
       .copy(latestLogEntry = Some(flintMetadataLogEntry))
 
-    val metadataCache = FlintMetadataCache(metadata)
-    metadataCache.metadataCacheVersion shouldBe FlintMetadataCache.metadataCacheVersion
+    val metadataCache = ExportedFlintMetadata(metadata)
+    metadataCache.metadataCacheVersion shouldBe ExportedFlintMetadata.metadataCacheVersion
     metadataCache.refreshInterval.get shouldBe 600
     metadataCache.sourceTables shouldBe Array("spark_catalog.default.test_table")
     metadataCache.lastRefreshTime.get shouldBe 1234567890123L
@@ -75,8 +75,8 @@ class FlintMetadataCacheSuite extends AnyFlatSpec with Matchers {
       .deserialize(content)
       .copy(latestLogEntry = Some(flintMetadataLogEntry))
 
-    val metadataCache = FlintMetadataCache(metadata)
-    metadataCache.metadataCacheVersion shouldBe FlintMetadataCache.metadataCacheVersion
+    val metadataCache = ExportedFlintMetadata(metadata)
+    metadataCache.metadataCacheVersion shouldBe ExportedFlintMetadata.metadataCacheVersion
     metadataCache.refreshInterval.get shouldBe 600
     metadataCache.sourceTables shouldBe Array("spark_catalog.default.test_table")
     metadataCache.lastRefreshTime.get shouldBe 1234567890123L
@@ -112,8 +112,8 @@ class FlintMetadataCacheSuite extends AnyFlatSpec with Matchers {
       .deserialize(content)
       .copy(latestLogEntry = Some(flintMetadataLogEntry))
 
-    val metadataCache = FlintMetadataCache(metadata)
-    metadataCache.metadataCacheVersion shouldBe FlintMetadataCache.metadataCacheVersion
+    val metadataCache = ExportedFlintMetadata(metadata)
+    metadataCache.metadataCacheVersion shouldBe ExportedFlintMetadata.metadataCacheVersion
     metadataCache.refreshInterval.get shouldBe 600
     metadataCache.sourceTables shouldBe Array(
       "spark_catalog.default.test_table",
@@ -144,8 +144,8 @@ class FlintMetadataCacheSuite extends AnyFlatSpec with Matchers {
       .deserialize(content)
       .copy(latestLogEntry = Some(flintMetadataLogEntry.copy(lastRefreshCompleteTime = 0L)))
 
-    val metadataCache = FlintMetadataCache(metadata)
-    metadataCache.metadataCacheVersion shouldBe FlintMetadataCache.metadataCacheVersion
+    val metadataCache = ExportedFlintMetadata(metadata)
+    metadataCache.metadataCacheVersion shouldBe ExportedFlintMetadata.metadataCacheVersion
     metadataCache.refreshInterval shouldBe empty
     metadataCache.sourceTables shouldBe Array("spark_catalog.default.test_table")
     metadataCache.sourceQuery shouldBe empty

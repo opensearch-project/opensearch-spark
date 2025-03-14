@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.spark.refresh
 
+import org.opensearch.flint.core.metrics.Progress
 import org.opensearch.flint.spark.FlintSparkIndex
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{FULL, RefreshMode}
 
@@ -47,4 +48,6 @@ class FullIndexRefresh(
       .save(indexName)
     None
   }
+
+  override def progress(): Option[Progress] = None
 }

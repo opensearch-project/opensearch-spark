@@ -7,13 +7,16 @@ package org.apache.spark.sql
 
 import java.util.concurrent.{ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
+
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.concurrent.duration.{Duration, MINUTES}
 import scala.util.{Failure, Success, Try}
+
 import org.opensearch.flint.common.model.FlintStatement
 import org.opensearch.flint.common.scheduler.model.LangType
 import org.opensearch.flint.core.metrics.{MetricConstants, MetricsSparkListener, MetricsUtil, ProgressListener}
 import org.opensearch.flint.spark.FlintSpark
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.util.ShuffleCleaner

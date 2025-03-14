@@ -556,11 +556,16 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
       .transientLog(latest => {
         val currentTime = System.currentTimeMillis()
         val updatedLatest = latest
-          .copy(state = REFRESHING, createTime = currentTime, lastRefreshStartTime = currentTime, progress = indexRefresh.progress())
+          .copy(state = REFRESHING, createTime = currentTime, lastRefreshStartTime = currentTime)
         flintMetadataCacheWriter
           .updateMetadataCache(
             indexName,
-            index.metadata.copy(latestLogEntry = Some(updatedLatest)))
+            index.metadata.copy(
+              latestLogEntry = Some(updatedLatest),
+              currentProgress = indexRefresh.progress() match {
+                case Some(p) => Some(p.asMap())
+                case None => None
+              }))
         updatedLatest
       })
       .finalLog(latest => {

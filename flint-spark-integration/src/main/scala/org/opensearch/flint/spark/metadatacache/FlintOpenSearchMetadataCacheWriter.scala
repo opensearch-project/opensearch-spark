@@ -21,7 +21,8 @@ import org.opensearch.flint.core.storage.OpenSearchClientUtils
 import org.apache.spark.internal.Logging
 
 /**
- * Writes {@link FlintMetadataCache} to index mappings `_meta` field for frontend user to access.
+ * Writes {@link ExportedFlintMetadata} to index mappings `_meta` field for frontend user to
+ * access.
  */
 class FlintOpenSearchMetadataCacheWriter(options: FlintOptions)
     extends FlintMetadataCacheWriter
@@ -34,7 +35,7 @@ class FlintOpenSearchMetadataCacheWriter(options: FlintOptions)
     try {
       client = OpenSearchClientUtils.createClient(options)
       val indexMapping = getIndexMapping(client, osIndexName)
-      val metadataCacheProperties = FlintMetadataCache(metadata).toMap.asJava
+      val metadataCacheProperties = ExportedFlintMetadata(metadata).toMap.asJava
       mergeMetadataCacheProperties(indexMapping, metadataCacheProperties)
       val serialized = buildJson(builder => {
         builder.field("_meta", indexMapping.get("_meta"))

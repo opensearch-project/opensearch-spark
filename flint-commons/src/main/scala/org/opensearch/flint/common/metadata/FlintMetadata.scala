@@ -41,7 +41,9 @@ case class FlintMetadata(
      */
     latestLogEntry: Option[FlintMetadataLogEntry] = None,
     /** Optional Flint index settings. TODO: move elsewhere? */
-    indexSettings: Option[String]) {
+    indexSettings: Option[String],
+    /** Information on the current progress of the index job */
+    currentProgress: Option[Map[String, Double]]) {
 
   require(version != null, "version is required")
   require(name != null, "name is required")
@@ -69,6 +71,7 @@ object FlintMetadata {
     private var latestId: Option[String] = None
     private var latestLogEntry: Option[FlintMetadataLogEntry] = None
     private var indexSettings: Option[String] = None
+    private var currentProgress: Option[Map[String, Double]] = None
 
     def version(version: FlintVersion): this.type = {
       this.version = version
@@ -131,6 +134,11 @@ object FlintMetadata {
       this
     }
 
+    def currentProgress(currentProgress: Map[String, Double]): this.type = {
+      this.currentProgress = Some(currentProgress)
+      this
+    }
+
     // Build method to create the FlintMetadata instance
     def build(): FlintMetadata = {
       FlintMetadata(
@@ -144,7 +152,8 @@ object FlintMetadata {
         schema = schema,
         indexSettings = indexSettings,
         latestId = latestId,
-        latestLogEntry = latestLogEntry)
+        latestLogEntry = latestLogEntry,
+        currentProgress = currentProgress)
     }
   }
 }

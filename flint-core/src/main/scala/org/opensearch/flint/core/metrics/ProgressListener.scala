@@ -7,7 +7,17 @@ package org.opensearch.flint.core.metrics
 
 import org.apache.spark.scheduler.{SparkListenerStageSubmitted, SparkListenerTaskEnd}
 
-case class Progress(bytesCompleted: Long, estimatedBytesTotal: Double, estimatedBytesPerSecond: Double) {}
+case class Progress(
+    bytesCompleted: Long,
+    estimatedBytesTotal: Double,
+    estimatedBytesPerSecond: Double) {
+  def asMap(): Map[String, Double] = {
+    Map(
+      ("bytes_read", bytesCompleted.asInstanceOf[Double]),
+      ("est_bytes_total", estimatedBytesTotal),
+      ("est_bytes_per_second", estimatedBytesPerSecond))
+  }
+}
 
 /**
  * Collect and emit metrics by listening spark events
