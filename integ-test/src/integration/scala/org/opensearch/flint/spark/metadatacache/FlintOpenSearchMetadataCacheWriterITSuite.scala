@@ -94,7 +94,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     properties should have size 3
     properties should contain allOf (Entry(
       "metadataCacheVersion",
-      FlintMetadataCache.metadataCacheVersion),
+      ExportedFlintMetadata.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime))
   }
 
@@ -208,7 +208,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     properties should have size 4
     properties should contain allOf (Entry(
       "metadataCacheVersion",
-      FlintMetadataCache.metadataCacheVersion),
+      ExportedFlintMetadata.metadataCacheVersion),
     Entry("refreshInterval", 600),
     Entry("lastRefreshTime", testLastRefreshCompleteTime))
   }
@@ -297,7 +297,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     properties should have size 4
     properties should contain allOf (Entry(
       "metadataCacheVersion",
-      FlintMetadataCache.metadataCacheVersion),
+      ExportedFlintMetadata.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime), Entry(
       "custom_in_properties",
       "test_custom"))
@@ -320,7 +320,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
         "checkpoint_location" -> "s3a://test/"),
       s"""
          | {
-         |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
+         |   "metadataCacheVersion": "${ExportedFlintMetadata.metadataCacheVersion}",
          |   "refreshInterval": 600,
          |   "sourceTables": ["$testTable"]
          | }
@@ -330,7 +330,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       Map.empty[String, String],
       s"""
          | {
-         |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
+         |   "metadataCacheVersion": "${ExportedFlintMetadata.metadataCacheVersion}",
          |   "sourceTables": ["$testTable"]
          | }
          |""".stripMargin),
@@ -339,7 +339,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       Map("incremental_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
       s"""
          | {
-         |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
+         |   "metadataCacheVersion": "${ExportedFlintMetadata.metadataCacheVersion}",
          |   "sourceTables": ["$testTable"]
          | }
          |""".stripMargin)).foreach { case (refreshMode, optionsMap, expectedJson) =>
@@ -397,7 +397,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
         val propertiesJson = compact(render(getPropertiesJValue(testFlintIndex)))
         propertiesJson should matchJson(s"""
             | {
-            |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
+            |   "metadataCacheVersion": "${ExportedFlintMetadata.metadataCacheVersion}",
             |   "refreshInterval": 600,
             |   "sourceTables": ["$testTable"]
             | }
