@@ -62,15 +62,10 @@ public interface LookupTransformer {
         for (Map.Entry<Field, Field> entry : node.getLookupMappingMap().entrySet()) {
             Expression lookupNamedExpression;
             Expression sourceNamedExpression;
-            if (entry.getKey().getField() == entry.getValue().getField()) {
-                Field lookupWithAlias = buildFieldWithLookupSubqueryAlias(node, entry.getKey());
-                Field sourceWithAlias = buildFieldWithSourceSubqueryAlias(node, entry.getValue());
-                lookupNamedExpression = expressionAnalyzer.visitField(lookupWithAlias, context);
-                sourceNamedExpression = expressionAnalyzer.visitField(sourceWithAlias, context);
-            } else {
-                lookupNamedExpression = expressionAnalyzer.visitField(entry.getKey(), context);
-                sourceNamedExpression = expressionAnalyzer.visitField(entry.getValue(), context);
-            }
+            Field lookupWithAlias = buildFieldWithLookupSubqueryAlias(node, entry.getKey());
+            Field sourceWithAlias = buildFieldWithSourceSubqueryAlias(node, entry.getValue());
+            lookupNamedExpression = expressionAnalyzer.visitField(lookupWithAlias, context);
+            sourceNamedExpression = expressionAnalyzer.visitField(sourceWithAlias, context);
 
             Expression equalTo = EqualTo$.MODULE$.apply(lookupNamedExpression, sourceNamedExpression);
             equiConditions.add(equalTo);
