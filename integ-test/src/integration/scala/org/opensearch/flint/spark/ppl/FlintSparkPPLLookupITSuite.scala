@@ -65,7 +65,9 @@ class FlintSparkPPLLookupITSuite
 
     val lookupProject =
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
-    val joinCondition = EqualTo(UnresolvedAttribute("__auto_generated_subquery_name_l.uid"), UnresolvedAttribute("__auto_generated_subquery_name_s.id"))
+    val joinCondition = EqualTo(
+      UnresolvedAttribute("__auto_generated_subquery_name_l.uid"),
+      UnresolvedAttribute("__auto_generated_subquery_name_s.id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val projectAfterJoin = Project(
       Seq(
@@ -98,7 +100,9 @@ class FlintSparkPPLLookupITSuite
 
     val lookupProject =
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
-    val joinCondition = EqualTo(UnresolvedAttribute("__auto_generated_subquery_name_l.uid"), UnresolvedAttribute("__auto_generated_subquery_name_s.id"))
+    val joinCondition = EqualTo(
+      UnresolvedAttribute("__auto_generated_subquery_name_l.uid"),
+      UnresolvedAttribute("__auto_generated_subquery_name_s.id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val coalesceExpr =
       Coalesce(
@@ -135,7 +139,9 @@ class FlintSparkPPLLookupITSuite
 
     val lookupProject =
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
-    val joinCondition = EqualTo(UnresolvedAttribute("__auto_generated_subquery_name_l.uid"), UnresolvedAttribute("__auto_generated_subquery_name_s.id"))
+    val joinCondition = EqualTo(
+      UnresolvedAttribute("__auto_generated_subquery_name_l.uid"),
+      UnresolvedAttribute("__auto_generated_subquery_name_s.id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val projectAfterJoin = Project(
       Seq(
@@ -167,7 +173,9 @@ class FlintSparkPPLLookupITSuite
 
     val lookupProject =
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
-    val joinCondition = EqualTo(UnresolvedAttribute("__auto_generated_subquery_name_l.uid"), UnresolvedAttribute("__auto_generated_subquery_name_s.id"))
+    val joinCondition = EqualTo(
+      UnresolvedAttribute("__auto_generated_subquery_name_l.uid"),
+      UnresolvedAttribute("__auto_generated_subquery_name_s.id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val coalesceExpr =
       Coalesce(
@@ -211,7 +219,9 @@ class FlintSparkPPLLookupITSuite
         lookupAlias)
     val joinCondition =
       And(
-        EqualTo(UnresolvedAttribute("__auto_generated_subquery_name_l.uID"), UnresolvedAttribute("__auto_generated_subquery_name_s.id")),
+        EqualTo(
+          UnresolvedAttribute("__auto_generated_subquery_name_l.uID"),
+          UnresolvedAttribute("__auto_generated_subquery_name_s.id")),
         EqualTo(
           UnresolvedAttribute("__auto_generated_subquery_name_l.name"),
           UnresolvedAttribute("__auto_generated_subquery_name_s.name")))
@@ -256,7 +266,9 @@ class FlintSparkPPLLookupITSuite
         lookupAlias)
     val joinCondition =
       And(
-        EqualTo(UnresolvedAttribute("__auto_generated_subquery_name_l.uid"), UnresolvedAttribute("__auto_generated_subquery_name_s.ID")),
+        EqualTo(
+          UnresolvedAttribute("__auto_generated_subquery_name_l.uid"),
+          UnresolvedAttribute("__auto_generated_subquery_name_s.ID")),
         EqualTo(
           UnresolvedAttribute("__auto_generated_subquery_name_l.name"),
           UnresolvedAttribute("__auto_generated_subquery_name_s.name")))
@@ -561,10 +573,7 @@ class FlintSparkPPLLookupITSuite
            | """.stripMargin)
     val frame =
       sql("source = s | LOOKUP l id as uid REPLACE name")
-    val expectedResults: Array[Row] = Array(
-      Row(4, "x"),
-      Row(5, "xx"),
-      Row(6, null))
+    val expectedResults: Array[Row] = Array(Row(4, "x"), Row(5, "xx"), Row(6, null))
     assertSameRows(expectedResults, frame)
   }
 }
