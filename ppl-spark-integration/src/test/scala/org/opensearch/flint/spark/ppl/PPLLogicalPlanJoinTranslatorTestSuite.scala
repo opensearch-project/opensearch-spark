@@ -6,6 +6,7 @@
 package org.opensearch.flint.spark.ppl
 
 import org.opensearch.flint.spark.ppl.PlaneUtils.plan
+import org.opensearch.sql.common.antlr.SyntaxCheckException
 import org.opensearch.sql.ppl.{CatalystPlanContext, CatalystQueryPlanVisitor}
 import org.scalatest.matchers.should.Matchers
 
@@ -13,7 +14,7 @@ import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Descending, EqualTo, GreaterThan, LessThan, Literal, Not, SortOrder}
 import org.apache.spark.sql.catalyst.plans.{Cross, FullOuter, Inner, LeftAnti, LeftOuter, LeftSemi, PlanTest, RightOuter}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, GlobalLimit, Join, JoinHint, LocalLimit, Project, Sort, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, GlobalLimit, Join, JoinHint, LocalLimit, Project, Sort, SubqueryAlias, Union}
 
 class PPLLogicalPlanJoinTranslatorTestSuite
     extends SparkFunSuite
@@ -903,6 +904,78 @@ class PPLLogicalPlanJoinTranslatorTestSuite
          | | fields `t1`.`name`, `t2`.`name`
          | """.stripMargin)
     val logicalPlan = planTransformer.visit(logPlan, new CatalystPlanContext)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("join syntax check: only allows two-tables join") {
+    val expectedMessage =
+      s"Join command only support two tables. But got [$testTable2, $testTable3]"
+    val thrown1 = intercept[SyntaxCheckException] {
+      planTransformer.visit(
+        plan(
+          pplParser,
+          s"""
+             | source = $testTable1
+             | | JOIN left = t1 right = t2 ON t1.name = t2.name $testTable2, $testTable3
+             | | fields t1.name, t2.name
+             | """.stripMargin),
+        new CatalystPlanContext)
+    }
+    assert(thrown1.getMessage === expectedMessage)
+
+    val thrown2 = intercept[SyntaxCheckException] {
+      planTransformer.visit(
+        plan(
+          pplParser,
+          s"""
+             | source = $testTable1
+             | | JOIN left = t1 right = t2 ON t1.name = t2.name $testTable2, $testTable3 as t2
+             | | fields t1.name, t2.name
+             | """.stripMargin),
+        new CatalystPlanContext)
+    }
+    assert(thrown2.getMessage === expectedMessage)
+  }
+
+  test("multiple tables in subsearch in right side should work") {
+    val logicalPlan = planTransformer.visit(
+      plan(
+        pplParser,
+        s"""
+           | source = $testTable1
+           | | JOIN ON name = col [ source = $testTable2, $testTable3]
+           | """.stripMargin),
+      new CatalystPlanContext)
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val table3 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test3"))
+    val join = Join(
+      table1,
+      Union(Seq(table2, table3), byName = true, allowMissingCol = true),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("name"), UnresolvedAttribute("col"))),
+      JoinHint.NONE)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), join)
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+
+    val logicalPlan2 = planTransformer.visit(
+      plan(
+        pplParser,
+        s"""
+           | source = $testTable1 as t1
+           | | JOIN ON name = col [ source = $testTable2, $testTable3] as t2
+           | """.stripMargin),
+      new CatalystPlanContext)
+    val join2 = Join(
+      SubqueryAlias("t1", table1),
+      Union(
+        Seq(SubqueryAlias("t2", table2), SubqueryAlias("t2", table3)),
+        byName = true,
+        allowMissingCol = true),
+      Inner,
+      Some(EqualTo(UnresolvedAttribute("name"), UnresolvedAttribute("col"))),
+      JoinHint.NONE)
+    val expectedPlan2 = Project(Seq(UnresolvedStar(None)), join2)
     comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 }
