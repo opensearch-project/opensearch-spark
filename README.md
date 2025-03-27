@@ -34,6 +34,7 @@ Version compatibility:
 | 0.5.0         | 11+         | 3.5.1         | 2.12.14       | 2.17+      |
 | 0.6.0         | 11+         | 3.5.1         | 2.12.14       | 2.17+      |
 | 0.7.0         | 11+         | 3.5.1         | 2.12.14       | 2.17+      |
+| 0.8.0         | 11+         | 3.5.1         | 2.12.14       | 2.17+      |
 
 ## Flint Extension Usage 
 
@@ -65,7 +66,7 @@ sbt clean standaloneCosmetic/publishM2
 ```
 then add org.opensearch:opensearch-spark-standalone_2.12 when run spark application, for example,
 ```
-bin/spark-shell --packages "org.opensearch:opensearch-spark-standalone_2.12:0.7.0-SNAPSHOT" \
+bin/spark-shell --packages "org.opensearch:opensearch-spark-standalone_2.12:0.8.0-SNAPSHOT" \
                 --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintSparkExtensions" \
                 --conf "spark.sql.catalog.dev=org.apache.spark.opensearch.catalog.OpenSearchCatalog"
 ```
@@ -81,7 +82,7 @@ sbt clean sparkPPLCosmetic/publishM2
 Then add org.opensearch:opensearch-spark-ppl_2.12 when run spark application, for example,
 
 ```
-bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.7.0-SNAPSHOT" \
+bin/spark-shell --packages "org.opensearch:opensearch-spark-ppl_2.12:0.8.0-SNAPSHOT" \
                 --conf "spark.sql.extensions=org.opensearch.flint.spark.FlintPPLSparkExtensions" \
                 --conf "spark.sql.catalog.dev=org.apache.spark.opensearch.catalog.OpenSearchCatalog"
 
