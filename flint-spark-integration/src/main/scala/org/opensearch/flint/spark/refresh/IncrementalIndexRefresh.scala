@@ -5,6 +5,7 @@
 
 package org.opensearch.flint.spark.refresh
 
+import org.opensearch.flint.core.metrics.Progress
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkValidationHelper}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{INCREMENTAL, RefreshMode}
 import org.opensearch.flint.spark.refresh.util.RefreshMetricsAspect
@@ -62,4 +63,6 @@ class IncrementalIndexRefresh(val indexName: String, index: FlintSparkIndex)
       None
     }
   }
+
+  override def progress(): Option[Progress] = None
 }

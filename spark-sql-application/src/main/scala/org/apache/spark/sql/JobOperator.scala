@@ -14,7 +14,7 @@ import scala.util.{Failure, Success, Try}
 
 import org.opensearch.flint.common.model.FlintStatement
 import org.opensearch.flint.common.scheduler.model.LangType
-import org.opensearch.flint.core.metrics.{MetricConstants, MetricsSparkListener, MetricsUtil}
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsSparkListener, MetricsUtil, ProgressListener}
 import org.opensearch.flint.spark.FlintSpark
 
 import org.apache.spark.internal.Logging
@@ -81,7 +81,7 @@ case class JobOperator(
     val statementExecutionManager =
       instantiateStatementExecutionManager(commandContext, resultIndex, osClient)
 
-    val readWriteBytesSparkListener = new MetricsSparkListener()
+    val readWriteBytesSparkListener = MetricsSparkListener()
     sparkSession.sparkContext.addSparkListener(readWriteBytesSparkListener)
 
     try {
@@ -139,7 +139,7 @@ case class JobOperator(
         incrementCounter(MetricConstants.QUERY_EXECUTION_FAILED_METRIC)
     } finally {
       emitTimerMetric(MetricConstants.QUERY_EXECUTION_TIME_METRIC, startTime)
-      readWriteBytesSparkListener.emitMetrics()
+      readWriteBytesSparkListener.complete()
       sparkSession.sparkContext.removeSparkListener(readWriteBytesSparkListener)
 
       val resultWriterStartTime = System.currentTimeMillis()

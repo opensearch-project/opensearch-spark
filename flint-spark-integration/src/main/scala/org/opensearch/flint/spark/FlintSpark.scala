@@ -38,7 +38,9 @@ import org.apache.spark.sql.flint.config.FlintSparkConf
 import org.apache.spark.sql.flint.config.FlintSparkConf.{DOC_ID_COLUMN_NAME, IGNORE_DOC_ID_COLUMN}
 
 /**
- * Flint Spark integration API entrypoint.
+ * Flint Spark integration API entrypoint. This uses the given Spark session to provide an
+ * asynchronous, transactional wrapping layer for working with OpenSearch indices. It also
+ * provides an interface to manage long-running index management jobs.
  */
 class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport with Logging {
 
@@ -558,7 +560,12 @@ class FlintSpark(val spark: SparkSession) extends FlintSparkTransactionSupport w
         flintMetadataCacheWriter
           .updateMetadataCache(
             indexName,
-            index.metadata.copy(latestLogEntry = Some(updatedLatest)))
+            index.metadata.copy(
+              latestLogEntry = Some(updatedLatest),
+              currentProgress = indexRefresh.progress() match {
+                case Some(p) => Some(p.asMap())
+                case None => None
+              }))
         updatedLatest
       })
       .finalLog(latest => {
