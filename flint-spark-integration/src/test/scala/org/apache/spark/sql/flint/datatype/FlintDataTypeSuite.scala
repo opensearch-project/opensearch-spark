@@ -41,6 +41,9 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
                           |    "floatField": {
                           |      "type": "float"
                           |    },
+                          |    "halfFloatField": {
+                          |      "type": "half_float"
+                          |    },
                           |    "textField": {
                           |      "type": "text"
                           |    },
@@ -59,6 +62,11 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
         StructField("byteField", ByteType, true) ::
         StructField("doubleField", DoubleType, true) ::
         StructField("floatField", FloatType, true) ::
+        StructField(
+          "halfFloatField",
+          FloatType,
+          true,
+          new MetadataBuilder().putString("osType", "half_float").build()) ::
         StructField(
           "textField",
           StringType,
@@ -360,5 +368,4 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
     aliasField.metadata.contains("aliasPath") shouldBe true
     aliasField.metadata.getString("aliasPath") shouldEqual "distance"
   }
-
 }
