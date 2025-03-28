@@ -115,6 +115,11 @@ object FlintDataType {
       // binary types
       case JString("binary") => BinaryType
 
+      // ip type
+      case JString("ip") =>
+        metadataBuilder.putString("osType", "ip")
+        StringType
+
       // not supported
       case unknown => throw new IllegalStateException(s"unsupported data type: $unknown")
     }
