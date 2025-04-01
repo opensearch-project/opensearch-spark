@@ -7,7 +7,7 @@
 lexer grammar OpenSearchPPLLexer;
 
 channels { WHITESPACE, ERRORCHANNEL }
-
+options { caseInsensitive = true; }
 
 // COMMAND KEYWORDS
 SEARCH:                             'SEARCH';
@@ -502,8 +502,8 @@ INTEGER_LITERAL:                    DEC_DIGIT+;
 DECIMAL_LITERAL:                    (DEC_DIGIT+)? '.' DEC_DIGIT+;
 
 fragment DATE_SUFFIX:               ([\-.][*0-9]+)+;
-fragment ID_LITERAL:                [@*a-zA-Z]+?[*a-zA-Z0-9_\-]*;
-fragment CLUSTER_PREFIX_LITERAL:    [*a-zA-Z]+?[*a-zA-Z_\-0-9]* COLON;
+fragment ID_LITERAL:                [@*A-Z]+?[*A-Z0-9_\-]*;
+fragment CLUSTER_PREFIX_LITERAL:    [*A-Z]+?[*A-Z_\-0-9]* COLON;
 ID_DATE_SUFFIX:                     CLUSTER_PREFIX_LITERAL? ID_LITERAL DATE_SUFFIX;
 DQUOTA_STRING:                      '"' ( '\\'. | '""' | ~('"'| '\\') )* '"';
 SQUOTA_STRING:                      '\'' ('\\'. | '\'\'' | ~('\'' | '\\'))* '\'';
