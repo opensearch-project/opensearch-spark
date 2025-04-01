@@ -1,0 +1,25 @@
+#!/usr/bin/sh
+
+reponame=emr7.2_sawiddis
+region=us-west-2
+account_id=905418019649
+
+cd ~/workplace/opensearch-spark/scripts
+
+aws ecr get-login-password --region $region | docker login --username AWS --password-stdin $account_id.dkr.ecr.$region.amazonaws.com
+docker build -t $reponame .
+docker tag $reponame $account_id.dkr.ecr.$region.amazonaws.com/$reponame
+docker push $account_id.dkr.ecr.$region.amazonaws.com/$reponame
+digest=$(aws ecr describe-images --repository-name $reponame   --image-ids imageTag=latest --region "${region}" | jq -r '.imageDetails[0].imageDigest')
+
+application_id=$(aws emr-serverless list-applications --region $region | jq -r '.applications[] | select(.name == "flint-emr-app") | .id')
+#application_id=00fhcjell3cor90l
+echo "Using application: ${application_id}"
+
+aws emr-serverless stop-application --region $region --application-id "$application_id"
+imageUri="${account_id}.dkr.ecr.${region}.amazonaws.com/${reponame}@${digest}"
+echo "Image URI: $imageUri"
+sleep 3
+AWS_PAGER="" aws emr-serverless update-application --application-id "${application_id}" --image-configuration "{\"imageUri\": \"${imageUri}\"}" --region ${region}
+sleep 3
+aws emr-serverless start-application --region $region --application-id "$application_id"
