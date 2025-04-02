@@ -1115,7 +1115,11 @@ keywordsCanBeId
    | comparisonOperator
    | explainMode
    | correlationType
+   | geoIpProperty
    // commands assist keywords
+   | GEOIP
+   | OVERRIDE
+   | ARROW
    | IN
    | SOURCE
    | INDEX
