@@ -18,7 +18,7 @@ import org.opensearch.flint.common.model.{FlintStatement, InteractiveSession, Se
 import org.opensearch.flint.common.scheduler.model.LangType
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.logging.CustomLogging
-import org.opensearch.flint.core.metrics.{MetricConstants, MetricsSparkListener, MetricsUtil}
+import org.opensearch.flint.core.metrics.{MetricConstants, MetricsSparkListener, MetricsUtil, ProgressListener, WithSparkListeners}
 import org.opensearch.flint.core.metrics.MetricsUtil.{getTimerContext, incrementCounter, registerGauge, stopTimer}
 
 import org.apache.spark.SparkConf
@@ -558,16 +558,14 @@ object FlintREPL extends Logging with FlintJobExecutor {
             val statementTimerContext = getTimerContext(
               MetricConstants.STATEMENT_PROCESSING_TIME_METRIC)
             val (dataToWrite, returnedVerificationResult) =
-              MetricsSparkListener.withMetrics(
-                spark,
-                () => {
-                  processStatementOnVerification(
-                    statementExecutionManager,
-                    queryResultWriter,
-                    flintStatement,
-                    state,
-                    context)
-                })
+              WithSparkListeners(spark, List(MetricsSparkListener())).run(() => {
+                processStatementOnVerification(
+                  statementExecutionManager,
+                  queryResultWriter,
+                  flintStatement,
+                  state,
+                  context)
+              })
 
             verificationResult = returnedVerificationResult
             finalizeCommand(
