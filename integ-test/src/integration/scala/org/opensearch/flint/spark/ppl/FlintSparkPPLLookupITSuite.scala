@@ -23,11 +23,14 @@ class FlintSparkPPLLookupITSuite
   /** Test table and index name */
   private val sourceTable = "spark_catalog.default.flint_ppl_test1"
   private val lookupTable = "spark_catalog.default.flint_ppl_test2"
+  private val sourceTable2 = "spark_catalog.default.flint_ppl_test3"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
     createPeopleTable(sourceTable)
     createWorkInformationTable(lookupTable)
+    createPeopleTable(sourceTable2)
+
   }
 
   protected override def afterEach(): Unit = {
@@ -62,7 +65,9 @@ class FlintSparkPPLLookupITSuite
 
     val lookupProject =
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
-    val joinCondition = EqualTo(UnresolvedAttribute("uid"), UnresolvedAttribute("id"))
+    val joinCondition = EqualTo(
+      UnresolvedAttribute("__auto_generated_subquery_name_l.uid"),
+      UnresolvedAttribute("__auto_generated_subquery_name_s.id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val projectAfterJoin = Project(
       Seq(
@@ -95,7 +100,9 @@ class FlintSparkPPLLookupITSuite
 
     val lookupProject =
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
-    val joinCondition = EqualTo(UnresolvedAttribute("uid"), UnresolvedAttribute("id"))
+    val joinCondition = EqualTo(
+      UnresolvedAttribute("__auto_generated_subquery_name_l.uid"),
+      UnresolvedAttribute("__auto_generated_subquery_name_s.id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val coalesceExpr =
       Coalesce(
@@ -132,7 +139,9 @@ class FlintSparkPPLLookupITSuite
 
     val lookupProject =
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
-    val joinCondition = EqualTo(UnresolvedAttribute("uid"), UnresolvedAttribute("id"))
+    val joinCondition = EqualTo(
+      UnresolvedAttribute("__auto_generated_subquery_name_l.uid"),
+      UnresolvedAttribute("__auto_generated_subquery_name_s.id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val projectAfterJoin = Project(
       Seq(
@@ -164,7 +173,9 @@ class FlintSparkPPLLookupITSuite
 
     val lookupProject =
       Project(Seq(UnresolvedAttribute("department"), UnresolvedAttribute("uid")), lookupAlias)
-    val joinCondition = EqualTo(UnresolvedAttribute("uid"), UnresolvedAttribute("id"))
+    val joinCondition = EqualTo(
+      UnresolvedAttribute("__auto_generated_subquery_name_l.uid"),
+      UnresolvedAttribute("__auto_generated_subquery_name_s.id"))
     val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
     val coalesceExpr =
       Coalesce(
@@ -208,7 +219,9 @@ class FlintSparkPPLLookupITSuite
         lookupAlias)
     val joinCondition =
       And(
-        EqualTo(UnresolvedAttribute("uID"), UnresolvedAttribute("id")),
+        EqualTo(
+          UnresolvedAttribute("__auto_generated_subquery_name_l.uID"),
+          UnresolvedAttribute("__auto_generated_subquery_name_s.id")),
         EqualTo(
           UnresolvedAttribute("__auto_generated_subquery_name_l.name"),
           UnresolvedAttribute("__auto_generated_subquery_name_s.name")))
@@ -253,7 +266,9 @@ class FlintSparkPPLLookupITSuite
         lookupAlias)
     val joinCondition =
       And(
-        EqualTo(UnresolvedAttribute("uid"), UnresolvedAttribute("ID")),
+        EqualTo(
+          UnresolvedAttribute("__auto_generated_subquery_name_l.uid"),
+          UnresolvedAttribute("__auto_generated_subquery_name_s.ID")),
         EqualTo(
           UnresolvedAttribute("__auto_generated_subquery_name_l.name"),
           UnresolvedAttribute("__auto_generated_subquery_name_s.name")))
@@ -518,5 +533,47 @@ class FlintSparkPPLLookupITSuite
     assert(
       ex.getMessage.contains(
         "A column or function parameter with name `new_col` cannot be resolved"))
+  }
+
+  test("test LOOKUP lookupTable name as id shouldn't throw exception") {
+    sql(s"""
+           | DROP TABLE IF EXISTS s
+           | """.stripMargin)
+    sql(s"""
+           | DROP TABLE IF EXISTS l
+           | """.stripMargin)
+    sql(s"""
+           | CREATE TABLE s
+           | (
+           |   id INT,
+           |   uid INT,
+           |   name STRING
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+    sql(s"""
+           | INSERT INTO s
+           | VALUES (1, 4, 'b'),
+           |        (2, 5, 'bb'),
+           |        (3, 6, 'ccc')
+           | """.stripMargin)
+
+    sql(s"""
+           | CREATE TABLE l
+           | (
+           |   id INT,
+           |   name STRING
+           | )
+           | USING $tableType $tableOptions
+           |""".stripMargin)
+    sql(s"""
+           | INSERT INTO l
+           | VALUES (4, 'x'),
+           |        (5, 'xx')
+           | """.stripMargin)
+    val frame =
+      sql("source = s | LOOKUP l id as uid REPLACE name")
+    val expectedResults: Array[Row] = Array(Row(4, "x"), Row(5, "xx"), Row(6, null))
+    assertSameRows(expectedResults, frame)
   }
 }

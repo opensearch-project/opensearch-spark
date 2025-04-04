@@ -10,6 +10,7 @@ import com.google.common.collect.ImmutableMap;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParser;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParser.FillNullWithFieldVariousValuesContext;
 import org.opensearch.flint.spark.ppl.OpenSearchPPLParser.FillNullWithTheSameValueContext;
@@ -170,7 +171,21 @@ public class AstBuilder extends OpenSearchPPLParserBaseVisitor<UnresolvedPlan> {
     if (ctx.sideAlias().rightAlias != null) {
       rightAlias = Optional.of(internalVisitExpression(ctx.sideAlias().rightAlias).toString());
     }
-
+    // "JOIN on id = uid table1,table2" are not allowed
+    // "JOIN on id = uid table1,table2 as t2" are not allowed
+    // "JOIN on id = uid [ source = table1,table2 ]" are allowed
+    if (ctx.tableOrSubqueryClause().subSearch() == null
+            && ctx.tableOrSubqueryClause().tableSourceClause().tableSource().size() > 1) {
+      UnresolvedPlan plan = visit(ctx.tableOrSubqueryClause());
+      Relation relation = null;
+      if (plan instanceof Relation) {
+        relation = (Relation) plan;
+      } else if (plan instanceof SubqueryAlias) {
+        relation = (Relation)((SubqueryAlias) plan).getChild().get(0);
+      }
+      throw new SyntaxCheckException("Join command only support two tables."
+        + (relation == null ? "" : " But got " + relation.getQualifiedNames()));
+    }
     UnresolvedPlan rightRelation = visit(ctx.tableOrSubqueryClause());
     // Add a SubqueryAlias to the right plan when the right alias is present and no duplicated alias existing in right.
     UnresolvedPlan right;

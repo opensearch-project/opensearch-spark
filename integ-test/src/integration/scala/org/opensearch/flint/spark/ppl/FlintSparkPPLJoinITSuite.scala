@@ -9,7 +9,7 @@ import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.expressions.{Alias, And, Ascending, Divide, EqualTo, Floor, GreaterThan, LessThan, Literal, Multiply, Or, SortOrder}
 import org.apache.spark.sql.catalyst.plans.{Cross, Inner, LeftAnti, LeftOuter, LeftSemi, RightOuter}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, GlobalLimit, Join, JoinHint, LocalLimit, LogicalPlan, Project, Sort, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, GlobalLimit, Join, JoinHint, LocalLimit, LogicalPlan, Project, Sort, SubqueryAlias, Union}
 import org.apache.spark.sql.streaming.StreamTest
 
 class FlintSparkPPLJoinITSuite
@@ -1190,5 +1190,45 @@ class FlintSparkPPLJoinITSuite
          | | fields tt.name
          | """.stripMargin))
     assert(ex.getMessage.contains("`tt`.`name` cannot be resolved"))
+  }
+
+  test("test join with union") {
+    val frame = sql(s"""
+                       | source = $testTable1
+                       | | inner join left=a, right=b
+                       |     ON a.name = b.name
+                       |     [ source = $testTable2, $testTable2 ]
+                       | | stats count(salary) by span(age, 10) as age_span
+                       | """.stripMargin)
+    val expectedResults: Array[Row] =
+      Array(Row(2, 70), Row(4, 20), Row(4, 40), Row(2, 30))
+    assertSameRows(expectedResults, frame)
+
+    val table1 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test1"))
+    val table2 = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test2"))
+    val plan1 = SubqueryAlias("a", table1)
+    val plan2 = Union(
+      Seq(SubqueryAlias("b", table2), SubqueryAlias("b", table2)),
+      byName = true,
+      allowMissingCol = true)
+
+    val joinCondition = EqualTo(UnresolvedAttribute("a.name"), UnresolvedAttribute("b.name"))
+    val joinPlan = Join(plan1, plan2, Inner, Some(joinCondition), JoinHint.NONE)
+    val salaryField = UnresolvedAttribute("salary")
+    val star = Seq(UnresolvedStar(None))
+    val aggregateExpressions =
+      Alias(
+        UnresolvedFunction(Seq("COUNT"), Seq(salaryField), isDistinct = false),
+        "count(salary)")()
+    val span = Alias(
+      Multiply(Floor(Divide(UnresolvedAttribute("age"), Literal(10))), Literal(10)),
+      "age_span")()
+    val aggregatePlan =
+      Aggregate(Seq(span), Seq(aggregateExpressions, span), joinPlan)
+
+    val expectedPlan = Project(star, aggregatePlan)
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
   }
 }
