@@ -7,7 +7,7 @@
 lexer grammar OpenSearchPPLLexer;
 
 channels { WHITESPACE, ERRORCHANNEL }
-
+options { caseInsensitive = true; }
 
 // COMMAND KEYWORDS
 SEARCH:                             'SEARCH';
