@@ -6,8 +6,9 @@
 package org.apache.spark.opensearch.table
 
 import org.opensearch.flint.spark.ppl.FlintPPLSuite
+import org.opensearch.flint.spark.udt.{IPAddress, IPFunctions}
 
-import org.apache.spark.sql.{DataFrame, ExplainSuiteHelper, Row}
+import org.apache.spark.sql.{DataFrame, ExplainSuiteHelper, Row, SparkSession}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 
 /**
@@ -136,5 +137,59 @@ class OpenSearchTableQueryITSuite
       checkPushedInfo(df, "halfFloatField IS NOT NULL, halfFloatField < 2.0")
       checkAnswer(df, Seq(Row(1, 1.1f, 1.2f)))
     }
+  }
+
+  test("Query index with ip data type") {
+    val index1 = "t0001"
+    val tableName = s"""$catalogName.default.$index1"""
+    val spark = SparkSession.builder().getOrCreate()
+    IPFunctions.registerFunctions(spark)
+    val clientIp: Array[String] = Array("192.168.0.10", "192.168.0.11");
+    val serverIp = "100.10.12.123";
+
+    withIndexName(index1) {
+      indexWithIp(index1)
+
+      testQuery(
+        s"SELECT client, server FROM $tableName",
+        Seq(
+          Row(IPAddress(clientIp(0)), IPAddress(serverIp)),
+          Row(IPAddress(clientIp(1)), IPAddress(serverIp))))
+
+      testQuery(
+        s"SELECT client, server FROM $tableName WHERE client = string_to_ip('192.168.0.10')",
+        Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
+
+      testQuery(
+        s"SELECT client, server FROM $tableName WHERE ip_to_string(client) = '192.168.0.10'",
+        Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
+
+      testQuery(
+        s"SELECT client, server FROM $tableName WHERE ip_string_match(client, '192.168.0.10')",
+        Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
+
+      testQuery(
+        s"SELECT client, server FROM $tableName WHERE string_ip_match('192.168.0.10', client)",
+        Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
+
+      // Equality check is done by string equality (limitation of Spark UDT), and it won't match
+      testQuery(
+        s"SELECT client, server FROM $tableName WHERE client = string_to_ip('::ffff:192.168.0.10')",
+        Seq())
+
+      // Need to use ip_string_match/string_ip_match to match different notation
+      testQuery(
+        s"SELECT client, server FROM $tableName WHERE ip_string_match(client, '::ffff:192.168.0.10')",
+        Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
+    }
+  }
+
+  def testQuery(query: String, expected: Row): Unit = testQuery(query, Seq(expected))
+
+  def testQuery(query: String, expected: Seq[Row]): Unit = {
+    spark.sql(query).explain(true)
+    val df = spark.sql(query)
+    df.printSchema
+    checkAnswer(df, expected)
   }
 }
