@@ -72,6 +72,7 @@ The following table defines the data type mapping between OpenSearch index field
 | text                     | StringType(meta(osType)=text)     |
 | object                   | StructType                        |
 | alias                    | Inherits referenced field type    |
+| ip                       | IPAddress(UDT)                    |
 
 * OpenSearch data type date is mapped to Spark data type based on the format:
     * Map to DateType if format = strict_date, (we also support format = date, may change in future)
