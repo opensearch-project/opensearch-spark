@@ -32,7 +32,7 @@ class IPAddressTest extends SparkFunSuite {
     assert(ipv6_1.compare(ipv6_2) < 0)
   }
 
-  test("Different IPv6 addresses comparison") {
+  test("Same IPv6 addresses comparison") {
     val ipv6_1 = IPAddress("::1")
     val ipv6_2 = IPAddress("::1")
     assert(ipv6_1 == ipv6_2)
