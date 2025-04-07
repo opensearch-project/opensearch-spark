@@ -7,8 +7,10 @@ package org.opensearch.flint.spark
 
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.sql.FlintSparkSqlParser
+import org.opensearch.flint.spark.udt.{IPAddress, IPAddressUDT}
 
 import org.apache.spark.sql.SparkSessionExtensions
+import org.apache.spark.sql.types.UDTRegistration
 
 /**
  * Flint Spark extension entrypoint.
@@ -25,5 +27,8 @@ class FlintSparkExtensions extends (SparkSessionExtensions => Unit) {
     extensions.injectOptimizerRule { spark =>
       new FlintSparkOptimizer(spark)
     }
+
+    // Register UDTs
+    UDTRegistration.register(classOf[IPAddress].getName, classOf[IPAddressUDT].getName)
   }
 }
