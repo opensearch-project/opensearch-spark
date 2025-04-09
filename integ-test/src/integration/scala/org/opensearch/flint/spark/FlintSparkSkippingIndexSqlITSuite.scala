@@ -209,6 +209,23 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
 
+  test("create skipping index with index mappings") {
+    sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | ( year PARTITION )
+           | WITH (
+           |   index_mappings = '{ "_source": { "enabled": false } }',
+           | )
+           |""".stripMargin)
+
+    // Check if the _source in index mappings option is set to OS index mappings
+    val flintIndexMetadataService =
+      new FlintOpenSearchIndexMetadataService(new FlintOptions(openSearchOptions.asJava))
+
+    val mappingsSourceEnabled = flintIndexMetadataService.getIndexMetadata(testIndex).indexMappingsSourceEnabled
+    mappingsSourceEnabled shouldBe false
+  }
+
   Seq(
     "struct_col.field1.subfield VALUE_SET, struct_col.field2 MIN_MAX",
     "`struct_col.field1.subfield` VALUE_SET, `struct_col.field2` MIN_MAX", // ensure previous hack still works

@@ -144,6 +144,22 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
   }
 
+  test("create covering index with index mappings") {
+    sql(s"""
+           | CREATE INDEX $testIndex ON $testTable ( name )
+           | WITH (
+           |   index_mappings = '{ "_source": { "enabled": false } }',
+           | )
+           |""".stripMargin)
+
+    // Check if the _source in index mappings option is set to OS index mappings
+    val flintIndexMetadataService =
+      new FlintOpenSearchIndexMetadataService(new FlintOptions(openSearchOptions.asJava))
+
+    val mappingsSourceEnabled = flintIndexMetadataService.getIndexMetadata(testFlintIndex).indexMappingsSourceEnabled
+    mappingsSourceEnabled shouldBe false
+  }
+
   test("create covering index with invalid option") {
     the[IllegalArgumentException] thrownBy
       sql(s"""
