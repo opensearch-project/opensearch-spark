@@ -33,10 +33,8 @@ public class HttpStatusCodeResultPredicate<T> implements CheckedPredicate<T> {
   @Override
   public boolean test(T result) throws Throwable {
     int statusCode = ((HttpResponse) result).getStatusLine().getStatusCode();
-    LOG.info("Checking if status code is retryable: " + statusCode);
-
     boolean isRetryable = retryableStatusCodes.contains(statusCode);
-    LOG.info("Status code " + statusCode + " check result: " + isRetryable);
+    LOG.info(statusCode + (isRetryable ? " is " : " is not ") + "retryable");
     return isRetryable;
   }
 }
