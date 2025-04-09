@@ -134,7 +134,10 @@ object FlintOpenSearchIndexMetadataService {
             optionalObjectField(builder, "properties", metadata.properties)
           }
         }
-
+        // add _source field
+        objectField(builder, "_source") {
+          builder.field("enabled", metadata.indexMappingsSourceEnabled)
+        }
         // Add properties (schema) field
         builder.field("properties", metadata.schema)
       })
@@ -191,6 +194,14 @@ object FlintOpenSearchIndexMetadataService {
                   }
                 }
               }
+            case "_source" =>
+              parseObjectField(parser) { (parser, innerFieldName) =>
+              {
+                innerFieldName match {
+                  case "enabled" => builder.indexMappingsSourceEnabled(parser.booleanValue())
+                  case _ => // Handle other fields as needed
+                }
+              }}
             case "properties" =>
               builder.schema(parser.map())
             case _ => // Ignore other fields, for instance, dynamic.

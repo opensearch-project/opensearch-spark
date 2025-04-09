@@ -211,7 +211,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
              | CREATE MATERIALIZED VIEW $testMvName
              | AS $testQuery
              | WITH (
-             |   index_settings = '{"number_of_shards": 3, "number_of_replicas": 2}'
+             |   index_settings = '{"number_of_shards": 4, "number_of_replicas": 3}'
              | )
              |""".stripMargin)
 
@@ -222,8 +222,25 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     implicit val formats: Formats = Serialization.formats(NoTypeHints)
     val settings =
       parse(flintIndexMetadataService.getIndexMetadata(testFlintIndex).indexSettings.get)
-    (settings \ "index.number_of_shards").extract[String] shouldBe "3"
-    (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
+    (settings \ "index.number_of_shards").extract[String] shouldBe "4"
+    (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
+  }
+
+  test("create materialized view with index mappings") {
+    sql(s"""
+           | CREATE MATERIALIZED VIEW $testMvName
+           | AS $testQuery
+           | WITH (
+           |   index_mappings = '{ "_source": { "enabled": false } }',
+           | )
+           |""".stripMargin)
+
+    // Check if the _source in index mappings option is set to OS index mappings
+    val flintIndexMetadataService =
+      new FlintOpenSearchIndexMetadataService(new FlintOptions(openSearchOptions.asJava))
+
+    val mappingsSourceEnabled = flintIndexMetadataService.getIndexMetadata(testFlintIndex).indexMappingsSourceEnabled
+    mappingsSourceEnabled shouldBe false
   }
 
   test("create materialized view with full refresh") {
