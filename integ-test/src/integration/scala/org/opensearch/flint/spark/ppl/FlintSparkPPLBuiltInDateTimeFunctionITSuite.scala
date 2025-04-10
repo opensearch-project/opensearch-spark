@@ -247,6 +247,12 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
                         | """.stripMargin)
     assertSameRows(Seq(Row(Date.valueOf("2022-08-26"))), frame4)
 
+    val frame5 = sql(s"""
+                        | source = $testPartitionedStateCountryTable | eval `'2020-08-26' + 2q` = DATE_ADD(DATE('2020-08-26'), INTERVAL 2 QUARTER)
+                        | | fields `'2020-08-26' + 2q` | head 1
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(Date.valueOf("2021-02-26"))), frame5)
+
     val ex = intercept[AnalysisException](sql(s"""
                                                  | source = $testPartitionedStateCountryTable | eval `'2020-08-26 01:01:01' + 2h` = DATE_ADD(TIMESTAMP('2020-08-26 01:01:01'), INTERVAL 2 HOUR)
                                                  | | fields `'2020-08-26 01:01:01' + 2h` | head 1
@@ -278,6 +284,12 @@ class FlintSparkPPLBuiltInDateTimeFunctionITSuite
                         | | fields `'2020-08-26' - 2y` | head 1
                         | """.stripMargin)
     assertSameRows(Seq(Row(Date.valueOf("2018-08-26"))), frame4)
+
+    val frame5 = sql(s"""
+                        | source = $testPartitionedStateCountryTable | eval `'2020-08-26' - 2q` = DATE_SUB(DATE('2020-08-26'), INTERVAL 2 QUARTER)
+                        | | fields `'2020-08-26' - 2q` | head 1
+                        | """.stripMargin)
+    assertSameRows(Seq(Row(Date.valueOf("2020-02-26"))), frame5)
 
     val ex = intercept[AnalysisException](sql(s"""
                                                  | source = $testPartitionedStateCountryTable | eval `'2020-08-26 01:01:01' - 2h` = DATE_SUB(TIMESTAMP('2020-08-26 01:01:01'), INTERVAL 2 HOUR)
