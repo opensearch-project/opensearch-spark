@@ -80,12 +80,12 @@ lazy val commonSettings = Seq(
   Compile / compile / javacOptions ++= Seq("-target", "11"),
   // Scalastyle
   scalastyleConfig := (ThisBuild / scalastyleConfig).value,
-  compileScalastyle := {},
+  compileScalastyle := (Compile / scalastyle).toTask("").value,
   Compile / compile := ((Compile / compile) dependsOn compileScalastyle).value,
   testScalastyle := (Test / scalastyle).toTask("").value,
   // Enable HTML report and output to separate folder per package
   Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-h", s"target/test-reports/${name.value}"),
-  Test / test := {},
+  Test / test := ((Test / test) dependsOn testScalastyle).value,
   // Needed for HTML report
   libraryDependencies += "com.vladsch.flexmark" % "flexmark-all" % "0.64.8" % "test",
   dependencyOverrides ++= Seq(
@@ -364,10 +364,10 @@ lazy val sparkSqlApplication = (project in file("spark-sql-application"))
     libraryDependencies ++= deps(sparkVersion),
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "play-json" % "2.9.2",
-      "com.amazonaws" % "aws-java-sdk-glue" % "1.12.568"
+      "com.amazonaws" % "aws-java-sdk-glue" % "1.12.568" % "provided"
         exclude ("com.fasterxml.jackson.core", "jackson-databind"),
       // handle AmazonS3Exception
-      "com.amazonaws" % "aws-java-sdk-s3" % "1.12.568"
+      "com.amazonaws" % "aws-java-sdk-s3" % "1.12.568" % "provided"
         // the transitive jackson.core dependency conflicts with existing scala
         // error: Scala module 2.13.4 requires Jackson Databind version >= 2.13.0 and < 2.14.0 -
         // Found jackson-databind version 2.14.2
