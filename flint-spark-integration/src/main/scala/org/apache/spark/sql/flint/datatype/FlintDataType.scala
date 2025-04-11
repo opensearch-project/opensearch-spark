@@ -91,7 +91,7 @@ object FlintDataType {
       case JString("double") => DoubleType
       case JString("float") => FloatType
       case JString("half_float") =>
-        metadataBuilder.putString(OS_TYPE_KEY, "half_float")
+        metadataBuilder.withHalfFloat()
         FloatType
 
       // Date
