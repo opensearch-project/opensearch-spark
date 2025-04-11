@@ -41,7 +41,11 @@ case class FlintMetadata(
      */
     latestLogEntry: Option[FlintMetadataLogEntry] = None,
     /** Optional Flint index settings. TODO: move elsewhere? */
-    indexSettings: Option[String]) {
+    indexSettings: Option[String],
+    /** Optional Flint index mappings.*/
+    indexMappings: Option[String],
+    /** Optional Flint index mappings _source field*/
+    indexMappingsSourceEnabled: Boolean) {
 
   require(version != null, "version is required")
   require(name != null, "name is required")
@@ -69,6 +73,8 @@ object FlintMetadata {
     private var latestId: Option[String] = None
     private var latestLogEntry: Option[FlintMetadataLogEntry] = None
     private var indexSettings: Option[String] = None
+    private var indexMappings: Option[String] = None
+    private var indexMappingsSourceEnabled = true
 
     def version(version: FlintVersion): this.type = {
       this.version = version
@@ -131,6 +137,16 @@ object FlintMetadata {
       this
     }
 
+    def indexMappings(indexMappings: String): this.type = {
+      this.indexMappings = Option(indexMappings)
+      this
+    }
+
+    def indexMappingsSourceEnabled(indexMappingsSourceEnabled: Boolean): this.type = {
+      this.indexMappingsSourceEnabled = indexMappingsSourceEnabled
+      this
+    }
+
     // Build method to create the FlintMetadata instance
     def build(): FlintMetadata = {
       FlintMetadata(
@@ -143,6 +159,8 @@ object FlintMetadata {
         properties = properties,
         schema = schema,
         indexSettings = indexSettings,
+        indexMappings = indexMappings,
+        indexMappingsSourceEnabled = indexMappingsSourceEnabled,
         latestId = latestId,
         latestLogEntry = latestLogEntry)
     }
