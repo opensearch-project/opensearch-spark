@@ -258,6 +258,9 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
   def indexWithIp(indexName: String): Unit = {
     val mappings = """{
                      |  "properties": {
+                     |    "id": {
+                     |      "type": "integer"
+                     |    },
                      |    "client": {
                      |      "type": "ip"
                      |    },
@@ -268,14 +271,17 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
                      |}""".stripMargin
     val docs = Seq(
       """{
+        |  "id": 1,
                       |  "client": "192.168.0.10",
                       |  "server": "100.10.12.123"
                       |}""".stripMargin,
       """{
+        |  "id": 2,
                       |  "client": "192.168.0.11",
                       |  "server": "100.10.12.123"
                       |}""".stripMargin,
       """{
+                      |  "id": 3,
                       |  "client": "::ffff:192.168.0.10",
                       |  "server": "::ffff:100.10.12.123"
                       |}""".stripMargin)

@@ -8,10 +8,12 @@ package org.opensearch.flint.spark
 import org.opensearch.common.geo.GeoPoint
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.sql.FlintSparkSqlParser
-import org.opensearch.flint.spark.udt.{IPAddress, IPAddressUDT}
+import org.opensearch.flint.spark.udt.{IPAddress, IPAddressUDT, IpEqual}
 import org.opensearch.flint.spark.udt.GeoPointUDT
 
 import org.apache.spark.sql.SparkSessionExtensions
+import org.apache.spark.sql.catalyst.FunctionIdentifier
+import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionInfo}
 import org.apache.spark.sql.types.UDTRegistration
 
 /**
@@ -33,5 +35,19 @@ class FlintSparkExtensions extends (SparkSessionExtensions => Unit) {
     // Register UDTs
     UDTRegistration.register(classOf[IPAddress].getName, classOf[IPAddressUDT].getName)
     UDTRegistration.register(classOf[GeoPoint].getName, classOf[GeoPointUDT].getName)
+
+    // Register the IPMatch UDF
+    val functionName = "ip_equal"
+    val functionClass = classOf[IpEqual].getName
+    val expressionInfo = new ExpressionInfo(functionClass, functionName)
+    val ipMatchBuilder: Seq[Expression] => Expression = {
+      case Seq(child1, child2) => IpEqual(child1, child2)
+      case _ => throw new IllegalArgumentException("Invalid arguments for function ip_equal")
+    }
+    extensions.injectFunction((FunctionIdentifier(functionName), expressionInfo, ipMatchBuilder))
+
+    extensions.injectOptimizerRule { spark =>
+      OpenSearchIpEqualConvertRule
+    }
   }
 }

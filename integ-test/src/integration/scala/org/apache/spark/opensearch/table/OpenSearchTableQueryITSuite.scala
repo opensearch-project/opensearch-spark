@@ -209,4 +209,53 @@ class OpenSearchTableQueryITSuite
       checkAnswer(df, Seq(Row(IPAddress(clientIp(2)), IPAddress(serverIp(1)))))
     }
   }
+
+  test("Query index with ip data type with predicate push down") {
+    val index1 = "t0001"
+    val tableName = s"""$catalogName.default.$index1"""
+    val clientIp: Array[String] = Array("192.168.0.10", "192.168.0.11");
+    val serverIp = "100.10.12.123";
+
+    withIndexName(index1) {
+      indexWithIp(index1)
+
+      var df: DataFrame = null
+
+      df = testQuery(
+        s"SELECT id, client, server FROM $tableName WHERE ip_equal(client, '192.168.0.10')",
+        Seq(Row(1, IPAddress(clientIp(0)), IPAddress(serverIp))))
+      checkPushedInfo(df, "(ip_compare(client, '192.168.0.10')) = 0")
+
+      df = testQuery(
+        s"SELECT id, client, server FROM $tableName WHERE NOT ip_equal(client, '192.168.0.10')",
+        Seq(Row(2, IPAddress(clientIp(1)), IPAddress(serverIp))))
+      checkPushedInfo(df, "NOT ((ip_compare(client, '192.168.0.10')) = 0)")
+
+      df = testQuery(
+        s"SELECT id, client, server FROM $tableName WHERE ip_equal(client, '192.168.0.10') AND ip_equal(server, '$serverIp')",
+        Seq(Row(1, IPAddress(clientIp(0)), IPAddress(serverIp))))
+      checkPushedInfo(
+        df,
+        "(ip_compare(client, '192.168.0.10')) = 0, (ip_compare(server, '100.10.12.123')) = 0")
+
+      df = testQuery(
+        s"SELECT id, client, server FROM $tableName WHERE ip_equal(client, '192.168.0.10') OR ip_equal(client, '192.168.0.11')",
+        Seq(
+          Row(1, IPAddress(clientIp(0)), IPAddress(serverIp)),
+          Row(2, IPAddress(clientIp(1)), IPAddress(serverIp))))
+      checkPushedInfo(
+        df,
+        "((ip_compare(client, '192.168.0.10')) = 0) OR ((ip_compare(client, '192.168.0.11')) = 0)")
+    }
+  }
+
+  def testQuery(query: String, expected: Row): Unit = testQuery(query, Seq(expected))
+
+  def testQuery(query: String, expected: Seq[Row]): DataFrame = {
+    val df = spark.sql(query)
+    df.explain(true)
+    df.printSchema
+    checkAnswer(df, expected)
+    df
+  }
 }

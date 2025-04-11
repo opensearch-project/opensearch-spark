@@ -17,7 +17,6 @@ class IPAddressUDT extends UserDefinedType[IPAddress] {
   override def deserialize(datum: Any): IPAddress = datum match {
     case row: UTF8String => IPAddress(row.toString)
   }
-
   override def userClass: Class[IPAddress] = classOf[IPAddress]
 
   override def typeName: String = "ip"

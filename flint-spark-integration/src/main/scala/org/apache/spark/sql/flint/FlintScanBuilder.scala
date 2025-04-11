@@ -30,7 +30,10 @@ case class FlintScanBuilder(
 
   override def pushPredicates(predicates: Array[Predicate]): Array[Predicate] = {
     val (pushed, unSupported) =
-      predicates.partition(FlintQueryCompiler(schema).compile(_).nonEmpty)
+      predicates.partition {
+        case p => FlintQueryCompiler(schema).compile(p).nonEmpty
+        case _ => false
+      }
     pushedPredicate = pushed
     unSupported
   }
