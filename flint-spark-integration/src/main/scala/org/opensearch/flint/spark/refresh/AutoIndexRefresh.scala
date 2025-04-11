@@ -7,7 +7,7 @@ package org.opensearch.flint.spark.refresh
 
 import java.util.Collections
 
-import org.opensearch.flint.core.metrics.MetricsSparkListener
+import org.opensearch.flint.core.metrics.{MetricsSparkListener, Progress, ProgressListener, WithSparkListeners}
 import org.opensearch.flint.spark.{FlintSparkIndex, FlintSparkIndexOptions, FlintSparkValidationHelper}
 import org.opensearch.flint.spark.FlintSparkIndex.{quotedTableName, StreamingRefresh}
 import org.opensearch.flint.spark.refresh.FlintSparkIndexRefresh.RefreshMode.{AUTO, RefreshMode}
@@ -31,6 +31,7 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
     with FlintSparkValidationHelper {
 
   override def refreshMode: RefreshMode = AUTO
+  val progressTracker: ProgressListener = ProgressListener()
 
   override def validate(spark: SparkSession): Unit = {
     // Incremental refresh cannot enabled at the same time
@@ -68,9 +69,8 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
       // Flint index has specialized logic and capability for incremental refresh
       case refresh: StreamingRefresh =>
         logInfo("Start refreshing index in streaming style")
-        val job = MetricsSparkListener.withMetrics(
-          spark,
-          () =>
+        val job =
+          WithSparkListeners(spark, List(MetricsSparkListener(), progressTracker)).run(() =>
             refresh
               .buildStream(spark)
               .writeStream
@@ -99,6 +99,8 @@ class AutoIndexRefresh(indexName: String, index: FlintSparkIndex)
         Some(job.id.toString)
     }
   }
+
+  override def progress(): Option[Progress] = Some(progressTracker.currentProgress())
 
   // Using Scala implicit class to avoid breaking method chaining of Spark data frame fluent API
   private implicit class FlintDataStreamWriter(val dataStream: DataStreamWriter[Row]) {
