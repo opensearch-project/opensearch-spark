@@ -231,7 +231,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
            | CREATE MATERIALIZED VIEW $testMvName
            | AS $testQuery
            | WITH (
-           |   index_mappings = '{ "_source": { "enabled": false } }',
+           |   index_mappings = '{ "_source": { "enabled": false } }'
            | )
            |""".stripMargin)
 
