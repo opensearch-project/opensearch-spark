@@ -148,7 +148,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     sql(s"""
            | CREATE INDEX $testIndex ON $testTable ( name )
            | WITH (
-           |   index_mappings = '{ "_source": { "enabled": false } }',
+           |   index_mappings = '{ "_source": { "enabled": false } }'
            | )
            |""".stripMargin)
 

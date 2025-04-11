@@ -214,7 +214,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
            | CREATE SKIPPING INDEX ON $testTable
            | ( year PARTITION )
            | WITH (
-           |   index_mappings = '{ "_source": { "enabled": false } }',
+           |   index_mappings = '{ "_source": { "enabled": false } }'
            | )
            |""".stripMargin)
 
