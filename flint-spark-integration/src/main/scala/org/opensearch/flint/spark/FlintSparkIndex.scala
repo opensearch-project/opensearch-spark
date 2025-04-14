@@ -184,24 +184,7 @@ object FlintSparkIndex extends Logging {
     val mappings = index.options.indexMappings()
     // parse from json to object
     // extract sourceEnabled
-    if (mappings.isDefined) {
-      parseJson(mappings.getOrElse("")) { (parser, fieldName) =>
-        {
-          fieldName match {
-            case "_source" =>
-              parseObjectField(parser) { (parser, innerFieldName) =>
-                {
-                  innerFieldName match {
-                    case "enabled" => builder.indexMappingsSourceEnabled(parser.booleanValue())
-                    case _ => // Handle other fields as needed
-                  }
-                }
-              }
-            case _ => // Ignore other fields, for instance, dynamic.
-          }
-        }
-      }
-    }
+    extractSourceEnabled(mappings, builder)
     if (mappings.isDefined) {
       builder.indexMappings(mappings.get)
     }
@@ -212,6 +195,26 @@ object FlintSparkIndex extends Logging {
       builder.latestLogEntry(latestLogEntry.get)
     }
     builder
+  }
+
+  private def extractSourceEnabled(
+      mappingsJsonOpt: Option[String],
+      builder: FlintMetadata.Builder): Unit = {
+    mappingsJsonOpt.foreach { mappingsJson =>
+      parseJson(mappingsJson) { (parser, fieldName) =>
+        fieldName match {
+          case "_source" =>
+            parseObjectField(parser) { (parser, innerFieldName) =>
+              innerFieldName match {
+                case "enabled" =>
+                  builder.indexMappingsSourceEnabled(parser.booleanValue())
+                case _ => // ignore other fields
+              }
+            }
+          case _ => // ignore other top-level fields
+        }
+      }
+    }
   }
 
   def generateSchemaJSON(allFieldTypes: Map[String, String]): String = {

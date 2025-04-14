@@ -211,7 +211,7 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
              | CREATE MATERIALIZED VIEW $testMvName
              | AS $testQuery
              | WITH (
-             |   index_settings = '{"number_of_shards": 4, "number_of_replicas": 3}'
+             |   index_settings = '{"number_of_shards": 3, "number_of_replicas": 2}'
              | )
              |""".stripMargin)
 
@@ -222,11 +222,11 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
     implicit val formats: Formats = Serialization.formats(NoTypeHints)
     val settings =
       parse(flintIndexMetadataService.getIndexMetadata(testFlintIndex).indexSettings.get)
-    (settings \ "index.number_of_shards").extract[String] shouldBe "4"
-    (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
+    (settings \ "index.number_of_shards").extract[String] shouldBe "3"
+    (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
 
-  test("create materialized view with index mappings") {
+  test("create materialized view with index mappings _source") {
     sql(s"""
            | CREATE MATERIALIZED VIEW $testMvName
            | AS $testQuery
