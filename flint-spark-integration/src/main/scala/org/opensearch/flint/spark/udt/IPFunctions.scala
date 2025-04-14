@@ -18,15 +18,11 @@ object IPFunctions {
   val ipToString = (ip: IPAddress) => { ip.address }
 
   // Match IPAddress with String. This will match different notation.
-  val ipStringMatch = (ip1: IPAddress, ip2: String) => { ip1.compare(IPAddress(ip2)) == 0 }
-
-  // Match String with IPAddress. This will match different notation.
-  val stringIpMatch = (ip1: String, ip2: IPAddress) => { IPAddress(ip1).compare(ip2) == 0 }
+  val ipEqual = (ip1: IPAddress, ip2: String) => { ip1.compare(IPAddress(ip2)) == 0 }
 
   def registerFunctions(spark: SparkSession): Unit = {
     spark.udf.register("string_to_ip", stringToIp)
     spark.udf.register("ip_to_string", ipToString)
-    spark.udf.register("ip_string_match", ipStringMatch)
-    spark.udf.register("string_ip_match", stringIpMatch)
+    spark.udf.register("ip_equal", ipEqual)
   }
 }

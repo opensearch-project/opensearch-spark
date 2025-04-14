@@ -165,11 +165,7 @@ class OpenSearchTableQueryITSuite
         Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
 
       testQuery(
-        s"SELECT client, server FROM $tableName WHERE ip_string_match(client, '192.168.0.10')",
-        Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
-
-      testQuery(
-        s"SELECT client, server FROM $tableName WHERE string_ip_match('192.168.0.10', client)",
+        s"SELECT client, server FROM $tableName WHERE ip_equal(client, '192.168.0.10')",
         Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
 
       // Equality check is done by string equality (limitation of Spark UDT), and it won't match
@@ -177,9 +173,9 @@ class OpenSearchTableQueryITSuite
         s"SELECT client, server FROM $tableName WHERE client = string_to_ip('::ffff:192.168.0.10')",
         Seq())
 
-      // Need to use ip_string_match/string_ip_match to match different notation
+      // Need to use ip_equal to match different notation
       testQuery(
-        s"SELECT client, server FROM $tableName WHERE ip_string_match(client, '::ffff:192.168.0.10')",
+        s"SELECT client, server FROM $tableName WHERE ip_equal(client, '::ffff:192.168.0.10')",
         Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
     }
   }
