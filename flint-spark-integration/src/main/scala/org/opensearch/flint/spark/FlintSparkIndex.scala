@@ -180,26 +180,26 @@ object FlintSparkIndex extends Logging {
       builder.indexSettings(settings.get)
     }
 
-    //optional index mappings
+    // optional index mappings
     val mappings = index.options.indexMappings()
     // parse from json to object
     // extract sourceEnabled
-    if(mappings.isDefined) {
+    if (mappings.isDefined) {
       parseJson(mappings.getOrElse("")) { (parser, fieldName) =>
-      {
-        fieldName match {
-          case "_source" =>
-            parseObjectField(parser) { (parser, innerFieldName) =>
-            {
-              innerFieldName match {
-                case "enabled" => builder.indexMappingsSourceEnabled(parser.booleanValue())
-                case _ => // Handle other fields as needed
+        {
+          fieldName match {
+            case "_source" =>
+              parseObjectField(parser) { (parser, innerFieldName) =>
+                {
+                  innerFieldName match {
+                    case "enabled" => builder.indexMappingsSourceEnabled(parser.booleanValue())
+                    case _ => // Handle other fields as needed
+                  }
+                }
               }
-            }
-            }
-          case _ => // Ignore other fields, for instance, dynamic.
+            case _ => // Ignore other fields, for instance, dynamic.
+          }
         }
-      }
       }
     }
     if (mappings.isDefined) {
