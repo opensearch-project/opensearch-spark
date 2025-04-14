@@ -222,7 +222,8 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
     val flintIndexMetadataService =
       new FlintOpenSearchIndexMetadataService(new FlintOptions(openSearchOptions.asJava))
 
-    val mappingsSourceEnabled = flintIndexMetadataService.getIndexMetadata(testIndex).indexMappingsSourceEnabled
+    val mappingsSourceEnabled =
+      flintIndexMetadataService.getIndexMetadata(testIndex).indexMappingsSourceEnabled
     mappingsSourceEnabled shouldBe false
   }
 

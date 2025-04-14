@@ -156,7 +156,8 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     val flintIndexMetadataService =
       new FlintOpenSearchIndexMetadataService(new FlintOptions(openSearchOptions.asJava))
 
-    val mappingsSourceEnabled = flintIndexMetadataService.getIndexMetadata(testFlintIndex).indexMappingsSourceEnabled
+    val mappingsSourceEnabled =
+      flintIndexMetadataService.getIndexMetadata(testFlintIndex).indexMappingsSourceEnabled
     mappingsSourceEnabled shouldBe false
   }
 
