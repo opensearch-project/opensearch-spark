@@ -12,10 +12,14 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction$;
 import org.apache.spark.sql.catalyst.expressions.CurrentTimeZone$;
 import org.apache.spark.sql.catalyst.expressions.CurrentTimestamp$;
 import org.apache.spark.sql.catalyst.expressions.DateAddInterval$;
+import org.apache.spark.sql.catalyst.expressions.Divide;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual$;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual$;
+import org.apache.spark.sql.catalyst.expressions.Literal;
 import org.apache.spark.sql.catalyst.expressions.Literal$;
+import org.apache.spark.sql.catalyst.expressions.Multiply;
+import org.apache.spark.sql.catalyst.expressions.Multiply$;
 import org.apache.spark.sql.catalyst.expressions.TimestampAdd$;
 import org.apache.spark.sql.catalyst.expressions.TimestampDiff$;
 import org.apache.spark.sql.catalyst.expressions.ToUTCTimestamp$;
@@ -30,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import static org.apache.spark.sql.types.DataTypes.IntegerType;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADD;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.ADDDATE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.APPROX_COUNT_DISTINCT;
@@ -280,12 +285,15 @@ public interface BuiltinFunctionTransformer {
         Arrays.fill(args, Literal$.MODULE$.apply(0));
         switch (unit) {
             case YEAR:   args[0] = value; break;
+            case QUARTER:args[1] = new Multiply(value, Literal.create(3, IntegerType)); break;
             case MONTH:  args[1] = value; break;
             case WEEK:   args[2] = value; break;
             case DAY:    args[3] = value; break;
             case HOUR:   args[4] = value; break;
             case MINUTE: args[5] = value; break;
             case SECOND: args[6] = value; break;
+            case MICROSECOND: args[6] = new Divide(value, Literal.create(1000, IntegerType)); break;
+            case MILLISECOND: args[6] = new Divide(value, Literal.create(1000000, IntegerType)); break;
             default:
                 throw new IllegalArgumentException("Unsupported Interval unit: " + unit);
         }
