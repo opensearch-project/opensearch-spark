@@ -69,7 +69,6 @@ object FlintMetadata {
     private var latestId: Option[String] = None
     private var latestLogEntry: Option[FlintMetadataLogEntry] = None
     private var indexSettings: Option[String] = None
-    private var indexMappingsSourceEnabled = true
 
     def version(version: FlintVersion): this.type = {
       this.version = version
@@ -129,11 +128,6 @@ object FlintMetadata {
 
     def indexSettings(indexSettings: String): this.type = {
       this.indexSettings = Option(indexSettings)
-      this
-    }
-
-    def indexMappingsSourceEnabled(indexMappingsSourceEnabled: Boolean): this.type = {
-      this.indexMappingsSourceEnabled = indexMappingsSourceEnabled
       this
     }
 

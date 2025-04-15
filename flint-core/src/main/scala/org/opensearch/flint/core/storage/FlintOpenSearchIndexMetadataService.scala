@@ -197,15 +197,6 @@ object FlintOpenSearchIndexMetadataService {
                   }
                 }
               }
-            case "_source" =>
-              parseObjectField(parser) { (parser, innerFieldName) =>
-                {
-                  innerFieldName match {
-                    case "enabled" => builder.indexMappingsSourceEnabled(parser.booleanValue())
-                    case _ => // Handle other fields as needed
-                  }
-                }
-              }
             case "properties" =>
               builder.schema(parser.map())
             case _ => // Ignore other fields, for instance, dynamic.
