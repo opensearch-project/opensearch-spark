@@ -181,13 +181,10 @@ object FlintSparkIndex extends Logging {
     }
 
     // optional index mappings
-    val mappings = index.options.indexMappings()
+    val mappings = index.options.indexMappingsOptions()
     // parse from json to object
     // extract sourceEnabled
     extractSourceEnabled(mappings, builder)
-    if (mappings.isDefined) {
-      builder.indexMappings(mappings.get)
-    }
 
     // Optional latest metadata log entry
     val latestLogEntry = index.latestLogEntry
@@ -208,6 +205,7 @@ object FlintSparkIndex extends Logging {
               innerFieldName match {
                 case "enabled" =>
                   builder.indexMappingsSourceEnabled(parser.booleanValue())
+
                 case _ => // ignore other fields
               }
             }

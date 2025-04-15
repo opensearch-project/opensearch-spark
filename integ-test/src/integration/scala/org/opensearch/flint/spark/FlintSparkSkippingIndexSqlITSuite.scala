@@ -209,7 +209,7 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
   }
 
-  test("create skipping index with index mappings") {
+  test("create skipping index with index mappings _source") {
     sql(s"""
            | CREATE SKIPPING INDEX ON $testTable
            | ( year PARTITION )
