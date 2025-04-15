@@ -356,7 +356,7 @@ class FlintJacksonParser(
 
     case ip: IPAddressUDT =>
       (parser: JsonParser) =>
-        parseJsonToken[InternalRow](parser, dataType) { case VALUE_STRING =>
+        parseJsonToken[UTF8String](parser, dataType) { case VALUE_STRING =>
           IPAddressUDT.serialize(IPAddress(parser.getText))
         }
 
