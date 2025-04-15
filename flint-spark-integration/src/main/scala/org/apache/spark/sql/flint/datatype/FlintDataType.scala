@@ -35,7 +35,7 @@ object FlintDataType {
 
   val METADATA_ALIAS_PATH_NAME = "aliasPath"
 
-  val UNSUPPORTED_OPENSEARCH_FIELD_TYPE = Set("nothing")
+  val UNSUPPORTED_OPENSEARCH_FIELD_TYPE = Set()
 
   /**
    * parse Flint metadata and extract properties to StructType.
