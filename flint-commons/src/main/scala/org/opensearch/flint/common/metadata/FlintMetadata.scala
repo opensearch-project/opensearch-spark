@@ -41,9 +41,7 @@ case class FlintMetadata(
      */
     latestLogEntry: Option[FlintMetadataLogEntry] = None,
     /** Optional Flint index settings. TODO: move elsewhere? */
-    indexSettings: Option[String],
-    /** Optional Flint index mappings _source field */
-    indexMappingsSourceEnabled: Boolean) {
+    indexSettings: Option[String]) {
 
   require(version != null, "version is required")
   require(name != null, "name is required")
@@ -151,7 +149,6 @@ object FlintMetadata {
         properties = properties,
         schema = schema,
         indexSettings = indexSettings,
-        indexMappingsSourceEnabled = indexMappingsSourceEnabled,
         latestId = latestId,
         latestLogEntry = latestLogEntry)
     }

@@ -180,39 +180,12 @@ object FlintSparkIndex extends Logging {
       builder.indexSettings(settings.get)
     }
 
-    // optional index mappings
-    val mappings = index.options.indexMappingsOptions()
-    // parse from json to object
-    // extract sourceEnabled
-    extractSourceEnabled(mappings, builder)
-
     // Optional latest metadata log entry
     val latestLogEntry = index.latestLogEntry
     if (latestLogEntry.isDefined) {
       builder.latestLogEntry(latestLogEntry.get)
     }
     builder
-  }
-
-  private def extractSourceEnabled(
-      mappingsJsonOpt: Option[String],
-      builder: FlintMetadata.Builder): Unit = {
-    mappingsJsonOpt.foreach { mappingsJson =>
-      parseJson(mappingsJson) { (parser, fieldName) =>
-        fieldName match {
-          case "_source" =>
-            parseObjectField(parser) { (parser, innerFieldName) =>
-              innerFieldName match {
-                case "enabled" =>
-                  builder.indexMappingsSourceEnabled(parser.booleanValue())
-
-                case _ => // ignore other fields
-              }
-            }
-          case _ => // ignore other top-level fields
-        }
-      }
-    }
   }
 
   def generateSchemaJSON(allFieldTypes: Map[String, String]): String = {

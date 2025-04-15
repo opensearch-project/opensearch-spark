@@ -13,6 +13,7 @@ import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService.extractSourceEnabled
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
@@ -156,8 +157,11 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     val flintIndexMetadataService =
       new FlintOpenSearchIndexMetadataService(new FlintOptions(openSearchOptions.asJava))
 
-    val mappingsSourceEnabled =
-      flintIndexMetadataService.getIndexMetadata(testFlintIndex).indexMappingsSourceEnabled
+    val flintMetadata =
+      flintIndexMetadataService.getIndexMetadata(testFlintIndex)
+    val indexMappingsOpt =
+      Option(flintMetadata.options.get("index_mappings")).map(_.asInstanceOf[String])
+    val mappingsSourceEnabled = extractSourceEnabled(indexMappingsOpt)
     mappingsSourceEnabled shouldBe false
   }
 

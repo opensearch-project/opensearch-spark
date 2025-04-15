@@ -135,8 +135,11 @@ object FlintOpenSearchIndexMetadataService {
           }
         }
         // add _source field
+        val indexMappingsOpt =
+          Option(metadata.options.get("index_mappings")).map(_.asInstanceOf[String])
+        val sourceEnabled = extractSourceEnabled(indexMappingsOpt)
         objectField(builder, "_source") {
-          builder.field("enabled", metadata.indexMappingsSourceEnabled)
+          builder.field("enabled", sourceEnabled)
         }
         // Add properties (schema) field
         builder.field("properties", metadata.schema)
@@ -215,4 +218,31 @@ object FlintOpenSearchIndexMetadataService {
         throw new IllegalStateException("Failed to parse metadata JSON", e)
     }
   }
+
+  def extractSourceEnabled(indexMappingsJsonOpt: Option[String]): Boolean = {
+    var sourceEnabled: Boolean = true
+
+    indexMappingsJsonOpt.foreach { jsonStr =>
+      try {
+        parseJson(jsonStr) { (parser, fieldName) =>
+          fieldName match {
+            case "_source" =>
+              parseObjectField(parser) { (parser, innerFieldName) =>
+                innerFieldName match {
+                  case "enabled" =>
+                    sourceEnabled = parser.booleanValue()
+                  case _ => // ignore
+                }
+              }
+            case _ => // ignore
+          }
+        }
+      } catch {
+        case _: Exception => // swallow and leave sourceEnabled = None
+      }
+    }
+
+    sourceEnabled
+  }
+
 }
