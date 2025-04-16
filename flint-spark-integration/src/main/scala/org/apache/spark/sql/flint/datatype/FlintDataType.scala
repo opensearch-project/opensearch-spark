@@ -10,8 +10,8 @@ import org.json4s.JsonAST.{JNothing, JObject, JString}
 import org.json4s.JsonAST.JBool.True
 import org.json4s.jackson.JsonMethods
 import org.json4s.native.Serialization
-import org.opensearch.flint.spark.udt.IPAddressUDT
 import org.opensearch.flint.spark.udt.GeoPointUDT
+import org.opensearch.flint.spark.udt.IPAddressUDT
 
 import org.apache.spark.sql.catalyst.util.DateFormatter
 import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.{MetadataBuilderExtension, MetadataExtension, OS_TYPE_KEY}

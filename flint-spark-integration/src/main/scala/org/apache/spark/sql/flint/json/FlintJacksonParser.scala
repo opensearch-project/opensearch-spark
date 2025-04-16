@@ -12,7 +12,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 
 import com.fasterxml.jackson.core._
-import org.opensearch.flint.spark.udt.{IPAddress, IPAddressUDT, GeoPointConverter, GeoPointUDT}
+import org.opensearch.flint.spark.udt.{GeoPointConverter, GeoPointUDT, IPAddress, IPAddressUDT}
 
 import org.apache.spark.SparkUpgradeException
 import org.apache.spark.internal.Logging

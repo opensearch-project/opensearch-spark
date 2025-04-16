@@ -8,8 +8,8 @@ package org.opensearch.flint.spark
 import org.opensearch.common.geo.GeoPoint
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.sql.FlintSparkSqlParser
-import org.opensearch.flint.spark.udt.GeoPointUDT
 import org.opensearch.flint.spark.udt.{IPAddress, IPAddressUDT}
+import org.opensearch.flint.spark.udt.GeoPointUDT
 
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.types.UDTRegistration
