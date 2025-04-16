@@ -232,6 +232,7 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
       "org.scalatestplus" %% "mockito-4-6" % "3.2.15.0" % "test",
       "org.mockito" % "mockito-inline" % "4.6.0" % "test",
       "com.stephenn" %% "scalatest-json-jsonassert" % "0.2.5" % "test",
+      "com.github.seancfoley" % "ipaddress" % "5.5.1",
       "com.github.sbt" % "junit-interface" % "0.13.3" % "test"),
     libraryDependencies ++= deps(sparkVersion),
     // ANTLR settings
