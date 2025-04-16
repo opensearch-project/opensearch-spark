@@ -144,8 +144,8 @@ class OpenSearchTableQueryITSuite
     val tableName = s"""$catalogName.default.$index1"""
     val spark = SparkSession.builder().getOrCreate()
     IPFunctions.registerFunctions(spark)
-    val clientIp: Array[String] = Array("192.168.0.10", "192.168.0.11");
-    val serverIp = "100.10.12.123";
+    val clientIp: Array[String] = Array("192.168.0.10", "192.168.0.11", "::ffff:192.168.0.10")
+    val serverIp: Array[String] = Array("100.10.12.123", "::ffff:100.10.12.123")
 
     withIndexName(index1) {
       indexWithIp(index1)
@@ -156,30 +156,37 @@ class OpenSearchTableQueryITSuite
       checkAnswer(
         df,
         Seq(
-          Row(IPAddress(clientIp(0)), IPAddress(serverIp)),
-          Row(IPAddress(clientIp(1)), IPAddress(serverIp))))
+          Row(IPAddress(clientIp(0)), IPAddress(serverIp(0))),
+          Row(IPAddress(clientIp(1)), IPAddress(serverIp(0))),
+          Row(IPAddress(clientIp(2)), IPAddress(serverIp(1)))))
 
       df = spark.sql(
-        s"SELECT client, server FROM $tableName WHERE client = string_to_ip('192.168.0.10')")
-      checkAnswer(df, Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
+        s"SELECT client, server FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32')")
+      checkAnswer(df, Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp(0)))))
 
       df = spark.sql(
-        s"SELECT client, server FROM $tableName WHERE ip_to_string(client) = '192.168.0.10'")
-      checkAnswer(df, Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
+        s"SELECT client, server FROM $tableName WHERE cidrmatch(client, '192.168.0.0/24')")
+      checkAnswer(
+        df,
+        Seq(
+          Row(IPAddress(clientIp(0)), IPAddress(serverIp(0))),
+          Row(IPAddress(clientIp(1)), IPAddress(serverIp(0)))))
 
-      df =
-        spark.sql(s"SELECT client, server FROM $tableName WHERE ip_equal(client, '192.168.0.10')")
-      checkAnswer(df, Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
-
-      // Equality check is done by string equality (limitation of Spark UDT), and it won't match
       df = spark.sql(
-        s"SELECT client, server FROM $tableName WHERE client = string_to_ip('::ffff:192.168.0.10')")
-      checkAnswer(df, Seq())
+        s"SELECT client, server FROM $tableName WHERE cidrmatch(client, '192.168.0.0/255.255.255.0')")
+      checkAnswer(
+        df,
+        Seq(
+          Row(IPAddress(clientIp(0)), IPAddress(serverIp(0))),
+          Row(IPAddress(clientIp(1)), IPAddress(serverIp(0)))))
 
-      // Need to use ip_equal to match different notation
       df = spark.sql(
-        s"SELECT client, server FROM $tableName WHERE ip_equal(client, '::ffff:192.168.0.10')")
-      checkAnswer(df, Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
+        s"SELECT client, server FROM $tableName WHERE cidrmatch(client, '::ffff:192.168.0.10/128')")
+      checkAnswer(df, Seq(Row(IPAddress(clientIp(2)), IPAddress(serverIp(1)))))
+
+      df = spark.sql(
+        s"SELECT client, server FROM $tableName WHERE cidrmatch(client, '::ffff:192.168.0.0/120')")
+      checkAnswer(df, Seq(Row(IPAddress(clientIp(2)), IPAddress(serverIp(1)))))
     }
   }
 }
