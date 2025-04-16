@@ -71,7 +71,8 @@ public class OpenSearchBulkWrapper {
           })
           .get(() -> {
             requestCount.incrementAndGet();
-            rateLimiter.acquirePermit(nextRequest.get().requests().size());
+            // Bulk request bytes is restricted by batch_bytes config
+            rateLimiter.acquirePermit((int) nextRequest.get().estimatedSizeInBytes());
             BulkResponse response = client.bulk(nextRequest.get(), options);
 
             if (!bulkItemRetryableResultPredicate.test(response)) {

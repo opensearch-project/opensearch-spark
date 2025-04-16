@@ -9,12 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableList;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -71,10 +73,17 @@ class OpenSearchBulkWrapperTest {
 
   FlintOptions optionsWithRateLimit = new FlintOptions(Map.of(
       FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED, "true",
-      FlintOptions.BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE, "2",
-      FlintOptions.BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE, "20",
-      FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP, "1",
+      FlintOptions.BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE, "2000",
+      FlintOptions.BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE, "20000",
+      FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP, "1000",
       FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO, "0.5"));
+
+  @BeforeEach
+  public void setup() {
+    when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
+    // Conditional stub based on bulk retry occurrence
+    lenient().when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
+  }
 
   @Test
   public void withRetryWhenCallSucceed() throws Exception {
@@ -84,8 +93,6 @@ class OpenSearchBulkWrapperTest {
           retryOptionsWithRetry, rateLimiter);
       when(client.bulk(bulkRequest, options)).thenReturn(successResponse);
       when(successResponse.hasFailures()).thenReturn(false);
-      when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
-      when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
 
       BulkResponse response = bulkWrapper.bulk(client, bulkRequest, options);
 
@@ -108,8 +115,6 @@ class OpenSearchBulkWrapperTest {
           .thenReturn(conflictResponse);
       mockConflictResponse();
       when(conflictResponse.hasFailures()).thenReturn(true);
-      when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
-      when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
 
       BulkResponse response = bulkWrapper.bulk(client, bulkRequest, options);
 
@@ -133,8 +138,6 @@ class OpenSearchBulkWrapperTest {
           .thenReturn(successResponse);
       mockFailureResponse();
       when(successResponse.hasFailures()).thenReturn(false);
-      when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
-      when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
 
       BulkResponse response = bulkWrapper.bulk(client, bulkRequest, options);
 
@@ -154,8 +157,6 @@ class OpenSearchBulkWrapperTest {
           retryOptionsWithRetry, rateLimiter);
       when(client.bulk(any(), eq(options)))
           .thenReturn(failureResponse);
-      when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
-      when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
       mockFailureResponse();
 
       BulkResponse response = bulkWrapper.bulk(client, bulkRequest, options);
@@ -175,8 +176,6 @@ class OpenSearchBulkWrapperTest {
       OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
           retryOptionsWithRetry, rateLimiter);
       when(client.bulk(bulkRequest, options)).thenThrow(new RuntimeException("test"));
-      when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
-      when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
 
       assertThrows(RuntimeException.class,
           () -> bulkWrapper.bulk(client, bulkRequest, options));
@@ -196,8 +195,6 @@ class OpenSearchBulkWrapperTest {
           retryOptionsWithoutRetry, rateLimiter);
       when(client.bulk(bulkRequest, options))
           .thenReturn(failureResponse);
-      when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
-      when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
       mockFailureResponse();
 
       BulkResponse response = bulkWrapper.bulk(client, bulkRequest, options);
@@ -218,21 +215,19 @@ class OpenSearchBulkWrapperTest {
           retryOptionsWithRetry, rateLimiter);
       when(client.bulk(bulkRequest, options)).thenReturn(successResponse);
       when(successResponse.hasFailures()).thenReturn(false);
-      when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
-      when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
 
-      assertEquals(2, rateLimiter.getRate());
+      assertEquals(2000, rateLimiter.getRate());
 
       bulkWrapper.bulk(client, bulkRequest, options);
-      assertEquals(3, rateLimiter.getRate());
+      assertEquals(3000, rateLimiter.getRate());
 
       bulkWrapper.bulk(client, bulkRequest, options);
-      assertEquals(4, rateLimiter.getRate());
+      assertEquals(4000, rateLimiter.getRate());
 
       // Should not exceed max rate limit
-      rateLimiter.setRate(20);
+      rateLimiter.setRate(20000);
       bulkWrapper.bulk(client, bulkRequest, options);
-      assertEquals(20, rateLimiter.getRate());
+      assertEquals(20000, rateLimiter.getRate());
     });
   }
 
@@ -247,15 +242,13 @@ class OpenSearchBulkWrapperTest {
           .thenReturn(successResponse);
       mockFailureResponse();
       when(successResponse.hasFailures()).thenReturn(false);
-      when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
-      when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
 
-      rateLimiter.setRate(10);
+      rateLimiter.setRate(10000);
 
       bulkWrapper.bulk(client, bulkRequest, options);
 
       // Should decrease once then increase once
-      assertEquals(6, rateLimiter.getRate());
+      assertEquals(6000, rateLimiter.getRate());
     });
   }
 
@@ -268,17 +261,15 @@ class OpenSearchBulkWrapperTest {
       when(client.bulk(any(), eq(options)))
           .thenReturn(failureResponse)
           .thenReturn(retriedResponse);
-      when(bulkRequest.requests()).thenReturn(ImmutableList.of(indexRequest0, indexRequest1));
-      when(bulkRequest.estimatedSizeInBytes()).thenReturn(ESTIMATED_SIZE_IN_BYTES);
       mockFailureResponse();
       mockRetriedResponse();
 
-      rateLimiter.setRate(20);
+      rateLimiter.setRate(20000);
 
       bulkWrapper.bulk(client, bulkRequest, options);
 
-      // Should decrease three times (rounded): 20 -> 10 -> 5 -> 2
-      assertEquals(2, rateLimiter.getRate());
+      // Should decrease three times
+      assertEquals(2500, rateLimiter.getRate());
     });
   }
 

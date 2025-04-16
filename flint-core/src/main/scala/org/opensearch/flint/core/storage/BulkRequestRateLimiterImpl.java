@@ -28,7 +28,7 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
     decreaseRatio = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatio();
     requestRateMeter = new RequestRateMeter();
 
-    LOG.info("Setting rate limit for bulk request to " + minRate + " documents/sec");
+    LOG.info("Setting rate limit for bulk request to " + minRate + " bytes/sec");
     this.rateLimiter = RateLimiter.create(minRate);
     MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RATE_LIMIT_METRIC, minRate);
   }
@@ -60,12 +60,12 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
       LOG.info("Rate increase was blocked.");
     }
      */
-    LOG.info("Current rate limit for bulk request is " + getRate() + " documents/sec");
+    LOG.info("Current rate limit for bulk request is " + getRate() + " bytes/sec");
   }
 
   private boolean isEstimatedCurrentRateCloseToLimit() {
     long currentEstimatedRate = requestRateMeter.getCurrentEstimatedRate();
-    LOG.info("Current estimated rate is " + currentEstimatedRate + " documents/sec");
+    LOG.info("Current estimated rate is " + currentEstimatedRate + " bytes/sec");
     return getRate() * 0.8 < currentEstimatedRate;
   }
 
@@ -93,7 +93,7 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
       permitsPerSecond = Math.min(permitsPerSecond, maxRate);
     }
     permitsPerSecond = Math.max(minRate, permitsPerSecond);
-    LOG.info("Setting rate limit for bulk request to " + permitsPerSecond + " documents/sec");
+    LOG.info("Setting rate limit for bulk request to " + permitsPerSecond + " bytes/sec");
     this.rateLimiter.setRate(permitsPerSecond);
     MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RATE_LIMIT_METRIC, permitsPerSecond);
   }
