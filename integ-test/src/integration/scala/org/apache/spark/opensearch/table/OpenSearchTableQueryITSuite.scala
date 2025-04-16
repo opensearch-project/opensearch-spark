@@ -150,42 +150,36 @@ class OpenSearchTableQueryITSuite
     withIndexName(index1) {
       indexWithIp(index1)
 
-      testQuery(
-        s"SELECT client, server FROM $tableName",
+      var df: DataFrame = null
+
+      df = spark.sql(s"SELECT client, server FROM $tableName")
+      checkAnswer(
+        df,
         Seq(
           Row(IPAddress(clientIp(0)), IPAddress(serverIp)),
           Row(IPAddress(clientIp(1)), IPAddress(serverIp))))
 
-      testQuery(
-        s"SELECT client, server FROM $tableName WHERE client = string_to_ip('192.168.0.10')",
-        Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
+      df = spark.sql(
+        s"SELECT client, server FROM $tableName WHERE client = string_to_ip('192.168.0.10')")
+      checkAnswer(df, Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
 
-      testQuery(
-        s"SELECT client, server FROM $tableName WHERE ip_to_string(client) = '192.168.0.10'",
-        Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
+      df = spark.sql(
+        s"SELECT client, server FROM $tableName WHERE ip_to_string(client) = '192.168.0.10'")
+      checkAnswer(df, Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
 
-      testQuery(
-        s"SELECT client, server FROM $tableName WHERE ip_equal(client, '192.168.0.10')",
-        Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
+      df =
+        spark.sql(s"SELECT client, server FROM $tableName WHERE ip_equal(client, '192.168.0.10')")
+      checkAnswer(df, Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
 
       // Equality check is done by string equality (limitation of Spark UDT), and it won't match
-      testQuery(
-        s"SELECT client, server FROM $tableName WHERE client = string_to_ip('::ffff:192.168.0.10')",
-        Seq())
+      df = spark.sql(
+        s"SELECT client, server FROM $tableName WHERE client = string_to_ip('::ffff:192.168.0.10')")
+      checkAnswer(df, Seq())
 
       // Need to use ip_equal to match different notation
-      testQuery(
-        s"SELECT client, server FROM $tableName WHERE ip_equal(client, '::ffff:192.168.0.10')",
-        Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
+      df = spark.sql(
+        s"SELECT client, server FROM $tableName WHERE ip_equal(client, '::ffff:192.168.0.10')")
+      checkAnswer(df, Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp))))
     }
-  }
-
-  def testQuery(query: String, expected: Row): Unit = testQuery(query, Seq(expected))
-
-  def testQuery(query: String, expected: Seq[Row]): Unit = {
-    spark.sql(query).explain(true)
-    val df = spark.sql(query)
-    df.printSchema
-    checkAnswer(df, expected)
   }
 }
