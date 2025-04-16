@@ -20,6 +20,7 @@ import org.apache.http.nio.protocol.{HttpAsyncRequestProducer, HttpAsyncResponse
 import org.apache.http.protocol.HttpContext
 import org.apache.http.util.EntityUtils
 import org.mockito.ArgumentMatchers.any
+import org.mockito.MockedStatic
 import org.mockito.Mockito._
 import org.mockito.verification.VerificationMode
 import org.opensearch.flint.core.FlintOptions
@@ -176,6 +177,7 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
 
   class AssertionHelper {
     private val options: util.Map[String, String] = new util.HashMap[String, String]()
+    private var entityUtilsMock: MockedStatic[EntityUtils] = _
 
     def withOption(key: String, value: String): AssertionHelper = {
       options.put(key, value)
@@ -196,13 +198,19 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
 
     def whenResponse(statusCode: Int, responseMessage: String): AssertionHelper = {
       val entity = mock[HttpEntity](RETURNS_DEEP_STUBS)
-      mockStatic(classOf[EntityUtils])
+      entityUtilsMock = mockStatic(classOf[EntityUtils])
       when(EntityUtils.toString(any[HttpEntity])).thenReturn(responseMessage)
       val response = mock[HttpResponse](RETURNS_DEEP_STUBS)
       when(response.getStatusLine.getStatusCode).thenReturn(statusCode)
       when(response.getEntity).thenReturn(entity)
       when(future.get()).thenReturn(response)
       this
+    }
+
+    def clearResponse(): Unit = {
+      if (entityUtilsMock != null) {
+        entityUtilsMock.close()
+      }
     }
 
     def shouldExecute(expectExecuteTimes: VerificationMode): Unit = {
@@ -231,6 +239,7 @@ class RetryableHttpAsyncClientSuite extends AnyFlatSpec with BeforeAndAfter with
 
         reset(future)
         clearInvocations(internalClient)
+        clearResponse()
       }
     }
   }
