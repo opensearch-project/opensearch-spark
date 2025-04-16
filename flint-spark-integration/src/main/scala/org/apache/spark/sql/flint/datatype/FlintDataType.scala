@@ -230,8 +230,7 @@ object FlintDataType {
         JObject("type" -> JString("ip"))
 
       // geo_point
-      case GeoPointUDT =>
-        JObject("type" -> JString("geo_point"))
+      case GeoPointUDT => JObject("type" -> JString("geo_point"))
 
       case unknown => throw new IllegalStateException(s"unsupported data type: ${unknown.sql}")
     }
