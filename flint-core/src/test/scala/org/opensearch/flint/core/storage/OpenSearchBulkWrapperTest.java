@@ -65,9 +65,9 @@ class OpenSearchBulkWrapperTest {
       new Failure("index", "id", null,
           RestStatus.CONFLICT));
 
-  FlintRetryOptions retryOptionsWithRetry = new FlintRetryOptions(Map.of("retry.max_retries", "2"));
+  FlintRetryOptions retryOptionsWithRetry = new FlintRetryOptions(Map.of("retry.bulk.max_retries", "2"));
   FlintRetryOptions retryOptionsWithoutRetry = new FlintRetryOptions(
-      Map.of("retry.max_retries", "0"));
+      Map.of("retry.bulk.max_retries", "0"));
 
   FlintOptions optionsWithRateLimit = new FlintOptions(Map.of(
       FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED, "true",
@@ -277,8 +277,8 @@ class OpenSearchBulkWrapperTest {
 
       bulkWrapper.bulk(client, bulkRequest, options);
 
-      // Should decrease three times
-      assertEquals(2.5, rateLimiter.getRate());
+      // Should decrease three times (rounded): 20 -> 10 -> 5 -> 2
+      assertEquals(2, rateLimiter.getRate());
     });
   }
 
