@@ -22,7 +22,7 @@ object IPFunctions {
     .toParams;
 
   /**
-   * TODO: come up with common implementation for both SQL and PPL {@ref SerializableUdf}
+   * TODO: come up with common implementation for both SQL and PPL {@link SerializableUdf}
    */
   val cidrMatch = (ipAddress: IPAddress, cidrBlock: String) => {
     val parsedIpAddress = new IPAddressString(ipAddress.address, valOptions)
