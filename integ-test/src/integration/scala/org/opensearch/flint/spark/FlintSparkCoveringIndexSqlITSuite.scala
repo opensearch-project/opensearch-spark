@@ -13,7 +13,7 @@ import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService.extractSourceEnabled
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService.{extractFieldProperty, extractSourceEnabled}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
@@ -145,7 +145,7 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
     (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
   }
 
-  test("create covering index with index mappings") {
+  test("create covering index with index mappings _source") {
     sql(s"""
            | CREATE INDEX $testIndex ON $testTable ( name )
            | WITH (
@@ -163,6 +163,31 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
       Option(flintMetadata.options.get("index_mappings")).map(_.asInstanceOf[String])
     val mappingsSourceEnabled = extractSourceEnabled(indexMappingsOpt)
     mappingsSourceEnabled shouldBe false
+  }
+
+  test("create covering index with index mappings schema merging") {
+    sql(s"""
+           | CREATE INDEX $testIndex ON $testTable ( name )
+           | WITH (
+           |   index_mappings = '{ "_source": { "enabled": false }, "properties": { "name": {"index": false} } }'
+           | )
+           |""".stripMargin)
+
+    // Check if the _source in index mappings option is set to OS index mappings
+    val flintIndexMetadataService =
+      new FlintOpenSearchIndexMetadataService(new FlintOptions(openSearchOptions.asJava))
+
+    val flintMetadata = {
+      flintIndexMetadataService.getIndexMetadata(testFlintIndex)
+    }
+    val indexMappingsOpt =
+      Option(flintMetadata.options.get("index_mappings")).map(_.asInstanceOf[String])
+    val mappingsSourceEnabled = extractSourceEnabled(indexMappingsOpt)
+    mappingsSourceEnabled shouldBe false
+    val schemaValue = flintMetadata.schema
+    val countIsIndexable = extractFieldProperty[java.lang.Boolean](schemaValue, "name", "index")
+      .getOrElse(java.lang.Boolean.TRUE)
+    countIsIndexable shouldBe false
   }
 
   test("create covering index with invalid option") {

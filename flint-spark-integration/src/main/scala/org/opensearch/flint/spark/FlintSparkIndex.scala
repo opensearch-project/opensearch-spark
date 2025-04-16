@@ -10,6 +10,7 @@ import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConv
 import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.FlintJsonHelper._
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService.extractSourceEnabled
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -211,5 +212,68 @@ object FlintSparkIndex extends Logging {
     }
 
     schemaMap
+  }
+
+  /**
+   * Merges the field configurations from FlintSparkIndexOptions into the existing schema. If the
+   * options contain property configurations that exist in allFieldTypes, those configurations are
+   * merged.
+   *
+   * @param allFieldTypes
+   *   Map of field names to their type/configuration details
+   * @param options
+   *   FlintSparkIndexOptions containing potential property configurations
+   * @return
+   *   Merged map with combined field configurations
+   */
+  def mergeSchema(
+      allFieldTypes: Map[String, AnyRef],
+      options: FlintSparkIndexOptions): Map[String, AnyRef] = {
+    val indexMappingsOpt = options.options.get("index_mappings").flatMap {
+      case s: String => Some(s)
+      case _ => None
+    }
+
+    var result = allFieldTypes
+
+    indexMappingsOpt.foreach { jsonStr =>
+      try {
+        parseJson(jsonStr) { (parser, fieldName) =>
+          fieldName match {
+            case "_source" => parser.skipChildren()
+            case "properties" =>
+              parseObjectField(parser) { (parser, propertyName) =>
+                if (result.contains(propertyName)) {
+                  val existingConfig =
+                    result(propertyName).asInstanceOf[java.util.Map[String, AnyRef]]
+                  val mergedConfig = new java.util.HashMap[String, Any](existingConfig)
+                  parseObjectField(parser) { (parser, configKey) =>
+                    val configValue = configKey match {
+                      case "type" => parser.text().asInstanceOf[AnyRef]
+                      case "index" => java.lang.Boolean.valueOf(parser.booleanValue())
+                      case "format" => parser.text().asInstanceOf[AnyRef]
+                      case _ => // Ignore
+                    }
+                    if (configValue != null) {
+                      mergedConfig.put(configKey, configValue)
+                    }
+                  }
+
+                  result = result.updated(propertyName, mergedConfig)
+                } else {
+                  parser.skipChildren()
+                }
+              }
+            case _ => parser.skipChildren()
+          }
+        }
+      } catch {
+        case ex: Exception =>
+        // Swallow exception and leave result unchanged
+        // Consider logging this in a production environment
+      }
+    }
+
+    result
   }
 }

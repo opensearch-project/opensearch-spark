@@ -139,6 +139,34 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
                 | }
                 |""".stripMargin
 
+  val testMetadataJsonWithSourceEnabledFalseAndSchemaMerging: String = s"""
+                | {
+                |   "_meta": {
+                |     "version": "${current()}",
+                |     "name": "test_index",
+                |     "kind": "test_kind",
+                |     "source": "test_source_table",
+                |     "indexedColumns": [
+                |     {
+                |       "test_field": "spark_type"
+                |     }],
+                |     "options": {
+                |       "index_mappings": "{ \\"_source\\": { \\"enabled\\": false }, \\"properties\\": { \\"test_field\\": {\\"index\\": false} } }"
+                |     },
+                |     "properties": {}
+                |   },
+                |   "_source": {
+                |     "enabled": false
+                |   },
+                |   "properties": {
+                |     "test_field": {
+                |       "type": "os_type",
+                |       "index": false
+                |     }
+                |   }
+                | }
+                |""".stripMargin
+
   val testDynamic: String = s"""
                 | {
                 |   "dynamic": "strict",
@@ -273,6 +301,28 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
     val metadata = builder.build()
     FlintOpenSearchIndexMetadataService.serialize(metadata) should matchJson(
       testMetadataJsonOtherThanEnabled)
+  }
+
+  "serialize" should "serialize all fields (include _source and schema merging) to JSON" in {
+    val builder = new FlintMetadata.Builder
+    builder.name("test_index")
+    builder.kind("test_kind")
+    builder.source("test_source_table")
+    builder.addIndexedColumn(Map[String, AnyRef]("test_field" -> "spark_type").asJava)
+    val schema = Map[String, AnyRef](
+      "test_field" -> Map("type" -> "os_type", "index" -> false).asJava).asJava
+    builder.schema(schema)
+
+    val optionsMap = new util.HashMap[String, AnyRef]()
+    optionsMap.put(
+      "index_mappings",
+      """{ "_source": { "enabled": false }, "properties": { "test_field": {"index": false} } }""")
+
+    builder.options(optionsMap)
+
+    val metadata = builder.build()
+    FlintOpenSearchIndexMetadataService.serialize(metadata) should matchJson(
+      testMetadataJsonWithSourceEnabledFalseAndSchemaMerging)
   }
 
   "serialize without spec" should "serialize all fields to JSON without adding _meta field" in {

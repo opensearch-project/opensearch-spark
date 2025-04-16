@@ -14,7 +14,7 @@ import org.json4s.native.JsonMethods.{compact, parse, render}
 import org.json4s.native.Serialization
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService.extractSourceEnabled
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService.{extractFieldProperty, extractSourceEnabled}
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
@@ -229,6 +229,31 @@ class FlintSparkSkippingIndexSqlITSuite extends FlintSparkSuite with ExplainSuit
       Option(flintMetadata.options.get("index_mappings")).map(_.asInstanceOf[String])
     val mappingsSourceEnabled = extractSourceEnabled(indexMappingsOpt)
     mappingsSourceEnabled shouldBe false
+  }
+
+  test("create skipping index with index mappings schema merging") {
+    sql(s"""
+           | CREATE SKIPPING INDEX ON $testTable
+           | ( year PARTITION )
+           | WITH (
+           |   index_mappings = '{ "_source": { "enabled": false }, "properties": { "year": {"index": false} } }'
+           | )
+           |""".stripMargin)
+
+    // Check if the _source in index mappings option is set to OS index mappings
+    val flintIndexMetadataService =
+      new FlintOpenSearchIndexMetadataService(new FlintOptions(openSearchOptions.asJava))
+
+    val flintMetadata =
+      flintIndexMetadataService.getIndexMetadata(testIndex)
+    val indexMappingsOpt =
+      Option(flintMetadata.options.get("index_mappings")).map(_.asInstanceOf[String])
+    val mappingsSourceEnabled = extractSourceEnabled(indexMappingsOpt)
+    mappingsSourceEnabled shouldBe false
+    val schemaValue = flintMetadata.schema
+    val countIsIndexable = extractFieldProperty[java.lang.Boolean](schemaValue, "year", "index")
+      .getOrElse(java.lang.Boolean.TRUE)
+    countIsIndexable shouldBe false
   }
 
   Seq(

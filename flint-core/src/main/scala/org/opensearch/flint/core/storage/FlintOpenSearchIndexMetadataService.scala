@@ -200,6 +200,7 @@ object FlintOpenSearchIndexMetadataService {
                   }
                 }
               }
+            case "_source" => parser.skipChildren()
             case "properties" =>
               builder.schema(parser.map())
             case _ => // Ignore other fields, for instance, dynamic.
@@ -239,4 +240,35 @@ object FlintOpenSearchIndexMetadataService {
     sourceEnabled
   }
 
+  /**
+   * Extracts a field property value from the schema.
+   *
+   * @param schema
+   *   The schema map containing field definitions
+   * @param fieldName
+   *   The field name to look up
+   * @param propertyName
+   *   The property name to extract within the field (e.g., "index")
+   * @return
+   *   Option containing the property value if found
+   */
+  def extractFieldProperty[T](
+      schema: java.util.Map[String, AnyRef],
+      fieldName: String,
+      propertyName: String): Option[T] = {
+    Option(schema.get(fieldName)).flatMap { fieldProperties =>
+      fieldProperties match {
+        // Handle if the value is a Java Map
+        case props: java.util.Map[_, _] =>
+          Option(props.asInstanceOf[java.util.Map[String, AnyRef]].get(propertyName))
+            .map(_.asInstanceOf[T])
+
+        // Handle if the value is a Scala Map (less common but possible)
+        case props: Map[_, _] =>
+          props.asInstanceOf[Map[String, AnyRef]].get(propertyName).map(_.asInstanceOf[T])
+
+        case _ => None
+      }
+    }
+  }
 }
