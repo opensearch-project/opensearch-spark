@@ -40,7 +40,7 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
                 | }
                 |""".stripMargin
 
-  val testMetadataJsonWithIndexMappingSourceEnabled: String = s"""
+  val testMetadataJsonWithIndexMappingSourceEnabledFalse: String = s"""
                 | {
                 |   "_meta": {
                 |     "version": "${current()}",
@@ -58,6 +58,78 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
                 |   },
                 |   "_source": {
                 |     "enabled": false
+                |   },
+                |   "properties": {
+                |     "test_field": {
+                |       "type": "os_type"
+                |     }
+                |   }
+                | }
+                |""".stripMargin
+
+  val testMetadataJsonWithIndexMappingSourceEnabledTrue: String = s"""
+                | {
+                |   "_meta": {
+                |     "version": "${current()}",
+                |     "name": "test_index",
+                |     "kind": "test_kind",
+                |     "source": "test_source_table",
+                |     "indexedColumns": [
+                |     {
+                |       "test_field": "spark_type"
+                |     }],
+                |     "options": {
+                |       "index_mappings": "{ \\"_source\\": { \\"enabled\\": true } }"
+                |     },
+                |     "properties": {}
+                |   },
+                |   "properties": {
+                |     "test_field": {
+                |       "type": "os_type"
+                |     }
+                |   }
+                | }
+                |""".stripMargin
+
+  val testMetadataJsonOtherThanSource: String = s"""
+                | {
+                |   "_meta": {
+                |     "version": "${current()}",
+                |     "name": "test_index",
+                |     "kind": "test_kind",
+                |     "source": "test_source_table",
+                |     "indexedColumns": [
+                |     {
+                |       "test_field": "spark_type"
+                |     }],
+                |     "options": {
+                |       "index_mappings": "{ \\"boost\\": 1.0 }"
+                |     },
+                |     "properties": {}
+                |   },
+                |   "properties": {
+                |     "test_field": {
+                |       "type": "os_type"
+                |     }
+                |   }
+                | }
+                |""".stripMargin
+
+  val testMetadataJsonOtherThanEnabled: String = s"""
+                | {
+                |   "_meta": {
+                |     "version": "${current()}",
+                |     "name": "test_index",
+                |     "kind": "test_kind",
+                |     "source": "test_source_table",
+                |     "indexedColumns": [
+                |     {
+                |       "test_field": "spark_type"
+                |     }],
+                |     "options": {
+                |       "index_mappings": "{ \\"_source\\": { \\"includes\\": \\"meta.*\\" } }"
+                |     },
+                |     "properties": {}
                 |   },
                 |   "properties": {
                 |     "test_field": {
@@ -118,7 +190,7 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
     })
   }
 
-  "serialize" should "serialize all fields(no _source) to JSON" in {
+  "serialize" should "serialize all fields (no _source) to JSON" in {
     val builder = new FlintMetadata.Builder
     builder.name("test_index")
     builder.kind("test_kind")
@@ -131,7 +203,7 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
       testMetadataJsonWithoutIndexMapping)
   }
 
-  "serialize" should "serialize all fields(include _source) to JSON" in {
+  "serialize" should "serialize all fields (include _source false) to JSON" in {
     val builder = new FlintMetadata.Builder
     builder.name("test_index")
     builder.kind("test_kind")
@@ -146,7 +218,61 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
 
     val metadata = builder.build()
     FlintOpenSearchIndexMetadataService.serialize(metadata) should matchJson(
-      testMetadataJsonWithIndexMappingSourceEnabled)
+      testMetadataJsonWithIndexMappingSourceEnabledFalse)
+  }
+
+  "serialize" should "serialize all fields (include _source true) to JSON" in {
+    val builder = new FlintMetadata.Builder
+    builder.name("test_index")
+    builder.kind("test_kind")
+    builder.source("test_source_table")
+    builder.addIndexedColumn(Map[String, AnyRef]("test_field" -> "spark_type").asJava)
+    builder.schema(Map[String, AnyRef]("test_field" -> Map("type" -> "os_type").asJava).asJava)
+
+    val optionsMap = new util.HashMap[String, AnyRef]()
+    optionsMap.put("index_mappings", """{ "_source": { "enabled": true } }""")
+
+    builder.options(optionsMap)
+
+    val metadata = builder.build()
+    FlintOpenSearchIndexMetadataService.serialize(metadata) should matchJson(
+      testMetadataJsonWithIndexMappingSourceEnabledTrue)
+  }
+
+  "serialize" should "serialize all fields (include other things than _source) to JSON" in {
+    val builder = new FlintMetadata.Builder
+    builder.name("test_index")
+    builder.kind("test_kind")
+    builder.source("test_source_table")
+    builder.addIndexedColumn(Map[String, AnyRef]("test_field" -> "spark_type").asJava)
+    builder.schema(Map[String, AnyRef]("test_field" -> Map("type" -> "os_type").asJava).asJava)
+
+    val optionsMap = new util.HashMap[String, AnyRef]()
+    optionsMap.put("index_mappings", """{ "boost": 1.0 }""")
+
+    builder.options(optionsMap)
+
+    val metadata = builder.build()
+    FlintOpenSearchIndexMetadataService.serialize(metadata) should matchJson(
+      testMetadataJsonOtherThanSource)
+  }
+
+  "serialize" should "serialize all fields (include other things than enabled) to JSON" in {
+    val builder = new FlintMetadata.Builder
+    builder.name("test_index")
+    builder.kind("test_kind")
+    builder.source("test_source_table")
+    builder.addIndexedColumn(Map[String, AnyRef]("test_field" -> "spark_type").asJava)
+    builder.schema(Map[String, AnyRef]("test_field" -> Map("type" -> "os_type").asJava).asJava)
+
+    val optionsMap = new util.HashMap[String, AnyRef]()
+    optionsMap.put("index_mappings", """{ "_source": { "includes": "meta.*" } }""")
+
+    builder.options(optionsMap)
+
+    val metadata = builder.build()
+    FlintOpenSearchIndexMetadataService.serialize(metadata) should matchJson(
+      testMetadataJsonOtherThanEnabled)
   }
 
   "serialize without spec" should "serialize all fields to JSON without adding _meta field" in {
