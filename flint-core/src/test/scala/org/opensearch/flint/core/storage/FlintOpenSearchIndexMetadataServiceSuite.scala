@@ -5,6 +5,8 @@
 
 package org.opensearch.flint.core.storage
 
+import java.util
+
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 import com.stephenn.scalatest.jsonassert.JsonMatchers.matchJson
@@ -16,7 +18,7 @@ import org.scalatest.matchers.should.Matchers
 class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers {
 
   /** Test Flint index meta JSON string */
-  val testMetadataJson: String = s"""
+  val testMetadataJsonWithoutIndexMapping: String = s"""
                 | {
                 |   "_meta": {
                 |     "version": "${current()}",
@@ -29,6 +31,33 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
                 |     }],
                 |     "options": {},
                 |     "properties": {}
+                |   },
+                |   "properties": {
+                |     "test_field": {
+                |       "type": "os_type"
+                |     }
+                |   }
+                | }
+                |""".stripMargin
+
+  val testMetadataJsonWithIndexMappingSourceEnabled: String = s"""
+                | {
+                |   "_meta": {
+                |     "version": "${current()}",
+                |     "name": "test_index",
+                |     "kind": "test_kind",
+                |     "source": "test_source_table",
+                |     "indexedColumns": [
+                |     {
+                |       "test_field": "spark_type"
+                |     }],
+                |     "options": {
+                |       "index_mappings": "{ \\"_source\\": { \\"enabled\\": false } }"
+                |     },
+                |     "properties": {}
+                |   },
+                |   "_source": {
+                |     "enabled": false
                 |   },
                 |   "properties": {
                 |     "test_field": {
@@ -77,7 +106,7 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
       |""".stripMargin
 
   "constructor" should "deserialize the given JSON and assign parsed value to field" in {
-    Seq(testMetadataJson, testDynamic).foreach(mapping => {
+    Seq(testMetadataJsonWithoutIndexMapping, testDynamic).foreach(mapping => {
       val metadata =
         FlintOpenSearchIndexMetadataService.deserialize(mapping, testIndexSettingsJson)
       metadata.version shouldBe current()
@@ -89,7 +118,7 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
     })
   }
 
-  "serialize" should "serialize all fields to JSON" in {
+  "serialize" should "serialize all fields(no _source) to JSON" in {
     val builder = new FlintMetadata.Builder
     builder.name("test_index")
     builder.kind("test_kind")
@@ -98,7 +127,26 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
     builder.schema(Map[String, AnyRef]("test_field" -> Map("type" -> "os_type").asJava).asJava)
 
     val metadata = builder.build()
-    FlintOpenSearchIndexMetadataService.serialize(metadata) should matchJson(testMetadataJson)
+    FlintOpenSearchIndexMetadataService.serialize(metadata) should matchJson(
+      testMetadataJsonWithoutIndexMapping)
+  }
+
+  "serialize" should "serialize all fields(include _source) to JSON" in {
+    val builder = new FlintMetadata.Builder
+    builder.name("test_index")
+    builder.kind("test_kind")
+    builder.source("test_source_table")
+    builder.addIndexedColumn(Map[String, AnyRef]("test_field" -> "spark_type").asJava)
+    builder.schema(Map[String, AnyRef]("test_field" -> Map("type" -> "os_type").asJava).asJava)
+
+    val optionsMap = new util.HashMap[String, AnyRef]()
+    optionsMap.put("index_mappings", """{ "_source": { "enabled": false } }""")
+
+    builder.options(optionsMap)
+
+    val metadata = builder.build()
+    FlintOpenSearchIndexMetadataService.serialize(metadata) should matchJson(
+      testMetadataJsonWithIndexMappingSourceEnabled)
   }
 
   "serialize without spec" should "serialize all fields to JSON without adding _meta field" in {

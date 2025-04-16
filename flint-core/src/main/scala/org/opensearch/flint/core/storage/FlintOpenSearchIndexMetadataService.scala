@@ -134,13 +134,16 @@ object FlintOpenSearchIndexMetadataService {
             optionalObjectField(builder, "properties", metadata.properties)
           }
         }
-        // add _source field
+        // Add _source field
         val indexMappingsOpt =
           Option(metadata.options.get("index_mappings")).map(_.asInstanceOf[String])
         val sourceEnabled = extractSourceEnabled(indexMappingsOpt)
-        objectField(builder, "_source") {
-          builder.field("enabled", sourceEnabled)
+        if (!sourceEnabled) {
+          objectField(builder, "_source") {
+            builder.field("enabled", sourceEnabled)
+          }
         }
+
         // Add properties (schema) field
         builder.field("properties", metadata.schema)
       })
@@ -222,14 +225,14 @@ object FlintOpenSearchIndexMetadataService {
                 innerFieldName match {
                   case "enabled" =>
                     sourceEnabled = parser.booleanValue()
-                  case _ => // ignore
+                  case _ => // Ignore
                 }
               }
-            case _ => // ignore
+            case _ => // Ignore
           }
         }
       } catch {
-        case _: Exception => // swallow and leave sourceEnabled = None
+        case _: Exception => // Swallow and leave sourceEnabled = None
       }
     }
 
