@@ -6,7 +6,7 @@
 package org.apache.spark.opensearch.table
 
 import org.opensearch.flint.spark.ppl.FlintPPLSuite
-import org.opensearch.flint.spark.udt.{IPAddress, IPFunctions}
+import org.opensearch.flint.spark.udt.{GeoPoint, IPAddress, IPFunctions}
 
 import org.apache.spark.sql.{DataFrame, ExplainSuiteHelper, Row, SparkSession}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
@@ -114,6 +114,26 @@ class OpenSearchTableQueryITSuite
       // that does not exactly match returns no results.
       df = spark.sql(s"""SELECT id FROM $table WHERE aText = "Airport" """)
       checkAnswer(df, Seq())
+    }
+  }
+
+  test("Query geo_point field") {
+    val indexName = "t0001"
+    val table = s"${catalogName}.default.$indexName"
+    withIndexName(indexName) {
+      indexGeoPointFields(indexName)
+
+      val df =
+        spark.sql(s"""SELECT id, location FROM $table""")
+      df.explain(true)
+      checkAnswer(
+        df,
+        Seq(
+          Row(1, GeoPoint(40.12, -71.34)),
+          Row(2, GeoPoint(40.12, -71.34)),
+          Row(3, GeoPoint(40.078125, -71.3671875)), // different value due to precision
+          Row(4, GeoPoint(40.12, -71.34)),
+          Row(5, GeoPoint(40.12, -71.34))))
     }
   }
 
