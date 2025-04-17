@@ -12,6 +12,7 @@ import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.concurrent.duration.{Duration, MINUTES}
 import scala.util.{Failure, Success, Try}
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.opensearch.flint.common.model.FlintStatement
 import org.opensearch.flint.common.scheduler.model.LangType
 import org.opensearch.flint.core.metrics.{MetricConstants, MetricsSparkListener, MetricsUtil}
@@ -155,10 +156,11 @@ case class JobOperator(
         })
       } catch {
         case t: Throwable =>
+          // We are storing because throwableHandler.error is set again in processQueryException
+          val originalError = throwableHandler.error
+          val updatedErrorMessage = updateErrorMessage(processQueryException(t), originalError)
           incrementCounter(MetricConstants.RESULT_WRITER_FAILED_METRIC)
-          throwableHandler.recordThrowable(
-            s"Failed to write to result. Cause='${t.getMessage}', originalError='${throwableHandler.error}'",
-            t)
+          throwableHandler.recordThrowable(updatedErrorMessage, t)
       } finally {
         emitTimerMetric(MetricConstants.QUERY_RESULT_WRITER_TIME_METRIC, resultWriterStartTime)
       }
@@ -226,6 +228,15 @@ case class JobOperator(
   private def emitTimerMetric(metricName: String, startTime: Long): Unit = {
     MetricsUtil
       .addHistoricGauge(resolveMetricName(metricName), System.currentTimeMillis() - startTime)
+  }
+
+  private def updateErrorMessage(errorJson: String, originalError: String): String = {
+    val errorMap = mapper.readValue(errorJson, classOf[java.util.LinkedHashMap[String, String]])
+    val errorMessageFromMap = errorMap.get("message")
+    errorMap.put(
+      "message",
+      s"Failed to write to result. Cause='${errorMessageFromMap}', originalError='${originalError}'")
+    mapper.writeValueAsString(errorMap)
   }
 
   def stop(): Unit = {

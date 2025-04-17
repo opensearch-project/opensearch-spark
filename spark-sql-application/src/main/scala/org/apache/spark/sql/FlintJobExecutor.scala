@@ -451,9 +451,10 @@ trait FlintJobExecutor {
 
     val errorMessage = s"$messagePrefix: ${t.getMessage}"
     val errorDetails = new java.util.LinkedHashMap[String, String]()
-    errorDetails.put("Message", errorMessage)
+    errorDetails.put("message", errorMessage)
     errorSource.foreach(es => errorDetails.put("ErrorSource", es))
-    statusCode.foreach(code => errorDetails.put("StatusCode", code.toString))
+    statusCode.foreach(code => errorDetails.put("statusCode", code.toString))
+    errorDetails.put("exception.type", t.getClass.getName)
 
     val errorJson = mapper.writeValueAsString(errorDetails)
     // Record the processed error message
