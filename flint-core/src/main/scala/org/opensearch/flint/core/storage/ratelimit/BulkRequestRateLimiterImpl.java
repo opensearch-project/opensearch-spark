@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.core.storage;
+package org.opensearch.flint.core.storage.ratelimit;
 
 import com.google.common.util.concurrent.RateLimiter;
 import java.util.logging.Logger;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.metrics.MetricConstants;
 import org.opensearch.flint.core.metrics.MetricsUtil;
+import org.opensearch.flint.core.storage.RequestRateMeter;
 
 public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
   private static final Logger LOG = Logger.getLogger(BulkRequestRateLimiterImpl.class.getName());

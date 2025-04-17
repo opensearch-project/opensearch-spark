@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.core.storage;
+package org.opensearch.flint.core.storage.ratelimit;
 
 import java.util.logging.Logger;
 
@@ -34,4 +34,3 @@ public class BulkRequestRateLimiterNoop implements BulkRequestRateLimiter {
   @Override
   public void setRate(long permitsPerSecond) {}
 }
-

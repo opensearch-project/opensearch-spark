@@ -34,6 +34,9 @@ import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.http.FlintRetryOptions;
 import org.opensearch.flint.core.metrics.MetricConstants;
 import org.opensearch.flint.core.metrics.MetricsTestUtil;
+import org.opensearch.flint.core.storage.ratelimit.BulkRequestRateLimiter;
+import org.opensearch.flint.core.storage.ratelimit.BulkRequestRateLimiterImpl;
+import org.opensearch.flint.core.storage.ratelimit.BulkRequestRateLimiterNoop;
 import org.opensearch.rest.RestStatus;
 
 @ExtendWith(MockitoExtension.class)

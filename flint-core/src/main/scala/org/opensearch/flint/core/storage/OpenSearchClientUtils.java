@@ -27,6 +27,7 @@ import org.opensearch.flint.core.IRestHighLevelClient;
 import org.opensearch.flint.core.RestHighLevelClientWrapper;
 import org.opensearch.flint.core.auth.ResourceBasedAWSRequestSigningApacheInterceptor;
 import org.opensearch.flint.core.http.RetryableHttpAsyncClient;
+import org.opensearch.flint.core.storage.ratelimit.BulkRequestRateLimiterHolder;
 
 /**
  * Utility functions to create {@link IRestHighLevelClient}.

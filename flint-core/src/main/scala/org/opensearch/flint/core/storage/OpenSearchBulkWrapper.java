@@ -24,6 +24,7 @@ import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.flint.core.http.FlintRetryOptions;
 import org.opensearch.flint.core.metrics.MetricConstants;
 import org.opensearch.flint.core.metrics.MetricsUtil;
+import org.opensearch.flint.core.storage.ratelimit.BulkRequestRateLimiter;
 import org.opensearch.rest.RestStatus;
 
 /**
