@@ -230,7 +230,7 @@ class OpenSearchTableQueryITSuite
       checkPushedInfo(df, "NOT ((ip_compare(client, '192.168.0.10/32')) = 0)")
 
       df = testQuery(
-        s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32') AND cidrmatch(server, '192.168.0.10/32')",
+        s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32') AND cidrmatch(server, '100.10.12.123/32')",
         Seq(Row(0), Row(2)))
       checkPushedInfo(
         df,
