@@ -5,10 +5,10 @@
 
 package org.opensearch.flint.spark
 
-import org.opensearch.flint.spark.udt.{CidrMatch, IPAddress, IPAddressUDT}
+import org.opensearch.flint.spark.udt.{IPAddress, IPAddressUDT}
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{And, ApplyFunctionExpression, EqualTo, Expression, Literal, Not, Or}
+import org.apache.spark.sql.catalyst.expressions.{And, ApplyFunctionExpression, EqualTo, Expression, Literal, Not, Or, ScalaUDF}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.functions.{BoundFunction, ScalarFunction, UnboundFunction}
@@ -17,7 +17,7 @@ import org.apache.spark.sql.types.{DataType, DataTypes, IntegerType, StringType,
 import org.apache.spark.unsafe.types.UTF8String
 
 /**
- * Bounded function which compare ip field with String value containing ip address string.
+ * Bounded function which compare ip field with String value containing ip/cidr string.
  */
 case object IpCompareBound extends ScalarFunction[Integer] {
   override def inputTypes(): Array[DataType] = Array(IPAddressUDT, DataTypes.StringType)
@@ -51,8 +51,10 @@ object OpenSearchCidrMatchConvertRule extends Rule[LogicalPlan] {
 
   protected def convertCidrMatch(e: Expression): Expression = {
     e match {
-      case CidrMatch(left, right) =>
+      case udf: ScalaUDF if udf.udfName.get == "cidrmatch" =>
         // converts to (ip_compare(left, right) = 0)
+        val left = udf.children.head
+        val right = udf.children.last
         EqualTo(
           ApplyFunctionExpression(IpCompareBound, Seq(left, right)),
           Literal(0, IntegerType))

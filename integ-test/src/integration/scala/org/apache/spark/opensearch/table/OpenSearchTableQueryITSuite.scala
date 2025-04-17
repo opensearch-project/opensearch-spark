@@ -207,6 +207,14 @@ class OpenSearchTableQueryITSuite
       df = spark.sql(
         s"SELECT client, server FROM $tableName WHERE cidrmatch(client, '::ffff:192.168.0.0/120')")
       checkAnswer(df, Seq(Row(IPAddress(clientIp(2)), IPAddress(serverIp(1)))))
+
+      df = spark.sql(s"SELECT id, client, cidrmatch(client, '192.168.0.0/24') FROM $tableName")
+      checkAnswer(
+        df,
+        Seq(
+          Row(0, IPAddress(clientIp(0)), true),
+          Row(1, IPAddress(clientIp(1)), true),
+          Row(2, IPAddress(clientIp(2)), false)))
     }
   }
 
