@@ -5,7 +5,7 @@
 
 package org.opensearch.flint.spark
 
-import org.opensearch.flint.spark.udt.{IPAddress, IPAddressUDT, IpEqual}
+import org.opensearch.flint.spark.udt.{CidrMatch, IPAddress, IPAddressUDT}
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{And, ApplyFunctionExpression, EqualTo, Expression, Literal, Not, Or}
@@ -15,14 +15,6 @@ import org.apache.spark.sql.connector.catalog.functions.{BoundFunction, ScalarFu
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.types.{DataType, DataTypes, IntegerType, StringType, StructType}
 import org.apache.spark.unsafe.types.UTF8String
-
-case object IpCompareUnbound extends UnboundFunction {
-  override def name(): String = "ip_compare"
-
-  override def bind(inputType: StructType): BoundFunction = IpCompareBound
-
-  override def description(): String = "ip_compare function"
-}
 
 /**
  * Bounded function which compare ip field with String value containing ip address string.
@@ -46,30 +38,30 @@ case object IpCompareBound extends ScalarFunction[Integer] {
 }
 
 /**
- * Catalyst Optimizer rule for converting ip_equal function to ip_compare for predicate pushdown.
+ * Catalyst Optimizer rule for converting cidrmatch function to ip_compare for predicate pushdown.
  * This conversion is required since Spark cannot handle UDF returning boolean in predicate
  * pushdown logic. This is a workaround to convert to a EqualTo predicate. The converted predicate
  * will be pushed down to OpenSearch query by {@link FlintQueryCompiler}.
  */
-object OpenSearchIpEqualConvertRule extends Rule[LogicalPlan] {
+object OpenSearchCidrMatchConvertRule extends Rule[LogicalPlan] {
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
     case Filter(condition: Expression, relation: DataSourceV2Relation) =>
-      Filter(convertIpMatch(condition), relation)
+      Filter(convertCidrMatch(condition), relation)
   }
 
-  protected def convertIpMatch(e: Expression): Expression = {
+  protected def convertCidrMatch(e: Expression): Expression = {
     e match {
-      case IpEqual(left, right) =>
+      case CidrMatch(left, right) =>
         // converts to (ip_compare(left, right) = 0)
         EqualTo(
           ApplyFunctionExpression(IpCompareBound, Seq(left, right)),
           Literal(0, IntegerType))
       case And(left, right) =>
-        And(convertIpMatch(left), convertIpMatch(right))
+        And(convertCidrMatch(left), convertCidrMatch(right))
       case Or(left, right) =>
-        Or(convertIpMatch(left), convertIpMatch(right))
+        Or(convertCidrMatch(left), convertCidrMatch(right))
       case Not(child) =>
-        Not(convertIpMatch(child))
+        Not(convertCidrMatch(child))
       case _ => e
     }
   }

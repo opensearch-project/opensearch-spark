@@ -213,8 +213,6 @@ class OpenSearchTableQueryITSuite
   test("Query index with ip data type with predicate push down") {
     val index1 = "t0001"
     val tableName = s"""$catalogName.default.$index1"""
-    val clientIp: Array[String] = Array("192.168.0.10", "192.168.0.11");
-    val serverIp = "100.10.12.123";
 
     withIndexName(index1) {
       indexWithIp(index1)
@@ -222,30 +220,28 @@ class OpenSearchTableQueryITSuite
       var df: DataFrame = null
 
       df = testQuery(
-        s"SELECT id, client, server FROM $tableName WHERE ip_equal(client, '192.168.0.10')",
-        Seq(Row(1, IPAddress(clientIp(0)), IPAddress(serverIp))))
-      checkPushedInfo(df, "(ip_compare(client, '192.168.0.10')) = 0")
+        s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32')",
+        Seq(Row(0), Row(2)))
+      checkPushedInfo(df, "(ip_compare(client, '192.168.0.10/32')) = 0")
 
       df = testQuery(
-        s"SELECT id, client, server FROM $tableName WHERE NOT ip_equal(client, '192.168.0.10')",
-        Seq(Row(2, IPAddress(clientIp(1)), IPAddress(serverIp))))
-      checkPushedInfo(df, "NOT ((ip_compare(client, '192.168.0.10')) = 0)")
+        s"SELECT id FROM $tableName WHERE NOT cidrmatch(client, '192.168.0.10/32')",
+        Seq(Row(1)))
+      checkPushedInfo(df, "NOT ((ip_compare(client, '192.168.0.10/32')) = 0)")
 
       df = testQuery(
-        s"SELECT id, client, server FROM $tableName WHERE ip_equal(client, '192.168.0.10') AND ip_equal(server, '$serverIp')",
-        Seq(Row(1, IPAddress(clientIp(0)), IPAddress(serverIp))))
+        s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32') AND cidrmatch(server, '192.168.0.10/32')",
+        Seq(Row(0), Row(2)))
       checkPushedInfo(
         df,
-        "(ip_compare(client, '192.168.0.10')) = 0, (ip_compare(server, '100.10.12.123')) = 0")
+        "(ip_compare(client, '192.168.0.10/32')) = 0, (ip_compare(server, '100.10.12.123/32')) = 0")
 
       df = testQuery(
-        s"SELECT id, client, server FROM $tableName WHERE ip_equal(client, '192.168.0.10') OR ip_equal(client, '192.168.0.11')",
-        Seq(
-          Row(1, IPAddress(clientIp(0)), IPAddress(serverIp)),
-          Row(2, IPAddress(clientIp(1)), IPAddress(serverIp))))
+        s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32') OR cidrmatch(client, '192.168.0.11/32')",
+        Seq(Row(0), Row(1), Row(2)))
       checkPushedInfo(
         df,
-        "((ip_compare(client, '192.168.0.10')) = 0) OR ((ip_compare(client, '192.168.0.11')) = 0)")
+        "((ip_compare(client, '192.168.0.10/32')) = 0) OR ((ip_compare(client, '192.168.0.11/32')) = 0)")
     }
   }
 

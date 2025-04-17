@@ -8,7 +8,7 @@ package org.opensearch.flint.spark
 import org.opensearch.common.geo.GeoPoint
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.sql.FlintSparkSqlParser
-import org.opensearch.flint.spark.udt.{IPAddress, IPAddressUDT, IpEqual}
+import org.opensearch.flint.spark.udt.{CidrMatch, IPAddress, IPAddressUDT}
 import org.opensearch.flint.spark.udt.GeoPointUDT
 
 import org.apache.spark.sql.SparkSessionExtensions
@@ -37,17 +37,18 @@ class FlintSparkExtensions extends (SparkSessionExtensions => Unit) {
     UDTRegistration.register(classOf[GeoPoint].getName, classOf[GeoPointUDT].getName)
 
     // Register the IPMatch UDF
-    val functionName = "ip_equal"
-    val functionClass = classOf[IpEqual].getName
+    val functionName = "cidrmatch"
+    val functionClass = classOf[CidrMatch].getName
     val expressionInfo = new ExpressionInfo(functionClass, functionName)
-    val ipMatchBuilder: Seq[Expression] => Expression = {
-      case Seq(child1, child2) => IpEqual(child1, child2)
-      case _ => throw new IllegalArgumentException("Invalid arguments for function ip_equal")
+    val cidrmatchBuilder: Seq[Expression] => Expression = {
+      case Seq(child1, child2) => CidrMatch(child1, child2)
+      case _ => throw new IllegalArgumentException("Invalid arguments for function cidrmatch")
     }
-    extensions.injectFunction((FunctionIdentifier(functionName), expressionInfo, ipMatchBuilder))
+    extensions.injectFunction(
+      (FunctionIdentifier(functionName), expressionInfo, cidrmatchBuilder))
 
     extensions.injectOptimizerRule { spark =>
-      OpenSearchIpEqualConvertRule
+      OpenSearchCidrMatchConvertRule
     }
   }
 }

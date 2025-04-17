@@ -11,14 +11,14 @@ import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.types._
 
 /**
- * A custom expression to compare two IP addresses. This is defined as a scala class to identify
- * it in Catalyst Optimizer: {@link OpenSearchIpEqualConvertRule}
+ * A custom expression to match IP with CIDR. This is defined as a scala class to identify it in
+ * Catalyst Optimizer: {@link OpenSearchIpEqualConvertRule}
  * @param left
  *   left expression
  * @param right
  *   right expression
  */
-case class IpEqual(left: Expression, right: Expression)
+case class CidrMatch(left: Expression, right: Expression)
     extends BinaryExpression
     with Predicate
     with Serializable {
@@ -56,7 +56,7 @@ case class IpEqual(left: Expression, right: Expression)
 
   override protected def withNewChildrenInternal(
       newLeft: Expression,
-      newRight: Expression): IpEqual = {
+      newRight: Expression): CidrMatch = {
     copy(left = newLeft, right = newRight)
   }
 }

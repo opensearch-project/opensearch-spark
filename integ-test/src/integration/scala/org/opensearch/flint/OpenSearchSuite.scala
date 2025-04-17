@@ -271,17 +271,17 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
                      |}""".stripMargin
     val docs = Seq(
       """{
-        |  "id": 1,
+                      |  "id": 0,
                       |  "client": "192.168.0.10",
                       |  "server": "100.10.12.123"
                       |}""".stripMargin,
       """{
-        |  "id": 2,
+                      |  "id": 1,
                       |  "client": "192.168.0.11",
                       |  "server": "100.10.12.123"
                       |}""".stripMargin,
       """{
-                      |  "id": 3,
+                      |  "id": 2,
                       |  "client": "::ffff:192.168.0.10",
                       |  "server": "::ffff:100.10.12.123"
                       |}""".stripMargin)
