@@ -10,6 +10,7 @@ import org.json4s.JsonAST.{JNothing, JObject, JString}
 import org.json4s.JsonAST.JBool.True
 import org.json4s.jackson.JsonMethods
 import org.json4s.native.Serialization
+import org.opensearch.flint.spark.udt.IPAddressUDT
 
 import org.apache.spark.sql.catalyst.util.DateFormatter
 import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.{MetadataBuilderExtension, MetadataExtension, OS_TYPE_KEY}
@@ -118,6 +119,9 @@ object FlintDataType {
       // binary types
       case JString("binary") => BinaryType
 
+      // ip type
+      case JString("ip") => IPAddressUDT
+
       // not supported
       case unknown => throw new IllegalStateException(s"unsupported data type: $unknown")
     }
@@ -216,6 +220,10 @@ object FlintDataType {
           "type" -> JString("binary"),
           "doc_values" -> True // enable doc value required by painless script filtering
         )
+
+      // ip
+      case IPAddressUDT =>
+        JObject("type" -> JString("ip"))
 
       case unknown => throw new IllegalStateException(s"unsupported data type: ${unknown.sql}")
     }
