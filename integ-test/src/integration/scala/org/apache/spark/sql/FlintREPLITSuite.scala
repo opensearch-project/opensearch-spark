@@ -502,7 +502,7 @@ class FlintREPLITSuite extends SparkFunSuite with OpenSearchSuite with JobTest {
           statement => {
             statement.error match {
               case Some(error)
-                  if error == """{"Message":"Fail to run query. Cause: No FileSystem for scheme \"s3\""}""" =>
+                  if error == """{"message":"Fail to run query. Cause: No FileSystem for scheme \"s3\"","exception.type":"org.apache.hadoop.fs.UnsupportedFileSystemException"}""" =>
               // Assertion passed
               case _ =>
                 fail(s"Statement error is: ${statement.error}")
