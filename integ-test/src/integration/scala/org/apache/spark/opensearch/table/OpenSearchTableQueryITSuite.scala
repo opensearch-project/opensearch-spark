@@ -213,45 +213,35 @@ class OpenSearchTableQueryITSuite
   test("Query index with ip data type with predicate push down") {
     val index1 = "t0001"
     val tableName = s"""$catalogName.default.$index1"""
+    val spark = SparkSession.builder().getOrCreate()
+    IPFunctions.registerFunctions(spark)
 
     withIndexName(index1) {
       indexWithIp(index1)
 
       var df: DataFrame = null
 
-      df = testQuery(
-        s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32')",
-        Seq(Row(0), Row(2)))
+      df = spark.sql(s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32')")
+      checkAnswer(df, Seq(Row(0), Row(2)))
       checkPushedInfo(df, "(ip_compare(client, '192.168.0.10/32')) = 0")
 
-      df = testQuery(
-        s"SELECT id FROM $tableName WHERE NOT cidrmatch(client, '192.168.0.10/32')",
-        Seq(Row(1)))
+      df = spark.sql(s"SELECT id FROM $tableName WHERE NOT cidrmatch(client, '192.168.0.10/32')")
+      checkAnswer(df, Seq(Row(1)))
       checkPushedInfo(df, "NOT ((ip_compare(client, '192.168.0.10/32')) = 0)")
 
-      df = testQuery(
-        s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32') AND cidrmatch(server, '100.10.12.123/32')",
-        Seq(Row(0), Row(2)))
+      df = spark.sql(
+        s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32') AND cidrmatch(server, '100.10.12.123/32')")
+      checkAnswer(df, Seq(Row(0), Row(2)))
       checkPushedInfo(
         df,
         "(ip_compare(client, '192.168.0.10/32')) = 0, (ip_compare(server, '100.10.12.123/32')) = 0")
 
-      df = testQuery(
-        s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32') OR cidrmatch(client, '192.168.0.11/32')",
-        Seq(Row(0), Row(1), Row(2)))
+      df = spark.sql(
+        s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32') OR cidrmatch(client, '192.168.0.11/32')")
+      checkAnswer(df, Seq(Row(0), Row(1), Row(2)))
       checkPushedInfo(
         df,
         "((ip_compare(client, '192.168.0.10/32')) = 0) OR ((ip_compare(client, '192.168.0.11/32')) = 0)")
     }
-  }
-
-  def testQuery(query: String, expected: Row): Unit = testQuery(query, Seq(expected))
-
-  def testQuery(query: String, expected: Seq[Row]): DataFrame = {
-    val df = spark.sql(query)
-    df.explain(true)
-    df.printSchema
-    checkAnswer(df, expected)
-    df
   }
 }
