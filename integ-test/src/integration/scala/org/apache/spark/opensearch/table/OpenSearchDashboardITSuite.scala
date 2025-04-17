@@ -6,12 +6,13 @@
 package org.apache.spark.opensearch.table
 
 import org.opensearch.flint.spark.ppl.FlintPPLSuite
+import org.opensearch.flint.spark.udt.{GeoPoint, IPAddress}
 
 import org.apache.spark.sql.Row
 
 class OpenSearchDashboardITSuite extends OpenSearchCatalogSuite with FlintPPLSuite {
   test("test dashboards queries") {
-    Seq(dashboards_sample_data_flights()).foreach { config =>
+    Seq(dashboards_sample_data_flights(), dashboards_sample_data_logs()).foreach { config =>
       withIndexName(config.index) {
         openSearchDashboardsIndex(config.useCaseName, config.index)
         config.tests.foreach { sqlTest =>
@@ -85,5 +86,50 @@ class OpenSearchDashboardITSuite extends OpenSearchCatalogSuite with FlintPPLSui
                || sort bucket
                || fields bucket, cnt""".stripMargin),
           Seq(Row(0, 4), Row(180, 1)))))
+  }
+
+  def dashboards_sample_data_logs(): TestConfig = {
+    val tbl = "logs"
+    TestConfig(
+      "dashboards_sample_data_logs",
+      tbl,
+      Seq(
+        // Count by host
+        QueryTest(
+          Seq(
+            s"""SELECT host, COUNT(*) AS count
+               | FROM dev.default.$tbl
+               | GROUP BY host
+               | ORDER BY count DESC""".stripMargin,
+            s"""source=dev.default.$tbl
+               || stats count() as count by host
+               || sort - count
+               || fields host, count""".stripMargin),
+          Seq(
+            Row("www.opensearch.org", 2),
+            Row("artifacts.opensearch.org", 2),
+            Row("cdn.opensearch-opensearch-opensearch.org", 1))),
+        // Average bytes per response code
+        QueryTest(
+          Seq(
+            s"""SELECT response, AVG(bytes) as avg_bytes
+               | FROM dev.default.$tbl
+               | GROUP BY response
+               | ORDER BY response""".stripMargin,
+            s"""source=dev.default.$tbl
+               || stats avg(bytes) as avg_bytes by response
+               || sort response
+               || fields response, avg_bytes""".stripMargin),
+          Seq(Row("200", 7418.5), Row("503", 0.0))),
+        // Select ip and geo_point fields
+        QueryTest(
+          Seq(
+            s"""SELECT ip, geo.coordinates
+               | FROM dev.default.$tbl
+               | WHERE response = '503'""".stripMargin,
+            s"""source=dev.default.$tbl
+               || where response='503'
+               || fields ip, geo.coordinates""".stripMargin),
+          Seq(Row(IPAddress("120.49.143.213"), GeoPoint(36.96015, -78.18499861))))))
   }
 }
