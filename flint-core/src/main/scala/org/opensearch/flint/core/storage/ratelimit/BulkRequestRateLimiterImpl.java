@@ -48,11 +48,40 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
     requestRateMeter.addDataPoint(System.currentTimeMillis(), permits);
   }
 
+  @Override
+  public long getRate() {
+    return (long) this.rateLimiter.getRate();
+  }
+
+  @Override
+  public void adaptToFeedback(RequestFeedback feedback) {
+    if (feedback.isSuccess) {
+      increaseRate();
+    } else {
+      decreaseRate();
+    }
+  }
+
+  /**
+   * Set rate limit to the given value, clamped by minRate and maxRate. Non-positive maxRate means
+   * there's no maximum rate restriction, and the rate can be set to any value greater than
+   * minRate.
+   */
+  @Override
+  public void setRate(long permitsPerSecond) {
+    if (maxRate > 0) {
+      permitsPerSecond = Math.min(permitsPerSecond, maxRate);
+    }
+    permitsPerSecond = Math.max(minRate, permitsPerSecond);
+    LOG.info("Setting rate limit for bulk request to " + permitsPerSecond + " bytes/sec");
+    this.rateLimiter.setRate(permitsPerSecond);
+    MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RATE_LIMIT_METRIC, permitsPerSecond);
+  }
+
   /**
    * Increase rate limit additively.
    */
-  @Override
-  public void increaseRate() {
+  private void increaseRate() {
     setRate(getRate() + increaseStep);
     /*
     if (isEstimatedCurrentRateCloseToLimit()) {
@@ -73,29 +102,7 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
   /**
    * Decrease rate limit multiplicatively.
    */
-  @Override
-  public void decreaseRate() {
+  private void decreaseRate() {
     setRate((long) (getRate() * decreaseRatio));
-  }
-
-  @Override
-  public long getRate() {
-    return (long) this.rateLimiter.getRate();
-  }
-
-  /**
-   * Set rate limit to the given value, clamped by minRate and maxRate. Non-positive maxRate means
-   * there's no maximum rate restriction, and the rate can be set to any value greater than
-   * minRate.
-   */
-  @Override
-  public void setRate(long permitsPerSecond) {
-    if (maxRate > 0) {
-      permitsPerSecond = Math.min(permitsPerSecond, maxRate);
-    }
-    permitsPerSecond = Math.max(minRate, permitsPerSecond);
-    LOG.info("Setting rate limit for bulk request to " + permitsPerSecond + " bytes/sec");
-    this.rateLimiter.setRate(permitsPerSecond);
-    MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RATE_LIMIT_METRIC, permitsPerSecond);
   }
 }

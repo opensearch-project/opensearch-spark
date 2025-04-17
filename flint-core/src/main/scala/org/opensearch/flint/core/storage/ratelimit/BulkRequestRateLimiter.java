@@ -10,11 +10,9 @@ public interface BulkRequestRateLimiter {
 
   void acquirePermit(int permits);
 
-  void increaseRate();
-
-  void decreaseRate();
-
   long getRate();
+
+  void adaptToFeedback(RequestFeedback feedback);
 
   void setRate(long permitsPerSecond);
 }

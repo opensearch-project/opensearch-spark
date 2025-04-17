@@ -25,6 +25,7 @@ import org.opensearch.flint.core.http.FlintRetryOptions;
 import org.opensearch.flint.core.metrics.MetricConstants;
 import org.opensearch.flint.core.metrics.MetricsUtil;
 import org.opensearch.flint.core.storage.ratelimit.BulkRequestRateLimiter;
+import org.opensearch.flint.core.storage.ratelimit.RequestFeedback;
 import org.opensearch.rest.RestStatus;
 
 /**
@@ -76,11 +77,12 @@ public class OpenSearchBulkWrapper {
             rateLimiter.acquirePermit((int) nextRequest.get().estimatedSizeInBytes());
             BulkResponse response = client.bulk(nextRequest.get(), options);
 
+            // TODO: latency
             if (!bulkItemRetryableResultPredicate.test(response)) {
-              rateLimiter.increaseRate();
+              rateLimiter.adaptToFeedback(RequestFeedback.success(0));
             } else {
               LOG.info("Bulk request failed. attempt = " + (requestCount.get() - 1));
-              rateLimiter.decreaseRate();
+              rateLimiter.adaptToFeedback(RequestFeedback.failure(0, false));
               if (retryPolicy.getConfig().allowsRetries()) {
                 nextRequest.set(getRetryableRequest(nextRequest.get(), response));
               }

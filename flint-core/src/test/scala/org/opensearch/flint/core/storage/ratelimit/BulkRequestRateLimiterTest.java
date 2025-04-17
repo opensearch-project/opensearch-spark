@@ -17,6 +17,7 @@ import org.opensearch.flint.core.FlintOptions;
  * they all distribute permits at some rate, the actual behavior varies based on implementation.
  * To avoid flakiness and creating test cases for specific implementation, we measure the time required
  * for acquiring several permits, and set lenient thresholds.
+ * TODO: test for adaptToFeedback
  */
 class BulkRequestRateLimiterTest {
 
