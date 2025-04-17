@@ -10,6 +10,7 @@ import org.json4s.JsonAST.{JNothing, JObject, JString}
 import org.json4s.JsonAST.JBool.True
 import org.json4s.jackson.JsonMethods
 import org.json4s.native.Serialization
+import org.opensearch.flint.spark.udt.GeoPointUDT
 import org.opensearch.flint.spark.udt.IPAddressUDT
 
 import org.apache.spark.sql.catalyst.util.DateFormatter
@@ -34,7 +35,7 @@ object FlintDataType {
 
   val METADATA_ALIAS_PATH_NAME = "aliasPath"
 
-  val UNSUPPORTED_OPENSEARCH_FIELD_TYPE = Set("geo_point")
+  val UNSUPPORTED_OPENSEARCH_FIELD_TYPE = Set.empty[String]
 
   /**
    * parse Flint metadata and extract properties to StructType.
@@ -121,6 +122,9 @@ object FlintDataType {
 
       // ip type
       case JString("ip") => IPAddressUDT
+
+      // geo_point type
+      case JString("geo_point") => GeoPointUDT
 
       // not supported
       case unknown => throw new IllegalStateException(s"unsupported data type: $unknown")
@@ -224,6 +228,9 @@ object FlintDataType {
       // ip
       case IPAddressUDT =>
         JObject("type" -> JString("ip"))
+
+      // geo_point
+      case GeoPointUDT => JObject("type" -> JString("geo_point"))
 
       case unknown => throw new IllegalStateException(s"unsupported data type: ${unknown.sql}")
     }
