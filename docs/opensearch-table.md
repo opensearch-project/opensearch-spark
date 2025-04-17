@@ -71,6 +71,7 @@ The following table defines the data type mapping between OpenSearch index field
 | text                     | StringType(meta(osType)=text)     |
 | object                   | StructType                        |
 | alias                    | Inherits referenced field type    |
+| ip                       | IPAddress(UDT)                    |
 
 * OpenSearch data type date is mapped to Spark data type based on the format:
     * Map to DateType if format = strict_date, (we also support format = date, may change in future)
@@ -85,6 +86,7 @@ The following table defines the data type mapping between OpenSearch index field
   type *double* only maps to DoubleType.
 * OpenSearch alias fields allow alternative names for existing fields in the schema without duplicating data. They inherit the data type and nullability of the referenced field and resolve dynamically to the primary field in queries.
 * OpenSearch multi-fields on text field is supported. These multi-fields are stored as part of the field's metadata and cannot be directly selected. Instead, they are automatically utilized during the DSL query translation process.
+* IPAddress type cannot be directly compared with string type literal/field (e.g. '192.168.10.10'). Use `cidrmatch` function like `cidrmatch(ip, '192.168.0.10/32')`
 
 ## Limitation
 ### catalog operation
