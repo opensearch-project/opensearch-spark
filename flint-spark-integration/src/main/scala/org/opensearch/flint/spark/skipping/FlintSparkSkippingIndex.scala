@@ -65,8 +65,8 @@ case class FlintSparkSkippingIndex(
       indexedColumns
         .flatMap(_.outputSchema())
         .toMap + (FILE_PATH_COLUMN -> "string")
-    val schema = generateSchema(fieldTypes).asJava
-
+    val templateSchema = generateSchema(fieldTypes)
+    val schema = mergeSchema(templateSchema, options).asJava
     metadataBuilder(this)
       .name(name())
       .source(tableName)

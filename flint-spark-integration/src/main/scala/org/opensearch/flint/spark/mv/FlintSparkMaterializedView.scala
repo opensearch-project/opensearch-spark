@@ -13,7 +13,7 @@ import scala.collection.convert.ImplicitConversions.`map AsScala`
 import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.spark.{FlintSpark, FlintSparkIndex, FlintSparkIndexBuilder, FlintSparkIndexOptions}
-import org.opensearch.flint.spark.FlintSparkIndex.{addIdColumn, flintIndexNamePrefix, generateSchema, metadataBuilder, ID_COLUMN, StreamingRefresh}
+import org.opensearch.flint.spark.FlintSparkIndex.{addIdColumn, flintIndexNamePrefix, generateSchema, mergeSchema, metadataBuilder, ID_COLUMN, StreamingRefresh}
 import org.opensearch.flint.spark.FlintSparkIndexOptions.empty
 import org.opensearch.flint.spark.function.TumbleFunction
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.{getFlintIndexName, MV_INDEX_TYPE}
@@ -63,8 +63,8 @@ case class FlintSparkMaterializedView(
       outputSchema.map { case (colName, colType) =>
         Map[String, AnyRef]("columnName" -> colName, "columnType" -> colType).asJava
       }.toArray
-    val schema = generateSchema(outputSchema).asJava
-
+    val templateSchema = generateSchema(outputSchema)
+    val schema = mergeSchema(templateSchema, options).asJava
     // Convert Scala Array to Java ArrayList for consistency with OpenSearch JSON parsing.
     // OpenSearch uses Jackson, which deserializes JSON arrays into ArrayLists.
     val sourceTablesProperty = new java.util.ArrayList[String](sourceTables.toSeq.asJava)
