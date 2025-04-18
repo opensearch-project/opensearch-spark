@@ -204,6 +204,11 @@ class OpenSearchTableQueryITSuite
       checkAnswer(df, Seq(Row(0), Row(2)))
       checkPushedInfo(df, "(ip_compare(client, '192.168.0.10/32')) = 0")
 
+      df =
+        spark.sql(s"source=$tableName | where cidrmatch(client, '192.168.0.10/32') | fields id")
+      checkAnswer(df, Seq(Row(0), Row(2)))
+      checkPushedInfo(df, "(ip_compare(client, '192.168.0.10/32')) = 0")
+
       df = spark.sql(s"SELECT id FROM $tableName WHERE NOT cidrmatch(client, '192.168.0.10/32')")
       checkAnswer(df, Seq(Row(1)))
       checkPushedInfo(df, "NOT ((ip_compare(client, '192.168.0.10/32')) = 0)")

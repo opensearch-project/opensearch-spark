@@ -7,6 +7,7 @@ package org.opensearch.flint.spark
 
 import org.opensearch.flint.spark.udt.{IPAddress, IPAddressUDT}
 
+import org.apache.spark.opensearch.catalog.OpenSearchCatalog
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{And, ApplyFunctionExpression, EqualTo, Expression, Literal, Not, Or, ScalaUDF}
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -44,14 +45,20 @@ case object IpCompareBound extends ScalarFunction[Integer] {
  * will be pushed down to OpenSearch query by {@link FlintQueryCompiler}.
  */
 object OpenSearchCidrMatchConvertRule extends Rule[LogicalPlan] {
+  val CidrmatchUDFs = Set(
+    "cidrmatch", // SQL
+    "cidr" // PPL (converted from cidrmatch in AstExpressionBuilder)
+  )
+
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
-    case Filter(condition: Expression, relation: DataSourceV2Relation) =>
-      Filter(convertCidrMatch(condition), relation)
+    case Filter(condition: Expression, relation: DataSourceV2Relation)
+      if relation.catalog.get.isInstanceOf[OpenSearchCatalog] =>
+        Filter(convertCidrMatch(condition), relation)
   }
 
   protected def convertCidrMatch(e: Expression): Expression = {
     e match {
-      case udf: ScalaUDF if udf.udfName.get == "cidrmatch" =>
+      case udf: ScalaUDF if CidrmatchUDFs.contains(udf.udfName.get.toLowerCase()) =>
         // converts to (ip_compare(left, right) = 0)
         val left = udf.children.head
         val right = udf.children.last
@@ -59,12 +66,31 @@ object OpenSearchCidrMatchConvertRule extends Rule[LogicalPlan] {
           ApplyFunctionExpression(IpCompareBound, Seq(left, right)),
           Literal(0, IntegerType))
       case And(left, right) =>
-        And(convertCidrMatch(left), convertCidrMatch(right))
+        convertAsNeeded(e, And, left, right)
       case Or(left, right) =>
-        Or(convertCidrMatch(left), convertCidrMatch(right))
+        convertAsNeeded(e, Or, left, right)
       case Not(child) =>
-        Not(convertCidrMatch(child))
+        convertAsNeeded(e, Not, child)
       case _ => e
+    }
+  }
+
+  private def convertAsNeeded(e: Expression, constructor: (Expression, Expression) => Expression, left: Expression, right: Expression) = {
+    val newLeft = convertCidrMatch(left)
+    val newRight = convertCidrMatch(right)
+    if (newLeft == left && newRight == right) {
+      e
+    } else {
+      constructor(newLeft, newRight)
+    }
+  }
+
+  private def convertAsNeeded(e: Expression, constructor: (Expression) => Expression, child: Expression) = {
+    val newChild = convertCidrMatch(child)
+    if (newChild == child) {
+      e
+    } else {
+      constructor(newChild)
     }
   }
 }
