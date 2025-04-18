@@ -183,6 +183,7 @@ class OpenSearchTableQueryITSuite
       df = spark.sql(s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.0/24')")
       checkAnswer(df, Seq(Row(0), Row(2)))
 
+      // TODO: Align cidrmatch logic with OpenSearch ip search (matches regardless ipv4/ipv6)
       df = spark.sql(s"SELECT id, cidrmatch(client, '192.168.0.0/24') FROM $tableName")
       checkAnswer(df, Seq(Row(0, true), Row(1, false), Row(2, false)))
     }
