@@ -11,9 +11,11 @@ import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConv
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
+import org.opensearch.client.RequestOptions
+import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.core.FlintOptions
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService.{extractFieldProperty, extractSourceEnabled}
+import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
+import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService.extractSourceEnabled
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
@@ -153,16 +155,16 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
            | )
            |""".stripMargin)
 
-    // Check if the _source in index mappings option is set to OS index mappings
-    val flintIndexMetadataService =
-      new FlintOpenSearchIndexMetadataService(new FlintOptions(openSearchOptions.asJava))
+    implicit val formats: Formats = Serialization.formats(NoTypeHints)
 
-    val flintMetadata =
-      flintIndexMetadataService.getIndexMetadata(testFlintIndex)
-    val indexMappingsOpt =
-      Option(flintMetadata.options.get("index_mappings")).map(_.asInstanceOf[String])
-    val mappingsSourceEnabled = extractSourceEnabled(indexMappingsOpt)
-    mappingsSourceEnabled shouldBe false
+    val osIndexName = OpenSearchClientUtils.sanitizeIndexName(testFlintIndex)
+    val response =
+      openSearchClient.indices().get(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT)
+
+    val mapping = response.getMappings.get(osIndexName)
+    val indexMappingsOpt = mapping.source.toString
+    val mappings = parse(indexMappingsOpt)
+    (mappings \ "_source" \ "enabled").extract[Boolean] shouldBe false
   }
 
   test("create covering index with index mappings schema merging") {
@@ -173,21 +175,27 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
            | )
            |""".stripMargin)
 
-    // Check if the _source in index mappings option is set to OS index mappings
+    val options = new FlintOptions(openSearchOptions.asJava)
     val flintIndexMetadataService =
-      new FlintOpenSearchIndexMetadataService(new FlintOptions(openSearchOptions.asJava))
+      new FlintOpenSearchIndexMetadataService(options)
+    implicit val formats: Formats = Serialization.formats(NoTypeHints)
 
-    val flintMetadata = {
+    val osIndexName = OpenSearchClientUtils.sanitizeIndexName(testFlintIndex)
+    val response =
+      openSearchClient.indices().get(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT)
+
+    val mapping = response.getMappings.get(osIndexName)
+    val indexMappingsOpt = mapping.source.toString
+    val mappings = parse(indexMappingsOpt)
+    (mappings \ "_source" \ "enabled").extract[Boolean] shouldBe false
+
+    val flintMetadata =
       flintIndexMetadataService.getIndexMetadata(testFlintIndex)
-    }
-    val indexMappingsOpt =
-      Option(flintMetadata.options.get("index_mappings")).map(_.asInstanceOf[String])
-    val mappingsSourceEnabled = extractSourceEnabled(indexMappingsOpt)
-    mappingsSourceEnabled shouldBe false
-    val schemaValue = flintMetadata.schema
-    val countIsIndexable = extractFieldProperty[java.lang.Boolean](schemaValue, "name", "index")
-      .getOrElse(java.lang.Boolean.TRUE)
-    countIsIndexable shouldBe false
+    val schema = flintMetadata.schema
+    val javaMap = schema.asInstanceOf[java.util.HashMap[String, java.util.HashMap[String, Any]]]
+
+    val countMap = javaMap.get("name").asInstanceOf[java.util.Map[String, Any]]
+    countMap.get("index") shouldBe false
   }
 
   test("create covering index with invalid option") {
