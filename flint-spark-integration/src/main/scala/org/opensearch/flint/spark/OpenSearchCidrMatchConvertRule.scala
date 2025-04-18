@@ -52,8 +52,8 @@ object OpenSearchCidrMatchConvertRule extends Rule[LogicalPlan] {
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
     case Filter(condition: Expression, relation: DataSourceV2Relation)
-      if relation.catalog.get.isInstanceOf[OpenSearchCatalog] =>
-        Filter(convertCidrMatch(condition), relation)
+        if relation.catalog.get.isInstanceOf[OpenSearchCatalog] =>
+      Filter(convertCidrMatch(condition), relation)
   }
 
   protected def convertCidrMatch(e: Expression): Expression = {
@@ -75,7 +75,11 @@ object OpenSearchCidrMatchConvertRule extends Rule[LogicalPlan] {
     }
   }
 
-  private def convertAsNeeded(e: Expression, constructor: (Expression, Expression) => Expression, left: Expression, right: Expression) = {
+  private def convertAsNeeded(
+      e: Expression,
+      constructor: (Expression, Expression) => Expression,
+      left: Expression,
+      right: Expression) = {
     val newLeft = convertCidrMatch(left)
     val newRight = convertCidrMatch(right)
     if (newLeft == left && newRight == right) {
@@ -85,7 +89,10 @@ object OpenSearchCidrMatchConvertRule extends Rule[LogicalPlan] {
     }
   }
 
-  private def convertAsNeeded(e: Expression, constructor: (Expression) => Expression, child: Expression) = {
+  private def convertAsNeeded(
+      e: Expression,
+      constructor: (Expression) => Expression,
+      child: Expression) = {
     val newChild = convertCidrMatch(child)
     if (newChild == child) {
       e
