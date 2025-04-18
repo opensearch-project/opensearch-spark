@@ -21,7 +21,6 @@ case class FlintPartitionReaderFactory(
     with Logging {
   override def createReader(partition: InputPartition): PartitionReader[InternalRow] = {
     val query = FlintQueryCompiler(schema).compile(pushedPredicates)
-    logInfo(s"Creating FlintPartitionReader with query: $query");
     new FlintPartitionReader(
       partition.asInstanceOf[OpenSearchSplit].table.createReader(query),
       schema,
