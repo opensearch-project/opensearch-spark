@@ -239,8 +239,8 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
     builder.addIndexedColumn(Map[String, AnyRef]("test_field" -> "spark_type").asJava)
     builder.schema(Map[String, AnyRef]("test_field" -> Map("type" -> "os_type").asJava).asJava)
 
-    val optionsMap = new util.HashMap[String, AnyRef]()
-    optionsMap.put("index_mappings", """{ "_source": { "enabled": false } }""")
+    val optionsMap: java.util.Map[String, AnyRef] =
+      Map[String, AnyRef]("index_mappings" -> """{ "_source": { "enabled": false } }""").asJava
 
     builder.options(optionsMap)
 
@@ -257,8 +257,8 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
     builder.addIndexedColumn(Map[String, AnyRef]("test_field" -> "spark_type").asJava)
     builder.schema(Map[String, AnyRef]("test_field" -> Map("type" -> "os_type").asJava).asJava)
 
-    val optionsMap = new util.HashMap[String, AnyRef]()
-    optionsMap.put("index_mappings", """{ "_source": { "enabled": true } }""")
+    val optionsMap: java.util.Map[String, AnyRef] =
+      Map[String, AnyRef]("index_mappings" -> """{ "_source": { "enabled": true } }""").asJava
 
     builder.options(optionsMap)
 
@@ -275,8 +275,8 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
     builder.addIndexedColumn(Map[String, AnyRef]("test_field" -> "spark_type").asJava)
     builder.schema(Map[String, AnyRef]("test_field" -> Map("type" -> "os_type").asJava).asJava)
 
-    val optionsMap = new util.HashMap[String, AnyRef]()
-    optionsMap.put("index_mappings", """{ "boost": 1.0 }""")
+    val optionsMap: java.util.Map[String, AnyRef] =
+      Map[String, AnyRef]("index_mappings" -> """{ "boost": 1.0 }""").asJava
 
     builder.options(optionsMap)
 
@@ -293,8 +293,8 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
     builder.addIndexedColumn(Map[String, AnyRef]("test_field" -> "spark_type").asJava)
     builder.schema(Map[String, AnyRef]("test_field" -> Map("type" -> "os_type").asJava).asJava)
 
-    val optionsMap = new util.HashMap[String, AnyRef]()
-    optionsMap.put("index_mappings", """{ "_source": { "includes": "meta.*" } }""")
+    val optionsMap: java.util.Map[String, AnyRef] = Map[String, AnyRef](
+      "index_mappings" -> """{ "_source": { "includes": "meta.*" } }""").asJava
 
     builder.options(optionsMap)
 
@@ -313,10 +313,8 @@ class FlintOpenSearchIndexMetadataServiceSuite extends AnyFlatSpec with Matchers
       "test_field" -> Map("type" -> "os_type", "index" -> false).asJava).asJava
     builder.schema(schema)
 
-    val optionsMap = new util.HashMap[String, AnyRef]()
-    optionsMap.put(
-      "index_mappings",
-      """{ "_source": { "enabled": false }, "properties": { "test_field": {"index": false} } }""")
+    val optionsMap: java.util.Map[String, AnyRef] = Map[String, AnyRef](
+      "index_mappings" -> """{ "_source": { "enabled": false }, "properties": { "test_field": {"index": false} } }""").asJava
 
     builder.options(optionsMap)
 
