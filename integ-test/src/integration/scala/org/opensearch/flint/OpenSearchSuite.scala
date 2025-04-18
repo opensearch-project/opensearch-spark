@@ -277,7 +277,7 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
                       |}""".stripMargin,
       """{
                       |  "id": 1,
-                      |  "client": "192.168.0.11",
+                      |  "client": "192.168.1.11",
                       |  "server": "100.10.12.123"
                       |}""".stripMargin,
       """{
