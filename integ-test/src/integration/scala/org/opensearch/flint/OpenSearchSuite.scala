@@ -182,6 +182,52 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
     index(indexName, oneNodeSetting, mappings, docs)
   }
 
+  def indexGeoPointFields(indexName: String): Unit = {
+    val mappings = """{
+                     |  "properties": {
+                     |    "id": {
+                     |      "type": "integer"
+                     |    },
+                     |    "location": {
+                     |      "type": "geo_point"
+                     |    }
+                     |  }
+                     |}""".stripMargin
+    val docs = Seq(
+      // A JSON object with "lat" and "lon" fields
+      """{
+                     |  "id": 1,
+                     |  "location": {
+                     |    "lat": 40.12,
+                     |    "lon": -71.34
+                     |  }
+                     |}""".stripMargin,
+      // A string in the "latitude,longitude" format
+      """{
+                     |  "id": 2,
+                     |  "location": "40.12,-71.34"
+                     |}""".stripMargin,
+      // A string in the "geohash" format
+      """{
+                     |  "id": 3,
+                     |  "location": "drjk0"
+                     |}""".stripMargin,
+      // A string in the "WKT" format
+      """{
+                     |  "id": 4,
+                     |  "location": "POINT (-71.34 40.12)"
+                     |}""".stripMargin,
+      // A string in the "GeoJSON" format
+      """{
+                     |  "id": 5,
+                     |  "location": {
+                     |    "type": "Point",
+                     |    "coordinates": [-71.34,40.12]
+                     |  }
+                     |}""".stripMargin)
+    index(indexName, oneNodeSetting, mappings, docs)
+  }
+
   def indexWithNumericFields(indexName: String): Unit = {
     val mappings = """{
                      |  "properties": {
