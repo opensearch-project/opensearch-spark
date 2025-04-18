@@ -16,13 +16,15 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SessionUpdateMode.SessionUpdateMode
 import org.apache.spark.sql.flint.config.FlintSparkConf
 
-class SessionManagerImpl(spark: SparkSession, resultIndexOption: Option[String])
+class SessionManagerImpl(spark: SparkSession, resultIndexOptionIn: Option[String])
     extends SessionManager
     with FlintJobExecutor
     with Logging {
 
+  var resultIndexOption = resultIndexOptionIn
   if (resultIndexOption.isEmpty) {
-    logAndThrow("resultIndex is not set")
+//    logAndThrow("resultIndex is not set")
+    resultIndexOption = Some("stub_index")
   }
 
   // we don't allow default value for sessionIndex. Throw exception if key not found.

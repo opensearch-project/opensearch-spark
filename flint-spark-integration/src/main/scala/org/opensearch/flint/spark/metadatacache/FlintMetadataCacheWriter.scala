@@ -8,7 +8,7 @@ package org.opensearch.flint.spark.metadatacache
 import org.opensearch.flint.common.metadata.{FlintIndexMetadataService, FlintMetadata}
 
 /**
- * Writes {@link FlintMetadataCache} to a storage of choice. This is different from {@link
+ * Writes {@link ExportedFlintMetadata} to a storage of choice. This is different from {@link
  * FlintIndexMetadataService} which persists the full index metadata to a storage for single
  * source of truth.
  */
