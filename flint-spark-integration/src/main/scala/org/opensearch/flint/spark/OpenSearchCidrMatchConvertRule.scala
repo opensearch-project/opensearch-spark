@@ -52,7 +52,7 @@ object OpenSearchCidrMatchConvertRule extends Rule[LogicalPlan] {
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
     case Filter(condition: Expression, relation: DataSourceV2Relation)
-        if relation.catalog.get.isInstanceOf[OpenSearchCatalog] =>
+        if relation.catalog.getOrElse(None).isInstanceOf[OpenSearchCatalog] =>
       Filter(convertCidrMatch(condition), relation)
   }
 
