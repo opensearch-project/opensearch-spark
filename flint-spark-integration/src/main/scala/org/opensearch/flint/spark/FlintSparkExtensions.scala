@@ -12,8 +12,6 @@ import org.opensearch.flint.spark.udt.{IPAddress, IPAddressUDT}
 import org.opensearch.flint.spark.udt.GeoPointUDT
 
 import org.apache.spark.sql.SparkSessionExtensions
-import org.apache.spark.sql.catalyst.FunctionIdentifier
-import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionInfo}
 import org.apache.spark.sql.types.UDTRegistration
 
 /**
