@@ -33,5 +33,9 @@ class FlintSparkExtensions extends (SparkSessionExtensions => Unit) {
     // Register UDTs
     UDTRegistration.register(classOf[IPAddress].getName, classOf[IPAddressUDT].getName)
     UDTRegistration.register(classOf[GeoPoint].getName, classOf[GeoPointUDT].getName)
+
+    extensions.injectOptimizerRule { spark =>
+      OpenSearchCidrMatchConvertRule
+    }
   }
 }
