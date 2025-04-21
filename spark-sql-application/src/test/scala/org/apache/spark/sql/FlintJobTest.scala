@@ -110,6 +110,23 @@ class FlintJobTest extends SparkFunSuite with JobMatchers {
     assert(FlintJob.isSuperset(mapping, input))
   }
 
+  test("test createResultIndex validates against malformed mappings or settings") {
+    val validJson = """{"abc":"def"}"""
+    val invalidJson = """{"abc":"def""""
+
+    val mappingsInvalidResult = FlintJob.createResultIndex(null, "testIndex", invalidJson, validJson)
+    mappingsInvalidResult match {
+      case Left(str) => assert(str == "The mappings of testIndex are malformed")
+      case Right(_) => fail("passing in invalid mappings did not return error")
+    }
+
+    val settingsInvalidResult = FlintJob.createResultIndex(null, "testIndex", validJson, invalidJson)
+    settingsInvalidResult match {
+      case Left(str) => assert(str == "The settings of testIndex are malformed")
+      case Right(_) => fail("passing in invalid settings did not return error")
+    }
+  }
+
   test("default streaming query maxExecutors is 10") {
     val conf = spark.sparkContext.conf
     FlintJob.configDYNMaxExecutors(conf, "streaming")

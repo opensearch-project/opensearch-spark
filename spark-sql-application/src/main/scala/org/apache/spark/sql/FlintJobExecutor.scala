@@ -20,6 +20,7 @@ import org.opensearch.flint.core.logging.{CustomLogging, ExceptionMessages, Oper
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
 import play.api.libs.json._
+import scala.util.Try
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
@@ -372,6 +373,10 @@ trait FlintJobExecutor {
     compareJson(inputJson, mappingJson) || compareJson(mappingJson, inputJson)
   }
 
+  def isValidJson(input: String): Boolean = {
+    Try(Json.parse(input)).isSuccess
+  }
+
   def checkAndCreateIndex(osClient: OSClient, resultIndex: String): Either[String, Unit] = {
     try {
       val existingSchema = osClient.getIndexMetadata(resultIndex)
@@ -402,6 +407,11 @@ trait FlintJobExecutor {
       resultIndex: String,
       mapping: String,
       settings: String): Either[String, Unit] = {
+    if (!isValidJson(mapping)) {
+      return Left(s"The mappings of $resultIndex are malformed")
+    } else if (!isValidJson(settings)) {
+      return Left(s"The settings of $resultIndex are malformed")
+    }
     try {
       logInfo(s"create $resultIndex")
       osClient.createIndex(resultIndex, mapping, settings)
