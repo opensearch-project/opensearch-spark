@@ -9,6 +9,8 @@ import java.util.Locale
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.atomic.AtomicInteger
 
+import scala.util.Try
+
 import com.amazonaws.services.glue.model.{AccessDeniedException, AWSGlueException}
 import com.amazonaws.services.s3.model.AmazonS3Exception
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -20,7 +22,6 @@ import org.opensearch.flint.core.logging.{CustomLogging, ExceptionMessages, Oper
 import org.opensearch.flint.core.metrics.MetricConstants
 import org.opensearch.flint.core.metrics.MetricsUtil.incrementCounter
 import play.api.libs.json._
-import scala.util.Try
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging

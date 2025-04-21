@@ -114,13 +114,15 @@ class FlintJobTest extends SparkFunSuite with JobMatchers {
     val validJson = """{"abc":"def"}"""
     val invalidJson = """{"abc":"def""""
 
-    val mappingsInvalidResult = FlintJob.createResultIndex(null, "testIndex", invalidJson, validJson)
+    val mappingsInvalidResult =
+      FlintJob.createResultIndex(null, "testIndex", invalidJson, validJson)
     mappingsInvalidResult match {
       case Left(str) => assert(str == "The mappings of testIndex are malformed")
       case Right(_) => fail("passing in invalid mappings did not return error")
     }
 
-    val settingsInvalidResult = FlintJob.createResultIndex(null, "testIndex", validJson, invalidJson)
+    val settingsInvalidResult =
+      FlintJob.createResultIndex(null, "testIndex", validJson, invalidJson)
     settingsInvalidResult match {
       case Left(str) => assert(str == "The settings of testIndex are malformed")
       case Right(_) => fail("passing in invalid settings did not return error")
