@@ -10,7 +10,7 @@ import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConv
 import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.FlintJsonHelper._
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService.extractSourceEnabled
+import org.slf4j.{Logger, LoggerFactory}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -216,13 +216,13 @@ object FlintSparkIndex extends Logging {
 
   /**
    * Merges the field configurations from FlintSparkIndexOptions into the existing schema. If the
-   * options contain property configurations that exist in allFieldTypes, those configurations are
+   * options contain mapping parameters that exist in allFieldTypes, those configurations are
    * merged.
    *
    * @param allFieldTypes
    *   Map of field names to their type/configuration details
    * @param options
-   *   FlintSparkIndexOptions containing potential property configurations
+   *   FlintSparkIndexOptions containing potential mapping parameters
    * @return
    *   Merged map with combined field configurations
    */
@@ -269,8 +269,8 @@ object FlintSparkIndex extends Logging {
         }
       } catch {
         case ex: Exception =>
-        // Swallow exception and leave result unchanged
-        // Consider logging this in a production environment
+          // Swallow exception and leave result unchanged
+          FlintSparkIndex.logError(s"Failed to merge schema mappings: ${ex.getMessage}", ex)
       }
     }
 
