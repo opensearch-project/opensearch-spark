@@ -73,7 +73,7 @@ public class OpenSearchBulkWrapper {
           })
           .get(() -> {
             requestCount.incrementAndGet();
-            // Bulk request bytes is restricted by batch_bytes config
+            // Converting to int should be safe because bulk request bytes is restricted by batch_bytes config
             rateLimiter.acquirePermit((int) nextRequest.get().estimatedSizeInBytes());
             BulkResponse response = client.bulk(nextRequest.get(), options);
 
