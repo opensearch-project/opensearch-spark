@@ -20,7 +20,11 @@ public class RequestFeedback {
     return new RequestFeedback(true, latency, false);
   }
 
-  public static RequestFeedback failure(long latency, boolean isTimeout) {
-    return new RequestFeedback(false, latency, isTimeout);
+  public static RequestFeedback failure(long latency) {
+    return new RequestFeedback(false, latency, false);
+  }
+
+  public static RequestFeedback timeout() {
+    return new RequestFeedback(false, 0, true);
   }
 }

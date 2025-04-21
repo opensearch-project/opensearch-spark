@@ -18,19 +18,19 @@ public class RequestRateMeter {
 
   private static class DataPoint {
     long timestamp;
-    long requestCount;
-    public DataPoint(long timestamp, long requestCount) {
+    long requestSize;
+    public DataPoint(long timestamp, long requestSize) {
       this.timestamp = timestamp;
-      this.requestCount = requestCount;
+      this.requestSize = requestSize;
     }
   }
 
   private Queue<DataPoint> dataPoints = new LinkedList<>();
   private long currentSum = 0;
 
-  public synchronized void addDataPoint(long timestamp, long requestCount) {
-    dataPoints.add(new DataPoint(timestamp, requestCount));
-    currentSum += requestCount;
+  public synchronized void addDataPoint(long timestamp, long requestSize) {
+    dataPoints.add(new DataPoint(timestamp, requestSize));
+    currentSum += requestSize;
     removeOldDataPoints();
   }
 
@@ -42,7 +42,7 @@ public class RequestRateMeter {
   private synchronized void removeOldDataPoints() {
     long curr = System.currentTimeMillis();
     while (!dataPoints.isEmpty() && dataPoints.peek().timestamp < curr - ESTIMATE_RANGE_DURATION_MSEC) {
-      currentSum -= dataPoints.remove().requestCount;
+      currentSum -= dataPoints.remove().requestSize;
     }
   }
 }

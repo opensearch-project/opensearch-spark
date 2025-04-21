@@ -73,21 +73,30 @@ public class OpenSearchBulkWrapper {
           })
           .get(() -> {
             requestCount.incrementAndGet();
-            // Converting to int should be safe because bulk request bytes is restricted by batch_bytes config
+            // converting to int should be safe because bulk request bytes is restricted by batch_bytes config
             rateLimiter.acquirePermit((int) nextRequest.get().estimatedSizeInBytes());
-            BulkResponse response = client.bulk(nextRequest.get(), options);
 
-            // TODO: latency
-            if (!bulkItemRetryableResultPredicate.test(response)) {
-              rateLimiter.adaptToFeedback(RequestFeedback.success(0));
-            } else {
-              LOG.info("Bulk request failed. attempt = " + (requestCount.get() - 1));
-              rateLimiter.adaptToFeedback(RequestFeedback.failure(0, false));
-              if (retryPolicy.getConfig().allowsRetries()) {
-                nextRequest.set(getRetryableRequest(nextRequest.get(), response));
+            try {
+              long startTime = System.currentTimeMillis();
+              BulkResponse response = client.bulk(nextRequest.get(), options);
+              long latency = System.currentTimeMillis() - startTime;
+
+              if (!bulkItemRetryableResultPredicate.test(response)) {
+                rateLimiter.adaptToFeedback(RequestFeedback.success(latency));
+              } else {
+                LOG.info("Bulk request failed. attempt = " + (requestCount.get() - 1));
+                rateLimiter.adaptToFeedback(RequestFeedback.failure(latency));
+                if (retryPolicy.getConfig().allowsRetries()) {
+                  nextRequest.set(getRetryableRequest(nextRequest.get(), response));
+                }
               }
+              return response;
+            } catch (Exception e) {
+              if (isTimeoutException(e)) {
+                rateLimiter.adaptToFeedback(RequestFeedback.timeout());
+              }
+              throw e; // let Failsafe retry policy decide
             }
-            return response;
           });
       return res;
     } catch (FailsafeException ex) {
@@ -99,6 +108,13 @@ public class OpenSearchBulkWrapper {
       MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_SIZE_METRIC, bulkRequest.estimatedSizeInBytes());
       MetricsUtil.addHistoricGauge(MetricConstants.OPENSEARCH_BULK_RETRY_COUNT_METRIC, requestCount.get() - 1);
     }
+  }
+
+  private boolean isTimeoutException(Exception e) {
+    return e instanceof java.net.SocketTimeoutException ||
+        e instanceof  java.net.ConnectException ||
+        e.getCause() instanceof java.net.SocketTimeoutException ||
+        e.getCause() instanceof java.net.ConnectException;
   }
 
   private BulkRequest getRetryableRequest(BulkRequest request, BulkResponse response) {
