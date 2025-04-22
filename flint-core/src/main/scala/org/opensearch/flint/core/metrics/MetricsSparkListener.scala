@@ -42,12 +42,14 @@ class MetricsSparkListener extends SparkListener with Logging {
       taskEnd.taskMetrics.jvmGCTime)
   }
 
-   def emitMetrics(): Unit = {
+  def emitMetrics(): Unit = {
     logInfo(s"Input: totalBytesRead=${bytesRead}, totalRecordsRead=${recordsRead}")
     logInfo(s"Output: totalBytesWritten=${bytesWritten}, totalRecordsWritten=${recordsWritten}")
     logInfo(s"totalJvmGcTime=${totalJvmGcTime}")
-     // Use the dimensioned metric name for bytesRead
-    MetricsUtil.addHistoricGauge(addAccountDimension(MetricConstants.INPUT_TOTAL_BYTES_READ), bytesRead)
+    // Use the dimensioned metric name for bytesRead
+    MetricsUtil.addHistoricGauge(
+      addAccountDimension(MetricConstants.INPUT_TOTAL_BYTES_READ),
+      bytesRead)
     // Original metrics remain unchanged
     MetricsUtil.addHistoricGauge(MetricConstants.INPUT_TOTAL_RECORDS_READ, recordsRead)
     MetricsUtil.addHistoricGauge(MetricConstants.OUTPUT_TOTAL_BYTES_WRITTEN, bytesWritten)
@@ -56,25 +58,29 @@ class MetricsSparkListener extends SparkListener with Logging {
   }
 
   /**
-  * Adds an AWS account dimension to the given metric name.
-  *
-  * @param metricName The name of the metric to which the account dimension will be added
-  * @return A string representation of the metric name with the account dimension attached,
-  *         formatted as a dimensioned name
-  */
+   * Adds an AWS account dimension to the given metric name.
+   *
+   * @param metricName
+   *   The name of the metric to which the account dimension will be added
+   * @return
+   *   A string representation of the metric name with the account dimension attached, formatted
+   *   as a dimensioned name
+   */
   def addAccountDimension(metricName: String): String = {
     val accountId = getClusterAccountId()
-    DimensionedName.withName(metricName)
+    DimensionedName
+      .withName(metricName)
       .withDimension("accountId", accountId)
       .build()
       .toString()
   }
 
   /**
-   * Gets the AWS account ID from the cluster name environment variable.
-   * This method is extracted to make the class more testable.
+   * Gets the AWS account ID from the cluster name environment variable. This method is extracted
+   * to make the class more testable.
    *
-   * @return The AWS account ID or "UNKNOWN" if not available
+   * @return
+   *   The AWS account ID or "UNKNOWN" if not available
    */
   protected def getClusterAccountId(): String = {
     val flintOptions = new FlintOptions(new java.util.HashMap[String, String]())
