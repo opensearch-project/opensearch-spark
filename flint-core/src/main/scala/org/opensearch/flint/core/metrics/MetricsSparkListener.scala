@@ -5,6 +5,9 @@
 
 package org.opensearch.flint.core.metrics
 
+import org.opensearch.flint.core.FlintOptions
+import org.opensearch.flint.core.metrics.reporter.{DimensionedName, DimensionedNameBuilder}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorMetricsUpdate, SparkListenerTaskEnd}
 import org.apache.spark.sql.SparkSession
@@ -39,15 +42,43 @@ class MetricsSparkListener extends SparkListener with Logging {
       taskEnd.taskMetrics.jvmGCTime)
   }
 
-  def emitMetrics(): Unit = {
+   def emitMetrics(): Unit = {
     logInfo(s"Input: totalBytesRead=${bytesRead}, totalRecordsRead=${recordsRead}")
     logInfo(s"Output: totalBytesWritten=${bytesWritten}, totalRecordsWritten=${recordsWritten}")
     logInfo(s"totalJvmGcTime=${totalJvmGcTime}")
-    MetricsUtil.addHistoricGauge(MetricConstants.INPUT_TOTAL_BYTES_READ, bytesRead)
+     // Use the dimensioned metric name for bytesRead
+    MetricsUtil.addHistoricGauge(addAccountDimension(MetricConstants.INPUT_TOTAL_BYTES_READ), bytesRead)
+    // Original metrics remain unchanged
     MetricsUtil.addHistoricGauge(MetricConstants.INPUT_TOTAL_RECORDS_READ, recordsRead)
     MetricsUtil.addHistoricGauge(MetricConstants.OUTPUT_TOTAL_BYTES_WRITTEN, bytesWritten)
     MetricsUtil.addHistoricGauge(MetricConstants.OUTPUT_TOTAL_RECORDS_WRITTEN, recordsWritten)
     MetricsUtil.addHistoricGauge(MetricConstants.TOTAL_JVM_GC_TIME_METRIC, totalJvmGcTime)
+  }
+
+  /**
+  * Adds an AWS account dimension to the given metric name.
+  *
+  * @param metricName The name of the metric to which the account dimension will be added
+  * @return A string representation of the metric name with the account dimension attached,
+  *         formatted as a dimensioned name
+  */
+  def addAccountDimension(metricName: String): String = {
+    val accountId = getClusterAccountId()
+    DimensionedName.withName(metricName)
+      .withDimension("accountId", accountId)
+      .build()
+      .toString()
+  }
+
+  /**
+   * Gets the AWS account ID from the cluster name environment variable.
+   * This method is extracted to make the class more testable.
+   *
+   * @return The AWS account ID or "UNKNOWN" if not available
+   */
+  protected def getClusterAccountId(): String = {
+    val flintOptions = new FlintOptions(new java.util.HashMap[String, String]())
+    flintOptions.getAWSAccountId()
   }
 }
 
