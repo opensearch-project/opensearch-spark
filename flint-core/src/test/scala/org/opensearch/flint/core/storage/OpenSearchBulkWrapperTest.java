@@ -79,7 +79,8 @@ class OpenSearchBulkWrapperTest {
       FlintOptions.BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE, "2000",
       FlintOptions.BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE, "20000",
       FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP, "1000",
-      FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO, "0.5"));
+      FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_FAILURE, "0.5"));
+  // TODO: now should test the feedback, not the rate concrete rate adjustment
 
   @BeforeEach
   public void setup() {

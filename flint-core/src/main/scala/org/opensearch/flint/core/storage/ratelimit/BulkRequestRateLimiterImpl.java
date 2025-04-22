@@ -20,7 +20,6 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
   private final long maxRate;
   private final double increaseRateThreshold;
   private final long increaseStep;
-  private final double decreaseRatio;
   private final long latencyThreshold;
   private final double decreaseRatioLatency;
   private final double decreaseRatioFailure;
@@ -30,13 +29,12 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
   public BulkRequestRateLimiterImpl(FlintOptions flintOptions) {
     minRate = flintOptions.getBulkRequestMinRateLimitPerNode();
     maxRate = flintOptions.getBulkRequestMaxRateLimitPerNode();
-    increaseRateThreshold = 0.8f; // TODO. Set to 0 to disable stabilizing
+    increaseRateThreshold = flintOptions.getBulkRequestRateLimitPerNodeIncreaseRateThreshold();
     increaseStep = flintOptions.getBulkRequestRateLimitPerNodeIncreaseStep();
-    latencyThreshold = 25000; // TODO: this is millisecond
-    decreaseRatio = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatio();
-    decreaseRatioLatency = 0.7f; // TODO
-    decreaseRatioFailure = 0.9f; // TODO
-    decreaseRatioTimeout = 0.5f; // TODO
+    latencyThreshold = flintOptions.getBulkRequestRateLimitPerNodeLatencyThreshold();
+    decreaseRatioFailure = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatioFailure();
+    decreaseRatioLatency = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatioLatency();
+    decreaseRatioTimeout = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatioTimeout();
     requestRateMeter = new RequestRateMeter();
 
     LOG.info("Setting rate limit for bulk request to " + minRate + " bytes/sec");
