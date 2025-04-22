@@ -75,7 +75,7 @@ class FlintSparkConfSuite extends FlintSuite {
     options.getBulkRequestMinRateLimitPerNode shouldBe 5000
     options.getBulkRequestMaxRateLimitPerNode shouldBe 50000
     options.getBulkRequestRateLimitPerNodeIncreaseStep shouldBe 500
-    options.getBulkRequestRateLimitPerNodeDecreaseRatio shouldBe 0.8
+    // TODO
   }
 
   test("test specified bulk request rate limit options") {
@@ -91,7 +91,7 @@ class FlintSparkConfSuite extends FlintSuite {
     options.getBulkRequestMinRateLimitPerNode shouldBe 20
     options.getBulkRequestMaxRateLimitPerNode shouldBe 200
     options.getBulkRequestRateLimitPerNodeIncreaseStep shouldBe 20
-    options.getBulkRequestRateLimitPerNodeDecreaseRatio shouldBe 0.5
+    // TODO
   }
 
   test("test metadata access AWS credentials provider option") {

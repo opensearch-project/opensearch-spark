@@ -63,7 +63,7 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
 
   @Override
   public void adaptToFeedback(RequestFeedback feedback) {
-    if (feedback.isSuccess) {
+    if (feedback.noRetryable) {
       if (feedback.latency > latencyThreshold) {
         LOG.warning("Decreasing rate. Reason: Bulk latency high. Latency = " + feedback.latency + " exceeds threshold " + latencyThreshold);
         decreaseRate(decreaseRatioLatency);

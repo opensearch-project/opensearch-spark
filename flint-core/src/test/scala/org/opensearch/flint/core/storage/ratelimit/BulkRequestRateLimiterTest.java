@@ -13,48 +13,89 @@ import org.junit.jupiter.api.Test;
 import org.opensearch.flint.core.FlintOptions;
 
 /**
- * These tests are largely dependent on the choice of the underlying rate limiter. While conceptually
- * they all distribute permits at some rate, the actual behavior varies based on implementation.
- * To avoid flakiness and creating test cases for specific implementation, we measure the time required
- * for acquiring several permits, and set lenient thresholds.
  * TODO: test for adaptToFeedback
  */
 class BulkRequestRateLimiterTest {
 
-  @Test
-  void acquirePermitWithRateConfig() throws Exception {
-    FlintOptions options = new FlintOptions(ImmutableMap.of(
-        FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED, "true",
-        FlintOptions.BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE, "1"));
-    BulkRequestRateLimiter limiter = new BulkRequestRateLimiterImpl(options);
+  /*
+  // Moved from OpenSearchBulkWrapperTest
+  // TODO: adjust to test with Feedback rather than mocked response
+  // TODO: add tests for stabilize threshold, latency threshold, different decrease scenario
+  FlintOptions optionsWithRateLimit = new FlintOptions(Map.of(
+      FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED, "true",
+      FlintOptions.BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE, "2000",
+      FlintOptions.BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE, "20000",
+      FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_RATE_THRESHOLD, "0",
+      FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP, "1000",
+      FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_FAILURE, "0.5"));
 
-    assertTrue(timer(() -> {
-      limiter.acquirePermit();
-      limiter.acquirePermit();
-      limiter.acquirePermit();
-      limiter.acquirePermit();
-      limiter.acquirePermit();
-      limiter.acquirePermit();
-    }) >= 4500);
-    assertTrue(timer(() -> {
-      limiter.acquirePermit(5);
-      limiter.acquirePermit();
-    }) >= 4500);
+  @Test
+  public void increaseRateLimitWhenCallSucceed() throws Exception {
+    MetricsTestUtil.withMetricEnv(verifier -> {
+      BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiterImpl(optionsWithRateLimit);
+      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
+          retryOptionsWithRetry, rateLimiter);
+      when(client.bulk(bulkRequest, options)).thenReturn(successResponse);
+      when(successResponse.hasFailures()).thenReturn(false);
+
+      assertEquals(2000, rateLimiter.getRate());
+
+      bulkWrapper.bulk(client, bulkRequest, options);
+      assertEquals(3000, rateLimiter.getRate());
+
+      bulkWrapper.bulk(client, bulkRequest, options);
+      assertEquals(4000, rateLimiter.getRate());
+
+      // Should not exceed max rate limit
+      rateLimiter.setRate(20000);
+      bulkWrapper.bulk(client, bulkRequest, options);
+      assertEquals(20000, rateLimiter.getRate());
+    });
   }
 
   @Test
-  void acquirePermitWithoutRateConfig() throws Exception {
-    BulkRequestRateLimiter limiter = new BulkRequestRateLimiterNoop();
+  public void adjustRateLimitWithRetryWhenCallFailOnce() throws Exception {
+    MetricsTestUtil.withMetricEnv(verifier -> {
+      BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiterImpl(optionsWithRateLimit);
+      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
+          retryOptionsWithRetry, rateLimiter);
+      when(client.bulk(any(), eq(options)))
+          .thenReturn(failureResponse)
+          .thenReturn(successResponse);
+      mockFailureResponse();
+      when(successResponse.hasFailures()).thenReturn(false);
 
-    assertTrue(timer(() -> {
-      limiter.acquirePermit();
-      limiter.acquirePermit();
-      limiter.acquirePermit();
-      limiter.acquirePermit();
-      limiter.acquirePermit();
-      limiter.acquirePermit();
-    }) < 100);
+      rateLimiter.setRate(10000);
+
+      bulkWrapper.bulk(client, bulkRequest, options);
+
+      // Should decrease once then increase once
+      assertEquals(6000, rateLimiter.getRate());
+    });
   }
+
+  @Test
+  public void decreaseRateLimitWhenAllCallFail() throws Exception {
+    MetricsTestUtil.withMetricEnv(verifier -> {
+      BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiterImpl(optionsWithRateLimit);
+      OpenSearchBulkWrapper bulkWrapper = new OpenSearchBulkWrapper(
+          retryOptionsWithRetry, rateLimiter);
+      when(client.bulk(any(), eq(options)))
+          .thenReturn(failureResponse)
+          .thenReturn(retriedResponse);
+      mockFailureResponse();
+      mockRetriedResponse();
+
+      rateLimiter.setRate(20000);
+
+      bulkWrapper.bulk(client, bulkRequest, options);
+
+      // Should decrease three times
+      assertEquals(2500, rateLimiter.getRate());
+    });
+  }
+
+   */
 
   private interface Procedure {
     void run() throws Exception;

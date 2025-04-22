@@ -9,6 +9,8 @@ import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeException;
 import dev.failsafe.RetryPolicy;
 import dev.failsafe.function.CheckedPredicate;
+
+import java.time.Clock;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -38,11 +40,17 @@ public class OpenSearchBulkWrapper {
   private final RetryPolicy<BulkResponse> retryPolicy;
   private final BulkRequestRateLimiter rateLimiter;
   private final Set<Integer> retryableStatusCodes;
+  private final Clock clock;
 
   public OpenSearchBulkWrapper(FlintRetryOptions retryOptions, BulkRequestRateLimiter rateLimiter) {
+    this(retryOptions, rateLimiter, Clock.systemUTC());
+  }
+
+  public OpenSearchBulkWrapper(FlintRetryOptions retryOptions, BulkRequestRateLimiter rateLimiter, Clock clock) {
     this.retryPolicy = retryOptions.getBulkRetryPolicy(bulkItemRetryableResultPredicate);
     this.rateLimiter = rateLimiter;
     this.retryableStatusCodes = retryOptions.getRetryableHttpStatusCodes();
+    this.clock = clock;
   }
 
   /**
@@ -77,15 +85,15 @@ public class OpenSearchBulkWrapper {
             rateLimiter.acquirePermit((int) nextRequest.get().estimatedSizeInBytes());
 
             try {
-              long startTime = System.currentTimeMillis();
+              long startTime = clock.millis();
               BulkResponse response = client.bulk(nextRequest.get(), options);
-              long latency = System.currentTimeMillis() - startTime;
+              long latency = clock.millis() - startTime;
 
               if (!bulkItemRetryableResultPredicate.test(response)) {
-                rateLimiter.adaptToFeedback(RequestFeedback.success(latency));
+                rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(latency));
               } else {
                 LOG.info("Bulk request failed. attempt = " + (requestCount.get() - 1));
-                rateLimiter.adaptToFeedback(RequestFeedback.failure(latency));
+                rateLimiter.adaptToFeedback(RequestFeedback.hasRetryable(latency));
                 if (retryPolicy.getConfig().allowsRetries()) {
                   nextRequest.set(getRetryableRequest(nextRequest.get(), response));
                 }
