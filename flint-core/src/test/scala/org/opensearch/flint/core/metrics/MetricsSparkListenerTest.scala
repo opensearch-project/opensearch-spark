@@ -7,8 +7,8 @@ package org.opensearch.flint.core.metrics
 
 import java.util.{HashMap => JHashMap}
 
-import org.junit.jupiter.api.{BeforeEach, Test}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
+import org.junit.jupiter.api.{BeforeEach, Test}
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{mock, when}
 import org.opensearch.flint.core.FlintOptions
@@ -20,7 +20,6 @@ class MetricsSparkListenerTest {
   class TestableMetricsSparkListener(accountId: String) extends MetricsSparkListener {
     // Override the addAccountDimension method to use our custom account ID
     override def addAccountDimension(metricName: String): String = {
-      import org.opensearch.flint.core.metrics.reporter.DimensionedName
       DimensionedName
         .withName(metricName)
         .withDimension("accountId", accountId)
