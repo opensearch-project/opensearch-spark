@@ -6,10 +6,7 @@
 package org.apache.spark.sql
 
 import java.util.Locale
-import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.atomic.AtomicInteger
-
-import scala.util.Try
 
 import com.amazonaws.services.glue.model.{AccessDeniedException, AWSGlueException}
 import com.amazonaws.services.s3.model.AmazonS3Exception
@@ -25,7 +22,6 @@ import play.api.libs.json._
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.FlintREPL.instantiate
 import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.exception.UnrecoverableException
@@ -374,10 +370,6 @@ trait FlintJobExecutor {
     compareJson(inputJson, mappingJson) || compareJson(mappingJson, inputJson)
   }
 
-  def isValidJson(input: String): Boolean = {
-    Try(Json.parse(input)).isSuccess
-  }
-
   def checkAndCreateIndex(osClient: OSClient, resultIndex: String): Either[String, Unit] = {
     try {
       val existingSchema = osClient.getIndexMetadata(resultIndex)
@@ -408,13 +400,8 @@ trait FlintJobExecutor {
       resultIndex: String,
       mapping: String,
       settings: String): Either[String, Unit] = {
-    if (!isValidJson(mapping)) {
-      return Left(s"The mappings of $resultIndex are malformed")
-    } else if (!isValidJson(settings)) {
-      return Left(s"The settings of $resultIndex are malformed")
-    }
     try {
-      logInfo(s"create $resultIndex")
+      logInfo(s"create $resultIndex WITH FAST REFRESH SETTING")
       osClient.createIndex(resultIndex, mapping, settings)
       logInfo(s"create $resultIndex successfully")
       Right(())
