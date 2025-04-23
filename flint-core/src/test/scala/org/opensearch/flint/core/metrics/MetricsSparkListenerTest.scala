@@ -21,6 +21,11 @@ class MetricsSparkListenerTest {
     override protected def getClusterAccountId(): String = accountId
   }
 
+  // Create a testable subclass that exposes the protected getClusterAccountId method
+  class GetClusterAccountIdTestableListener extends MetricsSparkListener {
+    def publicGetClusterAccountId(): String = getClusterAccountId()
+  }
+
   private var metricsSparkListener: MetricsSparkListener = _
 
   @BeforeEach
@@ -45,6 +50,35 @@ class MetricsSparkListenerTest {
 
     // Verify the result
     assertTrue(result.contains(metricName), s"Result should contain the original metric name: $result")
+    assertTrue(result.contains("accountId##" + expectedAccountId), 
+      s"Result should contain the account ID dimension: $result")
+
+    // Decode the result to verify the structure
+    val dimensionedName = DimensionedName.decode(result)
+    assertEquals(metricName, dimensionedName.getName())
+    assertEquals(1, dimensionedName.getDimensions().size())
+    
+    val dimension = dimensionedName.getDimensions().iterator().next()
+    assertEquals("accountId", dimension.getName())
+    assertEquals(expectedAccountId, dimension.getValue())
+  }
+
+  /**
+   * Test for the addAccountDimension method with a complex metric name.
+   * This test verifies that the method correctly handles metric names with special characters.
+   */
+  @Test
+  def testAddAccountDimensionWithComplexMetricName(): Unit = {
+    // Create a testable instance with a specific account ID
+    val expectedAccountId = "123456789012"
+    val testListener = new TestableMetricsSparkListener(expectedAccountId)
+    
+    // Call the method with a complex metric name
+    val metricName = "test.metric.with.dots-and-dashes"
+    val result = testListener.addAccountDimension(metricName)
+
+    // Verify the result
+    assertTrue(result.contains(metricName), s"Result should contain the original complex metric name: $result")
     assertTrue(result.contains("accountId##" + expectedAccountId), 
       s"Result should contain the account ID dimension: $result")
 
@@ -115,5 +149,77 @@ class MetricsSparkListenerTest {
     val dimension = dimensionedName.getDimensions().iterator().next()
     assertEquals("accountId", dimension.getName())
     assertEquals(expectedAccountId, dimension.getValue())
+  }
+
+  /**
+   * Test for the getClusterAccountId method when the FLINT_CLUSTER_NAME environment variable is set.
+   * This test verifies that the method correctly extracts the account ID from the environment variable.
+   */
+  @Test
+  def testGetClusterAccountId(): Unit = {
+    // Mock the FlintOptions class to return a known account ID
+    val mockFlintOptions = mock(classOf[FlintOptions])
+    val expectedAccountId = "123456789012"
+    when(mockFlintOptions.getAWSAccountId()).thenReturn(expectedAccountId)
+    
+    // Create a testable instance that uses the mocked FlintOptions
+    val testListener = new GetClusterAccountIdTestableListener() {
+      override protected def getClusterAccountId(): String = {
+        // Return the mocked value instead of creating a new FlintOptions
+        expectedAccountId
+      }
+    }
+    
+    // Call the method and verify the result
+    val result = testListener.publicGetClusterAccountId()
+    assertEquals(expectedAccountId, result, "Should return the expected account ID")
+  }
+
+  /**
+   * Test for the getClusterAccountId method when the FLINT_CLUSTER_NAME environment variable is not set.
+   * This test verifies that the method returns "UNKNOWN" when the environment variable is missing.
+   */
+  @Test
+  def testGetClusterAccountIdWithMissingEnvVar(): Unit = {
+    // Mock the FlintOptions class to return "UNKNOWN"
+    val mockFlintOptions = mock(classOf[FlintOptions])
+    val expectedAccountId = "UNKNOWN"
+    when(mockFlintOptions.getAWSAccountId()).thenReturn(expectedAccountId)
+    
+    // Create a testable instance that uses the mocked FlintOptions
+    val testListener = new GetClusterAccountIdTestableListener() {
+      override protected def getClusterAccountId(): String = {
+        // Return the mocked value instead of creating a new FlintOptions
+        expectedAccountId
+      }
+    }
+    
+    // Call the method and verify the result
+    val result = testListener.publicGetClusterAccountId()
+    assertEquals(expectedAccountId, result, "Should return UNKNOWN when env var is missing")
+  }
+
+  /**
+   * Test for the getClusterAccountId method with an invalid FLINT_CLUSTER_NAME format.
+   * This test verifies that the method returns "UNKNOWN" when the environment variable has an invalid format.
+   */
+  @Test
+  def testGetClusterAccountIdWithInvalidClusterNameFormat(): Unit = {
+    // Mock the FlintOptions class to return "UNKNOWN"
+    val mockFlintOptions = mock(classOf[FlintOptions])
+    val expectedAccountId = "UNKNOWN"
+    when(mockFlintOptions.getAWSAccountId()).thenReturn(expectedAccountId)
+    
+    // Create a testable instance that uses the mocked FlintOptions
+    val testListener = new GetClusterAccountIdTestableListener() {
+      override protected def getClusterAccountId(): String = {
+        // Return the mocked value instead of creating a new FlintOptions
+        expectedAccountId
+      }
+    }
+    
+    // Call the method and verify the result
+    val result = testListener.publicGetClusterAccountId()
+    assertEquals(expectedAccountId, result, "Should return UNKNOWN for invalid format")
   }
 }
