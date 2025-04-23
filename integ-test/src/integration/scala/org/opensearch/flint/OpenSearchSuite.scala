@@ -6,6 +6,7 @@
 package org.opensearch.flint
 
 import scala.io.Source
+
 import org.apache.http.HttpHost
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
 import org.opensearch.action.bulk.BulkRequest
@@ -16,6 +17,7 @@ import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest, GetIn
 import org.opensearch.common.xcontent.XContentType
 import org.opensearch.testcontainers.OpenSearchContainer
 import org.scalatest.{BeforeAndAfterAll, Suite}
+
 import org.apache.spark.sql.flint.config.FlintSparkConf.{HOST_ENDPOINT, HOST_PORT, IGNORE_DOC_ID_COLUMN, REFRESH_POLICY}
 
 /**
