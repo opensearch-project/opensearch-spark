@@ -6,18 +6,16 @@
 package org.opensearch.flint
 
 import scala.io.Source
-
 import org.apache.http.HttpHost
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
 import org.opensearch.action.bulk.BulkRequest
 import org.opensearch.action.index.IndexRequest
 import org.opensearch.action.support.WriteRequest.RefreshPolicy
 import org.opensearch.client.{RequestOptions, RestClient, RestHighLevelClient}
-import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest}
+import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest, GetIndexResponse}
 import org.opensearch.common.xcontent.XContentType
 import org.opensearch.testcontainers.OpenSearchContainer
 import org.scalatest.{BeforeAndAfterAll, Suite}
-
 import org.apache.spark.sql.flint.config.FlintSparkConf.{HOST_ENDPOINT, HOST_PORT, IGNORE_DOC_ID_COLUMN, REFRESH_POLICY}
 
 /**
@@ -207,5 +205,9 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
         !response.hasFailures,
         s"bulk index docs to $index failed: ${response.buildFailureMessage()}")
     }
+  }
+
+  def getIndex(index: String): GetIndexResponse = {
+    openSearchClient.indices().get(new GetIndexRequest(index), RequestOptions.DEFAULT)
   }
 }
