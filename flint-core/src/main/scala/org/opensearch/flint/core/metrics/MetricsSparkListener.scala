@@ -77,7 +77,6 @@ class MetricsSparkListener extends SparkListener with Logging {
 }
 
 object MetricsSparkListener {
-
   def withMetrics[T](spark: SparkSession, lambda: () => T): T = {
     val listener = new MetricsSparkListener()
     spark.sparkContext.addSparkListener(listener)
