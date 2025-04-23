@@ -46,7 +46,7 @@ export AWS_EMRS_EXECUTION_ROLE=xxx
 export AWS_S3_CODE_BUCKET=xxx
 export AWS_S3_CODE_PREFIX=xxx
 export AWS_OPENSEARCH_RESULT_INDEX=query_execution_result_glue
-export AWS_OPENSEARCH_RESULT_INDEX=.query_execution_request_glue
+export AWS_OPENSEARCH_REQUEST_INDEX=.query_execution_request_glue
 ```
 And run the following command:
 ```
