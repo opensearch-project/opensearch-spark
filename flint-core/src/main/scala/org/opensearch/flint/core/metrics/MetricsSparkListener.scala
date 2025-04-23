@@ -67,28 +67,17 @@ class MetricsSparkListener extends SparkListener with Logging {
    *   as a dimensioned name
    */
   def addAccountDimension(metricName: String): String = {
-    val accountId = getClusterAccountId()
+    // Use the static AWS account ID directly from FlintOptions without instantiation
     DimensionedName
       .withName(metricName)
-      .withDimension("accountId", accountId)
+      .withDimension("accountId", FlintOptions.AWS_ACCOUNT_ID)
       .build()
       .toString()
-  }
-
-  /**
-   * Gets the AWS account ID from the cluster name environment variable. This method is extracted
-   * to make the class more testable.
-   *
-   * @return
-   *   The AWS account ID or "UNKNOWN" if not available
-   */
-  protected def getClusterAccountId(): String = {
-    val flintOptions = new FlintOptions(new java.util.HashMap[String, String]())
-    flintOptions.getAWSAccountId()
   }
 }
 
 object MetricsSparkListener {
+
   def withMetrics[T](spark: SparkSession, lambda: () => T): T = {
     val listener = new MetricsSparkListener()
     spark.sparkContext.addSparkListener(listener)
