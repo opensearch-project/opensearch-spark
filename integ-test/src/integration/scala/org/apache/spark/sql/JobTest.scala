@@ -54,7 +54,6 @@ trait JobTest extends Logging { self: OpenSearchSuite =>
               case Success(replResult) =>
                 logInfo(s"repl result: $replResult")
                 assert(expected(replResult), s"{$query} failed.")
-                verifyFastRefresh(resultIndex)
               case Failure(exception) =>
                 assert(false, "Failed to deserialize: " + exception.getMessage)
             }
@@ -66,6 +65,7 @@ trait JobTest extends Logging { self: OpenSearchSuite =>
 
         Thread.sleep(2000) // 2 seconds
       }
+      verifyFastRefresh(resultIndex)
       if (System.currentTimeMillis() - startTime >= timeoutMillis) {
         assert(
           false,
@@ -88,15 +88,15 @@ trait JobTest extends Logging { self: OpenSearchSuite =>
   } // Replace all whitespace characters with empty string
 
   def verifyFastRefresh(resultIndex: String): Unit = {
-    val fastRefreshSettingKey = "refresh_interval"
+    val fastRefreshSettingKey = "index.refresh_interval"
     val fastRefreshSettingVal = "1s"
 
     val getIndexResponse = getIndex(resultIndex)
     val indexToSettings = getIndexResponse.getSettings
     assert(indexToSettings.containsKey(resultIndex))
     val settings = indexToSettings.get(resultIndex)
-    throw new IllegalArgumentException(
-      s"result index: $resultIndex, settings: ${settings.toString}")
+//    throw new IllegalArgumentException(
+//      s"result index: $resultIndex, settings: ${settings.toString}")
     assert(settings.hasValue(fastRefreshSettingKey))
     assert(settings.get(fastRefreshSettingKey) == fastRefreshSettingVal)
   }
