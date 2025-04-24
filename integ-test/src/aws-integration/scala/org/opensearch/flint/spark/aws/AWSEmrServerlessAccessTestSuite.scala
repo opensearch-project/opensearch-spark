@@ -37,7 +37,6 @@ class AWSEmrServerlessAccessTestSuite
   lazy val testS3CodeBucket: String = System.getenv("AWS_S3_CODE_BUCKET")
   lazy val testS3CodePrefix: String = System.getenv("AWS_S3_CODE_PREFIX")
   lazy val testResultIndex: String = System.getenv("AWS_OPENSEARCH_RESULT_INDEX")
-  lazy val testRequestIndex: String = System.getenv("AWS_OPENSEARCH_REQUEST_INDEX")
 
   "EMR Serverless job with AOS" should "run successfully" in {
     val s3Client = AmazonS3ClientBuilder.standard().withRegion(testRegion).build()
@@ -104,7 +103,6 @@ class AWSEmrServerlessAccessTestSuite
               conf("spark.datasource.flint.port", s"$testPort"),
               conf("spark.datasource.flint.scheme", testScheme),
               conf("spark.datasource.flint.auth", testAuth),
-              conf("spark.datasource.flint.region", testRegion),
               conf("spark.datasource.flint.auth.servicename", authServiceName),
               conf("spark.sql.catalog.glue", "org.opensearch.sql.FlintDelegatingSessionCatalog"),
               conf("spark.flint.datasource.name", "glue"),
