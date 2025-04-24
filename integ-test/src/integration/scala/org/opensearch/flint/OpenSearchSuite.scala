@@ -13,7 +13,7 @@ import org.opensearch.action.bulk.BulkRequest
 import org.opensearch.action.index.IndexRequest
 import org.opensearch.action.support.WriteRequest.RefreshPolicy
 import org.opensearch.client.{RequestOptions, RestClient, RestHighLevelClient}
-import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest, GetIndexResponse}
+import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest}
 import org.opensearch.common.settings.Settings
 import org.opensearch.common.xcontent.XContentType
 import org.opensearch.testcontainers.OpenSearchContainer
