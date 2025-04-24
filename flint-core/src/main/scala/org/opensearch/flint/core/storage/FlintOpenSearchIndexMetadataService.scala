@@ -247,16 +247,16 @@ object FlintOpenSearchIndexMetadataService {
   }
 
   /**
-   * Merges the field configurations from FlintSparkIndexOptions into the existing schema. If the
+   * Merges the mapping parameters from FlintSparkIndexOptions into the existing schema. If the
    * options contain mapping parameters that exist in allFieldTypes, those configurations are
    * merged.
    *
    * @param allFieldTypes
    *   Map of field names to their type/configuration details
    * @param options
-   *   FlintSparkIndexOptions containing potential mapping parameters
+   *   FlintMetadata containing potential mapping parameters
    * @return
-   *   Merged map with combined field configurations
+   *   Merged map with combined mapping parameters
    */
   def mergeSchema(
       allFieldTypes: Map[String, AnyRef],
@@ -326,7 +326,7 @@ object FlintOpenSearchIndexMetadataService {
   }
 
   /**
-   * Recursively extracts field configurations from nested properties structure. Returns a map of
+   * Recursively extracts mapping parameters from nested properties structure. Returns a map of
    * field name to its configuration.
    */
   private def extractNestedProperties(
