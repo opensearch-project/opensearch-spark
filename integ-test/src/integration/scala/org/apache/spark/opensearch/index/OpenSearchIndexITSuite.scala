@@ -17,9 +17,8 @@ class OpenSearchIndexITSuite extends OpenSearchCatalogSuite {
   var osClient: OSClient = _
   val indexName = "test_index"
 
-  protected override def beforeAll(): Unit = {
+  override def beforeAll(): Unit = {
     super.beforeAll()
-    // initialized after the container is started
     osClient = new OSClient(new FlintOptions(openSearchOptions.asJava))
   }
 
@@ -51,11 +50,10 @@ class OpenSearchIndexITSuite extends OpenSearchCatalogSuite {
         |    "refresh_interval": "1s"
         |}""".stripMargin
 
-    try {
-      FlintJob.createResultIndex(osClient, indexName, mappings, settings)
-    } catch {
-      case e: Exception =>
-        assert(e.getMessage == s"Failed to get OpenSearch index mapping for $indexName")
+    val result = FlintJob.createResultIndex(osClient, indexName, mappings, settings)
+    result match {
+      case Left(str) => assert(str == s"Failed to create result index $indexName")
+      case Right(_) => fail("passing in invalid settings did not fail")
     }
   }
 
@@ -84,11 +82,10 @@ class OpenSearchIndexITSuite extends OpenSearchCatalogSuite {
         |  }
         |}""".stripMargin
 
-    try {
-      FlintJob.createResultIndex(osClient, indexName, mappings, settings)
-    } catch {
-      case e: Exception =>
-        assert(e.getMessage == s"Failed to get OpenSearch index mapping for $indexName")
+    val result = FlintJob.createResultIndex(osClient, indexName, mappings, settings)
+    result match {
+      case Left(str) => assert(str == s"Failed to create result index $indexName")
+      case Right(_) => fail("passing in invalid mappings did not fail")
     }
   }
 }
