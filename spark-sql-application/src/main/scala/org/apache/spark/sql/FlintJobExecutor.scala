@@ -23,7 +23,6 @@ import play.api.libs.json._
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.FlintREPL.instantiate
 import org.apache.spark.sql.SparkConfConstants.{DEFAULT_SQL_EXTENSIONS, SQL_EXTENSIONS_KEY}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.exception.UnrecoverableException
