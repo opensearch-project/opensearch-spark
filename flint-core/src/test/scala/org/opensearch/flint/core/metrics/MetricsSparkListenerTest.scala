@@ -7,8 +7,8 @@ package org.opensearch.flint.core.metrics
 
 import java.util.{HashMap => JHashMap}
 
-import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{mock, when}
 import org.opensearch.flint.core.FlintOptions
@@ -193,9 +193,8 @@ class MetricsSparkListenerTest {
   }
 
   /**
-   * Test for the AWS account ID retrieval when the FLINT_CLUSTER_NAME environment variable is
-   * not set. This test verifies that "UNKNOWN" is returned when the environment variable
-   * is missing.
+   * Test for the AWS account ID retrieval when the FLINT_CLUSTER_NAME environment variable is not
+   * set. This test verifies that "UNKNOWN" is returned when the environment variable is missing.
    */
   @Test
   def testGetClusterAccountIdWithMissingEnvVar(): Unit = {
@@ -216,8 +215,7 @@ class MetricsSparkListenerTest {
 
   /**
    * Test for the AWS account ID retrieval with an invalid FLINT_CLUSTER_NAME format. This test
-   * verifies that "UNKNOWN" is returned when the environment variable has an invalid
-   * format.
+   * verifies that "UNKNOWN" is returned when the environment variable has an invalid format.
    */
   @Test
   def testGetClusterAccountIdWithInvalidClusterNameFormat(): Unit = {
