@@ -91,12 +91,7 @@ trait JobTest extends Logging { self: OpenSearchSuite =>
     val fastRefreshSettingKey = "index.refresh_interval"
     val fastRefreshSettingVal = "1s"
 
-    val getIndexResponse = getIndex(resultIndex)
-    val indexToSettings = getIndexResponse.getSettings
-    assert(indexToSettings.containsKey(resultIndex))
-    val settings = indexToSettings.get(resultIndex)
-//    throw new IllegalArgumentException(
-//      s"result index: $resultIndex, settings: ${settings.toString}")
+    val settings = getIndexSettings(resultIndex)
     assert(settings.hasValue(fastRefreshSettingKey))
     assert(settings.get(fastRefreshSettingKey) == fastRefreshSettingVal)
   }

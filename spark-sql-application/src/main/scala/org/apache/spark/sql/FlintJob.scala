@@ -37,8 +37,6 @@ object FlintJob extends Logging with FlintJobExecutor {
   def main(args: Array[String]): Unit = {
     val (queryOption, resultIndexOption) = parseArgs(args)
 
-    logInfo("TEST LOG TOEPKERD")
-
     val conf = createSparkConf()
     val sparkSession = createSparkSession(conf)
     val applicationId =

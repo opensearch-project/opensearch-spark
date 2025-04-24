@@ -68,7 +68,7 @@ class OSClient(val flintOptions: FlintOptions) extends Logging {
    *   Left value indicates an error.
    */
   def createIndex(osIndexName: String, mapping: String, settings: String): Unit = {
-    logInfo(s"create $osIndexName TEST LOG")
+    logInfo(s"create $osIndexName")
 
     using(flintClient.createClient()) { client =>
       val request = new CreateIndexRequest(osIndexName)

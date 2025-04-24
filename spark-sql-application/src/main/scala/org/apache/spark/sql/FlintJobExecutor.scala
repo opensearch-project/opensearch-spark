@@ -401,7 +401,7 @@ trait FlintJobExecutor {
       mapping: String,
       settings: String): Either[String, Unit] = {
     try {
-      logInfo(s"create $resultIndex WITH FAST REFRESH SETTING")
+      logInfo(s"create $resultIndex")
       osClient.createIndex(resultIndex, mapping, settings)
       logInfo(s"create $resultIndex successfully")
       Right(())

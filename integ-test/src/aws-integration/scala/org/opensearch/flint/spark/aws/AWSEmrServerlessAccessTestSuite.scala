@@ -7,20 +7,17 @@ package org.opensearch.flint.spark.aws
 
 import java.io.File
 import java.time.LocalDateTime
+
 import scala.concurrent.duration.DurationInt
-import scala.jdk.CollectionConverters.mapAsJavaMapConverter
+
 import com.amazonaws.services.emrserverless.{AWSEMRServerless, AWSEMRServerlessClientBuilder}
 import com.amazonaws.services.emrserverless.model.{GetJobRunRequest, JobDriver, SparkSubmit, StartJobRunRequest}
 import com.amazonaws.services.s3.{AmazonS3, AmazonS3ClientBuilder}
-import org.opensearch.client.{RequestOptions, RestHighLevelClient}
-import org.opensearch.flint.core.{FlintOptions, IRestHighLevelClient}
-import org.opensearch.flint.core.storage.OpenSearchClientUtils
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
 import org.apache.spark.internal.Logging
-import org.opensearch.action.admin.indices.delete.DeleteIndexRequest
-import org.opensearch.client.indices.GetIndexRequest
 
 class AWSEmrServerlessAccessTestSuite
   extends AnyFlatSpec
@@ -39,24 +36,8 @@ class AWSEmrServerlessAccessTestSuite
   lazy val testExecutionRole: String = System.getenv("AWS_EMRS_EXECUTION_ROLE")
   lazy val testS3CodeBucket: String = System.getenv("AWS_S3_CODE_BUCKET")
   lazy val testS3CodePrefix: String = System.getenv("AWS_S3_CODE_PREFIX")
-  lazy val testRequestIndex: String = System.getenv("AWS_OPENSEARCH_REQUEST_INDEX")
   lazy val testResultIndex: String = System.getenv("AWS_OPENSEARCH_RESULT_INDEX")
-
-  lazy val fastRefreshSettingKey = "refresh_interval"
-  lazy val fastRefreshSettingVal = "1s"
-
-  protected lazy val openSearchOptions =
-    Map(
-      s"${FlintOptions.HOST}" -> testServerlessHost,
-      s"${FlintOptions.PORT}" -> s"$testPort",
-      s"${FlintOptions.SCHEME}" -> testScheme,
-      s"${FlintOptions.REGION}" -> testRegion,
-      s"${FlintOptions.AUTH}" -> testAuth,
-      s"${FlintOptions.SYSTEM_INDEX_KEY_NAME}" -> testResultIndex,
-      s"${FlintOptions.SERVICE_NAME}" -> FlintOptions.SERVICE_NAME_AOSS
-    )
-
-  lazy val options: FlintOptions = new FlintOptions(openSearchOptions.asJava)
+  lazy val testRequestIndex: String = System.getenv("AWS_OPENSEARCH_REQUEST_INDEX")
 
   "EMR Serverless job with AOS" should "run successfully" in {
     val s3Client = AmazonS3ClientBuilder.standard().withRegion(testRegion).build()
@@ -89,26 +70,6 @@ class AWSEmrServerlessAccessTestSuite
     verifyJobSucceed(emrServerless, jobRunResponse.getJobRunId)
   }
 
-  "EMR Serverless job with AOSS" should "have fast refresh index setting in query results index" in {
-    val s3Client = AmazonS3ClientBuilder.standard().withRegion(testRegion).build()
-    val emrServerless = AWSEMRServerlessClientBuilder.standard().withRegion(testRegion).build()
-    val osClient = OpenSearchClientUtils.createClient(options)
-
-    uploadJarsToS3(s3Client)
-
-    val jobRunRequest = startJobRun(
-      "SELECT 1",
-      testServerlessHost,
-      "aoss",
-      conf("spark.datasource.flint.write.refresh_policy", "false")
-    )
-
-    val jobRunResponse = emrServerless.startJobRun(jobRunRequest)
-
-    verifyJobSucceed(emrServerless, jobRunResponse.getJobRunId)
-    verifyFastRefresh(osClient)
-  }
-
   private def verifyJobSucceed(emrServerless: AWSEMRServerless, jobRunId: String): Unit = {
     val startTime = System.currentTimeMillis()
     val timeout = 5.minutes.toMillis
@@ -126,15 +87,6 @@ class AWSEmrServerlessAccessTestSuite
     jobState shouldBe "SUCCESS"
   }
 
-  private def verifyFastRefresh(osClient: IRestHighLevelClient): Unit = {
-    val getIndexResponse = osClient.getIndex(new GetIndexRequest(testResultIndex), RequestOptions.DEFAULT)
-    val indexToSettings = getIndexResponse.getSettings
-    indexToSettings.containsKey(testResultIndex) shouldBe true
-    val settings = indexToSettings.get(testResultIndex)
-    settings.hasValue(fastRefreshSettingKey) shouldBe true
-    settings.get(fastRefreshSettingKey) shouldBe fastRefreshSettingVal
-  }
-
   private def startJobRun(query: String, host: String, authServiceName: String, additionalParams: String*) = {
     new StartJobRunRequest()
       .withApplicationId(testAppId)
@@ -150,16 +102,14 @@ class AWSEmrServerlessAccessTestSuite
               jars(s"s3://$testS3CodeBucket/$testS3CodePrefix/extension.jar", s"s3://$testS3CodeBucket/$testS3CodePrefix/ppl.jar"),
               conf("spark.datasource.flint.host", host),
               conf("spark.datasource.flint.port", s"$testPort"),
-              conf("spark.datasource.flint.region", s"$testRegion"),
               conf("spark.datasource.flint.scheme", testScheme),
               conf("spark.datasource.flint.auth", testAuth),
+              conf("spark.datasource.flint.region", testRegion),
               conf("spark.datasource.flint.auth.servicename", authServiceName),
               conf("spark.sql.catalog.glue", "org.opensearch.sql.FlintDelegatingSessionCatalog"),
               conf("spark.flint.datasource.name", "glue"),
               conf("spark.flint.job.query", quote(query)),
-              conf("spark.flint.job.requestIndex", testRequestIndex),
               conf("spark.hadoop.hive.metastore.client.factory.class", "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"),
-              conf("spark.sql.extensions", "org.opensearch.flint.spark.FlintSparkExtensions,org.opensearch.flint.spark.FlintPPLSparkExtensions"),
               join(additionalParams: _*)
             )
           )

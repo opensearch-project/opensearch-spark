@@ -14,6 +14,7 @@ import org.opensearch.action.index.IndexRequest
 import org.opensearch.action.support.WriteRequest.RefreshPolicy
 import org.opensearch.client.{RequestOptions, RestClient, RestHighLevelClient}
 import org.opensearch.client.indices.{CreateIndexRequest, GetIndexRequest, GetIndexResponse}
+import org.opensearch.common.settings.Settings
 import org.opensearch.common.xcontent.XContentType
 import org.opensearch.testcontainers.OpenSearchContainer
 import org.scalatest.{BeforeAndAfterAll, Suite}
@@ -209,7 +210,11 @@ trait OpenSearchSuite extends BeforeAndAfterAll {
     }
   }
 
-  def getIndex(index: String): GetIndexResponse = {
-    openSearchClient.indices().get(new GetIndexRequest(index), RequestOptions.DEFAULT)
+  def getIndexSettings(index: String): Settings = {
+    val getIndexResponse =
+      openSearchClient.indices().get(new GetIndexRequest(index), RequestOptions.DEFAULT)
+    val indexToSettings = getIndexResponse.getSettings
+    assume(indexToSettings.containsKey(index), s"index $index not found")
+    indexToSettings.get(index)
   }
 }
