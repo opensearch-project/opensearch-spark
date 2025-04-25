@@ -254,20 +254,20 @@ class OpenSearchBulkWrapperTest {
   }
 
   private void assertRequestFeedbackNoRetryable(RequestFeedback feedback, long expectedLatency) {
-    assertTrue(feedback.noRetryable);
+    assertFalse(feedback.hasRetryableFailure);
     assertFalse(feedback.isTimeout);
     assertEquals(expectedLatency, feedback.latency);
   }
 
   private void assertRequestFeedbackHasRetryable(RequestFeedback feedback, long expectedLatency) {
-    assertFalse(feedback.noRetryable);
+    assertTrue(feedback.hasRetryableFailure);
     assertFalse(feedback.isTimeout);
     assertEquals(expectedLatency, feedback.latency);
   }
 
   private void assertRequestFeedbackTimeout(RequestFeedback feedback) {
     // Latency feedback does not matter
-    assertFalse(feedback.noRetryable);
+    assertTrue(feedback.hasRetryableFailure);
     assertTrue(feedback.isTimeout);
   }
 

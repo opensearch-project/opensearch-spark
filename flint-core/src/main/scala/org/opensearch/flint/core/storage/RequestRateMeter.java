@@ -5,8 +5,8 @@
 
 package org.opensearch.flint.core.storage;
 
+import java.time.Clock;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Queue;
 
 /**
@@ -25,8 +25,18 @@ public class RequestRateMeter {
     }
   }
 
+  private final Clock clock;
+
   private Queue<DataPoint> dataPoints = new LinkedList<>();
   private long currentSum = 0;
+
+  public RequestRateMeter() {
+    this(Clock.systemUTC());
+  }
+
+  public RequestRateMeter(Clock clock) {
+    this.clock = clock;
+  }
 
   public synchronized void addDataPoint(long timestamp, long requestSize) {
     dataPoints.add(new DataPoint(timestamp, requestSize));
@@ -40,7 +50,7 @@ public class RequestRateMeter {
   }
 
   private synchronized void removeOldDataPoints() {
-    long curr = System.currentTimeMillis();
+    long curr = clock.millis();
     while (!dataPoints.isEmpty() && dataPoints.peek().timestamp < curr - ESTIMATE_RANGE_DURATION_MSEC) {
       currentSum -= dataPoints.remove().requestSize;
     }
