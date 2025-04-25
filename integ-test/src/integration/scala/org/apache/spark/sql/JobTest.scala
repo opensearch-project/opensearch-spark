@@ -65,6 +65,7 @@ trait JobTest extends Logging { self: OpenSearchSuite =>
 
         Thread.sleep(2000) // 2 seconds
       }
+      verifyFastRefresh(resultIndex)
       if (System.currentTimeMillis() - startTime >= timeoutMillis) {
         assert(
           false,
@@ -85,4 +86,13 @@ trait JobTest extends Logging { self: OpenSearchSuite =>
     // \\s+ is a regular expression that matches one or more whitespace characters, including spaces, tabs, and newlines.
     s.replaceAll("\\s+", " ")
   } // Replace all whitespace characters with empty string
+
+  def verifyFastRefresh(resultIndex: String): Unit = {
+    val fastRefreshSettingKey = "index.refresh_interval"
+    val fastRefreshSettingVal = "1s"
+
+    val settings = getIndexSettings(resultIndex)
+    assert(settings.hasValue(fastRefreshSettingKey))
+    assert(settings.get(fastRefreshSettingKey) == fastRefreshSettingVal)
+  }
 }
