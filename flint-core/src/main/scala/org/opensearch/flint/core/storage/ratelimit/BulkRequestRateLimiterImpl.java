@@ -7,6 +7,7 @@ package org.opensearch.flint.core.storage.ratelimit;
 
 import com.google.common.util.concurrent.RateLimiter;
 import java.time.Clock;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import org.opensearch.flint.core.FlintOptions;
 import org.opensearch.flint.core.metrics.MetricConstants;
@@ -23,13 +24,15 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
   private final long latencyThreshold;
   private final double decreaseRatioLatency;
   private final double decreaseRatioFailure;
-  private final double decreaseRatioTimeout;
+  private final double decreaseRatioTimeout = 0; // decrease to minimum
+  private final long decreaseCooldown;
   private final Clock clock;
   private final RequestRateMeter requestRateMeter;
   private final RateLimiter rateLimiter;
 
-  private boolean slowStart = true;
-  // TODO: ssthreshold
+  // private boolean slowStart = true;
+  private long allowDecreaseAfter = 0;
+  // private long ssThreshold;
 
   public BulkRequestRateLimiterImpl(FlintOptions flintOptions) {
     this(flintOptions, Clock.systemUTC());
@@ -43,11 +46,12 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
     latencyThreshold = flintOptions.getBulkRequestRateLimitPerNodeLatencyThreshold();
     decreaseRatioFailure = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatioFailure();
     decreaseRatioLatency = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatioLatency();
-    decreaseRatioTimeout = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatioTimeout();
+    decreaseCooldown = latencyThreshold;
+
     this.clock = clock;
     this.requestRateMeter = new RequestRateMeter(clock);
+    // ssThreshold = maxRate;
 
-    LOG.info("Setting rate limit for bulk request to " + minRate + " bytes/sec");
     this.rateLimiter = RateLimiter.create(minRate);
     MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RATE_LIMIT_METRIC, minRate);
   }
@@ -77,24 +81,31 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
   @Override
   public void adaptToFeedback(RequestFeedback feedback) {
     if (feedback.isTimeout) {
-      LOG.warning("Decreasing rate. Reason: Bulk request socket/connection timeout.");
-      decreaseRate(decreaseRatioTimeout);
-      slowStart = true;
+      if (canDecreaseRate()) {
+        LOG.warning("Decreasing rate. Reason: Bulk request socket/connection timeout.");
+        // slowStart = true;
+        decreaseRate(decreaseRatioTimeout);
+        // ssThreshold = getCurrentEstimatedRate() / 2;
+      }
       return;
     }
     if (feedback.hasRetryableFailure){
-      LOG.warning("Decreasing rate. Reason: Bulk request failed.");
-      decreaseRate(decreaseRatioFailure);
-      slowStart = false;
+      if (canDecreaseRate()) {
+        LOG.warning("Decreasing rate. Reason: Bulk request failed.");
+        // slowStart = false;
+        decreaseRate(decreaseRatioFailure);
+      }
       return;
     }
     if (feedback.latency > latencyThreshold) {
-      LOG.warning("Decreasing rate. Reason: Bulk latency high. Latency = " + feedback.latency + " exceeds threshold " + latencyThreshold);
-      decreaseRate(decreaseRatioLatency);
-      slowStart = false;
+      if (canDecreaseRate()) {
+        LOG.warning("Decreasing rate. Reason: Bulk latency high. Latency = " + feedback.latency + " exceeds threshold " + latencyThreshold);
+        // slowStart = false;
+        decreaseRate(decreaseRatioLatency);
+      }
       return;
     }
-    increaseRate(feedback.requestSize);
+    increaseRate();
   }
 
   /**
@@ -114,24 +125,43 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
   }
 
   /**
-   * Increase rate limit additively.
+   * Increase rate limit. TODO
    */
-  private void increaseRate(int increment) {
-    if (!isEstimatedCurrentRateCloseToLimit()) {
-      LOG.warning("Rate increase blocked. Reason: Current rate " + requestRateMeter.getCurrentEstimatedRate() + " is not close to limit " + getRate());
+  private void increaseRate() {
+    if (!isCurrentEstimatedRateCloseToLimit()) {
+      LOG.warning("Rate increase blocked. Reason: Current rate is not close to limit " + getRate());
       return;
     }
+    /*
     if (slowStart) {
-      setRate(getRate() + increment);
+      setRate((long) (getRate() * 1.5)); // TODO: config: slow start boost
+      if (getRate() >= ssThreshold) {
+        slowStart = false;
+      }
     } else {
-      setRate(getRate() + (long) (increaseStep * increment / (double) getRate()));
+      setRate(getRate() + increaseStep);
     }
+     */
+    setRate(getRate() + increaseStep);
   }
 
-  private boolean isEstimatedCurrentRateCloseToLimit() {
+  private long getCurrentEstimatedRate() {
     long currentEstimatedRate = requestRateMeter.getCurrentEstimatedRate();
     LOG.warning("Current estimated rate is " + currentEstimatedRate + " bytes/sec");
+    return currentEstimatedRate;
+  }
+
+  private boolean isCurrentEstimatedRateCloseToLimit() {
+    long currentEstimatedRate = getCurrentEstimatedRate();
     return getRate() * increaseRateThreshold <= currentEstimatedRate;
+  }
+
+  private boolean canDecreaseRate() {
+    if (clock.millis() > allowDecreaseAfter) {
+      allowDecreaseAfter = clock.millis() + decreaseCooldown;
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -139,5 +169,10 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
    */
   private void decreaseRate(double decreaseRatio) {
     setRate((long) (getRate() * decreaseRatio));
+    /*
+    if (getRate() == minRate) {
+      slowStart = true;
+    }
+     */
   }
 }

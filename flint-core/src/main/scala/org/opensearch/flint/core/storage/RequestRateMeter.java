@@ -14,7 +14,7 @@ import java.util.Queue;
  * milliseconds period.
  */
 public class RequestRateMeter {
-  private static final long ESTIMATE_RANGE_DURATION_MSEC = 3000;
+  private static final long ESTIMATE_RANGE_DURATION_MSEC = 10000;
 
   private static class DataPoint {
     long timestamp;

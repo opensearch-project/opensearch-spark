@@ -8,21 +8,21 @@ package org.opensearch.flint.core.storage.ratelimit;
 public class RequestFeedback {
   public final boolean isTimeout;
   public final boolean hasRetryableFailure;
-  public final long latency;
+  public final int latency;
   public final int requestSize;
 
-  public RequestFeedback(boolean isTimeout, boolean hasRetryableFailure, long latency, int requestSize) {
+  public RequestFeedback(boolean isTimeout, boolean hasRetryableFailure, int latency, int requestSize) {
     this.isTimeout = isTimeout;
     this.hasRetryableFailure = hasRetryableFailure;
     this.latency = latency;
     this.requestSize = requestSize;
   }
 
-  public static RequestFeedback noRetryable(long latency, int requestSize) {
+  public static RequestFeedback noRetryable(int latency, int requestSize) {
     return new RequestFeedback(false, false, latency, requestSize);
   }
 
-  public static RequestFeedback hasRetryable(long latency) {
+  public static RequestFeedback hasRetryable(int latency) {
     return new RequestFeedback(false, true, latency, 0);
   }
 
