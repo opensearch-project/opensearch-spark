@@ -9,22 +9,24 @@ public class RequestFeedback {
   public final boolean isTimeout;
   public final boolean hasRetryableFailure;
   public final long latency;
+  public final int requestSize;
 
-  public RequestFeedback(boolean isTimeout, boolean hasRetryableFailure, long latency) {
+  public RequestFeedback(boolean isTimeout, boolean hasRetryableFailure, long latency, int requestSize) {
     this.isTimeout = isTimeout;
     this.hasRetryableFailure = hasRetryableFailure;
     this.latency = latency;
+    this.requestSize = requestSize;
   }
 
-  public static RequestFeedback noRetryable(long latency) {
-    return new RequestFeedback(false, false, latency);
+  public static RequestFeedback noRetryable(long latency, int requestSize) {
+    return new RequestFeedback(false, false, latency, requestSize);
   }
 
   public static RequestFeedback hasRetryable(long latency) {
-    return new RequestFeedback(false, true, latency);
+    return new RequestFeedback(false, true, latency, 0);
   }
 
   public static RequestFeedback timeout() {
-    return new RequestFeedback(true, false, 0);
+    return new RequestFeedback(true, false, 0, 0);
   }
 }

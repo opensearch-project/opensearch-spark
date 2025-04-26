@@ -66,10 +66,12 @@ class BulkRequestRateLimiterTest {
 
   // TODO: test acquirePermit without testing internal rateLimiter behavior
 
+  // TODO: test new requestSize behavior. now they are set to 1000
+
   @Test
   public void increaseRateLimitOnFeedbackNoRetryable() {
     BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiterImpl(options);
-    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000));
+    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000, 1000));
     assertEquals(3000, rateLimiter.getRate());
   }
 
@@ -98,25 +100,25 @@ class BulkRequestRateLimiterTest {
 
     rateLimiter.acquirePermit(2000);
     currentTimeMillis += 3000;
-    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000));
+    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000, 1000));
     assertEquals(2000, rateLimiter.getRate());
 
     currentTimeMillis += 1000;
     rateLimiter.acquirePermit(5000);
     currentTimeMillis += 1000;
-    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000));
+    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000, 1000));
     assertEquals(3000, rateLimiter.getRate());
 
     currentTimeMillis += 1000;
     rateLimiter.acquirePermit(2000);
     currentTimeMillis += 1000;
-    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000));
+    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000, 1000));
     assertEquals(3000, rateLimiter.getRate());
 
     currentTimeMillis += 1000;
     rateLimiter.acquirePermit(6000);
     currentTimeMillis += 1000;
-    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000));
+    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000, 1000));
     assertEquals(4000, rateLimiter.getRate());
   }
 
@@ -132,7 +134,7 @@ class BulkRequestRateLimiterTest {
   public void decreaseRateLimitOnFeedbackHighLatency() {
     BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiterImpl(options);
     rateLimiter.setRate(10000);
-    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(50000));
+    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(50000, 1000));
     assertEquals(7000, rateLimiter.getRate());
   }
 

@@ -82,7 +82,8 @@ public class OpenSearchBulkWrapper {
           .get(() -> {
             requestCount.incrementAndGet();
             // converting to int should be safe because bulk request bytes is restricted by batch_bytes config
-            rateLimiter.acquirePermit((int) nextRequest.get().estimatedSizeInBytes());
+            int requestSize = (int) nextRequest.get().estimatedSizeInBytes();
+            rateLimiter.acquirePermit(requestSize);
 
             try {
               long startTime = clock.millis();
@@ -90,7 +91,7 @@ public class OpenSearchBulkWrapper {
               long latency = clock.millis() - startTime;
 
               if (!bulkItemRetryableResultPredicate.test(response)) {
-                rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(latency));
+                rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(latency, requestSize));
               } else {
                 LOG.info("Bulk request failed. attempt = " + (requestCount.get() - 1));
                 rateLimiter.adaptToFeedback(RequestFeedback.hasRetryable(latency));

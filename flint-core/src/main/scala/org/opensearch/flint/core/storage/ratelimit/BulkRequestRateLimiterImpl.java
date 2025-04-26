@@ -28,6 +28,9 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
   private final RequestRateMeter requestRateMeter;
   private final RateLimiter rateLimiter;
 
+  private boolean slowStart = true;
+  // TODO: ssthreshold
+
   public BulkRequestRateLimiterImpl(FlintOptions flintOptions) {
     this(flintOptions, Clock.systemUTC());
   }
@@ -76,19 +79,22 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
     if (feedback.isTimeout) {
       LOG.warning("Decreasing rate. Reason: Bulk request socket/connection timeout.");
       decreaseRate(decreaseRatioTimeout);
+      slowStart = true;
       return;
     }
     if (feedback.hasRetryableFailure){
       LOG.warning("Decreasing rate. Reason: Bulk request failed.");
       decreaseRate(decreaseRatioFailure);
+      slowStart = false;
       return;
     }
     if (feedback.latency > latencyThreshold) {
       LOG.warning("Decreasing rate. Reason: Bulk latency high. Latency = " + feedback.latency + " exceeds threshold " + latencyThreshold);
       decreaseRate(decreaseRatioLatency);
+      slowStart = false;
       return;
     }
-    increaseRate();
+    increaseRate(feedback.requestSize);
   }
 
   /**
@@ -110,13 +116,16 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
   /**
    * Increase rate limit additively.
    */
-  private void increaseRate() {
+  private void increaseRate(int increment) {
     if (!isEstimatedCurrentRateCloseToLimit()) {
       LOG.warning("Rate increase blocked. Reason: Current rate " + requestRateMeter.getCurrentEstimatedRate() + " is not close to limit " + getRate());
       return;
     }
-
-    setRate(getRate() + increaseStep);
+    if (slowStart) {
+      setRate(getRate() + increment);
+    } else {
+      setRate(getRate() + (long) (increaseStep * increment / (double) getRate()));
+    }
   }
 
   private boolean isEstimatedCurrentRateCloseToLimit() {
