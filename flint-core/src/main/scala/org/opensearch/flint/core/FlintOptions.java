@@ -117,18 +117,10 @@ public class FlintOptions implements Serializable {
   public static final String DEFAULT_BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE = "50000";
   public static final String BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE = "write.bulk.rate_limit_per_node.max";
   public static final String DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE = "500000";
-  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_RATE_THRESHOLD = "write.bulk.rate_limit_per_node.increase_rate_threshold";
-  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_RATE_THRESHOLD = "0.8";
   public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP = "write.bulk.rate_limit_per_node.increase_step";
   public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP = "20000";
-  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_LATENCY_THRESHOLD = "write.bulk.rate_limit_per_node.latency_threshold";
-  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_LATENCY_THRESHOLD = "20000";
-  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_FAILURE = "write.bulk.rate_limit_per_node.decrease_ratio_failure";
-  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_FAILURE = "0.5";
-  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_LATENCY = "write.bulk.rate_limit_per_node.decrease_ratio_latency";
-  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_LATENCY = "0.5";
-  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_TIMEOUT = "write.bulk.rate_limit_per_node.decrease_ratio_timeout";
-  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_TIMEOUT = "0";
+  public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO = "write.bulk.rate_limit_per_node.decrease_ratio";
+  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO = "0.5";
 
   public static final String DEFAULT_EXTERNAL_SCHEDULER_INTERVAL = "5 minutes";
 
@@ -263,28 +255,12 @@ public class FlintOptions implements Serializable {
     return Long.parseLong(options.getOrDefault(BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE));
   }
 
-  public double getBulkRequestRateLimitPerNodeIncreaseRateThreshold() {
-    return Double.parseDouble(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_RATE_THRESHOLD, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_RATE_THRESHOLD));
-  }
-
   public long getBulkRequestRateLimitPerNodeIncreaseStep() {
     return Long.parseLong(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP));
   }
 
-  public long getBulkRequestRateLimitPerNodeLatencyThreshold() {
-    return Long.parseLong(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_LATENCY_THRESHOLD, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_LATENCY_THRESHOLD));
-  }
-
-  public double getBulkRequestRateLimitPerNodeDecreaseRatioFailure() {
-    return Double.parseDouble(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_FAILURE, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_FAILURE));
-  }
-
-  public double getBulkRequestRateLimitPerNodeDecreaseRatioLatency() {
-    return Double.parseDouble(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_LATENCY, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_LATENCY));
-  }
-
-  public double getBulkRequestRateLimitPerNodeDecreaseRatioTimeout() {
-    return Double.parseDouble(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_TIMEOUT, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_TIMEOUT));
+  public double getBulkRequestRateLimitPerNodeDecreaseRatio() {
+    return Double.parseDouble(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO));
   }
 
   public String getCustomAsyncQuerySchedulerClass() {

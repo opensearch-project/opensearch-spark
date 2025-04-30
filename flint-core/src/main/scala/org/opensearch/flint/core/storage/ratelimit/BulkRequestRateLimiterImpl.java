@@ -18,13 +18,13 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
 
   private final long minRate;
   private final long maxRate;
-  private final double increaseRateThreshold;
   private final long increaseStep;
-  private final long latencyThreshold;
   private final double decreaseRatioLatency;
   private final double decreaseRatioFailure;
-  private final double decreaseRatioTimeout;
-  private final long decreaseCooldown;
+  private final double increaseRateThreshold = 0.8;
+  private final double decreaseRatioTimeout = 0;
+  private final long latencyThreshold = 20000;
+  private final long decreaseCooldown = 20000;
   private final Clock clock;
   private final RequestRateMeter requestRateMeter;
   private final RateLimiter rateLimiter;
@@ -38,18 +38,12 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
   public BulkRequestRateLimiterImpl(FlintOptions flintOptions, Clock clock) {
     minRate = flintOptions.getBulkRequestMinRateLimitPerNode();
     maxRate = flintOptions.getBulkRequestMaxRateLimitPerNode();
-    increaseRateThreshold = flintOptions.getBulkRequestRateLimitPerNodeIncreaseRateThreshold();
     increaseStep = flintOptions.getBulkRequestRateLimitPerNodeIncreaseStep();
-    latencyThreshold = flintOptions.getBulkRequestRateLimitPerNodeLatencyThreshold();
-    decreaseRatioFailure = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatioFailure();
-    decreaseRatioLatency = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatioLatency();
-    decreaseRatioTimeout = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatioTimeout();
-
-    decreaseCooldown = latencyThreshold;
+    decreaseRatioFailure = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatio();
+    decreaseRatioLatency = flintOptions.getBulkRequestRateLimitPerNodeDecreaseRatio();
 
     this.clock = clock;
     this.requestRateMeter = new RequestRateMeter(clock);
-
     this.rateLimiter = RateLimiter.create(minRate);
     MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RATE_LIMIT_METRIC, minRate);
   }

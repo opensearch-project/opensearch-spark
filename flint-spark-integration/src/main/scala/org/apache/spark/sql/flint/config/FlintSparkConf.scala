@@ -171,14 +171,6 @@ object FlintSparkConf {
           "The adaptive rate will not exceed this value. Set to -1 for no upper bound.")
       .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE)
 
-  val BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_RATE_THRESHOLD =
-    FlintConfig(
-      s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_RATE_THRESHOLD}")
-      .datasourceOption()
-      .doc("TODO. Set to 0 to disable stabilizing.")
-      .createWithDefault(
-        FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_RATE_THRESHOLD)
-
   val BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP =
     FlintConfig(
       s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP}")
@@ -186,36 +178,13 @@ object FlintSparkConf {
       .doc("[Experimental] Adaptive rate limit increase step for bulk request per worker node, if rate limit enabled. Must be greater than 0.")
       .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP)
 
-  val BULK_REQUEST_RATE_LIMIT_PER_NODE_LATENCY_THRESHOLD =
+  val BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO =
     FlintConfig(
-      s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_LATENCY_THRESHOLD}")
+      s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO}")
       .datasourceOption()
-      .doc("TODO. Unit is milliseconds.")
-      .createWithDefault(FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_LATENCY_THRESHOLD)
-
-  val BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_FAILURE =
-    FlintConfig(
-      s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_FAILURE}")
-      .datasourceOption()
-      .doc("TODO")
+      .doc("[Experimental] Adaptive rate limit decrease ratio for bulk request per worker node, if rate limit enabled. Must be between 0 and 1.")
       .createWithDefault(
-        FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_FAILURE)
-
-  val BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_LATENCY =
-    FlintConfig(
-      s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_LATENCY}")
-      .datasourceOption()
-      .doc("TODO")
-      .createWithDefault(
-        FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_LATENCY)
-
-  val BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_TIMEOUT =
-    FlintConfig(
-      s"spark.datasource.flint.${FlintOptions.BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_TIMEOUT}")
-      .datasourceOption()
-      .doc("TODO")
-      .createWithDefault(
-        FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_TIMEOUT)
+        FlintOptions.DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO)
 
   val RETRYABLE_HTTP_STATUS_CODES =
     FlintConfig(s"spark.datasource.flint.${FlintRetryOptions.RETRYABLE_HTTP_STATUS_CODES}")
@@ -432,12 +401,8 @@ case class FlintSparkConf(properties: JMap[String, String]) extends Serializable
       BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED,
       BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE,
       BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE,
-      BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_RATE_THRESHOLD,
       BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP,
-      BULK_REQUEST_RATE_LIMIT_PER_NODE_LATENCY_THRESHOLD,
-      BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_FAILURE,
-      BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_LATENCY,
-      BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO_TIMEOUT,
+      BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO,
       REGION,
       CUSTOM_AWS_CREDENTIALS_PROVIDER,
       SERVICE_NAME,
