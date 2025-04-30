@@ -85,10 +85,10 @@ public class OpenSearchBulkWrapper {
             int requestSize = (int) nextRequest.get().estimatedSizeInBytes();
             rateLimiter.acquirePermit(requestSize);
 
-            long startTime = clock.millis();
             try {
+              long startTime = clock.millis();
               BulkResponse response = client.bulk(nextRequest.get(), options);
-              int latency = (int) (clock.millis() - startTime);
+              long latency = clock.millis() - startTime;
 
               if (!bulkItemRetryableResultPredicate.test(response)) {
                 rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(latency, requestSize));
