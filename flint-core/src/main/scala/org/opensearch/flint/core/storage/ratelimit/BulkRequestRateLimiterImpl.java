@@ -31,10 +31,6 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
 
   private long allowDecreaseAfter = 0;
 
-  // TODO: rate boost
-  // private boolean slowStart = true;
-  // private long ssThreshold;
-
   public BulkRequestRateLimiterImpl(FlintOptions flintOptions) {
     this(flintOptions, Clock.systemUTC());
   }
@@ -53,7 +49,6 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
 
     this.clock = clock;
     this.requestRateMeter = new RequestRateMeter(clock);
-    // ssThreshold = maxRate;
 
     this.rateLimiter = RateLimiter.create(minRate);
     MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RATE_LIMIT_METRIC, minRate);
@@ -86,8 +81,6 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
     if (feedback.isTimeout) {
       if (canDecreaseRate()) {
         LOG.warning("Decreasing rate. Reason: Bulk request socket/connection timeout.");
-        // slowStart = true;
-        // ssThreshold = getCurrentEstimatedRate() / 2;
         decreaseRate(decreaseRatioTimeout);
       }
       return;
@@ -95,7 +88,6 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
     if (feedback.hasRetryableFailure){
       if (canDecreaseRate()) {
         LOG.warning("Decreasing rate. Reason: Bulk request failed.");
-        // slowStart = false;
         decreaseRate(decreaseRatioFailure);
       }
       return;
@@ -103,7 +95,6 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
     if (feedback.latency > latencyThreshold) {
       if (canDecreaseRate()) {
         LOG.warning("Decreasing rate. Reason: Bulk latency high. Latency = " + feedback.latency + " exceeds threshold " + latencyThreshold);
-        // slowStart = false;
         decreaseRate(decreaseRatioLatency);
       }
       return;
@@ -135,16 +126,6 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
       LOG.warning("Rate increase blocked. Reason: Current rate is not close to limit " + getRate());
       return;
     }
-    /*
-    if (slowStart) {
-      setRate((long) (getRate() * 1.5)); // TODO: config: slow start boost
-      if (getRate() >= ssThreshold) {
-        slowStart = false;
-      }
-    } else {
-      setRate(getRate() + increaseStep);
-    }
-     */
     setRate(getRate() + increaseStep);
   }
 
@@ -172,10 +153,5 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
    */
   private void decreaseRate(double decreaseRatio) {
     setRate((long) (getRate() * decreaseRatio));
-    /*
-    if (getRate() == minRate) {
-      slowStart = true;
-    }
-     */
   }
 }

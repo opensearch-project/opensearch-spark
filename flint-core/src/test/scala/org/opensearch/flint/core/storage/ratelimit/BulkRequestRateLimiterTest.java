@@ -15,9 +15,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.opensearch.flint.core.FlintOptions;
 
-/**
- * TODO: test for adaptToFeedback
- */
 class BulkRequestRateLimiterTest {
 
   private long currentTimeMillis = 0;
@@ -65,8 +62,6 @@ class BulkRequestRateLimiterTest {
   }
 
   // TODO: test acquirePermit without testing internal rateLimiter behavior
-
-  // TODO: test new requestSize behavior. now they are set to 1000
 
   @Test
   public void increaseRateLimitOnFeedbackNoRetryable() {
