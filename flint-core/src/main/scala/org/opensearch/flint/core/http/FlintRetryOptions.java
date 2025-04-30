@@ -100,7 +100,7 @@ public class FlintRetryOptions implements Serializable {
         .withBackoff(getBulkInitialBackoff(), 30, SECONDS)
         .withJitter(Duration.ofMillis(100))
         .withMaxRetries(getBulkMaxRetries())
-        // Do not retry on exception (will be handled by the other retry policy)
+        // Do not retry on exception (will be handled by the other retry policy
         .handleIf((ex) -> false)
         .handleResultIf(resultPredicate)
         .onFailedAttempt(FlintRetryOptions::onFailure)

@@ -91,7 +91,7 @@ public class OpenSearchBulkWrapper {
               long latency = clock.millis() - startTime;
 
               if (!bulkItemRetryableResultPredicate.test(response)) {
-                rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(latency, requestSize));
+                rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(latency));
               } else {
                 LOG.info("Bulk request failed. attempt = " + (requestCount.get() - 1));
                 rateLimiter.adaptToFeedback(RequestFeedback.hasRetryable(latency));

@@ -135,7 +135,7 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
   }
 
   private boolean canDecreaseRate() {
-    if (clock.millis() > allowDecreaseAfter) {
+    if (clock.millis() >= allowDecreaseAfter) {
       allowDecreaseAfter = clock.millis() + decreaseCooldown;
       return true;
     }
