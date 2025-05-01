@@ -63,15 +63,15 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
   }
 
   test("build disabled metadata cache writer") {
-    FlintMetadataCacheWriterBuilder
-      .build(FlintSparkConf()) shouldBe a[FlintDisabledMetadataCacheWriter]
+    withMetadataCacheWriteDisabled {
+      FlintMetadataCacheWriterBuilder
+        .build(FlintSparkConf()) shouldBe a[FlintDisabledMetadataCacheWriter]
+    }
   }
 
   test("build opensearch metadata cache writer") {
-    withMetadataCacheWriteEnabled {
       FlintMetadataCacheWriterBuilder
         .build(FlintSparkConf()) shouldBe a[FlintOpenSearchMetadataCacheWriter]
-    }
   }
 
   test("write metadata cache to index mappings") {
@@ -345,7 +345,6 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
          |""".stripMargin)).foreach { case (refreshMode, optionsMap, expectedJson) =>
     test(s"write metadata cache for $refreshMode") {
       withExternalSchedulerEnabled {
-        withMetadataCacheWriteEnabled {
           val flint: FlintSpark = new FlintSpark(spark)
           withTempDir { checkpointDir =>
             // update checkpoint_location if available in optionsMap
@@ -371,13 +370,11 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
               compact(render(getPropertiesJValue(testFlintIndex) \ "lastRefreshTime")).toLong
             lastRefreshTime should be > 0L
           }
-        }
       }
     }
   }
 
   test("write metadata cache for auto refresh index with internal scheduler") {
-    withMetadataCacheWriteEnabled {
       val flint: FlintSpark = new FlintSpark(spark)
       withTempDir { checkpointDir =>
         flint
@@ -406,7 +403,6 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
         flint.refreshIndex(testFlintIndex)
         compact(render(getPropertiesJValue(testFlintIndex))) should not include "lastRefreshTime"
       }
-    }
   }
 
   private def getPropertiesJValue(indexName: String): JValue = {
