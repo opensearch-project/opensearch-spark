@@ -98,27 +98,6 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
 
     logInfo("Started docker cluster")
 
-    // Wait for services to be ready
-    waitForService("localhost", 9000)  // MinIO
-    waitForService("localhost", SPARK_CONNECT_PORT)  // Spark
-    waitForService("localhost", dockerEnv.getProperty("OPENSEARCH_PORT").toInt)  // OpenSearch
-
-    // Wait for S3 service to be available before proceeding
-    if (!waitForS3Available()) {
-      throw new IllegalStateException("S3 service did not become available")
-    }
-
-    // Add these lines to verify and create required buckets
-    try {
-    ensureBucketExists(INTEG_TEST_BUCKET)      // "XXXXXXXXXX" bucket
-    logInfo(s"Successfully verified/created bucket '$INTEG_TEST_BUCKET'")
-    ensureBucketExists(TEST_RESOURCES_BUCKET)   // "XXXXXXXXXXXXXX" bucket
-    logInfo(s"Successfully verified/created bucket '$TEST_RESOURCES_BUCKET'")
-  } catch {
-    case e: Exception =>
-      logError(s"Failed to ensure buckets exist: ${e.getMessage}", e)
-      throw e
-  }
     createTables()
     createIndices()
   }
@@ -180,72 +159,21 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
    * The tables are created as external tables with the data stored in the MinIO(S3) container.
    */
   def createTables(): Unit = {
-    def withRetry[T](operation: => T, maxAttempts: Int = 5, initialWait: Long = 2000): T = {
-      def retry(remainingAttempts: Int, wait: Long): T = {
-        try {
-          operation
-        } catch {
-          case e: Exception if remainingAttempts > 1 =>
-            logInfo(s"Operation failed, retrying in ${wait}ms. ${remainingAttempts - 1} attempts remaining")
-            Thread.sleep(wait)
-            retry(remainingAttempts - 1, wait * 2)
-          case e: Exception =>
-            logError("Operation failed after all retry attempts", e)
-            throw e
-        }
-      }
-      retry(maxAttempts, initialWait)
-    }
-
     try {
       val tablesDir = new File("e2e-test/src/test/resources/spark/tables")
       tablesDir.listFiles((_, name) => name.endsWith(".parquet")).foreach(f => {
         val tableName = f.getName.substring(0, f.getName.length() - 8)
-        withRetry {
-          getS3Client().putObject(TEST_RESOURCES_BUCKET, "spark/tables/" + f.getName, f)
-          try {
-            val df = getSparkSession().read.parquet(s"s3a://$TEST_RESOURCES_BUCKET/spark/tables/" + f.getName)
-            df.write
-            .mode("ignore")  // use "ignore" to skip existing tables
-            .option("path", s"s3a://$INTEG_TEST_BUCKET/$tableName").saveAsTable(tableName)
-          } catch {
-            case e: Exception => logError("Unable to create table", e)
-            throw e
-          }
+        getS3Client().putObject(TEST_RESOURCES_BUCKET, "spark/tables/" + f.getName, f)
+
+        try {
+          val df = getSparkSession().read.parquet(s"s3a://$TEST_RESOURCES_BUCKET/spark/tables/" + f.getName)
+          df.write.option("path", s"s3a://$INTEG_TEST_BUCKET/$tableName").saveAsTable(tableName)
+        } catch {
+          case e: Exception => logError("Unable to create table", e)
         }
       })
     } catch {
       case e: Exception => logError("Failure", e)
-      throw e
-    }
-  }
-
-  /**
-  * Waits for a network service to become available at the specified host and port.
-  * This method attempts to establish a socket connection repeatedly until successful
-  * or until the timeout is reached.
-  *
-  * @param host      The hostname or IP address of the service to connect to
-  * @param port      The port number of the service
-  * @param timeoutMs The maximum time to wait in milliseconds before giving up (defaults to 60000ms/60 seconds)
-  * @throws IllegalStateException if the service is not available within the specified timeout period
-  */
-  def waitForService(host: String, port: Int, timeoutMs: Long = 60000): Unit = {
-    val endTime = System.currentTimeMillis() + timeoutMs
-    var connected = false
-    while (!connected && System.currentTimeMillis() < endTime) {
-      try {
-        val socket = new java.net.Socket()
-        socket.connect(new java.net.InetSocketAddress(host, port), 1000)
-        socket.close()
-        connected = true
-      } catch {
-        case _: Exception =>
-          Thread.sleep(2000)
-      }
-    }
-    if (!connected) {
-      throw new IllegalStateException(s"Service $host:$port not available after ${timeoutMs}ms")
     }
   }
 
@@ -287,37 +215,6 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
         bulkInsertRequest.send(backend)
       }
     })
-  }
-
-  /**
-  * Attempts to verify S3 service availability by trying to list buckets with exponential backoff.
-  *
-  * This method makes multiple attempts to connect to S3, implementing an exponential backoff
-  * strategy between attempts. It will try up to 10 times, with increasing delay between
-  * each attempt.
-  *
-  * @return true if S3 service becomes available within the maximum number of attempts,
-  *         false if the service remains unavailable after all attempts
-  */
-  def waitForS3Available(): Boolean = {
-    val maxRetries = 10
-    val initialBackoffMs = 1000
-    for (attempt <- 1 to maxRetries) {
-      try {
-        // Try a simple operation like listing buckets
-        getS3Client().listBuckets()
-        logInfo(s"S3 service available after $attempt attempts")
-        return true
-      } catch {
-        case e: Exception =>
-          val backoffTime = initialBackoffMs * Math.pow(2, attempt - 1).toInt
-          logInfo(s"S3 service not available yet (attempt $attempt/$maxRetries), waiting ${backoffTime}ms: ${e.getMessage}")
-          Thread.sleep(backoffTime)
-      }
-    }
-
-    logError(s"S3 service not available after $maxRetries attempts")
-    false
   }
 
   /**
