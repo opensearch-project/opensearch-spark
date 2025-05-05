@@ -71,16 +71,22 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     val cmdWithArgs = List("docker", "volume", "rm") ++ DOCKER_VOLUMES
     val deleteDockerVolumesProcess = new ProcessBuilder(cmdWithArgs.toArray: _*).start()
     deleteDockerVolumesProcess.waitFor(10, TimeUnit.SECONDS)
+    // Ignore errors from volume removal as they might not exist yet
 
-    val dockerProcess = new ProcessBuilder("docker", "compose", "up", "-d")
+    // Capture both stdout and stderr from the process
+    val dockerProcess = new ProcessBuilder("docker-compose", "up", "-d")
       .directory(new File(DOCKER_INTEG_DIR))
+      .redirectErrorStream(true)  // Merge stderr into stdout
       .start()
+    // Read the output in a separate thread to avoid blocking
+    val outputBuffer = new StringBuilder()
     var stopReading = false
     new Thread() {
       override def run(): Unit = {
         val reader = new BufferedReader(new InputStreamReader(dockerProcess.getInputStream))
         var line = reader.readLine()
         while (!stopReading && line != null) {
+          outputBuffer.append(line).append("\n")
           logInfo("*** " + line)
           line = reader.readLine()
         }
@@ -89,11 +95,13 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     val completed = dockerProcess.waitFor(20, TimeUnit.MINUTES)
     stopReading = true
     if (!completed) {
-      throw new IllegalStateException("Unable to start docker cluster")
+      throw new IllegalStateException("Unable to start docker cluster: Timeout after 20 minutes")
     }
 
     if (dockerProcess.exitValue() != 0) {
-      logError("Unable to start docker cluster")
+      val errorMsg = s"Unable to start docker cluster: Exit code ${dockerProcess.exitValue()}\nOutput: ${outputBuffer.toString()}"
+      logError(errorMsg)
+      throw new IllegalStateException(errorMsg)
     }
 
     logInfo("Started docker cluster")
@@ -134,13 +142,34 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     logInfo("Stopping docker cluster")
     waitForSparkSubmitCompletion()
 
-    val dockerProcess = new ProcessBuilder("docker", "compose", "down")
+    // Capture both stdout and stderr from the process
+    val dockerProcess = new ProcessBuilder("docker-compose", "down")
       .directory(new File(DOCKER_INTEG_DIR))
+      .redirectErrorStream(true)  // Merge stderr into stdout
       .start()
-    dockerProcess.waitFor(10, TimeUnit.MINUTES)
-
-    if (dockerProcess.exitValue() != 0) {
-      logError("Unable to stop docker cluster")
+    // Read the output in a separate thread to avoid blocking
+    val outputBuffer = new StringBuilder()
+    var stopReading = false
+    new Thread() {
+      override def run(): Unit = {
+        val reader = new BufferedReader(new InputStreamReader(dockerProcess.getInputStream))
+        var line = reader.readLine()
+        while (!stopReading && line != null) {
+          outputBuffer.append(line).append("\n")
+          logInfo("*** " + line)
+          line = reader.readLine()
+        }
+      }
+    }.start()
+    val completed = dockerProcess.waitFor(10, TimeUnit.MINUTES)
+    stopReading = true
+    if (!completed) {
+      logError("Timeout while stopping docker cluster")
+      // Continue anyway, don't throw exception here
+    } else if (dockerProcess.exitValue() != 0) {
+      val errorMsg = s"Unable to stop docker cluster: Exit code ${dockerProcess.exitValue()}\nOutput: ${outputBuffer.toString()}"
+      logError(errorMsg)
+      // Continue anyway, don't throw exception here
     }
 
     logInfo("Stopped docker cluster")
@@ -434,7 +463,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
    * Uses Spark Connect to run the query on the "spark" container and compares the results to the expected results
    * in the corresponding ".results" file. The ".results" file is in CSV format with a header.
    */
-  it should "SQL Queries" ignore {
+  it should "SQL Queries" in {
     val queriesDir = new File("e2e-test/src/test/resources/spark/queries/sql")
     val queriesTableData : ListBuffer[(String, String)] = new ListBuffer()
 
