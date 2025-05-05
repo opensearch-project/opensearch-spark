@@ -8,9 +8,7 @@ package org.opensearch.flint.spark
 import java.io.File
 import java.sql.Timestamp
 import java.time.ZonedDateTime
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.{HashMap => JHashMap}
 
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 
