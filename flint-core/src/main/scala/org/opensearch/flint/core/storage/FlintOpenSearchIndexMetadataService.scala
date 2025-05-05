@@ -237,7 +237,7 @@ object FlintOpenSearchIndexMetadataService {
         }
       } catch {
         case _: Exception =>
-          throw new IllegalStateException("Error extracting _source", Exception)
+          throw new IllegalStateException("Error extracting _source")
       }
     }
 
