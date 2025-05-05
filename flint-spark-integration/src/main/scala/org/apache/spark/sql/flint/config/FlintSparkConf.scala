@@ -314,7 +314,7 @@ object FlintSparkConf {
       .createOptional()
   val METADATA_CACHE_WRITE = FlintConfig("spark.flint.metadataCacheWrite.enabled")
     .doc("Enable Flint metadata cache write to Flint index mappings")
-    .createWithDefault("false")
+    .createWithDefault("true")
 
   val CUSTOM_SESSION_MANAGER =
     FlintConfig("spark.flint.job.customSessionManager")

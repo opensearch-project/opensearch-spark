@@ -63,15 +63,15 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
   }
 
   test("build disabled metadata cache writer") {
-    FlintMetadataCacheWriterBuilder
-      .build(FlintSparkConf()) shouldBe a[FlintDisabledMetadataCacheWriter]
+    withMetadataCacheWriteDisabled {
+      FlintMetadataCacheWriterBuilder
+        .build(FlintSparkConf()) shouldBe a[FlintDisabledMetadataCacheWriter]
+    }
   }
 
   test("build opensearch metadata cache writer") {
-    withMetadataCacheWriteEnabled {
-      FlintMetadataCacheWriterBuilder
-        .build(FlintSparkConf()) shouldBe a[FlintOpenSearchMetadataCacheWriter]
-    }
+    FlintMetadataCacheWriterBuilder
+      .build(FlintSparkConf()) shouldBe a[FlintOpenSearchMetadataCacheWriter]
   }
 
   test("write metadata cache to index mappings") {
@@ -345,57 +345,53 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
          |""".stripMargin)).foreach { case (refreshMode, optionsMap, expectedJson) =>
     test(s"write metadata cache for $refreshMode") {
       withExternalSchedulerEnabled {
-        withMetadataCacheWriteEnabled {
-          val flint: FlintSpark = new FlintSpark(spark)
-          withTempDir { checkpointDir =>
-            // update checkpoint_location if available in optionsMap
-            val indexOptions = FlintSparkIndexOptions(
-              optionsMap
-                .get("checkpoint_location")
-                .map(_ =>
-                  optionsMap.updated("checkpoint_location", checkpointDir.getAbsolutePath))
-                .getOrElse(optionsMap))
+        val flint: FlintSpark = new FlintSpark(spark)
+        withTempDir { checkpointDir =>
+          // update checkpoint_location if available in optionsMap
+          val indexOptions = FlintSparkIndexOptions(
+            optionsMap
+              .get("checkpoint_location")
+              .map(_ => optionsMap.updated("checkpoint_location", checkpointDir.getAbsolutePath))
+              .getOrElse(optionsMap))
 
-            flint
-              .skippingIndex()
-              .onTable(testTable)
-              .addMinMax("age")
-              .options(indexOptions, testFlintIndex)
-              .create()
+          flint
+            .skippingIndex()
+            .onTable(testTable)
+            .addMinMax("age")
+            .options(indexOptions, testFlintIndex)
+            .create()
 
-            val propertiesJson = compact(render(getPropertiesJValue(testFlintIndex)))
-            propertiesJson should matchJson(expectedJson)
+          val propertiesJson = compact(render(getPropertiesJValue(testFlintIndex)))
+          propertiesJson should matchJson(expectedJson)
 
-            flint.refreshIndex(testFlintIndex)
-            val lastRefreshTime =
-              compact(render(getPropertiesJValue(testFlintIndex) \ "lastRefreshTime")).toLong
-            lastRefreshTime should be > 0L
-          }
+          flint.refreshIndex(testFlintIndex)
+          val lastRefreshTime =
+            compact(render(getPropertiesJValue(testFlintIndex) \ "lastRefreshTime")).toLong
+          lastRefreshTime should be > 0L
         }
       }
     }
   }
 
   test("write metadata cache for auto refresh index with internal scheduler") {
-    withMetadataCacheWriteEnabled {
-      val flint: FlintSpark = new FlintSpark(spark)
-      withTempDir { checkpointDir =>
-        flint
-          .skippingIndex()
-          .onTable(testTable)
-          .addMinMax("age")
-          .options(
-            FlintSparkIndexOptions(
-              Map(
-                "auto_refresh" -> "true",
-                "scheduler_mode" -> "internal",
-                "refresh_interval" -> "10 Minute",
-                "checkpoint_location" -> checkpointDir.getAbsolutePath)),
-            testFlintIndex)
-          .create()
+    val flint: FlintSpark = new FlintSpark(spark)
+    withTempDir { checkpointDir =>
+      flint
+        .skippingIndex()
+        .onTable(testTable)
+        .addMinMax("age")
+        .options(
+          FlintSparkIndexOptions(
+            Map(
+              "auto_refresh" -> "true",
+              "scheduler_mode" -> "internal",
+              "refresh_interval" -> "10 Minute",
+              "checkpoint_location" -> checkpointDir.getAbsolutePath)),
+          testFlintIndex)
+        .create()
 
-        val propertiesJson = compact(render(getPropertiesJValue(testFlintIndex)))
-        propertiesJson should matchJson(s"""
+      val propertiesJson = compact(render(getPropertiesJValue(testFlintIndex)))
+      propertiesJson should matchJson(s"""
             | {
             |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
             |   "refreshInterval": 600,
@@ -403,9 +399,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
             | }
             |""".stripMargin)
 
-        flint.refreshIndex(testFlintIndex)
-        compact(render(getPropertiesJValue(testFlintIndex))) should not include "lastRefreshTime"
-      }
+      flint.refreshIndex(testFlintIndex)
+      compact(render(getPropertiesJValue(testFlintIndex))) should not include "lastRefreshTime"
     }
   }
 
