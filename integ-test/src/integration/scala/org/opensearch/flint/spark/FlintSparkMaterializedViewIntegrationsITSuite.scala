@@ -8,9 +8,27 @@ package org.opensearch.flint.spark
 import java.io.File
 import java.sql.Timestamp
 import java.time.ZonedDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.{HashMap => JHashMap}
 
+import scala.jdk.CollectionConverters.asScalaBufferConverter
+
+import com.fasterxml.jackson.databind.ObjectMapper
+import org.opensearch.action.OriginalIndices
+import org.opensearch.action.search.SearchRequest
+import org.opensearch.client.RequestOptions
+import org.opensearch.common.bytes.BytesReference
+import org.opensearch.common.xcontent.XContentFactory
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
+import org.opensearch.index.query.QueryBuilders
+import org.opensearch.index.shard.ShardId
+import org.opensearch.search.SearchHit
+import org.opensearch.search.SearchShardTarget
+import org.opensearch.search.aggregations.{AggregationBuilders, BucketOrder, PipelineAggregationBuilder}
+import org.opensearch.search.aggregations.bucket.histogram.{DateHistogramInterval, Histogram, ParsedDateHistogram}
+import org.opensearch.search.aggregations.bucket.terms.ParsedStringTerms
+import org.opensearch.search.builder.SearchSourceBuilder
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.sql.Row
@@ -39,6 +57,191 @@ import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
  * }}}
  */
 class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with Matchers {
+
+  val dslQueryQueryPC: String =
+    """
+      |{
+      |    "bool": {
+      |      "filter": [
+      |        {
+      |          "match_all": {}
+      |        }
+      |      ]
+      |    }
+      |}
+      |""".stripMargin
+
+  val dslQueryQueryTSC: String =
+    """
+      |{
+      |    "bool": {
+      |      "filter": [
+      |        {
+      |          "match_all": {}
+      |        }
+      |      ]
+      |    }
+      |}
+      |""".stripMargin
+
+  val dslQueryAggregationsPC: String =
+    """
+      |"aggs": {
+      |    "2": {
+      |      "terms": {
+      |        "field": "aws.vpc.srcaddr",
+      |        "order": {
+      |          "1": "desc"
+      |        },
+      |        "size": 10
+      |      },
+      |      "aggs": {
+      |        "1": {
+      |          "sum": {
+      |            "field": "bytes"
+      |          }
+      |        }
+      |      }
+      |    }
+      |  }
+      |""".stripMargin
+
+  val dslQueryAggregationsTSC: String =
+    """
+      |"aggs": {
+      |    "2": {
+      |      "date_histogram": {
+      |        "field": "start_time",
+      |        "min_doc_count": 1,
+      |        "format": "epoch_second"
+      |      },
+      |      "aggs": {
+      |        "1": {
+      |          "sum": {
+      |            "field": "bytes"
+      |          }
+      |        }
+      |      }
+      |    }
+      |  }
+      |""".stripMargin
+
+  val dslQueryBuilderTSC: SearchSourceBuilder = {
+    val builder = new SearchSourceBuilder()
+      .query(QueryBuilders.wrapperQuery(dslQueryQueryTSC))
+    val dateHistogramAgg = AggregationBuilders
+      .dateHistogram("2")
+      .field("start_time")
+      .interval(300000)
+
+    val sumAgg = AggregationBuilders
+      .sum("1")
+      .field("aws.vpc.total_bytes")
+
+    dateHistogramAgg.subAggregation(sumAgg)
+    builder.aggregation(dateHistogramAgg)
+
+    builder
+  }
+
+  val dslQueryBuilderPC: SearchSourceBuilder = {
+    val builder = new SearchSourceBuilder()
+      .query(QueryBuilders.wrapperQuery(dslQueryQueryPC))
+    val dateHistogramAgg = AggregationBuilders.terms("2").field("aws.vpc.srcaddr")
+
+    val sumAgg = AggregationBuilders
+      .sum("1")
+      .field("aws.vpc.total_bytes")
+
+    dateHistogramAgg.subAggregation(sumAgg)
+    builder.aggregation(dateHistogramAgg)
+
+    builder
+  }
+
+  val expectedBucketsTSC: Seq[Map[String, Any]] = Seq(
+    Map("key_as_string" -> "2023-11-01T05:00:00.000Z", "doc_count" -> 1),
+    Map("key_as_string" -> "2023-11-01T05:05:00.000Z", "doc_count" -> 0),
+    Map("key_as_string" -> "2023-11-01T05:10:00.000Z", "doc_count" -> 2))
+
+  val expectedBucketsPC: Seq[Map[String, Any]] = Seq(
+    Map("key" -> "10.0.0.1", "doc_count" -> 1),
+    Map("key" -> "10.0.0.3", "doc_count" -> 1),
+    Map("key" -> "10.0.0.5", "doc_count" -> 1))
+  test(
+    "create aggregated materialized view for VPC flow integration unfiltered time series chart") {
+    withIntegration("vpc_flow") { integration =>
+      integration
+        .createSourceTable(s"$catalogName.default.vpc_low_test")
+        .createMaterializedView(s"""
+             |SELECT
+             |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
+             |  action AS `aws.vpc.action`,
+             |  srcAddr AS `aws.vpc.srcaddr`,
+             |  dstAddr AS `aws.vpc.dstaddr`,
+             |  protocol AS `aws.vpc.protocol`,
+             |  COUNT(*) AS `aws.vpc.total_count`,
+             |  SUM(bytes) AS `aws.vpc.total_bytes`,
+             |  SUM(packets) AS `aws.vpc.total_packets`
+             |FROM (
+             |  SELECT
+             |    action,
+             |    srcAddr,
+             |    dstAddr,
+             |    bytes,
+             |    packets,
+             |    protocol,
+             |    CAST(FROM_UNIXTIME(start) AS TIMESTAMP) AS `@timestamp`
+             |  FROM
+             |    $catalogName.default.vpc_low_test
+             |)
+             |GROUP BY
+             |  TUMBLE(`@timestamp`, '5 Minute'),
+             |  action,
+             |  srcAddr,
+             |  dstAddr,
+             |  protocol
+             |""".stripMargin)
+        .assertDslQueryTSC(dslQueryBuilderTSC, expectedBucketsTSC)
+    }
+  }
+
+  test("create aggregated materialized view for VPC flow integration unfiltered pie chart") {
+    withIntegration("vpc_flow") { integration =>
+      integration
+        .createSourceTable(s"$catalogName.default.vpc_low_test")
+        .createMaterializedView(s"""
+             |SELECT
+             |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
+             |  action AS `aws.vpc.action`,
+             |  srcAddr AS `aws.vpc.srcaddr`,
+             |  dstAddr AS `aws.vpc.dstaddr`,
+             |  protocol AS `aws.vpc.protocol`,
+             |  COUNT(*) AS `aws.vpc.total_count`,
+             |  SUM(bytes) AS `aws.vpc.total_bytes`,
+             |  SUM(packets) AS `aws.vpc.total_packets`
+             |FROM (
+             |  SELECT
+             |    action,
+             |    srcAddr,
+             |    dstAddr,
+             |    bytes,
+             |    packets,
+             |    protocol,
+             |    CAST(FROM_UNIXTIME(start) AS TIMESTAMP) AS `@timestamp`
+             |  FROM
+             |    $catalogName.default.vpc_low_test
+             |)
+             |GROUP BY
+             |  TUMBLE(`@timestamp`, '5 Minute'),
+             |  action,
+             |  srcAddr,
+             |  dstAddr,
+             |  protocol
+             |""".stripMargin)
+        .assertDslQueryPC(dslQueryBuilderPC, expectedBucketsPC)
+    }
+  }
 
   test("create aggregated materialized view for VPC flow integration") {
     withIntegration("vpc_flow") { integration =>
@@ -241,7 +444,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
    * @param codeBlock
    *   the block of code to execute with the integration setup
    */
-  private def withIntegration(name: String)(codeBlock: IntegrationHelper => Unit): Unit = {
+  def withIntegration(name: String)(codeBlock: IntegrationHelper => Unit): Unit = {
     withTempDir { checkpointDir =>
       val integration = new IntegrationHelper(name, checkpointDir)
       try {
@@ -261,7 +464,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
    * @param checkpointDir
    *   the directory for Spark Streaming checkpointing
    */
-  private class IntegrationHelper(integrationName: String, checkpointDir: File) {
+  class IntegrationHelper(integrationName: String, checkpointDir: File) {
     var tableName: String = _
     private var mvName: String = _
     private var mvQuery: String = _
@@ -292,7 +495,8 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
            |  auto_refresh = true,
            |  refresh_interval = '5 Seconds',
            |  watermark_delay = '1 Minute',
-           |  checkpoint_location = '${checkpointDir.getAbsolutePath}'
+           |  checkpoint_location = '${checkpointDir.getAbsolutePath}',
+           |  index_mappings = '{ "_source": { "enabled": false } }'
            |)
            |""".stripMargin)
 
@@ -316,6 +520,52 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
         .load(flintIndexName)
 
       checkAnswer(actualRows, expectedRows)
+    }
+
+    // "key_as_string": "2025-01-08T09:00:00.000-08:00","doc_count": 795903 as expectedHits, and we will get the same thing from actual hits by extracting from dslQuery
+    def assertDslQueryTSC(
+        dslQueryTSC: SearchSourceBuilder,
+        expectedBuckets: Seq[Map[String, Any]]): Unit = {
+      val flintIndexName =
+        spark.streams.active.find(_.name == getFlintIndexName(mvName)).get.name
+      val searchRequest = new SearchRequest(flintIndexName)
+      searchRequest.source(dslQueryTSC)
+      val actual = openSearchClient.search(searchRequest, RequestOptions.DEFAULT)
+      val dateHistogram = actual.getAggregations
+        .get("2")
+        .asInstanceOf[ParsedDateHistogram]
+
+      val buckets = dateHistogram.getBuckets
+
+      // Map to the format we want to compare
+      val actualBuckets = buckets.asScala.map { bucket =>
+        Map("key_as_string" -> bucket.getKeyAsString, "doc_count" -> bucket.getDocCount.toInt)
+      }.toSeq
+
+      actualBuckets should equal(expectedBuckets)
+    }
+
+    def assertDslQueryPC(
+        dslQueryBuilder: SearchSourceBuilder,
+        expectedBuckets: Seq[Map[String, Any]]): Unit = {
+      val flintIndexName =
+        spark.streams.active.find(_.name == getFlintIndexName(mvName)).get.name
+      val searchRequest = new SearchRequest(flintIndexName)
+      searchRequest.source(dslQueryBuilder)
+      val actual = openSearchClient.search(searchRequest, RequestOptions.DEFAULT)
+      val stringTerms = actual.getAggregations
+        .get("2")
+        .asInstanceOf[ParsedStringTerms]
+
+      val buckets = stringTerms.getBuckets
+
+      // Map to the format we want to compare
+      val actualBuckets = buckets.asScala.map { bucket =>
+        Map("key" -> bucket.getKeyAsString, "doc_count" -> bucket.getDocCount.toInt)
+      }.toSeq
+
+      actualBuckets should equal(expectedBuckets)
+
     }
   }
 
