@@ -5,6 +5,9 @@
 
 package org.opensearch.flint.core.metrics
 
+import org.opensearch.flint.core.FlintOptions
+import org.opensearch.flint.core.metrics.reporter.{DimensionedName, DimensionedNameBuilder}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorMetricsUpdate, SparkListenerTaskEnd}
 import org.apache.spark.sql.SparkSession
@@ -43,11 +46,33 @@ class MetricsSparkListener extends SparkListener with Logging {
     logInfo(s"Input: totalBytesRead=${bytesRead}, totalRecordsRead=${recordsRead}")
     logInfo(s"Output: totalBytesWritten=${bytesWritten}, totalRecordsWritten=${recordsWritten}")
     logInfo(s"totalJvmGcTime=${totalJvmGcTime}")
-    MetricsUtil.addHistoricGauge(MetricConstants.INPUT_TOTAL_BYTES_READ, bytesRead)
+    // Use the dimensioned metric name for bytesRead
+    MetricsUtil.addHistoricGauge(
+      addAccountDimension(MetricConstants.INPUT_TOTAL_BYTES_READ),
+      bytesRead)
+    // Original metrics remain unchanged
     MetricsUtil.addHistoricGauge(MetricConstants.INPUT_TOTAL_RECORDS_READ, recordsRead)
     MetricsUtil.addHistoricGauge(MetricConstants.OUTPUT_TOTAL_BYTES_WRITTEN, bytesWritten)
     MetricsUtil.addHistoricGauge(MetricConstants.OUTPUT_TOTAL_RECORDS_WRITTEN, recordsWritten)
     MetricsUtil.addHistoricGauge(MetricConstants.TOTAL_JVM_GC_TIME_METRIC, totalJvmGcTime)
+  }
+
+  /**
+   * Adds an AWS account dimension to the given metric name.
+   *
+   * @param metricName
+   *   The name of the metric to which the account dimension will be added
+   * @return
+   *   A string representation of the metric name with the account dimension attached, formatted
+   *   as a dimensioned name
+   */
+  def addAccountDimension(metricName: String): String = {
+    // Use the static AWS account ID directly from FlintOptions without instantiation
+    DimensionedName
+      .withName(metricName)
+      .withDimension("accountId", FlintOptions.AWS_ACCOUNT_ID)
+      .build()
+      .toString()
   }
 }
 

@@ -110,6 +110,22 @@ public class FlintOptions implements Serializable {
   public static final String DEFAULT_SUPPORT_SHARD = "true";
 
   private static final String UNKNOWN = "UNKNOWN";
+  
+  /**
+   * Cached AWS account ID from the cluster name environment variable.
+   */
+  public static final String AWS_ACCOUNT_ID = initializeAWSAccountId();
+  
+  /**
+   * Initialize the AWS account ID from the cluster name environment variable.
+   * This is called once during class loading.
+   * @return the AWS account ID or "UNKNOWN" if not available
+   */
+  private static String initializeAWSAccountId() {
+    String clusterName = System.getenv().getOrDefault("FLINT_CLUSTER_NAME", UNKNOWN + ":" + UNKNOWN);
+    String[] parts = clusterName.split(":");
+    return parts.length == 2 ? parts[0] : UNKNOWN;
+  }
 
   public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED = "write.bulk.rate_limit_per_node.enabled";
   public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED = "false";
@@ -208,9 +224,7 @@ public class FlintOptions implements Serializable {
    * @return the AWS accountId
    */
   public String getAWSAccountId() {
-    String clusterName = System.getenv().getOrDefault("FLINT_CLUSTER_NAME", UNKNOWN + ":" + UNKNOWN);
-    String[] parts = clusterName.split(":");
-    return parts.length == 2 ? parts[0] : UNKNOWN;
+    return AWS_ACCOUNT_ID;
   }
 
   public String getSystemIndexName() {

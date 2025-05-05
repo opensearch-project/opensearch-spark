@@ -10,9 +10,11 @@ import org.json4s.JsonAST.{JNothing, JObject, JString}
 import org.json4s.JsonAST.JBool.True
 import org.json4s.jackson.JsonMethods
 import org.json4s.native.Serialization
+import org.opensearch.flint.spark.udt.GeoPointUDT
+import org.opensearch.flint.spark.udt.IPAddressUDT
 
 import org.apache.spark.sql.catalyst.util.DateFormatter
-import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.{MetadataBuilderExtension, MetadataExtension}
+import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.{MetadataBuilderExtension, MetadataExtension, OS_TYPE_KEY}
 import org.apache.spark.sql.types._
 
 /**
@@ -33,7 +35,7 @@ object FlintDataType {
 
   val METADATA_ALIAS_PATH_NAME = "aliasPath"
 
-  val UNSUPPORTED_OPENSEARCH_FIELD_TYPE = Set("geo_point")
+  val UNSUPPORTED_OPENSEARCH_FIELD_TYPE = Set.empty[String]
 
   /**
    * parse Flint metadata and extract properties to StructType.
@@ -90,6 +92,9 @@ object FlintDataType {
       case JString("byte") => ByteType
       case JString("double") => DoubleType
       case JString("float") => FloatType
+      case JString("half_float") =>
+        metadataBuilder.withHalfFloat()
+        FloatType
 
       // Date
       case JString("date") =>
@@ -114,6 +119,12 @@ object FlintDataType {
 
       // binary types
       case JString("binary") => BinaryType
+
+      // ip type
+      case JString("ip") => IPAddressUDT
+
+      // geo_point type
+      case JString("geo_point") => GeoPointUDT
 
       // not supported
       case unknown => throw new IllegalStateException(s"unsupported data type: $unknown")
@@ -183,7 +194,12 @@ object FlintDataType {
       case ShortType => JObject("type" -> JString("short"))
       case ByteType => JObject("type" -> JString("byte"))
       case DoubleType => JObject("type" -> JString("double"))
-      case FloatType => JObject("type" -> JString("float"))
+      case FloatType =>
+        if (metadata.isHalfFloatField) {
+          JObject("type" -> JString("half_float"))
+        } else {
+          JObject("type" -> JString("float"))
+        }
       case DecimalType() => JObject("type" -> JString("double"))
 
       // Date
@@ -208,6 +224,13 @@ object FlintDataType {
           "type" -> JString("binary"),
           "doc_values" -> True // enable doc value required by painless script filtering
         )
+
+      // ip
+      case IPAddressUDT =>
+        JObject("type" -> JString("ip"))
+
+      // geo_point
+      case GeoPointUDT => JObject("type" -> JString("geo_point"))
 
       case unknown => throw new IllegalStateException(s"unsupported data type: ${unknown.sql}")
     }

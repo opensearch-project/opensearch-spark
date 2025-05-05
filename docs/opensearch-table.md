@@ -65,12 +65,15 @@ The following table defines the data type mapping between OpenSearch index field
 | byte                     | ByteType                          |
 | double                   | DoubleType                        |
 | float                    | FloatType                         |
+| half_float               | FloatType                         |
 | date(Timestamp)          | TimestampType                     |
 | date(Date)               | DateType                          |
 | keyword                  | StringType, VarcharType, CharType |
 | text                     | StringType(meta(osType)=text)     |
 | object                   | StructType                        |
 | alias                    | Inherits referenced field type    |
+| ip                       | IPAddress(UDT)                    |
+| geo_point                | GeoPoint (UDT)                    |
 
 * OpenSearch data type date is mapped to Spark data type based on the format:
     * Map to DateType if format = strict_date, (we also support format = date, may change in future)
@@ -85,6 +88,8 @@ The following table defines the data type mapping between OpenSearch index field
   type *double* only maps to DoubleType.
 * OpenSearch alias fields allow alternative names for existing fields in the schema without duplicating data. They inherit the data type and nullability of the referenced field and resolve dynamically to the primary field in queries.
 * OpenSearch multi-fields on text field is supported. These multi-fields are stored as part of the field's metadata and cannot be directly selected. Instead, they are automatically utilized during the DSL query translation process.
+* IPAddress type cannot be directly compared with string type literal/field (e.g. '192.168.10.10'). Use `cidrmatch` function like `cidrmatch(ip, '192.168.0.10/32')`
+* OpenSearch geo_point will lose original notation type information such as WKT, GeoJSON, geohash, etc. and stored as `GeoPoint(lattitude, longitude)` (serialized as `Array[Double]`)
 
 ## Limitation
 ### catalog operation

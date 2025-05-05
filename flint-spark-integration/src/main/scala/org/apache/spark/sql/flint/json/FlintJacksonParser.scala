@@ -12,6 +12,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 
 import com.fasterxml.jackson.core._
+import org.opensearch.flint.spark.udt.{GeoPointConverter, GeoPointUDT, IPAddress, IPAddressUDT}
 
 import org.apache.spark.SparkUpgradeException
 import org.apache.spark.internal.Logging
@@ -351,6 +352,19 @@ class FlintJacksonParser(
         parseJsonToken[java.lang.Long](parser, dataType) { case VALUE_STRING =>
           val expr = Cast(Literal(parser.getText), dt)
           java.lang.Long.valueOf(expr.eval(EmptyRow).asInstanceOf[Long])
+        }
+
+    case ip: IPAddressUDT =>
+      (parser: JsonParser) =>
+        parseJsonToken[UTF8String](parser, dataType) { case VALUE_STRING =>
+          IPAddressUDT.serialize(IPAddress(parser.getText))
+        }
+
+    case geoPoint: GeoPointUDT =>
+      (parser: JsonParser) =>
+        parseJsonToken[ArrayData](parser, dataType) { case _ =>
+          new GenericArrayData(
+            GeoPointUDT.serialize(GeoPointConverter.fromJsonParser(parser).get))
         }
 
     case st: StructType =>

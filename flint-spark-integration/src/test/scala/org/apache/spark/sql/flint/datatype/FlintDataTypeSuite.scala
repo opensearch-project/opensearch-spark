@@ -7,6 +7,7 @@ package org.apache.spark.sql.flint.datatype
 
 import org.json4s.JValue
 import org.json4s.jackson.JsonMethods
+import org.opensearch.flint.spark.udt.GeoPointUDT
 import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.FlintSuite
@@ -41,6 +42,9 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
                           |    "floatField": {
                           |      "type": "float"
                           |    },
+                          |    "halfFloatField": {
+                          |      "type": "half_float"
+                          |    },
                           |    "textField": {
                           |      "type": "text"
                           |    },
@@ -59,6 +63,11 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
         StructField("byteField", ByteType, true) ::
         StructField("doubleField", DoubleType, true) ::
         StructField("floatField", FloatType, true) ::
+        StructField(
+          "halfFloatField",
+          FloatType,
+          true,
+          new MetadataBuilder().putString("osType", "half_float").build()) ::
         StructField(
           "textField",
           StringType,
@@ -361,4 +370,21 @@ class FlintDataTypeSuite extends FlintSuite with Matchers {
     aliasField.metadata.getString("aliasPath") shouldEqual "distance"
   }
 
+  test("geo_point field deserialize") {
+    val flintDataType =
+      """{
+        |  "properties": {
+        |    "location": {
+        |      "type": "geo_point"
+        |    }
+        |  }
+        |}""".stripMargin
+
+    val expectedStructType = StructType(StructField("location", GeoPointUDT, true) :: Nil)
+
+    val deserialized = FlintDataType.deserialize(flintDataType)
+
+    deserialized.fields should have length (1)
+    deserialized.fields(0) shouldEqual expectedStructType.fields(0)
+  }
 }
