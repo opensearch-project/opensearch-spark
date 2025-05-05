@@ -8,7 +8,6 @@ package org.opensearch.flint.core.storage
 import java.util
 
 import scala.collection.JavaConverters._
-import scala.collection.convert.ImplicitConversions.`map AsScala`
 
 import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.{GetIndexRequest, GetIndexResponse, PutMappingRequest}
@@ -18,7 +17,6 @@ import org.opensearch.flint.common.metadata.{FlintIndexMetadataService, FlintMet
 import org.opensearch.flint.core.FlintOptions
 import org.opensearch.flint.core.IRestHighLevelClient
 import org.opensearch.flint.core.metadata.FlintJsonHelper._
-import org.slf4j.LoggerFactory
 
 import org.apache.spark.internal.Logging
 
@@ -101,7 +99,6 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
 }
 
 object FlintOpenSearchIndexMetadataService {
-  private val logger = LoggerFactory.getLogger(this.getClass)
   def serialize(metadata: FlintMetadata): String = {
     serialize(metadata, true)
   }
@@ -239,7 +236,8 @@ object FlintOpenSearchIndexMetadataService {
           }
         }
       } catch {
-        case _: Exception => // Swallow
+        case _: Exception =>
+          throw new IllegalStateException("Error extracting _source", Exception)
       }
     }
 
@@ -318,7 +316,7 @@ object FlintOpenSearchIndexMetadataService {
         }
       } catch {
         case ex: Exception =>
-          logger.error(s"Error merging schema: ${ex.getMessage}")
+          throw new IllegalStateException("Error merging schema", ex)
       }
     }
 

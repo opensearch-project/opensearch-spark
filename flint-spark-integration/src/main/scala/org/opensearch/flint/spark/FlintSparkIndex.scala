@@ -10,7 +10,6 @@ import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConv
 import org.opensearch.flint.common.metadata.FlintMetadata
 import org.opensearch.flint.common.metadata.log.FlintMetadataLogEntry
 import org.opensearch.flint.core.metadata.FlintJsonHelper._
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService.extractSourceEnabled
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SparkSession}
