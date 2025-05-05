@@ -142,7 +142,8 @@ lazy val flintCore = (project in file("flint-core"))
       "net.aichler" % "jupiter-interface" % "0.11.1" % Test
     ),
     libraryDependencies ++= deps(sparkVersion),
-    publish / skip := true)
+    publish / skip := true,
+    assembly / test := (Test / test).value)
 
 
 lazy val flintCommons = (project in file("flint-commons"))

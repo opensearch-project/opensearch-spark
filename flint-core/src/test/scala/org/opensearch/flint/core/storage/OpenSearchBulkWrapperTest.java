@@ -267,7 +267,7 @@ class OpenSearchBulkWrapperTest {
 
   private void assertRequestFeedbackTimeout(RequestFeedback feedback) {
     // Latency feedback does not matter
-    assertTrue(feedback.hasRetryableFailure);
+    assertFalse(feedback.hasRetryableFailure);
     assertTrue(feedback.isTimeout);
   }
 

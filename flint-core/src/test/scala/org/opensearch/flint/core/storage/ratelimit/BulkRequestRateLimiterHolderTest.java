@@ -10,11 +10,18 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.opensearch.flint.core.FlintOptions;
 
 class BulkRequestRateLimiterHolderTest {
   FlintOptions flintOptions = new FlintOptions(ImmutableMap.of());
+
+  @BeforeEach
+  public void setup() throws Exception {
+    BulkRequestRateLimiterHolder.reset();
+  }
+
   @Test
   public void getBulkRequestRateLimiterSingleInstance() {
     BulkRequestRateLimiter instance0 = BulkRequestRateLimiterHolder.getBulkRequestRateLimiter(flintOptions);
