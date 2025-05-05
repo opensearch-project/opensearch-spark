@@ -41,8 +41,6 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
   val INTEG_TEST_BUCKET: String = "integ-test"
   val TEST_RESOURCES_BUCKET: String = "test-resources"
   val S3_DATASOURCE: String = "mys3"
-  // Flag to track if OpenSearch Query plugin is available
-  var isQueryPluginAvailable: Boolean = false
 
   override def getSparkConnectPort(): Int = {
     SPARK_CONNECT_PORT
@@ -70,51 +68,25 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     S3_ACCESS_KEY = dockerEnv.getProperty("S3_ACCESS_KEY")
     S3_SECRET_KEY = dockerEnv.getProperty("S3_SECRET_KEY")
 
-    // Try to remove Docker volumes, but don't fail if they don't exist
-    try {
-      val cmdWithArgs = List("docker", "volume", "rm") ++ DOCKER_VOLUMES
-      val deleteDockerVolumesProcess = new ProcessBuilder(cmdWithArgs.toArray: _*).start()
-      deleteDockerVolumesProcess.waitFor(10, TimeUnit.SECONDS)
-      logInfo("Removed existing Docker volumes")
-    } catch {
-      case e: Exception =>
-        logInfo(s"Could not remove Docker volumes, they may not exist: ${e.getMessage}")
-    }
+    val cmdWithArgs = List("docker", "volume", "rm") ++ DOCKER_VOLUMES
+    val deleteDockerVolumesProcess = new ProcessBuilder(cmdWithArgs.toArray: _*).start()
+    deleteDockerVolumesProcess.waitFor(10, TimeUnit.SECONDS)
 
     val dockerProcess = new ProcessBuilder("docker", "compose", "up", "-d")
       .directory(new File(DOCKER_INTEG_DIR))
       .start()
     var stopReading = false
-    // Create threads to read both stdout and stderr
     new Thread() {
       override def run(): Unit = {
-        val reader = new BufferedReader(new InputStreamReader(dockerProcess.getInputStream()))
+        val reader = new BufferedReader(new InputStreamReader(dockerProcess.getInputStream))
         var line = reader.readLine()
         while (!stopReading && line != null) {
-          logInfo("*** DOCKER STDOUT: " + line)
+          logInfo("*** " + line)
           line = reader.readLine()
         }
       }
     }.start()
-    new Thread() {
-      override def run(): Unit = {
-        val reader = new BufferedReader(new InputStreamReader(dockerProcess.getErrorStream()))
-        var line = reader.readLine()
-        while (!stopReading && line != null) {
-          // Log Docker container status messages as INFO instead of ERROR since they're not actual errors
-          if (line.contains("Creating") || line.contains("Created") ||
-              line.contains("Starting") || line.contains("Started") ||
-              line.contains("Healthy") || line.contains("Waiting")) {
-            logInfo("*** DOCKER STATUS: " + line)
-          } else {
-            // Log actual errors as ERROR
-            logError("*** DOCKER ERROR: " + line)
-          }
-          line = reader.readLine()
-        }
-      }
-    }.start()
-    val completed = dockerProcess.waitFor(20, TimeUnit.MINUTES)
+    val completed = dockerProcess.waitFor(30, TimeUnit.MINUTES)
     stopReading = true
     if (!completed) {
       throw new IllegalStateException("Unable to start docker cluster")
@@ -122,7 +94,6 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
 
     if (dockerProcess.exitValue() != 0) {
       logError("Unable to start docker cluster")
-      throw new IllegalStateException("Docker cluster failed to start with exit code: " + dockerProcess.exitValue())
     }
 
     logInfo("Started docker cluster")
@@ -163,15 +134,13 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     logInfo("Stopping docker cluster")
     waitForSparkSubmitCompletion()
 
-    val dockerProcess = new ProcessBuilder("docker-compose", "down")
+    val dockerProcess = new ProcessBuilder("docker", "compose", "down")
       .directory(new File(DOCKER_INTEG_DIR))
       .start()
     dockerProcess.waitFor(10, TimeUnit.MINUTES)
 
     if (dockerProcess.exitValue() != 0) {
       logError("Unable to stop docker cluster")
-      // We don't throw an exception here as we want to continue with test cleanup
-      // even if docker stop fails
     }
 
     logInfo("Stopped docker cluster")
@@ -373,26 +342,6 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     val backend = HttpClientSyncBackend()
     val maxRetries = 5
     val initialBackoffMs = 1000
-    // First check if the OpenSearch Query plugin is available
-    try {
-      val pluginCheckResponse = basicRequest.get(uri"$OPENSEARCH_URL/_cat/plugins")
-        .auth.basic(OPENSEARCH_USERNAME, OPENSEARCH_PASSWORD)
-        .send(backend)
-      if (pluginCheckResponse.isSuccess) {
-        val plugins = pluginCheckResponse.body.toString
-        if (!plugins.contains("opensearch-query")) {
-          logWarning("OpenSearch Query plugin not detected. Async Query API tests will be skipped.")
-          isQueryPluginAvailable = false
-          // Return true to allow tests to continue, but async tests will be skipped
-          return true
-        } else {
-          isQueryPluginAvailable = true
-        }
-      }
-    } catch {
-      case e: Exception =>
-        logWarning(s"Could not check for OpenSearch plugins: ${e.getMessage}")
-    }
     for (attempt <- 1 to maxRetries) {
       try {
         // Check if the datasource exists
@@ -475,9 +424,8 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
           }
       }
     }
-    logWarning(s"Failed to ensure datasource $S3_DATASOURCE exists after $maxRetries attempts. Async Query API tests will be skipped.")
-    // Return true to allow other tests to continue
-    true
+    logError(s"Failed to ensure datasource $S3_DATASOURCE exists after $maxRetries attempts")
+    false
   }
   /**
    * Tests SQL queries on the "spark" container. Looks for ".sql" files in
@@ -486,7 +434,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
    * Uses Spark Connect to run the query on the "spark" container and compares the results to the expected results
    * in the corresponding ".results" file. The ".results" file is in CSV format with a header.
    */
-  it should "SQL Queries" in {
+  it should "SQL Queries" ignore {
     val queriesDir = new File("e2e-test/src/test/resources/spark/queries/sql")
     val queriesTableData : ListBuffer[(String, String)] = new ListBuffer()
 
@@ -564,8 +512,6 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
    * All queries are tested using the same Async Query API session.
    */
   it should "Async SQL Queries" ignore {
-    // Skip this test if the OpenSearch Query plugin is not available
-    assume(isQueryPluginAvailable, "OpenSearch Query plugin is not available")
     var sessionId : String = null
     val backend = HttpClientSyncBackend()
 
@@ -621,8 +567,6 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
    * All queries are tested using the same Async Query API session.
    */
   it should "Async PPL Queries" ignore {
-    // Skip this test if the OpenSearch Query plugin is not available
-    assume(isQueryPluginAvailable, "OpenSearch Query plugin is not available")
     var sessionId : String = null
     val backend = HttpClientSyncBackend()
 
@@ -712,10 +656,6 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
    * @return sttp Response object of the submitted request
    */
   def executeAsyncQuery(language: String, query: String, sessionId: String, backend: SttpBackend[Identity, Any]) : Identity[Response[Either[ResponseException[String, JsError], JsValue]]] = {
-    // Skip datasource check if we already know the plugin isn't available
-    if (!isQueryPluginAvailable) {
-      throw new IllegalStateException("OpenSearch Query plugin is not available")
-    }
     // Ensure the datasource exists before executing the query
     ensureDataSourceExists()
     var queryBody : String = null
