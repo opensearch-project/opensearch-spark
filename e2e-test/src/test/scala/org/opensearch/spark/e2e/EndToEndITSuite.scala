@@ -81,7 +81,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
         logInfo(s"Could not remove Docker volumes, they may not exist: ${e.getMessage}")
     }
 
-    val dockerProcess = new ProcessBuilder("docker-compose", "up", "-d")
+    val dockerProcess = new ProcessBuilder("docker", "compose", "up", "-d")
       .directory(new File(DOCKER_INTEG_DIR))
       .start()
     var stopReading = false
