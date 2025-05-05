@@ -68,7 +68,6 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
 
   /**
    * Adapt rate limit based on multi signal feedback.
-   * @param feedback
    */
   @Override
   public void adaptToFeedback(RequestFeedback feedback) {
