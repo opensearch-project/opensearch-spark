@@ -14,19 +14,12 @@ import java.util.{HashMap => JHashMap}
 
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.opensearch.action.OriginalIndices
 import org.opensearch.action.search.SearchRequest
 import org.opensearch.client.RequestOptions
-import org.opensearch.common.bytes.BytesReference
-import org.opensearch.common.xcontent.XContentFactory
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
 import org.opensearch.index.query.QueryBuilders
-import org.opensearch.index.shard.ShardId
-import org.opensearch.search.SearchHit
-import org.opensearch.search.SearchShardTarget
-import org.opensearch.search.aggregations.{AggregationBuilders, BucketOrder, PipelineAggregationBuilder}
-import org.opensearch.search.aggregations.bucket.histogram.{DateHistogramInterval, Histogram, ParsedDateHistogram}
+import org.opensearch.search.aggregations.AggregationBuilders
+import org.opensearch.search.aggregations.bucket.histogram.ParsedDateHistogram
 import org.opensearch.search.aggregations.bucket.terms.ParsedStringTerms
 import org.opensearch.search.builder.SearchSourceBuilder
 import org.scalatest.matchers.should.Matchers
