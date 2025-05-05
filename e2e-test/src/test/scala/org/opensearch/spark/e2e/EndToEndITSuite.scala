@@ -434,7 +434,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
    * Uses Spark Connect to run the query on the "spark" container and compares the results to the expected results
    * in the corresponding ".results" file. The ".results" file is in CSV format with a header.
    */
-  it should "SQL Queries" ignore {
+  it should "SQL Queries" in {
     val queriesDir = new File("e2e-test/src/test/resources/spark/queries/sql")
     val queriesTableData : ListBuffer[(String, String)] = new ListBuffer()
 
