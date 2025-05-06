@@ -42,15 +42,177 @@ jobs:
       - name: Build project
         run: sbt assembly
 
+      - name: Create custom docker-compose file
+        run: |
+          cd docker/integ-test
+          
+          # Create a simplified docker-compose file for GitHub Actions
+          cat > docker-compose.github.yml << 'EOF'
+          services:
+            metastore:
+              build: ./metastore
+              container_name: metastore
+              ports:
+                - "9083:9083"
+              volumes:
+                - type: bind
+                  source: ./metastore/hive-site.xml
+                  target: /opt/apache-hive-2.3.9-bin/conf/hive-site.xml
+                - type: bind
+                  source: ./metastore/hive-log4j2.properties
+                  target: /opt/apache-hive-2.3.9-bin/conf/hive-log4j2.properties
+                - type: volume
+                  source: metastore-data
+                  target: /data
+              networks:
+                - opensearch-net
+          
+            minio:
+              image: minio/minio
+              container_name: minio-S3
+              entrypoint: sh -c 'mkdir -p /data/test && minio server /data --console-address ":9001"'
+              ports:
+                - "9000:9000"
+                - "9001:9001"
+              volumes:
+                - minio-data:/data
+              healthcheck:
+                test: ["CMD", "curl", "-q", "-f", "http://localhost:9000/minio/health/live"]
+                interval: 30s
+                timeout: 10s
+                retries: 5
+                start_period: 20s
+              networks:
+                - opensearch-net
+          
+            opensearch:
+              image: opensearchproject/opensearch:latest
+              container_name: opensearch
+              environment:
+                - cluster.name=opensearch-cluster
+                - node.name=opensearch
+                - discovery.type=single-node
+                - bootstrap.memory_lock=true
+                - plugins.security.system_indices.enabled=false
+                - plugins.security.system_indices.permission.enabled=false
+                - plugins.security.ssl.http.enabled=false
+                - DISABLE_INSTALL_DEMO_CONFIG=true
+                - DISABLE_SECURITY_PLUGIN=true
+                - OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g
+                - OPENSEARCH_INITIAL_ADMIN_PASSWORD=C0rrecthorsebatterystaple.
+              ulimits:
+                memlock:
+                  soft: -1
+                  hard: -1
+                nofile:
+                  soft: 65536
+                  hard: 65536
+              volumes:
+                - type: volume
+                  source: opensearch-data
+                  target: /usr/share/opensearch/data
+              ports:
+                - "9200:9200"
+                - "9600:9600"
+              healthcheck:
+                test: ["CMD", "curl", "-f", "-u", "admin:C0rrecthorsebatterystaple.", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=50s"]
+                interval: 30s
+                timeout: 15s
+                retries: 5
+                start_period: 40s
+              networks:
+                - opensearch-net
+          
+            opensearch-dashboards:
+              image: opensearchproject/opensearch-dashboards:latest
+              container_name: opensearch-dashboards
+              ports:
+                - "5601:5601"
+              environment:
+                OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+                DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
+              networks:
+                - opensearch-net
+              depends_on:
+                opensearch:
+                  condition: service_healthy
+          
+            spark:
+              build:
+                context: ./spark
+                dockerfile: Dockerfile
+                args:
+                  SPARK_VERSION: 3.5.3
+              container_name: spark
+              entrypoint: /opt/bitnami/scripts/spark/spark-master-entrypoint.sh
+              ports:
+                - "8080:8080"
+                - "7077:7077"
+                - "4040:4040"
+                - "15002:15002"
+              environment:
+                - SPARK_MODE=master
+                - SPARK_RPC_AUTHENTICATION_ENABLED=no
+                - SPARK_RPC_ENCRYPTION_ENABLED=no
+                - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+                - SPARK_SSL_ENABLED=no
+                - SPARK_PUBLIC_DNS=localhost
+              volumes:
+                - type: bind
+                  source: ../../ppl-spark-integration/target/scala-2.12/ppl-spark-integration-assembly-1.0.0-SNAPSHOT.jar
+                  target: /opt/bitnami/spark/jars/ppl-spark-integration.jar
+                - type: bind
+                  source: ../../flint-spark-integration/target/scala-2.12/flint-spark-integration-assembly-1.0.0-SNAPSHOT.jar
+                  target: /opt/bitnami/spark/jars/flint-spark-integration.jar
+                - type: bind
+                  source: ../../spark-sql-application/target/scala-2.12/sql-job-assembly-1.0.0-SNAPSHOT.jar
+                  target: /opt/bitnami/spark/jars/opensearch-spark-sql-application.jar
+              networks:
+                - opensearch-net
+              depends_on:
+                metastore:
+                  condition: service_started
+                opensearch:
+                  condition: service_healthy
+          
+            configuration-updater:
+              image: alpine/curl:latest
+              container_name: configuration-updater
+              entrypoint: /bin/sh
+              command: /apply-configuration.sh
+              environment:
+                - S3_ACCESS_KEY=Vt7jnvi5BICr1rkfsheT
+                - S3_SECRET_KEY=5NK3StGvoGCLUWvbaGN0LBUf9N6sjE94PEzLdqwO
+                - OPENSEARCH_ADMIN_PASSWORD=C0rrecthorsebatterystaple.
+              volumes:
+                - type: bind
+                  source: ./configuration-updater/apply-configuration.sh
+                  target: /apply-configuration.sh
+              networks:
+                - opensearch-net
+              depends_on:
+                opensearch:
+                  condition: service_healthy
+                opensearch-dashboards:
+                  condition: service_started
+          
+          volumes:
+            metastore-data:
+            opensearch-data:
+            minio-data:
+          networks:
+            opensearch-net:
+          EOF
+          
+          echo "Created simplified docker-compose.github.yml"
+          
       - name: Start Docker containers
         run: |
           cd docker/integ-test
-          # Increase memory limits for OpenSearch
-          echo "Updating docker-compose.yml to increase memory limits"
-          sed -i 's/OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_NODE_MEMORY:-512m} -Xmx${OPENSEARCH_NODE_MEMORY:-512m}/OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g/' docker-compose.yml
           
-          # Start containers
-          docker compose up -d
+          # Start containers with the simplified compose file
+          docker compose -f docker-compose.github.yml up -d
+          
           echo "Waiting for services to start (initial 30s)..."
           sleep 30
           
