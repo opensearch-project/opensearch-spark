@@ -72,7 +72,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     val deleteDockerVolumesProcess = new ProcessBuilder(cmdWithArgs.toArray: _*).start()
     deleteDockerVolumesProcess.waitFor(10, TimeUnit.SECONDS)
 
-    val dockerProcess = new ProcessBuilder("docker", "compose", "up", "-d")
+    val dockerProcess = new ProcessBuilder("docker-compose", "up", "-d")
       .directory(new File(DOCKER_INTEG_DIR))
       .start()
     var stopReading = false
@@ -86,7 +86,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
         }
       }
     }.start()
-    val completed = dockerProcess.waitFor(20, TimeUnit.MINUTES)
+    val completed = dockerProcess.waitFor(30, TimeUnit.MINUTES)
     stopReading = true
     if (!completed) {
       throw new IllegalStateException("Unable to start docker cluster")
@@ -134,16 +134,40 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     logInfo("Stopping docker cluster")
     waitForSparkSubmitCompletion()
 
-    val dockerProcess = new ProcessBuilder("docker", "compose", "down")
-      .directory(new File(DOCKER_INTEG_DIR))
-      .start()
-    dockerProcess.waitFor(10, TimeUnit.MINUTES)
-
-    if (dockerProcess.exitValue() != 0) {
-      logError("Unable to stop docker cluster")
+    try {
+      // First attempt to stop containers gracefully
+      val dockerProcess = new ProcessBuilder("docker-compose", "down")
+        .directory(new File(DOCKER_INTEG_DIR))
+        .start()
+      // Capture output for debugging
+      val errorReader = new BufferedReader(new InputStreamReader(dockerProcess.getErrorStream))
+      val outputReader = new BufferedReader(new InputStreamReader(dockerProcess.getInputStream))
+      val completed = dockerProcess.waitFor(10, TimeUnit.MINUTES)
+      if (!completed) {
+        logWarning("Docker compose down command timed out, proceeding anyway")
+      } else if (dockerProcess.exitValue() != 0) {
+        // Read and log error output
+        var line = errorReader.readLine()
+        while (line != null) {
+          logError("Docker error: " + line)
+          line = errorReader.readLine()
+        }
+        // Try a more forceful approach if the first one failed
+        logWarning("First docker-compose down attempt failed, trying with force option")
+        val forceProcess = new ProcessBuilder("docker-compose", "down", "--remove-orphans", "-v")
+          .directory(new File(DOCKER_INTEG_DIR))
+          .start()
+        forceProcess.waitFor(5, TimeUnit.MINUTES)
+      }
+      // Close readers
+      errorReader.close()
+      outputReader.close()
+      logInfo("Stopped docker cluster")
+    } catch {
+      case e: Exception =>
+        logError("Exception while stopping docker cluster", e)
+        // Don't fail the test suite just because cleanup had issues
     }
-
-    logInfo("Stopped docker cluster")
   }
 
   /**
@@ -434,7 +458,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
    * Uses Spark Connect to run the query on the "spark" container and compares the results to the expected results
    * in the corresponding ".results" file. The ".results" file is in CSV format with a header.
    */
-  it should "SQL Queries" ignore {
+  it should "SQL Queries" in {
     val queriesDir = new File("e2e-test/src/test/resources/spark/queries/sql")
     val queriesTableData : ListBuffer[(String, String)] = new ListBuffer()
 
