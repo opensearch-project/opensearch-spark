@@ -8,8 +8,10 @@ package org.opensearch.spark.e2e
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.services.s3.{AmazonS3, AmazonS3ClientBuilder}
+import org.slf4j.{Logger, LoggerFactory}
 
 trait S3ClientTrait {
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
   var s3Client: AmazonS3 = null
 
   /**
@@ -36,14 +38,31 @@ trait S3ClientTrait {
   def getS3Client(): AmazonS3 = {
     this.synchronized {
       if (s3Client == null) {
-        val credentials = new BasicAWSCredentials(getS3AccessKey(), getS3SecretKey())
-        val endpointConfiguration = new EndpointConfiguration("http://localhost:9000", "us-east-1")
+        try {
+          // First try with the configured credentials
+          val credentials = new BasicAWSCredentials(getS3AccessKey(), getS3SecretKey())
+          val endpointConfiguration = new EndpointConfiguration("http://localhost:9000", "us-east-1")
 
-        s3Client = AmazonS3ClientBuilder.standard()
-          .withCredentials(new AWSStaticCredentialsProvider(credentials))
-          .withEndpointConfiguration(endpointConfiguration)
-          .withPathStyleAccessEnabled(true)
-          .build()
+          s3Client = AmazonS3ClientBuilder.standard()
+            .withCredentials(new AWSStaticCredentialsProvider(credentials))
+            .withEndpointConfiguration(endpointConfiguration)
+            .withPathStyleAccessEnabled(true)
+            .build()
+          // Test the connection by listing buckets
+          s3Client.listBuckets()
+        } catch {
+          case e: Exception =>
+            logger.warn(s"Failed to connect with configured credentials: ${e.getMessage}")
+            logger.info("Falling back to default MinIO credentials (minioadmin/minioadmin)")
+            // Fall back to default MinIO credentials
+            val defaultCredentials = new BasicAWSCredentials("minioadmin", "minioadmin")
+            val endpointConfiguration = new EndpointConfiguration("http://localhost:9000", "us-east-1")
+            s3Client = AmazonS3ClientBuilder.standard()
+              .withCredentials(new AWSStaticCredentialsProvider(defaultCredentials))
+              .withEndpointConfiguration(endpointConfiguration)
+              .withPathStyleAccessEnabled(true)
+              .build()
+        }
 
         ensureBucketExists("integ-test")
         ensureBucketExists("test-resources")
