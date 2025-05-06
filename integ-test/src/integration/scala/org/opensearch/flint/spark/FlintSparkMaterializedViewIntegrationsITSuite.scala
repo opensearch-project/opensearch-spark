@@ -16,8 +16,8 @@ import org.opensearch.action.search.SearchRequest
 import org.opensearch.client.RequestOptions
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
 import org.opensearch.index.query.QueryBuilders
-import org.opensearch.search.aggregations.AggregationBuilders
-import org.opensearch.search.aggregations.bucket.histogram.ParsedDateHistogram
+import org.opensearch.search.aggregations.{AggregationBuilders, BucketOrder}
+import org.opensearch.search.aggregations.bucket.histogram.{DateHistogramInterval, ParsedDateHistogram}
 import org.opensearch.search.aggregations.bucket.terms.ParsedStringTerms
 import org.opensearch.search.builder.SearchSourceBuilder
 import org.scalatest.matchers.should.Matchers
@@ -49,7 +49,7 @@ import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
  */
 class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with Matchers {
 
-  val dslQueryQueryPC: String =
+  val dslQueryQueryVPCPC: String =
     """
       |{
       |    "bool": {
@@ -62,7 +62,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       |}
       |""".stripMargin
 
-  val dslQueryQueryTSC: String =
+  val dslQueryQueryVPCTSC: String =
     """
       |{
       |    "bool": {
@@ -75,7 +75,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       |}
       |""".stripMargin
 
-  val dslQueryAggregationsPC: String =
+  val dslQueryAggregationsVPCPC: String =
     """
       |"aggs": {
       |    "2": {
@@ -97,14 +97,13 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       |  }
       |""".stripMargin
 
-  val dslQueryAggregationsTSC: String =
+  val dslQueryAggregationsVPCTSC: String =
     """
       |"aggs": {
       |    "2": {
       |      "date_histogram": {
       |        "field": "start_time",
       |        "min_doc_count": 1,
-      |        "format": "epoch_second"
       |      },
       |      "aggs": {
       |        "1": {
@@ -117,13 +116,14 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       |  }
       |""".stripMargin
 
-  val dslQueryBuilderTSC: SearchSourceBuilder = {
+  val dslQueryBuilderVPCTSC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQueryTSC))
+      .query(QueryBuilders.wrapperQuery(dslQueryQueryVPCTSC))
     val dateHistogramAgg = AggregationBuilders
       .dateHistogram("2")
       .field("start_time")
-      .interval(300000)
+      .minDocCount(1)
+      .fixedInterval(DateHistogramInterval.minutes(5))
 
     val sumAgg = AggregationBuilders
       .sum("1")
@@ -135,27 +135,26 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     builder
   }
 
-  val dslQueryBuilderPC: SearchSourceBuilder = {
+  val dslQueryBuilderVPCPC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQueryPC))
-    val dateHistogramAgg = AggregationBuilders.terms("2").field("aws.vpc.srcaddr")
+      .query(QueryBuilders.wrapperQuery(dslQueryQueryVPCPC))
+    val termsAgg = AggregationBuilders.terms("2").field("aws.vpc.srcaddr")
 
     val sumAgg = AggregationBuilders
       .sum("1")
       .field("aws.vpc.total_bytes")
 
-    dateHistogramAgg.subAggregation(sumAgg)
-    builder.aggregation(dateHistogramAgg)
+    termsAgg.subAggregation(sumAgg)
+    builder.aggregation(termsAgg)
 
     builder
   }
 
-  val expectedBucketsTSC: Seq[Map[String, Any]] = Seq(
+  val expectedBucketsVPCTSC: Seq[Map[String, Any]] = Seq(
     Map("key_as_string" -> "2023-11-01T05:00:00.000Z", "doc_count" -> 1),
-    Map("key_as_string" -> "2023-11-01T05:05:00.000Z", "doc_count" -> 0),
     Map("key_as_string" -> "2023-11-01T05:10:00.000Z", "doc_count" -> 2))
 
-  val expectedBucketsPC: Seq[Map[String, Any]] = Seq(
+  val expectedBucketsVPCPC: Seq[Map[String, Any]] = Seq(
     Map("key" -> "10.0.0.1", "doc_count" -> 1),
     Map("key" -> "10.0.0.3", "doc_count" -> 1),
     Map("key" -> "10.0.0.5", "doc_count" -> 1))
@@ -193,7 +192,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
              |  dstAddr,
              |  protocol
              |""".stripMargin)
-        .assertDslQueryTSC(dslQueryBuilderTSC, expectedBucketsTSC)
+        .assertDslQueryTSC(dslQueryBuilderVPCTSC, expectedBucketsVPCTSC)
     }
   }
 
@@ -230,7 +229,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
              |  dstAddr,
              |  protocol
              |""".stripMargin)
-        .assertDslQueryPC(dslQueryBuilderPC, expectedBucketsPC)
+        .assertDslQueryPC(dslQueryBuilderVPCPC, expectedBucketsVPCPC)
     }
   }
 
@@ -295,6 +294,469 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
             1,
             400.0,
             20))
+    }
+  }
+
+  val dslQueryQueryCTTSC: String =
+    """
+      |{
+      |    "bool": {
+      |      "filter": [
+      |        {
+      |          "match_all": {}
+      |        }
+      |      ]
+      |    }
+      |}
+      |""".stripMargin
+
+  val dslQueryAggsCTTSC: String =
+    """
+      |"aggs": {
+      |    "2": {
+      |      "date_histogram": {
+      |        "field": "start_time",
+      |        "fixed_interval": "30s",
+      |        "time_zone": "America/Los_Angeles",
+      |        "min_doc_count": 1
+      |      },
+      |      "aggs": {
+      |        "1": {
+      |          "sum": {
+      |            "field": "aws.cloudtrail.event_count"
+      |          }
+      |        }
+      |      }
+      |    }
+      |  }
+      |""".stripMargin
+
+  val dslQueryQueryCTPC: String =
+    """
+      |{
+      |    "bool": {
+      |      "filter": [
+      |        {
+      |          "match_all": {}
+      |        }
+      |      ]
+      |    }
+      |}
+      |""".stripMargin
+
+  val dslQueryAggsCTPC: String =
+    """
+      |"aggs": {
+      |    "2": {
+      |      "terms": {
+      |        "field": "aws.cloudtrail.sourceIPAddress",
+      |        "order": {
+      |          "1": "desc"
+      |        },
+      |        "size": 10
+      |      },
+      |      "aggs": {
+      |        "1": {
+      |          "sum": {
+      |            "field": "aws.cloudtrail.event_count"
+      |          }
+      |        }
+      |      }
+      |    }
+      |  }
+      |""".stripMargin
+
+  val dslQueryBuilderCTTSC: SearchSourceBuilder = {
+    val builder = new SearchSourceBuilder()
+      .query(QueryBuilders.wrapperQuery(dslQueryQueryCTTSC))
+    val dateHistogramAgg = AggregationBuilders
+      .dateHistogram("2")
+      .field("start_time")
+      .fixedInterval(DateHistogramInterval.seconds(30))
+
+    val sumAgg = AggregationBuilders
+      .sum("1")
+      .field("aws.cloudtrail.event_count")
+
+    dateHistogramAgg.subAggregation(sumAgg)
+    builder.aggregation(dateHistogramAgg)
+
+    builder
+  }
+
+  val dslQueryBuilderCTPC: SearchSourceBuilder = {
+    val builder = new SearchSourceBuilder()
+      .query(QueryBuilders.wrapperQuery(dslQueryQueryCTPC))
+    val termsAgg = AggregationBuilders
+      .terms("2")
+      .field("aws.cloudtrail.sourceIPAddress")
+      .order(BucketOrder.aggregation("1", false))
+
+    val sumAgg = AggregationBuilders
+      .sum("1")
+      .field("aws.cloudtrail.event_count")
+
+    termsAgg.subAggregation(sumAgg)
+    builder.aggregation(termsAgg)
+
+    builder
+  }
+
+  val expectedBucketsCTTSC: Seq[Map[String, Any]] = Seq(
+    Map("key_as_string" -> "2023-11-01T05:00:00.000Z", "doc_count" -> 1))
+
+  val expectedBucketsCTPC: Seq[Map[String, Any]] = Seq(
+    Map("key" -> "198.51.100.45", "doc_count" -> 1))
+
+  test(
+    "create aggregated materialized view for CloudTrail integration unfiltered time series chart") {
+    withIntegration("cloud_trail") { integration =>
+      integration
+        .createSourceTable(s"$catalogName.default.cloud_trail_test")
+        .createMaterializedView(s"""
+                                   |SELECT
+                                   |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
+                                   |  `userIdentity.type` AS `aws.cloudtrail.userIdentity.type`,
+                                   |  `userIdentity.accountId` AS `aws.cloudtrail.userIdentity.accountId`,
+                                   |  `userIdentity.sessionContext.sessionIssuer.userName` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.userName`,
+                                   |  `userIdentity.sessionContext.sessionIssuer.arn` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.arn`,
+                                   |  `userIdentity.sessionContext.sessionIssuer.type` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.type`,
+                                   |  awsRegion AS `aws.cloudtrail.awsRegion`,
+                                   |  sourceIPAddress AS `aws.cloudtrail.sourceIPAddress`,
+                                   |  eventSource AS `aws.cloudtrail.eventSource`,
+                                   |  eventName AS `aws.cloudtrail.eventName`,
+                                   |  eventCategory AS `aws.cloudtrail.eventCategory`,
+                                   |  COUNT(*) AS `aws.cloudtrail.event_count`
+                                   |FROM (
+                                   |  SELECT
+                                   |    CAST(eventTime AS TIMESTAMP) AS `@timestamp`,
+                                   |    userIdentity.`type` AS `userIdentity.type`,
+                                   |    userIdentity.`accountId` AS `userIdentity.accountId`,
+                                   |    userIdentity.sessionContext.sessionIssuer.userName AS `userIdentity.sessionContext.sessionIssuer.userName`,
+                                   |    userIdentity.sessionContext.sessionIssuer.arn AS `userIdentity.sessionContext.sessionIssuer.arn`,
+                                   |    userIdentity.sessionContext.sessionIssuer.type AS `userIdentity.sessionContext.sessionIssuer.type`,
+                                   |    awsRegion,
+                                   |    sourceIPAddress,
+                                   |    eventSource,
+                                   |    eventName,
+                                   |    eventCategory
+                                   |  FROM
+                                   |    $catalogName.default.cloud_trail_test
+                                   |)
+                                   |GROUP BY
+                                   |  TUMBLE(`@timestamp`, '5 Minute'),
+                                   |  `userIdentity.type`,
+                                   |  `userIdentity.accountId`,
+                                   |  `userIdentity.sessionContext.sessionIssuer.userName`,
+                                   |  `userIdentity.sessionContext.sessionIssuer.arn`,
+                                   |  `userIdentity.sessionContext.sessionIssuer.type`,
+                                   |  awsRegion,
+                                   |  sourceIPAddress,
+                                   |  eventSource,
+                                   |  eventName,
+                                   |  eventCategory
+                                   |""".stripMargin)
+        .assertDslQueryTSC(dslQueryBuilderCTTSC, expectedBucketsCTTSC)
+    }
+  }
+
+  test("create aggregated materialized view for CloudTrail integration unfiltered pie chart") {
+    withIntegration("cloud_trail") { integration =>
+      integration
+        .createSourceTable(s"$catalogName.default.cloud_trail_test")
+        .createMaterializedView(s"""
+                                   |SELECT
+                                   |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
+                                   |  `userIdentity.type` AS `aws.cloudtrail.userIdentity.type`,
+                                   |  `userIdentity.accountId` AS `aws.cloudtrail.userIdentity.accountId`,
+                                   |  `userIdentity.sessionContext.sessionIssuer.userName` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.userName`,
+                                   |  `userIdentity.sessionContext.sessionIssuer.arn` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.arn`,
+                                   |  `userIdentity.sessionContext.sessionIssuer.type` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.type`,
+                                   |  awsRegion AS `aws.cloudtrail.awsRegion`,
+                                   |  sourceIPAddress AS `aws.cloudtrail.sourceIPAddress`,
+                                   |  eventSource AS `aws.cloudtrail.eventSource`,
+                                   |  eventName AS `aws.cloudtrail.eventName`,
+                                   |  eventCategory AS `aws.cloudtrail.eventCategory`,
+                                   |  COUNT(*) AS `aws.cloudtrail.event_count`
+                                   |FROM (
+                                   |  SELECT
+                                   |    CAST(eventTime AS TIMESTAMP) AS `@timestamp`,
+                                   |    userIdentity.`type` AS `userIdentity.type`,
+                                   |    userIdentity.`accountId` AS `userIdentity.accountId`,
+                                   |    userIdentity.sessionContext.sessionIssuer.userName AS `userIdentity.sessionContext.sessionIssuer.userName`,
+                                   |    userIdentity.sessionContext.sessionIssuer.arn AS `userIdentity.sessionContext.sessionIssuer.arn`,
+                                   |    userIdentity.sessionContext.sessionIssuer.type AS `userIdentity.sessionContext.sessionIssuer.type`,
+                                   |    awsRegion,
+                                   |    sourceIPAddress,
+                                   |    eventSource,
+                                   |    eventName,
+                                   |    eventCategory
+                                   |  FROM
+                                   |    $catalogName.default.cloud_trail_test
+                                   |)
+                                   |GROUP BY
+                                   |  TUMBLE(`@timestamp`, '5 Minute'),
+                                   |  `userIdentity.type`,
+                                   |  `userIdentity.accountId`,
+                                   |  `userIdentity.sessionContext.sessionIssuer.userName`,
+                                   |  `userIdentity.sessionContext.sessionIssuer.arn`,
+                                   |  `userIdentity.sessionContext.sessionIssuer.type`,
+                                   |  awsRegion,
+                                   |  sourceIPAddress,
+                                   |  eventSource,
+                                   |  eventName,
+                                   |  eventCategory
+                                   |""".stripMargin)
+        .assertDslQueryPC(dslQueryBuilderCTPC, expectedBucketsCTPC)
+    }
+  }
+
+  val dslQueryQueryWAFTSC: String =
+    """
+      |{
+      |    "bool": {
+      |      "filter": [
+      |        {
+      |          "match_all": {}
+      |        }
+      |      ]
+      |    }
+      |}
+      |""".stripMargin
+
+  val dslQueryAggsWAFTSC: String =
+    """
+      |"aggs": {
+      |    "2": {
+      |      "terms": {
+      |        "field": "aws.waf.action",
+      |        "order": {
+      |          "1": "desc"
+      |        },
+      |        "size": 5
+      |      },
+      |      "aggs": {
+      |        "1": {
+      |          "sum": {
+      |            "field": "aws.waf.event_count"
+      |          }
+      |        },
+      |        "3": {
+      |          "date_histogram": {
+      |            "field": "start_time",
+      |            "fixed_interval": "30s",
+      |            "time_zone": "America/Los_Angeles",
+      |            "min_doc_count": 1
+      |          },
+      |          "aggs": {
+      |            "1": {
+      |              "sum": {
+      |                "field": "aws.waf.event_count"
+      |              }
+      |            }
+      |          }
+      |        }
+      |      }
+      |    }
+      |""".stripMargin
+
+  val dslQueryQueryWAFPC: String =
+    """
+      |{
+      |    "bool": {
+      |      "filter": [
+      |        {
+      |          "match_all": {}
+      |        }
+      |      ]
+      |    }
+      |}
+      |""".stripMargin
+
+  val dslQueryAggsWAFPC: String =
+    """
+      |"aggs": {
+      |    "2": {
+      |      "terms": {
+      |        "field": "aws.waf.httpRequest.clientIp",
+      |        "order": {
+      |          "1": "desc"
+      |        },
+      |        "size": 10
+      |      },
+      |      "aggs": {
+      |        "1": {
+      |          "sum": {
+      |            "field": "aws.waf.event_count"
+      |          }
+      |        }
+      |      }
+      |    }
+      |  }
+      |""".stripMargin
+
+  val dslQueryBuilderWAFTSC: SearchSourceBuilder = {
+    val builder = new SearchSourceBuilder()
+      .query(QueryBuilders.wrapperQuery(dslQueryQueryWAFTSC))
+
+    // 1. Main terms aggregation
+    val termsAgg = AggregationBuilders
+      .terms("2")
+      .field("aws.waf.action")
+      .size(5)
+      .order(BucketOrder.aggregation("1", false)) // descending order by sum
+
+    // 2. First level sum aggregation - for ordering the terms
+    val sumAgg = AggregationBuilders
+      .sum("1")
+      .field("aws.waf.event_count")
+
+    // 3. Date histogram sub-aggregation
+    val dateHistogramAgg = AggregationBuilders
+      .dateHistogram("3")
+      .field("start_time")
+      .fixedInterval(new DateHistogramInterval("30s"))
+      .minDocCount(1)
+
+    // 4. Inner sum aggregation inside date histogram
+    val innerSumAgg = AggregationBuilders
+      .sum("1")
+      .field("aws.waf.event_count")
+
+    // 5. Build the hierarchy of aggregations
+    dateHistogramAgg.subAggregation(innerSumAgg)
+    termsAgg.subAggregation(sumAgg)
+    termsAgg.subAggregation(dateHistogramAgg)
+
+    // 6. Add to main query builder
+    builder.aggregation(termsAgg)
+
+    builder
+  }
+
+  val dslQueryBuilderWAFPC: SearchSourceBuilder = {
+    val builder = new SearchSourceBuilder()
+      .query(QueryBuilders.wrapperQuery(dslQueryQueryCTPC))
+    val termsAgg = AggregationBuilders
+      .terms("2")
+      .field("aws.waf.httpRequest.clientIp")
+      .order(BucketOrder.aggregation("1", false))
+
+    val sumAgg = AggregationBuilders
+      .sum("1")
+      .field("aws.waf.event_count")
+
+    termsAgg.subAggregation(sumAgg)
+    builder.aggregation(termsAgg)
+
+    builder
+  }
+
+  val expectedBucketsWAFTSC: Seq[Map[String, Any]] = Seq(
+    Map("key_as_string" -> "2023-11-01T05:00:00.000Z", "doc_count" -> 1))
+
+  val expectedBucketsWAFPC: Seq[Map[String, Any]] = Seq(
+    Map("key" -> "192.0.2.1", "doc_count" -> 1))
+
+  test("create aggregated materialized view for WAF integration unfiltered time series chart") {
+    withIntegration("waf") { integration =>
+      integration
+        .createSourceTable(s"$catalogName.default.waf_test")
+        .createMaterializedView(s"""
+                                   |SELECT
+                                   |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
+                                   |  webaclId AS `aws.waf.webaclId`,
+                                   |  action AS `aws.waf.action`,
+                                   |  `httpRequest.clientIp` AS `aws.waf.httpRequest.clientIp`,
+                                   |  `httpRequest.country` AS `aws.waf.httpRequest.country`,
+                                   |  `httpRequest.uri` AS `aws.waf.httpRequest.uri`,
+                                   |  `httpRequest.httpMethod` AS `aws.waf.httpRequest.httpMethod`,
+                                   |  httpSourceId AS `aws.waf.httpSourceId`,
+                                   |  terminatingRuleId AS `aws.waf.terminatingRuleId`,
+                                   |  terminatingRuleType AS `aws.waf.RuleType`,
+                                   |  `ruleGroupList.ruleId` AS `aws.waf.ruleGroupList.ruleId`,
+                                   |  COUNT(*) AS `aws.waf.event_count`
+                                   |FROM (
+                                   |  SELECT
+                                   |    CAST(FROM_UNIXTIME(`timestamp`/1000) AS TIMESTAMP) AS `@timestamp`,
+                                   |    webaclId,
+                                   |    action,
+                                   |    httpRequest.clientIp AS `httpRequest.clientIp`,
+                                   |    httpRequest.country AS `httpRequest.country`,
+                                   |    httpRequest.uri AS `httpRequest.uri`,
+                                   |    httpRequest.httpMethod AS `httpRequest.httpMethod`,
+                                   |    httpSourceId,
+                                   |    terminatingRuleId,
+                                   |    terminatingRuleType,
+                                   |    ruleGroupList.ruleId AS `ruleGroupList.ruleId`
+                                   |  FROM
+                                   |    $catalogName.default.waf_test
+                                   |)
+                                   |GROUP BY
+                                   |  TUMBLE(`@timestamp`, '5 Minute'),
+                                   |  webaclId,
+                                   |  action,
+                                   |  `httpRequest.clientIp`,
+                                   |  `httpRequest.country`,
+                                   |  `httpRequest.uri`,
+                                   |  `httpRequest.httpMethod`,
+                                   |  httpSourceId,
+                                   |  terminatingRuleId,
+                                   |  terminatingRuleType,
+                                   |  `ruleGroupList.ruleId`
+                                   |""".stripMargin)
+        .assertDslQueryWAFTSC(dslQueryBuilderWAFTSC, expectedBucketsWAFTSC)
+    }
+  }
+
+  test("create aggregated materialized view for WAF integration unfiltered pie chart") {
+    withIntegration("waf") { integration =>
+      integration
+        .createSourceTable(s"$catalogName.default.waf_test")
+        .createMaterializedView(s"""
+                                   |SELECT
+                                   |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
+                                   |  webaclId AS `aws.waf.webaclId`,
+                                   |  action AS `aws.waf.action`,
+                                   |  `httpRequest.clientIp` AS `aws.waf.httpRequest.clientIp`,
+                                   |  `httpRequest.country` AS `aws.waf.httpRequest.country`,
+                                   |  `httpRequest.uri` AS `aws.waf.httpRequest.uri`,
+                                   |  `httpRequest.httpMethod` AS `aws.waf.httpRequest.httpMethod`,
+                                   |  httpSourceId AS `aws.waf.httpSourceId`,
+                                   |  terminatingRuleId AS `aws.waf.terminatingRuleId`,
+                                   |  terminatingRuleType AS `aws.waf.RuleType`,
+                                   |  `ruleGroupList.ruleId` AS `aws.waf.ruleGroupList.ruleId`,
+                                   |  COUNT(*) AS `aws.waf.event_count`
+                                   |FROM (
+                                   |  SELECT
+                                   |    CAST(FROM_UNIXTIME(`timestamp`/1000) AS TIMESTAMP) AS `@timestamp`,
+                                   |    webaclId,
+                                   |    action,
+                                   |    httpRequest.clientIp AS `httpRequest.clientIp`,
+                                   |    httpRequest.country AS `httpRequest.country`,
+                                   |    httpRequest.uri AS `httpRequest.uri`,
+                                   |    httpRequest.httpMethod AS `httpRequest.httpMethod`,
+                                   |    httpSourceId,
+                                   |    terminatingRuleId,
+                                   |    terminatingRuleType,
+                                   |    ruleGroupList.ruleId AS `ruleGroupList.ruleId`
+                                   |  FROM
+                                   |    $catalogName.default.waf_test
+                                   |)
+                                   |GROUP BY
+                                   |  TUMBLE(`@timestamp`, '5 Minute'),
+                                   |  webaclId,
+                                   |  action,
+                                   |  `httpRequest.clientIp`,
+                                   |  `httpRequest.country`,
+                                   |  `httpRequest.uri`,
+                                   |  `httpRequest.httpMethod`,
+                                   |  httpSourceId,
+                                   |  terminatingRuleId,
+                                   |  terminatingRuleType,
+                                   |  `ruleGroupList.ruleId`
+                                   |""".stripMargin)
+        .assertDslQueryPC(dslQueryBuilderWAFPC, expectedBucketsWAFPC)
     }
   }
 
@@ -526,6 +988,40 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
         .get("2")
         .asInstanceOf[ParsedDateHistogram]
 
+      val buckets = dateHistogram.getBuckets
+
+      // Map to the format we want to compare
+      val actualBuckets = buckets.asScala.map { bucket =>
+        Map("key_as_string" -> bucket.getKeyAsString, "doc_count" -> bucket.getDocCount.toInt)
+      }.toSeq
+
+      actualBuckets should equal(expectedBuckets)
+    }
+
+    def assertDslQueryWAFTSC(
+        dslQueryTSC: SearchSourceBuilder,
+        expectedBuckets: Seq[Map[String, Any]]): Unit = {
+      val flintIndexName =
+        spark.streams.active.find(_.name == getFlintIndexName(mvName)).get.name
+      val searchRequest = new SearchRequest(flintIndexName)
+      searchRequest.source(dslQueryTSC)
+      val actual = openSearchClient.search(searchRequest, RequestOptions.DEFAULT)
+      // First get the terms aggregation
+      val termsAgg = actual.getAggregations
+        .get("2")
+        .asInstanceOf[
+          ParsedStringTerms
+        ] // Note: This is a terms aggregation, not a date histogram
+
+      // Get the first bucket (ALLOW in this case)
+      val firstTermBucket = termsAgg.getBuckets.asScala.head
+
+      // Get the nested date histogram from this term bucket
+      val dateHistogram = firstTermBucket.getAggregations
+        .get("3")
+        .asInstanceOf[ParsedDateHistogram]
+
+      // Now get the buckets from the date histogram
       val buckets = dateHistogram.getBuckets
 
       // Map to the format we want to compare
