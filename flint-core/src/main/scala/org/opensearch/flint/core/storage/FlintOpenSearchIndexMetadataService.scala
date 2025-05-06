@@ -236,8 +236,8 @@ object FlintOpenSearchIndexMetadataService extends Logging {
           }
         }
       } catch {
-        case ex: Exception =>
-          logError("Error extracting _source", ex)
+        case e: Exception =>
+          logError("Error extracting _source", e)
       }
     }
 
@@ -316,7 +316,7 @@ object FlintOpenSearchIndexMetadataService extends Logging {
         }
       } catch {
         case ex: Exception =>
-          throw new IllegalStateException("Error merging schema", ex)
+          logError("Error merging schema", ex)
       }
     }
 
