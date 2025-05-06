@@ -58,73 +58,150 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
    * Starts up the integration test docker cluster.
    */
   override def beforeAll(): Unit = {
-    logInfo("Starting docker cluster")
+    try {
+      logInfo("Starting docker cluster setup")
 
-    val dockerEnv = new Properties()
-    dockerEnv.load(new FileInputStream(new File(DOCKER_INTEG_DIR, ".env")))
-    OPENSEARCH_URL = "http://localhost:" + dockerEnv.getProperty("OPENSEARCH_PORT")
-    OPENSEARCH_PASSWORD = dockerEnv.getProperty("OPENSEARCH_ADMIN_PASSWORD")
-    SPARK_CONNECT_PORT = Integer.parseInt(dockerEnv.getProperty("SPARK_CONNECT_PORT"))
-    S3_ACCESS_KEY = dockerEnv.getProperty("S3_ACCESS_KEY")
-    S3_SECRET_KEY = dockerEnv.getProperty("S3_SECRET_KEY")
+      // Step 1: Load environment properties
+      logInfo("Loading docker environment properties")
+      val dockerEnv = new Properties()
+      val envFile = new File(DOCKER_INTEG_DIR, ".env")
+      logInfo(s"Reading environment from ${envFile.getAbsolutePath()}")
+      if (!envFile.exists()) {
+        throw new IllegalStateException(s"Environment file not found: ${envFile.getAbsolutePath()}")
+      }
+      dockerEnv.load(new FileInputStream(envFile))
+      OPENSEARCH_URL = "http://localhost:" + dockerEnv.getProperty("OPENSEARCH_PORT")
+      OPENSEARCH_PASSWORD = dockerEnv.getProperty("OPENSEARCH_ADMIN_PASSWORD")
+      SPARK_CONNECT_PORT = Integer.parseInt(dockerEnv.getProperty("SPARK_CONNECT_PORT"))
+      S3_ACCESS_KEY = dockerEnv.getProperty("S3_ACCESS_KEY")
+      S3_SECRET_KEY = dockerEnv.getProperty("S3_SECRET_KEY")
+      logInfo(s"Environment loaded: OPENSEARCH_URL=$OPENSEARCH_URL, SPARK_CONNECT_PORT=$SPARK_CONNECT_PORT")
 
-    val cmdWithArgs = List("docker", "volume", "rm") ++ DOCKER_VOLUMES
-    val deleteDockerVolumesProcess = new ProcessBuilder(cmdWithArgs.toArray: _*).start()
-    deleteDockerVolumesProcess.waitFor(10, TimeUnit.SECONDS)
+      // Step 2: Clean up existing docker volumes
+      logInfo("Cleaning up existing docker volumes")
+      val cmdWithArgs = List("docker", "volume", "rm") ++ DOCKER_VOLUMES
+      logInfo(s"Executing command: ${cmdWithArgs.mkString(" ")}")
+      val deleteDockerVolumesProcess = new ProcessBuilder(cmdWithArgs.toArray: _*).start()
+      val volumeDeleteCompleted = deleteDockerVolumesProcess.waitFor(10, TimeUnit.SECONDS)
+      if (!volumeDeleteCompleted) {
+        logWarning("Docker volume deletion timed out, proceeding anyway")
+      } else {
+        val exitCode = deleteDockerVolumesProcess.exitValue()
+        logInfo(s"Docker volume deletion completed with exit code: $exitCode")
+      }
 
-    val dockerProcess = new ProcessBuilder("docker", "compose", "up", "-d")
-      .directory(new File(DOCKER_INTEG_DIR))
-      .start()
-    var stopReading = false
-    new Thread() {
-      override def run(): Unit = {
-        val reader = new BufferedReader(new InputStreamReader(dockerProcess.getInputStream))
-        var line = reader.readLine()
-        while (!stopReading && line != null) {
-          logInfo("*** " + line)
-          line = reader.readLine()
+      // Step 3: Start docker containers
+      logInfo("Starting docker containers")
+      val dockerComposeDir = new File(DOCKER_INTEG_DIR)
+      logInfo(s"Docker compose directory: ${dockerComposeDir.getAbsolutePath()}")
+      if (!dockerComposeDir.exists()) {
+        throw new IllegalStateException(s"Docker compose directory not found: ${dockerComposeDir.getAbsolutePath()}")
+      }
+      // Check if docker-compose.yml exists
+      val dockerComposeFile = new File(dockerComposeDir, "docker-compose.yml")
+      if (!dockerComposeFile.exists()) {
+        throw new IllegalStateException(s"docker-compose.yml not found at ${dockerComposeFile.getAbsolutePath()}")
+      }
+      val dockerProcess = new ProcessBuilder("docker-compose", "up", "-d")
+        .directory(dockerComposeDir)
+        .start()
+      // Capture and log docker compose output
+      var stopReading = false
+      val logThread = new Thread() {
+        override def run(): Unit = {
+          val reader = new BufferedReader(new InputStreamReader(dockerProcess.getInputStream))
+          val errorReader = new BufferedReader(new InputStreamReader(dockerProcess.getErrorStream))
+          try {
+            var line = reader.readLine()
+            while (!stopReading && line != null) {
+              logInfo("Docker output: " + line)
+              line = reader.readLine()
+            }
+            // Also read error stream
+            line = errorReader.readLine()
+            while (!stopReading && line != null) {
+              logError("Docker error: " + line)
+              line = errorReader.readLine()
+            }
+          } catch {
+            case e: Exception =>
+              logError("Error reading docker process output", e)
+          }
         }
       }
-    }.start()
-    val completed = dockerProcess.waitFor(30, TimeUnit.MINUTES)
-    stopReading = true
-    if (!completed) {
-      throw new IllegalStateException("Unable to start docker cluster")
-    }
-
-    if (dockerProcess.exitValue() != 0) {
-      logError("Unable to start docker cluster")
-    }
-
-    logInfo("Started docker cluster")
-
-    // Wait for services to be ready
-    waitForService("localhost", 9000)  // MinIO
-    waitForService("localhost", SPARK_CONNECT_PORT)  // Spark
-    waitForService("localhost", dockerEnv.getProperty("OPENSEARCH_PORT").toInt)  // OpenSearch
-
-    // Wait for S3 service to be available before proceeding
-    if (!waitForS3Available()) {
-      throw new IllegalStateException("S3 service did not become available")
-    }
-
-    // Add these lines to verify and create required buckets
-    try {
-      ensureBucketExists(INTEG_TEST_BUCKET)      // "XXXXXXXXXX" bucket
-      logInfo(s"Successfully verified/created bucket '$INTEG_TEST_BUCKET'")
-      ensureBucketExists(TEST_RESOURCES_BUCKET)   // "XXXXXXXXXXXXXX" bucket
-      logInfo(s"Successfully verified/created bucket '$TEST_RESOURCES_BUCKET'")
-      // Ensure the datasource exists for Async Query API
-      if (!ensureDataSourceExists()) {
-        logError("Failed to create or verify datasource for Async Query API")
+      logThread.start()
+      logInfo("Waiting for docker containers to start (timeout: 20 minutes)")
+      val completed = dockerProcess.waitFor(20, TimeUnit.MINUTES)
+      stopReading = true
+      if (!completed) {
+        throw new IllegalStateException("Docker container startup timed out after 20 minutes")
       }
+
+      val exitCode = dockerProcess.exitValue()
+      if (exitCode != 0) {
+        logError(s"Docker compose failed with exit code: $exitCode")
+        throw new IllegalStateException(s"Docker compose failed with exit code: $exitCode")
+      }
+
+      logInfo("Docker containers started successfully")
+
+      // Step 4: Wait for services to be ready
+      logInfo("Waiting for services to be ready")
+      try {
+        logInfo("Waiting for MinIO service (localhost:9000)")
+        waitForService("localhost", 9000, 120000)  // MinIO - increased timeout to 2 minutes
+        logInfo("MinIO service is ready")
+        logInfo(s"Waiting for Spark service (localhost:$SPARK_CONNECT_PORT)")
+        waitForService("localhost", SPARK_CONNECT_PORT, 120000)  // Spark - increased timeout to 2 minutes
+        logInfo("Spark service is ready")
+        logInfo(s"Waiting for OpenSearch service (localhost:${dockerEnv.getProperty("OPENSEARCH_PORT").toInt})")
+        waitForService("localhost", dockerEnv.getProperty("OPENSEARCH_PORT").toInt, 120000)  // OpenSearch - increased timeout to 2 minutes
+        logInfo("OpenSearch service is ready")
+      } catch {
+        case e: Exception =>
+          logError("Failed waiting for services to be ready", e)
+          throw e
+      }
+
+      // Step 5: Wait for S3 service to be available
+      logInfo("Waiting for S3 service to be available")
+      if (!waitForS3Available()) {
+        throw new IllegalStateException("S3 service did not become available after multiple attempts")
+      }
+      logInfo("S3 service is available")
+
+      // Step 6: Create required buckets
+      logInfo("Creating required S3 buckets")
+      try {
+        logInfo(s"Ensuring bucket '$INTEG_TEST_BUCKET' exists")
+        ensureBucketExists(INTEG_TEST_BUCKET)
+        logInfo(s"Successfully verified/created bucket '$INTEG_TEST_BUCKET'")
+        logInfo(s"Ensuring bucket '$TEST_RESOURCES_BUCKET' exists")
+        ensureBucketExists(TEST_RESOURCES_BUCKET)
+        logInfo(s"Successfully verified/created bucket '$TEST_RESOURCES_BUCKET'")
+        // Step 7: Ensure the datasource exists for Async Query API
+        logInfo("Ensuring datasource exists for Async Query API")
+        if (!ensureDataSourceExists()) {
+          logError("Failed to create or verify datasource for Async Query API")
+        } else {
+          logInfo("Datasource for Async Query API is ready")
+        }
+      } catch {
+        case e: Exception =>
+          logError(s"Failed to ensure buckets exist: ${e.getMessage}", e)
+          throw e
+      }
+      // Step 8: Create tables and indices
+      logInfo("Creating Spark tables")
+      createTables()
+      logInfo("Creating OpenSearch indices")
+      createIndices()
+      logInfo("Docker cluster setup completed successfully")
     } catch {
       case e: Exception =>
-        logError(s"Failed to ensure buckets exist: ${e.getMessage}", e)
+        logError("Exception during beforeAll setup", e)
         throw e
     }
-    createTables()
-    createIndices()
   }
 
   /**
@@ -136,7 +213,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
 
     try {
       // First attempt to stop containers gracefully
-      val dockerProcess = new ProcessBuilder("docker", "compose", "down")
+      val dockerProcess = new ProcessBuilder("docker-compose", "down")
         .directory(new File(DOCKER_INTEG_DIR))
         .start()
       // Capture output for debugging
@@ -268,19 +345,32 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
   def waitForService(host: String, port: Int, timeoutMs: Long = 60000): Unit = {
     val endTime = System.currentTimeMillis() + timeoutMs
     var connected = false
+    var attemptCount = 0
+    var lastError: Throwable = null
     while (!connected && System.currentTimeMillis() < endTime) {
+      attemptCount += 1
       try {
         val socket = new java.net.Socket()
-        socket.connect(new java.net.InetSocketAddress(host, port), 1000)
+        // Increase connection timeout from 1 second to 5 seconds
+        socket.connect(new java.net.InetSocketAddress(host, port), 5000)
         socket.close()
         connected = true
+        logInfo(s"Successfully connected to $host:$port on attempt $attemptCount")
       } catch {
-        case _: Exception =>
-          Thread.sleep(2000)
+        case e: Exception =>
+          lastError = e
+          val timeLeft = endTime - System.currentTimeMillis()
+          if (timeLeft > 0) {
+            logInfo(s"Failed to connect to $host:$port on attempt $attemptCount. ${timeLeft}ms remaining. Error: ${e.getMessage}")
+            // Increase sleep time between attempts
+            Thread.sleep(3000)
+          }
       }
     }
     if (!connected) {
-      throw new IllegalStateException(s"Service $host:$port not available after ${timeoutMs}ms")
+      val errorMsg = s"Service $host:$port not available after ${timeoutMs}ms and $attemptCount attempts"
+      logError(errorMsg, lastError)
+      throw new IllegalStateException(errorMsg, lastError)
     }
   }
 
