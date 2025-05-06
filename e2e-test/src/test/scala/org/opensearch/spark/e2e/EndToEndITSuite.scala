@@ -102,22 +102,58 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
       if (!dockerComposeFile.exists()) {
         throw new IllegalStateException(s"docker-compose.yml not found at ${dockerComposeFile.getAbsolutePath()}")
       }
-      // Check if we're using Docker Compose V2 or V1
-      val checkDockerComposeVersion = new ProcessBuilder("docker", "compose", "version")
-        .start()
-      val isDockerComposeV2 = checkDockerComposeVersion.waitFor(5, TimeUnit.SECONDS) &&
-                              checkDockerComposeVersion.exitValue() == 0
-      // Use the appropriate Docker Compose command based on version
-      val dockerComposeCommand = if (isDockerComposeV2) {
-        logInfo("Using Docker Compose V2 syntax (docker compose)")
-        Array("docker", "compose", "up", "-d")
-      } else {
-        logInfo("Using Docker Compose V1 syntax (docker-compose)")
-        Array("docker-compose", "up", "-d")
+      // First check if all required JAR files exist
+      val pplJarPath = dockerEnv.getProperty("PPL_JAR")
+      val flintJarPath = dockerEnv.getProperty("FLINT_JAR")
+      val sqlAppJarPath = dockerEnv.getProperty("SQL_APP_JAR")
+
+      val pplJarFile = new File(pplJarPath)
+      val flintJarFile = new File(flintJarPath)
+      val sqlAppJarFile = new File(sqlAppJarPath)
+
+      if (!pplJarFile.exists()) {
+        logError(s"PPL JAR file not found at ${pplJarFile.getAbsolutePath}")
+        throw new IllegalStateException(s"PPL JAR file not found at ${pplJarFile.getAbsolutePath}")
       }
-      val dockerProcess = new ProcessBuilder(dockerComposeCommand: _*)
+      if (!flintJarFile.exists()) {
+        logError(s"Flint JAR file not found at ${flintJarFile.getAbsolutePath}")
+        throw new IllegalStateException(s"Flint JAR file not found at ${flintJarFile.getAbsolutePath}")
+      }
+      if (!sqlAppJarFile.exists()) {
+        logError(s"SQL App JAR file not found at ${sqlAppJarFile.getAbsolutePath}")
+        throw new IllegalStateException(s"SQL App JAR file not found at ${sqlAppJarFile.getAbsolutePath}")
+      }
+
+      logInfo(s"All required JAR files found: PPL=${pplJarFile.getAbsolutePath}, Flint=${flintJarFile.getAbsolutePath}, SQL=${sqlAppJarFile.getAbsolutePath}")
+
+      // The script is already executable, so we don't need to chmod it
+
+      // Try running docker-compose with a clean environment
+      logInfo("Running docker-compose down first to clean up any existing containers")
+      val cleanupProcess = new ProcessBuilder("docker", "compose", "down", "--volumes", "--remove-orphans")
         .directory(dockerComposeDir)
         .start()
+
+      val cleanupCompleted = cleanupProcess.waitFor(5, TimeUnit.MINUTES)
+      if (!cleanupCompleted) {
+        logWarning("Docker compose cleanup timed out, proceeding anyway")
+      } else {
+        val exitCode = cleanupProcess.exitValue()
+        logInfo(s"Docker compose cleanup completed with exit code: $exitCode")
+      }
+
+      // Use docker-compose directly with verbose output
+      logInfo("Using docker-compose command")
+      val dockerComposeCommand = Array("docker", "compose", "up", "-d")
+
+      // Add environment variables to the process
+      val pb = new ProcessBuilder(dockerComposeCommand: _*)
+        .directory(dockerComposeDir)
+
+      // Debug: Print the command
+      logInfo(s"Executing command: ${dockerComposeCommand.mkString(" ")} in directory ${dockerComposeDir.getAbsolutePath()}")
+
+      val dockerProcess = pb.start()
       // Capture and log docker compose output
       var stopReading = false
       val logThread = new Thread() {
@@ -235,7 +271,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
       val dockerComposeCommand = if (isDockerComposeV2) {
         Array("docker", "compose", "down")
       } else {
-        Array("docker-compose", "down")
+        Array("docker", "compose", "down")
       }
       val dockerProcess = new ProcessBuilder(dockerComposeCommand: _*)
         .directory(new File(DOCKER_INTEG_DIR))
@@ -258,7 +294,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
         val forceCommand = if (isDockerComposeV2) {
           Array("docker", "compose", "down", "--remove-orphans", "-v")
         } else {
-          Array("docker-compose", "down", "--remove-orphans", "-v")
+          Array("docker", "compose", "down", "--remove-orphans", "-v")
         }
         val forceProcess = new ProcessBuilder(forceCommand: _*)
           .directory(new File(DOCKER_INTEG_DIR))
