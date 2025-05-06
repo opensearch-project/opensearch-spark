@@ -102,7 +102,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
       if (!dockerComposeFile.exists()) {
         throw new IllegalStateException(s"docker-compose.yml not found at ${dockerComposeFile.getAbsolutePath()}")
       }
-      val dockerProcess = new ProcessBuilder("docker-compose", "up", "-d")
+      val dockerProcess = new ProcessBuilder("docker", "compose", "up", "-d")
         .directory(dockerComposeDir)
         .start()
       // Capture and log docker compose output
@@ -213,7 +213,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
 
     try {
       // First attempt to stop containers gracefully
-      val dockerProcess = new ProcessBuilder("docker-compose", "down")
+      val dockerProcess = new ProcessBuilder("docker", "compose", "down")
         .directory(new File(DOCKER_INTEG_DIR))
         .start()
       // Capture output for debugging
