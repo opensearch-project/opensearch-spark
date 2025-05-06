@@ -49,7 +49,125 @@ import org.apache.spark.sql.flint.FlintDataSourceV2.FLINT_DATASOURCE
  */
 class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with Matchers {
 
-  val dslQueryQueryVPCPC: String =
+  val mvQueryVPC: String = s"""
+       |SELECT
+       |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
+       |  action AS `aws.vpc.action`,
+       |  srcAddr AS `aws.vpc.srcaddr`,
+       |  dstAddr AS `aws.vpc.dstaddr`,
+       |  protocol AS `aws.vpc.protocol`,
+       |  COUNT(*) AS `aws.vpc.total_count`,
+       |  SUM(bytes) AS `aws.vpc.total_bytes`,
+       |  SUM(packets) AS `aws.vpc.total_packets`
+       |FROM (
+       |  SELECT
+       |    action,
+       |    srcAddr,
+       |    dstAddr,
+       |    bytes,
+       |    packets,
+       |    protocol,
+       |    CAST(FROM_UNIXTIME(start) AS TIMESTAMP) AS `@timestamp`
+       |  FROM
+       |    $catalogName.default.vpc_low_test
+       |)
+       |GROUP BY
+       |  TUMBLE(`@timestamp`, '5 Minute'),
+       |  action,
+       |  srcAddr,
+       |  dstAddr,
+       |  protocol
+       |""".stripMargin
+
+  val mvQueryCT: String = s"""
+       |SELECT
+       |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
+       |  `userIdentity.type` AS `aws.cloudtrail.userIdentity.type`,
+       |  `userIdentity.accountId` AS `aws.cloudtrail.userIdentity.accountId`,
+       |  `userIdentity.sessionContext.sessionIssuer.userName` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.userName`,
+       |  `userIdentity.sessionContext.sessionIssuer.arn` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.arn`,
+       |  `userIdentity.sessionContext.sessionIssuer.type` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.type`,
+       |  awsRegion AS `aws.cloudtrail.awsRegion`,
+       |  sourceIPAddress AS `aws.cloudtrail.sourceIPAddress`,
+       |  eventSource AS `aws.cloudtrail.eventSource`,
+       |  eventName AS `aws.cloudtrail.eventName`,
+       |  eventCategory AS `aws.cloudtrail.eventCategory`,
+       |  COUNT(*) AS `aws.cloudtrail.event_count`
+       |FROM (
+       |  SELECT
+       |    CAST(eventTime AS TIMESTAMP) AS `@timestamp`,
+       |    userIdentity.`type` AS `userIdentity.type`,
+       |    userIdentity.`accountId` AS `userIdentity.accountId`,
+       |    userIdentity.sessionContext.sessionIssuer.userName AS `userIdentity.sessionContext.sessionIssuer.userName`,
+       |    userIdentity.sessionContext.sessionIssuer.arn AS `userIdentity.sessionContext.sessionIssuer.arn`,
+       |    userIdentity.sessionContext.sessionIssuer.type AS `userIdentity.sessionContext.sessionIssuer.type`,
+       |    awsRegion,
+       |    sourceIPAddress,
+       |    eventSource,
+       |    eventName,
+       |    eventCategory
+       |  FROM
+       |    $catalogName.default.cloud_trail_test
+       |)
+       |GROUP BY
+       |  TUMBLE(`@timestamp`, '5 Minute'),
+       |  `userIdentity.type`,
+       |  `userIdentity.accountId`,
+       |  `userIdentity.sessionContext.sessionIssuer.userName`,
+       |  `userIdentity.sessionContext.sessionIssuer.arn`,
+       |  `userIdentity.sessionContext.sessionIssuer.type`,
+       |  awsRegion,
+       |  sourceIPAddress,
+       |  eventSource,
+       |  eventName,
+       |  eventCategory
+       |""".stripMargin
+
+  val mvQueryWAF: String = s"""
+       |SELECT
+       |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
+       |  webaclId AS `aws.waf.webaclId`,
+       |  action AS `aws.waf.action`,
+       |  `httpRequest.clientIp` AS `aws.waf.httpRequest.clientIp`,
+       |  `httpRequest.country` AS `aws.waf.httpRequest.country`,
+       |  `httpRequest.uri` AS `aws.waf.httpRequest.uri`,
+       |  `httpRequest.httpMethod` AS `aws.waf.httpRequest.httpMethod`,
+       |  httpSourceId AS `aws.waf.httpSourceId`,
+       |  terminatingRuleId AS `aws.waf.terminatingRuleId`,
+       |  terminatingRuleType AS `aws.waf.RuleType`,
+       |  `ruleGroupList.ruleId` AS `aws.waf.ruleGroupList.ruleId`,
+       |  COUNT(*) AS `aws.waf.event_count`
+       |FROM (
+       |  SELECT
+       |    CAST(FROM_UNIXTIME(`timestamp`/1000) AS TIMESTAMP) AS `@timestamp`,
+       |    webaclId,
+       |    action,
+       |    httpRequest.clientIp AS `httpRequest.clientIp`,
+       |    httpRequest.country AS `httpRequest.country`,
+       |    httpRequest.uri AS `httpRequest.uri`,
+       |    httpRequest.httpMethod AS `httpRequest.httpMethod`,
+       |    httpSourceId,
+       |    terminatingRuleId,
+       |    terminatingRuleType,
+       |    ruleGroupList.ruleId AS `ruleGroupList.ruleId`
+       |  FROM
+       |    $catalogName.default.waf_test
+       |)
+       |GROUP BY
+       |  TUMBLE(`@timestamp`, '5 Minute'),
+       |  webaclId,
+       |  action,
+       |  `httpRequest.clientIp`,
+       |  `httpRequest.country`,
+       |  `httpRequest.uri`,
+       |  `httpRequest.httpMethod`,
+       |  httpSourceId,
+       |  terminatingRuleId,
+       |  terminatingRuleType,
+       |  `ruleGroupList.ruleId`
+       |""".stripMargin
+
+  val dslQueryQuery: String =
     """
       |{
       |    "bool": {
@@ -60,65 +178,11 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       |      ]
       |    }
       |}
-      |""".stripMargin
-
-  val dslQueryQueryVPCTSC: String =
-    """
-      |{
-      |    "bool": {
-      |      "filter": [
-      |        {
-      |          "match_all": {}
-      |        }
-      |      ]
-      |    }
-      |}
-      |""".stripMargin
-
-  val dslQueryAggregationsVPCPC: String =
-    """
-      |"aggs": {
-      |    "2": {
-      |      "terms": {
-      |        "field": "aws.vpc.srcaddr",
-      |        "order": {
-      |          "1": "desc"
-      |        },
-      |        "size": 10
-      |      },
-      |      "aggs": {
-      |        "1": {
-      |          "sum": {
-      |            "field": "bytes"
-      |          }
-      |        }
-      |      }
-      |    }
-      |  }
-      |""".stripMargin
-
-  val dslQueryAggregationsVPCTSC: String =
-    """
-      |"aggs": {
-      |    "2": {
-      |      "date_histogram": {
-      |        "field": "start_time",
-      |        "min_doc_count": 1,
-      |      },
-      |      "aggs": {
-      |        "1": {
-      |          "sum": {
-      |            "field": "bytes"
-      |          }
-      |        }
-      |      }
-      |    }
-      |  }
       |""".stripMargin
 
   val dslQueryBuilderVPCTSC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQueryVPCTSC))
+      .query(QueryBuilders.wrapperQuery(dslQueryQuery))
     val dateHistogramAgg = AggregationBuilders
       .dateHistogram("2")
       .field("start_time")
@@ -137,7 +201,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
 
   val dslQueryBuilderVPCPC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQueryVPCPC))
+      .query(QueryBuilders.wrapperQuery(dslQueryQuery))
     val termsAgg = AggregationBuilders.terms("2").field("aws.vpc.srcaddr")
 
     val sumAgg = AggregationBuilders
@@ -158,40 +222,13 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     Map("key" -> "10.0.0.1", "doc_count" -> 1),
     Map("key" -> "10.0.0.3", "doc_count" -> 1),
     Map("key" -> "10.0.0.5", "doc_count" -> 1))
+
   test(
     "create aggregated materialized view for VPC flow integration unfiltered time series chart") {
     withIntegration("vpc_flow") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.vpc_low_test")
-        .createMaterializedView(s"""
-             |SELECT
-             |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
-             |  action AS `aws.vpc.action`,
-             |  srcAddr AS `aws.vpc.srcaddr`,
-             |  dstAddr AS `aws.vpc.dstaddr`,
-             |  protocol AS `aws.vpc.protocol`,
-             |  COUNT(*) AS `aws.vpc.total_count`,
-             |  SUM(bytes) AS `aws.vpc.total_bytes`,
-             |  SUM(packets) AS `aws.vpc.total_packets`
-             |FROM (
-             |  SELECT
-             |    action,
-             |    srcAddr,
-             |    dstAddr,
-             |    bytes,
-             |    packets,
-             |    protocol,
-             |    CAST(FROM_UNIXTIME(start) AS TIMESTAMP) AS `@timestamp`
-             |  FROM
-             |    $catalogName.default.vpc_low_test
-             |)
-             |GROUP BY
-             |  TUMBLE(`@timestamp`, '5 Minute'),
-             |  action,
-             |  srcAddr,
-             |  dstAddr,
-             |  protocol
-             |""".stripMargin)
+        .createMaterializedView(mvQueryVPC)
         .assertDslQueryTSC(dslQueryBuilderVPCTSC, expectedBucketsVPCTSC)
     }
   }
@@ -200,35 +237,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("vpc_flow") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.vpc_low_test")
-        .createMaterializedView(s"""
-             |SELECT
-             |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
-             |  action AS `aws.vpc.action`,
-             |  srcAddr AS `aws.vpc.srcaddr`,
-             |  dstAddr AS `aws.vpc.dstaddr`,
-             |  protocol AS `aws.vpc.protocol`,
-             |  COUNT(*) AS `aws.vpc.total_count`,
-             |  SUM(bytes) AS `aws.vpc.total_bytes`,
-             |  SUM(packets) AS `aws.vpc.total_packets`
-             |FROM (
-             |  SELECT
-             |    action,
-             |    srcAddr,
-             |    dstAddr,
-             |    bytes,
-             |    packets,
-             |    protocol,
-             |    CAST(FROM_UNIXTIME(start) AS TIMESTAMP) AS `@timestamp`
-             |  FROM
-             |    $catalogName.default.vpc_low_test
-             |)
-             |GROUP BY
-             |  TUMBLE(`@timestamp`, '5 Minute'),
-             |  action,
-             |  srcAddr,
-             |  dstAddr,
-             |  protocol
-             |""".stripMargin)
+        .createMaterializedView(mvQueryVPC)
         .assertDslQueryPC(dslQueryBuilderVPCPC, expectedBucketsVPCPC)
     }
   }
@@ -237,35 +246,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("vpc_flow") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.vpc_low_test")
-        .createMaterializedView(s"""
-             |SELECT
-             |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
-             |  action AS `aws.vpc.action`,
-             |  srcAddr AS `aws.vpc.srcaddr`,
-             |  dstAddr AS `aws.vpc.dstaddr`,
-             |  protocol AS `aws.vpc.protocol`,
-             |  COUNT(*) AS `aws.vpc.total_count`,
-             |  SUM(bytes) AS `aws.vpc.total_bytes`,
-             |  SUM(packets) AS `aws.vpc.total_packets`
-             |FROM (
-             |  SELECT
-             |    action,
-             |    srcAddr,
-             |    dstAddr,
-             |    bytes,
-             |    packets,
-             |    protocol,
-             |    CAST(FROM_UNIXTIME(start) AS TIMESTAMP) AS `@timestamp`
-             |  FROM
-             |    $catalogName.default.vpc_low_test
-             |)
-             |GROUP BY
-             |  TUMBLE(`@timestamp`, '5 Minute'),
-             |  action,
-             |  srcAddr,
-             |  dstAddr,
-             |  protocol
-             |""".stripMargin)
+        .createMaterializedView(mvQueryVPC)
         .assertIndexData(
           Row(
             timestampFromUTC("2023-11-01T05:00:00Z"),
@@ -297,78 +278,9 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     }
   }
 
-  val dslQueryQueryCTTSC: String =
-    """
-      |{
-      |    "bool": {
-      |      "filter": [
-      |        {
-      |          "match_all": {}
-      |        }
-      |      ]
-      |    }
-      |}
-      |""".stripMargin
-
-  val dslQueryAggsCTTSC: String =
-    """
-      |"aggs": {
-      |    "2": {
-      |      "date_histogram": {
-      |        "field": "start_time",
-      |        "fixed_interval": "30s",
-      |        "time_zone": "America/Los_Angeles",
-      |        "min_doc_count": 1
-      |      },
-      |      "aggs": {
-      |        "1": {
-      |          "sum": {
-      |            "field": "aws.cloudtrail.event_count"
-      |          }
-      |        }
-      |      }
-      |    }
-      |  }
-      |""".stripMargin
-
-  val dslQueryQueryCTPC: String =
-    """
-      |{
-      |    "bool": {
-      |      "filter": [
-      |        {
-      |          "match_all": {}
-      |        }
-      |      ]
-      |    }
-      |}
-      |""".stripMargin
-
-  val dslQueryAggsCTPC: String =
-    """
-      |"aggs": {
-      |    "2": {
-      |      "terms": {
-      |        "field": "aws.cloudtrail.sourceIPAddress",
-      |        "order": {
-      |          "1": "desc"
-      |        },
-      |        "size": 10
-      |      },
-      |      "aggs": {
-      |        "1": {
-      |          "sum": {
-      |            "field": "aws.cloudtrail.event_count"
-      |          }
-      |        }
-      |      }
-      |    }
-      |  }
-      |""".stripMargin
-
   val dslQueryBuilderCTTSC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQueryCTTSC))
+      .query(QueryBuilders.wrapperQuery(dslQueryQuery))
     val dateHistogramAgg = AggregationBuilders
       .dateHistogram("2")
       .field("start_time")
@@ -386,7 +298,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
 
   val dslQueryBuilderCTPC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQueryCTPC))
+      .query(QueryBuilders.wrapperQuery(dslQueryQuery))
     val termsAgg = AggregationBuilders
       .terms("2")
       .field("aws.cloudtrail.sourceIPAddress")
@@ -413,49 +325,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("cloud_trail") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.cloud_trail_test")
-        .createMaterializedView(s"""
-                                   |SELECT
-                                   |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
-                                   |  `userIdentity.type` AS `aws.cloudtrail.userIdentity.type`,
-                                   |  `userIdentity.accountId` AS `aws.cloudtrail.userIdentity.accountId`,
-                                   |  `userIdentity.sessionContext.sessionIssuer.userName` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.userName`,
-                                   |  `userIdentity.sessionContext.sessionIssuer.arn` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.arn`,
-                                   |  `userIdentity.sessionContext.sessionIssuer.type` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.type`,
-                                   |  awsRegion AS `aws.cloudtrail.awsRegion`,
-                                   |  sourceIPAddress AS `aws.cloudtrail.sourceIPAddress`,
-                                   |  eventSource AS `aws.cloudtrail.eventSource`,
-                                   |  eventName AS `aws.cloudtrail.eventName`,
-                                   |  eventCategory AS `aws.cloudtrail.eventCategory`,
-                                   |  COUNT(*) AS `aws.cloudtrail.event_count`
-                                   |FROM (
-                                   |  SELECT
-                                   |    CAST(eventTime AS TIMESTAMP) AS `@timestamp`,
-                                   |    userIdentity.`type` AS `userIdentity.type`,
-                                   |    userIdentity.`accountId` AS `userIdentity.accountId`,
-                                   |    userIdentity.sessionContext.sessionIssuer.userName AS `userIdentity.sessionContext.sessionIssuer.userName`,
-                                   |    userIdentity.sessionContext.sessionIssuer.arn AS `userIdentity.sessionContext.sessionIssuer.arn`,
-                                   |    userIdentity.sessionContext.sessionIssuer.type AS `userIdentity.sessionContext.sessionIssuer.type`,
-                                   |    awsRegion,
-                                   |    sourceIPAddress,
-                                   |    eventSource,
-                                   |    eventName,
-                                   |    eventCategory
-                                   |  FROM
-                                   |    $catalogName.default.cloud_trail_test
-                                   |)
-                                   |GROUP BY
-                                   |  TUMBLE(`@timestamp`, '5 Minute'),
-                                   |  `userIdentity.type`,
-                                   |  `userIdentity.accountId`,
-                                   |  `userIdentity.sessionContext.sessionIssuer.userName`,
-                                   |  `userIdentity.sessionContext.sessionIssuer.arn`,
-                                   |  `userIdentity.sessionContext.sessionIssuer.type`,
-                                   |  awsRegion,
-                                   |  sourceIPAddress,
-                                   |  eventSource,
-                                   |  eventName,
-                                   |  eventCategory
-                                   |""".stripMargin)
+        .createMaterializedView(mvQueryCT)
         .assertDslQueryTSC(dslQueryBuilderCTTSC, expectedBucketsCTTSC)
     }
   }
@@ -464,49 +334,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("cloud_trail") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.cloud_trail_test")
-        .createMaterializedView(s"""
-                                   |SELECT
-                                   |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
-                                   |  `userIdentity.type` AS `aws.cloudtrail.userIdentity.type`,
-                                   |  `userIdentity.accountId` AS `aws.cloudtrail.userIdentity.accountId`,
-                                   |  `userIdentity.sessionContext.sessionIssuer.userName` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.userName`,
-                                   |  `userIdentity.sessionContext.sessionIssuer.arn` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.arn`,
-                                   |  `userIdentity.sessionContext.sessionIssuer.type` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.type`,
-                                   |  awsRegion AS `aws.cloudtrail.awsRegion`,
-                                   |  sourceIPAddress AS `aws.cloudtrail.sourceIPAddress`,
-                                   |  eventSource AS `aws.cloudtrail.eventSource`,
-                                   |  eventName AS `aws.cloudtrail.eventName`,
-                                   |  eventCategory AS `aws.cloudtrail.eventCategory`,
-                                   |  COUNT(*) AS `aws.cloudtrail.event_count`
-                                   |FROM (
-                                   |  SELECT
-                                   |    CAST(eventTime AS TIMESTAMP) AS `@timestamp`,
-                                   |    userIdentity.`type` AS `userIdentity.type`,
-                                   |    userIdentity.`accountId` AS `userIdentity.accountId`,
-                                   |    userIdentity.sessionContext.sessionIssuer.userName AS `userIdentity.sessionContext.sessionIssuer.userName`,
-                                   |    userIdentity.sessionContext.sessionIssuer.arn AS `userIdentity.sessionContext.sessionIssuer.arn`,
-                                   |    userIdentity.sessionContext.sessionIssuer.type AS `userIdentity.sessionContext.sessionIssuer.type`,
-                                   |    awsRegion,
-                                   |    sourceIPAddress,
-                                   |    eventSource,
-                                   |    eventName,
-                                   |    eventCategory
-                                   |  FROM
-                                   |    $catalogName.default.cloud_trail_test
-                                   |)
-                                   |GROUP BY
-                                   |  TUMBLE(`@timestamp`, '5 Minute'),
-                                   |  `userIdentity.type`,
-                                   |  `userIdentity.accountId`,
-                                   |  `userIdentity.sessionContext.sessionIssuer.userName`,
-                                   |  `userIdentity.sessionContext.sessionIssuer.arn`,
-                                   |  `userIdentity.sessionContext.sessionIssuer.type`,
-                                   |  awsRegion,
-                                   |  sourceIPAddress,
-                                   |  eventSource,
-                                   |  eventName,
-                                   |  eventCategory
-                                   |""".stripMargin)
+        .createMaterializedView(mvQueryCT)
         .assertDslQueryPC(dslQueryBuilderCTPC, expectedBucketsCTPC)
     }
   }
@@ -524,42 +352,6 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       |}
       |""".stripMargin
 
-  val dslQueryAggsWAFTSC: String =
-    """
-      |"aggs": {
-      |    "2": {
-      |      "terms": {
-      |        "field": "aws.waf.action",
-      |        "order": {
-      |          "1": "desc"
-      |        },
-      |        "size": 5
-      |      },
-      |      "aggs": {
-      |        "1": {
-      |          "sum": {
-      |            "field": "aws.waf.event_count"
-      |          }
-      |        },
-      |        "3": {
-      |          "date_histogram": {
-      |            "field": "start_time",
-      |            "fixed_interval": "30s",
-      |            "time_zone": "America/Los_Angeles",
-      |            "min_doc_count": 1
-      |          },
-      |          "aggs": {
-      |            "1": {
-      |              "sum": {
-      |                "field": "aws.waf.event_count"
-      |              }
-      |            }
-      |          }
-      |        }
-      |      }
-      |    }
-      |""".stripMargin
-
   val dslQueryQueryWAFPC: String =
     """
       |{
@@ -571,28 +363,6 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       |      ]
       |    }
       |}
-      |""".stripMargin
-
-  val dslQueryAggsWAFPC: String =
-    """
-      |"aggs": {
-      |    "2": {
-      |      "terms": {
-      |        "field": "aws.waf.httpRequest.clientIp",
-      |        "order": {
-      |          "1": "desc"
-      |        },
-      |        "size": 10
-      |      },
-      |      "aggs": {
-      |        "1": {
-      |          "sum": {
-      |            "field": "aws.waf.event_count"
-      |          }
-      |        }
-      |      }
-      |    }
-      |  }
       |""".stripMargin
 
   val dslQueryBuilderWAFTSC: SearchSourceBuilder = {
@@ -636,7 +406,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
 
   val dslQueryBuilderWAFPC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQueryCTPC))
+      .query(QueryBuilders.wrapperQuery(dslQueryQuery))
     val termsAgg = AggregationBuilders
       .terms("2")
       .field("aws.waf.httpRequest.clientIp")
@@ -662,49 +432,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("waf") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.waf_test")
-        .createMaterializedView(s"""
-                                   |SELECT
-                                   |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
-                                   |  webaclId AS `aws.waf.webaclId`,
-                                   |  action AS `aws.waf.action`,
-                                   |  `httpRequest.clientIp` AS `aws.waf.httpRequest.clientIp`,
-                                   |  `httpRequest.country` AS `aws.waf.httpRequest.country`,
-                                   |  `httpRequest.uri` AS `aws.waf.httpRequest.uri`,
-                                   |  `httpRequest.httpMethod` AS `aws.waf.httpRequest.httpMethod`,
-                                   |  httpSourceId AS `aws.waf.httpSourceId`,
-                                   |  terminatingRuleId AS `aws.waf.terminatingRuleId`,
-                                   |  terminatingRuleType AS `aws.waf.RuleType`,
-                                   |  `ruleGroupList.ruleId` AS `aws.waf.ruleGroupList.ruleId`,
-                                   |  COUNT(*) AS `aws.waf.event_count`
-                                   |FROM (
-                                   |  SELECT
-                                   |    CAST(FROM_UNIXTIME(`timestamp`/1000) AS TIMESTAMP) AS `@timestamp`,
-                                   |    webaclId,
-                                   |    action,
-                                   |    httpRequest.clientIp AS `httpRequest.clientIp`,
-                                   |    httpRequest.country AS `httpRequest.country`,
-                                   |    httpRequest.uri AS `httpRequest.uri`,
-                                   |    httpRequest.httpMethod AS `httpRequest.httpMethod`,
-                                   |    httpSourceId,
-                                   |    terminatingRuleId,
-                                   |    terminatingRuleType,
-                                   |    ruleGroupList.ruleId AS `ruleGroupList.ruleId`
-                                   |  FROM
-                                   |    $catalogName.default.waf_test
-                                   |)
-                                   |GROUP BY
-                                   |  TUMBLE(`@timestamp`, '5 Minute'),
-                                   |  webaclId,
-                                   |  action,
-                                   |  `httpRequest.clientIp`,
-                                   |  `httpRequest.country`,
-                                   |  `httpRequest.uri`,
-                                   |  `httpRequest.httpMethod`,
-                                   |  httpSourceId,
-                                   |  terminatingRuleId,
-                                   |  terminatingRuleType,
-                                   |  `ruleGroupList.ruleId`
-                                   |""".stripMargin)
+        .createMaterializedView(mvQueryWAF)
         .assertDslQueryWAFTSC(dslQueryBuilderWAFTSC, expectedBucketsWAFTSC)
     }
   }
@@ -713,49 +441,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("waf") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.waf_test")
-        .createMaterializedView(s"""
-                                   |SELECT
-                                   |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
-                                   |  webaclId AS `aws.waf.webaclId`,
-                                   |  action AS `aws.waf.action`,
-                                   |  `httpRequest.clientIp` AS `aws.waf.httpRequest.clientIp`,
-                                   |  `httpRequest.country` AS `aws.waf.httpRequest.country`,
-                                   |  `httpRequest.uri` AS `aws.waf.httpRequest.uri`,
-                                   |  `httpRequest.httpMethod` AS `aws.waf.httpRequest.httpMethod`,
-                                   |  httpSourceId AS `aws.waf.httpSourceId`,
-                                   |  terminatingRuleId AS `aws.waf.terminatingRuleId`,
-                                   |  terminatingRuleType AS `aws.waf.RuleType`,
-                                   |  `ruleGroupList.ruleId` AS `aws.waf.ruleGroupList.ruleId`,
-                                   |  COUNT(*) AS `aws.waf.event_count`
-                                   |FROM (
-                                   |  SELECT
-                                   |    CAST(FROM_UNIXTIME(`timestamp`/1000) AS TIMESTAMP) AS `@timestamp`,
-                                   |    webaclId,
-                                   |    action,
-                                   |    httpRequest.clientIp AS `httpRequest.clientIp`,
-                                   |    httpRequest.country AS `httpRequest.country`,
-                                   |    httpRequest.uri AS `httpRequest.uri`,
-                                   |    httpRequest.httpMethod AS `httpRequest.httpMethod`,
-                                   |    httpSourceId,
-                                   |    terminatingRuleId,
-                                   |    terminatingRuleType,
-                                   |    ruleGroupList.ruleId AS `ruleGroupList.ruleId`
-                                   |  FROM
-                                   |    $catalogName.default.waf_test
-                                   |)
-                                   |GROUP BY
-                                   |  TUMBLE(`@timestamp`, '5 Minute'),
-                                   |  webaclId,
-                                   |  action,
-                                   |  `httpRequest.clientIp`,
-                                   |  `httpRequest.country`,
-                                   |  `httpRequest.uri`,
-                                   |  `httpRequest.httpMethod`,
-                                   |  httpSourceId,
-                                   |  terminatingRuleId,
-                                   |  terminatingRuleType,
-                                   |  `ruleGroupList.ruleId`
-                                   |""".stripMargin)
+        .createMaterializedView(mvQueryWAF)
         .assertDslQueryPC(dslQueryBuilderWAFPC, expectedBucketsWAFPC)
     }
   }
@@ -764,49 +450,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("cloud_trail") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.cloud_trail_test")
-        .createMaterializedView(s"""
-             |SELECT
-             |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
-             |  `userIdentity.type` AS `aws.cloudtrail.userIdentity.type`,
-             |  `userIdentity.accountId` AS `aws.cloudtrail.userIdentity.accountId`,
-             |  `userIdentity.sessionContext.sessionIssuer.userName` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.userName`,
-             |  `userIdentity.sessionContext.sessionIssuer.arn` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.arn`,
-             |  `userIdentity.sessionContext.sessionIssuer.type` AS `aws.cloudtrail.userIdentity.sessionContext.sessionIssuer.type`,
-             |  awsRegion AS `aws.cloudtrail.awsRegion`,
-             |  sourceIPAddress AS `aws.cloudtrail.sourceIPAddress`,
-             |  eventSource AS `aws.cloudtrail.eventSource`,
-             |  eventName AS `aws.cloudtrail.eventName`,
-             |  eventCategory AS `aws.cloudtrail.eventCategory`,
-             |  COUNT(*) AS `aws.cloudtrail.event_count`
-             |FROM (
-             |  SELECT
-             |    CAST(eventTime AS TIMESTAMP) AS `@timestamp`,
-             |    userIdentity.`type` AS `userIdentity.type`,
-             |    userIdentity.`accountId` AS `userIdentity.accountId`,
-             |    userIdentity.sessionContext.sessionIssuer.userName AS `userIdentity.sessionContext.sessionIssuer.userName`,
-             |    userIdentity.sessionContext.sessionIssuer.arn AS `userIdentity.sessionContext.sessionIssuer.arn`,
-             |    userIdentity.sessionContext.sessionIssuer.type AS `userIdentity.sessionContext.sessionIssuer.type`,
-             |    awsRegion,
-             |    sourceIPAddress,
-             |    eventSource,
-             |    eventName,
-             |    eventCategory
-             |  FROM
-             |    $catalogName.default.cloud_trail_test
-             |)
-             |GROUP BY
-             |  TUMBLE(`@timestamp`, '5 Minute'),
-             |  `userIdentity.type`,
-             |  `userIdentity.accountId`,
-             |  `userIdentity.sessionContext.sessionIssuer.userName`,
-             |  `userIdentity.sessionContext.sessionIssuer.arn`,
-             |  `userIdentity.sessionContext.sessionIssuer.type`,
-             |  awsRegion,
-             |  sourceIPAddress,
-             |  eventSource,
-             |  eventName,
-             |  eventCategory
-             |""".stripMargin)
+        .createMaterializedView(mvQueryCT)
         .assertIndexData(Row(
           timestampFromUTC("2023-11-01T05:00:00Z"),
           "IAMUser",
@@ -827,49 +471,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("waf") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.waf_test")
-        .createMaterializedView(s"""
-             |SELECT
-             |  TUMBLE(`@timestamp`, '5 Minute').start AS `start_time`,
-             |  webaclId AS `aws.waf.webaclId`,
-             |  action AS `aws.waf.action`,
-             |  `httpRequest.clientIp` AS `aws.waf.httpRequest.clientIp`,
-             |  `httpRequest.country` AS `aws.waf.httpRequest.country`,
-             |  `httpRequest.uri` AS `aws.waf.httpRequest.uri`,
-             |  `httpRequest.httpMethod` AS `aws.waf.httpRequest.httpMethod`,
-             |  httpSourceId AS `aws.waf.httpSourceId`,
-             |  terminatingRuleId AS `aws.waf.terminatingRuleId`,
-             |  terminatingRuleType AS `aws.waf.RuleType`,
-             |  `ruleGroupList.ruleId` AS `aws.waf.ruleGroupList.ruleId`,
-             |  COUNT(*) AS `aws.waf.event_count`
-             |FROM (
-             |  SELECT
-             |    CAST(FROM_UNIXTIME(`timestamp`/1000) AS TIMESTAMP) AS `@timestamp`,
-             |    webaclId,
-             |    action,
-             |    httpRequest.clientIp AS `httpRequest.clientIp`,
-             |    httpRequest.country AS `httpRequest.country`,
-             |    httpRequest.uri AS `httpRequest.uri`,
-             |    httpRequest.httpMethod AS `httpRequest.httpMethod`,
-             |    httpSourceId,
-             |    terminatingRuleId,
-             |    terminatingRuleType,
-             |    ruleGroupList.ruleId AS `ruleGroupList.ruleId`
-             |  FROM
-             |    $catalogName.default.waf_test
-             |)
-             |GROUP BY
-             |  TUMBLE(`@timestamp`, '5 Minute'),
-             |  webaclId,
-             |  action,
-             |  `httpRequest.clientIp`,
-             |  `httpRequest.country`,
-             |  `httpRequest.uri`,
-             |  `httpRequest.httpMethod`,
-             |  httpSourceId,
-             |  terminatingRuleId,
-             |  terminatingRuleType,
-             |  `ruleGroupList.ruleId`
-             |""".stripMargin)
+        .createMaterializedView(mvQueryWAF)
         .assertIndexData(Row(
           timestampFromUTC("2023-11-01T05:00:00Z"),
           "webacl-12345",
