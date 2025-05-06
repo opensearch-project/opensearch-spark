@@ -29,6 +29,36 @@ trait S3ClientTrait {
   def getS3SecretKey(): String
 
   /**
+   * Retrieves the S3 endpoint host for the MinIO container.
+   * Uses environment variable S3_ENDPOINT if set, otherwise defaults to "minio-S3".
+   *
+   * @return S3 endpoint host for the MinIO container
+   */
+  def getS3Endpoint(): String = {
+    sys.env.getOrElse("S3_ENDPOINT", "minio-S3")
+  }
+
+  /**
+   * Retrieves the S3 endpoint port for the MinIO container.
+   * Uses environment variable S3_PORT if set, otherwise defaults to "9000".
+   *
+   * @return S3 endpoint port for the MinIO container
+   */
+  def getS3Port(): String = {
+    sys.env.getOrElse("S3_PORT", "9000")
+  }
+
+  /**
+   * Retrieves the S3 region for the MinIO container.
+   * Uses environment variable S3_REGION if set, otherwise defaults to "us-east-1".
+   *
+   * @return S3 region for the MinIO container
+   */
+  def getS3Region(): String = {
+    sys.env.getOrElse("S3_REGION", "us-east-1")
+  }
+
+  /**
    * Returns an AmazonS3 client. Constructs a new AmazonS3 client for use with the integration test docker cluster
    * MinIO container. Creates a new AmazonS3 client first time this is called, otherwise the existing S3 client is
    * returned.
@@ -41,7 +71,10 @@ trait S3ClientTrait {
         try {
           // First try with the configured credentials
           val credentials = new BasicAWSCredentials(getS3AccessKey(), getS3SecretKey())
-          val endpointConfiguration = new EndpointConfiguration("http://localhost:9000", "us-east-1")
+          val endpoint = s"http://${getS3Endpoint()}:${getS3Port()}"
+          logger.info(s"Connecting to S3 at endpoint: $endpoint")
+          
+          val endpointConfiguration = new EndpointConfiguration(endpoint, getS3Region())
 
           s3Client = AmazonS3ClientBuilder.standard()
             .withCredentials(new AWSStaticCredentialsProvider(credentials))
@@ -56,7 +89,10 @@ trait S3ClientTrait {
             logger.info("Falling back to default MinIO credentials (minioadmin/minioadmin)")
             // Fall back to default MinIO credentials
             val defaultCredentials = new BasicAWSCredentials("minioadmin", "minioadmin")
-            val endpointConfiguration = new EndpointConfiguration("http://localhost:9000", "us-east-1")
+            val endpoint = s"http://${getS3Endpoint()}:${getS3Port()}"
+            logger.info(s"Retrying connection to S3 with default credentials at endpoint: $endpoint")
+            
+            val endpointConfiguration = new EndpointConfiguration(endpoint, getS3Region())
             s3Client = AmazonS3ClientBuilder.standard()
               .withCredentials(new AWSStaticCredentialsProvider(defaultCredentials))
               .withEndpointConfiguration(endpointConfiguration)
