@@ -45,7 +45,7 @@ jobs:
       - name: Start Docker containers
         run: |
           cd docker/integ-test
-          docker-compose up -d
+          docker compose up -d
           echo "Waiting for services to start..."
           sleep 60
           docker ps -a
@@ -58,7 +58,13 @@ jobs:
           docker exec opensearch curl -s -u admin:C0rrecthorsebatterystaple. http://localhost:9200/_cluster/health || echo "OpenSearch health check failed"
 
       - name: End-to-End Test
-        run: sbt e2etest/test
+        run: |
+          # Print environment for debugging
+          echo "Current directory: $(pwd)"
+          echo "Docker containers:"
+          docker ps -a
+          # Run the tests
+          sbt e2etest/test
 
       - name: Capture Docker logs (on failure)
         if: failure()
