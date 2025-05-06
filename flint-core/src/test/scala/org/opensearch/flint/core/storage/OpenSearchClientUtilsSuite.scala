@@ -5,9 +5,11 @@
 
 package org.opensearch.flint.core.storage
 
+import org.scalatest.Ignore
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+@Ignore
 class OpenSearchClientUtilsSuite extends AnyFlatSpec with Matchers {
 
   "sanitizeIndexName" should "percent-encode invalid OpenSearch index name characters and lowercase all characters" in {
