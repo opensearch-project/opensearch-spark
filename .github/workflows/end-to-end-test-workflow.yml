@@ -36,14 +36,15 @@ jobs:
           echo "S3_ENDPOINT=localhost" >> $GITHUB_ENV
           echo "S3_PORT=9000" >> $GITHUB_ENV
           echo "S3_REGION=us-east-1" >> $GITHUB_ENV
-          echo "SPARK_HOST=spark" >> $GITHUB_ENV
+          # Use localhost for Spark host since tests run on the GitHub runner
+          echo "SPARK_HOST=localhost" >> $GITHUB_ENV
 
       - name: Build project
         run: sbt assembly
 
       - name: Start Docker containers
         run: |
-          cd opensearch-spark/docker/integ-test
+          cd docker/integ-test
           docker-compose up -d
           echo "Waiting for services to start..."
           sleep 60
@@ -52,9 +53,9 @@ jobs:
       - name: Check Docker container health
         run: |
           docker ps -a
-          docker exec -it spark curl -s http://localhost:8080/ || echo "Spark master UI not available"
-          docker exec -it minio-S3 curl -s http://localhost:9000/minio/health/live || echo "MinIO health check failed"
-          docker exec -it opensearch curl -s -u admin:C0rrecthorsebatterystaple. http://localhost:9200/_cluster/health || echo "OpenSearch health check failed"
+          docker exec spark curl -s http://localhost:8080/ || echo "Spark master UI not available"
+          docker exec minio-S3 curl -s http://localhost:9000/minio/health/live || echo "MinIO health check failed"
+          docker exec opensearch curl -s -u admin:C0rrecthorsebatterystaple. http://localhost:9200/_cluster/health || echo "OpenSearch health check failed"
 
       - name: End-to-End Test
         run: sbt e2etest/test
