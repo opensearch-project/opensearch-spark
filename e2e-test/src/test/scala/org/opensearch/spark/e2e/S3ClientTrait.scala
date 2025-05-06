@@ -8,85 +8,68 @@ package org.opensearch.spark.e2e
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.services.s3.{AmazonS3, AmazonS3ClientBuilder}
-import com.amazonaws.services.s3.model.HeadBucketRequest
-import org.apache.logging.log4j.{Logger, LogManager}
 
-/**
- * Provides a method for obtaining an S3 client.
- */
 trait S3ClientTrait {
-  private val log: Logger = LogManager.getLogger(getClass)
-  var s3Client : AmazonS3 = null
+  var s3Client: AmazonS3 = null
 
   /**
-   * Retrieves the S3 access key to use
+   * Retrieves the S3 access key for the MinIO container.
    *
-   * @return S3 access key to use
+   * @return S3 access key for the MinIO container
    */
   def getS3AccessKey(): String
 
   /**
-   * Retrieves the S3 secret key to use
+   * Retrieves the S3 secret key for the MinIO container.
    *
-   * @return S3 secret key to use
+   * @return S3 secret key for the MinIO container
    */
   def getS3SecretKey(): String
 
   /**
-   * Returns an S3 client. Constructs a new S3 client for use with the integration test docker cluster. Creates a
-   * new S3 client first time this is called, otherwise the existing S3 client is returned.
+   * Returns an AmazonS3 client. Constructs a new AmazonS3 client for use with the integration test docker cluster
+   * MinIO container. Creates a new AmazonS3 client first time this is called, otherwise the existing S3 client is
+   * returned.
    *
-   * @return an S3 client
+   * @return an AmazonS3 client for use with the integration test docker cluster
    */
   def getS3Client(): AmazonS3 = {
     this.synchronized {
       if (s3Client == null) {
+        val credentials = new BasicAWSCredentials(getS3AccessKey(), getS3SecretKey())
+        val endpointConfiguration = new EndpointConfiguration("http://localhost:9000", "us-east-1")
+
         s3Client = AmazonS3ClientBuilder.standard()
-          .withEndpointConfiguration(new EndpointConfiguration("http://localhost:9000", "us-east-1"))
-          .withCredentials(new AWSStaticCredentialsProvider(
-            new BasicAWSCredentials(getS3AccessKey(), getS3SecretKey())
-          ))
+          .withCredentials(new AWSStaticCredentialsProvider(credentials))
+          .withEndpointConfiguration(endpointConfiguration)
           .withPathStyleAccessEnabled(true)
           .build()
-      }
 
+        ensureBucketExists("integ-test")
+        ensureBucketExists("test-resources")
+      }
       s3Client
     }
   }
 
-   /**
-   * Checks if an S3 bucket exists and is accessible
+  /**
+   * Ensures that the specified bucket exists in the MinIO container.
    *
-   * @param bucketName name of the bucket to check
-   * @return true if bucket exists and is accessible, false otherwise
+   * @param bucketName name of the bucket to ensure exists
    */
-  def doesBucketExist(bucketName: String): Boolean = {
-    try {
-      getS3Client().headBucket(new HeadBucketRequest(bucketName))
-      true
-    } catch {
-      case e: com.amazonaws.services.s3.model.AmazonS3Exception =>
-        log.error(s"Error checking bucket '$bucketName': ${e.getMessage}")
-        false
+  def ensureBucketExists(bucketName: String): Unit = {
+    if (!doesBucketExist(bucketName)) {
+      s3Client.createBucket(bucketName)
     }
   }
 
   /**
-   * Ensures a bucket exists, creates it if it doesn't
+   * Checks if the specified bucket exists in the MinIO container.
    *
-   * @param bucketName name of the bucket to check/create
+   * @param bucketName name of the bucket to check
+   * @return true if the bucket exists, false otherwise
    */
-  def ensureBucketExists(bucketName: String): Unit = {
-    if (!doesBucketExist(bucketName)) {
-      log.info(s"Bucket '$bucketName' does not exist or is not accessible")
-      try {
-        getS3Client().createBucket(bucketName)
-        log.info(s"Created bucket '$bucketName'")
-      } catch {
-        case e: Exception =>
-          log.error(s"Failed to create bucket: ${e.getMessage}")
-          throw e
-      }
-    }
+  def doesBucketExist(bucketName: String): Boolean = {
+    s3Client.listBuckets().stream().anyMatch(bucket => bucket.getName == bucketName)
   }
 }
