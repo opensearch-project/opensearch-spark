@@ -148,11 +148,11 @@ services:
       - "9300"
     healthcheck:
       test: ["CMD", "curl", "-f", "-u", "admin:${OPENSEARCH_ADMIN_PASSWORD}", "http://localhost:9200/_cluster/health"]
-      interval: 2m
-      timeout: 30s
-      retries: 10
-      start_period: 120s
-      start_interval: 15s
+      interval: 1m
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 5s
     networks:
       - opensearch-net
     depends_on:

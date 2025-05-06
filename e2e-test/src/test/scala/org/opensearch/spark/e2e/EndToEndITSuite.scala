@@ -72,7 +72,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     val deleteDockerVolumesProcess = new ProcessBuilder(cmdWithArgs.toArray: _*).start()
     deleteDockerVolumesProcess.waitFor(10, TimeUnit.SECONDS)
 
-    val dockerProcess = new ProcessBuilder("docker", "compose", "up", "-d")
+    val dockerProcess = new ProcessBuilder("docker-compose", "up", "-d")
       .directory(new File(DOCKER_INTEG_DIR))
       .start()
     var stopReading = false
@@ -86,7 +86,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
         }
       }
     }.start()
-    val completed = dockerProcess.waitFor(30, TimeUnit.MINUTES)
+    val completed = dockerProcess.waitFor(20, TimeUnit.MINUTES)
     stopReading = true
     if (!completed) {
       throw new IllegalStateException("Unable to start docker cluster")
@@ -134,7 +134,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     logInfo("Stopping docker cluster")
     waitForSparkSubmitCompletion()
 
-    val dockerProcess = new ProcessBuilder("docker", "compose", "down")
+    val dockerProcess = new ProcessBuilder("docker-compose", "down")
       .directory(new File(DOCKER_INTEG_DIR))
       .start()
     dockerProcess.waitFor(10, TimeUnit.MINUTES)
@@ -434,7 +434,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
    * Uses Spark Connect to run the query on the "spark" container and compares the results to the expected results
    * in the corresponding ".results" file. The ".results" file is in CSV format with a header.
    */
-  it should "SQL Queries" in {
+  it should "SQL Queries" ignore {
     val queriesDir = new File("e2e-test/src/test/resources/spark/queries/sql")
     val queriesTableData : ListBuffer[(String, String)] = new ListBuffer()
 
@@ -471,7 +471,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
    * Uses Spark Connect to run the query on the "spark" container and compares the results to the expected results
    * in the corresponding ".results" file. The ".results" file is in CSV format with a header.
    */
-  it should "PPL Queries" ignore {
+  it should "PPL Queries" in {
     val queriesDir = new File("e2e-test/src/test/resources/spark/queries/ppl")
     val queriesTableData : ListBuffer[(String, String)] = new ListBuffer()
 
