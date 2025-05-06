@@ -27,7 +27,8 @@ trait SparkTrait {
   def getSparkSession(): SparkSession = {
     this.synchronized {
       if (spark == null) {
-        spark = SparkSession.builder().remote("sc://localhost:" + getSparkConnectPort()).build()
+        val sparkHost = sys.env.getOrElse("SPARK_HOST", "localhost")
+        spark = SparkSession.builder().remote(s"sc://$sparkHost:" + getSparkConnectPort()).build()
       }
       spark
     }

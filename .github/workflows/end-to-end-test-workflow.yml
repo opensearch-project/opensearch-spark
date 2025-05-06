@@ -29,13 +29,32 @@ jobs:
         # Needed to extend the JVM memory size to avoid OutOfMemoryError for HTML test report
         run: echo "SBT_OPTS=-Xmx2G" >> $GITHUB_ENV
 
-      - name: Set S3 environment variables
-        # Set S3 endpoint to localhost for GitHub Actions environment
+      - name: Set environment variables
+        # Set environment variables for GitHub Actions environment
         # Tests run on the GitHub runner and access Docker containers via port mapping
         run: |
           echo "S3_ENDPOINT=localhost" >> $GITHUB_ENV
           echo "S3_PORT=9000" >> $GITHUB_ENV
           echo "S3_REGION=us-east-1" >> $GITHUB_ENV
+          echo "SPARK_HOST=spark" >> $GITHUB_ENV
+
+      - name: Build project
+        run: sbt assembly
+
+      - name: Start Docker containers
+        run: |
+          cd opensearch-spark/docker/integ-test
+          docker-compose up -d
+          echo "Waiting for services to start..."
+          sleep 60
+          docker ps -a
+
+      - name: Check Docker container health
+        run: |
+          docker ps -a
+          docker exec -it spark curl -s http://localhost:8080/ || echo "Spark master UI not available"
+          docker exec -it minio-S3 curl -s http://localhost:9000/minio/health/live || echo "MinIO health check failed"
+          docker exec -it opensearch curl -s -u admin:C0rrecthorsebatterystaple. http://localhost:9200/_cluster/health || echo "OpenSearch health check failed"
 
       - name: End-to-End Test
         run: sbt e2etest/test
@@ -48,6 +67,8 @@ jobs:
           docker logs spark > spark.log 2>&1 || true
           docker logs minio-S3 > minio.log 2>&1 || true
           docker logs opensearch-dashboards > opensearch-dashboards.log 2>&1 || true
+          docker logs spark-worker > spark-worker.log 2>&1 || true
+          docker logs metastore > metastore.log 2>&1 || true
 
       - name: Upload Docker logs
         if: failure()
