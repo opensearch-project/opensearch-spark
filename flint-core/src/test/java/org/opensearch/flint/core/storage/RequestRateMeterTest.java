@@ -22,25 +22,25 @@ class RequestRateMeterTest {
   void testAddDataPoint() {
     long timestamp = System.currentTimeMillis();
     requestRateMeter.addDataPoint(timestamp, 30);
-    assertEquals(10, requestRateMeter.getCurrentEstimatedRate());
+    assertEquals(3, requestRateMeter.getCurrentEstimatedRate());
   }
 
   @Test
   void testAddDataPointRemoveOldDataPoint() {
     long timestamp = System.currentTimeMillis();
-    requestRateMeter.addDataPoint(timestamp - 4000, 30);
+    requestRateMeter.addDataPoint(timestamp - 11000, 30);
     requestRateMeter.addDataPoint(timestamp, 90);
-    assertEquals(90 / 3, requestRateMeter.getCurrentEstimatedRate());
+    assertEquals(90 / 10, requestRateMeter.getCurrentEstimatedRate());
   }
 
   @Test
   void testRemoveOldDataPoints() {
     long currentTime = System.currentTimeMillis();
-    requestRateMeter.addDataPoint(currentTime - 4000, 30);
-    requestRateMeter.addDataPoint(currentTime - 2000, 60);
+    requestRateMeter.addDataPoint(currentTime - 11000, 30);
+    requestRateMeter.addDataPoint(currentTime - 5000, 60);
     requestRateMeter.addDataPoint(currentTime, 90);
 
-    assertEquals((60 + 90)/3, requestRateMeter.getCurrentEstimatedRate());
+    assertEquals((60 + 90)/10, requestRateMeter.getCurrentEstimatedRate());
   }
 
   @Test
@@ -50,7 +50,7 @@ class RequestRateMeterTest {
     requestRateMeter.addDataPoint(currentTime - 1500, 60);
     requestRateMeter.addDataPoint(currentTime - 500, 90);
 
-    assertEquals((30 + 60 + 90)/3, requestRateMeter.getCurrentEstimatedRate());
+    assertEquals((30 + 60 + 90)/10, requestRateMeter.getCurrentEstimatedRate());
   }
 
   @Test
@@ -61,6 +61,6 @@ class RequestRateMeterTest {
   @Test
   void testSingleDataPoint() {
     requestRateMeter.addDataPoint(System.currentTimeMillis(), 30);
-    assertEquals(30 / 3, requestRateMeter.getCurrentEstimatedRate());
+    assertEquals(30 / 10, requestRateMeter.getCurrentEstimatedRate());
   }
 }
