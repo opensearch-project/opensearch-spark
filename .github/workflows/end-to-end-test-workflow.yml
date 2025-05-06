@@ -144,6 +144,7 @@ jobs:
                 args:
                   SPARK_VERSION: 3.5.3
               container_name: spark
+              hostname: spark
               entrypoint: /opt/bitnami/scripts/spark/spark-master-entrypoint.sh
               ports:
                 - "8080:8080"
@@ -156,7 +157,7 @@ jobs:
                 - SPARK_RPC_ENCRYPTION_ENABLED=no
                 - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
                 - SPARK_SSL_ENABLED=no
-                - SPARK_PUBLIC_DNS=localhost
+                - SPARK_PUBLIC_DNS=spark
               volumes:
                 - type: bind
                   source: ../../ppl-spark-integration/target/scala-2.12/ppl-spark-integration-assembly-1.0.0-SNAPSHOT.jar
@@ -251,14 +252,62 @@ jobs:
           echo "OpenSearch JVM info:"
           docker exec opensearch curl -s -u admin:C0rrecthorsebatterystaple. http://localhost:9200/_nodes/stats/jvm || echo "OpenSearch JVM info check failed"
 
-      - name: End-to-End Test
+      - name: Create test runner container
         run: |
-          # Print environment for debugging
-          echo "Current directory: $(pwd)"
-          echo "Docker containers:"
-          docker ps -a
-          # Run the tests
-          sbt e2etest/test
+          cd docker/integ-test
+          
+          # Create a test runner Dockerfile
+          cat > TestRunner.Dockerfile << 'EOF'
+          FROM eclipse-temurin:11-jdk
+          
+          RUN apt-get update && apt-get install -y curl
+          
+          # Install SBT
+          RUN curl -L -o sbt.deb https://repo.scala-sbt.org/scalasbt/debian/sbt-1.9.8.deb && \
+              dpkg -i sbt.deb && \
+              rm sbt.deb
+          
+          WORKDIR /app
+          
+          # Copy the project files
+          COPY . .
+          
+          # Set environment variables
+          ENV SPARK_HOST=spark
+          ENV S3_ENDPOINT=minio-S3
+          ENV S3_PORT=9000
+          ENV S3_REGION=us-east-1
+          
+          # Set SBT options
+          ENV SBT_OPTS="-Xmx2G"
+          
+          # Command to run tests
+          CMD ["sbt", "e2etest/test"]
+          EOF
+          
+          # Build the test runner image
+          docker build -t test-runner -f TestRunner.Dockerfile ../..
+          
+          # Run the test runner container in the same network
+          docker run --network integ-test_opensearch-net \
+                     --name test-runner \
+                     -e SPARK_HOST=spark \
+                     -e S3_ENDPOINT=minio-S3 \
+                     -e S3_PORT=9000 \
+                     -e S3_REGION=us-east-1 \
+                     test-runner
+          
+      - name: End-to-End Test Results
+        run: |
+          # Get the exit code from the test runner container
+          TEST_EXIT_CODE=$(docker inspect test-runner --format='{{.State.ExitCode}}')
+          
+          # Print test logs
+          echo "Test runner logs:"
+          docker logs test-runner
+          
+          # Exit with the same code as the test runner
+          exit $TEST_EXIT_CODE
 
       - name: Capture Docker logs (on failure)
         if: failure()
