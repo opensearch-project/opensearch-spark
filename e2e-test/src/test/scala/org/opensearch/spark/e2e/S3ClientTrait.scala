@@ -73,7 +73,6 @@ trait S3ClientTrait {
           val credentials = new BasicAWSCredentials(getS3AccessKey(), getS3SecretKey())
           val endpoint = s"http://${getS3Endpoint()}:${getS3Port()}"
           logger.info(s"Connecting to S3 at endpoint: $endpoint")
-          
           val endpointConfiguration = new EndpointConfiguration(endpoint, getS3Region())
 
           s3Client = AmazonS3ClientBuilder.standard()
@@ -91,7 +90,6 @@ trait S3ClientTrait {
             val defaultCredentials = new BasicAWSCredentials("minioadmin", "minioadmin")
             val endpoint = s"http://${getS3Endpoint()}:${getS3Port()}"
             logger.info(s"Retrying connection to S3 with default credentials at endpoint: $endpoint")
-            
             val endpointConfiguration = new EndpointConfiguration(endpoint, getS3Region())
             s3Client = AmazonS3ClientBuilder.standard()
               .withCredentials(new AWSStaticCredentialsProvider(defaultCredentials))
