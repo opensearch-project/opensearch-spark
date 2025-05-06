@@ -72,7 +72,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     val deleteDockerVolumesProcess = new ProcessBuilder(cmdWithArgs.toArray: _*).start()
     deleteDockerVolumesProcess.waitFor(10, TimeUnit.SECONDS)
 
-    val dockerProcess = new ProcessBuilder("docker-compose", "up", "-d")
+    val dockerProcess = new ProcessBuilder("docker", "compose", "up", "-d")
       .directory(new File(DOCKER_INTEG_DIR))
       .start()
     var stopReading = false
@@ -109,7 +109,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     logInfo("Stopping docker cluster")
     waitForSparkSubmitCompletion()
 
-    val dockerProcess = new ProcessBuilder("docker-compose", "down")
+    val dockerProcess = new ProcessBuilder("docker", "compose", "down")
       .directory(new File(DOCKER_INTEG_DIR))
       .start()
     dockerProcess.waitFor(10, TimeUnit.MINUTES)
