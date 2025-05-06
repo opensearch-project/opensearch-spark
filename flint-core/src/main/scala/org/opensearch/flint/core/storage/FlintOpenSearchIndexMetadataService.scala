@@ -98,7 +98,7 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
   override def deleteIndexMetadata(indexName: String): Unit = {}
 }
 
-object FlintOpenSearchIndexMetadataService {
+object FlintOpenSearchIndexMetadataService extends Logging {
   def serialize(metadata: FlintMetadata): String = {
     serialize(metadata, true)
   }
@@ -236,8 +236,8 @@ object FlintOpenSearchIndexMetadataService {
           }
         }
       } catch {
-        case _: Exception =>
-          throw new IllegalStateException("Error extracting _source")
+        case ex: Exception =>
+          logError("Error extracting _source", ex)
       }
     }
 
