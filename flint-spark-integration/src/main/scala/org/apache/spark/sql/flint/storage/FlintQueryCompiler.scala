@@ -10,7 +10,7 @@ import scala.io.Source
 import org.apache.spark.sql.catalyst.expressions.Literal
 import org.apache.spark.sql.catalyst.util.{DateTimeUtils, TimestampFormatter}
 import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.parseColumnPath
-import org.apache.spark.sql.connector.expressions.{Expression, FieldReference, LiteralValue}
+import org.apache.spark.sql.connector.expressions.{Expression, FieldReference, LiteralValue, UserDefinedScalarFunc}
 import org.apache.spark.sql.connector.expressions.filter.{And, Predicate}
 import org.apache.spark.sql.flint.datatype.FlintDataType.STRICT_DATE_OPTIONAL_TIME_FORMATTER_WITH_NANOS
 import org.apache.spark.sql.flint.datatype.FlintMetadataExtensions.MetadataExtension
@@ -108,20 +108,27 @@ case class FlintQueryCompiler(schema: StructType) {
         s"""{"bool":{"must_not":$child}}"""
       }
     case "=" =>
-      for {
-        field <- compileOpt(p.children()(0))
-        value <- compileOpt(p.children()(1))
-        result <-
-          if (isTextField(field)) {
-            getKeywordSubfield(field) match {
-              case Some(keywordField) =>
-                Some(s"""{"term":{"$keywordField":{"value":$value}}}""")
-              case None => None // Return None for unsupported text fields
+      if (isIpCompare(p)) {
+        val ipCompare = p.children()(0).asInstanceOf[UserDefinedScalarFunc]
+        val field = ipCompare.children()(0).asInstanceOf[FieldReference].toString()
+        val value = ipCompare.children()(1).asInstanceOf[LiteralValue[StringType]].value.toString
+        Some(s"""{"term": {"$field": "$value"}}""")
+      } else {
+        for {
+          field <- compileOpt(p.children()(0))
+          value <- compileOpt(p.children()(1))
+          result <-
+            if (isTextField(field)) {
+              getKeywordSubfield(field) match {
+                case Some(keywordField) =>
+                  Some(s"""{"term":{"$keywordField":{"value":$value}}}""")
+                case None => None // Return None for unsupported text fields
+              }
+            } else {
+              Some(s"""{"term":{"$field":{"value":$value}}}""")
             }
-          } else {
-            Some(s"""{"term":{"$field":{"value":$value}}}""")
-          }
-      } yield result
+        } yield result
+      }
     case ">" =>
       for {
         field <- compileOpt(p.children()(0))
@@ -200,6 +207,22 @@ case class FlintQueryCompiler(schema: StructType) {
            |""".stripMargin
       }
     case _ => None
+  }
+
+  /**
+   * Checks if the predicate is for ip equality check. It ip equality check is converted to
+   * `(ip_compare(ip, value) = 0)` by {@link PredicatePushdownRule}.
+   * @param p
+   *   Predicate of "=" operator
+   * @return
+   *   true if the predicate is for ip_compare.
+   */
+  private def isIpCompare(p: Predicate): Boolean = {
+    p.children() match {
+      case Array(f: UserDefinedScalarFunc, LiteralValue(0, IntegerType)) =>
+        f.name() == "ip_compare"
+      case _ => false
+    }
   }
 
   /**
