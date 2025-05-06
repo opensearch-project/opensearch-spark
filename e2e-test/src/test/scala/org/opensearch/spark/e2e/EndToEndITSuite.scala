@@ -102,7 +102,20 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
       if (!dockerComposeFile.exists()) {
         throw new IllegalStateException(s"docker-compose.yml not found at ${dockerComposeFile.getAbsolutePath()}")
       }
-      val dockerProcess = new ProcessBuilder("docker", "compose", "up", "-d")
+      // Check if we're using Docker Compose V2 or V1
+      val checkDockerComposeVersion = new ProcessBuilder("docker", "compose", "version")
+        .start()
+      val isDockerComposeV2 = checkDockerComposeVersion.waitFor(5, TimeUnit.SECONDS) &&
+                              checkDockerComposeVersion.exitValue() == 0
+      // Use the appropriate Docker Compose command based on version
+      val dockerComposeCommand = if (isDockerComposeV2) {
+        logInfo("Using Docker Compose V2 syntax (docker compose)")
+        Array("docker", "compose", "up", "-d")
+      } else {
+        logInfo("Using Docker Compose V1 syntax (docker-compose)")
+        Array("docker-compose", "up", "-d")
+      }
+      val dockerProcess = new ProcessBuilder(dockerComposeCommand: _*)
         .directory(dockerComposeDir)
         .start()
       // Capture and log docker compose output
@@ -213,7 +226,18 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
 
     try {
       // First attempt to stop containers gracefully
-      val dockerProcess = new ProcessBuilder("docker", "compose", "down")
+      // Check if we're using Docker Compose V2 or V1
+      val checkDockerComposeVersion = new ProcessBuilder("docker", "compose", "version")
+        .start()
+      val isDockerComposeV2 = checkDockerComposeVersion.waitFor(5, TimeUnit.SECONDS) &&
+                              checkDockerComposeVersion.exitValue() == 0
+      // Use the appropriate Docker Compose command based on version
+      val dockerComposeCommand = if (isDockerComposeV2) {
+        Array("docker", "compose", "down")
+      } else {
+        Array("docker-compose", "down")
+      }
+      val dockerProcess = new ProcessBuilder(dockerComposeCommand: _*)
         .directory(new File(DOCKER_INTEG_DIR))
         .start()
       // Capture output for debugging
@@ -230,8 +254,13 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
           line = errorReader.readLine()
         }
         // Try a more forceful approach if the first one failed
-        logWarning("First docker-compose down attempt failed, trying with force option")
-        val forceProcess = new ProcessBuilder("docker-compose", "down", "--remove-orphans", "-v")
+        logWarning("First docker compose down attempt failed, trying with force option")
+        val forceCommand = if (isDockerComposeV2) {
+          Array("docker", "compose", "down", "--remove-orphans", "-v")
+        } else {
+          Array("docker-compose", "down", "--remove-orphans", "-v")
+        }
+        val forceProcess = new ProcessBuilder(forceCommand: _*)
           .directory(new File(DOCKER_INTEG_DIR))
           .start()
         forceProcess.waitFor(5, TimeUnit.MINUTES)
