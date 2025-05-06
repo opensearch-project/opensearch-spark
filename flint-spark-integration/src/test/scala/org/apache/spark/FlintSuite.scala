@@ -63,12 +63,12 @@ trait FlintSuite extends SharedSparkSession {
     }
   }
 
-  protected def withMetadataCacheWriteEnabled(block: => Unit): Unit = {
-    setFlintSparkConf(METADATA_CACHE_WRITE, "true")
+  protected def withMetadataCacheWriteDisabled(block: => Unit): Unit = {
+    setFlintSparkConf(METADATA_CACHE_WRITE, "false")
     try {
       block
     } finally {
-      setFlintSparkConf(METADATA_CACHE_WRITE, "false")
+      setFlintSparkConf(METADATA_CACHE_WRITE, "true")
     }
   }
 
