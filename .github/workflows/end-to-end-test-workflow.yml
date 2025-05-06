@@ -45,17 +45,49 @@ jobs:
       - name: Start Docker containers
         run: |
           cd docker/integ-test
+          # Increase memory limits for OpenSearch
+          echo "Updating docker-compose.yml to increase memory limits"
+          sed -i 's/OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_NODE_MEMORY:-512m} -Xmx${OPENSEARCH_NODE_MEMORY:-512m}/OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g/' docker-compose.yml
+          
+          # Start containers
           docker compose up -d
-          echo "Waiting for services to start..."
-          sleep 60
+          echo "Waiting for services to start (initial 30s)..."
+          sleep 30
+          
+          # Check container status
+          echo "Initial container status:"
+          docker ps -a
+          
+          # Check OpenSearch logs
+          echo "OpenSearch logs:"
+          docker logs opensearch || true
+          
+          # Wait longer for services to stabilize
+          echo "Waiting additional time for services to stabilize..."
+          sleep 90
+          
+          # Final container status
+          echo "Final container status:"
           docker ps -a
 
       - name: Check Docker container health
         run: |
-          docker ps -a
-          docker exec spark curl -s http://localhost:8080/ || echo "Spark master UI not available"
+          echo "Checking container health..."
+          
+          echo "MinIO health check:"
           docker exec minio-S3 curl -s http://localhost:9000/minio/health/live || echo "MinIO health check failed"
+          
+          echo "Spark master UI check:"
+          docker exec spark curl -s http://localhost:8080/ || echo "Spark master UI not available"
+          
+          echo "OpenSearch health check:"
           docker exec opensearch curl -s -u admin:C0rrecthorsebatterystaple. http://localhost:9200/_cluster/health || echo "OpenSearch health check failed"
+          
+          echo "OpenSearch cluster status:"
+          docker exec opensearch curl -s -u admin:C0rrecthorsebatterystaple. http://localhost:9200/_cat/health || echo "OpenSearch status check failed"
+          
+          echo "OpenSearch JVM info:"
+          docker exec opensearch curl -s -u admin:C0rrecthorsebatterystaple. http://localhost:9200/_nodes/stats/jvm || echo "OpenSearch JVM info check failed"
 
       - name: End-to-End Test
         run: |
@@ -69,13 +101,36 @@ jobs:
       - name: Capture Docker logs (on failure)
         if: failure()
         run: |
+          echo "Capturing Docker logs..."
           docker ps -a
+          
+          echo "OpenSearch logs:"
           docker logs opensearch > opensearch.log 2>&1 || true
-          docker logs spark > spark.log 2>&1 || true
-          docker logs minio-S3 > minio.log 2>&1 || true
+          
+          echo "OpenSearch Dashboards logs:"
           docker logs opensearch-dashboards > opensearch-dashboards.log 2>&1 || true
+          
+          echo "Spark logs:"
+          docker logs spark > spark.log 2>&1 || true
+          
+          echo "Spark Worker logs:"
           docker logs spark-worker > spark-worker.log 2>&1 || true
+          
+          echo "MinIO logs:"
+          docker logs minio-S3 > minio.log 2>&1 || true
+          
+          echo "Metastore logs:"
           docker logs metastore > metastore.log 2>&1 || true
+          
+          echo "Configuration Updater logs:"
+          docker logs configuration-updater > configuration-updater.log 2>&1 || true
+          
+          # Check system resources
+          echo "System memory info:"
+          free -h
+          
+          echo "System disk info:"
+          df -h
 
       - name: Upload Docker logs
         if: failure()
@@ -83,6 +138,7 @@ jobs:
         with:
           name: docker-logs
           path: "*.log"
+          if-no-files-found: warn
 
       - name: Upload test report
         if: always() # Ensures the artifact is saved even if tests fail
