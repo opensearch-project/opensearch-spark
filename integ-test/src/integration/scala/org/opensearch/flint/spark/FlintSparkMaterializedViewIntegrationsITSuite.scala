@@ -228,7 +228,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("vpc_flow") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.vpc_low_test")
-        .createMaterializedView(mvQueryVPC)
+        .createMaterializedView(mvQueryVPC, sourceDisabled = true)
         .assertDslQueryTSC(dslQueryBuilderVPCTSC, expectedBucketsVPCTSC)
     }
   }
@@ -237,7 +237,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("vpc_flow") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.vpc_low_test")
-        .createMaterializedView(mvQueryVPC)
+        .createMaterializedView(mvQueryVPC, sourceDisabled = true)
         .assertDslQueryPC(dslQueryBuilderVPCPC, expectedBucketsVPCPC)
     }
   }
@@ -246,7 +246,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("vpc_flow") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.vpc_low_test")
-        .createMaterializedView(mvQueryVPC)
+        .createMaterializedView(mvQueryVPC, sourceDisabled = false)
         .assertIndexData(
           Row(
             timestampFromUTC("2023-11-01T05:00:00Z"),
@@ -325,7 +325,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("cloud_trail") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.cloud_trail_test")
-        .createMaterializedView(mvQueryCT)
+        .createMaterializedView(mvQueryCT, sourceDisabled = true)
         .assertDslQueryTSC(dslQueryBuilderCTTSC, expectedBucketsCTTSC)
     }
   }
@@ -334,7 +334,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("cloud_trail") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.cloud_trail_test")
-        .createMaterializedView(mvQueryCT)
+        .createMaterializedView(mvQueryCT, sourceDisabled = true)
         .assertDslQueryPC(dslQueryBuilderCTPC, expectedBucketsCTPC)
     }
   }
@@ -432,7 +432,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("waf") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.waf_test")
-        .createMaterializedView(mvQueryWAF)
+        .createMaterializedView(mvQueryWAF, sourceDisabled = true)
         .assertDslQueryWAFTSC(dslQueryBuilderWAFTSC, expectedBucketsWAFTSC)
     }
   }
@@ -441,7 +441,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("waf") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.waf_test")
-        .createMaterializedView(mvQueryWAF)
+        .createMaterializedView(mvQueryWAF, sourceDisabled = true)
         .assertDslQueryPC(dslQueryBuilderWAFPC, expectedBucketsWAFPC)
     }
   }
@@ -450,7 +450,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("cloud_trail") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.cloud_trail_test")
-        .createMaterializedView(mvQueryCT)
+        .createMaterializedView(mvQueryCT, sourceDisabled = false)
         .assertIndexData(Row(
           timestampFromUTC("2023-11-01T05:00:00Z"),
           "IAMUser",
@@ -471,7 +471,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     withIntegration("waf") { integration =>
       integration
         .createSourceTable(s"$catalogName.default.waf_test")
-        .createMaterializedView(mvQueryWAF)
+        .createMaterializedView(mvQueryWAF, sourceDisabled = false)
         .assertIndexData(Row(
           timestampFromUTC("2023-11-01T05:00:00Z"),
           "webacl-12345",
@@ -538,22 +538,36 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       this
     }
 
-    def createMaterializedView(mvQuery: String): IntegrationHelper = {
+    def createMaterializedView(mvQuery: String, sourceDisabled: Boolean): IntegrationHelper = {
       this.mvName = s"$catalogName.default.${integrationName}_mv_test"
       this.mvQuery = mvQuery.replace("{table_name}", tableName)
 
-      sql(s"""
-           |CREATE MATERIALIZED VIEW $mvName
-           |AS
-           |${this.mvQuery}
-           |WITH (
-           |  auto_refresh = true,
-           |  refresh_interval = '5 Seconds',
-           |  watermark_delay = '1 Minute',
-           |  checkpoint_location = '${checkpointDir.getAbsolutePath}',
-           |  index_mappings = '{ "_source": { "enabled": false } }'
-           |)
-           |""".stripMargin)
+      if (sourceDisabled) {
+        sql(s"""
+               |CREATE MATERIALIZED VIEW $mvName
+               |AS
+               |${this.mvQuery}
+               |WITH (
+               |  auto_refresh = true,
+               |  refresh_interval = '5 Seconds',
+               |  watermark_delay = '1 Minute',
+               |  checkpoint_location = '${checkpointDir.getAbsolutePath}',
+               |  index_mappings = '{ "_source": { "enabled": false } }'
+               |)
+               |""".stripMargin)
+      } else {
+        sql(s"""
+               |CREATE MATERIALIZED VIEW $mvName
+               |AS
+               |${this.mvQuery}
+               |WITH (
+               |  auto_refresh = true,
+               |  refresh_interval = '5 Seconds',
+               |  watermark_delay = '1 Minute',
+               |  checkpoint_location = '${checkpointDir.getAbsolutePath}'
+               |)
+               |""".stripMargin)
+      }
 
       // Wait for all data processed
       val job = spark.streams.active
