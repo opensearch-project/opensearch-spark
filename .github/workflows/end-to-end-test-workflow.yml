@@ -22,210 +22,24 @@ jobs:
       - name: Set up SBT
         uses: sbt/setup-sbt@v1
 
-      - name: Build project
-        run: sbt assembly
+      - name: Set SBT_OPTS
+        # Needed to extend the JVM memory size to avoid OutOfMemoryError for HTML test report
+        # Also skip scalastyle checks and increase test timeouts
+        run: echo "SBT_OPTS=-Xmx3G -Dscalastyle.skip=true -Dtest.timefactor=3" >> $GITHUB_ENV
 
-      - name: Create minimal docker-compose file
+      - name: Set environment variables
         run: |
-          cd docker/integ-test
-          cat > docker-compose.minimal.yml << 'EOF'
-          services:
-            metastore:
-              build: ./metastore
-              container_name: metastore
-              ports:
-                - "9083:9083"
-              networks:
-                - test-network
+          echo "GITHUB_ACTIONS=true" >> $GITHUB_ENV
+          echo "SPARK_HOST=localhost" >> $GITHUB_ENV
+          echo "S3_ENDPOINT=localhost" >> $GITHUB_ENV
+          echo "OPENSEARCH_HOST=localhost" >> $GITHUB_ENV
 
-            minio:
-              image: minio/minio
-              container_name: minio-S3
-              command: server /data --console-address ":9001"
-              ports:
-                - "9000:9000"
-                - "9001:9001"
-              environment:
-                - MINIO_ROOT_USER=minioadmin
-                - MINIO_ROOT_PASSWORD=minioadmin
-              networks:
-                - test-network
-
-            opensearch:
-              image: opensearchproject/opensearch:latest
-              container_name: opensearch
-              environment:
-                - discovery.type=single-node
-                - bootstrap.memory_lock=true
-                - DISABLE_SECURITY_PLUGIN=true
-                - DISABLE_INSTALL_DEMO_CONFIG=true
-                - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
-                - OPENSEARCH_INITIAL_ADMIN_PASSWORD=admin
-              ports:
-                - "9200:9200"
-              networks:
-                - test-network
-
-            spark:
-              build:
-                context: ./spark
-                dockerfile: Dockerfile
-                args:
-                  SPARK_VERSION: 3.5.3
-              container_name: spark
-              hostname: spark
-              entrypoint: /opt/bitnami/scripts/spark/spark-master-entrypoint.sh
-              ports:
-                - "8080:8080"
-                - "7077:7077"
-                - "4040:4040"
-                - "15002:15002"
-              environment:
-                - SPARK_MODE=master
-                - SPARK_RPC_AUTHENTICATION_ENABLED=no
-                - SPARK_RPC_ENCRYPTION_ENABLED=no
-                - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-                - SPARK_SSL_ENABLED=no
-                - SPARK_PUBLIC_DNS=spark
-              volumes:
-                - type: bind
-                  source: ../../ppl-spark-integration/target/scala-2.12/ppl-spark-integration-assembly-1.0.0-SNAPSHOT.jar
-                  target: /opt/bitnami/spark/jars/ppl-spark-integration.jar
-                - type: bind
-                  source: ../../flint-spark-integration/target/scala-2.12/flint-spark-integration-assembly-1.0.0-SNAPSHOT.jar
-                  target: /opt/bitnami/spark/jars/flint-spark-integration.jar
-                - type: bind
-                  source: ../../spark-sql-application/target/scala-2.12/sql-job-assembly-1.0.0-SNAPSHOT.jar
-                  target: /opt/bitnami/spark/jars/opensearch-spark-sql-application.jar
-              networks:
-                - test-network
-
-          networks:
-            test-network:
-              driver: bridge
-          EOF
-
-      - name: Start Docker containers
-        run: |
-          cd docker/integ-test
-          
-          # Create .env file for Docker Compose
-          cat > .env << EOL
-          SPARK_VERSION=3.5.3
-          OPENSEARCH_VERSION=latest
-          DASHBOARDS_VERSION=latest
-          MASTER_UI_PORT=8080
-          MASTER_PORT=7077
-          UI_PORT=4040
-          SPARK_CONNECT_PORT=15002
-          PPL_JAR=./ppl-spark-integration/target/scala-2.12/ppl-spark-integration-assembly-1.0.0-SNAPSHOT.jar
-          FLINT_JAR=./flint-spark-integration/target/scala-2.12/flint-spark-integration-assembly-1.0.0-SNAPSHOT.jar
-          SQL_APP_JAR=./spark-sql-application/target/scala-2.12/sql-job-assembly-1.0.0-SNAPSHOT.jar
-          OPENSEARCH_NODE_MEMORY=512m
-          OPENSEARCH_ADMIN_PASSWORD=admin
-          OPENSEARCH_PORT=9200
-          OPENSEARCH_PA_PORT=9600
-          OPENSEARCH_DASHBOARDS_PORT=5601
-          S3_ACCESS_KEY=minioadmin
-          S3_SECRET_KEY=minioadmin
-          EOL
-          
-          docker compose -f docker-compose.minimal.yml up -d
-          echo "Waiting for services to start..."
-          sleep 60
-          docker ps -a
-          
-          # Check if Spark is running properly
-          echo "Checking Spark status:"
-          docker logs spark
-          docker exec spark ps aux || echo "Cannot execute ps in spark container"
-          docker exec spark netstat -tulpn || echo "Cannot check ports in spark container"
-          
-          # Check network connectivity
-          echo "Checking network connectivity:"
-          docker network inspect $(docker network ls --format "{{.Name}}" | grep test-network)
-
-      - name: Run tests with Docker
-        run: |
-          # Create a test script
-          cat > run_tests.sh << 'EOF'
-          #!/bin/bash
-          set -ex
-          
-          # Fix whitespace issues
-          find . -name "*.scala" -type f -exec sed -i 's/[ \t]*$//' {} \;
-          
-          # Add debug output for network connectivity
-          echo "Network connectivity from test container:"
-          ping -c 3 spark || echo "Cannot ping spark"
-          ping -c 3 minio-S3 || echo "Cannot ping minio-S3"
-          ping -c 3 opensearch || echo "Cannot ping opensearch"
-          
-          # Try to connect to Spark Connect port
-          nc -zv spark 15002 || echo "Cannot connect to Spark Connect port"
-          
-          # Create .env file for tests
-          cat > docker/integ-test/.env << EOL
-          SPARK_VERSION=3.5.3
-          OPENSEARCH_VERSION=latest
-          DASHBOARDS_VERSION=latest
-          MASTER_UI_PORT=8080
-          MASTER_PORT=7077
-          UI_PORT=4040
-          SPARK_CONNECT_PORT=15002
-          PPL_JAR=./ppl-spark-integration/target/scala-2.12/ppl-spark-integration-assembly-1.0.0-SNAPSHOT.jar
-          FLINT_JAR=./flint-spark-integration/target/scala-2.12/flint-spark-integration-assembly-1.0.0-SNAPSHOT.jar
-          SQL_APP_JAR=./spark-sql-application/target/scala-2.12/sql-job-assembly-1.0.0-SNAPSHOT.jar
-          OPENSEARCH_NODE_MEMORY=512m
-          OPENSEARCH_ADMIN_PASSWORD=admin
-          OPENSEARCH_PORT=9200
-          OPENSEARCH_PA_PORT=9600
-          OPENSEARCH_DASHBOARDS_PORT=5601
-          S3_ACCESS_KEY=minioadmin
-          S3_SECRET_KEY=minioadmin
-          EOL
-          
-          # Run the tests with debugging enabled
-          JAVA_OPTS="-Xmx3g" sbt -Dscalastyle.skip=true -Dtest.timefactor=3 -Dspark.log.level=DEBUG e2etest/test
-          EOF
-          
-          chmod +x run_tests.sh
-          
-          docker run --rm \
-            --network $(docker network ls --format "{{.Name}}" | grep test-network) \
-            -v $(pwd):/app \
-            -w /app \
-            -e SPARK_HOST=spark \
-            -e S3_ENDPOINT=minio-S3 \
-            -e S3_PORT=9000 \
-            -e S3_REGION=us-east-1 \
-            -e OPENSEARCH_HOST=opensearch \
-            -e OPENSEARCH_PORT=9200 \
-            -e OPENSEARCH_ADMIN_PASSWORD=admin \
-            -e SPARK_CONNECT_PORT=15002 \
-            -e GITHUB_ACTIONS=true \
-            eclipse-temurin:11-jdk \
-            bash -c "apt-get update && apt-get install -y curl netcat-openbsd iputils-ping && curl -L -o sbt.deb https://repo.scala-sbt.org/scalasbt/debian/sbt-1.9.8.deb && dpkg -i sbt.deb && rm sbt.deb && ./run_tests.sh"
-
-      - name: Capture Docker logs (on failure)
-        if: failure()
-        run: |
-          docker ps -a
-          docker logs opensearch > opensearch.log 2>&1 || true
-          docker logs spark > spark.log 2>&1 || true
-          docker logs minio-S3 > minio.log 2>&1 || true
-
-      - name: Upload Docker logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-logs
-          path: "*.log"
-          if-no-files-found: warn
+      - name: End-to-End Test
+        run: sbt e2etest/test
 
       - name: Upload test report
-        if: always()
+        if: always() # Ensures the artifact is saved even if tests fail
         uses: actions/upload-artifact@v4
         with:
           name: test-reports
-          path: target/test-reports
+          path: target/test-reports # Adjust this path if necessary
