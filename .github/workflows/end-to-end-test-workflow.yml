@@ -31,10 +31,8 @@ jobs:
           cat > docker-compose.minimal.yml << 'EOF'
           services:
             metastore:
-              image: apache/hive:3.1.3
+              build: ./metastore
               container_name: metastore
-              environment:
-                - SERVICE_NAME=metastore
               ports:
                 - "9083:9083"
               networks:
@@ -60,17 +58,28 @@ jobs:
                 - discovery.type=single-node
                 - bootstrap.memory_lock=true
                 - DISABLE_SECURITY_PLUGIN=true
+                - DISABLE_INSTALL_DEMO_CONFIG=true
                 - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+                - OPENSEARCH_INITIAL_ADMIN_PASSWORD=admin
               ports:
                 - "9200:9200"
               networks:
                 - test-network
 
             spark:
-              image: bitnami/spark:3.5.0
+              build:
+                context: ./spark
+                dockerfile: Dockerfile
+                args:
+                  SPARK_VERSION: 3.5.3
               container_name: spark
               hostname: spark
-              command: bash -c "cd /opt/bitnami/spark && ./sbin/start-connect-server.sh --host spark --port 15002 && ./sbin/start-master.sh && tail -f /dev/null"
+              entrypoint: /opt/bitnami/scripts/spark/spark-master-entrypoint.sh
+              ports:
+                - "8080:8080"
+                - "7077:7077"
+                - "4040:4040"
+                - "15002:15002"
               environment:
                 - SPARK_MODE=master
                 - SPARK_RPC_AUTHENTICATION_ENABLED=no
@@ -78,10 +87,16 @@ jobs:
                 - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
                 - SPARK_SSL_ENABLED=no
                 - SPARK_PUBLIC_DNS=spark
-              ports:
-                - "8080:8080"
-                - "7077:7077"
-                - "15002:15002"
+              volumes:
+                - type: bind
+                  source: ../../ppl-spark-integration/target/scala-2.12/ppl-spark-integration-assembly-1.0.0-SNAPSHOT.jar
+                  target: /opt/bitnami/spark/jars/ppl-spark-integration.jar
+                - type: bind
+                  source: ../../flint-spark-integration/target/scala-2.12/flint-spark-integration-assembly-1.0.0-SNAPSHOT.jar
+                  target: /opt/bitnami/spark/jars/flint-spark-integration.jar
+                - type: bind
+                  source: ../../spark-sql-application/target/scala-2.12/sql-job-assembly-1.0.0-SNAPSHOT.jar
+                  target: /opt/bitnami/spark/jars/opensearch-spark-sql-application.jar
               networks:
                 - test-network
 
@@ -93,6 +108,28 @@ jobs:
       - name: Start Docker containers
         run: |
           cd docker/integ-test
+          
+          # Create .env file for Docker Compose
+          cat > .env << EOL
+          SPARK_VERSION=3.5.3
+          OPENSEARCH_VERSION=latest
+          DASHBOARDS_VERSION=latest
+          MASTER_UI_PORT=8080
+          MASTER_PORT=7077
+          UI_PORT=4040
+          SPARK_CONNECT_PORT=15002
+          PPL_JAR=./ppl-spark-integration/target/scala-2.12/ppl-spark-integration-assembly-1.0.0-SNAPSHOT.jar
+          FLINT_JAR=./flint-spark-integration/target/scala-2.12/flint-spark-integration-assembly-1.0.0-SNAPSHOT.jar
+          SQL_APP_JAR=./spark-sql-application/target/scala-2.12/sql-job-assembly-1.0.0-SNAPSHOT.jar
+          OPENSEARCH_NODE_MEMORY=512m
+          OPENSEARCH_ADMIN_PASSWORD=admin
+          OPENSEARCH_PORT=9200
+          OPENSEARCH_PA_PORT=9600
+          OPENSEARCH_DASHBOARDS_PORT=5601
+          S3_ACCESS_KEY=minioadmin
+          S3_SECRET_KEY=minioadmin
+          EOL
+          
           docker compose -f docker-compose.minimal.yml up -d
           echo "Waiting for services to start..."
           sleep 60
@@ -101,8 +138,8 @@ jobs:
           # Check if Spark is running properly
           echo "Checking Spark status:"
           docker logs spark
-          docker exec spark ps aux | grep spark
-          docker exec spark netstat -tulpn | grep 15002 || echo "Spark Connect port not listening"
+          docker exec spark ps aux || echo "Cannot execute ps in spark container"
+          docker exec spark netstat -tulpn || echo "Cannot check ports in spark container"
           
           # Check network connectivity
           echo "Checking network connectivity:"
@@ -127,6 +164,27 @@ jobs:
           # Try to connect to Spark Connect port
           nc -zv spark 15002 || echo "Cannot connect to Spark Connect port"
           
+          # Create .env file for tests
+          cat > docker/integ-test/.env << EOL
+          SPARK_VERSION=3.5.3
+          OPENSEARCH_VERSION=latest
+          DASHBOARDS_VERSION=latest
+          MASTER_UI_PORT=8080
+          MASTER_PORT=7077
+          UI_PORT=4040
+          SPARK_CONNECT_PORT=15002
+          PPL_JAR=./ppl-spark-integration/target/scala-2.12/ppl-spark-integration-assembly-1.0.0-SNAPSHOT.jar
+          FLINT_JAR=./flint-spark-integration/target/scala-2.12/flint-spark-integration-assembly-1.0.0-SNAPSHOT.jar
+          SQL_APP_JAR=./spark-sql-application/target/scala-2.12/sql-job-assembly-1.0.0-SNAPSHOT.jar
+          OPENSEARCH_NODE_MEMORY=512m
+          OPENSEARCH_ADMIN_PASSWORD=admin
+          OPENSEARCH_PORT=9200
+          OPENSEARCH_PA_PORT=9600
+          OPENSEARCH_DASHBOARDS_PORT=5601
+          S3_ACCESS_KEY=minioadmin
+          S3_SECRET_KEY=minioadmin
+          EOL
+          
           # Run the tests with debugging enabled
           JAVA_OPTS="-Xmx3g" sbt -Dscalastyle.skip=true -Dtest.timefactor=3 -Dspark.log.level=DEBUG e2etest/test
           EOF
@@ -139,7 +197,12 @@ jobs:
             -w /app \
             -e SPARK_HOST=spark \
             -e S3_ENDPOINT=minio-S3 \
+            -e S3_PORT=9000 \
+            -e S3_REGION=us-east-1 \
             -e OPENSEARCH_HOST=opensearch \
+            -e OPENSEARCH_PORT=9200 \
+            -e OPENSEARCH_ADMIN_PASSWORD=admin \
+            -e SPARK_CONNECT_PORT=15002 \
             -e GITHUB_ACTIONS=true \
             eclipse-temurin:11-jdk \
             bash -c "apt-get update && apt-get install -y curl netcat-openbsd iputils-ping && curl -L -o sbt.deb https://repo.scala-sbt.org/scalasbt/debian/sbt-1.9.8.deb && dpkg -i sbt.deb && rm sbt.deb && ./run_tests.sh"
