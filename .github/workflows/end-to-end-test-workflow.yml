@@ -24,18 +24,37 @@ jobs:
 
       - name: Set SBT_OPTS
         # Needed to extend the JVM memory size to avoid OutOfMemoryError for HTML test report
-        # Also skip scalastyle checks and increase test timeouts
-        run: echo "SBT_OPTS=-Xmx3G -Dscalastyle.skip=true -Dtest.timefactor=3" >> $GITHUB_ENV
+        # Also skip scalastyle checks
+        run: echo "SBT_OPTS=-Xmx3G -Dscalastyle.skip=true" >> $GITHUB_ENV
+
+      - name: Set up MinIO
+        run: |
+          # Download and start MinIO server
+          wget https://dl.min.io/server/minio/release/linux-amd64/minio
+          chmod +x minio
+          mkdir -p /tmp/data
+          ./minio server /tmp/data --console-address :9001 &
+          # Wait for MinIO to start
+          sleep 5
+          # Create buckets
+          wget https://dl.min.io/client/mc/release/linux-amd64/mc
+          chmod +x mc
+          ./mc alias set local http://localhost:9000 minioadmin minioadmin
+          ./mc mb local/integ-test
+          ./mc mb local/test-resources
 
       - name: Set environment variables
         run: |
           echo "GITHUB_ACTIONS=true" >> $GITHUB_ENV
           echo "SPARK_HOST=localhost" >> $GITHUB_ENV
           echo "S3_ENDPOINT=localhost" >> $GITHUB_ENV
+          echo "S3_PORT=9000" >> $GITHUB_ENV
+          echo "S3_ACCESS_KEY=minioadmin" >> $GITHUB_ENV
+          echo "S3_SECRET_KEY=minioadmin" >> $GITHUB_ENV
           echo "OPENSEARCH_HOST=localhost" >> $GITHUB_ENV
 
       - name: End-to-End Test
-        run: sbt "e2etest/testOnly org.opensearch.spark.e2e.EndToEndTests"
+        run: sbt e2etest/test
 
       - name: Upload test report
         if: always() # Ensures the artifact is saved even if tests fail
