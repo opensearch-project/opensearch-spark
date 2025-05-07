@@ -60,44 +60,64 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
   override def beforeAll(): Unit = {
     logInfo("Starting docker cluster")
 
-    val dockerEnv = new Properties()
-    dockerEnv.load(new FileInputStream(new File(DOCKER_INTEG_DIR, ".env")))
-    OPENSEARCH_URL = "http://localhost:" + dockerEnv.getProperty("OPENSEARCH_PORT")
-    OPENSEARCH_PASSWORD = dockerEnv.getProperty("OPENSEARCH_ADMIN_PASSWORD")
-    SPARK_CONNECT_PORT = Integer.parseInt(dockerEnv.getProperty("SPARK_CONNECT_PORT"))
-    S3_ACCESS_KEY = dockerEnv.getProperty("S3_ACCESS_KEY")
-    S3_SECRET_KEY = dockerEnv.getProperty("S3_SECRET_KEY")
+    // Check if we're running in GitHub Actions
+    val isGitHubActions = sys.env.getOrElse("GITHUB_ACTIONS", "false").toLowerCase == "true"
+    
+    if (isGitHubActions) {
+      // In GitHub Actions, use environment variables directly
+      logInfo("Running in GitHub Actions, using pre-configured Docker containers")
+      OPENSEARCH_URL = "http://" + sys.env.getOrElse("OPENSEARCH_HOST", "opensearch") + ":" + sys.env.getOrElse("OPENSEARCH_PORT", "9200")
+      OPENSEARCH_PASSWORD = sys.env.getOrElse("OPENSEARCH_ADMIN_PASSWORD", "C0rrecthorsebatterystaple.")
+      SPARK_CONNECT_PORT = sys.env.getOrElse("SPARK_CONNECT_PORT", "15002").toInt
+      S3_ACCESS_KEY = sys.env.getOrElse("S3_ACCESS_KEY", "Vt7jnvi5BICr1rkfsheT")
+      S3_SECRET_KEY = sys.env.getOrElse("S3_SECRET_KEY", "5NK3StGvoGCLUWvbaGN0LBUf9N6sjE94PEzLdqwO")
+      
+      logInfo(s"Using OpenSearch URL: $OPENSEARCH_URL")
+      logInfo(s"Using Spark Connect port: $SPARK_CONNECT_PORT")
+      
+      // Skip Docker management in GitHub Actions
+    } else {
+      // In local environment, start Docker containers
+      val dockerEnv = new Properties()
+      dockerEnv.load(new FileInputStream(new File(DOCKER_INTEG_DIR, ".env")))
+      OPENSEARCH_URL = "http://localhost:" + dockerEnv.getProperty("OPENSEARCH_PORT")
+      OPENSEARCH_PASSWORD = dockerEnv.getProperty("OPENSEARCH_ADMIN_PASSWORD")
+      SPARK_CONNECT_PORT = Integer.parseInt(dockerEnv.getProperty("SPARK_CONNECT_PORT"))
+      S3_ACCESS_KEY = dockerEnv.getProperty("S3_ACCESS_KEY")
+      S3_SECRET_KEY = dockerEnv.getProperty("S3_SECRET_KEY")
 
-    val cmdWithArgs = List("docker", "volume", "rm") ++ DOCKER_VOLUMES
-    val deleteDockerVolumesProcess = new ProcessBuilder(cmdWithArgs.toArray: _*).start()
-    deleteDockerVolumesProcess.waitFor(10, TimeUnit.SECONDS)
+      val cmdWithArgs = List("docker", "volume", "rm") ++ DOCKER_VOLUMES
+      val deleteDockerVolumesProcess = new ProcessBuilder(cmdWithArgs.toArray: _*).start()
+      deleteDockerVolumesProcess.waitFor(10, TimeUnit.SECONDS)
 
-    val dockerProcess = new ProcessBuilder("docker", "compose", "up", "-d")
-      .directory(new File(DOCKER_INTEG_DIR))
-      .start()
-    var stopReading = false
-    new Thread() {
-      override def run(): Unit = {
-        val reader = new BufferedReader(new InputStreamReader(dockerProcess.getInputStream))
-        var line = reader.readLine()
-        while (!stopReading && line != null) {
-          logInfo("*** " + line)
-          line = reader.readLine()
+      val dockerProcess = new ProcessBuilder("docker", "compose", "up", "-d")
+        .directory(new File(DOCKER_INTEG_DIR))
+        .start()
+      var stopReading = false
+      new Thread() {
+        override def run(): Unit = {
+          val reader = new BufferedReader(new InputStreamReader(dockerProcess.getInputStream))
+          var line = reader.readLine()
+          while (!stopReading && line != null) {
+            logInfo("*** " + line)
+            line = reader.readLine()
+          }
         }
+      }.start()
+      val completed = dockerProcess.waitFor(20, TimeUnit.MINUTES)
+      stopReading = true
+      if (!completed) {
+        throw new IllegalStateException("Unable to start docker cluster")
       }
-    }.start()
-    val completed = dockerProcess.waitFor(20, TimeUnit.MINUTES)
-    stopReading = true
-    if (!completed) {
-      throw new IllegalStateException("Unable to start docker cluster")
+
+      if (dockerProcess.exitValue() != 0) {
+        logError("Unable to start docker cluster")
+      }
+
+      logInfo("Started docker cluster")
     }
 
-    if (dockerProcess.exitValue() != 0) {
-      logError("Unable to start docker cluster")
-    }
-
-    logInfo("Started docker cluster")
-
+    // Create tables and indices in both environments
     createTables()
     createIndices()
   }
@@ -107,15 +127,22 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
    */
   override def afterAll(): Unit = {
     logInfo("Stopping docker cluster")
-    waitForSparkSubmitCompletion()
+    
+    // Check if we're running in GitHub Actions
+    val isGitHubActions = sys.env.getOrElse("GITHUB_ACTIONS", "false").toLowerCase == "true"
+    
+    if (!isGitHubActions) {
+      // Only manage Docker in local environment
+      waitForSparkSubmitCompletion()
 
-    val dockerProcess = new ProcessBuilder("docker", "compose", "down")
-      .directory(new File(DOCKER_INTEG_DIR))
-      .start()
-    dockerProcess.waitFor(10, TimeUnit.MINUTES)
+      val dockerProcess = new ProcessBuilder("docker", "compose", "down")
+        .directory(new File(DOCKER_INTEG_DIR))
+        .start()
+      dockerProcess.waitFor(10, TimeUnit.MINUTES)
 
-    if (dockerProcess.exitValue() != 0) {
-      logError("Unable to stop docker cluster")
+      if (dockerProcess.exitValue() != 0) {
+        logError("Unable to stop docker cluster")
+      }
     }
 
     logInfo("Stopped docker cluster")

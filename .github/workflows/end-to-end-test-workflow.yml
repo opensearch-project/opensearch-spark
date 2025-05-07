@@ -277,6 +277,11 @@ jobs:
           ENV S3_ENDPOINT=minio-S3
           ENV S3_PORT=9000
           ENV S3_REGION=us-east-1
+          ENV OPENSEARCH_HOST=opensearch
+          ENV OPENSEARCH_PORT=9200
+          ENV OPENSEARCH_ADMIN_PASSWORD=C0rrecthorsebatterystaple.
+          ENV SPARK_CONNECT_PORT=15002
+          ENV GITHUB_ACTIONS=true
           
           # Set SBT options
           ENV SBT_OPTS="-Xmx2G"
@@ -289,12 +294,17 @@ jobs:
           docker build -t test-runner -f TestRunner.Dockerfile ../..
           
           # Run the test runner container in the same network
-          docker run --network integ-test_opensearch-net \
+          docker run --network docker_integ-test_opensearch-net \
                      --name test-runner \
                      -e SPARK_HOST=spark \
                      -e S3_ENDPOINT=minio-S3 \
                      -e S3_PORT=9000 \
                      -e S3_REGION=us-east-1 \
+                     -e OPENSEARCH_HOST=opensearch \
+                     -e OPENSEARCH_PORT=9200 \
+                     -e OPENSEARCH_ADMIN_PASSWORD=C0rrecthorsebatterystaple. \
+                     -e SPARK_CONNECT_PORT=15002 \
+                     -e GITHUB_ACTIONS=true \
                      test-runner
           
       - name: End-to-End Test Results
