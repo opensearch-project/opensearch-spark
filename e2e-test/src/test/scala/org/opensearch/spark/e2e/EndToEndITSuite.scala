@@ -62,7 +62,6 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
 
     // Check if we're running in GitHub Actions
     val isGitHubActions = sys.env.getOrElse("GITHUB_ACTIONS", "false").toLowerCase == "true"
-    
     if (isGitHubActions) {
       // In GitHub Actions, use environment variables directly
       logInfo("Running in GitHub Actions, using pre-configured Docker containers")
@@ -71,10 +70,8 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
       SPARK_CONNECT_PORT = sys.env.getOrElse("SPARK_CONNECT_PORT", "15002").toInt
       S3_ACCESS_KEY = sys.env.getOrElse("S3_ACCESS_KEY", "Vt7jnvi5BICr1rkfsheT")
       S3_SECRET_KEY = sys.env.getOrElse("S3_SECRET_KEY", "5NK3StGvoGCLUWvbaGN0LBUf9N6sjE94PEzLdqwO")
-      
       logInfo(s"Using OpenSearch URL: $OPENSEARCH_URL")
       logInfo(s"Using Spark Connect port: $SPARK_CONNECT_PORT")
-      
       // Skip Docker management in GitHub Actions
     } else {
       // In local environment, start Docker containers
@@ -127,10 +124,8 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
    */
   override def afterAll(): Unit = {
     logInfo("Stopping docker cluster")
-    
     // Check if we're running in GitHub Actions
     val isGitHubActions = sys.env.getOrElse("GITHUB_ACTIONS", "false").toLowerCase == "true"
-    
     if (!isGitHubActions) {
       // Only manage Docker in local environment
       waitForSparkSubmitCompletion()

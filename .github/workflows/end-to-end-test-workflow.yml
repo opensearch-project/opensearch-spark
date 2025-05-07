@@ -276,6 +276,9 @@ jobs:
           # Copy the project files
           COPY . .
           
+          # Fix whitespace issues in EndToEndITSuite.scala
+          RUN sed -i 's/[ \t]*$//' e2e-test/src/test/scala/org/opensearch/spark/e2e/EndToEndITSuite.scala
+          
           # Set environment variables
           ENV SPARK_HOST=spark
           ENV S3_ENDPOINT=minio-S3
