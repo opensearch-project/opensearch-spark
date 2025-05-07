@@ -6,7 +6,7 @@
 package org.opensearch.spark.e2e
 
 import java.io.{BufferedReader, File, FileInputStream, InputStreamReader}
-import java.util.Properties
+import java.util.{Locale, Properties}
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
@@ -61,7 +61,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
     logInfo("Starting docker cluster")
 
     // Check if we're running in GitHub Actions
-    val isGitHubActions = sys.env.getOrElse("GITHUB_ACTIONS", "false").toLowerCase == "true"
+    val isGitHubActions = sys.env.getOrElse("GITHUB_ACTIONS", "false").toLowerCase(Locale.ROOT) == "true"
     if (isGitHubActions) {
       // In GitHub Actions, use environment variables directly
       logInfo("Running in GitHub Actions, using pre-configured Docker containers")
@@ -125,7 +125,7 @@ class EndToEndITSuite extends AnyFlatSpec with TableDrivenPropertyChecks with Be
   override def afterAll(): Unit = {
     logInfo("Stopping docker cluster")
     // Check if we're running in GitHub Actions
-    val isGitHubActions = sys.env.getOrElse("GITHUB_ACTIONS", "false").toLowerCase == "true"
+    val isGitHubActions = sys.env.getOrElse("GITHUB_ACTIONS", "false").toLowerCase(Locale.ROOT) == "true"
     if (!isGitHubActions) {
       // Only manage Docker in local environment
       waitForSparkSubmitCompletion()
