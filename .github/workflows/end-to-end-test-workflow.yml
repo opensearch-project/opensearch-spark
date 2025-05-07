@@ -70,12 +70,14 @@ jobs:
               image: bitnami/spark:3.5.0
               container_name: spark
               hostname: spark
+              command: bash -c "cd /opt/bitnami/spark && ./sbin/start-connect-server.sh --host spark --port 15002 && ./sbin/start-master.sh && tail -f /dev/null"
               environment:
                 - SPARK_MODE=master
                 - SPARK_RPC_AUTHENTICATION_ENABLED=no
                 - SPARK_RPC_ENCRYPTION_ENABLED=no
                 - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
                 - SPARK_SSL_ENABLED=no
+                - SPARK_PUBLIC_DNS=spark
               ports:
                 - "8080:8080"
                 - "7077:7077"
@@ -85,6 +87,7 @@ jobs:
 
           networks:
             test-network:
+              driver: bridge
           EOF
 
       - name: Start Docker containers
@@ -94,9 +97,42 @@ jobs:
           echo "Waiting for services to start..."
           sleep 60
           docker ps -a
+          
+          # Check if Spark is running properly
+          echo "Checking Spark status:"
+          docker logs spark
+          docker exec spark ps aux | grep spark
+          docker exec spark netstat -tulpn | grep 15002 || echo "Spark Connect port not listening"
+          
+          # Check network connectivity
+          echo "Checking network connectivity:"
+          docker network inspect $(docker network ls --format "{{.Name}}" | grep test-network)
 
       - name: Run tests with Docker
         run: |
+          # Create a test script
+          cat > run_tests.sh << 'EOF'
+          #!/bin/bash
+          set -ex
+          
+          # Fix whitespace issues
+          find . -name "*.scala" -type f -exec sed -i 's/[ \t]*$//' {} \;
+          
+          # Add debug output for network connectivity
+          echo "Network connectivity from test container:"
+          ping -c 3 spark || echo "Cannot ping spark"
+          ping -c 3 minio-S3 || echo "Cannot ping minio-S3"
+          ping -c 3 opensearch || echo "Cannot ping opensearch"
+          
+          # Try to connect to Spark Connect port
+          nc -zv spark 15002 || echo "Cannot connect to Spark Connect port"
+          
+          # Run the tests with debugging enabled
+          JAVA_OPTS="-Xmx3g" sbt -Dscalastyle.skip=true -Dtest.timefactor=3 -Dspark.log.level=DEBUG e2etest/test
+          EOF
+          
+          chmod +x run_tests.sh
+          
           docker run --rm \
             --network $(docker network ls --format "{{.Name}}" | grep test-network) \
             -v $(pwd):/app \
@@ -106,7 +142,7 @@ jobs:
             -e OPENSEARCH_HOST=opensearch \
             -e GITHUB_ACTIONS=true \
             eclipse-temurin:11-jdk \
-            bash -c "apt-get update && apt-get install -y curl && curl -L -o sbt.deb https://repo.scala-sbt.org/scalasbt/debian/sbt-1.9.8.deb && dpkg -i sbt.deb && rm sbt.deb && find . -name \"*.scala\" -type f -exec sed -i 's/[ \t]*$//' {} \; && JAVA_OPTS=\"-Xmx3g\" sbt -Dscalastyle.skip=true -Dtest.timefactor=3 e2etest/test"
+            bash -c "apt-get update && apt-get install -y curl netcat-openbsd iputils-ping && curl -L -o sbt.deb https://repo.scala-sbt.org/scalasbt/debian/sbt-1.9.8.deb && dpkg -i sbt.deb && rm sbt.deb && ./run_tests.sh"
 
       - name: Capture Docker logs (on failure)
         if: failure()
