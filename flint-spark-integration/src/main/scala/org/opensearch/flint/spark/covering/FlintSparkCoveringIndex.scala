@@ -54,7 +54,6 @@ case class FlintSparkCoveringIndex(
       }.toArray
     }
     val schema = generateSchema(indexedColumns).asJava
-
     val builder = metadataBuilder(this)
       .name(indexName)
       .source(tableName)
