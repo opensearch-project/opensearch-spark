@@ -35,7 +35,7 @@ jobs:
           echo "OPENSEARCH_HOST=localhost" >> $GITHUB_ENV
 
       - name: End-to-End Test
-        run: sbt e2etest/test
+        run: sbt "e2etest/testOnly org.opensearch.spark.e2e.EndToEndTests"
 
       - name: Upload test report
         if: always() # Ensures the artifact is saved even if tests fail
