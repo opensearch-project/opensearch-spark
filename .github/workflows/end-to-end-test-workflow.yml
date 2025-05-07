@@ -221,6 +221,10 @@ jobs:
           echo "Initial container status:"
           docker ps -a
           
+          # Check Docker networks
+          echo "Docker networks:"
+          docker network ls
+          
           # Check OpenSearch logs
           echo "OpenSearch logs:"
           docker logs opensearch || true
@@ -293,8 +297,12 @@ jobs:
           # Build the test runner image
           docker build -t test-runner -f TestRunner.Dockerfile ../..
           
+          # Find the correct network name
+          NETWORK_NAME=$(docker network ls --format "{{.Name}}" | grep opensearch-net)
+          echo "Using Docker network: $NETWORK_NAME"
+          
           # Run the test runner container in the same network
-          docker run --network docker_integ-test_opensearch-net \
+          docker run --network $NETWORK_NAME \
                      --name test-runner \
                      -e SPARK_HOST=spark \
                      -e S3_ENDPOINT=minio-S3 \
