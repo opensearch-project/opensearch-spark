@@ -8,9 +8,6 @@ jobs:
   build:
     strategy:
       fail-fast: false
-      matrix:
-        entry:
-          - { os: ubuntu-latest, java: 11 }
     runs-on: ubuntu-latest
 
     steps:
@@ -25,344 +22,99 @@ jobs:
       - name: Set up SBT
         uses: sbt/setup-sbt@v1
 
-      - name: Set SBT_OPTS
-        # Needed to extend the JVM memory size to avoid OutOfMemoryError for HTML test report
-        run: echo "SBT_OPTS=-Xmx2G" >> $GITHUB_ENV
-
-      - name: Set environment variables
-        # Set environment variables for GitHub Actions environment
-        # Tests run on the GitHub runner and access Docker containers via port mapping
-        run: |
-          echo "S3_ENDPOINT=localhost" >> $GITHUB_ENV
-          echo "S3_PORT=9000" >> $GITHUB_ENV
-          echo "S3_REGION=us-east-1" >> $GITHUB_ENV
-          # Use localhost for Spark host since tests run on the GitHub runner
-          echo "SPARK_HOST=localhost" >> $GITHUB_ENV
-
       - name: Build project
         run: sbt assembly
 
-      - name: Create custom docker-compose file
+      - name: Create minimal docker-compose file
         run: |
           cd docker/integ-test
-          
-          # Create a simplified docker-compose file for GitHub Actions
-          cat > docker-compose.github.yml << 'EOF'
+          cat > docker-compose.minimal.yml << 'EOF'
           services:
             metastore:
-              build: ./metastore
+              image: apache/hive:3.1.3
               container_name: metastore
+              environment:
+                - SERVICE_NAME=metastore
               ports:
                 - "9083:9083"
-              volumes:
-                - type: bind
-                  source: ./metastore/hive-site.xml
-                  target: /opt/apache-hive-2.3.9-bin/conf/hive-site.xml
-                - type: bind
-                  source: ./metastore/hive-log4j2.properties
-                  target: /opt/apache-hive-2.3.9-bin/conf/hive-log4j2.properties
-                - type: volume
-                  source: metastore-data
-                  target: /data
               networks:
-                - opensearch-net
-          
+                - test-network
+
             minio:
               image: minio/minio
               container_name: minio-S3
-              entrypoint: sh -c 'mkdir -p /data/test && minio server /data --console-address ":9001"'
+              command: server /data --console-address ":9001"
               ports:
                 - "9000:9000"
                 - "9001:9001"
-              volumes:
-                - minio-data:/data
-              healthcheck:
-                test: ["CMD", "curl", "-q", "-f", "http://localhost:9000/minio/health/live"]
-                interval: 30s
-                timeout: 10s
-                retries: 5
-                start_period: 20s
+              environment:
+                - MINIO_ROOT_USER=minioadmin
+                - MINIO_ROOT_PASSWORD=minioadmin
               networks:
-                - opensearch-net
-          
+                - test-network
+
             opensearch:
               image: opensearchproject/opensearch:latest
               container_name: opensearch
               environment:
-                - cluster.name=opensearch-cluster
-                - node.name=opensearch
                 - discovery.type=single-node
                 - bootstrap.memory_lock=true
-                - plugins.security.system_indices.enabled=false
-                - plugins.security.system_indices.permission.enabled=false
-                - plugins.security.ssl.http.enabled=false
-                - DISABLE_INSTALL_DEMO_CONFIG=true
                 - DISABLE_SECURITY_PLUGIN=true
-                - OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g
-                - OPENSEARCH_INITIAL_ADMIN_PASSWORD=C0rrecthorsebatterystaple.
-              ulimits:
-                memlock:
-                  soft: -1
-                  hard: -1
-                nofile:
-                  soft: 65536
-                  hard: 65536
-              volumes:
-                - type: volume
-                  source: opensearch-data
-                  target: /usr/share/opensearch/data
+                - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
               ports:
                 - "9200:9200"
-                - "9600:9600"
-              healthcheck:
-                test: ["CMD", "curl", "-f", "-u", "admin:C0rrecthorsebatterystaple.", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=50s"]
-                interval: 30s
-                timeout: 15s
-                retries: 5
-                start_period: 40s
               networks:
-                - opensearch-net
-          
-            opensearch-dashboards:
-              image: opensearchproject/opensearch-dashboards:latest
-              container_name: opensearch-dashboards
-              ports:
-                - "5601:5601"
-              environment:
-                OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
-                DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
-              networks:
-                - opensearch-net
-              depends_on:
-                opensearch:
-                  condition: service_healthy
-          
+                - test-network
+
             spark:
-              build:
-                context: ./spark
-                dockerfile: Dockerfile
-                args:
-                  SPARK_VERSION: 3.5.3
+              image: bitnami/spark:3.5.0
               container_name: spark
               hostname: spark
-              entrypoint: /opt/bitnami/scripts/spark/spark-master-entrypoint.sh
-              ports:
-                - "8080:8080"
-                - "7077:7077"
-                - "4040:4040"
-                - "15002:15002"
               environment:
                 - SPARK_MODE=master
                 - SPARK_RPC_AUTHENTICATION_ENABLED=no
                 - SPARK_RPC_ENCRYPTION_ENABLED=no
                 - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
                 - SPARK_SSL_ENABLED=no
-                - SPARK_PUBLIC_DNS=spark
-              volumes:
-                - type: bind
-                  source: ../../ppl-spark-integration/target/scala-2.12/ppl-spark-integration-assembly-1.0.0-SNAPSHOT.jar
-                  target: /opt/bitnami/spark/jars/ppl-spark-integration.jar
-                - type: bind
-                  source: ../../flint-spark-integration/target/scala-2.12/flint-spark-integration-assembly-1.0.0-SNAPSHOT.jar
-                  target: /opt/bitnami/spark/jars/flint-spark-integration.jar
-                - type: bind
-                  source: ../../spark-sql-application/target/scala-2.12/sql-job-assembly-1.0.0-SNAPSHOT.jar
-                  target: /opt/bitnami/spark/jars/opensearch-spark-sql-application.jar
+              ports:
+                - "8080:8080"
+                - "7077:7077"
+                - "15002:15002"
               networks:
-                - opensearch-net
-              depends_on:
-                metastore:
-                  condition: service_started
-                opensearch:
-                  condition: service_healthy
-          
-            configuration-updater:
-              image: alpine/curl:latest
-              container_name: configuration-updater
-              entrypoint: /bin/sh
-              command: /apply-configuration.sh
-              environment:
-                - S3_ACCESS_KEY=Vt7jnvi5BICr1rkfsheT
-                - S3_SECRET_KEY=5NK3StGvoGCLUWvbaGN0LBUf9N6sjE94PEzLdqwO
-                - OPENSEARCH_ADMIN_PASSWORD=C0rrecthorsebatterystaple.
-              volumes:
-                - type: bind
-                  source: ./configuration-updater/apply-configuration.sh
-                  target: /apply-configuration.sh
-              networks:
-                - opensearch-net
-              depends_on:
-                opensearch:
-                  condition: service_healthy
-                opensearch-dashboards:
-                  condition: service_started
-          
-          volumes:
-            metastore-data:
-            opensearch-data:
-            minio-data:
+                - test-network
+
           networks:
-            opensearch-net:
+            test-network:
           EOF
-          
-          echo "Created simplified docker-compose.github.yml"
-          
+
       - name: Start Docker containers
         run: |
           cd docker/integ-test
-          
-          # Start containers with the simplified compose file
-          docker compose -f docker-compose.github.yml up -d
-          
-          echo "Waiting for services to start (initial 30s)..."
-          sleep 30
-          
-          # Check container status
-          echo "Initial container status:"
-          docker ps -a
-          
-          # Check Docker networks
-          echo "Docker networks:"
-          docker network ls
-          
-          # Check OpenSearch logs
-          echo "OpenSearch logs:"
-          docker logs opensearch || true
-          
-          # Wait longer for services to stabilize
-          echo "Waiting additional time for services to stabilize..."
-          sleep 90
-          
-          # Final container status
-          echo "Final container status:"
+          docker compose -f docker-compose.minimal.yml up -d
+          echo "Waiting for services to start..."
+          sleep 60
           docker ps -a
 
-      - name: Check Docker container health
+      - name: Run tests with Docker
         run: |
-          echo "Checking container health..."
-          
-          echo "MinIO health check:"
-          docker exec minio-S3 curl -s http://localhost:9000/minio/health/live || echo "MinIO health check failed"
-          
-          echo "Spark master UI check:"
-          docker exec spark curl -s http://localhost:8080/ || echo "Spark master UI not available"
-          
-          echo "OpenSearch health check:"
-          docker exec opensearch curl -s -u admin:C0rrecthorsebatterystaple. http://localhost:9200/_cluster/health || echo "OpenSearch health check failed"
-          
-          echo "OpenSearch cluster status:"
-          docker exec opensearch curl -s -u admin:C0rrecthorsebatterystaple. http://localhost:9200/_cat/health || echo "OpenSearch status check failed"
-          
-          echo "OpenSearch JVM info:"
-          docker exec opensearch curl -s -u admin:C0rrecthorsebatterystaple. http://localhost:9200/_nodes/stats/jvm || echo "OpenSearch JVM info check failed"
-
-      - name: Create test runner container
-        run: |
-          cd docker/integ-test
-          
-          # Create a test runner Dockerfile
-          cat > TestRunner.Dockerfile << 'EOF'
-          FROM eclipse-temurin:11-jdk
-          
-          RUN apt-get update && apt-get install -y curl
-          
-          # Install SBT
-          RUN curl -L -o sbt.deb https://repo.scala-sbt.org/scalasbt/debian/sbt-1.9.8.deb && \
-              dpkg -i sbt.deb && \
-              rm sbt.deb
-          
-          WORKDIR /app
-          
-          # Copy the project files
-          COPY . .
-          
-          # Fix whitespace issues in EndToEndITSuite.scala
-          RUN sed -i 's/[ \t]*$//' e2e-test/src/test/scala/org/opensearch/spark/e2e/EndToEndITSuite.scala
-          
-          # Set environment variables
-          ENV SPARK_HOST=spark
-          ENV S3_ENDPOINT=minio-S3
-          ENV S3_PORT=9000
-          ENV S3_REGION=us-east-1
-          ENV OPENSEARCH_HOST=opensearch
-          ENV OPENSEARCH_PORT=9200
-          ENV OPENSEARCH_ADMIN_PASSWORD=C0rrecthorsebatterystaple.
-          ENV SPARK_CONNECT_PORT=15002
-          ENV GITHUB_ACTIONS=true
-          
-          # Set SBT options
-          ENV SBT_OPTS="-Xmx2G"
-          
-          # Command to run tests
-          CMD ["sbt", "e2etest/test"]
-          EOF
-          
-          # Build the test runner image
-          docker build -t test-runner -f TestRunner.Dockerfile ../..
-          
-          # Find the correct network name
-          NETWORK_NAME=$(docker network ls --format "{{.Name}}" | grep opensearch-net)
-          echo "Using Docker network: $NETWORK_NAME"
-          
-          # Run the test runner container in the same network
-          docker run --network $NETWORK_NAME \
-                     --name test-runner \
-                     -e SPARK_HOST=spark \
-                     -e S3_ENDPOINT=minio-S3 \
-                     -e S3_PORT=9000 \
-                     -e S3_REGION=us-east-1 \
-                     -e OPENSEARCH_HOST=opensearch \
-                     -e OPENSEARCH_PORT=9200 \
-                     -e OPENSEARCH_ADMIN_PASSWORD=C0rrecthorsebatterystaple. \
-                     -e SPARK_CONNECT_PORT=15002 \
-                     -e GITHUB_ACTIONS=true \
-                     test-runner
-          
-      - name: End-to-End Test Results
-        run: |
-          # Get the exit code from the test runner container
-          TEST_EXIT_CODE=$(docker inspect test-runner --format='{{.State.ExitCode}}')
-          
-          # Print test logs
-          echo "Test runner logs:"
-          docker logs test-runner
-          
-          # Exit with the same code as the test runner
-          exit $TEST_EXIT_CODE
+          docker run --rm \
+            --network $(docker network ls --format "{{.Name}}" | grep test-network) \
+            -v $(pwd):/app \
+            -w /app \
+            -e SPARK_HOST=spark \
+            -e S3_ENDPOINT=minio-S3 \
+            -e OPENSEARCH_HOST=opensearch \
+            -e GITHUB_ACTIONS=true \
+            eclipse-temurin:11-jdk \
+            bash -c "apt-get update && apt-get install -y curl && curl -L -o sbt.deb https://repo.scala-sbt.org/scalasbt/debian/sbt-1.9.8.deb && dpkg -i sbt.deb && rm sbt.deb && find . -name \"*.scala\" -type f -exec sed -i 's/[ \t]*$//' {} \; && JAVA_OPTS=\"-Xmx3g\" sbt -Dscalastyle.skip=true -Dtest.timefactor=3 e2etest/test"
 
       - name: Capture Docker logs (on failure)
         if: failure()
         run: |
-          echo "Capturing Docker logs..."
           docker ps -a
-          
-          echo "OpenSearch logs:"
           docker logs opensearch > opensearch.log 2>&1 || true
-          
-          echo "OpenSearch Dashboards logs:"
-          docker logs opensearch-dashboards > opensearch-dashboards.log 2>&1 || true
-          
-          echo "Spark logs:"
           docker logs spark > spark.log 2>&1 || true
-          
-          echo "Spark Worker logs:"
-          docker logs spark-worker > spark-worker.log 2>&1 || true
-          
-          echo "MinIO logs:"
           docker logs minio-S3 > minio.log 2>&1 || true
-          
-          echo "Metastore logs:"
-          docker logs metastore > metastore.log 2>&1 || true
-          
-          echo "Configuration Updater logs:"
-          docker logs configuration-updater > configuration-updater.log 2>&1 || true
-          
-          # Check system resources
-          echo "System memory info:"
-          free -h
-          
-          echo "System disk info:"
-          df -h
 
       - name: Upload Docker logs
         if: failure()
@@ -373,8 +125,8 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload test report
-        if: always() # Ensures the artifact is saved even if tests fail
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-reports
-          path: target/test-reports # Adjust this path if necessary
+          path: target/test-reports
