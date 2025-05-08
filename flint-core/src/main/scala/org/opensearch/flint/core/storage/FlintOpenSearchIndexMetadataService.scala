@@ -7,11 +7,11 @@ package org.opensearch.flint.core.storage
 
 import java.util
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters._
 
 import org.opensearch.client.RequestOptions
 import org.opensearch.client.indices.{GetIndexRequest, GetIndexResponse, PutMappingRequest}
-import org.opensearch.common.xcontent.XContentType
+import org.opensearch.common.xcontent.{XContentParser, XContentType}
 import org.opensearch.flint.common.FlintVersion
 import org.opensearch.flint.common.metadata.{FlintIndexMetadataService, FlintMetadata}
 import org.opensearch.flint.core.FlintOptions
@@ -98,8 +98,7 @@ class FlintOpenSearchIndexMetadataService(options: FlintOptions)
   override def deleteIndexMetadata(indexName: String): Unit = {}
 }
 
-object FlintOpenSearchIndexMetadataService {
-
+object FlintOpenSearchIndexMetadataService extends Logging {
   def serialize(metadata: FlintMetadata): String = {
     serialize(metadata, true)
   }
@@ -134,9 +133,21 @@ object FlintOpenSearchIndexMetadataService {
             optionalObjectField(builder, "properties", metadata.properties)
           }
         }
+        // Add _source field
+        val indexMappingsOpt =
+          Option(metadata.options.get("index_mappings")).map(_.asInstanceOf[String])
+        val sourceEnabled = extractSourceEnabled(indexMappingsOpt)
+        if (!sourceEnabled) {
+          objectField(builder, "_source") {
+            builder.field("enabled", sourceEnabled)
+          }
+        }
 
         // Add properties (schema) field
-        builder.field("properties", metadata.schema)
+        val tempSchema = metadata.schema.asScala.toMap
+        val tempOptions = metadata.options.asScala.toMap
+        val schema = mergeSchema(tempSchema, tempOptions).asJava
+        builder.field("properties", schema)
       })
     } catch {
       case e: Exception =>
@@ -191,6 +202,7 @@ object FlintOpenSearchIndexMetadataService {
                   }
                 }
               }
+            case "_source" => parser.skipChildren()
             case "properties" =>
               builder.schema(parser.map())
             case _ => // Ignore other fields, for instance, dynamic.
@@ -201,6 +213,169 @@ object FlintOpenSearchIndexMetadataService {
     } catch {
       case e: Exception =>
         throw new IllegalStateException("Failed to parse metadata JSON", e)
+    }
+  }
+
+  def extractSourceEnabled(indexMappingsJsonOpt: Option[String]): Boolean = {
+    var sourceEnabled: Boolean = true
+
+    indexMappingsJsonOpt.foreach { jsonStr =>
+      try {
+        parseJson(jsonStr) { (parser, fieldName) =>
+          fieldName match {
+            case "_source" =>
+              parseObjectField(parser) { (parser, innerFieldName) =>
+                innerFieldName match {
+                  case "enabled" =>
+                    sourceEnabled = parser.booleanValue()
+                    return sourceEnabled
+                  case _ => // Ignore
+                }
+              }
+            case _ => // Ignore
+          }
+        }
+      } catch {
+        case e: Exception =>
+          logError("Error extracting _source", e)
+      }
+    }
+
+    sourceEnabled
+  }
+
+  /**
+   * Merges the mapping parameters from FlintSparkIndexOptions into the existing schema. If the
+   * options contain mapping parameters that exist in allFieldTypes, those configurations are
+   * merged.
+   *
+   * @param allFieldTypes
+   *   Map of field names to their type/configuration details
+   * @param options
+   *   FlintMetadata containing potential mapping parameters
+   * @return
+   *   Merged map with combined mapping parameters
+   */
+  def mergeSchema(
+      allFieldTypes: Map[String, AnyRef],
+      options: Map[String, AnyRef]): Map[String, AnyRef] = {
+    val indexMappingsOpt = options.get("index_mappings").flatMap {
+      case s: String => Some(s)
+      case _ => None
+    }
+
+    var result = allFieldTypes
+
+    // Track mappings from leaf name to configuration properties
+    var fieldConfigs = Map.empty[String, Map[String, AnyRef]]
+
+    indexMappingsOpt.foreach { jsonStr =>
+      try {
+        // Extract nested field configurations - key is the leaf name
+        parseJson(jsonStr) { (parser, fieldName) =>
+          fieldName match {
+            case "_source" =>
+              parser.skipChildren() // Skip _source section
+
+            case "properties" =>
+              // Process properties recursively to extract field configs
+              fieldConfigs = extractNestedProperties(parser)
+
+            case _ =>
+              parser.skipChildren() // Skip other fields
+          }
+        }
+
+        // Apply extracted configurations to schema while preserving structure
+        result = result.map { case (fullFieldName, fieldType) =>
+          val leafFieldName = extractLeafFieldName(fullFieldName)
+
+          if (fieldConfigs.contains(leafFieldName)) {
+            // We have config for this leaf field name
+            fieldType match {
+              case existingConfig: java.util.Map[_, _] =>
+                val mergedConfig = new java.util.HashMap[String, AnyRef](
+                  existingConfig.asInstanceOf[java.util.Map[String, AnyRef]])
+
+                // Add/overwrite with new config values
+                fieldConfigs(leafFieldName).foreach { case (k, v) =>
+                  mergedConfig.put(k, v)
+                }
+
+                // Return the updated field with its original key
+                (fullFieldName, mergedConfig)
+
+              case _ =>
+                // If field type isn't a map, keep it unchanged
+                (fullFieldName, fieldType)
+            }
+          } else {
+            // No config for this field, keep it unchanged
+            (fullFieldName, fieldType)
+          }
+        }
+      } catch {
+        case ex: Exception =>
+          logError("Error merging schema", ex)
+      }
+    }
+
+    result
+  }
+
+  /**
+   * Recursively extracts mapping parameters from nested properties structure. Returns a map of
+   * field name to its configuration.
+   */
+  private def extractNestedProperties(
+      parser: XContentParser): Map[String, Map[String, AnyRef]] = {
+
+    var fieldConfigs = Map.empty[String, Map[String, AnyRef]]
+
+    parseObjectField(parser) { (parser, fieldName) =>
+      var fieldConfig = Map.empty[String, AnyRef]
+      var hasNestedProperties = false
+
+      parseObjectField(parser) { (parser, propName) =>
+        if (propName == "properties") {
+          hasNestedProperties = true
+          val nestedConfigs = extractNestedProperties(parser)
+          fieldConfigs ++= nestedConfigs
+        } else {
+          val value = parser.currentToken() match {
+            case XContentParser.Token.VALUE_STRING => parser.text()
+            case XContentParser.Token.VALUE_NUMBER => parser.numberValue()
+            case XContentParser.Token.VALUE_BOOLEAN => parser.booleanValue()
+            case XContentParser.Token.VALUE_NULL => null
+            case _ =>
+              parser.skipChildren()
+              null
+          }
+
+          if (value != null) {
+            fieldConfig += (propName -> value.asInstanceOf[AnyRef])
+          }
+        }
+      }
+
+      if (!hasNestedProperties && fieldConfig.nonEmpty) {
+        fieldConfigs += (fieldName -> fieldConfig)
+      }
+    }
+
+    fieldConfigs
+  }
+
+  /**
+   * Extracts the leaf field name from a potentially nested field path. For example:
+   * "aws.vpc.count" -> "count"
+   */
+  private def extractLeafFieldName(fullFieldPath: String): String = {
+    val lastDotIndex = fullFieldPath.lastIndexOf('.')
+    if (lastDotIndex >= 0) {
+      fullFieldPath.substring(lastDotIndex + 1)
+    } else {
+      fullFieldPath
     }
   }
 }
