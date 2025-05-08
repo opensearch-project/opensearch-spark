@@ -329,6 +329,7 @@ object FlintOpenSearchIndexMetadataService extends Logging {
    */
   private def extractNestedProperties(
       parser: XContentParser): Map[String, Map[String, AnyRef]] = {
+
     var fieldConfigs = Map.empty[String, Map[String, AnyRef]]
 
     parseObjectField(parser) { (parser, fieldName) =>
@@ -336,31 +337,27 @@ object FlintOpenSearchIndexMetadataService extends Logging {
       var hasNestedProperties = false
 
       parseObjectField(parser) { (parser, propName) =>
-        propName match {
-          case "properties" =>
-            // This field has nested properties - recurse
-            hasNestedProperties = true
-            val nestedConfigs = extractNestedProperties(parser)
-            fieldConfigs ++= nestedConfigs
+        if (propName == "properties") {
+          hasNestedProperties = true
+          val nestedConfigs = extractNestedProperties(parser)
+          fieldConfigs ++= nestedConfigs
+        } else {
+          val value = parser.currentToken() match {
+            case XContentParser.Token.VALUE_STRING => parser.text()
+            case XContentParser.Token.VALUE_NUMBER => parser.numberValue()
+            case XContentParser.Token.VALUE_BOOLEAN => parser.booleanValue()
+            case XContentParser.Token.VALUE_NULL => null
+            case _ =>
+              parser.skipChildren()
+              null
+          }
 
-          case "type" =>
-            fieldConfig += ("type" -> parser.text().asInstanceOf[AnyRef])
-
-          case "format" =>
-            fieldConfig += ("format" -> parser.text().asInstanceOf[AnyRef])
-
-          case "index" =>
-            fieldConfig += ("index" -> java.lang.Boolean
-              .valueOf(parser.booleanValue())
-              .asInstanceOf[AnyRef])
-
-          case _ =>
-            // Skip any unrecognized properties
-            parser.skipChildren()
+          if (value != null) {
+            fieldConfig += (propName -> value.asInstanceOf[AnyRef])
+          }
         }
       }
 
-      // If this is a leaf field (no nested properties), add its config
       if (!hasNestedProperties && fieldConfig.nonEmpty) {
         fieldConfigs += (fieldName -> fieldConfig)
       }
