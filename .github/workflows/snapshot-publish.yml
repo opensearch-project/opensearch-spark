@@ -22,6 +22,15 @@ jobs:
       - uses: actions/checkout@v3
         id: checkout
 
+      # Extract version from build.sbt file
+      - name: Extract version from build.sbt
+        id: extract_version
+        run: |
+          # Extract the version from build.sbt
+          VERSION=$(grep -E 'ThisBuild / version := "[^"]+"' build.sbt | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Using version: ${VERSION}"
+
       # Capture the commit ID for metadata purposes
       - name: Set commit ID
         id: set_commit
@@ -39,15 +48,7 @@ jobs:
       - name: Set up SBT
         uses: sbt/setup-sbt@v1
 
-      # Create version.sbt file to override the version
-      - name: Create version.sbt file
-        run: |
-          # Create version.sbt file with hardcoded version
-          echo 'ThisBuild / version := "0.8.0-SNAPSHOT"' > version.sbt
-          echo "Created version.sbt file:"
-          cat version.sbt
-
-      - name: Publish to Local Maven with hardcoded version
+      - name: Publish to Local Maven
         run: |
           # Use -no-colors for cleaner logs
           sbt -no-colors clean standaloneCosmetic/publishM2
@@ -56,7 +57,7 @@ jobs:
           
           # Verify the published artifacts have the correct version
           echo "Checking published artifacts:"
-          find $HOME/.m2/repository/org/opensearch/ -name "*0.8.0-SNAPSHOT*" || echo "No artifacts found with the expected version"
+          find $HOME/.m2/repository/org/opensearch/ -name "*${{ steps.extract_version.outputs.version }}*" || echo "No artifacts found with the expected version"
 
       - uses: actions/checkout@v3
         with:
@@ -71,31 +72,30 @@ jobs:
 
       - name: generate sha and md5
         run: |
-          for i in `find $HOME/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
-          for i in `find $HOME/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
-          for i in `find $HOME/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
-          for i in `find $HOME/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
 
-      - name: Get credentials and publish snapshots to maven
+      - name: Publish snapshots to maven and update metadata
         run: |
+          # Get credentials for publishing
           export SONATYPE_USERNAME=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-username --query SecretString --output text)
           export SONATYPE_PASSWORD=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-password --query SecretString --output text)
           echo "::add-mask::$SONATYPE_USERNAME"
           echo "::add-mask::$SONATYPE_PASSWORD"
           export SNAPSHOT_REPO_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/"
+          
+          # Publish snapshots to maven
           cd build/resources/publish/
           cp -a $HOME/.m2/repository/* ./
           ./publish-snapshot.sh ./
-
-      # NEW STEP: Upload modified metadata files after Maven deployment
-      - name: Upload custom metadata with commit ID
-        run: |
-          # Get credentials to upload files directly
-          export SONATYPE_USERNAME=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-username --query SecretString --output text)
-          export SONATYPE_PASSWORD=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-password --query SecretString --output text)
           
-          # For each project, create and upload a modified metadata file
+          echo "Snapshot publishing completed. Now updating metadata with commit ID..."
+          
+          # Define projects to update metadata for
           PROJECTS=("opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12")
+          VERSION="${{ steps.extract_version.outputs.version }}"
           
           for PROJECT in "${PROJECTS[@]}"; do
             echo "Processing metadata for ${PROJECT}"
@@ -105,11 +105,11 @@ jobs:
             METADATA_FILE="${TEMP_DIR}/maven-metadata.xml"
           
             # Download the current metadata from the repository
-            META_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${PROJECT}/0.8.0-SNAPSHOT/maven-metadata.xml"
+            META_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${PROJECT}/${VERSION}/maven-metadata.xml"
             echo "Downloading metadata from ${META_URL}"
             curl -s -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" -o "${METADATA_FILE}" "${META_URL}"
           
-            if [ -f "${METADATA_FILE}" ]; then
+            if [ -f "${METADATA_FILE}" ] && [ -s "${METADATA_FILE}" ]; then
               # Modify the metadata to include commit ID
               cp "${METADATA_FILE}" "${METADATA_FILE}.bak"
           
@@ -131,11 +131,11 @@ jobs:
               echo "Uploading modified metadata"
               curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${METADATA_FILE}" "${META_URL}"
           
-              # Also upload to maven-metadata.xml in the parent directory
+              # Also update the parent metadata file
               PARENT_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${PROJECT}/maven-metadata.xml"
               curl -s -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" -o "${TEMP_DIR}/parent-metadata.xml" "${PARENT_URL}"
           
-              if [ -f "${TEMP_DIR}/parent-metadata.xml" ]; then
+              if [ -f "${TEMP_DIR}/parent-metadata.xml" ] && [ -s "${TEMP_DIR}/parent-metadata.xml" ]; then
                 cp "${TEMP_DIR}/parent-metadata.xml" "${TEMP_DIR}/parent-metadata.xml.bak"
           
                 awk -v commit="${{ steps.set_commit.outputs.commit_id }}" '
@@ -148,6 +148,8 @@ jobs:
                 ' "${TEMP_DIR}/parent-metadata.xml.bak" > "${TEMP_DIR}/parent-metadata.xml"
           
                 curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${TEMP_DIR}/parent-metadata.xml" "${PARENT_URL}"
+              else
+                echo "Failed to download parent metadata for ${PROJECT}"
               fi
             else
               echo "Failed to download metadata for ${PROJECT}"
