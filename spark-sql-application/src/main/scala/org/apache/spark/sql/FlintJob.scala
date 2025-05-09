@@ -62,6 +62,7 @@ object FlintJob extends Logging with FlintJobExecutor {
       }
 
       configDYNMaxExecutors(conf, jobType)
+      val segmentName = sparkSession.conf.get("spark.dynamicAllocation.maxExecutors")
       val flintStatement =
         new FlintStatement(
           "running",
@@ -83,7 +84,9 @@ object FlintJob extends Logging with FlintJobExecutor {
         jobType,
         streamingRunningCount,
         statementRunningCount)
-      registerGauge(MetricConstants.STREAMING_RUNNING_METRIC, streamingRunningCount)
+      registerGauge(
+        String.format("%se.%s", segmentName, MetricConstants.STREAMING_RUNNING_METRIC),
+        streamingRunningCount)
       jobOperator.start()
     } else {
       // Fetch and execute queries in warm pool mode
