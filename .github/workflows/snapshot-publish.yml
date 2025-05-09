@@ -6,12 +6,13 @@ on:
     branches:
       - main
       - 0.*
+      - commit-metadata-poc
 
 jobs:
   build-and-publish-snapshots:
     strategy:
       fail-fast: false
-    if: github.repository == 'opensearch-project/opensearch-spark'
+    #if: github.repository == 'opensearch-project/opensearch-spark'
     runs-on: ubuntu-latest
 
     permissions:
@@ -20,6 +21,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        id: checkout
+
+      # Capture the commit ID for metadata purposes
+      - name: Set commit ID
+        id: set_commit
+        run: |
+          COMMIT_ID=$(git log -1 --format='%H')
+          echo "commit_id=${COMMIT_ID}" >> $GITHUB_OUTPUT
+          echo "Using commit ID: ${COMMIT_ID}"
 
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -30,11 +40,88 @@ jobs:
       - name: Set up SBT
         uses: sbt/setup-sbt@v1
 
-      - name: Publish to Local Maven
+      # Create version.sbt file to override the version
+      - name: Create version.sbt file
         run: |
-          sbt standaloneCosmetic/publishM2
-          sbt sparkPPLCosmetic/publishM2
-          sbt sparkSqlApplicationCosmetic/publishM2
+          # Create version.sbt file with hardcoded version
+          echo 'ThisBuild / version := "0.8.0-commit-metadata-poc"' > version.sbt
+          echo "Created version.sbt file:"
+          cat version.sbt
+
+      - name: Publish to Local Maven with hardcoded version
+        run: |
+          # Use -no-colors for cleaner logs
+          sbt -no-colors clean standaloneCosmetic/publishM2
+          sbt -no-colors clean sparkPPLCosmetic/publishM2
+          sbt -no-colors clean sparkSqlApplicationCosmetic/publishM2
+          
+          # Verify the published artifacts have the correct version
+          echo "Checking published artifacts:"
+          find $HOME/.m2/repository/org/opensearch/ -name "*0.8.0-commit-metadata-poc*" || echo "No artifacts found with the expected version"
+
+      # Ensure maven-metadata.xml exists in the new version directory and add commit ID
+      - name: Create and update maven-metadata.xml files
+        run: |
+          # For each project, ensure maven-metadata.xml exists in the 0.8.0-commit-metadata-poc directory
+          PROJECTS=("opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12")
+          
+          for PROJECT in "${PROJECTS[@]}"; do
+            VERSION_DIR="$HOME/.m2/repository/org/opensearch/${PROJECT}/0.8.0-commit-metadata-poc"
+            METADATA_FILE="${VERSION_DIR}/maven-metadata.xml"
+          
+            # Create directory if it doesn't exist
+            mkdir -p "${VERSION_DIR}"
+          
+            # Check if metadata file exists, if not create it
+            if [ ! -f "${METADATA_FILE}" ]; then
+              echo "Creating new metadata file for ${PROJECT} at ${METADATA_FILE}"
+          
+              # Create metadata file using echo statements instead of heredoc
+              echo '<?xml version="1.0" encoding="UTF-8"?>' > "${METADATA_FILE}"
+              echo '<metadata>' >> "${METADATA_FILE}"
+              echo '  <groupId>org.opensearch</groupId>' >> "${METADATA_FILE}"
+              echo "  <artifactId>${PROJECT}</artifactId>" >> "${METADATA_FILE}"
+              echo '  <versioning>' >> "${METADATA_FILE}"
+              echo "    <commitId>${{ steps.set_commit.outputs.commit_id }}</commitId>" >> "${METADATA_FILE}"
+              echo "    <lastUpdated>$(date +%Y%m%d%H%M%S)</lastUpdated>" >> "${METADATA_FILE}"
+              echo '    <versions>' >> "${METADATA_FILE}"
+              echo '      <version>0.8.0-commit-metadata-poc</version>' >> "${METADATA_FILE}"
+              echo '    </versions>' >> "${METADATA_FILE}"
+              echo '  </versioning>' >> "${METADATA_FILE}"
+              echo '  <version>0.8.0-commit-metadata-poc</version>' >> "${METADATA_FILE}"
+              echo '</metadata>' >> "${METADATA_FILE}"
+            else
+              # Update existing metadata file to include commit ID
+              echo "Updating existing metadata file for ${PROJECT}"
+              cp "${METADATA_FILE}" "${METADATA_FILE}.bak"
+          
+              awk -v commit="${{ steps.set_commit.outputs.commit_id }}" '
+                /<versioning>/ {
+                  print $0
+                  print "    <commitId>" commit "</commitId>"
+                  next
+                }
+                {print}
+              ' "${METADATA_FILE}.bak" > "${METADATA_FILE}"
+          
+              rm "${METADATA_FILE}.bak"
+            fi
+          
+            echo "Metadata file contents for ${PROJECT}:"
+            cat "${METADATA_FILE}"
+          
+            # Copy this metadata to the SNAPSHOT directory as well to ensure compatibility
+            SNAPSHOT_DIR="$HOME/.m2/repository/org/opensearch/${PROJECT}/0.8.0-SNAPSHOT"
+            if [ -d "${SNAPSHOT_DIR}" ]; then
+              cp "${METADATA_FILE}" "${SNAPSHOT_DIR}/maven-metadata.xml"
+              echo "Copied metadata to SNAPSHOT directory as well"
+            fi
+          done
+
+      - name: Verify commit ID in metadata files
+        run: |
+          echo "Checking for commit ID in metadata files:"
+          grep -l "${{ steps.set_commit.outputs.commit_id }}" $(find $HOME/.m2/repository/org/opensearch/ -name "maven-metadata.xml") || echo "Commit ID not found in metadata files"
 
       - uses: actions/checkout@v3
         with:
@@ -49,10 +136,10 @@ jobs:
 
       - name: generate sha and md5
         run: |
-          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
-          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
-          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
-          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
+          for i in `find $HOME/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
+          for i in `find $HOME/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
+          for i in `find $HOME/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
+          for i in `find $HOME/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
 
       - name: Get credentials and publish snapshots to maven
         run: |
