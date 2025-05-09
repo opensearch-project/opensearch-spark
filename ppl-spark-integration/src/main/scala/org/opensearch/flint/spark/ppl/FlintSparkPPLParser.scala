@@ -36,6 +36,7 @@ import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.parser._
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, StructType}
 
 /**
@@ -57,6 +58,7 @@ class FlintSparkPPLParser(sparkParser: ParserInterface, val spark: SparkSession)
     try {
       // if successful build ppl logical plan and translate to catalyst logical plan
       val context = new CatalystPlanContext
+      spark.conf.set(SQLConf.CASE_SENSITIVE.key, value = true)
       context.withSparkSession(spark)
       planTransformer.visit(plan(pplParser, sqlText), context)
       context.getPlan
