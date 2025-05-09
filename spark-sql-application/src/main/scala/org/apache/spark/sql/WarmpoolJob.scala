@@ -46,9 +46,13 @@ case class WarmpoolJob(
       -1, // WP doesn't have queryWaitTimeMillis
       -1 // WP doesn't have queryLoopExecutionFrequency
     )
-
-    registerGauge(MetricConstants.STREAMING_RUNNING_METRIC, streamingRunningCount)
-    registerGauge(MetricConstants.STATEMENT_RUNNING_METRIC, statementRunningCount)
+    val segmentName = spark.conf.get("spark.dynamicAllocation.maxExecutors")
+    registerGauge(
+      String.format("%se.%s", segmentName, MetricConstants.STREAMING_RUNNING_METRIC),
+      streamingRunningCount)
+    registerGauge(
+      String.format("%se.%s", segmentName, MetricConstants.STATEMENT_RUNNING_METRIC),
+      statementRunningCount)
     val statementExecutionManager =
       instantiateStatementExecutionManager(commandContext)
 
