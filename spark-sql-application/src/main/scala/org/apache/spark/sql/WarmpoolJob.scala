@@ -47,6 +47,10 @@ case class WarmpoolJob(
       -1 // WP doesn't have queryLoopExecutionFrequency
     )
     val segmentName = spark.conf.get("spark.dynamicAllocation.maxExecutors")
+
+    registerGauge(MetricConstants.STREAMING_RUNNING_METRIC, streamingRunningCount)
+    registerGauge(MetricConstants.STATEMENT_RUNNING_METRIC, statementRunningCount)
+
     registerGauge(
       String.format("%se.%s", segmentName, MetricConstants.STREAMING_RUNNING_METRIC),
       streamingRunningCount)
