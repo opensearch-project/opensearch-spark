@@ -255,8 +255,8 @@ object FlintOpenSearchIndexMetadataService extends Logging {
    *   Merged map with combined mapping parameters
    */
   def mergeSchema(
-                   allFieldTypes: java.util.Map[String, AnyRef],
-                   options: java.util.Map[String, AnyRef]): java.util.Map[String, AnyRef] = {
+      allFieldTypes: java.util.Map[String, AnyRef],
+      options: java.util.Map[String, AnyRef]): java.util.Map[String, AnyRef] = {
     val indexMappingsOpt = Option(options.get("index_mappings")).flatMap {
       case s: String => Some(s)
       case _ => None
@@ -328,7 +328,7 @@ object FlintOpenSearchIndexMetadataService extends Logging {
    * field name to its configuration.
    */
   private def extractNestedProperties(
-                                       parser: XContentParser): java.util.HashMap[String, java.util.Map[String, AnyRef]] = {
+      parser: XContentParser): java.util.HashMap[String, java.util.Map[String, AnyRef]] = {
 
     val fieldConfigs = new java.util.HashMap[String, java.util.Map[String, AnyRef]]()
 
