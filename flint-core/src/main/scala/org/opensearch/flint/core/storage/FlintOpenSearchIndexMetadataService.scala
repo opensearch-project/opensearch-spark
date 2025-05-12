@@ -144,9 +144,7 @@ object FlintOpenSearchIndexMetadataService extends Logging {
         }
 
         // Add properties (schema) field
-        val tempSchema = metadata.schema.asScala.toMap
-        val tempOptions = metadata.options.asScala.toMap
-        val schema = mergeSchema(tempSchema, tempOptions).asJava
+        val schema = mergeSchema(metadata.schema, metadata.options)
         builder.field("properties", schema)
       })
     } catch {
@@ -257,17 +255,17 @@ object FlintOpenSearchIndexMetadataService extends Logging {
    *   Merged map with combined mapping parameters
    */
   def mergeSchema(
-      allFieldTypes: Map[String, AnyRef],
-      options: Map[String, AnyRef]): Map[String, AnyRef] = {
-    val indexMappingsOpt = options.get("index_mappings").flatMap {
+                   allFieldTypes: java.util.Map[String, AnyRef],
+                   options: java.util.Map[String, AnyRef]): java.util.Map[String, AnyRef] = {
+    val indexMappingsOpt = Option(options.get("index_mappings")).flatMap {
       case s: String => Some(s)
       case _ => None
     }
 
-    var result = allFieldTypes
+    var result = new java.util.HashMap[String, AnyRef](allFieldTypes)
 
     // Track mappings from leaf name to configuration properties
-    var fieldConfigs = Map.empty[String, Map[String, AnyRef]]
+    var fieldConfigs = new java.util.HashMap[String, java.util.Map[String, AnyRef]]()
 
     indexMappingsOpt.foreach { jsonStr =>
       try {
@@ -287,10 +285,11 @@ object FlintOpenSearchIndexMetadataService extends Logging {
         }
 
         // Apply extracted configurations to schema while preserving structure
-        result = result.map { case (fullFieldName, fieldType) =>
+        val newResult = new java.util.HashMap[String, AnyRef]()
+        result.forEach { (fullFieldName, fieldType) =>
           val leafFieldName = extractLeafFieldName(fullFieldName)
 
-          if (fieldConfigs.contains(leafFieldName)) {
+          if (fieldConfigs.containsKey(leafFieldName)) {
             // We have config for this leaf field name
             fieldType match {
               case existingConfig: java.util.Map[_, _] =>
@@ -298,22 +297,23 @@ object FlintOpenSearchIndexMetadataService extends Logging {
                   existingConfig.asInstanceOf[java.util.Map[String, AnyRef]])
 
                 // Add/overwrite with new config values
-                fieldConfigs(leafFieldName).foreach { case (k, v) =>
+                fieldConfigs.get(leafFieldName).forEach { (k, v) =>
                   mergedConfig.put(k, v)
                 }
 
                 // Return the updated field with its original key
-                (fullFieldName, mergedConfig)
+                newResult.put(fullFieldName, mergedConfig)
 
               case _ =>
                 // If field type isn't a map, keep it unchanged
-                (fullFieldName, fieldType)
+                newResult.put(fullFieldName, fieldType)
             }
           } else {
             // No config for this field, keep it unchanged
-            (fullFieldName, fieldType)
+            newResult.put(fullFieldName, fieldType)
           }
         }
+        result = newResult
       } catch {
         case ex: Exception =>
           logError("Error merging schema", ex)
@@ -328,19 +328,21 @@ object FlintOpenSearchIndexMetadataService extends Logging {
    * field name to its configuration.
    */
   private def extractNestedProperties(
-      parser: XContentParser): Map[String, Map[String, AnyRef]] = {
+                                       parser: XContentParser): java.util.HashMap[String, java.util.Map[String, AnyRef]] = {
 
-    var fieldConfigs = Map.empty[String, Map[String, AnyRef]]
+    val fieldConfigs = new java.util.HashMap[String, java.util.Map[String, AnyRef]]()
 
     parseObjectField(parser) { (parser, fieldName) =>
-      var fieldConfig = Map.empty[String, AnyRef]
+      val fieldConfig = new java.util.HashMap[String, AnyRef]()
       var hasNestedProperties = false
 
       parseObjectField(parser) { (parser, propName) =>
         if (propName == "properties") {
           hasNestedProperties = true
           val nestedConfigs = extractNestedProperties(parser)
-          fieldConfigs ++= nestedConfigs
+          nestedConfigs.forEach { (k, v) =>
+            fieldConfigs.put(k, v)
+          }
         } else {
           val value = parser.currentToken() match {
             case XContentParser.Token.VALUE_STRING => parser.text()
@@ -353,13 +355,13 @@ object FlintOpenSearchIndexMetadataService extends Logging {
           }
 
           if (value != null) {
-            fieldConfig += (propName -> value.asInstanceOf[AnyRef])
+            fieldConfig.put(propName, value.asInstanceOf[AnyRef])
           }
         }
       }
 
-      if (!hasNestedProperties && fieldConfig.nonEmpty) {
-        fieldConfigs += (fieldName -> fieldConfig)
+      if (!hasNestedProperties && !fieldConfig.isEmpty) {
+        fieldConfigs.put(fieldName, fieldConfig)
       }
     }
 
