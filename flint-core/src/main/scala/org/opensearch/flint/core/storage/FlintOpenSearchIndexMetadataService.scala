@@ -292,9 +292,8 @@ object FlintOpenSearchIndexMetadataService extends Logging {
           if (fieldConfigs.containsKey(leafFieldName)) {
             // We have config for this leaf field name
             fieldType match {
-              case existingConfig: java.util.Map[_, _] =>
-                val mergedConfig = new java.util.HashMap[String, AnyRef](
-                  existingConfig.asInstanceOf[java.util.Map[String, AnyRef]])
+              case existingConfig: java.util.Map[String, AnyRef] =>
+                val mergedConfig = new java.util.HashMap[String, AnyRef](existingConfig)
 
                 // Add/overwrite with new config values
                 fieldConfigs.get(leafFieldName).forEach { (k, v) =>
