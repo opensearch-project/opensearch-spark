@@ -13,6 +13,34 @@ import org.opensearch.flint.core.metrics.MetricConstants;
 import org.opensearch.flint.core.metrics.MetricsUtil;
 import org.opensearch.flint.core.storage.RequestRateMeter;
 
+/**
+ * An adaptive rate limiter implementation for bulk requests to OpenSearch that responds to multiple
+ * performance signals. This implementation extends Guava's RateLimiter with adaptive rate adjustment
+ * based on request performance feedback.
+ *
+ * The rate limiter increases rate additively when current throughput is close to the limit
+ * and decreases rate multiplicatively when encountering issues (high latency, failures, timeouts).
+ *
+ * The rate limiter has two main operations:
+ * - {@code acquirePermit}: Blocks until permission is granted to proceed with the request
+ * - {@code adaptToFeedback}: Reports request outcome to adjust the rate limit dynamically
+ *
+ * Key features:
+ * - Rate measured in bytes/second
+ * - Multi-signal feedback system responding to:
+ *   - Request latency (reduces rate when latency exceeds threshold)
+ *   - Request timeout (reduces rate to minimum)
+ *   - Request failure
+ *   - Request success
+ * - Stabilized rate adjustment mechanism:
+ *   - Monitor current request rate and increase rate only if current throughput is close to the limit
+ *   - Implement cooldown period between rate decreases to prevent rapid exponential decline
+ *     when multiple requests report bad signals simultaneously
+ *
+ * Note: {@code acquirePermit} is a blocking operation. The thread will wait until the rate limiter
+ * grants permission based on the current rate limit. You don't need to check any other conditions.
+ * Just call acquirePermit and proceed when it returns.
+ */
 public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
   private static final Logger LOG = Logger.getLogger(BulkRequestRateLimiterImpl.class.getName());
 
@@ -61,6 +89,10 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
     requestRateMeter.addDataPoint(clock.millis(), permits);
   }
 
+  /**
+   * Returns the current rate limit.
+   * This is primarily used for monitoring and testing purposes.
+   */
   @Override
   public long getRate() {
     return (long) this.rateLimiter.getRate();
