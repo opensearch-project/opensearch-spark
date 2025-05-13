@@ -223,6 +223,11 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     Map("key" -> "10.0.0.3", "doc_count" -> 1),
     Map("key" -> "10.0.0.5", "doc_count" -> 1))
 
+  def afterEach(testIndex: String): Unit = {
+    super.afterEach()
+    deleteTestIndex(testIndex)
+  }
+
   test(
     "create aggregated materialized view for VPC flow integration unfiltered time series chart") {
     withIntegration("vpc_flow") { integration =>
@@ -231,6 +236,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
         .createMaterializedView(mvQueryVPC, sourceDisabled = true)
         .assertDslQueryTSC(dslQueryBuilderVPCTSC, expectedBucketsVPCTSC)
     }
+    deleteTestIndex("flint_spark_catalog_default_vpc_flow_mv_test")
   }
 
   test("create aggregated materialized view for VPC flow integration unfiltered pie chart") {
@@ -240,6 +246,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
         .createMaterializedView(mvQueryVPC, sourceDisabled = true)
         .assertDslQueryPC(dslQueryBuilderVPCPC, expectedBucketsVPCPC)
     }
+    deleteTestIndex("flint_spark_catalog_default_vpc_flow_mv_test")
   }
 
   test("create aggregated materialized view for VPC flow integration") {
@@ -276,6 +283,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
             400.0,
             20))
     }
+    deleteTestIndex("flint_spark_catalog_default_vpc_flow_mv_test")
   }
 
   val dslQueryBuilderCTTSC: SearchSourceBuilder = {
@@ -328,6 +336,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
         .createMaterializedView(mvQueryCT, sourceDisabled = true)
         .assertDslQueryTSC(dslQueryBuilderCTTSC, expectedBucketsCTTSC)
     }
+    deleteTestIndex("flint_spark_catalog_default_cloud_trail_mv_test")
   }
 
   test("create aggregated materialized view for CloudTrail integration unfiltered pie chart") {
@@ -337,6 +346,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
         .createMaterializedView(mvQueryCT, sourceDisabled = true)
         .assertDslQueryPC(dslQueryBuilderCTPC, expectedBucketsCTPC)
     }
+    deleteTestIndex("flint_spark_catalog_default_cloud_trail_mv_test")
   }
 
   val dslQueryQueryWAFTSC: String =
@@ -435,6 +445,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
         .createMaterializedView(mvQueryWAF, sourceDisabled = true)
         .assertDslQueryWAFTSC(dslQueryBuilderWAFTSC, expectedBucketsWAFTSC)
     }
+    deleteTestIndex("flint_spark_catalog_default_waf_mv_test")
   }
 
   test("create aggregated materialized view for WAF integration unfiltered pie chart") {
@@ -444,6 +455,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
         .createMaterializedView(mvQueryWAF, sourceDisabled = true)
         .assertDslQueryPC(dslQueryBuilderWAFPC, expectedBucketsWAFPC)
     }
+    deleteTestIndex("flint_spark_catalog_default_waf_mv_test")
   }
 
   test("create aggregated materialized view for CloudTrail integration") {
@@ -465,6 +477,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
           "Management",
           1))
     }
+    deleteTestIndex("flint_spark_catalog_default_cloud_trail_mv_test")
   }
 
   test("create aggregated materialized view for WAF integration") {
@@ -486,6 +499,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
           Array("group-rule-1"),
           1))
     }
+    deleteTestIndex("flint_spark_catalog_default_waf_mv_test")
   }
 
   /**
