@@ -13,8 +13,10 @@ import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConv
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
+import org.opensearch.client.RequestOptions
+import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.core.FlintOptions
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
+import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
 import org.opensearch.flint.spark.mv.FlintSparkMaterializedView.getFlintIndexName
 import org.scalatest.matchers.must.Matchers.{defined, have}
 import org.scalatest.matchers.should.Matchers.{convertToAnyShouldWrapper, the}
@@ -34,6 +36,15 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
        | SELECT
        |   window.start AS startTime,
        |   COUNT(*) AS count
+       | FROM $testTable
+       | GROUP BY TUMBLE(time, '10 Minutes')
+       |""".stripMargin
+
+  private val testNestedQuery =
+    s"""
+       | SELECT
+       |   window.start AS startTime,
+       |   COUNT(*) AS `aws.vpc.count`
        | FROM $testTable
        | GROUP BY TUMBLE(time, '10 Minutes')
        |""".stripMargin
@@ -224,6 +235,96 @@ class FlintSparkMaterializedViewSqlITSuite extends FlintSparkSuite {
       parse(flintIndexMetadataService.getIndexMetadata(testFlintIndex).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "3"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "2"
+  }
+
+  test("create materialized view with index mappings _source") {
+    sql(s"""
+           | CREATE MATERIALIZED VIEW $testMvName
+           | AS $testQuery
+           | WITH (
+           |   index_mappings = '{ "_source": { "enabled": false } }'
+           | )
+           |""".stripMargin)
+
+    implicit val formats: Formats = Serialization.formats(NoTypeHints)
+
+    val osIndexName = OpenSearchClientUtils.sanitizeIndexName(testFlintIndex)
+    val response =
+      openSearchClient.indices().get(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT)
+
+    val mapping = response.getMappings.get(osIndexName)
+    val indexMappingsOpt = mapping.source.toString
+    val mappings = parse(indexMappingsOpt)
+    (mappings \ "_source" \ "enabled").extract[Boolean] shouldBe false
+  }
+
+  test("create materialized view with index mappings schema merging") {
+    sql(s"""
+           | CREATE MATERIALIZED VIEW $testMvName
+           | AS $testQuery
+           | WITH (
+           |   index_mappings = '{ "_source": { "enabled": false }, "properties": { "count": {"index": false} } }'
+           | )
+           |""".stripMargin)
+
+    val options = new FlintOptions(openSearchOptions.asJava)
+    val flintIndexMetadataService =
+      new FlintOpenSearchIndexMetadataService(options)
+    implicit val formats: Formats = Serialization.formats(NoTypeHints)
+
+    val osIndexName = OpenSearchClientUtils.sanitizeIndexName(testFlintIndex)
+    val response =
+      openSearchClient.indices().get(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT)
+
+    val mapping = response.getMappings.get(osIndexName)
+    val indexMappingsOpt = mapping.source.toString
+    val mappings = parse(indexMappingsOpt)
+    (mappings \ "_source" \ "enabled").extract[Boolean] shouldBe false
+
+    val flintMetadata =
+      flintIndexMetadataService.getIndexMetadata(testFlintIndex)
+    val schema = flintMetadata.schema
+    val javaMap = schema.asInstanceOf[java.util.HashMap[String, java.util.HashMap[String, Any]]]
+
+    val countMap = javaMap.get("count").asInstanceOf[java.util.Map[String, Any]]
+    countMap.get("index") shouldBe false
+  }
+
+  test("create materialized view with index mappings nested schema merging") {
+    sql(s"""
+           | CREATE MATERIALIZED VIEW $testMvName
+           | AS $testNestedQuery
+           | WITH (
+           |   index_mappings = '{ "_source": { "enabled": false }, "properties": {"aws":{"properties":{"vpc":{"properties":{"count":{"index":false}}}}}}}'
+           | )
+           |""".stripMargin)
+
+    val options = new FlintOptions(openSearchOptions.asJava)
+    val flintIndexMetadataService =
+      new FlintOpenSearchIndexMetadataService(options)
+    implicit val formats: Formats = Serialization.formats(NoTypeHints)
+
+    val osIndexName = OpenSearchClientUtils.sanitizeIndexName(testFlintIndex)
+    val response =
+      openSearchClient.indices().get(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT)
+
+    val mapping = response.getMappings.get(osIndexName)
+    val indexMappingsOpt = mapping.source.toString
+    val mappings = parse(indexMappingsOpt)
+    (mappings \ "_source" \ "enabled").extract[Boolean] shouldBe false
+
+    val flintMetadata =
+      flintIndexMetadataService.getIndexMetadata(testFlintIndex)
+    val schema = flintMetadata.schema
+    val javaMap = schema.asInstanceOf[java.util.HashMap[String, java.util.HashMap[String, Any]]]
+
+    val countMap = javaMap.get("aws").asInstanceOf[java.util.Map[String, Any]]
+
+    val countMap2 = countMap.get("properties").asInstanceOf[java.util.Map[String, Any]]
+    val countMap3 = countMap2.get("vpc").asInstanceOf[java.util.Map[String, Any]]
+    val countMap4 = countMap3.get("properties").asInstanceOf[java.util.Map[String, Any]]
+    val countMap5 = countMap4.get("count").asInstanceOf[java.util.Map[String, Any]]
+    countMap5.get("index") shouldBe false
   }
 
   test("create materialized view with full refresh") {
