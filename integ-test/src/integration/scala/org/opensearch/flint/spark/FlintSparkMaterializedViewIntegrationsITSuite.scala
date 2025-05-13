@@ -349,35 +349,9 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     deleteTestIndex("flint_spark_catalog_default_cloud_trail_mv_test")
   }
 
-  val dslQueryQueryWAFTSC: String =
-    """
-      |{
-      |    "bool": {
-      |      "filter": [
-      |        {
-      |          "match_all": {}
-      |        }
-      |      ]
-      |    }
-      |}
-      |""".stripMargin
-
-  val dslQueryQueryWAFPC: String =
-    """
-      |{
-      |    "bool": {
-      |      "filter": [
-      |        {
-      |          "match_all": {}
-      |        }
-      |      ]
-      |    }
-      |}
-      |""".stripMargin
-
   val dslQueryBuilderWAFTSC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQueryWAFTSC))
+      .query(QueryBuilders.wrapperQuery(dslQueryQuery))
 
     // 1. Main terms aggregation
     val termsAgg = AggregationBuilders
