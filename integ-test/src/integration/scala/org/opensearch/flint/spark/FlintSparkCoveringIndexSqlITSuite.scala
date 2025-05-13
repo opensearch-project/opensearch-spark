@@ -11,8 +11,10 @@ import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConv
 import org.json4s.{Formats, NoTypeHints}
 import org.json4s.native.JsonMethods.parse
 import org.json4s.native.Serialization
+import org.opensearch.client.RequestOptions
+import org.opensearch.client.indices.GetIndexRequest
 import org.opensearch.flint.core.FlintOptions
-import org.opensearch.flint.core.storage.FlintOpenSearchIndexMetadataService
+import org.opensearch.flint.core.storage.{FlintOpenSearchIndexMetadataService, OpenSearchClientUtils}
 import org.opensearch.flint.spark.covering.FlintSparkCoveringIndex.getFlintIndexName
 import org.opensearch.flint.spark.skipping.FlintSparkSkippingIndex.getSkippingIndexName
 import org.scalatest.matchers.must.Matchers.defined
@@ -142,6 +144,57 @@ class FlintSparkCoveringIndexSqlITSuite extends FlintSparkSuite {
       parse(flintIndexMetadataService.getIndexMetadata(testFlintIndex).indexSettings.get)
     (settings \ "index.number_of_shards").extract[String] shouldBe "2"
     (settings \ "index.number_of_replicas").extract[String] shouldBe "3"
+  }
+
+  test("create covering index with index mappings _source") {
+    sql(s"""
+           | CREATE INDEX $testIndex ON $testTable ( name )
+           | WITH (
+           |   index_mappings = '{ "_source": { "enabled": false } }'
+           | )
+           |""".stripMargin)
+
+    implicit val formats: Formats = Serialization.formats(NoTypeHints)
+
+    val osIndexName = OpenSearchClientUtils.sanitizeIndexName(testFlintIndex)
+    val response =
+      openSearchClient.indices().get(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT)
+
+    val mapping = response.getMappings.get(osIndexName)
+    val indexMappingsOpt = mapping.source.toString
+    val mappings = parse(indexMappingsOpt)
+    (mappings \ "_source" \ "enabled").extract[Boolean] shouldBe false
+  }
+
+  test("create covering index with index mappings schema merging") {
+    sql(s"""
+           | CREATE INDEX $testIndex ON $testTable ( name )
+           | WITH (
+           |   index_mappings = '{ "_source": { "enabled": false }, "properties": { "name": {"index": false} } }'
+           | )
+           |""".stripMargin)
+
+    val options = new FlintOptions(openSearchOptions.asJava)
+    val flintIndexMetadataService =
+      new FlintOpenSearchIndexMetadataService(options)
+    implicit val formats: Formats = Serialization.formats(NoTypeHints)
+
+    val osIndexName = OpenSearchClientUtils.sanitizeIndexName(testFlintIndex)
+    val response =
+      openSearchClient.indices().get(new GetIndexRequest(osIndexName), RequestOptions.DEFAULT)
+
+    val mapping = response.getMappings.get(osIndexName)
+    val indexMappingsOpt = mapping.source.toString
+    val mappings = parse(indexMappingsOpt)
+    (mappings \ "_source" \ "enabled").extract[Boolean] shouldBe false
+
+    val flintMetadata =
+      flintIndexMetadataService.getIndexMetadata(testFlintIndex)
+    val schema = flintMetadata.schema
+    val javaMap = schema.asInstanceOf[java.util.HashMap[String, java.util.HashMap[String, Any]]]
+
+    val countMap = javaMap.get("name").asInstanceOf[java.util.Map[String, Any]]
+    countMap.get("index") shouldBe false
   }
 
   test("create covering index with invalid option") {
