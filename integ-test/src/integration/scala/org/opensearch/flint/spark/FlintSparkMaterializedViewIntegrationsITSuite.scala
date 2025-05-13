@@ -353,36 +353,30 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     val builder = new SearchSourceBuilder()
       .query(QueryBuilders.wrapperQuery(dslQueryQuery))
 
-    // 1. Main terms aggregation
     val termsAgg = AggregationBuilders
       .terms("2")
       .field("aws.waf.action")
       .size(5)
-      .order(BucketOrder.aggregation("1", false)) // descending order by sum
+      .order(BucketOrder.aggregation("1", false))
 
-    // 2. First level sum aggregation - for ordering the terms
     val sumAgg = AggregationBuilders
       .sum("1")
       .field("aws.waf.event_count")
 
-    // 3. Date histogram sub-aggregation
     val dateHistogramAgg = AggregationBuilders
       .dateHistogram("3")
       .field("start_time")
       .fixedInterval(new DateHistogramInterval("30s"))
       .minDocCount(1)
 
-    // 4. Inner sum aggregation inside date histogram
     val innerSumAgg = AggregationBuilders
       .sum("1")
       .field("aws.waf.event_count")
 
-    // 5. Build the hierarchy of aggregations
     dateHistogramAgg.subAggregation(innerSumAgg)
     termsAgg.subAggregation(sumAgg)
     termsAgg.subAggregation(dateHistogramAgg)
 
-    // 6. Add to main query builder
     builder.aggregation(termsAgg)
 
     builder
@@ -579,7 +573,6 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       checkAnswer(actualRows, expectedRows)
     }
 
-    // "key_as_string": "2025-01-08T09:00:00.000-08:00","doc_count": 795903 as expectedHits, and we will get the same thing from actual hits by extracting from dslQuery
     def assertDslQueryTSC(
         dslQueryTSC: SearchSourceBuilder,
         expectedBuckets: Seq[Map[String, Any]]): Unit = {
@@ -594,10 +587,9 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
 
       val buckets = dateHistogram.getBuckets
 
-      // Map to the format we want to compare
       val actualBuckets = buckets.asScala.map { bucket =>
         Map("key_as_string" -> bucket.getKeyAsString, "doc_count" -> bucket.getDocCount.toInt)
-      }.toSeq
+      }
 
       actualBuckets should equal(expectedBuckets)
     }
@@ -610,28 +602,21 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       val searchRequest = new SearchRequest(flintIndexName)
       searchRequest.source(dslQueryTSC)
       val actual = openSearchClient.search(searchRequest, RequestOptions.DEFAULT)
-      // First get the terms aggregation
       val termsAgg = actual.getAggregations
         .get("2")
-        .asInstanceOf[
-          ParsedStringTerms
-        ] // Note: This is a terms aggregation, not a date histogram
+        .asInstanceOf[ParsedStringTerms]
 
-      // Get the first bucket (ALLOW in this case)
       val firstTermBucket = termsAgg.getBuckets.asScala.head
 
-      // Get the nested date histogram from this term bucket
       val dateHistogram = firstTermBucket.getAggregations
         .get("3")
         .asInstanceOf[ParsedDateHistogram]
 
-      // Now get the buckets from the date histogram
       val buckets = dateHistogram.getBuckets
 
-      // Map to the format we want to compare
       val actualBuckets = buckets.asScala.map { bucket =>
         Map("key_as_string" -> bucket.getKeyAsString, "doc_count" -> bucket.getDocCount.toInt)
-      }.toSeq
+      }
 
       actualBuckets should equal(expectedBuckets)
     }
@@ -650,10 +635,9 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
 
       val buckets = stringTerms.getBuckets
 
-      // Map to the format we want to compare
       val actualBuckets = buckets.asScala.map { bucket =>
         Map("key" -> bucket.getKeyAsString, "doc_count" -> bucket.getDocCount.toInt)
-      }.toSeq
+      }
 
       actualBuckets should equal(expectedBuckets)
 
