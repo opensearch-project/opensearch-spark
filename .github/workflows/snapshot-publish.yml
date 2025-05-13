@@ -23,6 +23,15 @@ jobs:
       - uses: actions/checkout@v3
         id: checkout
 
+      # Extract version from build.sbt file
+      - name: Extract version from build.sbt
+        id: extract_version
+        run: |
+          # Extract the version from build.sbt
+          VERSION=$(grep -E 'ThisBuild / version := "[^"]+"' build.sbt | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Using version: ${VERSION}"
+
       # Capture the commit ID for metadata purposes
       - name: Set commit ID
         id: set_commit
@@ -40,15 +49,7 @@ jobs:
       - name: Set up SBT
         uses: sbt/setup-sbt@v1
 
-      # Create version.sbt file to override the version
-      - name: Create version.sbt file
-        run: |
-          # Create version.sbt file with hardcoded version
-          echo 'ThisBuild / version := "0.8.0-commit-metadata-poc-SNAPSHOT"' > version.sbt
-          echo "Created version.sbt file:"
-          cat version.sbt
-
-      - name: Publish to Local Maven with hardcoded version
+      - name: Publish to Local Maven
         run: |
           # Use -no-colors for cleaner logs
           sbt -no-colors clean standaloneCosmetic/publishM2
@@ -57,7 +58,7 @@ jobs:
           
           # Verify the published artifacts have the correct version
           echo "Checking published artifacts:"
-          find $HOME/.m2/repository/org/opensearch/ -name "*0.8.0-commit-metadata-poc-SNAPSHOT*" || echo "No artifacts found with the expected version"
+          find $HOME/.m2/repository/org/opensearch/ -name "*${{ steps.extract_version.outputs.version }}*" || echo "No artifacts found with the expected version"
 
       - uses: actions/checkout@v3
         with:
@@ -72,87 +73,97 @@ jobs:
 
       - name: generate sha and md5
         run: |
-          for i in `find $HOME/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
-          for i in `find $HOME/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
-          for i in `find $HOME/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
-          for i in `find $HOME/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
 
-      - name: Get credentials and publish snapshots to maven
+      - name: Publish snapshots to maven and update metadata
         run: |
+          # Get credentials for publishing
           export SONATYPE_USERNAME=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-username --query SecretString --output text)
           export SONATYPE_PASSWORD=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-password --query SecretString --output text)
           echo "::add-mask::$SONATYPE_USERNAME"
           echo "::add-mask::$SONATYPE_PASSWORD"
           export SNAPSHOT_REPO_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/"
+          
+          # Publish snapshots to maven
           cd build/resources/publish/
           cp -a $HOME/.m2/repository/* ./
           ./publish-snapshot.sh ./
-
-      # NEW STEP: Upload modified metadata files after Maven deployment
-      - name: Upload custom metadata with commit ID
-        run: |
-          # Get credentials to upload files directly
-          export SONATYPE_USERNAME=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-username --query SecretString --output text)
-          export SONATYPE_PASSWORD=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-password --query SecretString --output text)
           
-          # For each project, create and upload a modified metadata file
+          echo "Snapshot publishing completed. Now updating metadata with commit ID..."
+          
+          # Define projects to update metadata for
           PROJECTS=("opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12")
+          VERSION="${{ steps.extract_version.outputs.version }}"
+          COMMIT_ID="${{ steps.set_commit.outputs.commit_id }}"
+          TIMESTAMP="$(date +%Y%m%d%H%M%S)"
+          
+          # Install xmlstarlet for proper XML handling
+          sudo apt-get update
+          sudo apt-get install -y xmlstarlet
           
           for PROJECT in "${PROJECTS[@]}"; do
             echo "Processing metadata for ${PROJECT}"
           
-            # Create a temporary metadata file with commit ID
             TEMP_DIR=$(mktemp -d)
-            METADATA_FILE="${TEMP_DIR}/maven-metadata.xml"
           
-            # Download the current metadata from the repository
-            META_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${PROJECT}/0.8.0-commit-metadata-poc-SNAPSHOT/maven-metadata.xml"
-            echo "Downloading metadata from ${META_URL}"
-            curl -s -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" -o "${METADATA_FILE}" "${META_URL}"
+            # Create version-specific metadata file without using heredoc
+            echo "Creating version metadata file with commit ID"
+            echo '<?xml version="1.0" encoding="UTF-8"?>' > "${TEMP_DIR}/version-metadata.xml"
+            echo '<metadata>' >> "${TEMP_DIR}/version-metadata.xml"
+            echo "  <groupId>org.opensearch</groupId>" >> "${TEMP_DIR}/version-metadata.xml"
+            echo "  <artifactId>${PROJECT}</artifactId>" >> "${TEMP_DIR}/version-metadata.xml"
+            echo "  <version>${VERSION}</version>" >> "${TEMP_DIR}/version-metadata.xml"
+            echo "  <versioning>" >> "${TEMP_DIR}/version-metadata.xml"
+            echo "    <commitId>${COMMIT_ID}</commitId>" >> "${TEMP_DIR}/version-metadata.xml"
+            echo "    <snapshot>" >> "${TEMP_DIR}/version-metadata.xml"
+            echo "      <timestamp>${TIMESTAMP}</timestamp>" >> "${TEMP_DIR}/version-metadata.xml"
+            echo "      <buildNumber>1</buildNumber>" >> "${TEMP_DIR}/version-metadata.xml"
+            echo "    </snapshot>" >> "${TEMP_DIR}/version-metadata.xml"
+            echo "    <lastUpdated>${TIMESTAMP}</lastUpdated>" >> "${TEMP_DIR}/version-metadata.xml"
+            echo "  </versioning>" >> "${TEMP_DIR}/version-metadata.xml"
+            echo '</metadata>' >> "${TEMP_DIR}/version-metadata.xml"
           
-            if [ -f "${METADATA_FILE}" ]; then
-              # Modify the metadata to include commit ID
-              cp "${METADATA_FILE}" "${METADATA_FILE}.bak"
+            # Upload version-specific metadata
+            VERSION_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${PROJECT}/${VERSION}/maven-metadata.xml"
+            echo "Uploading version metadata to ${VERSION_URL}"
+            curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${TEMP_DIR}/version-metadata.xml" "${VERSION_URL}"
           
-              awk -v commit="${{ steps.set_commit.outputs.commit_id }}" '
-                /<versioning>/ {
-                  print $0
-                  print "  <commitId>" commit "</commitId>"
-                  next
-                }
-                {print}
-              ' "${METADATA_FILE}.bak" > "${METADATA_FILE}"
+            # Download parent metadata
+            PARENT_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${PROJECT}/maven-metadata.xml"
+            echo "Downloading parent metadata from ${PARENT_URL}"
+            curl -s -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" -o "${TEMP_DIR}/maven-metadata.xml" "${PARENT_URL}"
           
-              rm "${METADATA_FILE}.bak"
+            # Update parent metadata
+            echo "Updating parent metadata"
           
-              echo "Modified metadata content:"
-              cat "${METADATA_FILE}"
-          
-              # Upload the modified metadata back
-              echo "Uploading modified metadata"
-              curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${METADATA_FILE}" "${META_URL}"
-          
-              # Also upload to maven-metadata.xml in the parent directory
-              PARENT_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${PROJECT}/maven-metadata.xml"
-              curl -s -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" -o "${TEMP_DIR}/parent-metadata.xml" "${PARENT_URL}"
-          
-              if [ -f "${TEMP_DIR}/parent-metadata.xml" ]; then
-                cp "${TEMP_DIR}/parent-metadata.xml" "${TEMP_DIR}/parent-metadata.xml.bak"
-          
-                awk -v commit="${{ steps.set_commit.outputs.commit_id }}" '
-                  /<versioning>/ {
-                    print $0
-                    print "  <commitId>" commit "</commitId>"
-                    next
-                  }
-                  {print}
-                ' "${TEMP_DIR}/parent-metadata.xml.bak" > "${TEMP_DIR}/parent-metadata.xml"
-          
-                curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${TEMP_DIR}/parent-metadata.xml" "${PARENT_URL}"
-              fi
-            else
-              echo "Failed to download metadata for ${PROJECT}"
+            # Check if current version exists in the versions list
+            if ! xmlstarlet sel -t -v "/metadata/versioning/versions/version[text()='${VERSION}']" "${TEMP_DIR}/maven-metadata.xml" | grep -q "${VERSION}"; then
+              echo "Adding new version ${VERSION} to versions list"
+              xmlstarlet ed -L -s "/metadata/versioning/versions" -t elem -n "version" -v "${VERSION}" "${TEMP_DIR}/maven-metadata.xml"
             fi
           
+            # Update latest
+            xmlstarlet ed -L -u "/metadata/versioning/latest" -v "${VERSION}" "${TEMP_DIR}/maven-metadata.xml"
+          
+            # Update lastUpdated
+            xmlstarlet ed -L -u "/metadata/versioning/lastUpdated" -v "${TIMESTAMP}" "${TEMP_DIR}/maven-metadata.xml"
+          
+            # Add commitId if it doesn't exist
+            if xmlstarlet sel -t -v "count(/metadata/versioning/commitId)" "${TEMP_DIR}/maven-metadata.xml" | grep -q "0"; then
+              echo "Adding commitId to parent metadata"
+              xmlstarlet ed -L -s "/metadata/versioning" -t elem -n "commitId" -v "${COMMIT_ID}" "${TEMP_DIR}/maven-metadata.xml"
+            else
+              echo "Updating commitId in parent metadata"
+              xmlstarlet ed -L -u "/metadata/versioning/commitId" -v "${COMMIT_ID}" "${TEMP_DIR}/maven-metadata.xml"
+            fi
+          
+            # Upload parent metadata
+            echo "Uploading updated parent metadata to ${PARENT_URL}"
+            curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${TEMP_DIR}/maven-metadata.xml" "${PARENT_URL}"
+          
+            # Clean up
             rm -rf "${TEMP_DIR}"
           done
