@@ -167,7 +167,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
                               |  `ruleGroupList.ruleId`
                               |""".stripMargin
 
-  val dslQueryQuery: String =
+  val dslQueryString: String =
     """
       |{
       |    "bool": {
@@ -179,10 +179,10 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       |    }
       |}
       |""".stripMargin
-
+  //TSC refers to time series chart
   val dslQueryBuilderVPCTSC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQuery))
+      .query(QueryBuilders.wrapperQuery(dslQueryString))
     val dateHistogramAgg = AggregationBuilders
       .dateHistogram("2")
       .field("start_time")
@@ -198,10 +198,10 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
 
     builder
   }
-
+  //PC refers to pie chart
   val dslQueryBuilderVPCPC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQuery))
+      .query(QueryBuilders.wrapperQuery(dslQueryString))
     val termsAgg = AggregationBuilders.terms("2").field("aws.vpc.srcaddr")
 
     val sumAgg = AggregationBuilders
@@ -222,11 +222,6 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     Map("key" -> "10.0.0.1", "doc_count" -> 1),
     Map("key" -> "10.0.0.3", "doc_count" -> 1),
     Map("key" -> "10.0.0.5", "doc_count" -> 1))
-
-  def afterEach(testIndex: String): Unit = {
-    super.afterEach()
-    deleteTestIndex(testIndex)
-  }
 
   test(
     "create aggregated materialized view for VPC flow integration unfiltered time series chart") {
@@ -288,7 +283,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
 
   val dslQueryBuilderCTTSC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQuery))
+      .query(QueryBuilders.wrapperQuery(dslQueryString))
     val dateHistogramAgg = AggregationBuilders
       .dateHistogram("2")
       .field("start_time")
@@ -306,7 +301,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
 
   val dslQueryBuilderCTPC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQuery))
+      .query(QueryBuilders.wrapperQuery(dslQueryString))
     val termsAgg = AggregationBuilders
       .terms("2")
       .field("aws.cloudtrail.sourceIPAddress")
@@ -351,7 +346,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
 
   val dslQueryBuilderWAFTSC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQuery))
+      .query(QueryBuilders.wrapperQuery(dslQueryString))
 
     val termsAgg = AggregationBuilders
       .terms("2")
@@ -384,7 +379,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
 
   val dslQueryBuilderWAFPC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
-      .query(QueryBuilders.wrapperQuery(dslQueryQuery))
+      .query(QueryBuilders.wrapperQuery(dslQueryString))
     val termsAgg = AggregationBuilders
       .terms("2")
       .field("aws.waf.httpRequest.clientIp")
