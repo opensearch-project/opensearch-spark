@@ -179,7 +179,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       |    }
       |}
       |""".stripMargin
-  //TSC refers to time series chart
+  // TSC refers to time series chart
   val dslQueryBuilderVPCTSC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
       .query(QueryBuilders.wrapperQuery(dslQueryString))
@@ -198,7 +198,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
 
     builder
   }
-  //PC refers to pie chart
+  // PC refers to pie chart
   val dslQueryBuilderVPCPC: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
       .query(QueryBuilders.wrapperQuery(dslQueryString))
