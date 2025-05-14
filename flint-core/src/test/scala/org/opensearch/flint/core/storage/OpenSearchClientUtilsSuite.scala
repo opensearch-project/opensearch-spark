@@ -9,6 +9,10 @@ import org.scalatest.Ignore
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+/*
+TODO: Passes when it's run by itself, but always fail when run in sbt test.
+Tracked in https://github.com/opensearch-project/opensearch-spark/issues/1097
+ */
 @Ignore
 class OpenSearchClientUtilsSuite extends AnyFlatSpec with Matchers {
 
