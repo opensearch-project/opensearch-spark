@@ -6,7 +6,7 @@
 package org.opensearch.flint.core.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,6 +42,9 @@ import org.opensearch.flint.core.metrics.MetricConstants;
 import org.opensearch.flint.core.metrics.MetricsTestUtil;
 import org.opensearch.flint.core.storage.ratelimit.BulkRequestRateLimiter;
 import org.opensearch.flint.core.storage.ratelimit.RequestFeedback;
+import org.opensearch.flint.core.storage.ratelimit.RetryableFailureRequestFeedback;
+import org.opensearch.flint.core.storage.ratelimit.SuccessRequestFeedback;
+import org.opensearch.flint.core.storage.ratelimit.TimeoutRequestFeedback;
 import org.opensearch.rest.RestStatus;
 
 @ExtendWith(MockitoExtension.class)
@@ -114,7 +117,7 @@ class OpenSearchBulkWrapperTest {
       verifier.assertMetricNotExist(MetricConstants.OPENSEARCH_BULK_ALL_RETRY_FAILED_COUNT_METRIC);
 
       verify(rateLimiter).adaptToFeedback(feedbackCaptor.capture());
-      assertRequestFeedbackNoRetryable(feedbackCaptor.getValue(), 1000);
+      assertSuccessRequestFeedback(feedbackCaptor.getValue(), 1000);
     });
   }
 
@@ -138,7 +141,7 @@ class OpenSearchBulkWrapperTest {
       verifier.assertMetricNotExist(MetricConstants.OPENSEARCH_BULK_ALL_RETRY_FAILED_COUNT_METRIC);
 
       verify(rateLimiter).adaptToFeedback(feedbackCaptor.capture());
-      assertRequestFeedbackNoRetryable(feedbackCaptor.getValue(), 1000);
+      assertSuccessRequestFeedback(feedbackCaptor.getValue(), 1000);
     });
   }
 
@@ -163,8 +166,8 @@ class OpenSearchBulkWrapperTest {
 
       verify(rateLimiter, times(2)).adaptToFeedback(feedbackCaptor.capture());
       List<RequestFeedback> capturedFeedbacks = feedbackCaptor.getAllValues();
-      assertRequestFeedbackHasRetryable(capturedFeedbacks.get(0), 1000);
-      assertRequestFeedbackNoRetryable(capturedFeedbacks.get(1), 1000);
+      assertRetryableFailureRequestFeedback(capturedFeedbacks.get(0), 1000);
+      assertSuccessRequestFeedback(capturedFeedbacks.get(1), 1000);
     });
   }
 
@@ -187,7 +190,7 @@ class OpenSearchBulkWrapperTest {
 
       verify(rateLimiter, times(3)).adaptToFeedback(feedbackCaptor.capture());
       List<RequestFeedback> capturedFeedbacks = feedbackCaptor.getAllValues();
-      capturedFeedbacks.forEach(feedback -> assertRequestFeedbackHasRetryable(feedback, 1000));
+      capturedFeedbacks.forEach(feedback -> assertRetryableFailureRequestFeedback(feedback, 1000));
     });
   }
 
@@ -208,7 +211,7 @@ class OpenSearchBulkWrapperTest {
       verifier.assertMetricNotExist(MetricConstants.OPENSEARCH_BULK_ALL_RETRY_FAILED_COUNT_METRIC);
 
       verify(rateLimiter).adaptToFeedback(feedbackCaptor.capture());
-      assertRequestFeedbackTimeout(feedbackCaptor.getValue());
+      assertTimeoutRequestFeedback(feedbackCaptor.getValue());
     });
   }
 
@@ -249,26 +252,27 @@ class OpenSearchBulkWrapperTest {
       verifier.assertMetricNotExist(MetricConstants.OPENSEARCH_BULK_ALL_RETRY_FAILED_COUNT_METRIC);
 
       verify(rateLimiter).adaptToFeedback(feedbackCaptor.capture());
-      assertRequestFeedbackHasRetryable(feedbackCaptor.getValue(), 1000);
+      assertRetryableFailureRequestFeedback(feedbackCaptor.getValue(), 1000);
     });
   }
 
-  private void assertRequestFeedbackNoRetryable(RequestFeedback feedback, long expectedLatency) {
-    assertFalse(feedback.hasRetryableFailure);
-    assertFalse(feedback.isTimeout);
-    assertEquals(expectedLatency, feedback.latency);
+  private void assertSuccessRequestFeedback(RequestFeedback feedback, long expectedLatency) {
+    assertNotNull(feedback, "Captured feedback should not be null");
+    assertTrue(feedback instanceof SuccessRequestFeedback, "Feedback should be an instance of SuccessRequestFeedback. Was: " + feedback.getClass().getName());
+    SuccessRequestFeedback successRequestFeedback = (SuccessRequestFeedback) feedback;
+    assertEquals(expectedLatency, successRequestFeedback.latencyMillis, "Latency value should match the expected latency");
   }
 
-  private void assertRequestFeedbackHasRetryable(RequestFeedback feedback, long expectedLatency) {
-    assertTrue(feedback.hasRetryableFailure);
-    assertFalse(feedback.isTimeout);
-    assertEquals(expectedLatency, feedback.latency);
+  private void assertRetryableFailureRequestFeedback(RequestFeedback feedback, long expectedLatency) {
+    assertNotNull(feedback, "Captured feedback should not be null");
+    assertTrue(feedback instanceof RetryableFailureRequestFeedback, "Feedback should be an instance of RetryableFailureRequestFeedback. Was: " + feedback.getClass().getName());
+    RetryableFailureRequestFeedback retryableFailureRequestFeedback = (RetryableFailureRequestFeedback) feedback;
+    assertEquals(expectedLatency, retryableFailureRequestFeedback.latencyMillis, "Latency value should match the expected latency");
   }
 
-  private void assertRequestFeedbackTimeout(RequestFeedback feedback) {
-    // Latency feedback does not matter
-    assertFalse(feedback.hasRetryableFailure);
-    assertTrue(feedback.isTimeout);
+  private void assertTimeoutRequestFeedback(RequestFeedback feedback) {
+    assertNotNull(feedback, "Captured feedback should not be null");
+    assertTrue(feedback instanceof TimeoutRequestFeedback, "Feedback should be an instance of TimeoutRequestFeedback. Was: " + feedback.getClass().getName());
   }
 
   private void mockFailureResponse() {

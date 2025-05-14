@@ -27,7 +27,9 @@ import org.opensearch.flint.core.http.FlintRetryOptions;
 import org.opensearch.flint.core.metrics.MetricConstants;
 import org.opensearch.flint.core.metrics.MetricsUtil;
 import org.opensearch.flint.core.storage.ratelimit.BulkRequestRateLimiter;
-import org.opensearch.flint.core.storage.ratelimit.RequestFeedback;
+import org.opensearch.flint.core.storage.ratelimit.RetryableFailureRequestFeedback;
+import org.opensearch.flint.core.storage.ratelimit.SuccessRequestFeedback;
+import org.opensearch.flint.core.storage.ratelimit.TimeoutRequestFeedback;
 import org.opensearch.rest.RestStatus;
 
 /**
@@ -91,10 +93,10 @@ public class OpenSearchBulkWrapper {
               long latency = clock.millis() - startTime;
 
               if (!bulkItemRetryableResultPredicate.test(response)) {
-                rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(latency));
+                rateLimiter.adaptToFeedback(SuccessRequestFeedback.create(latency));
               } else {
                 LOG.info("Bulk request failed. attempt = " + (requestCount.get() - 1));
-                rateLimiter.adaptToFeedback(RequestFeedback.hasRetryable(latency));
+                rateLimiter.adaptToFeedback(RetryableFailureRequestFeedback.create(latency));
                 if (retryPolicy.getConfig().allowsRetries()) {
                   nextRequest.set(getRetryableRequest(nextRequest.get(), response));
                 }
@@ -102,7 +104,7 @@ public class OpenSearchBulkWrapper {
               return response;
             } catch (Exception e) {
               if (isTimeoutException(e)) {
-                rateLimiter.adaptToFeedback(RequestFeedback.timeout());
+                rateLimiter.adaptToFeedback(TimeoutRequestFeedback.create());
               }
               throw e; // let Failsafe retry policy decide
             }

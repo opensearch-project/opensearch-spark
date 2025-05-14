@@ -50,7 +50,7 @@ class BulkRequestRateLimiterTest {
   public void increaseRateLimitOnFeedbackNoRetryable() {
     BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiterImpl(options);
     rateLimiter.acquirePermit(100000);
-    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000));
+    rateLimiter.adaptToFeedback(SuccessRequestFeedback.create(10000));
     assertEquals(3000, rateLimiter.getRate());
   }
 
@@ -77,25 +77,25 @@ class BulkRequestRateLimiterTest {
 
     rateLimiter.acquirePermit(15000);
     currentTimeMillis += 10000;
-    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000));
+    rateLimiter.adaptToFeedback(SuccessRequestFeedback.create(10000));
     assertEquals(2000, rateLimiter.getRate());
 
     currentTimeMillis += 1000;
     rateLimiter.acquirePermit(18000);
     currentTimeMillis += 1000;
-    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000));
+    rateLimiter.adaptToFeedback(SuccessRequestFeedback.create(10000));
     assertEquals(3000, rateLimiter.getRate());
 
     currentTimeMillis += 1000;
     rateLimiter.acquirePermit(5000);
     currentTimeMillis += 1000;
-    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000));
+    rateLimiter.adaptToFeedback(SuccessRequestFeedback.create(10000));
     assertEquals(3000, rateLimiter.getRate());
 
     currentTimeMillis += 1000;
     rateLimiter.acquirePermit(1000);
     currentTimeMillis += 1000;
-    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(10000));
+    rateLimiter.adaptToFeedback(SuccessRequestFeedback.create(10000));
     assertEquals(4000, rateLimiter.getRate());
   }
 
@@ -103,7 +103,7 @@ class BulkRequestRateLimiterTest {
   public void decreaseRateLimitOnFeedbackHasRetryable() {
     BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiterImpl(options);
     rateLimiter.setRate(10000);
-    rateLimiter.adaptToFeedback(RequestFeedback.hasRetryable(10000));
+    rateLimiter.adaptToFeedback(RetryableFailureRequestFeedback.create(10000));
     assertEquals(5000, rateLimiter.getRate());
   }
 
@@ -111,7 +111,7 @@ class BulkRequestRateLimiterTest {
   public void decreaseRateLimitOnFeedbackHighLatency() {
     BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiterImpl(options);
     rateLimiter.setRate(10000);
-    rateLimiter.adaptToFeedback(RequestFeedback.noRetryable(50000));
+    rateLimiter.adaptToFeedback(SuccessRequestFeedback.create(50000));
     assertEquals(5000, rateLimiter.getRate());
   }
 
@@ -119,7 +119,7 @@ class BulkRequestRateLimiterTest {
   public void decreaseRateLimitOnFeedbackTimeout() {
     BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiterImpl(options);
     rateLimiter.setRate(10000);
-    rateLimiter.adaptToFeedback(RequestFeedback.timeout());
+    rateLimiter.adaptToFeedback(TimeoutRequestFeedback.create());
     assertEquals(2000, rateLimiter.getRate());
   }
 
@@ -132,16 +132,16 @@ class BulkRequestRateLimiterTest {
     BulkRequestRateLimiter rateLimiter = new BulkRequestRateLimiterImpl(options, clock);
     rateLimiter.setRate(10000);
 
-    rateLimiter.adaptToFeedback(RequestFeedback.hasRetryable(10000));
+    rateLimiter.adaptToFeedback(RetryableFailureRequestFeedback.create(10000));
     assertEquals(5000, rateLimiter.getRate());
 
     // Decrease rate has cooldown 20000 ms
     currentTimeMillis += 10000;
-    rateLimiter.adaptToFeedback(RequestFeedback.hasRetryable(10000));
+    rateLimiter.adaptToFeedback(RetryableFailureRequestFeedback.create(10000));
     assertEquals(5000, rateLimiter.getRate());
 
     currentTimeMillis += 10000;
-    rateLimiter.adaptToFeedback(RequestFeedback.hasRetryable(10000));
+    rateLimiter.adaptToFeedback(RetryableFailureRequestFeedback.create(10000));
     assertEquals(2500, rateLimiter.getRate());
   }
 }
