@@ -180,7 +180,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       |}
       |""".stripMargin
   // TSC refers to time series chart
-  val dslQueryBuilderVPCTSC: SearchSourceBuilder = {
+  val dslQueryBuilderVPCTimeSeriesChart: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
       .query(QueryBuilders.wrapperQuery(dslQueryString))
     val dateHistogramAgg = AggregationBuilders
@@ -199,7 +199,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     builder
   }
   // PC refers to pie chart
-  val dslQueryBuilderVPCPC: SearchSourceBuilder = {
+  val dslQueryBuilderVPCPieChart: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
       .query(QueryBuilders.wrapperQuery(dslQueryString))
     val termsAgg = AggregationBuilders.terms("2").field("aws.vpc.srcaddr")
@@ -214,11 +214,11 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     builder
   }
 
-  val expectedBucketsVPCTSC: Seq[Map[String, Any]] = Seq(
+  val expectedBucketsVPCTimeSeriesChart: Seq[Map[String, Any]] = Seq(
     Map("key_as_string" -> "2023-11-01T05:00:00.000Z", "doc_count" -> 1),
     Map("key_as_string" -> "2023-11-01T05:10:00.000Z", "doc_count" -> 2))
 
-  val expectedBucketsVPCPC: Seq[Map[String, Any]] = Seq(
+  val expectedBucketsVPCPieChart: Seq[Map[String, Any]] = Seq(
     Map("key" -> "10.0.0.1", "doc_count" -> 1),
     Map("key" -> "10.0.0.3", "doc_count" -> 1),
     Map("key" -> "10.0.0.5", "doc_count" -> 1))
@@ -229,7 +229,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       integration
         .createSourceTable(s"$catalogName.default.vpc_low_test")
         .createMaterializedView(mvQueryVPC, sourceDisabled = true)
-        .assertDslQueryTSC(dslQueryBuilderVPCTSC, expectedBucketsVPCTSC)
+        .assertDslQueryTSC(dslQueryBuilderVPCTimeSeriesChart, expectedBucketsVPCTimeSeriesChart)
     }
     deleteTestIndex("flint_spark_catalog_default_vpc_flow_mv_test")
   }
@@ -239,7 +239,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       integration
         .createSourceTable(s"$catalogName.default.vpc_low_test")
         .createMaterializedView(mvQueryVPC, sourceDisabled = true)
-        .assertDslQueryPC(dslQueryBuilderVPCPC, expectedBucketsVPCPC)
+        .assertDslQueryPC(dslQueryBuilderVPCPieChart, expectedBucketsVPCPieChart)
     }
     deleteTestIndex("flint_spark_catalog_default_vpc_flow_mv_test")
   }
@@ -281,7 +281,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     deleteTestIndex("flint_spark_catalog_default_vpc_flow_mv_test")
   }
 
-  val dslQueryBuilderCTTSC: SearchSourceBuilder = {
+  val dslQueryBuilderCTTimeSeriesChart: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
       .query(QueryBuilders.wrapperQuery(dslQueryString))
     val dateHistogramAgg = AggregationBuilders
@@ -299,7 +299,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     builder
   }
 
-  val dslQueryBuilderCTPC: SearchSourceBuilder = {
+  val dslQueryBuilderCTPieChart: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
       .query(QueryBuilders.wrapperQuery(dslQueryString))
     val termsAgg = AggregationBuilders
@@ -317,10 +317,10 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     builder
   }
 
-  val expectedBucketsCTTSC: Seq[Map[String, Any]] = Seq(
+  val expectedBucketsCTTimeSeriesChart: Seq[Map[String, Any]] = Seq(
     Map("key_as_string" -> "2023-11-01T05:00:00.000Z", "doc_count" -> 1))
 
-  val expectedBucketsCTPC: Seq[Map[String, Any]] = Seq(
+  val expectedBucketsCTPieChart: Seq[Map[String, Any]] = Seq(
     Map("key" -> "198.51.100.45", "doc_count" -> 1))
 
   test(
@@ -329,7 +329,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       integration
         .createSourceTable(s"$catalogName.default.cloud_trail_test")
         .createMaterializedView(mvQueryCT, sourceDisabled = true)
-        .assertDslQueryTSC(dslQueryBuilderCTTSC, expectedBucketsCTTSC)
+        .assertDslQueryTSC(dslQueryBuilderCTTimeSeriesChart, expectedBucketsCTTimeSeriesChart)
     }
     deleteTestIndex("flint_spark_catalog_default_cloud_trail_mv_test")
   }
@@ -339,12 +339,12 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       integration
         .createSourceTable(s"$catalogName.default.cloud_trail_test")
         .createMaterializedView(mvQueryCT, sourceDisabled = true)
-        .assertDslQueryPC(dslQueryBuilderCTPC, expectedBucketsCTPC)
+        .assertDslQueryPC(dslQueryBuilderCTPieChart, expectedBucketsCTPieChart)
     }
     deleteTestIndex("flint_spark_catalog_default_cloud_trail_mv_test")
   }
 
-  val dslQueryBuilderWAFTSC: SearchSourceBuilder = {
+  val dslQueryBuilderWAFTimeSeriesChart: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
       .query(QueryBuilders.wrapperQuery(dslQueryString))
 
@@ -377,7 +377,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     builder
   }
 
-  val dslQueryBuilderWAFPC: SearchSourceBuilder = {
+  val dslQueryBuilderWAFPieChart: SearchSourceBuilder = {
     val builder = new SearchSourceBuilder()
       .query(QueryBuilders.wrapperQuery(dslQueryString))
     val termsAgg = AggregationBuilders
@@ -395,10 +395,10 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
     builder
   }
 
-  val expectedBucketsWAFTSC: Seq[Map[String, Any]] = Seq(
+  val expectedBucketsWAFTimeSeriesChart: Seq[Map[String, Any]] = Seq(
     Map("key_as_string" -> "2023-11-01T05:00:00.000Z", "doc_count" -> 1))
 
-  val expectedBucketsWAFPC: Seq[Map[String, Any]] = Seq(
+  val expectedBucketsWAFPieChart: Seq[Map[String, Any]] = Seq(
     Map("key" -> "192.0.2.1", "doc_count" -> 1))
 
   test("create aggregated materialized view for WAF integration unfiltered time series chart") {
@@ -406,7 +406,9 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       integration
         .createSourceTable(s"$catalogName.default.waf_test")
         .createMaterializedView(mvQueryWAF, sourceDisabled = true)
-        .assertDslQueryWAFTSC(dslQueryBuilderWAFTSC, expectedBucketsWAFTSC)
+        .assertDslQueryWAFTSC(
+          dslQueryBuilderWAFTimeSeriesChart,
+          expectedBucketsWAFTimeSeriesChart)
     }
     deleteTestIndex("flint_spark_catalog_default_waf_mv_test")
   }
@@ -416,7 +418,7 @@ class FlintSparkMaterializedViewIntegrationsITSuite extends FlintSparkSuite with
       integration
         .createSourceTable(s"$catalogName.default.waf_test")
         .createMaterializedView(mvQueryWAF, sourceDisabled = true)
-        .assertDslQueryPC(dslQueryBuilderWAFPC, expectedBucketsWAFPC)
+        .assertDslQueryPC(dslQueryBuilderWAFPieChart, expectedBucketsWAFPieChart)
     }
     deleteTestIndex("flint_spark_catalog_default_waf_mv_test")
   }
