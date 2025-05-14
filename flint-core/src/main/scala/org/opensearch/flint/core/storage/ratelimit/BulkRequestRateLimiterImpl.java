@@ -76,12 +76,18 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter {
     MetricsUtil.addHistoricGauge(MetricConstants.OS_BULK_RATE_LIMIT_METRIC, minRate);
   }
 
+  /**
+   * Acquires a single permit from the rate limiter, blocking until the request can be granted.
+   */
   @Override
   public void acquirePermit() {
     this.rateLimiter.acquire();
     LOG.info("Acquired 1 permit");
   }
 
+  /**
+   * Acquires the given number of permits from the rate limiter, blocking until the request can be granted.
+   */
   @Override
   public void acquirePermit(int permits) {
     this.rateLimiter.acquire(permits);
