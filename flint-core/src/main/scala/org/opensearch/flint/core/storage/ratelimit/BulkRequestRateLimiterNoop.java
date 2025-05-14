@@ -15,9 +15,6 @@ public class BulkRequestRateLimiterNoop implements BulkRequestRateLimiter {
   }
 
   @Override
-  public void acquirePermit() {}
-
-  @Override
   public void acquirePermit(int permits) {}
 
   @Override
