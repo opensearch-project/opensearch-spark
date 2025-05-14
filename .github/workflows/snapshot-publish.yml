@@ -104,6 +104,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y xmlstarlet
           
+          # Define the version to remove
+          VERSION_TO_REMOVE="0.8.0-commit-metadata-poc-SNAPSHOT"
+          
           for PROJECT in "${PROJECTS[@]}"; do
             echo "Processing metadata for ${PROJECT}"
           
@@ -138,6 +141,18 @@ jobs:
           
             # Update parent metadata
             echo "Updating parent metadata"
+          
+            # Remove the specific version if it exists
+            if xmlstarlet sel -t -v "/metadata/versioning/versions/version[text()='${VERSION_TO_REMOVE}']" "${TEMP_DIR}/maven-metadata.xml" | grep -q "${VERSION_TO_REMOVE}"; then
+              echo "Removing version ${VERSION_TO_REMOVE} from versions list"
+              xmlstarlet ed -L -d "/metadata/versioning/versions/version[text()='${VERSION_TO_REMOVE}']" "${TEMP_DIR}/maven-metadata.xml"
+          
+              # If this was the latest version, update 'latest' to the current version
+              if xmlstarlet sel -t -v "/metadata/versioning/latest" "${TEMP_DIR}/maven-metadata.xml" | grep -q "${VERSION_TO_REMOVE}"; then
+                echo "Updating 'latest' field as it was pointing to the removed version"
+                xmlstarlet ed -L -u "/metadata/versioning/latest" -v "${VERSION}" "${TEMP_DIR}/maven-metadata.xml"
+              fi
+            fi
           
             # Check if current version exists in the versions list
             if ! xmlstarlet sel -t -v "/metadata/versioning/versions/version[text()='${VERSION}']" "${TEMP_DIR}/maven-metadata.xml" | grep -q "${VERSION}"; then
