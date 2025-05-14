@@ -85,31 +85,30 @@ jobs:
           echo "::add-mask::$SONATYPE_USERNAME"
           echo "::add-mask::$SONATYPE_PASSWORD"
           export SNAPSHOT_REPO_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/"
-          
+
           # Publish snapshots to maven
           cd build/resources/publish/
           cp -a $HOME/.m2/repository/* ./
           ./publish-snapshot.sh ./
-          
-          echo "Snapshot publishing completed. Now updating metadata with commit ID..."
-          
+
+          echo "Snapshot publishing completed. Now updating version-specific metadata with commit ID..."
+
           # Define projects to update metadata for
           PROJECTS=("opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12")
           VERSION="${{ steps.extract_version.outputs.version }}"
           COMMIT_ID="${{ steps.set_commit.outputs.commit_id }}"
           TIMESTAMP="$(date +%Y%m%d%H%M%S)"
-          
-          # Install xmlstarlet for proper XML handling
+
+          # Install xmlstarlet for XML handling
           sudo apt-get update
           sudo apt-get install -y xmlstarlet
-          
+
           for PROJECT in "${PROJECTS[@]}"; do
-            echo "Processing metadata for ${PROJECT}"
-          
+            echo "Processing version-specific metadata for ${PROJECT}"
+
             TEMP_DIR=$(mktemp -d)
-          
-            # Create version-specific metadata file without using heredoc
-            echo "Creating version metadata file with commit ID"
+
+            # Create version-specific metadata file with commit ID
             echo '<?xml version="1.0" encoding="UTF-8"?>' > "${TEMP_DIR}/version-metadata.xml"
             echo '<metadata>' >> "${TEMP_DIR}/version-metadata.xml"
             echo "  <groupId>org.opensearch</groupId>" >> "${TEMP_DIR}/version-metadata.xml"
@@ -124,45 +123,12 @@ jobs:
             echo "    <lastUpdated>${TIMESTAMP}</lastUpdated>" >> "${TEMP_DIR}/version-metadata.xml"
             echo "  </versioning>" >> "${TEMP_DIR}/version-metadata.xml"
             echo '</metadata>' >> "${TEMP_DIR}/version-metadata.xml"
-          
+
             # Upload version-specific metadata
             VERSION_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${PROJECT}/${VERSION}/maven-metadata.xml"
             echo "Uploading version metadata to ${VERSION_URL}"
             curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${TEMP_DIR}/version-metadata.xml" "${VERSION_URL}"
-          
-            # Download parent metadata
-            PARENT_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${PROJECT}/maven-metadata.xml"
-            echo "Downloading parent metadata from ${PARENT_URL}"
-            curl -s -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" -o "${TEMP_DIR}/maven-metadata.xml" "${PARENT_URL}"
-          
-            # Update parent metadata
-            echo "Updating parent metadata"
-          
-            # Check if current version exists in the versions list
-            if ! xmlstarlet sel -t -v "/metadata/versioning/versions/version[text()='${VERSION}']" "${TEMP_DIR}/maven-metadata.xml" | grep -q "${VERSION}"; then
-              echo "Adding new version ${VERSION} to versions list"
-              xmlstarlet ed -L -s "/metadata/versioning/versions" -t elem -n "version" -v "${VERSION}" "${TEMP_DIR}/maven-metadata.xml"
-            fi
-          
-            # Update latest
-            xmlstarlet ed -L -u "/metadata/versioning/latest" -v "${VERSION}" "${TEMP_DIR}/maven-metadata.xml"
-          
-            # Update lastUpdated
-            xmlstarlet ed -L -u "/metadata/versioning/lastUpdated" -v "${TIMESTAMP}" "${TEMP_DIR}/maven-metadata.xml"
-          
-            # Add commitId if it doesn't exist
-            if xmlstarlet sel -t -v "count(/metadata/versioning/commitId)" "${TEMP_DIR}/maven-metadata.xml" | grep -q "0"; then
-              echo "Adding commitId to parent metadata"
-              xmlstarlet ed -L -s "/metadata/versioning" -t elem -n "commitId" -v "${COMMIT_ID}" "${TEMP_DIR}/maven-metadata.xml"
-            else
-              echo "Updating commitId in parent metadata"
-              xmlstarlet ed -L -u "/metadata/versioning/commitId" -v "${COMMIT_ID}" "${TEMP_DIR}/maven-metadata.xml"
-            fi
-          
-            # Upload parent metadata
-            echo "Uploading updated parent metadata to ${PARENT_URL}"
-            curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${TEMP_DIR}/maven-metadata.xml" "${PARENT_URL}"
-          
+
             # Clean up
             rm -rf "${TEMP_DIR}"
           done
