@@ -7,17 +7,14 @@ package org.opensearch.flint.core.storage.ratelimit;
 
 /**
  * Represents a timeout event in bulk request processing.
- * Uses singleton pattern since timeout feedback doesn't need additional state.
  */
 public class TimeoutRequestFeedback implements RequestFeedback {
 
-  private static final TimeoutRequestFeedback instance = new TimeoutRequestFeedback();
-
   /**
-   * Returns the singleton instance.
+   * Creates a new instance.
    */
   public static TimeoutRequestFeedback create() {
-    return instance;
+    return new TimeoutRequestFeedback();
   }
 
   @Override
