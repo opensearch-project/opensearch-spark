@@ -24,5 +24,5 @@ object FlintVersion {
   val V_0_8_0: FlintVersion = FlintVersion("0.8.0")
   val V_0_8_0_commit_metadata_poc: FlintVersion = FlintVersion("0.8.0-commit-metadata-poc")
 
-  def current(): FlintVersion = V_0_8_0_commit_metadata_poc
+  def current(): FlintVersion = V_0_8_0
 }
