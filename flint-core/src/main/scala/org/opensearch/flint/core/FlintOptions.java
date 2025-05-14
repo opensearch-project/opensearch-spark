@@ -130,11 +130,11 @@ public class FlintOptions implements Serializable {
   public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED = "write.bulk.rate_limit_per_node.enabled";
   public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_ENABLED = "false";
   public static final String BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE = "write.bulk.rate_limit_per_node.min";
-  public static final String DEFAULT_BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE = "50000";
+  public static final String DEFAULT_BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE = "500kb";
   public static final String BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE = "write.bulk.rate_limit_per_node.max";
-  public static final String DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE = "350000";
+  public static final String DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE = "3500kb";
   public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP = "write.bulk.rate_limit_per_node.increase_step";
-  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP = "20000";
+  public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP = "100kb";
   public static final String BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO = "write.bulk.rate_limit_per_node.decrease_ratio";
   public static final String DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_DECREASE_RATIO = "0.5";
 
@@ -262,15 +262,18 @@ public class FlintOptions implements Serializable {
   }
 
   public long getBulkRequestMinRateLimitPerNode() {
-    return Long.parseLong(options.getOrDefault(BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE));
+    return org.apache.spark.network.util.JavaUtils
+        .byteStringAs(options.getOrDefault(BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_MIN_RATE_LIMIT_PER_NODE), ByteUnit.BYTE);
   }
 
   public long getBulkRequestMaxRateLimitPerNode() {
-    return Long.parseLong(options.getOrDefault(BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE));
+    return org.apache.spark.network.util.JavaUtils
+        .byteStringAs(options.getOrDefault(BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE, DEFAULT_BULK_REQUEST_MAX_RATE_LIMIT_PER_NODE), ByteUnit.BYTE);
   }
 
   public long getBulkRequestRateLimitPerNodeIncreaseStep() {
-    return Long.parseLong(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP));
+    return org.apache.spark.network.util.JavaUtils
+        .byteStringAs(options.getOrDefault(BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP, DEFAULT_BULK_REQUEST_RATE_LIMIT_PER_NODE_INCREASE_STEP), ByteUnit.BYTE);
   }
 
   public double getBulkRequestRateLimitPerNodeDecreaseRatio() {
