@@ -187,9 +187,9 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter, Feedb
       return currentRateLimit;
     }
     if (isEstimatedCurrentRateCloseToLimit()) {
-      LOG.warning("Rate increase blocked. Reason: Current rate is not close to limit " + currentRateLimit);
       return currentRateLimit + increaseStep;
     }
+    LOG.warning("Rate increase blocked. Reason: Current rate is not close to limit " + currentRateLimit);
     return currentRateLimit;
   }
 
