@@ -5,8 +5,8 @@
 
 package org.opensearch.flint.core.storage;
 
+import java.time.Clock;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Queue;
 
 /**
@@ -14,23 +14,33 @@ import java.util.Queue;
  * milliseconds period.
  */
 public class RequestRateMeter {
-  private static final long ESTIMATE_RANGE_DURATION_MSEC = 3000;
+  private static final long ESTIMATE_RANGE_DURATION_MSEC = 10000;
 
   private static class DataPoint {
     long timestamp;
-    long requestCount;
-    public DataPoint(long timestamp, long requestCount) {
+    long requestSize;
+    public DataPoint(long timestamp, long requestSize) {
       this.timestamp = timestamp;
-      this.requestCount = requestCount;
+      this.requestSize = requestSize;
     }
   }
+
+  private final Clock clock;
 
   private Queue<DataPoint> dataPoints = new LinkedList<>();
   private long currentSum = 0;
 
-  public synchronized void addDataPoint(long timestamp, long requestCount) {
-    dataPoints.add(new DataPoint(timestamp, requestCount));
-    currentSum += requestCount;
+  public RequestRateMeter() {
+    this(Clock.systemUTC());
+  }
+
+  public RequestRateMeter(Clock clock) {
+    this.clock = clock;
+  }
+
+  public synchronized void addDataPoint(long timestamp, long requestSize) {
+    dataPoints.add(new DataPoint(timestamp, requestSize));
+    currentSum += requestSize;
     removeOldDataPoints();
   }
 
@@ -40,9 +50,9 @@ public class RequestRateMeter {
   }
 
   private synchronized void removeOldDataPoints() {
-    long curr = System.currentTimeMillis();
+    long curr = clock.millis();
     while (!dataPoints.isEmpty() && dataPoints.peek().timestamp < curr - ESTIMATE_RANGE_DURATION_MSEC) {
-      currentSum -= dataPoints.remove().requestCount;
+      currentSum -= dataPoints.remove().requestSize;
     }
   }
 }
