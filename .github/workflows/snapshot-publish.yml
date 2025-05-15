@@ -64,3 +64,30 @@ jobs:
           cd build/resources/publish/
           cp -a $HOME/.m2/repository/* ./
           ./publish-snapshot.sh ./
+
+          echo "Snapshot publishing completed. Now uploading commit ID metadata..."
+
+          # Define projects to update metadata for
+          PROJECTS=("opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12")
+          VERSION="${{ steps.extract_version.outputs.version }}"
+          COMMIT_ID="${{ steps.set_commit.outputs.commit_id }}"
+
+          for PROJECT in "${PROJECTS[@]}"; do
+            echo "Processing metadata for ${PROJECT}"
+
+            TEMP_DIR=$(mktemp -d)
+
+            # Create simple metadata file with only commit ID
+            echo '<?xml version="1.0" encoding="UTF-8"?>' > "${TEMP_DIR}/metadata.xml"
+            echo '<metadata>' >> "${TEMP_DIR}/metadata.xml"
+            echo "  <commit_id>${COMMIT_ID}</commit_id>" >> "${TEMP_DIR}/metadata.xml"
+            echo '</metadata>' >> "${TEMP_DIR}/metadata.xml"
+
+            # Upload metadata
+            METADATA_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${PROJECT}/${VERSION}/metadata.xml"
+            echo "Uploading metadata to ${METADATA_URL}"
+            curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${TEMP_DIR}/metadata.xml" "${METADATA_URL}"
+
+            # Clean up
+            rm -rf "${TEMP_DIR}"
+          done
