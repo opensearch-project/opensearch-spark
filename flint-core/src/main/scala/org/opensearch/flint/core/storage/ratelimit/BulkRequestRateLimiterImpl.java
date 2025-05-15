@@ -120,15 +120,11 @@ public class BulkRequestRateLimiterImpl implements BulkRequestRateLimiter, Feedb
   }
 
   /**
-   * Set rate limit to the given value, clamped by minRate and maxRate. Non-positive maxRate means
-   * there's no maximum rate restriction, and the rate can be set to any value greater than
-   * minRate.
+   * Set rate limit to the given value, clamped by minRate and maxRate.
    */
   @Override
   public void setRate(long permitsPerSecond) {
-    if (maxRate > 0) {
-      permitsPerSecond = Math.min(permitsPerSecond, maxRate);
-    }
+    permitsPerSecond = Math.min(permitsPerSecond, maxRate);
     permitsPerSecond = Math.max(minRate, permitsPerSecond);
     LOG.info("Setting rate limit for bulk request to " + permitsPerSecond + " bytes/sec");
     this.rateLimiter.setRate(permitsPerSecond);

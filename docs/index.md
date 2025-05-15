@@ -537,7 +537,7 @@ In the index mapping, the `_meta` and `properties`field stores meta and schema i
 - `spark.datasource.flint.write.refresh_policy`: default value is false. valid values [NONE(false), IMMEDIATE(true), WAIT_UNTIL(wait_for)]
 - `spark.datasource.flint.write.bulk.rate_limit_per_node.enabled`: [Experimental] Enable rate limit for bulk request per worker node. Default is false.
 - `spark.datasource.flint.write.bulk.rate_limit_per_node.min`: [Experimental] Lower limit (bytes/sec) for adaptive rate limiting for bulk request per worker node, if rate limit enabled. The adaptive rate will not drop below this value. Must be greater than 0. Default is 500kb.
-- `spark.datasource.flint.write.bulk.rate_limit_per_node.max`: [Experimental] Upper limit (bytes/sec) for adaptive rate limiting for bulk request per worker node, if rate limit enabled. The adaptive rate will not exceed this value. Set to -1 for no upper bound. Default is 3500kb.
+- `spark.datasource.flint.write.bulk.rate_limit_per_node.max`: [Experimental] Upper limit (bytes/sec) for adaptive rate limiting for bulk request per worker node, if rate limit enabled. The adaptive rate will not exceed this value. Default is 3500kb.
 - `spark.datasource.flint.write.bulk.rate_limit_per_node.increase_step`: [Experimental] Adaptive rate limit increase step for bulk request per worker node, if rate limit enabled. Must be greater than 0. Default is 100kb.
 - `spark.datasource.flint.write.bulk.rate_limit_per_node.decrease_ratio`: [Experimental] Adaptive rate limit decrease ratio for bulk request per worker node, if rate limit enabled. Must be between 0 and 1. Default is 0.5.
 - `spark.datasource.flint.read.scroll_size`: default value is 100.
