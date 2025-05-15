@@ -157,7 +157,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
             "auto_refresh" -> "true",
             "refresh_interval" -> "1 Minute",
             "checkpoint_location" -> checkpointDir.getAbsolutePath,
-            "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}")),
+            "index_settings" -> "{\"number_of_shards\": 3,\"number_of_replicas\": 2}",
+            "index_mappings" -> "{\"_source\": {\"enabled\": false}}")),
           testIndex)
         .create()
 
@@ -176,7 +177,8 @@ class FlintSparkSkippingIndexITSuite extends FlintSparkSuite {
            |   "incremental_refresh": "false",
            |   "refresh_interval": "1 Minute",
            |   "checkpoint_location": "${checkpointDir.getAbsolutePath}",
-           |   "index_settings": "{\\"number_of_shards\\": 3,\\"number_of_replicas\\": 2}"
+           |   "index_settings": "{\\"number_of_shards\\": 3,\\"number_of_replicas\\": 2}",
+           |   "index_mappings" = "{\\"_source\\": {\\"enabled\\": false}}"
            | }
            |""".stripMargin)
 

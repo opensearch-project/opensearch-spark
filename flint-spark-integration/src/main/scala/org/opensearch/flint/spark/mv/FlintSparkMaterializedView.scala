@@ -64,7 +64,6 @@ case class FlintSparkMaterializedView(
         Map[String, AnyRef]("columnName" -> colName, "columnType" -> colType).asJava
       }.toArray
     val schema = generateSchema(outputSchema).asJava
-
     // Convert Scala Array to Java ArrayList for consistency with OpenSearch JSON parsing.
     // OpenSearch uses Jackson, which deserializes JSON arrays into ArrayLists.
     val sourceTablesProperty = new java.util.ArrayList[String](sourceTables.toSeq.asJava)
