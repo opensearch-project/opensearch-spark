@@ -80,7 +80,7 @@ Example:
 
 **Description**
 
-`nullif(field1, field2)` return null if two parameters are same, otherwiser return field1.
+`nullif(field1, field2)` return null if two parameters are same, otherwise return field1.
 
 **Argument type:**
 
@@ -170,12 +170,11 @@ Example:
     | False    | Dale        | Adams      |
     +----------+-------------+------------+
 
-
-### `ISEMPTY`
+### `ISPRESENT`
 
 **Description**
 
-`isempty(expr)` returns true if the expr is missing or is an empty string.
+`ispresent(field)` returns true if the field exists.
 
 **Argument type:**
 
@@ -184,22 +183,22 @@ Example:
 
 Example:
 
-    os> source=accounts | eval result = isempty(lastname) | fields result, lastname
+    os> source=accounts | eval result = ispresent(employer) | fields result, employer, firstname
     fetched rows / total rows = 4/4
-    +----------+------------+
-    | result   | lastname   |
-    |----------+------------|
-    | False    | Duke       |
-    | False    | Bond       |
-    | False    | Bates      |
-    | False    | Adams      |
-    +----------+------------+
+    +----------+------------+-------------+
+    | result   | employer   | firstname   |
+    |----------+------------+-------------|
+    | True     | Pyrami     | Amber       |
+    | True     | Netagy     | Hattie      |
+    | True     | Quility    | Nanette     |
+    | False    | null       | Dale        |
+    +----------+------------+-------------+
 
 ### `ISBLANK`
 
 **Description**
 
-`isblank(expr)` returns true if the expr is missing, an empty string, or contains only white space.
+`isblank(field)` returns true if the field is missing, an empty string, or contains only white space.
 
 **Argument type:**
 
@@ -208,13 +207,37 @@ Example:
 
 Example:
 
-    os> source=accounts | eval result = isblank(lastname) | fields result, lastname
+    os> source=accounts | eval temp = ifnull(employer, '   ') | eval `isblank(employer)` = isblank(employer), `isblank(temp)` = isblank(temp) | fields `isblank(temp)`, temp, `isblank(employer)`, employer
     fetched rows / total rows = 4/4
-    +----------+------------+
-    | result   | lastname   |
-    |----------+------------|
-    | False    | Duke       |
-    | False    | Bond       |
-    | False    | Bates      |
-    | False    | Adams      |
-    +----------+------------+
+    +----------------+------------+--------------------+------------+
+    | isblank(temp)  | temp       | isblank(employer)  | employer   |
+    |----------------+------------+--------------------+------------|
+    | False          | Pyrami     | False              | Pyrami     |
+    | False          | Netagy     | False              | Netagy     |
+    | False          | Quility    | False              | Quility    |
+    | True           |            | True               | null       |
+    +----------------+------------+--------------------+------------+
+
+### `ISEMPTY`
+
+**Description**
+
+`isempty(field)` returns true if the field is missing or is an empty string.
+
+**Argument type:**
+
+- all the supported data type.
+- Return type: **BOOLEAN**
+
+Example:
+
+    os> source=accounts | eval temp = ifnull(employer, '   ') | eval `isempty(employer)` = isempty(employer), `isempty(temp)` = isempty(temp) | fields `isempty(temp)`, temp, `isempty(employer)`, employer
+    fetched rows / total rows = 4/4
+    +----------------+------------+--------------------+------------+
+    | isempty(temp)  | temp       | isempty(employer)  | employer   |
+    |----------------+------------+--------------------+------------|
+    | False          | Pyrami     | False              | Pyrami     |
+    | False          | Netagy     | False              | Netagy     |
+    | False          | Quility    | False              | Quility    |
+    | False          |            | True               | null       |
+    +----------------+------------+--------------------+------------+
