@@ -9,17 +9,21 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Optional;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction;
 import org.apache.spark.sql.catalyst.analysis.UnresolvedFunction$;
+import org.apache.spark.sql.catalyst.expressions.CaseWhen$;
 import org.apache.spark.sql.catalyst.expressions.CurrentTimeZone$;
 import org.apache.spark.sql.catalyst.expressions.CurrentTimestamp$;
 import org.apache.spark.sql.catalyst.expressions.DateAddInterval$;
 import org.apache.spark.sql.catalyst.expressions.Divide;
+import org.apache.spark.sql.catalyst.expressions.EqualTo$;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual$;
+import org.apache.spark.sql.catalyst.expressions.IsNull$;
 import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual$;
 import org.apache.spark.sql.catalyst.expressions.Literal;
 import org.apache.spark.sql.catalyst.expressions.Literal$;
 import org.apache.spark.sql.catalyst.expressions.Multiply;
-import org.apache.spark.sql.catalyst.expressions.Multiply$;
+import org.apache.spark.sql.catalyst.expressions.Or$;
+import org.apache.spark.sql.catalyst.expressions.StringTrim$;
 import org.apache.spark.sql.catalyst.expressions.TimestampAdd$;
 import org.apache.spark.sql.catalyst.expressions.TimestampDiff$;
 import org.apache.spark.sql.catalyst.expressions.ToUTCTimestamp$;
@@ -28,6 +32,7 @@ import org.opensearch.sql.ast.expression.IntervalUnit;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
 import org.opensearch.sql.expression.function.SerializableUdf;
 import scala.Option;
+import scala.Tuple2$;
 
 import java.util.Arrays;
 import java.util.List;
@@ -47,6 +52,8 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.DAY_OF_
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.COALESCE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.EARLIEST;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.IP_TO_INT;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_BLANK;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_EMPTY;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_IPV4;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.JSON_APPEND;
@@ -128,7 +135,7 @@ public interface BuiltinFunctionTransformer {
             // condition functions
             .put(IS_NULL, "isnull")
             .put(IS_NOT_NULL, "isnotnull")
-            .put(BuiltinFunctionName.ISPRESENT, "isnotnull")
+            .put(BuiltinFunctionName.IS_PRESENT, "isnotnull")
             .put(COALESCE, "coalesce")
             .put(LENGTH, "length")
             .put(TRIM, "trim")
@@ -197,6 +204,32 @@ public interface BuiltinFunctionTransformer {
             UTC_TIMESTAMP,
             args -> {
                 return ToUTCTimestamp$.MODULE$.apply(CurrentTimestamp$.MODULE$.apply(), CurrentTimeZone$.MODULE$.apply());
+            })
+        .put(
+            IS_EMPTY,
+            args -> {
+                return CaseWhen$.MODULE$.apply(
+                    seq(
+                        Tuple2$.MODULE$.apply(
+                            Or$.MODULE$.apply(
+                                IsNull$.MODULE$.apply(args.get(0)),
+                                EqualTo$.MODULE$.apply(args.get(0), Literal$.MODULE$.apply(""))),
+                            Literal$.MODULE$.apply(true))
+                    ),
+                    Literal$.MODULE$.apply(false));
+            })
+        .put(
+            IS_BLANK,
+            args -> {
+                return CaseWhen$.MODULE$.apply(
+                    seq(
+                        Tuple2$.MODULE$.apply(
+                            Or$.MODULE$.apply(
+                                IsNull$.MODULE$.apply(args.get(0)),
+                                EqualTo$.MODULE$.apply(StringTrim$.MODULE$.apply(args.get(0)), Literal$.MODULE$.apply(""))),
+                            Literal$.MODULE$.apply(true))
+                    ),
+                    Literal$.MODULE$.apply(false));
             })
         .build();
 

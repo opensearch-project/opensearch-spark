@@ -11,7 +11,7 @@ import org.opensearch.sql.ppl.utils.DataTypeTransformer.seq
 
 import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAttribute, UnresolvedFunction, UnresolvedRelation, UnresolvedStar}
-import org.apache.spark.sql.catalyst.expressions.{Alias, CaseWhen, EqualTo, GreaterThan, Literal, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CaseWhen, EqualTo, GreaterThan, IsNull, Literal, Or, StringTrim}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, GlobalLimit, LocalLimit, LogicalPlan, Project}
 import org.apache.spark.sql.streaming.StreamTest
 import org.apache.spark.sql.types.DoubleType
@@ -276,9 +276,8 @@ class FlintSparkPPLBuiltinFunctionITSuite
                        | source = $testNullTable | head 1 | eval a = isempty('full'), b = isempty(''), c = isempty(' ') | fields a, b, c
                        | """.stripMargin)
 
-    val results: Array[Row] = frame.collect()
-    val expectedResults: Array[Row] = Array(Row(false, true, true))
-    assert(results.sameElements(expectedResults))
+    val expectedResults: Array[Row] = Array(Row(false, true, false))
+    assertSameRows(expectedResults, frame)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_null"))
@@ -288,41 +287,17 @@ class FlintSparkPPLBuiltinFunctionITSuite
     //    val projectList = Seq(UnresolvedStar(None))
 
     val caseOne = CaseWhen(
-      Seq(
-        (
-          EqualTo(
-            UnresolvedFunction(
-              "length",
-              Seq(UnresolvedFunction("trim", Seq(Literal("full")), isDistinct = false)),
-              isDistinct = false),
-            Literal(0)),
-          Literal(true))),
+      Seq((Or(IsNull(Literal("full")), EqualTo(Literal("full"), Literal(""))), Literal(true))),
       Literal(false))
     val aliasOne = Alias(caseOne, "a")()
 
     val caseTwo = CaseWhen(
-      Seq(
-        (
-          EqualTo(
-            UnresolvedFunction(
-              "length",
-              Seq(UnresolvedFunction("trim", Seq(Literal("")), isDistinct = false)),
-              isDistinct = false),
-            Literal(0)),
-          Literal(true))),
+      Seq((Or(IsNull(Literal("")), EqualTo(Literal(""), Literal(""))), Literal(true))),
       Literal(false))
     val aliasTwo = Alias(caseTwo, "b")()
 
     val caseThree = CaseWhen(
-      Seq(
-        (
-          EqualTo(
-            UnresolvedFunction(
-              "length",
-              Seq(UnresolvedFunction("trim", Seq(Literal(" ")), isDistinct = false)),
-              isDistinct = false),
-            Literal(0)),
-          Literal(true))),
+      Seq((Or(IsNull(Literal(" ")), EqualTo(Literal(" "), Literal(""))), Literal(true))),
       Literal(false))
     val aliasThree = Alias(caseThree, "c")()
 
@@ -348,12 +323,7 @@ class FlintSparkPPLBuiltinFunctionITSuite
     val caseIsEmpty = CaseWhen(
       Seq(
         (
-          EqualTo(
-            UnresolvedFunction(
-              "length",
-              Seq(UnresolvedFunction("trim", Seq(Literal("I am not empty")), isDistinct = false)),
-              isDistinct = false),
-            Literal(0)),
+          Or(IsNull(Literal("I am not empty")), EqualTo(Literal("I am not empty"), Literal(""))),
           Literal(true))),
       Literal(false))
     val filterPlan = Filter(caseIsEmpty, table)
@@ -387,9 +357,8 @@ class FlintSparkPPLBuiltinFunctionITSuite
                        | source = $testNullTable | head 1 | eval a = isblank('full'), b = isblank(''), c = isblank(' ') | fields a, b, c
                        | """.stripMargin)
 
-    val results: Array[Row] = frame.collect()
     val expectedResults: Array[Row] = Array(Row(false, true, true))
-    assert(results.sameElements(expectedResults))
+    assertSameRows(expectedResults, frame)
 
     val logicalPlan: LogicalPlan = frame.queryExecution.logical
     val table = UnresolvedRelation(Seq("spark_catalog", "default", "flint_ppl_test_null"))
@@ -401,38 +370,21 @@ class FlintSparkPPLBuiltinFunctionITSuite
     val caseOne = CaseWhen(
       Seq(
         (
-          EqualTo(
-            UnresolvedFunction(
-              "length",
-              Seq(UnresolvedFunction("trim", Seq(Literal("full")), isDistinct = false)),
-              isDistinct = false),
-            Literal(0)),
+          Or(IsNull(Literal("full")), EqualTo(StringTrim(Literal("full")), Literal(""))),
           Literal(true))),
       Literal(false))
     val aliasOne = Alias(caseOne, "a")()
 
     val caseTwo = CaseWhen(
       Seq(
-        (
-          EqualTo(
-            UnresolvedFunction(
-              "length",
-              Seq(UnresolvedFunction("trim", Seq(Literal("")), isDistinct = false)),
-              isDistinct = false),
-            Literal(0)),
-          Literal(true))),
+        (Or(IsNull(Literal("")), EqualTo(StringTrim(Literal("")), Literal(""))), Literal(true))),
       Literal(false))
     val aliasTwo = Alias(caseTwo, "b")()
 
     val caseThree = CaseWhen(
       Seq(
         (
-          EqualTo(
-            UnresolvedFunction(
-              "length",
-              Seq(UnresolvedFunction("trim", Seq(Literal(" ")), isDistinct = false)),
-              isDistinct = false),
-            Literal(0)),
+          Or(IsNull(Literal(" ")), EqualTo(StringTrim(Literal(" ")), Literal(""))),
           Literal(true))),
       Literal(false))
     val aliasThree = Alias(caseThree, "c")()
@@ -459,12 +411,9 @@ class FlintSparkPPLBuiltinFunctionITSuite
     val caseIsEmpty = CaseWhen(
       Seq(
         (
-          EqualTo(
-            UnresolvedFunction(
-              "length",
-              Seq(UnresolvedFunction("trim", Seq(Literal("I am not blank")), isDistinct = false)),
-              isDistinct = false),
-            Literal(0)),
+          Or(
+            IsNull(Literal("I am not blank")),
+            EqualTo(StringTrim(Literal("I am not blank")), Literal(""))),
           Literal(true))),
       Literal(false))
     val filterPlan = Filter(caseIsEmpty, table)

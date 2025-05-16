@@ -29,7 +29,6 @@ import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
 import org.opensearch.sql.ast.expression.IntervalUnit;
-import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.LambdaFunction;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
@@ -57,13 +56,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.EQUAL;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NOT_NULL;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.IS_NULL;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.LENGTH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.POSITION;
-import static org.opensearch.sql.expression.function.BuiltinFunctionName.TRIM;
-
 
 /**
  * Class of building AST Expression nodes.
@@ -258,19 +253,6 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
             elseValue = visit(ctx.caseFunction().valueExpression(ctx.caseFunction().valueExpression().size() - 1));
         }
         return new Case(new Literal(true, DataType.BOOLEAN), whens, elseValue);
-    }
-
-    @Override
-    public UnresolvedExpression visitIsEmptyExpression(OpenSearchPPLParser.IsEmptyExpressionContext ctx) {
-        Function trimFunction = new Function(TRIM.getName().getFunctionName(), Collections.singletonList(this.visitFunctionArg(ctx.functionArg())));
-        Function lengthFunction = new Function(LENGTH.getName().getFunctionName(), Collections.singletonList(trimFunction));
-        Compare lengthEqualsZero = new Compare(EQUAL.getName().getFunctionName(), lengthFunction, new Literal(0, DataType.INTEGER));
-        Literal whenCompareValue = new Literal(0, DataType.INTEGER);
-        Literal isEmptyFalse = new Literal(false, DataType.BOOLEAN);
-        Literal isEmptyTrue = new Literal(true, DataType.BOOLEAN);
-        When when = new When(whenCompareValue, isEmptyTrue);
-        Case caseWhen = new Case(lengthFunction, Collections.singletonList(when), isEmptyFalse);
-        return new IsEmpty(caseWhen);
     }
 
     /**
