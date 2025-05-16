@@ -186,9 +186,9 @@ source=dev.default.people | LOOKUP dev.default.work_info uid AS id REPLACE depar
 source = dev.default.people| LOOKUP dev.default.work_info uid AS id APPEND department | stats distinct_count(department),SUCCESS
 source = dev.default.people| LOOKUP dev.default.work_info uid AS id REPLACE department AS country | stats distinct_count(country),SUCCESS
 source = dev.default.people| LOOKUP dev.default.work_info uid AS id APPEND department AS country | stats distinct_count(country),SUCCESS
-"source = dev.default.people| LOOKUP dev.default.work_info uID AS id, name REPLACE department | stats distinct_count(department)",SUCCESS
-"source = dev.default.people| LOOKUP dev.default.work_info uid AS ID, name APPEND department | stats distinct_count(department)",SUCCESS
-"source = dev.default.people| LOOKUP dev.default.work_info uID AS id, name | head 10",SUCCESS
+"source = dev.default.people| LOOKUP dev.default.work_info uid AS id, name REPLACE department | stats distinct_count(department)",SUCCESS
+"source = dev.default.people| LOOKUP dev.default.work_info uid AS id, name APPEND department | stats distinct_count(department)",SUCCESS
+"source = dev.default.people| LOOKUP dev.default.work_info uid AS id, name | head 10",SUCCESS
 "source = dev.default.people | eval major = occupation | fields id, name, major, country, salary | LOOKUP dev.default.work_info name REPLACE occupation AS major | stats distinct_count(major)",SUCCESS
 "source = dev.default.people | eval major = occupation | fields id, name, major, country, salary | LOOKUP dev.default.work_info name APPEND occupation AS major | stats distinct_count(major)",SUCCESS
 "source = dev.default.http_logs | eval res = json('{""account_number"":1,""balance"":39225,""age"":32,""gender"":""M""}') | head 1 | fields res",SUCCESS

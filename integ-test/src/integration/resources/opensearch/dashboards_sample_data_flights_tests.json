@@ -28,7 +28,7 @@
     {
       "do": {
         "sql": {
-          "query": "SELECT carrier, COUNT(*) as count FROM dev.default.flights GROUP BY Carrier ORDER BY count DESC"
+          "query": "SELECT Carrier, COUNT(*) as count FROM dev.default.flights GROUP BY Carrier ORDER BY count DESC"
         },
         "match": [ "[OpenSearch Dashboards Airlines,3]", "[Logstash Airways,2]" ]
       }
