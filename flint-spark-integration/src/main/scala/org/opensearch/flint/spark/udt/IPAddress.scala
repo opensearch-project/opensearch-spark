@@ -29,9 +29,14 @@ case class IPAddress(address: String) extends Ordered[IPAddress] {
     this.normalized.compare(that.normalized)
   }
 
+  def eq(that: String): Boolean = {
+    this.normalized.equals(that)
+  }
+
   override def equals(obj: Any): Boolean = {
     obj match {
       case other: IPAddress => this.normalized == other.normalized
+      case other: String => this.normalized == IPAddress(other).normalized
       case _ => false
     }
   }
