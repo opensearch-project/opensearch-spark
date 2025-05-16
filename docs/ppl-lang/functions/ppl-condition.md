@@ -169,3 +169,52 @@ Example:
     | False    | Nanette     | Bates      |
     | False    | Dale        | Adams      |
     +----------+-------------+------------+
+
+
+### `ISEMPTY`
+
+**Description**
+
+`isempty(expr)` returns true if the expr is missing or is an empty string.
+
+**Argument type:**
+
+- all the supported data type.
+- Return type: **BOOLEAN**
+
+Example:
+
+    os> source=accounts | eval result = isempty(lastname) | fields result, lastname
+    fetched rows / total rows = 4/4
+    +----------+------------+
+    | result   | lastname   |
+    |----------+------------|
+    | False    | Duke       |
+    | False    | Bond       |
+    | False    | Bates      |
+    | False    | Adams      |
+    +----------+------------+
+
+### `ISBLANK`
+
+**Description**
+
+`isblank(expr)` returns true if the expr is missing, an empty string, or contains only white space.
+
+**Argument type:**
+
+- all the supported data type.
+- Return type: **BOOLEAN**
+
+Example:
+
+    os> source=accounts | eval result = isblank(lastname) | fields result, lastname
+    fetched rows / total rows = 4/4
+    +----------+------------+
+    | result   | lastname   |
+    |----------+------------|
+    | False    | Duke       |
+    | False    | Bond       |
+    | False    | Bates      |
+    | False    | Adams      |
+    +----------+------------+
