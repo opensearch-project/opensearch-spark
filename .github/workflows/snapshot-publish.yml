@@ -91,7 +91,7 @@ jobs:
           
           # For each project, create and upload a modified metadata file
           PROJECTS=("opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12")
-          CURRENT_VERSION="${{ steps.extract_version.outputs.version }}-SNAPSHOT"
+          CURRENT_VERSION="${{ steps.extract_version.outputs.version }}"
           COMMIT_ID="${{ steps.set_commit.outputs.commit_id }}"
           
           for PROJECT in "${PROJECTS[@]}"; do
