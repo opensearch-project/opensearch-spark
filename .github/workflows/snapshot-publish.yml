@@ -78,6 +78,9 @@ jobs:
           for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
           for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
 
+      - name: Install XML tools
+        run: sudo apt-get update && sudo apt-get install -y xmlstarlet
+
       - name: Publish snapshots to maven and update metadata
         run: |
           # Get credentials for publishing
@@ -92,29 +95,53 @@ jobs:
           cp -a $HOME/.m2/repository/* ./
           ./publish-snapshot.sh ./
 
-          echo "Snapshot publishing completed. Now uploading commit ID metadata..."
+          echo "Snapshot publishing completed. Now updating metadata with commit ID..."
 
           # Define projects to update metadata for
           PROJECTS=("opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12")
           VERSION="${{ steps.extract_version.outputs.version }}"
           COMMIT_ID="${{ steps.set_commit.outputs.commit_id }}"
+          SNAPSHOT_VERSION="${VERSION}-SNAPSHOT"
 
           for PROJECT in "${PROJECTS[@]}"; do
             echo "Processing metadata for ${PROJECT}"
-
+          
             TEMP_DIR=$(mktemp -d)
-
-            # Create simple metadata file with only commit ID
-            echo '<?xml version="1.0" encoding="UTF-8"?>' > "${TEMP_DIR}/metadata.xml"
-            echo '<metadata>' >> "${TEMP_DIR}/metadata.xml"
-            echo "  <commit_id>${COMMIT_ID}</commit_id>" >> "${TEMP_DIR}/metadata.xml"
-            echo '</metadata>' >> "${TEMP_DIR}/metadata.xml"
-
-            # Upload metadata
-            METADATA_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/${PROJECT}/${VERSION}/metadata.xml"
-            echo "Uploading metadata to ${METADATA_URL}"
-            curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${TEMP_DIR}/metadata.xml" "${METADATA_URL}"
-
+          
+            # Download current maven-metadata.xml
+            METADATA_URL="${SNAPSHOT_REPO_URL}org/opensearch/${PROJECT}/${SNAPSHOT_VERSION}/maven-metadata.xml"
+            echo "Downloading metadata from ${METADATA_URL}"
+          
+            # Wait a moment to ensure metadata is available after publishing
+            sleep 5
+          
+            curl -s -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" -o "${TEMP_DIR}/maven-metadata.xml" "${METADATA_URL}"
+          
+            # Check if download was successful
+            if [ ! -s "${TEMP_DIR}/maven-metadata.xml" ]; then
+              echo "Failed to download maven-metadata.xml for ${PROJECT}, will retry in 10 seconds"
+              sleep 10
+              curl -s -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" -o "${TEMP_DIR}/maven-metadata.xml" "${METADATA_URL}"
+          
+              if [ ! -s "${TEMP_DIR}/maven-metadata.xml" ]; then
+                echo "Failed again to download maven-metadata.xml for ${PROJECT}, skipping"
+                continue
+              fi
+            fi
+          
+            # Add commit ID to the versioning section
+            xmlstarlet ed -L \
+              -s "/metadata/versioning" -t elem -n "commit_id" -v "${COMMIT_ID}" \
+              "${TEMP_DIR}/maven-metadata.xml" || {
+                echo "Failed to modify maven-metadata.xml for ${PROJECT}"
+                cat "${TEMP_DIR}/maven-metadata.xml"
+                continue
+              }
+          
+            # Upload modified metadata back
+            echo "Uploading modified metadata to ${METADATA_URL}"
+            curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${TEMP_DIR}/maven-metadata.xml" "${METADATA_URL}"
+          
             # Clean up
             rm -rf "${TEMP_DIR}"
           done
