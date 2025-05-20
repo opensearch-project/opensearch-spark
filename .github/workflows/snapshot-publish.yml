@@ -88,6 +88,13 @@ jobs:
           echo "::add-mask::$SONATYPE_USERNAME"
           echo "::add-mask::$SONATYPE_PASSWORD"
           
+          # Publish snapshots to maven
+          cd build/resources/publish/
+          cp -a $HOME/.m2/repository/* ./
+          ./publish-snapshot.sh ./
+
+          echo "Snapshot publishing completed. Now uploading commit ID metadata..."
+          
           # For each project, create and upload a modified metadata file
           PROJECTS=("opensearch-spark-standalone_2.12" "opensearch-spark-ppl_2.12" "opensearch-spark-sql-application_2.12")
           CURRENT_VERSION="${{ steps.extract_version.outputs.version }}"
