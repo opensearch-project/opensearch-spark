@@ -6,12 +6,13 @@ on:
     branches:
       - main
       - 0.*
+      - commit-metadata-poc
 
 jobs:
   build-and-publish-snapshots:
     strategy:
       fail-fast: false
-    if: github.repository == 'opensearch-project/opensearch-spark'
+    #if: github.repository == 'opensearch-project/opensearch-spark'
     runs-on: ubuntu-latest
 
     permissions:
