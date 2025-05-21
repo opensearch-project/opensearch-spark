@@ -380,8 +380,6 @@ LOCATE:                             'LOCATE';
 REPLACE:                            'REPLACE';
 REVERSE:                            'REVERSE';
 CAST:                               'CAST';
-ISEMPTY:                            'ISEMPTY';
-ISBLANK:                            'ISBLANK';
 
 // JSON TEXT FUNCTIONS
 JSON:                               'JSON';
@@ -417,9 +415,11 @@ REDUCE:                             'REDUCE';
 LIKE:                               'LIKE';
 ISNULL:                             'ISNULL';
 ISNOTNULL:                          'ISNOTNULL';
-ISPRESENT:                          'ISPRESENT';
 BETWEEN:                            'BETWEEN';
 CIDRMATCH:                          'CIDRMATCH';
+ISPRESENT:                          'ISPRESENT';
+ISEMPTY:                            'ISEMPTY';
+ISBLANK:                            'ISBLANK';
 
 // FLOWCONTROL FUNCTIONS
 IFNULL:                             'IFNULL';
