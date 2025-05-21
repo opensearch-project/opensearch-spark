@@ -27,7 +27,6 @@ import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.subquery.ExistsSubquery;
 import org.opensearch.sql.ast.expression.subquery.InSubquery;
 import org.opensearch.sql.ast.expression.Interval;
-import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Let;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Map;
@@ -200,12 +199,6 @@ public abstract class AbstractNodeVisitor<T, C> {
   public T visitLambdaFunction(LambdaFunction node, C context) {
     return visitChildren(node, context);
   }
-
-  public T visitIsEmpty(IsEmpty node, C context) {
-    return visitChildren(node, context);
-  }
-
-  // TODO add case
 
   public T visitWindowFunction(WindowFunction node, C context) {
     return visitChildren(node, context);
