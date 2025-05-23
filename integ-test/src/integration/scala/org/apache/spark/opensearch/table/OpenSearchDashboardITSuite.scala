@@ -38,7 +38,7 @@ class OpenSearchDashboardITSuite extends OpenSearchCatalogSuite with FlintPPLSui
         // Airline Carrier
         QueryTest(
           Seq(
-            s"""SELECT carrier, COUNT(*) as count
+            s"""SELECT Carrier, COUNT(*) as count
               FROM dev.default.$tbl
               GROUP BY Carrier ORDER BY count DESC""",
             s"""source=dev.default.$tbl
