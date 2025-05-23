@@ -30,6 +30,7 @@ public class DimensionUtils {
     private static final String DIMENSION_DOMAIN_ID = "domainId";
     private static final String DIMENSION_INSTANCE_ROLE = "instanceRole";
     private static final String UNKNOWN = "UNKNOWN";
+    private static final String DIMENSION_SEGMENT = "segment";
 
     // Maps dimension names to functions that generate Dimension objects based on specific logic or environment variables
     private static final Map<String, Function<String[], Dimension>> dimensionBuilders = Map.of(
@@ -39,7 +40,8 @@ public class DimensionUtils {
             DIMENSION_JOB_TYPE, ignored -> constructDimensionFromSparkConf(DIMENSION_JOB_TYPE, "spark.flint.job.type", UNKNOWN),
             DIMENSION_APPLICATION_ID, ignored -> getEnvironmentVariableDimension("SERVERLESS_EMR_VIRTUAL_CLUSTER_ID", DIMENSION_APPLICATION_ID),
             DIMENSION_APPLICATION_NAME, ignored -> getEnvironmentVariableDimension("SERVERLESS_EMR_APPLICATION_NAME", DIMENSION_APPLICATION_NAME),
-            DIMENSION_DOMAIN_ID, ignored -> getEnvironmentVariableDimension("FLINT_CLUSTER_NAME", DIMENSION_DOMAIN_ID)
+            DIMENSION_DOMAIN_ID, ignored -> getEnvironmentVariableDimension("FLINT_CLUSTER_NAME", DIMENSION_DOMAIN_ID),
+            DIMENSION_SEGMENT, ignored -> getSegmentDimension()
     );
 
     /**
@@ -68,17 +70,7 @@ public class DimensionUtils {
      * @throws Exception if an error occurs while accessing the Spark configuration. The exception is logged and then rethrown.
      */
     public static Dimension constructDimensionFromSparkConf(String dimensionName, String sparkConfKey, String defaultValue) {
-        String propertyValue = defaultValue;
-        try {
-            if (SparkEnv.get() != null && SparkEnv.get().conf() != null) {
-                propertyValue = SparkEnv.get().conf().get(sparkConfKey, defaultValue);
-            } else {
-                LOG.warning("Spark environment or configuration is not available, defaulting to provided default value.");
-            }
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Error accessing Spark configuration with key: " + sparkConfKey + ", defaulting to provided default value.", e);
-            throw e;
-        }
+        String propertyValue = getSparkConfValue(sparkConfKey, defaultValue);
         return new Dimension().withName(dimensionName).withValue(propertyValue);
     }
 
@@ -99,6 +91,18 @@ public class DimensionUtils {
     private static Dimension getInstanceRoleDimension(String[] parts) {
         String value = StringUtils.isNumeric(parts[1]) ? "executor" : parts[1];
         return new Dimension().withName(DIMENSION_INSTANCE_ROLE).withValue(value);
+    }
+
+    /**
+     * Generates a dimension object representing the segment of the spark job (5e represents 5 executors) based on the
+     * spark conf
+     *
+     * @return A Dimension object with the segment.
+     * @throws Exception if an error occurs while accessing the Spark configuration. The exception is logged and then rethrown.
+     */
+    private static Dimension getSegmentDimension() {
+        String segment = getSparkConfValue("spark.dynamicAllocation.maxExecutors", UNKNOWN) + "e";
+        return new Dimension().withName(DIMENSION_SEGMENT).withValue(segment);
     }
 
     /**
@@ -123,5 +127,28 @@ public class DimensionUtils {
      */
     private static Dimension getDefaultDimension(String dimensionName) {
         return getEnvironmentVariableDimension(dimensionName, dimensionName);
+    }
+
+    /**
+     * Retrieves the value of a specific spark configuration key
+     *
+     * @param sparkConfKey the Spark configuration key used to look up the value for the dimension.
+     * @param defaultValue the default value to use for the dimension if the Spark configuration key is not found or if the Spark environment is not available.
+     * @return A CloudWatch Dimension object.
+     * @throws Exception if an error occurs while accessing the Spark configuration. The exception is logged and then rethrown.
+     */
+    private static String getSparkConfValue(String sparkConfKey, String defaultValue) {
+        String propertyValue = defaultValue;
+        try {
+            if (SparkEnv.get() != null && SparkEnv.get().conf() != null) {
+                propertyValue = SparkEnv.get().conf().get(sparkConfKey, defaultValue);
+            } else {
+                LOG.warning("Spark environment or configuration is not available, defaulting to provided default value.");
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Error accessing Spark configuration with key: " + sparkConfKey + ", defaulting to provided default value.", e);
+            throw e;
+        }
+        return propertyValue;
     }
 }
