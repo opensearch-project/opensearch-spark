@@ -145,11 +145,19 @@ case class JobOperator(
       val resultWriterStartTime = System.currentTimeMillis()
       try {
         dataToWrite.foreach(df => {
-          if (isStreamingOrBatch) {
+          if (isStreamingOrBatch) {x
             writeDataFrameToOpensearch(df, resultIndex, osClient)
           } else {
             val queryResultWriter = instantiateQueryResultWriter(sparkSession, commandContext)
-            val processedDataFrame = queryResultWriter.processDataFrame(df, statement, startTime)
+
+            if (!throwableHandler.hasException) {
+              val processedDataFrame = queryResultWriter.processDataFrame(df, statement, startTime)
+              queryResultWriter.writeDataFrame(processedDataFrame, statement)
+            } else {
+              // For error cases, write the ErrorDF directly without processing
+              queryResultWriter.writeDataFrame(df, statement)
+            }
+
             queryResultWriter.writeDataFrame(processedDataFrame, statement)
           }
         })
