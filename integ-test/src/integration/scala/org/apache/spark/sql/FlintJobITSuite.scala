@@ -410,6 +410,101 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     pollForResultAndAssert(validation, jobRunId)
   }
 
+  test("Non StreamingOrBatch query should maintain correct schema structure") {
+    try {
+      sql(s"""
+             | INSERT INTO $testTable
+             | PARTITION (year=2023, month=6)
+             | SELECT *
+             | FROM VALUES ('Test', 35, 'Seattle')
+             |""".stripMargin)
+
+      val query = s"SELECT name, age FROM $testTable"
+      val queryStartTime = System.currentTimeMillis()
+      val jobRunId = "00ff4o3b5091080z"
+
+      val streamingRunningCount = new AtomicInteger(0)
+      val statementRunningCount = new AtomicInteger(0)
+
+      spark.conf.set(DATA_SOURCE_NAME.key, dataSourceName)
+      spark.conf.set(JOB_TYPE.key, FlintJobType.INTERACTIVE)
+      spark.conf.set(REQUEST_INDEX.key, requestIndex)
+
+      val flintStatement = new FlintStatement(
+        "running",
+        query,
+        "",
+        queryId,
+        LangType.SQL,
+        currentTimeProvider.currentEpochMillis(),
+        Option.empty,
+        Map.empty)
+
+      val job = JobOperator(
+        appId,
+        jobRunId,
+        spark,
+        flintStatement,
+        dataSourceName,
+        resultIndex,
+        FlintJobType.INTERACTIVE,
+        streamingRunningCount,
+        statementRunningCount)
+      job.terminateJVM = false
+
+      val prefix = "flint-job-test"
+      val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor(prefix, 1)
+      implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
+
+      threadLocalFuture.set(Future {
+        job.start()
+      })
+
+      val validation: REPLResult => Boolean = result => {
+        assert(result.results.size > 0, s"expected results, but got ${result.results.size}")
+
+        assert(
+          result.schemas.size == 13,
+          s"expected schema size is 13, but got ${result.schemas.size}")
+
+        val expectedSchemas = Array(
+          "{'column_name':'result','data_type':'array'}",
+          "{'column_name':'schema','data_type':'array'}",
+          "{'column_name':'jobRunId','data_type':'string'}",
+          "{'column_name':'applicationId','data_type':'string'}",
+          "{'column_name':'dataSourceName','data_type':'string'}",
+          "{'column_name':'status','data_type':'string'}",
+          "{'column_name':'error','data_type':'string'}",
+          "{'column_name':'queryId','data_type':'string'}",
+          "{'column_name':'queryText','data_type':'string'}",
+          "{'column_name':'sessionId','data_type':'string'}",
+          "{'column_name':'jobType','data_type':'string'}",
+          "{'column_name':'updateTime','data_type':'long'}",
+          "{'column_name':'queryRunTime','data_type':'long'}")
+
+        for (i <- 0 until expectedSchemas.length) {
+          assert(
+            result.schemas(i).equals(expectedSchemas(i)),
+            s"expected schema at position $i is ${expectedSchemas(i)}, but got ${result.schemas(i)}")
+        }
+
+        assert(
+          result.status == "SUCCESS",
+          s"expected status is SUCCESS, but got ${result.status}")
+        assert(result.error.isEmpty, s"we don't expect error, but got ${result.error}")
+
+        commonAssert(result, jobRunId, query, queryStartTime)
+        true
+      }
+
+      pollForResultAndAssert(validation, jobRunId)
+    } catch {
+      case e: Exception =>
+        logError(s"Test failed with exception: ${e.getMessage}", e)
+        throw e
+    }
+  }
+
   def commonAssert(
       result: REPLResult,
       jobRunId: String,
@@ -473,4 +568,5 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
 
     Option(response.getSourceAsMap).getOrElse(Collections.emptyMap()).asScala.toMap
   }
+
 }
