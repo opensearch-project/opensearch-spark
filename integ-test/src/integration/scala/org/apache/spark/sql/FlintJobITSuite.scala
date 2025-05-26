@@ -568,5 +568,4 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
 
     Option(response.getSourceAsMap).getOrElse(Collections.emptyMap()).asScala.toMap
   }
-
 }
