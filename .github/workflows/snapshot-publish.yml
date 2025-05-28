@@ -6,12 +6,13 @@ on:
     branches:
       - main
       - 0.*
+      - commit-metadata-poc
 
 jobs:
   build-and-publish-snapshots:
     strategy:
       fail-fast: false
-    if: github.repository == 'opensearch-project/opensearch-spark'
+    #if: github.repository == 'opensearch-project/opensearch-spark'
     runs-on: ubuntu-latest
 
     permissions:
@@ -20,6 +21,24 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        id: checkout
+
+      # Extract version from build.sbt file
+      - name: Extract version from build.sbt
+        id: extract_version
+        run: |
+          # Extract the version from build.sbt
+          VERSION=$(grep -E 'ThisBuild / version := "[^"]+"' build.sbt | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Using version: ${VERSION}"
+
+      # Capture the commit ID for metadata purposes
+      - name: Set commit ID
+        id: set_commit
+        run: |
+          COMMIT_ID=$(git log -1 --format='%H')
+          echo "commit_id=${COMMIT_ID}" >> $GITHUB_OUTPUT
+          echo "Using commit ID: ${COMMIT_ID}"
 
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -32,9 +51,14 @@ jobs:
 
       - name: Publish to Local Maven
         run: |
-          sbt standaloneCosmetic/publishM2
-          sbt sparkPPLCosmetic/publishM2
-          sbt sparkSqlApplicationCosmetic/publishM2
+          # Use -no-colors for cleaner logs
+          sbt -no-colors clean standaloneCosmetic/publishM2
+          sbt -no-colors clean sparkPPLCosmetic/publishM2
+          sbt -no-colors clean sparkSqlApplicationCosmetic/publishM2
+          
+          # Verify the published artifacts have the correct version
+          echo "Checking published artifacts:"
+          find $HOME/.m2/repository/org/opensearch/ -name "*${{ steps.extract_version.outputs.version }}*" || echo "No artifacts found with the expected version"
 
       - uses: actions/checkout@v3
         with:
@@ -47,20 +71,23 @@ jobs:
           role-to-assume: ${{ secrets.PUBLISH_SNAPSHOTS_ROLE }}
           aws-region: us-east-1
 
-      - name: generate sha and md5
+      - name: Generate SHA and MD5 checksums
         run: |
           for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
-          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
-          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
           for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.pom" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
+          for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha512sum "$i" | awk '{print $1}' >> "$i.sha512"; done
 
-      - name: Get credentials and publish snapshots to maven
+      - name: Install required tools
+        run: sudo apt-get update && sudo apt-get install -y xmlstarlet jq
+
+      - name: Make publish utilities script executable
+        run: chmod +x .github/publish-utils.sh
+
+      - name: Publish snapshots and update metadata
         run: |
-          export SONATYPE_USERNAME=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-username --query SecretString --output text)
-          export SONATYPE_PASSWORD=$(aws secretsmanager get-secret-value --secret-id maven-snapshots-password --query SecretString --output text)
-          echo "::add-mask::$SONATYPE_USERNAME"
-          echo "::add-mask::$SONATYPE_PASSWORD"
-          export SNAPSHOT_REPO_URL="https://aws.oss.sonatype.org/content/repositories/snapshots/"
-          cd build/resources/publish/
-          cp -a $HOME/.m2/repository/* ./
-          ./publish-snapshot.sh ./
+          # Source the utility functions
+          source .github/publish-utils.sh
+          
+          # Call the main function with version and commit ID
+          publish_snapshots_and_update_metadata "${{ steps.extract_version.outputs.version }}" "${{ steps.set_commit.outputs.commit_id }}"
