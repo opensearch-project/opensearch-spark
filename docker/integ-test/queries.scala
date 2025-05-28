@@ -411,11 +411,11 @@
 
     spark.sql("source = myglue_test.default.people| LOOKUP myglue_test.default.work_info uid AS id APPEND department AS country | stats distinct_count(country)")
 
-    spark.sql("source = myglue_test.default.people| LOOKUP myglue_test.default.work_info uID AS id, name REPLACE department | stats distinct_count(department)")
+    spark.sql("source = myglue_test.default.people| LOOKUP myglue_test.default.work_info uid AS id, name REPLACE department | stats distinct_count(department)")
 
-    spark.sql("source = myglue_test.default.people| LOOKUP myglue_test.default.work_info uid AS ID, name APPEND department | stats distinct_count(department)")
+    spark.sql("source = myglue_test.default.people| LOOKUP myglue_test.default.work_info uid AS id, name APPEND department | stats distinct_count(department)")
 
-    spark.sql("source = myglue_test.default.people| LOOKUP myglue_test.default.work_info uID AS id, name | head 10")
+    spark.sql("source = myglue_test.default.people| LOOKUP myglue_test.default.work_info uid AS id, name | head 10")
 
     spark.sql("source = myglue_test.default.people | eval major = occupation | fields id, name, major, country, salary | LOOKUP myglue_test.default.work_info name REPLACE occupation AS major | stats distinct_count(major)")
 

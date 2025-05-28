@@ -476,14 +476,9 @@ positionFunction
 
 booleanExpression
    : booleanFunctionCall                                                # booleanFunctionCallExpr
-   | isEmptyExpression                                                  # isEmptyExpr
    | valueExpressionList NOT? IN LT_SQR_PRTHS subSearch RT_SQR_PRTHS    # inSubqueryExpr
    | EXISTS LT_SQR_PRTHS subSearch RT_SQR_PRTHS                         # existsSubqueryExpr
    | cidrMatchFunctionCall                                              # cidrFunctionCallExpr
-   ;
-
- isEmptyExpression
-   : (ISEMPTY | ISBLANK) LT_PRTHS functionArg RT_PRTHS
    ;
 
  caseFunction
@@ -855,6 +850,8 @@ conditionFunctionBase
    | JSON_VALID
    | EARLIEST
    | LATEST
+   | ISEMPTY
+   | ISBLANK
    ;
 
 systemFunctionName

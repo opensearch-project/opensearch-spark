@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.flint.core.storage;
+package org.opensearch.flint.core.storage.ratelimit;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.opensearch.flint.core.FlintOptions;
 
 /**
@@ -27,5 +28,10 @@ public class BulkRequestRateLimiterHolder {
       }
     }
     return instance;
+  }
+
+  @VisibleForTesting
+  public synchronized static void reset() {
+    instance = null;
   }
 }

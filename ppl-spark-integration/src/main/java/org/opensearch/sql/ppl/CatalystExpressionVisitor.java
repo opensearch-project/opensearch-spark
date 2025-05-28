@@ -40,7 +40,6 @@ import org.opensearch.sql.ast.expression.FieldsMapping;
 import org.opensearch.sql.ast.expression.Function;
 import org.opensearch.sql.ast.expression.In;
 import org.opensearch.sql.ast.expression.Interval;
-import org.opensearch.sql.ast.expression.IsEmpty;
 import org.opensearch.sql.ast.expression.Literal;
 import org.opensearch.sql.ast.expression.Not;
 import org.opensearch.sql.ast.expression.Or;
@@ -277,16 +276,6 @@ public class CatalystExpressionVisitor extends AbstractNodeVisitor<Expression, C
                         .collect(Collectors.toList());
         Expression function = BuiltinFunctionTransformer.builtinFunction(node, arguments);
         return context.getNamedParseExpressions().push(function);
-    }
-
-    @Override
-    public Expression visitIsEmpty(IsEmpty node, CatalystPlanContext context) {
-        Stack<Expression> namedParseExpressions = new Stack<>();
-        namedParseExpressions.addAll(context.getNamedParseExpressions());
-        Expression expression = visitCase(node.getCaseValue(), context);
-        namedParseExpressions.add(expression);
-        context.setNamedParseExpressions(namedParseExpressions);
-        return expression;
     }
 
     @Override
