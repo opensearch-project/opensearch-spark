@@ -20,6 +20,24 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        id: checkout
+
+      # Extract version from build.sbt file
+      - name: Extract version from build.sbt
+        id: extract_version
+        run: |
+          # Extract the version from build.sbt
+          VERSION=$(grep -E 'ThisBuild / version := "[^"]+"' build.sbt | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Using version: ${VERSION}"
+
+      # Capture the commit ID for metadata purposes
+      - name: Set commit ID
+        id: set_commit
+        run: |
+          COMMIT_ID=$(git log -1 --format='%H')
+          echo "commit_id=${COMMIT_ID}" >> $GITHUB_OUTPUT
+          echo "Using commit ID: ${COMMIT_ID}"
 
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -32,9 +50,14 @@ jobs:
 
       - name: Publish to Local Maven
         run: |
-          sbt standaloneCosmetic/publishM2
-          sbt sparkPPLCosmetic/publishM2
-          sbt sparkSqlApplicationCosmetic/publishM2
+          # Use -no-colors for cleaner logs
+          sbt -no-colors clean standaloneCosmetic/publishM2
+          sbt -no-colors clean sparkPPLCosmetic/publishM2
+          sbt -no-colors clean sparkSqlApplicationCosmetic/publishM2
+          
+          # Verify the published artifacts have the correct version
+          echo "Checking published artifacts:"
+          find $HOME/.m2/repository/org/opensearch/ -name "*${{ steps.extract_version.outputs.version }}*" || echo "No artifacts found with the expected version"
 
       - uses: actions/checkout@v3
         with:

@@ -200,54 +200,7 @@ class FlintSparkPPLLookupITSuite
 
   test("test LOOKUP lookupTable uid AS id, name REPLACE department") {
     val frame =
-      sql(s"source = $sourceTable| LOOKUP $lookupTable uID AS id, name REPLACE department")
-    val expectedResults: Array[Row] = Array(
-      Row(1000, "Jake", "Engineer", "England", 100000, "IT"),
-      Row(1001, "Hello", "Artist", "USA", 70000, null),
-      Row(1002, "John", "Doctor", "Canada", 120000, "DATA"),
-      Row(1003, "David", "Doctor", null, 120000, "HR"),
-      Row(1004, "David", null, "Canada", 0, null),
-      Row(1005, "Jane", "Scientist", "Canada", 90000, "DATA"))
-    assertSameRows(expectedResults, frame)
-
-    val lookupProject =
-      Project(
-        Seq(
-          UnresolvedAttribute("department"),
-          UnresolvedAttribute("uID"),
-          UnresolvedAttribute("name")),
-        lookupAlias)
-    val joinCondition =
-      And(
-        EqualTo(
-          UnresolvedAttribute("__auto_generated_subquery_name_l.uID"),
-          UnresolvedAttribute("__auto_generated_subquery_name_s.id")),
-        EqualTo(
-          UnresolvedAttribute("__auto_generated_subquery_name_l.name"),
-          UnresolvedAttribute("__auto_generated_subquery_name_s.name")))
-    val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
-    val projectAfterJoin = Project(
-      Seq(
-        UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
-        Alias(
-          UnresolvedAttribute("__auto_generated_subquery_name_l.department"),
-          "department")()),
-      joinPlan)
-    val dropColumns = DataFrameDropColumns(
-      Seq(
-        UnresolvedAttribute("uID"),
-        UnresolvedAttribute("__auto_generated_subquery_name_l.name"),
-        UnresolvedAttribute("__auto_generated_subquery_name_s.department")),
-      projectAfterJoin)
-    val expectedPlan = Project(Seq(UnresolvedStar(None)), dropColumns)
-    val logicalPlan: LogicalPlan = frame.queryExecution.logical
-
-    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
-  }
-
-  test("test LOOKUP lookupTable uid AS id, name APPEND department") {
-    val frame =
-      sql(s"source = $sourceTable| LOOKUP $lookupTable uid AS ID, name APPEND department")
+      sql(s"source = $sourceTable| LOOKUP $lookupTable uid AS id, name REPLACE department")
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "Engineer", "England", 100000, "IT"),
       Row(1001, "Hello", "Artist", "USA", 70000, null),
@@ -268,7 +221,54 @@ class FlintSparkPPLLookupITSuite
       And(
         EqualTo(
           UnresolvedAttribute("__auto_generated_subquery_name_l.uid"),
-          UnresolvedAttribute("__auto_generated_subquery_name_s.ID")),
+          UnresolvedAttribute("__auto_generated_subquery_name_s.id")),
+        EqualTo(
+          UnresolvedAttribute("__auto_generated_subquery_name_l.name"),
+          UnresolvedAttribute("__auto_generated_subquery_name_s.name")))
+    val joinPlan = Join(sourceAlias, lookupProject, LeftOuter, Some(joinCondition), JoinHint.NONE)
+    val projectAfterJoin = Project(
+      Seq(
+        UnresolvedStar(Some(Seq("__auto_generated_subquery_name_s"))),
+        Alias(
+          UnresolvedAttribute("__auto_generated_subquery_name_l.department"),
+          "department")()),
+      joinPlan)
+    val dropColumns = DataFrameDropColumns(
+      Seq(
+        UnresolvedAttribute("uid"),
+        UnresolvedAttribute("__auto_generated_subquery_name_l.name"),
+        UnresolvedAttribute("__auto_generated_subquery_name_s.department")),
+      projectAfterJoin)
+    val expectedPlan = Project(Seq(UnresolvedStar(None)), dropColumns)
+    val logicalPlan: LogicalPlan = frame.queryExecution.logical
+
+    comparePlans(expectedPlan, logicalPlan, checkAnalysis = false)
+  }
+
+  test("test LOOKUP lookupTable uid AS id, name APPEND department") {
+    val frame =
+      sql(s"source = $sourceTable| LOOKUP $lookupTable uid AS id, name APPEND department")
+    val expectedResults: Array[Row] = Array(
+      Row(1000, "Jake", "Engineer", "England", 100000, "IT"),
+      Row(1001, "Hello", "Artist", "USA", 70000, null),
+      Row(1002, "John", "Doctor", "Canada", 120000, "DATA"),
+      Row(1003, "David", "Doctor", null, 120000, "HR"),
+      Row(1004, "David", null, "Canada", 0, null),
+      Row(1005, "Jane", "Scientist", "Canada", 90000, "DATA"))
+    assertSameRows(expectedResults, frame)
+
+    val lookupProject =
+      Project(
+        Seq(
+          UnresolvedAttribute("department"),
+          UnresolvedAttribute("uid"),
+          UnresolvedAttribute("name")),
+        lookupAlias)
+    val joinCondition =
+      And(
+        EqualTo(
+          UnresolvedAttribute("__auto_generated_subquery_name_l.uid"),
+          UnresolvedAttribute("__auto_generated_subquery_name_s.id")),
         EqualTo(
           UnresolvedAttribute("__auto_generated_subquery_name_l.name"),
           UnresolvedAttribute("__auto_generated_subquery_name_s.name")))
@@ -296,7 +296,7 @@ class FlintSparkPPLLookupITSuite
   }
 
   test("test LOOKUP lookupTable uid AS id, name") {
-    val frame = sql(s"source = $sourceTable| LOOKUP $lookupTable uID AS id, name")
+    val frame = sql(s"source = $sourceTable| LOOKUP $lookupTable uid AS id, name")
     val expectedResults: Array[Row] = Array(
       Row(1000, "Jake", "England", 100000, "IT", "Engineer"),
       Row(1001, "Hello", "USA", 70000, null, null),
