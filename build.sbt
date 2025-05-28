@@ -21,7 +21,7 @@ val sparkMinorVersion = sparkVersion.split("\\.").take(2).mkString(".")
 
 ThisBuild / organization := "org.opensearch"
 
-ThisBuild / version := "1.0.0-SNAPSHOT"
+ThisBuild / version := "0.8.0-commit-metadata-poc-SNAPSHOT"
 
 ThisBuild / scalaVersion := scala212
 
