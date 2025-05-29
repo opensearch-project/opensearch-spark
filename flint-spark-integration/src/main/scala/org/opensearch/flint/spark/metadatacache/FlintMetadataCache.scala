@@ -29,7 +29,8 @@ case class FlintMetadataCache(
     lastRefreshTime: Option[Long],
     /**
      * The current index state per the Flint state machine
-     * @see https://github.com/opensearch-project/opensearch-spark/blob/main/docs/index.md#index-state-transition-1
+     * @see
+     *   https://github.com/opensearch-project/opensearch-spark/blob/main/docs/index.md#index-state-transition-1
      */
     indexState: Option[String]) {
 
