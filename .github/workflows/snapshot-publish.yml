@@ -79,7 +79,7 @@ jobs:
           for i in `find ${HOME}/.m2/repository/org/opensearch/ -name "*.jar" -type f`; do sha256sum "$i" | awk '{print $1}' >> "$i.sha256"; done
 
       - name: Install XML tools
-        run: sudo apt-get update && sudo apt-get install -y xmlstarlet
+        run: sudo apt-get update && sudo apt-get install -y xmlstarlet jq
 
       - name: Publish snapshots to maven and update metadata
         run: |
@@ -102,6 +102,9 @@ jobs:
           CURRENT_VERSION="${{ steps.extract_version.outputs.version }}"
           COMMIT_ID="${{ steps.set_commit.outputs.commit_id }}"
           
+          # Create a dictionary to store the actual artifact versions
+          declare -A ACTUAL_VERSIONS
+          
           for PROJECT in "${PROJECTS[@]}"; do
             echo "Processing metadata for ${PROJECT}"
           
@@ -121,6 +124,16 @@ jobs:
             # Check if download was successful
             if [ -s "${METADATA_FILE}" ]; then
               echo "Successfully downloaded metadata file"
+          
+              # Extract the latest JAR version information
+              LATEST_JAR_VERSION=$(xmlstarlet sel -t -v "//snapshotVersion[extension='jar' and not(classifier)]/value" "${METADATA_FILE}" | head -1)
+              if [ -n "${LATEST_JAR_VERSION}" ]; then
+                echo "Latest jar version for ${PROJECT}: ${LATEST_JAR_VERSION}"
+                ACTUAL_VERSIONS["${PROJECT}"]="${LATEST_JAR_VERSION}"
+              else
+                echo "Warning: Could not find JAR version in metadata for ${PROJECT}"
+              fi
+          
               # Modify the metadata to include commit ID
               cp "${METADATA_FILE}" "${METADATA_FILE}.bak"
           
@@ -149,7 +162,18 @@ jobs:
               curl -s -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" -o "${METADATA_FILE}" "${META_URL}"
           
               if [ -s "${METADATA_FILE}" ]; then
-                echo "Retry successful. Modifying metadata to include commit ID"
+                echo "Retry successful. Extracting latest JAR version..."
+          
+                # Extract the latest JAR version information after retry
+                LATEST_JAR_VERSION=$(xmlstarlet sel -t -v "//snapshotVersion[extension='jar' and not(classifier)]/value" "${METADATA_FILE}" | head -1)
+                if [ -n "${LATEST_JAR_VERSION}" ]; then
+                  echo "Latest jar version for ${PROJECT}: ${LATEST_JAR_VERSION}"
+                  ACTUAL_VERSIONS["${PROJECT}"]="${LATEST_JAR_VERSION}"
+                else
+                  echo "Warning: Could not find JAR version in metadata for ${PROJECT}"
+                fi
+          
+                echo "Modifying metadata to include commit ID"
                 cp "${METADATA_FILE}" "${METADATA_FILE}.bak"
           
                 awk -v commit="${COMMIT_ID}" '
@@ -176,54 +200,74 @@ jobs:
             rm -rf "${TEMP_DIR}"
           done
           
-          # Create/update a global commit ID to version mapping file
-               echo "Creating/updating commit ID to version mapping..."
-               MAPPING_DIR=$(mktemp -d)
-               MAPPING_FILE="${MAPPING_DIR}/commit-version-map.json"
-               GROUP_PATH="org/opensearch"
+          # Print all collected actual versions
+          echo "Collected actual artifact versions:"
+          for project in "${!ACTUAL_VERSIONS[@]}"; do
+            echo "$project: ${ACTUAL_VERSIONS[$project]}"
+          done
+
+          # Create/update the global commit ID to version mapping file
+          echo "Creating/updating commit ID to version mapping..."
+          MAPPING_DIR=$(mktemp -d)
+          MAPPING_FILE="${MAPPING_DIR}/commit-version-map.json"
+          GROUP_PATH="org/opensearch"
           
           # Define the URL for the mapping file
-               MAPPING_URL="${SNAPSHOT_REPO_URL}${GROUP_PATH}/commit-version-map-poc.json"
+          MAPPING_URL="${SNAPSHOT_REPO_URL}${GROUP_PATH}/commit-version-map-poc.json"
           
           # Try to download existing mapping file if it exists
-               HTTP_CODE=$(curl -s -o "${MAPPING_FILE}" -w "%{http_code}" -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" "${MAPPING_URL}" || echo "000")
+          HTTP_CODE=$(curl -s -o "${MAPPING_FILE}" -w "%{http_code}" -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" "${MAPPING_URL}" || echo "000")
           
-               if [ "$HTTP_CODE" = "200" ]; then
-               echo "Downloaded existing mapping file"
-               else
-               echo "No existing mapping file found, creating new one"
-               echo '{"mappings":[]}' > "${MAPPING_FILE}"
-               fi
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "Downloaded existing mapping file"
+          else
+            echo "No existing mapping file found, creating new one"
+            echo '{"mappings":[]}' > "${MAPPING_FILE}"
+          fi
+          
+          # Create JSON object with artifact versions
+          ARTIFACTS_JSON="{"
+          for project in "${!ACTUAL_VERSIONS[@]}"; do
+            if [ "${ARTIFACTS_JSON}" != "{" ]; then
+              ARTIFACTS_JSON="${ARTIFACTS_JSON},"
+            fi
+            ARTIFACTS_JSON="${ARTIFACTS_JSON}\"${project}\": \"${ACTUAL_VERSIONS[$project]}\""
+          done
+          ARTIFACTS_JSON="${ARTIFACTS_JSON}}"
+          
+          echo "Artifacts JSON: ${ARTIFACTS_JSON}"
           
           # Add new mapping entry
-               CURRENT_VERSION="${{ steps.extract_version.outputs.version }}"
-               COMMIT_ID="${{ steps.set_commit.outputs.commit_id }}"
-               TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           
           # Use temporary file for JSON manipulation
-               TEMP_JSON="${MAPPING_DIR}/temp.json"
+          TEMP_JSON="${MAPPING_DIR}/temp.json"
           
-          # Use jq to add the new mapping if it doesn't already exist
-               cat "${MAPPING_FILE}" | jq --arg commit "$COMMIT_ID" --arg version "$CURRENT_VERSION" --arg timestamp "$TIMESTAMP" '
-               if (.mappings | map(select(.commit_id == $commit)) | length) == 0 then
-               .mappings += [{"commit_id": $commit, "version": $version, "timestamp": $timestamp}]
-               else
-               .
-               end
-               ' > "${TEMP_JSON}"
+          # Use jq to add the new mapping
+          cat "${MAPPING_FILE}" | jq --arg commit "$COMMIT_ID" \
+                                    --arg version "$CURRENT_VERSION" \
+                                    --arg timestamp "$TIMESTAMP" \
+                                    --argjson artifacts "$ARTIFACTS_JSON" '
+          if (.mappings | map(select(.commit_id == $commit)) | length) == 0 then
+            .mappings += [{"commit_id": $commit, "version": $version, "timestamp": $timestamp, "artifacts": $artifacts}]
+          else
+            .mappings = [.mappings[] | if .commit_id == $commit then . + {"artifacts": $artifacts} else . end]
+          end
+          ' > "${TEMP_JSON}"
+          
           mv "${TEMP_JSON}" "${MAPPING_FILE}"
           
           # Sort mappings by timestamp (newest first) for easier lookup
           cat "${MAPPING_FILE}" | jq '.mappings |= sort_by(.timestamp) | .mappings |= reverse' > "${TEMP_JSON}"
-               mv "${TEMP_JSON}" "${MAPPING_FILE}"
+          mv "${TEMP_JSON}" "${MAPPING_FILE}"
           
           # Print the updated mapping for debugging
-               echo "Updated mapping file content:"
-               cat "${MAPPING_FILE}"
+          echo "Updated mapping file content:"
+          cat "${MAPPING_FILE}"
           
           # Upload the mapping file
-               echo "Uploading mapping file to ${MAPPING_URL}"
-               curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${MAPPING_FILE}" "${MAPPING_URL}"
+          echo "Uploading mapping file to ${MAPPING_URL}"
+          curl -v -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" --upload-file "${MAPPING_FILE}" "${MAPPING_URL}"
           
           # Clean up
-               rm -rf "${MAPPING_DIR}"
+          rm -rf "${MAPPING_DIR}"
