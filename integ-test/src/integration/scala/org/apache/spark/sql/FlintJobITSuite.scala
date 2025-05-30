@@ -436,6 +436,13 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
 
         assert(result.status == "FAILED", s"expected status is FAILED, but got ${result.status}")
         assert(!result.error.isEmpty, s"expected error message, but got empty error")
+        assert(result.error.startsWith("{"), "Error message should be in JSON format")
+        assert(
+          result.error.contains("\"message\""),
+          "Error message should contain 'message' field")
+        assert(
+          result.error.contains("\"exception.type\""),
+          "Error message should contain 'exception.type' field")
 
         commonAssert(result, jobRunId, query, queryStartTime)
         true
