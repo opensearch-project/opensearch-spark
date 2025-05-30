@@ -150,8 +150,14 @@ case class JobOperator(
             writeDataFrameToOpensearch(df, resultIndex, osClient)
           } else {
             val queryResultWriter = instantiateQueryResultWriter(sparkSession, commandContext)
-            val processedDataFrame = queryResultWriter.processDataFrame(df, statement, startTime)
-            queryResultWriter.writeDataFrame(processedDataFrame, statement)
+            if (!throwableHandler.hasException) {
+              val processedDataFrame =
+                queryResultWriter.processDataFrame(df, statement, startTime)
+              queryResultWriter.writeDataFrame(processedDataFrame, statement)
+            } else {
+              queryResultWriter.writeDataFrame(df, statement)
+            }
+
           }
         })
       } catch {
