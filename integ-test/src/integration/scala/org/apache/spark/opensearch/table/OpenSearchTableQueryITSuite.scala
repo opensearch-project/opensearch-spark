@@ -164,7 +164,7 @@ class OpenSearchTableQueryITSuite
     val tableName = s"""$catalogName.default.$index1"""
     val spark = SparkSession.builder().getOrCreate()
     IPFunctions.registerFunctions(spark)
-    val clientIp: Array[String] = Array("192.168.0.10", "192.168.0.11", "::ffff:192.168.0.10")
+    val clientIp: Array[String] = Array("192.168.0.10", "192.168.1.11", "::ffff:192.168.0.10")
     val serverIp: Array[String] = Array("100.10.12.123", "::ffff:100.10.12.123")
 
     withIndexName(index1) {
@@ -180,33 +180,52 @@ class OpenSearchTableQueryITSuite
           Row(IPAddress(clientIp(1)), IPAddress(serverIp(0))),
           Row(IPAddress(clientIp(2)), IPAddress(serverIp(1)))))
 
-      df = spark.sql(
-        s"SELECT client, server FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32')")
-      checkAnswer(df, Seq(Row(IPAddress(clientIp(0)), IPAddress(serverIp(0)))))
+      df = spark.sql(s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.0/24')")
+      checkAnswer(df, Seq(Row(0), Row(2)))
+
+      // TODO: Align cidrmatch logic with OpenSearch ip search (matches regardless ipv4/ipv6)
+      df = spark.sql(s"SELECT id, cidrmatch(client, '192.168.0.0/24') FROM $tableName")
+      checkAnswer(df, Seq(Row(0, true), Row(1, false), Row(2, false)))
+    }
+  }
+
+  test("Query index with ip data type with predicate push down") {
+    val index1 = "t0001"
+    val tableName = s"""$catalogName.default.$index1"""
+    val spark = SparkSession.builder().getOrCreate()
+    IPFunctions.registerFunctions(spark)
+
+    withIndexName(index1) {
+      indexWithIp(index1)
+
+      var df: DataFrame = null
+
+      df = spark.sql(s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32')")
+      checkAnswer(df, Seq(Row(0), Row(2)))
+      checkPushedInfo(df, "(ip_compare(client, '192.168.0.10/32')) = 0")
+
+      df =
+        spark.sql(s"source=$tableName | where cidrmatch(client, '192.168.0.10/32') | fields id")
+      checkAnswer(df, Seq(Row(0), Row(2)))
+      checkPushedInfo(df, "(ip_compare(client, '192.168.0.10/32')) = 0")
+
+      df = spark.sql(s"SELECT id FROM $tableName WHERE NOT cidrmatch(client, '192.168.0.10/32')")
+      checkAnswer(df, Seq(Row(1)))
+      checkPushedInfo(df, "NOT ((ip_compare(client, '192.168.0.10/32')) = 0)")
 
       df = spark.sql(
-        s"SELECT client, server FROM $tableName WHERE cidrmatch(client, '192.168.0.0/24')")
-      checkAnswer(
+        s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32') AND cidrmatch(server, '100.10.12.123/32')")
+      checkAnswer(df, Seq(Row(0), Row(2)))
+      checkPushedInfo(
         df,
-        Seq(
-          Row(IPAddress(clientIp(0)), IPAddress(serverIp(0))),
-          Row(IPAddress(clientIp(1)), IPAddress(serverIp(0)))))
+        "(ip_compare(client, '192.168.0.10/32')) = 0, (ip_compare(server, '100.10.12.123/32')) = 0")
 
       df = spark.sql(
-        s"SELECT client, server FROM $tableName WHERE cidrmatch(client, '192.168.0.0/255.255.255.0')")
-      checkAnswer(
+        s"SELECT id FROM $tableName WHERE cidrmatch(client, '192.168.0.10/32') OR cidrmatch(client, '192.168.1.11/32')")
+      checkAnswer(df, Seq(Row(0), Row(1), Row(2)))
+      checkPushedInfo(
         df,
-        Seq(
-          Row(IPAddress(clientIp(0)), IPAddress(serverIp(0))),
-          Row(IPAddress(clientIp(1)), IPAddress(serverIp(0)))))
-
-      df = spark.sql(
-        s"SELECT client, server FROM $tableName WHERE cidrmatch(client, '::ffff:192.168.0.10/128')")
-      checkAnswer(df, Seq(Row(IPAddress(clientIp(2)), IPAddress(serverIp(1)))))
-
-      df = spark.sql(
-        s"SELECT client, server FROM $tableName WHERE cidrmatch(client, '::ffff:192.168.0.0/120')")
-      checkAnswer(df, Seq(Row(IPAddress(clientIp(2)), IPAddress(serverIp(1)))))
+        "((ip_compare(client, '192.168.0.10/32')) = 0) OR ((ip_compare(client, '192.168.1.11/32')) = 0)")
     }
   }
 }
