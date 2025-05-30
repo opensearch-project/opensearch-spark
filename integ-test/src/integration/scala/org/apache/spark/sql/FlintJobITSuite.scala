@@ -85,7 +85,10 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
     }
   }
 
-  def createJobOperator(query: String, jobRunId: String): JobOperator = {
+  def createJobOperator(
+      query: String,
+      jobRunId: String,
+      jobType: String = FlintJobType.STREAMING): JobOperator = {
     val streamingRunningCount = new AtomicInteger(0)
     val statementRunningCount = new AtomicInteger(0)
 
@@ -94,7 +97,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
      * all Spark conf required by Flint code underlying manually.
      */
     spark.conf.set(DATA_SOURCE_NAME.key, dataSourceName)
-    spark.conf.set(JOB_TYPE.key, FlintJobType.STREAMING)
+    spark.conf.set(JOB_TYPE.key, jobType)
     spark.conf.set(REQUEST_INDEX.key, requestIndex)
 
     val flintStatement =
@@ -115,14 +118,17 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
       flintStatement,
       dataSourceName,
       resultIndex,
-      FlintJobType.STREAMING,
+      jobType,
       streamingRunningCount,
       statementRunningCount)
     job.terminateJVM = false
     job
   }
 
-  def startJob(query: String, jobRunId: String): Future[Unit] = {
+  def startJob(
+      query: String,
+      jobRunId: String,
+      jobType: String = FlintJobType.STREAMING): Future[Unit] = {
     val prefix = "flint-job-test"
     val threadPool = ThreadUtils.newDaemonThreadPoolScheduledExecutor(prefix, 1)
     implicit val executionContext = ExecutionContext.fromExecutor(threadPool)
@@ -133,7 +139,7 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
        * FlintJob.main() is not called because we need to manually set these variables within a
        * JobOperator instance to accommodate specific runtime requirements.
        */
-      val job = createJobOperator(query, jobRunId)
+      val job = createJobOperator(query, jobRunId, jobType)
       job.start()
     }
     futureResult.onComplete {
@@ -408,6 +414,82 @@ class FlintJobITSuite extends FlintSparkSuite with JobTest {
       true
     }
     pollForResultAndAssert(validation, jobRunId)
+  }
+
+  test("Interactive query with syntax error should maintain correct error schema structure") {
+    try {
+
+      sql(s"""
+             | INSERT INTO $testTable
+             | PARTITION (year=2023, month=6)
+             | SELECT *
+             | FROM VALUES ('Test', 35, 'Seattle')
+             |""".stripMargin)
+
+      val query = s"SELECT name, age FROM $testTable ORDERBY age"
+      val queryStartTime = System.currentTimeMillis()
+      val jobRunId = "00ff4o3b5091081a"
+
+      threadLocalFuture.set(startJob(query, jobRunId, FlintJobType.INTERACTIVE))
+
+      val validation: REPLResult => Boolean = result => {
+
+        assert(result.status == "FAILED", s"expected status is FAILED, but got ${result.status}")
+        assert(!result.error.isEmpty, s"expected error message, but got empty error")
+        assert(result.error.startsWith("{"), "Error message should be in JSON format")
+        assert(
+          result.error.contains("\"message\""),
+          "Error message should contain 'message' field")
+        assert(
+          result.error.contains("\"exception.type\""),
+          "Error message should contain 'exception.type' field")
+
+        commonAssert(result, jobRunId, query, queryStartTime)
+        true
+      }
+
+      // Poll for the result and assert
+      pollForResultAndAssert(validation, jobRunId)
+    } catch {
+      case e: Exception =>
+        logError(s"Test failed with exception: ${e.getMessage}", e)
+        throw e
+    }
+  }
+
+  test("Non StreamingOrBatch query should maintain correct schema structure") {
+    try {
+      sql(s"""
+             | INSERT INTO $testTable
+             | PARTITION (year=2023, month=6)
+             | SELECT *
+             | FROM VALUES ('Test', 35, 'Seattle')
+             |""".stripMargin)
+
+      val query = s"SELECT name, age FROM $testTable"
+      val queryStartTime = System.currentTimeMillis()
+      val jobRunId = "00ff4o3b5091090z"
+
+      threadLocalFuture.set(startJob(query, jobRunId, FlintJobType.INTERACTIVE))
+
+      val validation: REPLResult => Boolean = result => {
+        assert(result.results.size > 0, s"expected results, but got ${result.results.size}")
+
+        assert(
+          result.status == "SUCCESS",
+          s"expected status is SUCCESS, but got ${result.status}")
+        assert(result.error.isEmpty, s"we don't expect error, but got ${result.error}")
+
+        commonAssert(result, jobRunId, query, queryStartTime)
+        true
+      }
+
+      pollForResultAndAssert(validation, jobRunId)
+    } catch {
+      case e: Exception =>
+        logError(s"Test failed with exception: ${e.getMessage}", e)
+        throw e
+    }
   }
 
   def commonAssert(
