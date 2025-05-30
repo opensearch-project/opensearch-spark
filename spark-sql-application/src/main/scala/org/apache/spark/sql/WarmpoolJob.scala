@@ -89,6 +89,10 @@ case class WarmpoolJob(
               spark.conf.get(FlintSparkConf.TERMINATE_JVM.key, "true").toBoolean
             jobOperator.start()
 
+            if (!spark.conf.get(FlintSparkConf.SHOULD_EXECUTE_NEXT_QUERY.key, "true").toBoolean) {
+              canProceed = false
+            }
+
           case _ =>
             canProceed = false
         }
