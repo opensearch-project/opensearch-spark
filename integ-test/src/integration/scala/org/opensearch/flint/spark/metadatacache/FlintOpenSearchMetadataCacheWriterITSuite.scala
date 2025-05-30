@@ -46,6 +46,8 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     Map.empty[String, Any],
     "",
     Map.empty[String, Any])
+  private val indexStateActive = "active"
+  private val indexStateCreating = "creating"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -91,11 +93,12 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
     val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
-    properties should have size 3
+    properties should have size 4
     properties should contain allOf (Entry(
       "metadataCacheVersion",
       FlintMetadataCache.metadataCacheVersion),
-    Entry("lastRefreshTime", testLastRefreshCompleteTime))
+    Entry("lastRefreshTime", testLastRefreshCompleteTime),
+    Entry("indexState", indexStateActive))
   }
 
   Seq(SKIPPING_INDEX_TYPE, COVERING_INDEX_TYPE).foreach { case kind =>
@@ -205,12 +208,12 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     flintMetadataCacheWriter.updateMetadataCache(testFlintIndex, metadata)
 
     val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
-    properties should have size 4
+    properties should have size 5
     properties should contain allOf (Entry(
       "metadataCacheVersion",
       FlintMetadataCache.metadataCacheVersion),
     Entry("refreshInterval", 600),
-    Entry("lastRefreshTime", testLastRefreshCompleteTime))
+    Entry("lastRefreshTime", testLastRefreshCompleteTime), Entry("indexState", indexStateActive))
   }
 
   test("exclude refresh interval in metadata cache when auto refresh is false") {
@@ -294,13 +297,14 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
     flintIndexMetadataService.getIndexMetadata(testFlintIndex).name shouldBe "test_name"
     flintIndexMetadataService.getIndexMetadata(testFlintIndex).schema should have size 1
     val properties = flintIndexMetadataService.getIndexMetadata(testFlintIndex).properties
-    properties should have size 4
+    properties should have size 5
     properties should contain allOf (Entry(
       "metadataCacheVersion",
       FlintMetadataCache.metadataCacheVersion),
     Entry("lastRefreshTime", testLastRefreshCompleteTime), Entry(
       "custom_in_properties",
-      "test_custom"))
+      "test_custom"),
+      Entry("indexState", indexStateActive))
 
     // Directly get the index mapping and verify custom field is preserved
     flintMetadataCacheWriter
@@ -320,6 +324,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
         "checkpoint_location" -> "s3a://test/"),
       s"""
          | {
+         |   "indexState": "$indexStateCreating",
          |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
          |   "refreshInterval": 600,
          |   "sourceTables": ["$testTable"]
@@ -330,6 +335,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       Map.empty[String, String],
       s"""
          | {
+         |   "indexState": "$indexStateCreating",
          |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
          |   "sourceTables": ["$testTable"]
          | }
@@ -339,6 +345,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       Map("incremental_refresh" -> "true", "checkpoint_location" -> "s3a://test/"),
       s"""
          | {
+         |   "indexState": "$indexStateCreating",
          |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
          |   "sourceTables": ["$testTable"]
          | }
@@ -393,6 +400,7 @@ class FlintOpenSearchMetadataCacheWriterITSuite extends FlintSparkSuite with Mat
       val propertiesJson = compact(render(getPropertiesJValue(testFlintIndex)))
       propertiesJson should matchJson(s"""
             | {
+            |   "indexState": "$indexStateCreating",
             |   "metadataCacheVersion": "${FlintMetadataCache.metadataCacheVersion}",
             |   "refreshInterval": 600,
             |   "sourceTables": ["$testTable"]
