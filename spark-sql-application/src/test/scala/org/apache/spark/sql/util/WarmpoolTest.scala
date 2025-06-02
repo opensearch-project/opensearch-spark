@@ -63,7 +63,8 @@ class WarmpoolTest extends SparkFunSuite with MockitoSugar with JobMatchers {
       .thenReturn(dataSourceName)
     when(mockSparkSession.conf.get(FlintSparkConf.RESULT_INDEX.key)).thenReturn(resultIndex)
     when(mockSparkSession.conf.get(FlintSparkConf.TERMINATE_JVM.key, "true")).thenReturn("false")
-    when(mockSparkSession.conf.get(FlintSparkConf.SHOULD_EXECUTE_NEXT_QUERY.key, "true")).thenReturn("true")
+    when(mockSparkSession.conf.get(FlintSparkConf.SHOULD_EXECUTE_NEXT_QUERY.key, "true"))
+      .thenReturn("true")
     when(mockSparkSession.conf.get(FlintSparkConf.WARMPOOL_ENABLED.key, "false"))
       .thenReturn("true")
     when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
@@ -94,7 +95,8 @@ class WarmpoolTest extends SparkFunSuite with MockitoSugar with JobMatchers {
     verify(mockJobOperator, times(2)).start()
   }
 
-test("verify job operator starts once when there are two Flint statements if shouldExecuteNextQuery is set to false") {
+  test(
+    "verify job operator starts once when there are two Flint statements if shouldExecuteNextQuery is set to false") {
     val mockSparkSession = mock[SparkSession]
     val mockConf = mock[RuntimeConfig]
     val mockStatementExecutionManager = mock[StatementExecutionManager]
@@ -130,7 +132,8 @@ test("verify job operator starts once when there are two Flint statements if sho
       .thenReturn(dataSourceName)
     when(mockSparkSession.conf.get(FlintSparkConf.RESULT_INDEX.key)).thenReturn(resultIndex)
     when(mockSparkSession.conf.get(FlintSparkConf.TERMINATE_JVM.key, "true")).thenReturn("false")
-    when(mockSparkSession.conf.get(FlintSparkConf.SHOULD_EXECUTE_NEXT_QUERY.key, "true")).thenReturn("false")
+    when(mockSparkSession.conf.get(FlintSparkConf.SHOULD_EXECUTE_NEXT_QUERY.key, "true"))
+      .thenReturn("false")
     when(mockSparkSession.conf.get(FlintSparkConf.WARMPOOL_ENABLED.key, "false"))
       .thenReturn("true")
     when(mockSparkSession.conf.get(FlintSparkConf.REQUEST_INDEX.key, ""))
