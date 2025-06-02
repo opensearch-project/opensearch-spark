@@ -2,13 +2,15 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
+/*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import Dependencies.*
-import java.io.File
-import java.net.URL
-import java.util.Locale
-import java.util.zip.ZipFile
-import scala.collection.JavaConverters.*
-import scala.xml.XML
+import sbt._
+import sbt.Keys._
+
+// No need to import GrammarDownload - objects in project/ are automatically available
 
 lazy val scala212 = "2.12.14"
 lazy val sparkVersion = "3.5.1"
@@ -32,6 +34,9 @@ ThisBuild / version := "0.8.0-commit-metadata-poc-SNAPSHOT"
 ThisBuild / scalaVersion := scala212
 
 ThisBuild / scalafmtConfig := baseDirectory.value / "dev/.scalafmt.conf"
+
+// Add resolver for grammar downloads
+resolvers ++= GrammarDownload.grammarResolvers
 
 /**
  * ScalaStyle configurations
@@ -182,94 +187,6 @@ lazy val flintCommons = (project in file("flint-commons"))
   )
   .enablePlugins(AssemblyPlugin)
 
-
-// Add the Maven repository for grammar dependencies at project root level
-resolvers += "AWS OSS Sonatype Snapshots" at "https://aws.oss.sonatype.org/content/repositories/snapshots"
-
-
-
-// Define task keys for grammar extraction
-lazy val downloadPplGrammar = taskKey[Seq[File]]("Download and extract PPL grammar files")
-lazy val downloadFlintGrammar = taskKey[Seq[File]]("Download and extract Flint grammar files")
-
-// Helper to find latest snapshot version and construct proper URL
-def findLatestSnapshotArtifactInfo(artifactId: String, version: String): (String, String) = {
-  val metadataUrl = s"https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/$artifactId/$version/maven-metadata.xml"
-
-  try {
-    val metadata = XML.load(new URL(metadataUrl))
-    val timestamp = (metadata \\ "timestamp").text
-    val buildNumber = (metadata \\ "buildNumber").text
-
-    if (timestamp.isEmpty || buildNumber.isEmpty) {
-      throw new RuntimeException(s"Could not find timestamp or buildNumber in maven-metadata.xml for $artifactId $version")
-    }
-
-    // Maven snapshots use baseVersion-timestamp-buildNumber format (without -SNAPSHOT)
-    // Split the version into base and qualifier parts
-    val baseVersion = if (version.endsWith("-SNAPSHOT")) version.substring(0, version.length - 9) else version
-    val snapshotVersion = s"$baseVersion-$timestamp-$buildNumber"
-
-    (baseVersion, snapshotVersion)
-  } catch {
-    case e: Exception =>
-      throw new RuntimeException(s"Error fetching metadata from $metadataUrl", e)
-  }
-}
-
-// Helper to download a file from URL
-def downloadFile(url: String, targetFile: File): File = {
-  val connection = new URL(url).openConnection()
-  connection.setConnectTimeout(10000)
-  connection.setReadTimeout(30000)
-
-  IO.transfer(connection.getInputStream, targetFile)
-  targetFile
-}
-
-// Enhanced helper to extract grammar files with better debugging and discovery
-def extractGrammarFiles(zipFile: File, targetDir: File, grammarFiles: Seq[String], log: Logger): Seq[File] = {
-  IO.createDirectory(targetDir)
-
-  // First, let's inspect the content of the zip
-  val zipEntries = new ZipFile(zipFile)
-  val entries = zipEntries.entries.asScala.toList
-
-  log.info(s"ZIP contains ${entries.size} entries")
-
-  // Log file structure for debugging
-  entries.sortBy(_.getName).foreach { entry =>
-    log.info(s"ZIP entry: ${entry.getName}")
-  }
-
-  // Try to find the grammar files in a more flexible way
-  val extractedFiles = grammarFiles.map { grammarFile =>
-    // Find all matching entries, case-insensitive
-    val matchingEntries = entries.filter { entry =>
-      entry.getName.toLowerCase(Locale.ROOT).endsWith(grammarFile.toLowerCase(Locale.ROOT))
-    }
-
-    if (matchingEntries.isEmpty) {
-      log.error(s"Could not find $grammarFile in ZIP file. No matching entries.")
-      throw new RuntimeException(s"Could not find $grammarFile in zip file")
-    }
-
-    // Get the best match (usually there's just one)
-    val bestMatch = matchingEntries.head
-    log.info(s"Found matching entry for $grammarFile: ${bestMatch.getName}")
-
-    // Extract this specific file
-    val targetFile = targetDir / grammarFile
-    IO.transfer(zipEntries.getInputStream(bestMatch), targetFile)
-    log.info(s"Extracted $grammarFile to $targetFile")
-
-    targetFile
-  }
-
-  zipEntries.close()
-  extractedFiles
-}
-
 lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
   .enablePlugins(AssemblyPlugin, Antlr4Plugin)
   .settings(
@@ -288,42 +205,18 @@ lazy val pplSparkIntegration = (project in file("ppl-spark-integration"))
     ),
     libraryDependencies ++= deps(sparkVersion),
 
-    // Define the grammar extraction task
-    downloadPplGrammar := {
+    // Define the grammar extraction task using the helper method from GrammarDownload
+    GrammarDownload.downloadPplGrammar := {
       val log = streams.value.log
       val baseDir = (Antlr4 / sourceDirectory).value
       val grammarFiles = Seq("OpenSearchPPLLexer.g4", "OpenSearchPPLParser.g4")
-      val artifactId = "language-grammar"
-      val version = "0.1.0-SNAPSHOT"
 
-      // Create temp directory for downloads
-      val tempDir = IO.createTemporaryDirectory
-
-      // Get latest version
-      log.info(s"Finding latest snapshot version for $artifactId $version")
-      val (baseVersion, snapshotVersion) = findLatestSnapshotArtifactInfo(artifactId, version)
-      log.info(s"Found latest snapshot version: $snapshotVersion")
-
-      // Download zip file
-      val zipUrl = s"https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/$artifactId/$version/$artifactId-$snapshotVersion.zip"
-      val zipFile = tempDir / s"$artifactId-$snapshotVersion.zip"
-      log.info(s"Downloading grammar from $zipUrl")
-      downloadFile(zipUrl, zipFile)
-      log.info(s"Downloaded grammar to $zipFile")
-
-      // Extract grammar files with enhanced logging and discovery
-      val extractedFiles = extractGrammarFiles(zipFile, baseDir, grammarFiles, log)
-      log.info(s"Extracted ${extractedFiles.size} grammar files: ${extractedFiles.map(_.getName).mkString(", ")}")
-
-      // Clean up
-      IO.delete(tempDir)
-
-      extractedFiles
+      GrammarDownload.downloadGrammar(log, baseDir, grammarFiles)
     },
 
     // Make ANTLR generation depend on grammar download
     Antlr4 / antlr4Generate := {
-      val _ = downloadPplGrammar.value
+      val _ = GrammarDownload.downloadPplGrammar.value
       (Antlr4 / antlr4Generate).value
     },
 
@@ -373,42 +266,18 @@ lazy val flintSparkIntegration = (project in file("flint-spark-integration"))
     ),
     libraryDependencies ++= deps(sparkVersion),
 
-    // Define the grammar extraction task
-    downloadFlintGrammar := {
+    // Define the grammar extraction task using the helper method from GrammarDownload
+    GrammarDownload.downloadFlintGrammar := {
       val log = streams.value.log
       val baseDir = (Antlr4 / sourceDirectory).value
       val grammarFiles = Seq("FlintSparkSqlExtensions.g4", "SparkSqlBase.g4")
-      val artifactId = "language-grammar"
-      val version = "0.1.0-SNAPSHOT"
 
-      // Create temp directory for downloads
-      val tempDir = IO.createTemporaryDirectory
-
-      // Get latest version
-      log.info(s"Finding latest snapshot version for $artifactId $version")
-      val (baseVersion, snapshotVersion) = findLatestSnapshotArtifactInfo(artifactId, version)
-      log.info(s"Found latest snapshot version: $snapshotVersion")
-
-      // Download zip file
-      val zipUrl = s"https://aws.oss.sonatype.org/content/repositories/snapshots/org/opensearch/$artifactId/$version/$artifactId-$snapshotVersion.zip"
-      val zipFile = tempDir / s"$artifactId-$snapshotVersion.zip"
-      log.info(s"Downloading grammar from $zipUrl")
-      downloadFile(zipUrl, zipFile)
-      log.info(s"Downloaded grammar to $zipFile")
-
-      // Extract grammar files with enhanced logging and discovery
-      val extractedFiles = extractGrammarFiles(zipFile, baseDir, grammarFiles, log)
-      log.info(s"Extracted ${extractedFiles.size} grammar files: ${extractedFiles.map(_.getName).mkString(", ")}")
-
-      // Clean up
-      IO.delete(tempDir)
-
-      extractedFiles
+      GrammarDownload.downloadGrammar(log, baseDir, grammarFiles)
     },
 
     // Make ANTLR generation depend on grammar download
     Antlr4 / antlr4Generate := {
-      val _ = downloadFlintGrammar.value
+      val _ = GrammarDownload.downloadFlintGrammar.value
       (Antlr4 / antlr4Generate).value
     },
 
